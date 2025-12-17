@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Detection System Investigation</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="spike-drift-detection"
+             data-type="spike"
+             data-status="completed"
+             data-priority="medium"
+             data-created="2025-12-16T09:46:58Z"
+             data-updated="2025-12-16T09:47:05Z"
+             data-feature="feature-self-tracking"
+             data-drift-score="0.71">
+
+        <header>
+            <h1>Drift Detection System Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge type-spike">Spike</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Related to Feature -->
+        <nav data-graph-edges>
+            <section data-edge-type="part-of">
+                <h3>🔗 Part of:</h3>
+                <ul>
+                    <li><a href="../../.htmlgraph/features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Investigation Summary -->
+        <section data-content>
+            <h3>Investigation Summary</h3>
+            <p>Investigated high-drift activity patterns that emerged during feature-self-tracking work. Activities included repeated skill activations, glob queries, and file operations that were classified as having 0.71 drift score.</p>
+
+            <h4>Activities Investigated:</h4>
+            <ul>
+                <li>Skill: htmlgraph-tracker activation (multiple instances)</li>
+                <li>Glob: Pattern matching for bugs and chores directories</li>
+                <li>Read: drift-queue.json inspection</li>
+                <li>Write: Work item file creation</li>
+            </ul>
+
+            <h4>Key Findings:</h4>
+            <ol>
+                <li><strong>Self-referential drift:</strong> Activities related to HtmlGraph's own tooling were flagged as drift when they're actually core to feature-self-tracking</li>
+                <li><strong>False positives:</strong> Drift detection treats tool invocations (Skill, Glob, Read, Write) as divergent from code implementation work</li>
+                <li><strong>Feature scope clarity:</strong> feature-self-tracking is meta-work (tracking HtmlGraph development itself), which naturally involves infrastructure tooling</li>
+                <li><strong>Classification patterns:</strong> High-drift activities were exploring the drift system itself - investigating the investigator</li>
+            </ol>
+
+            <h4>Recommendations:</h4>
+            <ul>
+                <li>Update feature-self-tracking's drift keywords to include: "drift", "queue", "classifier", "tracker", "htmlgraph"</li>
+                <li>Add file patterns: ".htmlgraph/drift-*", ".htmlgraph/*/*.html" to expected scope</li>
+                <li>Consider that meta-tracking work naturally has different drift signatures than feature implementation</li>
+                <li>Document that investigating drift is a valid activity under feature-self-tracking</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Details -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Activated htmlgraph-tracker skill to enable tracking
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Examined drift-queue.json to understand activity patterns
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identified root cause: meta-tooling work flagged as drift
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classified activities as spike (investigation/research)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Created this work item to document findings
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T09:47:05Z" data-agent="claude">
+                    Created spike work item documenting drift investigation findings
+                </li>
+                <li data-timestamp="2025-12-16T09:47:01Z" data-agent="claude">
+                    Wrote spike-drift-investigation.html with initial findings
+                </li>
+                <li data-timestamp="2025-12-16T09:47:00Z" data-agent="claude">
+                    Analyzed drift-queue.json to understand activity patterns
+                </li>
+                <li data-timestamp="2025-12-16T09:46:58Z" data-agent="claude">
+                    Started investigation - activated htmlgraph-tracker skill
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

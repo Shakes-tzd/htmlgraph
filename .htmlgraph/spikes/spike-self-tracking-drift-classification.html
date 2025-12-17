@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Self-Tracking Drift Classification</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="spike-self-tracking-drift"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T00:00:00Z"
+             data-updated="2025-12-16T00:00:00Z"
+             data-feature="feature-self-tracking">
+
+        <header>
+            <h1>Self-Tracking Drift Classification Loop</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Spike</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="references">
+                <h3>📄 Evidence:</h3>
+                <ul>
+                    <li><code>.htmlgraph/drift-queue.json</code> - Drift queue data</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Occurrence Pattern</dt>
+                <dd data-key="pattern">Repeated htmlgraph-tracker skill invocations</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count">5 high-drift activities</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift-queue.json to understand queued activities
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify root cause of repeated htmlgraph-tracker invocations
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if this is self-referential loop or valid tracking pattern
+                </li>
+                <li data-completed="false">
+                    ⏳ Evaluate drift score threshold (0.71) appropriateness
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommend classification rules
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigate high-drift activities related to self-tracking and drift classification mechanisms.</p>
+
+            <h4>Observed Pattern:</h4>
+            <ul>
+                <li>5 activities detected with drift score 0.71</li>
+                <li>Primary activity: htmlgraph-tracker skill invocation (repeated)</li>
+                <li>Secondary activity: Reading drift-queue.json</li>
+                <li>Context: feature-self-tracking</li>
+            </ul>
+
+            <h4>Questions:</h4>
+            <ul>
+                <li>Is this a self-referential tracking loop?</li>
+                <li>Should system activities (tracking, classification) be excluded from drift scoring?</li>
+                <li>Are the drift thresholds correctly calibrated for meta-activities?</li>
+                <li>What classification rules should apply to self-referential work items?</li>
+            </ul>
+
+            <h4>Potential Outcomes:</h4>
+            <ul>
+                <li>Bug: If this represents an infinite loop or recursion issue</li>
+                <li>Feature: If this reveals need for meta-activity filtering</li>
+                <li>Chore: If drift classification thresholds need tuning</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T00:00:00Z" data-agent="system">
+                    Created spike to investigate self-tracking drift classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

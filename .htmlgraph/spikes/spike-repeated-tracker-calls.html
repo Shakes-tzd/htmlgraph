@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Investigate Repeated Tracker Skill Calls</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-repeated-tracker"
+             data-type="spike"
+             data-status="todo"
+             data-priority="high"
+             data-created="2024-12-16T20:05:00Z"
+             data-updated="2024-12-16T20:05:00Z"
+             data-feature="feature-self-tracking"
+             data-drift-score="0.71">
+
+        <header>
+            <h1>Investigate Repeated Tracker Skill Calls</h1>
+            <div class="metadata">
+                <span class="badge type-spike">Spike</span>
+                <span class="badge status-todo">To Do</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge drift-high">High Drift (0.71)</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification</dt>
+                <dd data-key="classification">Spike - Investigation Required</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Recurring Pattern</dt>
+                <dd data-key="pattern">5+ consecutive calls to htmlgraph:htmlgraph-tracker skill</dd>
+            </dl>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+                The tracking system is exhibiting high-drift activity with repeated invocations
+                of the <code>htmlgraph:htmlgraph-tracker</code> skill. Five consecutive calls
+                with identical drift scores (0.71) suggest a potential loop, recursion, or
+                misconfiguration in the self-tracking feature.
+            </p>
+
+            <h4>Observations:</h4>
+            <ul>
+                <li>Skill called 5 times consecutively</li>
+                <li>All calls have identical drift coefficient (0.71)</li>
+                <li>Occurred within feature-self-tracking context</li>
+                <li>Pattern suggests automated/looped behavior rather than user-initiated</li>
+            </ul>
+
+            <h4>Investigation Goals:</h4>
+            <ul>
+                <li>Determine root cause of repeated tracker invocations</li>
+                <li>Identify if this is a hook loop, recursive call, or skill misconfiguration</li>
+                <li>Validate drift calculation accuracy</li>
+                <li>Assess impact on tracking accuracy and performance</li>
+                <li>Implement safeguards to prevent similar patterns</li>
+            </ul>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Review htmlgraph-tracker skill implementation
+                </li>
+                <li data-completed="false">
+                    ⏳ Check for hook loops or recursive calls in feature-self-tracking
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze drift calculation algorithm
+                </li>
+                <li data-completed="false">
+                    ⏳ Examine event logs for pattern context
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommend fixes
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

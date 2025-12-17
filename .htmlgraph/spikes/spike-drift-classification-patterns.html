@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Drift Classification Patterns Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-patterns"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T13:16:00.000000"
+             data-updated="2025-12-16T13:16:00.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Classification Patterns Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="spike-improve-drift-classification.html" data-relationship="related">Drift Classification Improvements</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Source</dt>
+                <dd data-key="drift-source">High-drift activities detected in feature-self-tracking</dd>
+
+                <dt>Detection Method</dt>
+                <dd data-key="detection-method">Drift queue analysis</dd>
+
+                <dt>Tools Involved</dt>
+                <dd data-key="tools-involved">Skill invocation, drift-queue.json analysis, feature file reads</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift-queue.json structure and patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify common drift patterns (skill invocation, repeated reads)
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if 0.71 drift score is legitimate self-tracking activity
+                </li>
+                <li data-completed="false">
+                    ⏳ Classify whether activities should reduce drift penalty or be recategorized
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommendations for drift classification algorithm
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>High-drift activities detected during HtmlGraph self-tracking sessions:</p>
+            <ul>
+                <li>Skill invocation: htmlgraph:htmlgraph-tracker</li>
+                <li>Multiple reads of drift-queue.json (high repetition)</li>
+                <li>Reads of feature-self-tracking.html (context gathering)</li>
+                <li>All activities showing 0.71 drift score</li>
+            </ul>
+
+            <h4>Context:</h4>
+            <p>These activities are occurring during feature-self-tracking implementation, which is expected to involve drift-classification tools and drift-queue inspection. The question is whether these activities represent legitimate self-referential work or indicate algorithmic drift classification issues.</p>
+
+            <h4>Research Questions:</h4>
+            <ul>
+                <li>Should self-referential drift classification work (tracking the tracker) have special handling?</li>
+                <li>Are repeated reads of drift-queue.json legitimate or wasteful?</li>
+                <li>Does the Skill invocation pattern indicate proper tool selection?</li>
+                <li>Can we improve drift classification by understanding these meta-patterns?</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:16:00.000000" data-agent="system">
+                    Spike created from drift classification high-activity detection
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

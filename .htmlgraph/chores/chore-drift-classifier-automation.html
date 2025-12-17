@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Automate Drift Classification into Work Items</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="chore-drift-classifier-automation"
+             data-type="chore"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T10:20:20Z"
+             data-updated="2025-12-16T10:20:20Z"
+             data-feature="feature-self-tracking">
+
+        <header>
+            <h1>Automate Drift Classification into Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-drift-classification-investigation.html">Drift Classification Investigation</a></li>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="depends-on">
+                <h3>📦 Depends On:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-drift-classification-investigation.html">Spike: Drift Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Problem Statement -->
+        <section data-problem>
+            <h3>Problem</h3>
+            <p>HtmlGraph detects drift in activity tracking (when activities don't align with the current feature), but currently:</p>
+            <ul>
+                <li>Drift detection happens post-hoc through analysis</li>
+                <li>No automated classification of drift patterns into work items</li>
+                <li>Users must manually create issues for drift-related work</li>
+                <li>Drift queue accumulates without actionable items</li>
+            </ul>
+        </section>
+
+        <!-- Solution -->
+        <section data-solution>
+            <h3>Solution</h3>
+            <p>Create automation to classify high-drift activities into appropriate work items:</p>
+            <ol>
+                <li>Monitor drift-queue.json for activities with drift_score > 0.7</li>
+                <li>Analyze activity patterns to determine work item type (bug, feature, spike, chore, hotfix)</li>
+                <li>Generate work item HTML file with appropriate metadata</li>
+                <li>Link work item back to the high-drift activities that triggered it</li>
+                <li>Clear processed activities from drift queue</li>
+            </ol>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Create drift classifier module (Python)
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement classification rules for work item types
+                </li>
+                <li data-completed="false">
+                    ⏳ Add work item generation from drift patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Integrate drift-queue processing into CLI
+                </li>
+                <li data-completed="false">
+                    ⏳ Add tests for classification rules
+                </li>
+                <li data-completed="false">
+                    ⏳ Update documentation with drift handling workflow
+                </li>
+            </ol>
+        </section>
+
+        <!-- Classification Criteria -->
+        <section data-classification>
+            <h3>Classification Criteria</h3>
+            <dl>
+                <dt>Bug</dt>
+                <dd>Errors, incorrect behavior, exceptions in drift detection or tracking</dd>
+
+                <dt>Feature</dt>
+                <dd>New functionality for drift handling, reporting, or visualization</dd>
+
+                <dt>Spike</dt>
+                <dd>Research, exploration, investigation of drift patterns</dd>
+
+                <dt>Chore</dt>
+                <dd>Maintenance, cleanup, infrastructure for drift management</dd>
+
+                <dt>Hotfix</dt>
+                <dd>Urgent issues blocking feature progress (rare)</dd>
+            </dl>
+        </section>
+
+        <!-- Acceptance Criteria -->
+        <section data-acceptance>
+            <h3>Acceptance Criteria</h3>
+            <ul>
+                <li>Drift activities with score > 0.7 are automatically classified into work items</li>
+                <li>Work items are created with appropriate type, title, and description</li>
+                <li>Work items link back to triggering activities in drift queue</li>
+                <li>Processed drift activities are tracked/cleared from queue</li>
+                <li>Classification rules are testable and documented</li>
+                <li>CLI command available: <code>htmlgraph drift classify</code></li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:20:20Z" data-agent="claude">
+                    Created chore from drift classification request
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

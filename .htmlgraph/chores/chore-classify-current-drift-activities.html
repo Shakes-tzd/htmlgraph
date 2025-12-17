@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Classify Current High-Drift Activities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-classify-current-drift-activities"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T20:10:00Z"
+             data-updated="2025-12-16T20:10:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify Current High-Drift Activities</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">feature-self-tracking</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="related">chore-drift-classification-consolidation</a></li>
+                    <li><a href="chore-drift-classification-refinement.html" data-relationship="related">chore-drift-classification-refinement</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked-by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-classify-high-drift-activities.html" data-relationship="blocked-by">spike-classify-high-drift-activities</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented-in">
+                <h3>Work Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/session-20251216-200428.html" data-relationship="implemented-in">Session 2025-12-16 20:04:28</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Classification Summary</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">CHORE - Infrastructure Maintenance</dd>
+
+                <dt>Detected Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 activities analyzed</dd>
+
+                <dt>Classification Confidence</dt>
+                <dd data-key="confidence" data-value="0.90">0.90 (High)</dd>
+
+                <dt>Context Feature</dt>
+                <dd data-key="context">feature-self-tracking</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Classification Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Detected high-drift activities (5 activities at 0.71 drift)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read feature-self-tracking.html for context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Examined spike-classify-high-drift-activities.html
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Reviewed chore-drift-classification-consolidation.html
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Activated htmlgraph-tracker skill twice for system exploration
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Applied classification rules and identified CHORE type
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Created consolidated work item from high-drift activities
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>High-drift activities detected during feature-self-tracking development have been analyzed and classified as CHORE-type infrastructure maintenance work.</p>
+
+            <h4>Activities Analyzed (Total: 5 | Drift Score: 0.71):</h4>
+            <ul>
+                <li><strong>Skill</strong> - htmlgraph-tracker activation #1 [drift: 0.71]</li>
+                <li><strong>Read</strong> - /Users/shakes/DevProjects/htmlgraph/.htmlgraph/features/feature-self-tracking.html [drift: 0.71]</li>
+                <li><strong>Read</strong> - /Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/spike-classify-high-drift-activities.html [drift: 0.71]</li>
+                <li><strong>Read</strong> - /Users/shakes/DevProjects/htmlgraph/.htmlgraph/chores/chore-drift-classification-consolidation.html [drift: 0.71]</li>
+                <li><strong>Skill</strong> - htmlgraph-tracker activation #2 [drift: 0.71]</li>
+            </ul>
+
+            <h4>Classification: CHORE (Infrastructure Maintenance)</h4>
+            <p><strong>Rationale:</strong></p>
+            <ul>
+                <li>✅ Multiple reads of .htmlgraph/* infrastructure files (exploratory pattern)</li>
+                <li>✅ System skill activations (htmlgraph-tracker) for tracking framework</li>
+                <li>✅ No edits to feature implementation files</li>
+                <li>✅ Focus on understanding drift classification system</li>
+                <li>✅ Maintenance work improving tracking infrastructure quality</li>
+                <li>✅ Not implementing new features or fixing production bugs</li>
+            </ul>
+
+            <h4>Classification Rules Applied:</h4>
+            <ul>
+                <li><strong>Rule 1 (Chore):</strong> Infrastructure-focused skill activations → System maintenance</li>
+                <li><strong>Rule 2 (Chore):</strong> Multiple .htmlgraph/* reads without implementation changes → Exploratory maintenance</li>
+                <li><strong>Rule 3 (Chore):</strong> System tracking framework operations → Framework improvement work</li>
+                <li><strong>Rule 4 (Not Feature):</strong> No Read → Write/Edit sequence detected</li>
+                <li><strong>Rule 5 (Not Bug):</strong> Not focused on error fixing or single file debugging</li>
+            </ul>
+
+            <h4>Impact Assessment:</h4>
+            <p>These activities represent legitimate system maintenance work that should not be penalized as "drift" when occurring during feature development. Proper classification allows:</p>
+            <ul>
+                <li>Accurate drift scoring that reflects actual off-topic work</li>
+                <li>Feature-self-tracking to proceed without false positive warnings</li>
+                <li>Better understanding of when agents are maintaining infrastructure vs shipping features</li>
+                <li>Improved tracking system quality through maintenance activities</li>
+            </ul>
+
+            <h4>Next Steps:</h4>
+            <ol>
+                <li>Document classification patterns in CLAUDE.md</li>
+                <li>Update drift classification algorithm to recognize CHORE patterns</li>
+                <li>Implement filtering for infrastructure-only operations</li>
+                <li>Verify feature-self-tracking proceeds cleanly</li>
+                <li>Continue development with confidence that system maintenance is properly accounted for</li>
+            </ol>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ High-drift activities classified as CHORE in work item system</li>
+                <li>✓ Classification stored in HTML format for historical reference</li>
+                <li>✓ Related spikes and chores cross-linked</li>
+                <li>✓ Feature-self-tracking can reference this classification decision</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:10:00Z" data-agent="claude">
+                    Created consolidated CHORE work item from high-drift activities analysis
+                </li>
+                <li data-timestamp="2025-12-16T20:08:15Z" data-agent="system">
+                    High-drift activities (0.71) detected: 5 activities targeting drift classification system (feature context: feature-self-tracking)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

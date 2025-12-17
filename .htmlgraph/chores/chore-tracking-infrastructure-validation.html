@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Validate Tracking Infrastructure and Session Logging</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-tracking-validation"
+             data-type="chore"
+             data-status="identified"
+             data-priority="medium"
+             data-created="2025-12-16T10:35:00.000000"
+             data-updated="2025-12-16T10:35:00.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Validate Tracking Infrastructure and Session Logging</h1>
+            <div class="metadata">
+                <span class="badge status-identified">Identified</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Classified From</h3>
+            <dl>
+                <dt>Drift Detection</dt>
+                <dd data-key="drift-score">0.71 (High drift across 5 activities)</dd>
+
+                <dt>Activity Pattern</dt>
+                <dd data-key="pattern">Repeated feature file reads, directory structure checks, skill activations</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="cause">Potential infrastructure validation or debugging of tracking system behavior</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Verify htmlgraph-tracker skill is properly initialized</li>
+                <li data-completed="false">⏳ Check .htmlgraph directory structure is correct</li>
+                <li data-completed="false">⏳ Validate feature-self-tracking.html schema compliance</li>
+                <li data-completed="false">⏳ Review recent session logs for anomalies</li>
+                <li data-completed="false">⏳ Document tracking behavior and expectations</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>High drift detected in activities related to tracking infrastructure validation. Multiple consecutive reads of feature-self-tracking.html, directory structure checks, and skill activations suggest either:</p>
+            <ul>
+                <li>Validation/debugging of the tracking system itself</li>
+                <li>Initialization verification for the htmlgraph-tracker skill</li>
+                <li>Directory structure reconciliation</li>
+            </ul>
+            <p>This chore involves investigating the drift pattern and ensuring the tracking infrastructure is functioning correctly.</p>
+
+            <h4>Success Criteria:</h4>
+            <ul>
+                <li>Tracking system behavior is understood and documented</li>
+                <li>No infrastructure issues are present</li>
+                <li>Session logging is working as expected</li>
+                <li>Future drift patterns are easier to interpret</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:35:00.000000" data-agent="claude">
+                    Created from drift classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

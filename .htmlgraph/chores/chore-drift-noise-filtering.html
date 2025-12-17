@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Filter Drift Noise from System Metadata Reads</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-noise-filtering"
+             data-type="chore"
+             data-status="todo"
+             data-priority="high"
+             data-created="2025-12-16T20:10:00Z"
+             data-updated="2025-12-16T20:10:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Filter Drift Noise from System Metadata Reads</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">feature-self-tracking</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="related">chore-drift-classification-consolidation</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">feature-drift-auto-classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocked By:</h3>
+                <ul>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="blocks">Consolidation analysis complete</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/session-20251216-200428.html" data-relationship="implemented-in">Current session</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification Source</dt>
+                <dd data-key="source">Auto-classified from high-drift activities (0.71 score)</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">System metadata files (.htmlgraph/*) incorrectly counted as drift</dd>
+
+                <dt>Impact</dt>
+                <dd data-key="impact">False positive drift warnings blocking feature progress</dd>
+
+                <dt>Scope</dt>
+                <dd data-key="scope">Drift calculation algorithm refinement</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Identify all .htmlgraph/** read patterns in drift tracking
+                </li>
+                <li data-completed="false">
+                    ⏳ Exclude system metadata paths from drift score calculation
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement filter in drift calculation algorithm
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift-queue.json purging logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Add unit tests for metadata filtering
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify feature-self-tracking proceeds without false drift warnings
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>The drift classification system is generating false positive warnings when agents read system metadata files (.htmlgraph/drift-queue.json, .htmlgraph/features/*, .htmlgraph/chores/*, etc.). These infrastructure reads should not count toward feature drift scoring.</p>
+
+            <h4>Problem:</h4>
+            <ul>
+                <li>5 high-drift activities detected (0.71 score) are infrastructure reads, not actual feature drift</li>
+                <li>System metadata file access is necessary for HtmlGraph operation</li>
+                <li>Current algorithm treats all reads equally, causing noise</li>
+                <li>Feature-self-tracking progress being blocked by false drift warnings</li>
+            </ul>
+
+            <h4>Solution:</h4>
+            <ol>
+                <li><strong>Whitelist system paths:</strong> .htmlgraph/features/*, .htmlgraph/sessions/*, .htmlgraph/chores/*, .htmlgraph/events/*, .htmlgraph/spikes/*, etc.</li>
+                <li><strong>Filter drift calculation:</strong> Exclude whitelisted paths from drift score</li>
+                <li><strong>Document rules:</strong> Add to CLAUDE.md what counts as "feature drift" vs "system maintenance"</li>
+                <li><strong>Test filtering:</strong> Verify false positives eliminated without losing real drift detection</li>
+            </ol>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ System metadata reads excluded from drift scoring</li>
+                <li>✓ feature-self-tracking can proceed without false warnings</li>
+                <li>✓ Drift detection remains accurate for actual feature drift</li>
+                <li>✓ Unit tests validate filter logic with both positive and negative cases</li>
+                <li>✓ Classification rules documented in project CLAUDE.md</li>
+            </ul>
+
+            <h4>Technical Details:</h4>
+            <ul>
+                <li><strong>Files affected:</strong> drift calculation algorithm, unit tests, documentation</li>
+                <li><strong>Path patterns to whitelist:</strong> ^\.htmlgraph/(features|sessions|chores|spikes|events|bugs)/.*</li>
+                <li><strong>Estimated effort:</strong> 2-3 hours</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:10:00Z" data-agent="claude">
+                    Work item auto-classified from high-drift activities (0.71): system metadata filtering required
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

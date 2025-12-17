@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Investigate Self-Referential Drift Detection Loop</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-detection-loop"
+             data-type="spike"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T13:12:35.000000"
+             data-updated="2025-12-16T13:12:35.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Investigate Self-Referential Drift Detection Loop</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift queue entries to understand the pattern
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if reading drift-queue.json should contribute to drift score
+                </li>
+                <li data-completed="false">
+                    ⏳ Evaluate if Skill activation should trigger drift detection
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommend fixes
+                </li>
+                <li data-completed="false">
+                    ⏳ Create feature/chore work items based on recommendations
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>Repeated high-drift activities (0.71) detected while investigating the drift detection system itself:</p>
+            <ul>
+                <li>Reading drift-queue.json to understand drift</li>
+                <li>Reading feature-self-tracking.html to get context</li>
+                <li>Activating htmlgraph-tracker skill to monitor the session</li>
+            </ul>
+            <p>This creates a self-referential loop: actions taken to manage drift are themselves flagged as drift.</p>
+
+            <h3>Questions to Answer</h3>
+            <ul>
+                <li>Should system self-monitoring activities be excluded from drift calculation?</li>
+                <li>Is the drift threshold (0.71) appropriate for this context?</li>
+                <li>Should drift-queue.json and feature HTML files be marked as "system" files?</li>
+                <li>How should we handle legitimate meta-work (understanding the system)?</li>
+            </ul>
+
+            <h3>Potential Solutions</h3>
+            <ul>
+                <li>Exclude `.htmlgraph/` directory files from drift scoring</li>
+                <li>Create an "investigation" activity type that doesn't trigger drift</li>
+                <li>Implement activity context tags (e.g., "system", "meta", "feature-work")</li>
+                <li>Use different drift thresholds for different activity types</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:35.000000" data-agent="claude">
+                    Spike created from drift-queue analysis
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

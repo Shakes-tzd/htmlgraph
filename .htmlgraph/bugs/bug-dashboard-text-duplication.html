@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Bug: Dashboard Activity Text Duplication</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-dashboard-text-duplication"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2025-12-16T09:23:00Z"
+             data-updated="2025-12-16T09:24:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Dashboard Activity Text Duplication</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-bug">Bug</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="affects">
+                <h3>Affects:</h3>
+                <ul>
+                    <li><a href="../../index.html" data-relationship="affects">Dashboard (index.html)</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Tool names were displayed twice in the dashboard activity log, appearing as garbled text like "mcp__pluginmcpyplugin..." when viewing session activity entries.</p>
+
+            <h4>Root Cause</h4>
+            <p>The <code>li.textContent</code> already included the tool name prefix, but the rendering code was prepending it again when displaying the summary.</p>
+
+            <h4>Resolution</h4>
+            <p>Fixed in <code>index.html</code> by stripping the tool prefix from the summary text if it's already present before displaying.</p>
+        </section>
+
+        <section data-steps>
+            <h3>Fix Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">Identified duplicate tool name in activity log rendering</li>
+                <li data-completed="true" data-agent="claude">Added prefix stripping logic in index.html</li>
+                <li data-completed="true" data-agent="claude">Verified fix via Playwright screenshot</li>
+            </ol>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T09:24:00Z" data-agent="claude">Fix verified via Playwright</li>
+                <li data-timestamp="2025-12-16T09:24:00Z" data-agent="claude">Applied fix to index.html</li>
+                <li data-timestamp="2025-12-16T09:23:00Z" data-agent="claude">Bug reported from screenshot</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

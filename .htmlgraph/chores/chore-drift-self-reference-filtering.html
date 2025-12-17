@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Filter Self-Referential Drift Operations</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-self-reference-filtering"
+             data-type="chore"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T14:30:00Z"
+             data-updated="2025-12-16T14:30:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Filter Self-Referential Drift Operations</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">feature-self-tracking</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html">chore-drift-classification-consolidation</a></li>
+                    <li><a href="../spikes/spike-classify-high-drift-activities.html">spike-classify-high-drift-activities</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature - prevents clean drift signals</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/" data-relationship="implemented-in">Current session</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Classification Summary</h3>
+            <dl>
+                <dt>Classification Result</dt>
+                <dd data-key="classification-result">CHORE - Infrastructure Maintenance</dd>
+
+                <dt>Detected Drift Activities</dt>
+                <dd data-key="drift-activities">5 high-drift (0.71) self-referential reads</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">Drift classification system reads .htmlgraph/* files, which inflates drift scores</dd>
+
+                <dt>Confidence Level</dt>
+                <dd data-key="confidence" data-value="0.85">High (0.85)</dd>
+
+                <dt>Impact</dt>
+                <dd data-key="impact">Blocks feature-self-tracking progress with false positive drift warnings</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Add .htmlgraph/* to drift exclusion filters in converter.py
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift-queue.json parsing to skip metadata reads
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift filtering rules in CLAUDE.md
+                </li>
+                <li data-completed="false">
+                    ⏳ Add unit tests for drift filtering edge cases
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify feature-self-tracking proceeds without false drift signals
+                </li>
+            </ol>
+        </section>
+
+        <!-- Description -->
+        <section data-content>
+            <h3>Problem Description</h3>
+            <p>The drift classification system detects its own infrastructure operations as high-drift activities, creating a feedback loop that prevents accurate drift measurement:</p>
+
+            <h4>Observed High-Drift Activities (0.71 drift):</h4>
+            <ul>
+                <li><strong>Read:</strong> .htmlgraph/spikes/spike-classify-high-drift-activities.html (×2)</li>
+                <li><strong>Read:</strong> .htmlgraph/chores/chore-drift-classification-consolidation.html (×2)</li>
+                <li><strong>Bash:</strong> Directory exploration of .htmlgraph structure</li>
+            </ul>
+
+            <h4>Classification Pattern Analysis:</h4>
+            <ul>
+                <li><strong>Activity Type:</strong> Read-only operations on system metadata</li>
+                <li><strong>File Focus:</strong> All reads target .htmlgraph/* infrastructure files</li>
+                <li><strong>Context:</strong> These activities are investigating the drift classification system itself</li>
+                <li><strong>Signal:</strong> This is NOT off-topic drift - it's legitimate system maintenance</li>
+            </ul>
+
+            <h3>Classification Decision: CHORE</h3>
+            <p>This work is classified as a <strong>CHORE</strong> (infrastructure/maintenance) because:</p>
+            <ul>
+                <li>✅ Addresses a system design issue (self-referential drift)</li>
+                <li>✅ Improves the drift classification infrastructure itself</li>
+                <li>✅ Supports feature-self-tracking without adding new functionality</li>
+                <li>✅ No user-facing feature changes or bug fixes</li>
+            </ul>
+
+            <h3>Solution Approach</h3>
+            <ol>
+                <li><strong>Exclude System Paths:</strong> Add .htmlgraph/, .claude/, and other metadata directories to drift calculation filters</li>
+                <li><strong>Classify Infrastructure Reads:</strong> Distinguish "reading your own state" from "reading external features"</li>
+                <li><strong>Clean Signal Path:</strong> Ensure only genuinely off-topic activities trigger high drift</li>
+                <li><strong>Document Rules:</strong> Establish clear criteria for what counts as legitimate system work vs actual drift</li>
+            </ol>
+
+            <h3>Acceptance Criteria</h3>
+            <ul>
+                <li>✓ Drift scores exclude .htmlgraph/* operations</li>
+                <li>✓ Drift-queue.json self-referential entries are filtered out</li>
+                <li>✓ feature-self-tracking can proceed without false drift interruptions</li>
+                <li>✓ Drift filtering rules documented in project CLAUDE.md</li>
+                <li>✓ Unit tests cover filtering edge cases (metadata reads, system paths, etc.)</li>
+                <li>✓ No regression in detecting genuine off-topic drift</li>
+            </ul>
+
+            <h3>Why This Matters</h3>
+            <p>The drift detection system is essential for self-tracking, but it cannot accurately measure "drift from intended work" when it's constantly detecting its own infrastructure maintenance as high-drift activities. Filtering self-referential operations is a critical maintenance task that unblocks the entire feature-self-tracking initiative.</p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:30:00Z" data-agent="claude">
+                    Created chore: Classified 5 high-drift activities (0.71) as self-referential system operations requiring filtering
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

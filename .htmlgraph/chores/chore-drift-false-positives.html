@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Reduce Drift Classification False Positives</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-false-positives"
+             data-type="chore"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T13:42:00Z"
+             data-updated="2025-12-16T13:42:00Z"
+             data-feature-related="feature-self-tracking"
+             data-drift-score="0.71">
+
+        <header>
+            <h1>Reduce Drift Classification False Positives</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge type-chore">Chore</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related To:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="parent">Feature: Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../spikes/spike-drift-classification-mechanism.html" data-relationship="related">Spike: Drift Classification Mechanism</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocked-by">
+                <h3>⚠️ Blocked By:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-drift-classification-mechanism.html">Complete drift classification investigation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Problem Statement -->
+        <section data-problem>
+            <h3>Problem</h3>
+            <p>
+                The drift detection system is generating false positives for activities that are legitimately part of the feature-self-tracking workflow:
+            </p>
+            <ul>
+                <li>Activating htmlgraph-tracker skill (system hook callback) → flagged as 0.71 drift</li>
+                <li>Reading drift-queue.json (internal classification) → flagged as 0.71 drift</li>
+                <li>Reading feature context files (understanding feature scope) → flagged as 0.71 drift</li>
+            </ul>
+            <p>
+                <strong>Impact:</strong> Noise in activity logs, reduced signal quality for real drift detection
+            </p>
+        </section>
+
+        <!-- Root Cause Analysis -->
+        <section data-root-cause>
+            <h3>Root Cause Analysis</h3>
+            <p>
+                The drift classifier appears to be marking self-referential activities (the system tracking its own behavior) as off-topic. This is a classification algorithm issue, not a user workflow issue.
+            </p>
+            <p>
+                <strong>Suspected causes:</strong>
+            </p>
+            <ul>
+                <li>System hook activities not excluded from drift scoring</li>
+                <li>Internal file reads (.htmlgraph/*) treated same as feature-related reads</li>
+                <li>Skill activations not context-aware (should not drift when invoked by hooks)</li>
+                <li>Threshold of 0.71 may be too aggressive</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Identify drift classification source code location
+                </li>
+                <li data-completed="false">
+                    Classify activities into categories: system-internal, feature-context, genuine-drift
+                </li>
+                <li data-completed="false">
+                    Implement filter to exclude system-internal activities from drift scoring
+                </li>
+                <li data-completed="false">
+                    Refine threshold or add activity-type-based weighting
+                </li>
+                <li data-completed="false">
+                    Test with existing drift-queue.json activities
+                </li>
+                <li data-completed="false">
+                    Verify reduced false positives in future sessions
+                </li>
+            </ol>
+        </section>
+
+        <!-- Acceptance Criteria -->
+        <section data-acceptance-criteria>
+            <h3>Acceptance Criteria</h3>
+            <ul>
+                <li>✅ System hook activities (SessionStart, PostToolUse callbacks) no longer flagged as drift</li>
+                <li>✅ Internal file reads (.htmlgraph/* directory) excluded from drift scoring</li>
+                <li>✅ Skill activations in response to hooks marked as system-internal, not feature-drift</li>
+                <li>✅ Drift queue no longer contains bulk entries with 0.71 scores for legitimate activities</li>
+                <li>✅ Real drift activities (unrelated work on different features) still correctly identified</li>
+            </ul>
+        </section>
+
+        <!-- Context -->
+        <section data-context>
+            <h3>Context</h3>
+            <p>
+                This chore blocks the feature-self-tracking progress because the high volume of false positives reduces the utility of drift detection. Once this is fixed, the system can properly track which activities align with feature goals and which genuinely represent context switching.
+            </p>
+            <p>
+                <strong>Related spike:</strong> <a href="../spikes/spike-drift-classification-mechanism.html">spike-drift-classification-mechanism</a> contains investigation findings.
+            </p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:42:00Z">
+                    Created chore work item based on drift classification investigation
+                </li>
+                <li data-timestamp="2025-12-16T13:40:59Z">
+                    Identified pattern of 0.71 drift false positives in drift-queue.json
+                </li>
+                <li data-timestamp="2025-12-16T13:38:11Z">
+                    Spike investigation initiated for drift classification mechanism
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

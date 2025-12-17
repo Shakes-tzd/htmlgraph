@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Classify High-Drift Activities into Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-classify-high-drift-activities"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T14:07:00Z"
+             data-updated="2025-12-16T14:07:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify High-Drift Activities into Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="spike-drift-work-item-classification.html">Drift Work Item Classification</a></li>
+                    <li><a href="spike-drift-auto-classification.html">Drift Auto-Classification System</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implements">
+                <h3>📋 Implementation Output:</h3>
+                <ul>
+                    <li data-output="work-item">Work item HTML file created from drift classification</li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/" data-relationship="implemented-in">Current session activities</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Level Detected</dt>
+                <dd data-key="drift-level" data-value="0.71">High (0.71)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities analyzed</dd>
+
+                <dt>Classification Result</dt>
+                <dd data-key="classification-result">SPIKE</dd>
+
+                <dt>Confidence</dt>
+                <dd data-key="confidence" data-value="0.85">High (0.85)</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Detect high-drift activity pattern (5 activities at 0.71 drift)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read drift-queue.json and analyze activity patterns
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Review feature-self-tracking.html context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Examine spike-drift-work-item-classification.html
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Examine spike-drift-auto-classification.html
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Apply classification rules and identify work item type
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Create work item HTML file from classification result
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Content -->
+        <section data-content>
+            <h3>Objective</h3>
+            <p>Automatically classify the detected high-drift activities (drift score 0.71) into an appropriate work item type and document the classification decision.</p>
+
+            <h4>Detected High-Drift Activities (0.71 drift):</h4>
+            <ul>
+                <li><strong>Read:</strong> /Users/shakes/DevProjects/htmlgraph/.htmlgraph/drift-queue.json</li>
+                <li><strong>Read:</strong> /Users/shakes/DevProjects/htmlgraph/.htmlgraph/features/feature-self-tracking.html</li>
+                <li><strong>Read:</strong> /Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/spike-drift-work-item-classification.html</li>
+                <li><strong>Read:</strong> /Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/spike-drift-auto-classification.html</li>
+                <li><strong>Tool:</strong> Skill activation (htmlgraph-tracker)</li>
+            </ul>
+
+            <h4>Classification Analysis:</h4>
+            <dl>
+                <dt>Activity Pattern Type</dt>
+                <dd>Multiple file reads (4 reads) + no write operations + infrastructure focus</dd>
+
+                <dt>Context</dt>
+                <dd>Files accessed are drift/classification system files - work on HtmlGraph's self-tracking infrastructure</dd>
+
+                <dt>Primary Signals</dt>
+                <dd>
+                    <ul>
+                        <li>✓ Read-only exploration (no edits)</li>
+                        <li>✓ Multiple related files (cross-file analysis)</li>
+                        <li>✓ Infrastructure/meta-work focus</li>
+                        <li>✓ Investigation of classification patterns</li>
+                    </ul>
+                </dd>
+
+                <dt>Work Item Type</dt>
+                <dd><span class="badge type-spike">SPIKE</span> - Research and investigation</dd>
+
+                <dt>Confidence Level</dt>
+                <dd>0.85 - Strong signal pattern for spike-type work</dd>
+            </dl>
+
+            <h4>Classification Rules Applied:</h4>
+            <ul>
+                <li><strong>Rule 1 (Spike):</strong> Repeated reads of same/related files without edits → Exploratory research</li>
+                <li><strong>Rule 2 (Spike):</strong> Cross-file pattern (reading 3+ different files in sequence) → Investigation pattern</li>
+                <li><strong>Rule 3 (Spike):</strong> Meta-work on infrastructure files (.htmlgraph/*) → System research</li>
+                <li><strong>Rule 4 (Feature):</strong> Read + Write/Edit in sequence → Feature development (NOT matched)</li>
+                <li><strong>Rule 5 (Chore):</strong> Skill activation with setup operations → Maintenance work (NOT primary signal)</li>
+            </ul>
+
+            <h4>Related Work Items:</h4>
+            <ul>
+                <li><strong>spike-drift-work-item-classification.html</strong> (Completed) - Previous investigation into drift classification rules</li>
+                <li><strong>spike-drift-auto-classification.html</strong> (In Progress) - Ongoing research on auto-classification system</li>
+                <li><strong>feature-self-tracking.html</strong> (In Progress) - Parent feature for HtmlGraph self-tracking</li>
+            </ul>
+        </section>
+
+        <!-- Findings -->
+        <section data-findings>
+            <h3>Key Findings</h3>
+            <ul>
+                <li><strong>Classification Type:</strong> SPIKE - This is investigation and research work on drift classification patterns</li>
+                <li><strong>Pattern Recognized:</strong> The high-drift activities themselves are investigating how to classify high-drift activities (meta-circular!)</li>
+                <li><strong>Drift Queue Status:</strong> System is actively tracking these activities in drift-queue.json with 0.71 confidence</li>
+                <li><strong>Context Chain:</strong> Activities link feature-self-tracking → drift-queue → classification spikes → auto-classification</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T00:00:00Z" data-agent="system">
+                    Work item reviewed and confirmed as SPIKE classification
+                </li>
+                <li data-timestamp="2025-12-16T14:07:00Z" data-agent="claude">
+                    Classified high-drift activities (0.71 drift) as SPIKE work item: drift activity classification research
+                </li>
+                <li data-timestamp="2025-12-16T13:59:00Z" data-agent="system">
+                    High-drift activities detected: 5 activities with 0.71 drift targeting drift infrastructure files
+                </li>
+            </ol>
+        </section>
+
+        <!-- Reference: Classification Framework -->
+        <section data-reference>
+            <h3>Classification Framework Reference</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Work Item Type</th>
+                        <th>Key Indicators</th>
+                        <th>Example Patterns</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>
+                            • Multiple reads (3+ files)<br>
+                            • No write operations<br>
+                            • Infrastructure focus<br>
+                            • Cross-file analysis
+                        </td>
+                        <td>
+                            Read A, Read B, Read C<br>
+                            (this activity)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-feature">FEATURE</span></td>
+                        <td>
+                            • Read → Write pattern<br>
+                            • Progressive steps<br>
+                            • Source file changes<br>
+                            • Graph linking
+                        </td>
+                        <td>
+                            Read doc, Edit code,<br>
+                            Mark step done
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>
+                            • Skill activation<br>
+                            • Setup operations<br>
+                            • Organization/cleanup<br>
+                            • Dependency updates
+                        </td>
+                        <td>
+                            Activate tool,<br>
+                            Reorganize files
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-bug">BUG</span></td>
+                        <td>
+                            • Single file focus<br>
+                            • Repeated reads<br>
+                            • Error context<br>
+                            • Fix patterns
+                        </td>
+                        <td>
+                            Read error file ×5,<br>
+                            Fix specific line
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-hotfix">HOTFIX</span></td>
+                        <td>
+                            • Single focused change<br>
+                            • Quick commit<br>
+                            • Production context<br>
+                            • Urgent markers
+                        </td>
+                        <td>
+                            Read, Fix, Commit,<br>
+                            Deploy (rapid)
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </article>
+</body>
+</html>

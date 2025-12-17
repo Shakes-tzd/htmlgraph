@@ -354,49 +354,49 @@ def html_to_session(filepath: Path | str) -> Session:
     parser = HtmlParser.from_file(filepath)
 
     # Get article element with session data
-    article = parser.select_one("article[data-type='session']")
+    article = parser.query_one("article[data-type='session']")
     if not article:
         raise ValueError(f"No session article found in: {filepath}")
 
     # Extract session attributes
-    session_id = parser.get_attr(article, "id")
+    session_id = article.attrs.get("id")
     if not session_id:
         raise ValueError(f"Session missing ID: {filepath}")
 
     data = {
         "id": session_id,
-        "status": parser.get_attr(article, "data-status") or "active",
-        "agent": parser.get_attr(article, "data-agent") or "claude-code",
-        "is_subagent": parser.get_attr(article, "data-is-subagent") == "true",
-        "event_count": int(parser.get_attr(article, "data-event-count") or 0),
+        "status": article.attrs.get("data-status") or "active",
+        "agent": article.attrs.get("data-agent") or "claude-code",
+        "is_subagent": article.attrs.get("data-is-subagent") == "true",
+        "event_count": int(article.attrs.get("data-event-count") or 0),
     }
 
     # Parse timestamps
-    started_at = parser.get_attr(article, "data-started-at")
+    started_at = article.attrs.get("data-started-at")
     if started_at:
         data["started_at"] = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
 
-    ended_at = parser.get_attr(article, "data-ended-at")
+    ended_at = article.attrs.get("data-ended-at")
     if ended_at:
         data["ended_at"] = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
 
-    last_activity = parser.get_attr(article, "data-last-activity")
+    last_activity = article.attrs.get("data-last-activity")
     if last_activity:
         data["last_activity"] = datetime.fromisoformat(last_activity.replace("Z", "+00:00"))
 
-    start_commit = parser.get_attr(article, "data-start-commit")
+    start_commit = article.attrs.get("data-start-commit")
     if start_commit:
         data["start_commit"] = start_commit
 
     # Parse title
-    title_el = parser.select_one("h1")
+    title_el = parser.query_one("h1")
     if title_el:
-        data["title"] = parser.get_text(title_el)
+        data["title"] = title_el.to_text().strip()
 
     # Parse worked_on edges
     worked_on = []
-    for link in parser.select("nav[data-graph-edges] section[data-edge-type='worked-on'] a"):
-        href = parser.get_attr(link, "href") or ""
+    for link in parser.query("nav[data-graph-edges] section[data-edge-type='worked-on'] a"):
+        href = link.attrs.get("href") or ""
         # Extract feature ID from href
         feature_id = href.replace("../features/", "").replace(".html", "")
         if feature_id:
@@ -404,33 +404,33 @@ def html_to_session(filepath: Path | str) -> Session:
     data["worked_on"] = worked_on
 
     # Parse continued_from edge
-    continued_link = parser.select_one("nav[data-graph-edges] section[data-edge-type='continued-from'] a")
+    continued_link = parser.query_one("nav[data-graph-edges] section[data-edge-type='continued-from'] a")
     if continued_link:
-        href = parser.get_attr(continued_link, "href") or ""
+        href = continued_link.attrs.get("href") or ""
         data["continued_from"] = href.replace(".html", "")
 
     # Parse activity log
     activity_log = []
-    for li in parser.select("section[data-activity-log] ol li"):
+    for li in parser.query("section[data-activity-log] ol li"):
         entry_data = {
-            "summary": parser.get_text(li),
-            "tool": parser.get_attr(li, "data-tool") or "unknown",
-            "success": parser.get_attr(li, "data-success") != "false",
+            "summary": li.to_text().strip(),
+            "tool": li.attrs.get("data-tool") or "unknown",
+            "success": li.attrs.get("data-success") != "false",
         }
 
-        ts = parser.get_attr(li, "data-ts")
+        ts = li.attrs.get("data-ts")
         if ts:
             entry_data["timestamp"] = datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
-        event_id = parser.get_attr(li, "data-event-id")
+        event_id = li.attrs.get("data-event-id")
         if event_id:
             entry_data["id"] = event_id
 
-        feature = parser.get_attr(li, "data-feature")
+        feature = li.attrs.get("data-feature")
         if feature:
             entry_data["feature_id"] = feature
 
-        drift = parser.get_attr(li, "data-drift")
+        drift = li.attrs.get("data-drift")
         if drift:
             entry_data["drift_score"] = float(drift)
 

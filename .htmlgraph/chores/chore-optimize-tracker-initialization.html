@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Optimize HtmlGraph Tracker Initialization</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-optimize-tracker-initialization"
+             data-type="chore"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T10:45:00Z"
+             data-updated="2025-12-16T10:45:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Optimize HtmlGraph Tracker Initialization</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Detected Pattern</dt>
+                <dd data-key="pattern">High-drift activities with repeated skill activation</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count" data-value="5">5 repeated operations</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Investigate tracker initialization pattern in SessionStart hook
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify why skill activation is being repeated
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement cache/memoization for tracker state
+                </li>
+                <li data-completed="false">
+                    ⏳ Test that skill activation runs only once per session
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify drift detection remains accurate
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The drift detection system is logging repeated reads of the feature-self-tracking.html file and redundant skill activations (5 skill operations with 0.71 drift score). This indicates unnecessary overhead in the tracker initialization flow.</p>
+
+            <h4>Problem:</h4>
+            <ul>
+                <li>Skill activation is being triggered multiple times per session</li>
+                <li>Feature context file is being read repeatedly</li>
+                <li>High drift score suggests the system is confused about activity attribution</li>
+            </ul>
+
+            <h4>Expected Solution:</h4>
+            <ul>
+                <li>Ensure skill runs exactly once at SessionStart</li>
+                <li>Cache feature context after initial load</li>
+                <li>Reduce redundant file reads</li>
+                <li>Improve drift detection accuracy by eliminating initialization noise</li>
+            </ul>
+
+            <h4>Impact:</h4>
+            <ul>
+                <li>Faster session startup</li>
+                <li>More accurate drift detection without initialization noise</li>
+                <li>Cleaner activity logs</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:45:00Z" data-agent="claude">
+                    Created work item from drift detection analysis - 5 repeated operations with 0.71 drift score
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

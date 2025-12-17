@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Consolidate Drift Classification Spikes</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-consolidate-drift-classification-spikes"
+             data-type="chore"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T20:15:00.000000Z"
+             data-updated="2025-12-16T20:15:00.000000Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Consolidate Drift Classification Spikes</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">feature-self-tracking</a></li>
+                    <li><a href="../spikes/spike-session-drift-classification-workflow.html" data-relationship="related">spike-session-drift-classification-workflow</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked-by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-session-drift-classification-workflow.html" data-relationship="blocked-by">Complete drift classification workflow research</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Summary</h3>
+            <dl>
+                <dt>Problem</dt>
+                <dd data-key="problem">89+ spike files have been created exploring drift classification, causing meta-circular feedback and noise</dd>
+
+                <dt>Impact</dt>
+                <dd data-key="impact">System investigating itself causes repeated high-drift signals, blocking feature-self-tracking progress</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root_cause">Each drift classification activity triggers detection of itself as drift, creating recursive spike generation</dd>
+
+                <dt>Scope</dt>
+                <dd data-key="scope">.htmlgraph/spikes/ directory contains 89 drift-related files (45% of spike directory)</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Consolidation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Review spike-session-drift-classification-workflow - the canonical classification document</li>
+                <li data-completed="false">⏳ Extract classification rules from all 89 spikes into unified decision tree</li>
+                <li data-completed="false">⏳ Document meta-circular pattern and solution strategy</li>
+                <li data-completed="false">⏳ Archive duplicate/superseded spikes to .htmlgraph/sessions/_orphans/</li>
+                <li data-completed="false">⏳ Create chore-drift-classification-consolidation with concrete action items</li>
+                <li data-completed="false">⏳ Implement filter in htmlgraph-tracker to exclude .htmlgraph/* from drift scoring</li>
+                <li data-completed="false">⏳ Validate that feature-self-tracking can proceed without drift noise</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The drift classification research has generated 89+ spike files that form a self-referential feedback loop. This chore consolidates the research findings into actionable insights and reduces the signal-to-noise ratio in the work item system.</p>
+
+            <h4>Problem Analysis</h4>
+            <p>The meta-circular problem identified in spike-session-drift-classification-workflow:</p>
+            <ul>
+                <li>feature-self-tracking actively reads .htmlgraph/ metadata</li>
+                <li>These reads are detected as high-drift (0.71 score)</li>
+                <li>High-drift activities trigger creation of new spikes (spike-classify-high-drift-activities, spike-drift-classification-*, etc.)</li>
+                <li>Each new spike is itself detected as drift, creating recursive spike generation</li>
+                <li>Result: 89 spike files that are all investigating variations of the same meta-problem</li>
+            </ul>
+
+            <h4>Classification Framework (from analysis)</h4>
+            <p>Key rules identified across the spikes:</p>
+            <ul>
+                <li><strong>Rule 1:</strong> Read-only exploration of .htmlgraph/* → SPIKE (not drift)</li>
+                <li><strong>Rule 2:</strong> Cross-file pattern in system metadata → Investigation (not user feature drift)</li>
+                <li><strong>Rule 3:</strong> Meta-work on classification system itself → Infrastructure work</li>
+                <li><strong>Rule 4:</strong> No source code changes → Not feature implementation or bug fix</li>
+                <li><strong>Rule 5:</strong> Repeated tool invocations on same classification files → Self-referential research</li>
+            </ul>
+
+            <h4>Consolidation Strategy</h4>
+            <ol>
+                <li><strong>Canonical Reference:</strong> spike-session-drift-classification-workflow.html contains the definitive analysis</li>
+                <li><strong>Archive Strategy:</strong> Move superseded spikes to sessions/_orphans/ with cross-reference</li>
+                <li><strong>Implementation:</strong> Use findings to improve htmlgraph-tracker filtering logic</li>
+                <li><strong>Validation:</strong> Ensure feature-self-tracking progresses without false-positive drift alerts</li>
+            </ol>
+
+            <h4>Expected Outcome</h4>
+            <ul>
+                <li>Reduce .htmlgraph/spikes/ from 89 files to ~10 (keeping only unique research</li>
+                <li>Establish clear filter rules for system metadata in drift detection</li>
+                <li>Enable feature-self-tracking to complete its goals without recursive spike generation</li>
+                <li>Create reusable classification framework for future drift handling</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:15:00.000000Z" data-agent="claude">
+                    Created consolidation chore from high-drift activity pattern analysis
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

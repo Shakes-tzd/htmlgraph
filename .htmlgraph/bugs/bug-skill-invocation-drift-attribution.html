@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug: Skill Invocation Drift Not Attributed to Feature Context</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-skill-invocation-drift-attribution"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2025-12-16T13:15:30Z"
+             data-updated="2025-12-16T13:15:30Z"
+             data-classified-from="drift-queue"
+             data-drift-score="0.71">
+
+        <header>
+            <h1>Bug: Skill Invocation Drift Not Attributed to Feature Context</h1>
+            <div class="metadata">
+                <span class="badge type-bug">Bug</span>
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge severity-medium">Medium Severity</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                    <li><a href="../spikes/spike-repeated-skill-invocations.html">Spike: Repeated Skill Invocations</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="generated-from">
+                <h3>📊 Generated From:</h3>
+                <ul>
+                    <li><a href="../drift-queue.json">Drift Queue</a> (2025-12-16T13:11:24)</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Severity</dt>
+                <dd data-key="severity">Medium</dd>
+
+                <dt>Affected Component</dt>
+                <dd data-key="component">drift detection algorithm</dd>
+
+                <dt>Affected Activities</dt>
+                <dd data-key="activity_count">5 flagged activities</dd>
+
+                <dt>Average Drift Score</dt>
+                <dd data-key="drift_score">0.71</dd>
+
+                <dt>Tool Pattern</dt>
+                <dd data-key="tool_pattern">Skill (4×) + Read (1×)</dd>
+
+                <dt>Skill Invoked</dt>
+                <dd data-key="skill_invoked">htmlgraph:htmlgraph-tracker</dd>
+
+                <dt>Feature Context</dt>
+                <dd data-key="feature_context">feature-self-tracking</dd>
+            </dl>
+        </section>
+
+        <!-- Problem Statement -->
+        <section data-problem>
+            <h3>Problem Statement</h3>
+            <p>
+                When skill invocations (e.g., <code>Skill(htmlgraph:htmlgraph-tracker)</code>) are used
+                during feature development work, they are flagged as high-drift activities (0.71) instead
+                of being correctly attributed to the active feature context.
+            </p>
+
+            <h4>Observed Behavior:</h4>
+            <ul>
+                <li>Multiple skill invocations during feature-self-tracking work are marked as independent high-drift activities</li>
+                <li>These activities are queued in drift-queue.json with 0.71 scores</li>
+                <li>They are not automatically associated with the parent feature</li>
+                <li>The drift detection treats tool overhead as a feature itself rather than a tool-use expense</li>
+            </ul>
+
+            <h4>Expected Behavior:</h4>
+            <ul>
+                <li>Tool invocations (Skills, reads, searches) should be attributed to the active feature context</li>
+                <li>Tool overhead shouldn't create independent high-drift work items</li>
+                <li>Multiple consecutive tool invocations should be grouped as a single activity unit</li>
+                <li>Drift score should reflect the work itself, not the tooling overhead</li>
+            </ul>
+        </section>
+
+        <!-- Root Cause Analysis -->
+        <section data-root-cause>
+            <h3>Root Cause Analysis</h3>
+            <p>
+                The drift detection algorithm is treating skill invocations as top-level activities
+                rather than as overhead of the parent activity. Specifically:
+            </p>
+            <ol>
+                <li>When a feature is being worked on, tool calls (Skills, Reads, etc.) are being tracked as independent activities</li>
+                <li>These tool calls have inherent drift due to tool invocation overhead</li>
+                <li>The algorithm doesn't have a concept of "child activities" or "tool overhead"</li>
+                <li>Result: tool overhead gets flagged as drift instead of being attributed to the feature</li>
+            </ol>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Fix Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Investigate drift detection algorithm in <code>src/python/htmlgraph/</code>
+                </li>
+                <li data-completed="false">
+                    Identify how activities are attributed to feature contexts
+                </li>
+                <li data-completed="false">
+                    Add concept of "activity grouping" or "parent context" to drift detector
+                </li>
+                <li data-completed="false">
+                    Modify drift calculation to exclude tool overhead from independent activity scoring
+                </li>
+                <li data-completed="false">
+                    Create test cases for repeated tool invocations within a feature context
+                </li>
+                <li data-completed="false">
+                    Verify that skill invocations during feature work are no longer flagged as high-drift
+                </li>
+                <li data-completed="false">
+                    Update drift-queue.json handling to re-classify on fix
+                </li>
+            </ol>
+        </section>
+
+        <!-- Context -->
+        <section data-content>
+            <h3>Detailed Context</h3>
+            <p>
+                <strong>When:</strong> 2025-12-16T13:11:24 - 13:11:25 UTC<br>
+                <strong>Feature Context:</strong> feature-self-tracking<br>
+                <strong>Session:</strong> session tracking and drift analysis<br>
+            </p>
+
+            <h4>Activities Flagged:</h4>
+            <ul>
+                <li><code>Skill: {'skill': 'htmlgraph:htmlgraph-tracker'}</code> [drift: 0.71]</li>
+                <li><code>Read: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/spike-repeated-skill-invocations.html</code> [drift: 0.71]</li>
+            </ul>
+
+            <h4>Why This Is a Bug:</h4>
+            <ul>
+                <li>These are not independent work items—they're tool calls made during feature development</li>
+                <li>Tool overhead shouldn't accumulate as separate drift entries</li>
+                <li>The feature context (feature-self-tracking) should account for the tool usage</li>
+                <li>High drift scores on tool invocations confuse the work item classification system</li>
+            </ul>
+
+            <h4>Impact:</h4>
+            <ul>
+                <li>Drift-queue.json fills with tool overhead instead of actual work divergence</li>
+                <li>Auto-classification creates spurious spikes and bugs from tool usage</li>
+                <li>Developers can't distinguish real drift from tooling overhead</li>
+                <li>Self-tracking feature is less reliable for observability</li>
+            </ul>
+        </section>
+
+        <!-- Testing Strategy -->
+        <section data-testing>
+            <h3>Testing Strategy</h3>
+            <p>
+                <strong>Test Case:</strong> Multiple tool invocations during a feature context
+            </p>
+            <ul>
+                <li>Start feature context tracking for feature-self-tracking</li>
+                <li>Execute multiple Skill, Read, and Grep operations</li>
+                <li>Verify that these operations do NOT appear in drift-queue.json as independent high-drift activities</li>
+                <li>Verify that drift is properly attributed to the feature context instead</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:15:30Z" data-agent="claude">
+                    Bug classified from drift-queue analysis during feature-self-tracking
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

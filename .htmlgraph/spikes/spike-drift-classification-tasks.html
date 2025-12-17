@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Classification - High-Drift Activities to Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-tasks"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:06:11.000000"
+             data-updated="2025-12-16T13:06:11.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Spike: Drift Classification - High-Drift Activities to Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="spike-drift-classification-investigation.html" data-relationship="related">Drift Classification Investigation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identify high-drift activities from drift queue
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze activity patterns and context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classify activities into work item types
+                </li>
+                <li data-completed="false">
+                    ⏳ Create spike work item for exploration activities
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift classification rules
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research and classify high-drift activities (drift ≥ 0.71) into appropriate work items.</p>
+
+            <h4>Activities Analyzed:</h4>
+            <ul>
+                <li>Bash: Check if spikes directory exists (drift: 0.71)</li>
+                <li>Read: feature-self-tracking.html (drift: 0.71)</li>
+                <li>Skill: htmlgraph-tracker activation (drift: 0.71 x2)</li>
+            </ul>
+
+            <h4>Classification Result:</h4>
+            <p><strong>Type: SPIKE</strong></p>
+            <p>These activities represent exploration and investigation of the tracking system structure rather than feature development. They show:</p>
+            <ul>
+                <li>System introspection (checking directories, reading tracking configuration)</li>
+                <li>Tool activation (htmlgraph-tracker skill)</li>
+                <li>Research pattern (multiple reads, checking structure)</li>
+            </ul>
+
+            <h4>Drift Analysis:</h4>
+            <p>Activities drift from feature-self-tracking because they focus on:</p>
+            <ul>
+                <li>Understanding the drift classification mechanism itself</li>
+                <li>Exploring tracking system directory structure</li>
+                <li>Investigating how activities are categorized</li>
+            </ul>
+            <p>These are meta-activities about the tracking system, not implementation of the feature feature.</p>
+
+            <h4>Next Actions:</h4>
+            <ul>
+                <li>Document classification rules for drift ≥ 0.7</li>
+                <li>Create automated drift-to-work-item processor</li>
+                <li>Update feature assignment logic based on activity analysis</li>
+            </ul>
+        </section>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Threshold Investigated</dt>
+                <dd data-key="drift-threshold" data-value="0.71">0.71 (high drift)</dd>
+
+                <dt>Activities Classified</dt>
+                <dd data-key="activities-count" data-value="5">5 activities</dd>
+
+                <dt>Classification Outcome</dt>
+                <dd data-key="classification">Spike - System Exploration</dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

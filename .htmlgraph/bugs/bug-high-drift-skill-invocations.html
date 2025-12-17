@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug: High Drift Score on Repeated Skill Invocations</title>
+    <link rel="stylesheet" href="../../src/styles.css">
+</head>
+<body>
+    <article id="bug-high-drift-skill-invocations"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T13:16:23Z"
+             data-updated="2025-12-16T13:16:23Z"
+             data-feature="feature-self-tracking">
+
+        <header>
+            <h1>High Drift Score on Repeated Skill Invocations</h1>
+            <div class="metadata">
+                <span class="badge type-bug">Bug</span>
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Threshold Auto-Classification</a></li>
+                    <li><a href="../spikes/spike-drift-classification-investigation.html">Drift Classification Investigation</a></li>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="caused-by">
+                <h3>⚠️ Caused By:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-drift-classification-investigation.html">Investigation: High-drift pattern classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Description -->
+        <section data-content>
+            <h3>Problem Summary</h3>
+            <p>Repeated skill invocations and metadata file reads are being classified with high drift scores (0.71), even though these are legitimate system operations.</p>
+
+            <h4>Root Cause Analysis</h4>
+            <ul>
+                <li>htmlgraph-tracker skill invocations are marked as high drift despite being system overhead</li>
+                <li>Reading internal .htmlgraph files (drift-queue.json) is marked as drift</li>
+                <li>These are self-referential activities (HtmlGraph tracking itself)</li>
+            </ul>
+
+            <h4>Impact</h4>
+            <ul>
+                <li>Legitimate tracking activities pollute the high-drift queue</li>
+                <li>Makes it harder to identify actual off-topic activities</li>
+                <li>Noise in activity classification reduces signal</li>
+            </ul>
+
+            <h4>Expected Behavior</h4>
+            <p>Skill invocations and internal metadata operations should be excluded from drift calculation or weighted differently:</p>
+            <ul>
+                <li>System skills (htmlgraph-tracker) should not count as drift</li>
+                <li>Reads from .htmlgraph/ directory should have reduced drift weight</li>
+                <li>Self-tracking activities should be classified as "overhead" not "drift"</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Resolution Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Review drift-queue.json classification rules
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify which activity types are causing false positives
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift classification to exclude system/overhead activities
+                </li>
+                <li data-completed="false">
+                    ⏳ Test with current high-drift activities (should reclassify)
+                </li>
+                <li data-completed="false">
+                    ⏳ Update feature-drift-auto-classification with findings
+                </li>
+            </ol>
+        </section>
+
+        <!-- Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Current Drift Score</dt>
+                <dd data-key="drift_score">0.71</dd>
+
+                <dt>Activity Type</dt>
+                <dd data-key="activity_type">Skill invocation + metadata reads</dd>
+
+                <dt>Affected Feature</dt>
+                <dd data-key="affected_feature">feature-self-tracking</dd>
+
+                <dt>Classification Issue</dt>
+                <dd data-key="issue">False positive - system overhead misclassified as drift</dd>
+            </dl>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:16:23Z" data-agent="claude">
+                    Created bug from high-drift activity classification. Pattern: repeated skill invocations and metadata reads marked as 0.71 drift.
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Skill Invocation Pattern Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-skill-invocation-pattern"
+             data-type="spike"
+             data-status="identified"
+             data-priority="medium"
+             data-created="2025-12-16T13:06:50.000000"
+             data-updated="2025-12-16T13:06:50.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Skill Invocation Pattern Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-identified">Identified</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="spike-drift-classification-automation.html" data-relationship="related">Drift Classification Automation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activities Detected</dt>
+                <dd data-key="activity_count" data-value="5">5 consecutive skill invocations</dd>
+
+                <dt>Investigation Type</dt>
+                <dd data-key="investigation_type">Drift Pattern Recognition</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze repetitive skill invocation pattern
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine root cause of repeated htmlgraph-tracker calls
+                </li>
+                <li data-completed="false">
+                    ⏳ Assess if pattern indicates system issue or expected behavior
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommendations
+                </li>
+                <li data-completed="false">
+                    ⏳ Consider idempotency and duplicate detection mechanisms
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation into repeated htmlgraph-tracker skill invocations detected as high-drift activities during self-tracking session.</p>
+
+            <h4>Observations:</h4>
+            <ul>
+                <li>5 consecutive Skill invocations with drift score 0.71</li>
+                <li>All invocations: <code>{'skill': 'htmlgraph:htmlgraph-tracker'}</code></li>
+                <li>Timestamps clustered within seconds (13:06:29 - 13:06:38)</li>
+                <li>Associated with Read/Write/Bash activities on drift classification</li>
+            </ul>
+
+            <h4>Questions:</h4>
+            <ul>
+                <li>Are repeated skill invocations expected behavior or a system issue?</li>
+                <li>Should duplicate consecutive invocations be deduplicated?</li>
+                <li>Does the tracker need idempotency improvements?</li>
+                <li>Should this pattern trigger a different drift classification?</li>
+            </ul>
+
+            <h4>Potential Causes:</h4>
+            <ul>
+                <li>Session lifecycle hooks calling skill multiple times</li>
+                <li>Concurrent drift detection and session tracking operations</li>
+                <li>Automatic retries or fallback mechanisms</li>
+                <li>Multiple observers/subscribers receiving same event</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:06:50.000000" data-agent="claude">
+                    Spike created from high-drift activity classification
+                </li>
+                <li data-timestamp="2025-12-16T13:06:29.011874" data-agent="system">
+                    First skill invocation detected (drift: 0.71)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

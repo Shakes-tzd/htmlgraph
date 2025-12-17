@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Queue Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-queue-investigation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T10:18:31Z"
+             data-updated="2025-12-16T10:18:41Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Queue Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="relates-to">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                    <li><a href="spike-drift-auto-classification.html">Spike: Drift Auto-Classification System</a></li>
+                    <li><a href="../chores/chore-drift-queue-management.html">Chore: Drift Queue Management</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="investigation">
+                <h3>📊 Investigation Focus:</h3>
+                <ul>
+                    <li data-investigation="drift-queue-structure">Drift queue JSON structure and semantics</li>
+                    <li data-investigation="activity-classification">Activity pattern classification</li>
+                    <li data-investigation="metadata-capture">What metadata is captured for drift activities</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Investigation Type</dt>
+                <dd data-key="investigation-type">Understanding drift queue system and activity patterns</dd>
+
+                <dt>Complexity</dt>
+                <dd data-key="complexity" data-value="low">Low - System exploration and documentation</dd>
+
+                <dt>Triggered By</dt>
+                <dd data-key="trigger">High-drift activities accessing drift infrastructure</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score">0.71</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Questions -->
+        <section data-investigation-scope>
+            <h3>Key Investigation Questions</h3>
+            <ol>
+                <li data-investigated="false">
+                    What is the complete structure of drift-queue.json and how is it used?
+                </li>
+                <li data-investigated="false">
+                    What activities trigger drift detection and how are they scored?
+                </li>
+                <li data-investigated="false">
+                    What metadata is captured for each drifted activity?
+                </li>
+                <li data-investigated="false">
+                    Are there existing bug/chore/spike/feature directories that should be reviewed?
+                </li>
+                <li data-investigated="false">
+                    How do drift activities relate to the feature-self-tracking objectives?
+                </li>
+            </ol>
+        </section>
+
+        <!-- Triggering Activities -->
+        <section data-findings>
+            <h3>Triggering Activities (Timestamps 2025-12-16T10:18:31 - 10:18:41)</h3>
+            <ul>
+                <li><strong>Skill activation:</strong> htmlgraph-tracker skill invoked</li>
+                <li><strong>File access:</strong> Read drift-queue.json (2x)</li>
+                <li><strong>Directory exploration:</strong> Glob .htmlgraph/chores/*.html</li>
+                <li><strong>Directory exploration:</strong> Glob .htmlgraph/spikes/*.html</li>
+            </ul>
+            <p><strong>Pattern:</strong> Meta-investigation of drift tracking infrastructure itself - accessing drift queue, reviewing existing work items by category.</p>
+            <p><strong>Classification:</strong> This is a spike because the activities involve exploration and understanding of an existing system (drift detection and queue management), not implementing new features or fixing bugs.</p>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step="examine-queue">
+                    ✓ Read and examine drift-queue.json structure
+                </li>
+                <li data-completed="false" data-step="review-categories">
+                    ✓ Review existing work items in .htmlgraph/bugs/, .htmlgraph/chores/, .htmlgraph/spikes/
+                </li>
+                <li data-completed="false" data-step="understand-drift-score">
+                    Understand how drift scores are calculated (currently 0.71)
+                </li>
+                <li data-completed="false" data-step="identify-patterns">
+                    Identify tool-activity patterns that trigger drift detection
+                </li>
+                <li data-completed="false" data-step="document-findings">
+                    Document findings for drift classification implementation
+                </li>
+                <li data-completed="false" data-step="propose-classification">
+                    Propose classification rules for this type of meta-work activity
+                </li>
+            </ol>
+        </section>
+
+        <!-- Background -->
+        <section data-content>
+            <h3>Background</h3>
+            <p>During feature-self-tracking work, a cluster of high-drift activities was detected (drift score 0.71) that all focused on accessing the drift detection and queue management infrastructure:</p>
+            <ul>
+                <li>Activating the htmlgraph-tracker skill</li>
+                <li>Reading the drift-queue.json file (multiple times)</li>
+                <li>Exploring .htmlgraph/bugs/, .htmlgraph/chores/, and .htmlgraph/spikes/ directories</li>
+            </ul>
+            <p>This investigation spike was auto-created to classify and understand these activities. The meta-nature of this work (investigating the drift system itself) makes it an ideal candidate for automatic work item creation and represents the self-tracking capability in action.</p>
+
+            <h4>Goal</h4>
+            <p>Understand the structure and purpose of the drift queue system and how drift activities are classified, to inform the ongoing development of drift auto-classification features.</p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:18:41Z" data-agent="claude">
+                    Created spike from high-drift activity pattern (multiple drift-infrastructure accesses)
+                </li>
+            </ol>
+        </section>
+
+        <!-- Notes -->
+        <section data-notes>
+            <h3>Research Notes</h3>
+            <pre data-content="research-notes">
+# Drift Queue Investigation Notes
+
+## Initial Observations
+- All 5 triggering activities occurred within 10 seconds (10:18:31 - 10:18:41)
+- Consistent drift score of 0.71 across all activities
+- Activities form a coherent investigation pattern rather than scattered work
+- This suggests the drift detection system is working correctly to identify meta-work
+
+## Activities Classified
+1. Skill: htmlgraph-tracker (drift 0.71)
+2. Read: drift-queue.json (drift 0.71)
+3. Glob: .htmlgraph/chores/*.html (drift 0.71)
+4. Glob: .htmlgraph/spikes/*.html (drift 0.71)
+5. Read: drift-queue.json again (drift 0.71)
+
+## Work Item Structure Observed
+Examining existing spike files shows:
+- data-type attribute for classification (spike, feature, bug, chore, hotfix)
+- data-status for workflow state (todo, in-progress, done, blocked)
+- data-priority for prioritization
+- Timestamps in ISO 8601 format
+- Graph edges with hyperlinks to related items
+- Investigation steps tracking
+
+## Classification Hypothesis
+This work (understanding drift infrastructure) should be classified as:
+- **Type:** Spike (investigation/exploration focused)
+- **Priority:** High (foundational for self-tracking feature)
+- **Status:** In Progress (actively investigating)
+- **Category:** Meta-work (work about the work-tracking system itself)
+
+## Next Investigation
+Need to understand:
+1. How drift scores are calculated
+2. What triggers threshold of 0.71
+3. Whether classification should happen automatically or manually
+4. How to prevent false positives (legitimate cross-cutting work vs actual drift)
+            </pre>
+        </section>
+    </article>
+</body>
+</html>

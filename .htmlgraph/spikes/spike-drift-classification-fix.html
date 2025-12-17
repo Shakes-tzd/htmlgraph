@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Improve Drift Detection and Classification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-fix"
+             data-type="spike"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T13:16:00Z"
+             data-updated="2025-12-16T13:16:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Improve Drift Detection and Classification</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Effort Estimate</dt>
+                <dd data-key="effort" data-value="2" data-unit="hours">2 hours</dd>
+
+                <dt>Investigation Type</dt>
+                <dd data-key="investigation_type">Root cause analysis</dd>
+
+                <dt>Key Question</dt>
+                <dd data-key="key_question">Why are tracker skill invocations and drift-queue reads receiving 0.71 drift scores when working on feature-self-tracking?</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Understand drift scoring algorithm - review how scores are calculated
+                </li>
+                <li data-completed="false">
+                    Analyze feature context patterns - what keywords/files should associate with feature-self-tracking
+                </li>
+                <li data-completed="false">
+                    Review recent high-drift activities - understand why Skill, Read, and feature management tools score as drift
+                </li>
+                <li data-completed="false">
+                    Identify classification gaps - determine if tool types need pattern refinement
+                </li>
+                <li data-completed="false">
+                    Document findings - create rules for improving drift detection accuracy
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>
+                The drift detection system is flagging activities as high-drift (0.71) when they are directly related to the
+                active feature (feature-self-tracking). Specifically:
+            </p>
+            <ul>
+                <li>Reading drift-queue.json - infrastructure file for self-tracking feature</li>
+                <li>Reading feature-self-tracking.html - the active feature itself</li>
+                <li>Invoking htmlgraph:htmlgraph-tracker skill - directly supports feature tracking</li>
+            </ul>
+            <p>
+                These activities should have lower drift scores or be recognized as on-feature rather than off-feature.
+            </p>
+
+            <h3>Root Cause Hypothesis</h3>
+            <p>
+                The drift classifier may be using file path patterns or tool names that don't account for:
+            </p>
+            <ol>
+                <li>Infrastructure files (.htmlgraph directory) that are meta to the feature itself</li>
+                <li>Skill invocations that support feature coordination</li>
+                <li>Feature management operations that are part of dogfooding the library</li>
+            </ol>
+
+            <h3>Success Criteria</h3>
+            <p>After investigation:</p>
+            <ul>
+                <li>Document the exact drift scoring algorithm</li>
+                <li>Identify which activities should NOT count as drift for feature-self-tracking</li>
+                <li>Propose specific pattern improvements for the classification system</li>
+                <li>Create test cases for edge cases discovered</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:16:00Z" data-agent="claude">
+                    Created spike to investigate drift classification accuracy
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

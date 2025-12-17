@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Classification Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T00:00:00Z"
+             data-updated="2025-12-16T00:00:00Z"
+             data-feature="feature-self-tracking"
+             data-classification-method="activity-pattern-analysis">
+
+        <header>
+            <h1>Drift Classification Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge type-spike">Spike</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self Tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Discovered Activities</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="avg-drift" data-value="0.71" data-unit="normalized">0.71 (consistent)</dd>
+
+                <dt>Activity Types</dt>
+                <dd data-key="activity-types">Skill activation, Bash commands, File reads</dd>
+            </dl>
+        </section>
+
+        <!-- Classified Activities -->
+        <section data-activities>
+            <h3>Activities Analyzed</h3>
+            <ol>
+                <li data-activity-type="skill" data-drift="0.71">
+                    <strong>Skill Activation:</strong> htmlgraph:htmlgraph-tracker
+                    <p>Triggered by SessionStart hook to activate feature tracking</p>
+                </li>
+                <li data-activity-type="bash" data-drift="0.71">
+                    <strong>Bash Command:</strong> Start HtmlGraph dashboard server
+                    <p>Server startup for visualization and monitoring</p>
+                </li>
+                <li data-activity-type="skill" data-drift="0.71">
+                    <strong>Skill Activation:</strong> htmlgraph:htmlgraph-tracker (repeated)
+                    <p>Second activation - may indicate hook firing again</p>
+                </li>
+                <li data-activity-type="read" data-drift="0.71">
+                    <strong>File Read:</strong> feature-self-tracking.html
+                    <p>Reading the feature file to understand current state</p>
+                </li>
+                <li data-activity-type="bash" data-drift="0.71">
+                    <strong>Bash Command:</strong> Check .htmlgraph directory structure
+                    <p>Inspecting the metadata directory structure</p>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Root Cause Analysis -->
+        <section data-analysis>
+            <h3>Root Cause Analysis</h3>
+
+            <h4>Why Drift = 0.71?</h4>
+            <p>
+                The drift score suggests these activities are <strong>meta-level infrastructure work</strong>
+                rather than direct feature implementation. The activities are about:
+            </p>
+            <ul>
+                <li>Understanding how drift is calculated</li>
+                <li>Setting up self-tracking infrastructure</li>
+                <li>Investigating how HtmlGraph tracks its own development</li>
+                <li>Examining directory structure and metadata</li>
+            </ul>
+
+            <h4>Classification Decision</h4>
+            <p>
+                <strong>Classified as: SPIKE (Research/Investigation)</strong>
+            </p>
+            <p>
+                These activities are exploratory research into the drift classification system itself,
+                not direct implementation of a feature. This falls under the definition of a spike:
+                <em>research, exploration, and investigation to understand system behavior.</em>
+            </p>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Task Completion</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identified 5 high-drift activities
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed activity patterns and context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classified as spike (infrastructure investigation)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Created work item HTML file
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Summary</h3>
+            <p>
+                User activities related to investigating and setting up HtmlGraph's self-tracking system.
+                All activities have consistent high drift (0.71), indicating they're meta-level infrastructure
+                work rather than direct feature development.
+            </p>
+
+            <h4>Key Insight</h4>
+            <p>
+                The drift detection is working as intended - it correctly identified that these activities
+                are <strong>about the tracking system</strong> (investigating/setup) rather than
+                <strong>within the feature scope</strong> (implementing the feature). This is expected behavior
+                for infrastructure and spike work.
+            </p>
+
+            <h4>Classification Rationale</h4>
+            <p>
+                <strong>Type: Spike</strong> - This is exploratory research into how the drift classification
+                system works, which aligns with the spike definition: investigation and research work.
+            </p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T00:00:00Z" data-agent="claude">
+                    Created spike work item from 5 high-drift activities
+                </li>
+                <li data-timestamp="2025-12-16T00:00:00Z" data-agent="claude">
+                    Analyzed drift patterns and activity context
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

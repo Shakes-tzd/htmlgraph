@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Automate Drift Classification for HtmlGraph Activities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-classification-automation"
+             data-type="chore"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T13:12:40Z"
+             data-updated="2025-12-16T13:12:40Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Automate Drift Classification for HtmlGraph Activities</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification Feature</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Detected Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.707">0.707 (70.7%)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 activities</dd>
+
+                <dt>Primary Tool</dt>
+                <dd data-key="primary_tool">Read (3x), Skill (2x)</dd>
+
+                <dt>Affected Feature</dt>
+                <dd data-key="affected_feature">feature-self-tracking</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift classification rules (pattern matching, keywords)
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement automated work item creation from drift queue
+                </li>
+                <li data-completed="false">
+                    ⏳ Create appropriate HTML work item in chores/ directory
+                </li>
+                <li data-completed="false">
+                    ⏳ Link work item back to triggering feature
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift-queue.json last_classification timestamp
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+                The drift detection system identified 5 high-drift activities (0.707 score) that warrant
+                automatic work item classification. These activities consist of repeated file reads
+                (feature tracking HTML, drift queue JSON) and skill activation for the htmlgraph-tracker.
+            </p>
+
+            <h4>Drift Activities Detected:</h4>
+            <ul>
+                <li>2025-12-16T13:12:33.468 - Skill: htmlgraph:htmlgraph-tracker activation</li>
+                <li>2025-12-16T13:12:33.927 - Read: feature-self-tracking.html</li>
+                <li>2025-12-16T13:12:33.975 - Read: drift-queue.json</li>
+                <li>2025-12-16T13:12:34.899 - Read: feature-self-tracking.html (repeated)</li>
+                <li>2025-12-16T13:12:39.397 - Skill: htmlgraph:htmlgraph-tracker activation (repeated)</li>
+            </ul>
+
+            <h4>Classification Rationale:</h4>
+            <p>
+                This is a <strong>chore</strong> work item because:
+            </p>
+            <ul>
+                <li>Focus: Maintenance of drift detection/classification system</li>
+                <li>Not feature development, bug fix, or research spike</li>
+                <li>Improves internal tooling and automation</li>
+                <li>No direct user-facing impact</li>
+            </ul>
+
+            <h4>Expected Outcome:</h4>
+            <p>
+                Establish a pattern for automatically creating and classifying work items from
+                high-drift activity batches, reducing manual triage effort for future sessions.
+            </p>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:40Z" data-agent="claude">
+                    Created work item from drift classification request - identified 5 high-drift activities suggesting system refinement needed
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

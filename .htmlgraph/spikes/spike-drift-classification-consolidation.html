@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Classification - Session Investigation & Resolution</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-consolidation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:43:00Z"
+             data-updated="2025-12-16T13:43:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Spike: Drift Classification - Session Investigation &amp; Resolution</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Feature: Drift Auto-Classification</a></li>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score">0.71</dd>
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count">5</dd>
+                <dt>Investigation Focus</dt>
+                <dd data-key="focus">Understanding drift classification mechanism and skill invocation patterns</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">✅ Activate htmlgraph-tracker skill for session context</li>
+                <li data-completed="true" data-agent="claude">✅ Read drift classification spike files to understand existing investigations</li>
+                <li data-completed="true" data-agent="claude">✅ Identify pattern: repeated spike creation without consolidation</li>
+                <li data-completed="false">⏳ Analyze why Skill tool invocations trigger high drift</li>
+                <li data-completed="false">⏳ Review drift scoring algorithm for false positives</li>
+                <li data-completed="false">⏳ Determine proper classification rules for drift activities</li>
+                <li data-completed="false">⏳ Consolidate findings into feature-drift-auto-classification</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation into high-drift activities detected during session:</p>
+            <ul>
+                <li>Skill tool invocation for htmlgraph-tracker (drift: 0.71)</li>
+                <li>File read operations on spike investigations</li>
+                <li>Edit operations on drift classification spike files</li>
+                <li>Bash operations for directory structure and spike creation</li>
+            </ul>
+            <p><strong>Problem:</strong> Multiple spike files created for the same investigation without consolidation, suggesting the drift classification mechanism needs refinement.</p>
+            <p><strong>Research Goals:</strong></p>
+            <ul>
+                <li>Understand why legitimate skill invocations are marked as high-drift</li>
+                <li>Identify whether drift scores are calibrated correctly</li>
+                <li>Determine if activity patterns are legitimate (feature-self-tracking) or off-topic (feature-drift-auto-classification)</li>
+                <li>Develop rules to auto-classify future high-drift activity sets into appropriate work items</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:43:00Z" data-agent="claude">
+                    Consolidated high-drift activities into single spike work item
+                </li>
+                <li data-timestamp="2025-12-16T13:42:45Z" data-agent="claude">
+                    Reviewed spike-drift-classification-investigation.html
+                </li>
+                <li data-timestamp="2025-12-16T13:42:00Z" data-agent="claude">
+                    Created spike-auto-classify-drift-activities.html
+                </li>
+                <li data-timestamp="2025-12-16T13:41:29Z" data-agent="claude">
+                    Created spike-activity-drift-classification.html
+                </li>
+                <li data-timestamp="2025-12-16T13:08:51Z" data-agent="claude">
+                    Created drift-classification-auto-investigation.html
+                </li>
+            </ol>
+        </section>
+
+        <section data-notes>
+            <h3>Key Findings</h3>
+            <ul>
+                <li><strong>Pattern Recognition:</strong> Multiple spike files created (~18 variations) suggest the auto-classification system was triggered repeatedly</li>
+                <li><strong>Skill Tool Issue:</strong> Invocation of htmlgraph-tracker skill may be flagged as drift because it's scaffolding, not domain work</li>
+                <li><strong>False Positives:</strong> Activities supporting feature-self-tracking (which is about using HtmlGraph) may be misclassified as drifting toward feature-drift-auto-classification</li>
+            </ul>
+        </section>
+    </article>
+</body>
+</html>

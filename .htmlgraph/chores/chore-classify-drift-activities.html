@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Classify and Document High-Drift Activities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-classify-drift-activities"
+             data-type="chore"
+             data-status="completed"
+             data-priority="medium"
+             data-created="2025-12-16T20:04:00Z"
+             data-updated="2025-12-16T20:04:00Z"
+             data-related-feature="feature-self-tracking"
+             data-drift-pattern="high-activity-clustering">
+
+        <header>
+            <h1>🏗️ Chore: Classify and Document High-Drift Activities</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge drift-high">High Drift Pattern (0.71)</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../spikes/spike-tracker-drift-invocations.html">Repeated Skill Invocation Drift Pattern</a></li>
+                    <li><a href="chore-setup-htmlgraph-tracker.html">Setup HtmlGraph Tracker</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Properties -->
+        <section data-properties>
+            <h3>Classification Results</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="work_type"><strong>CHORE</strong></dd>
+
+                <dt>Reason</dt>
+                <dd data-key="reason">Infrastructure/tooling setup work (tracker configuration)</dd>
+
+                <dt>Activities Consolidated</dt>
+                <dd data-key="activity_count" data-value="5">5 high-drift activities</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High - Expected for infrastructure work)</dd>
+
+                <dt>Detection Date</dt>
+                <dd data-key="detection_date">2025-12-16</dd>
+            </dl>
+        </section>
+
+        <!-- Classified Activities -->
+        <section data-activities>
+            <h3>Activities Classified</h3>
+            <ul>
+                <li>
+                    <strong>Skill: htmlgraph:htmlgraph-tracker</strong> (3x invocations)
+                    <br>→ <em>Tracker infrastructure setup</em>
+                </li>
+                <li>
+                    <strong>Write: .htmlgraph/chores/chore-setup-htmlgraph-tracker.html</strong>
+                    <br>→ <em>Tracker implementation planning</em>
+                </li>
+                <li>
+                    <strong>Write: .htmlgraph/spikes/spike-tracker-drift-invocations.html</strong>
+                    <br>→ <em>Drift investigation documentation</em>
+                </li>
+            </ul>
+        </section>
+
+        <!-- Classification Rationale -->
+        <section data-rationale>
+            <h3>Classification Decision: Why CHORE?</h3>
+            <ul>
+                <li>✅ <strong>Maintenance work:</strong> Setting up tracking infrastructure (not new features)</li>
+                <li>✅ <strong>Supporting role:</strong> Infrastructure that enables feature development</li>
+                <li>✅ <strong>Not production-facing:</strong> Internal tooling, not user-visible functionality</li>
+                <li>✅ <strong>Infrastructure-focused:</strong> Concerns tracker setup and configuration</li>
+            </ul>
+
+            <h4>Why NOT Other Types?</h4>
+            <ul>
+                <li>❌ <strong>Not a Bug:</strong> No broken behavior being fixed</li>
+                <li>❌ <strong>Not a Feature:</strong> Not new user-facing functionality</li>
+                <li>❌ <strong>Not a Spike:</strong> Focused work with clear scope, not exploration</li>
+                <li>❌ <strong>Not a Hotfix:</strong> No production urgency</li>
+            </ul>
+        </section>
+
+        <!-- Drift Analysis -->
+        <section data-drift-analysis>
+            <h3>Drift Score Explanation (0.71)</h3>
+            <p><strong>Why this is HIGH drift:</strong> Activities diverge from feature-self-tracking core work (implementing tracking) toward infrastructure/tooling setup.</p>
+
+            <p><strong>Is this acceptable?</strong> Yes. Infrastructure work naturally has higher drift when measured against feature context. The activities support the feature indirectly.</p>
+
+            <p><strong>Recommendation:</strong> Accept this drift as normal for chores. Consider categorizing drift by work type (features should have lower drift than infrastructure/tooling chores).</p>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Resolution Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze high-drift activity pattern
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classify activities (Infrastructure/Tooling → CHORE)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Create consolidated work item
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Document classification rationale
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Link related work items
+                </li>
+            </ol>
+        </section>
+
+        <!-- Summary -->
+        <section data-summary>
+            <h3>Summary</h3>
+            <p><strong>Conclusion:</strong> The 5 high-drift activities (0.71 drift score) have been properly classified as a <strong>CHORE</strong> focused on tracker infrastructure setup.</p>
+
+            <p>This is infrastructure maintenance work that naturally diverges from feature development context but is necessary to support the feature-self-tracking implementation.</p>
+
+            <p>Related items created:</p>
+            <ul>
+                <li>chore-setup-htmlgraph-tracker.html (implementation details)</li>
+                <li>spike-tracker-drift-invocations.html (drift investigation)</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:04:30Z" data-agent="claude">
+                    Completed: Classified high-drift activities as CHORE work item
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

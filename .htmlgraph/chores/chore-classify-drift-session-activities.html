@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Classify High-Drift Session Activities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-classify-drift-session"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T13:12:20.000000Z"
+             data-updated="2025-12-16T13:12:20.000000Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify High-Drift Session Activities</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                    <li><a href="../spikes/spike-drift-auto-classification.html" data-relationship="related">Spike: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked-by">
+                <h3>Blocks Completion Of:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocked-by">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Activity Summary</h3>
+            <dl>
+                <dt>Total Activities Detected</dt>
+                <dd data-key="activity-count">5</dd>
+
+                <dt>Drift Score Range</dt>
+                <dd data-key="drift-score-range">0.71</dd>
+
+                <dt>Classification Status</dt>
+                <dd data-key="status" data-value="in-progress">In Progress - Categorizing detected drift</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Classification Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Detect high-drift activities from drift-queue.json
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze activity patterns and context
+                </li>
+                <li data-completed="false" data-step="create-work-items">
+                    ⏳ Create appropriate work item files for drifted activities
+                </li>
+                <li data-completed="false" data-step="categorize">
+                    ⏳ Classify each activity by type (spike/feature/chore/bug/hotfix)
+                </li>
+                <li data-completed="false" data-step="link-graph">
+                    ⏳ Link classified work items back to feature-self-tracking
+                </li>
+                <li data-completed="false" data-step="document">
+                    ⏳ Document classification decisions in activity log
+                </li>
+            </ol>
+        </section>
+
+        <section data-classified-activities>
+            <h3>High-Drift Activities Detected (Drift Score: 0.71)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Tool</th>
+                        <th>Activity</th>
+                        <th>Classification</th>
+                        <th>Reasoning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr data-activity="read-spike-improve" data-timestamp="2025-12-16T13:12:18.139947Z">
+                        <td>2025-12-16T13:12:18Z</td>
+                        <td>Read</td>
+                        <td>spike-improve-drift-classification.html</td>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>Reviewing previous drift classification improvement research - continuation of spike investigation</td>
+                    </tr>
+                    <tr data-activity="read-spike-system" data-timestamp="2025-12-16T13:12:18.177603Z">
+                        <td>2025-12-16T13:12:18Z</td>
+                        <td>Read</td>
+                        <td>spike-drift-classification-system.html</td>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>Reviewing drift classification system design - continuing investigation work</td>
+                    </tr>
+                    <tr data-activity="skill-activate-1" data-timestamp="2025-12-16T13:12:18.752165Z">
+                        <td>2025-12-16T13:12:18Z</td>
+                        <td>Skill</td>
+                        <td>htmlgraph:htmlgraph-tracker</td>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>Session tracking initialization - necessary infrastructure setup for activity logging</td>
+                    </tr>
+                    <tr data-activity="skill-activate-2" data-timestamp="2025-12-16T13:12:19.751966Z">
+                        <td>2025-12-16T13:12:19Z</td>
+                        <td>Skill</td>
+                        <td>htmlgraph:htmlgraph-tracker</td>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>Session tracking continuation - normal session management activity</td>
+                    </tr>
+                    <tr data-activity="read-drift-queue" data-timestamp="2025-12-16T13:12:19.754675Z">
+                        <td>2025-12-16T13:12:19Z</td>
+                        <td>Read</td>
+                        <td>drift-queue.json</td>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>Analyzing drift-queue.json to identify and classify high-drift activities for this chore</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section data-analysis>
+            <h3>Classification Analysis</h3>
+
+            <h4>Spike Activities (2)</h4>
+            <p>
+                Two activities involve reading spike investigation files. These are legitimate continuations of the
+                <strong>spike-drift-classification</strong> investigation work that was previously created. The drift
+                score reflects that these activities are technically off-topic from the current session context, but
+                they are necessary work to understand the drift classification system.
+            </p>
+            <ul>
+                <li><code>spike-improve-drift-classification.html</code> - Reviewing improvement proposals</li>
+                <li><code>spike-drift-classification-system.html</code> - Reviewing system design</li>
+            </ul>
+            <p>
+                <strong>Classification Decision:</strong> These reads should ideally not count as drift since they're
+                research related to implementing drift detection. The drift detection system itself may benefit from
+                recognizing .htmlgraph/spikes/* as valid research activity when context is "drift investigation".
+            </p>
+
+            <h4>Chore Activities (3)</h4>
+            <p>
+                Three activities are pure infrastructure and session management:
+            </p>
+            <ul>
+                <li>Skill activations for htmlgraph-tracker (×2) - Session initialization and logging</li>
+                <li>Reading drift-queue.json - Analyzing the drift data to perform this classification</li>
+            </ul>
+            <p>
+                <strong>Classification Decision:</strong> These are necessary chores. The htmlgraph-tracker skill
+                activations are infrastructure work, and reading drift-queue.json is part of the classification process itself.
+            </p>
+
+            <h4>Summary</h4>
+            <ul>
+                <li>Total Activities: 5</li>
+                <li>Spikes: 2 (legitimate drift investigation)</li>
+                <li>Chores: 3 (infrastructure/session management)</li>
+                <li>False Positives: 5 (these are legitimate activities, not true drift)</li>
+            </ul>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+                Process high-drift activities detected by the htmlgraph-tracker and create corresponding work items
+                to maintain clear activity attribution and understanding of what work is happening.
+            </p>
+            <p>
+                This chore ensures that high-drift activities are properly classified and tracked, preventing valuable
+                work from being lost or miscategorized.
+            </p>
+
+            <h4>Key Insights</h4>
+            <ul>
+                <li>Drift detection is working - correctly identifying off-feature activities</li>
+                <li>Classification rules need refinement - research work vs. true drift should be distinguished</li>
+                <li>Activities are mostly legitimate (spikes and chores), suggesting drift thresholds may be too sensitive</li>
+                <li>The .htmlgraph/* directory structure itself is recognized as drift - meta-work on the tracking system</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:20.000000Z" data-agent="claude">
+                    Created chore work item from high-drift activity classification (0.71 drift score)
+                </li>
+                <li data-timestamp="2025-12-16T13:12:19.754675Z" data-agent="claude">
+                    Analyzed 5 high-drift activities and classified as 2 spikes + 3 chores
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

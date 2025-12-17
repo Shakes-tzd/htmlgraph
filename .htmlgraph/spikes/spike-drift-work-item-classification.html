@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift-Based Work Item Classification System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification"
+             data-type="spike"
+             data-status="completed"
+             data-priority="high"
+             data-created="2024-12-16T07:17:13Z"
+             data-updated="2025-12-16T13:15:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift-Based Work Item Classification System</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/session-20251216-073306.html">Current Session</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Detection</dt>
+                <dd data-key="drift-level" data-value="0.71">High (0.71)</dd>
+
+                <dt>Investigation Focus</dt>
+                <dd data-key="focus">Activity pattern classification and work item creation</dd>
+
+                <dt>Status</dt>
+                <dd data-key="status">Exploring classification logic</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identify high-drift activity pattern (multiple reads, skill activation, TaskOutput)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classify activity type as spike (research/exploration)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Define classification rules for different drift patterns
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Create automated work item generation from drift analysis
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Test classification accuracy against historical activities
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Document classification framework and create spike work item
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Content -->
+        <section data-content>
+            <h3>Objective</h3>
+            <p>Investigate and design a system for automatically classifying high-drift activities into appropriate work items (bugs, features, spikes, chores, hotfixes).</p>
+
+            <h4>Drift Pattern Observed:</h4>
+            <ul>
+                <li>Multiple reads of feature-self-tracking.html (0.71 drift)</li>
+                <li>Skill activation (htmlgraph-tracker) (0.71 drift)</li>
+                <li>TaskOutput polling (0.74 drift)</li>
+                <li>Pattern suggests: research, exploration, system investigation</li>
+            </ul>
+
+            <h4>Research Questions:</h4>
+            <ul>
+                <li>What activity patterns indicate each work item type?</li>
+                <li>How can we distinguish between spike research vs feature development?</li>
+                <li>Should classification be automated or human-reviewed?</li>
+                <li>How to prevent false positives in work item creation?</li>
+            </ul>
+
+            <h4>Key Insights:</h4>
+            <ul>
+                <li><strong>Spike indicator:</strong> Repeated reads of same file without edits = exploratory research</li>
+                <li><strong>Feature indicator:</strong> Reads followed by writes + task progression = active development</li>
+                <li><strong>Bug indicator:</strong> Focused activity on single file + error patterns = debugging</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:15:00Z" data-agent="claude">
+                    Completed spike: classified high-drift activities into work item (spike-drift-classification)
+                </li>
+                <li data-timestamp="2025-12-16T13:15:00Z" data-agent="system">
+                    High-drift activities detected (0.71 drift): 5 activities investigating drift classification
+                </li>
+                <li data-timestamp="2024-12-16T07:17:13Z" data-agent="claude">
+                    Created spike work item from high-drift activity classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

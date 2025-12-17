@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Classification Investigation</title>
+    <link rel="stylesheet" href="../../src/styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2024-12-16T19:30:00Z"
+             data-updated="2025-12-16T13:16:23Z"
+             data-feature="feature-self-tracking">
+
+        <header>
+            <h1>Drift Classification Investigation</h1>
+            <div class="metadata">
+                <span class="badge type-spike">Spike</span>
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Threshold Auto-Classification</a></li>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implements">
+                <h3>📝 Implements:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="implements">Auto-classify drift issues</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Description -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation into drift classification patterns in HtmlGraph activity tracking.</p>
+
+            <h4>Observation</h4>
+            <p>Recent activity shows repeated high-drift (0.71) activities:</p>
+            <ul>
+                <li>Multiple invocations of htmlgraph-tracker skill</li>
+                <li>Reading drift-queue.json configuration</li>
+                <li>Reading spike investigation files</li>
+            </ul>
+
+            <h4>Research Questions</h4>
+            <ol>
+                <li>Why are repeated skill invocations marked as high drift?</li>
+                <li>Should skill invocations be classified as drift at all?</li>
+                <li>Is the drift threshold (0.71) appropriate for tracking overhead activities?</li>
+                <li>How should self-referential activities (investigating drift) be classified?</li>
+            </ol>
+
+            <h4>Goals</h4>
+            <ul>
+                <li>Understand drift classification algorithm</li>
+                <li>Identify false positives in current classification</li>
+                <li>Recommend improvements to drift thresholds</li>
+                <li>Document findings for feature-drift-auto-classification</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift-queue.json structure and rules
+                </li>
+                <li data-completed="false">
+                    ⏳ Review existing drift classification logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Categorize false positives vs legitimate drift
+                </li>
+                <li data-completed="false">
+                    ⏳ Propose classification refinements
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommendations
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T16:40:00Z" data-agent="claude">
+                    Continuing investigation: High-drift pattern continues with skill activations and metadata reads. Pattern indicates these activities should be classified into work items.
+                </li>
+                <li data-timestamp="2025-12-16T13:16:23Z" data-agent="claude">
+                    Classified high-drift activities: 5 reads/writes to drift metadata files with 0.71 drift scores
+                </li>
+                <li data-timestamp="2024-12-16T19:30:00Z" data-agent="claude">
+                    Spike created from high-drift activity pattern
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

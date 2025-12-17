@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Drift Classification System Implementation</title>
+    <link rel="stylesheet" href="../../index.html">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 2rem; }
+        article { max-width: 900px; margin: 0 auto; }
+        section { margin: 2rem 0; padding: 1.5rem; border-left: 4px solid #e0e0e0; }
+        h3 { margin-top: 0; color: #333; }
+        [data-status="todo"] { background: #fff3cd; }
+        .metadata { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.85rem; font-weight: 500; }
+        .status-todo { background: #ffc107; color: #000; }
+        .type-chore { background: #6c757d; color: #fff; }
+        nav a { color: #0066cc; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        ol { margin: 1rem 0; padding-left: 2rem; }
+        li { margin: 0.5rem 0; }
+        dt { font-weight: 600; margin-top: 0.5rem; }
+        dd { margin-left: 1.5rem; color: #666; }
+    </style>
+</head>
+<body>
+    <article id="chore-drift-classification"
+             data-type="chore"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T10:18:31Z"
+             data-updated="2025-12-16T10:18:31Z"
+             data-feature="feature-self-tracking">
+
+        <header>
+            <h1>Drift Classification System Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge type-chore">Chore</span>
+                <span class="badge">Priority: Medium</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related Features</h3>
+                <ul>
+                    <li><a href="../../.htmlgraph/features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="../../.htmlgraph/features/feature-drift-auto-classification.html">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Description -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Implement the drift classification system to automatically categorize high-drift activities into appropriate work items (bugs, features, spikes, chores, hotfixes).</p>
+            <p>This chore involves creating the classification logic and work item creation workflow that transforms drift queue entries into structured HTML work items.</p>
+        </section>
+
+        <!-- Classification Details -->
+        <section data-classification>
+            <h3>Classification Analysis</h3>
+            <p><strong>Current Activity Pattern:</strong></p>
+            <ul>
+                <li>Tool: Skill activations (htmlgraph-tracker)</li>
+                <li>Tool: Reading drift queue metadata</li>
+                <li>Tool: Globbing spikes and chores directories</li>
+                <li>Classification: System organization and setup</li>
+            </ul>
+            <p><strong>Work Item Type: CHORE</strong></p>
+            <p>This is maintenance work that implements the infrastructure for drift classification, not fixing a bug or adding user-facing features.</p>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Design classification algorithm (rule-based rules)
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement work item type detection logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Create HTML work item generator for each type
+                </li>
+                <li data-completed="false">
+                    ⏳ Integrate drift queue processing into main workflow
+                </li>
+                <li data-completed="false">
+                    ⏳ Test classification with sample activities
+                </li>
+                <li data-completed="false">
+                    ⏳ Document classification rules and conventions
+                </li>
+            </ol>
+        </section>
+
+        <!-- Classification Rules Reference -->
+        <section data-rules>
+            <h3>Classification Rules</h3>
+            <dl>
+                <dt>Bug</dt>
+                <dd>Activities involving fixing errors, incorrect behavior, or broken functionality</dd>
+
+                <dt>Feature</dt>
+                <dd>Activities related to new functionality, additions to existing features</dd>
+
+                <dt>Spike</dt>
+                <dd>Research, exploration, investigation activities and proof-of-concepts</dd>
+
+                <dt>Chore</dt>
+                <dd>Maintenance, refactoring, cleanup, infrastructure, system organization</dd>
+
+                <dt>Hotfix</dt>
+                <dd>Urgent production issues requiring immediate resolution</dd>
+            </dl>
+        </section>
+
+        <!-- Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd data-key="type">Chore</dd>
+
+                <dt>Status</dt>
+                <dd data-key="status">Todo</dd>
+
+                <dt>Priority</dt>
+                <dd data-key="priority">Medium</dd>
+
+                <dt>Feature Association</dt>
+                <dd data-key="feature">feature-self-tracking</dd>
+
+                <dt>Drift Score Threshold</dt>
+                <dd data-key="drift-threshold">0.70+</dd>
+            </dl>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:18:31Z" data-type="created">
+                    Work item created from high-drift activity classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

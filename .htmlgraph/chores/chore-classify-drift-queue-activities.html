@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Classify Drift Queue Activities & Update Classification System</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="chore-classify-drift-queue"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T13:33:35Z"
+             data-updated="2025-12-16T13:33:35Z"
+             data-drift-score="0.707"
+             data-activity-count="5"
+             data-classified-from="drift-queue">
+
+        <header>
+            <h1>Classify Drift Queue Activities & Update Classification System</h1>
+            <div class="metadata">
+                <span class="badge type-chore">Chore</span>
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge drift-high">High Drift (0.707)</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Feature: Drift Auto-Classification</a></li>
+                    <li><a href="../spikes/spike-repeated-skill-invocations.html">Spike: Repeated Skill Invocations</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="generated-from">
+                <h3>📊 Source:</h3>
+                <ul>
+                    <li><a href="../drift-queue.json">Drift Queue</a> (5 high-drift activities @ 0.707)</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 flagged activities</dd>
+
+                <dt>Average Drift Score</dt>
+                <dd data-key="avg_drift" data-value="0.707">0.707</dd>
+
+                <dt>Activity Types</dt>
+                <dd data-key="activity_types">Edit (2×), Read (2×), Glob (1×)</dd>
+
+                <dt>Timestamp Window</dt>
+                <dd data-key="time_window">2025-12-16T13:33:32 - 13:33:35 (3 seconds)</dd>
+
+                <dt>Classification</dt>
+                <dd data-key="classification">Chore - System maintenance</dd>
+
+                <dt>Rationale</dt>
+                <dd data-key="rationale">These activities are investigating and improving HtmlGraph's own tracking/drift detection system, which is infrastructure/maintenance work</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Action Items</h3>
+            <ol>
+                <li data-completed="false">
+                    ✓ Create this classification work item
+                </li>
+                <li data-completed="false">
+                    Analyze drift score algorithm - determine if 0.707 is appropriate for system metadata operations
+                </li>
+                <li data-completed="false">
+                    Review drift thresholds for tool types (Edit/Read/Glob on htmlgraph internal files)
+                </li>
+                <li data-completed="false">
+                    Update feature-self-tracking to include drift-queue.json and spikes/ in relevant file patterns
+                </li>
+                <li data-completed="false">
+                    Consider creating a whitelist for system metadata files that shouldn't trigger high drift
+                </li>
+                <li data-completed="false">
+                    Verify drift detection doesn't flag legitimate tooling overhead
+                </li>
+            </ol>
+        </section>
+
+        <!-- Context -->
+        <section data-content>
+            <h3>Context</h3>
+            <p>
+                During session tracking for <code>feature-self-tracking</code>, activities investigating
+                the drift classification system itself were flagged with high drift (0.707).
+            </p>
+
+            <h4>Activities Classified:</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Summary</th>
+                        <th>Drift Score</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Edit</td>
+                        <td>spike-drift-auto-classification.html update</td>
+                        <td>0.707</td>
+                        <td>2025-12-16T13:33:32</td>
+                    </tr>
+                    <tr>
+                        <td>Read</td>
+                        <td>drift-queue.json</td>
+                        <td>0.707</td>
+                        <td>2025-12-16T13:33:32</td>
+                    </tr>
+                    <tr>
+                        <td>Read</td>
+                        <td>feature-self-tracking.html</td>
+                        <td>0.707</td>
+                        <td>2025-12-16T13:33:32</td>
+                    </tr>
+                    <tr>
+                        <td>Glob</td>
+                        <td>.htmlgraph/spikes/*.html</td>
+                        <td>0.707</td>
+                        <td>2025-12-16T13:33:32</td>
+                    </tr>
+                    <tr>
+                        <td>Edit</td>
+                        <td>spike-drift-auto-classification.html activity log</td>
+                        <td>0.707</td>
+                        <td>2025-12-16T13:33:35</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Work Type Classification:</h4>
+            <p>
+                <strong>Type: Chore (System Maintenance)</strong><br>
+                These activities involve investigating and documenting HtmlGraph's own internal
+                tracking/classification infrastructure. This is configuration and maintenance work,
+                not feature implementation.
+            </p>
+
+            <h4>Why High Drift?</h4>
+            <ul>
+                <li>Tools were accessing HtmlGraph metadata files (.htmlgraph/ directory)</li>
+                <li>Activities were meta-level (investigating tracking system, not implementing features)</li>
+                <li>Rapid file operations on internal system files in short time window</li>
+            </ul>
+
+            <h4>Next Steps:</h4>
+            <ul>
+                <li>Evaluate if drift detection needs tuning for system/metadata operations</li>
+                <li>Consider if .htmlgraph/* file patterns should auto-classify to appropriate features</li>
+                <li>Update drift threshold tuning in feature-drift-auto-classification</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:50:42Z" data-agent="claude">
+                    Reviewed and confirmed high-drift activity classification; created documentation of drift→work-item mapping
+                </li>
+                <li data-timestamp="2025-12-16T13:47:37Z" data-agent="system">
+                    New high-drift activities detected: Bash (directory check) → Write (spike consolidation) → Read (chore review) → Skill (activation)
+                </li>
+                <li data-timestamp="2025-12-16T13:33:35Z" data-agent="claude">
+                    Classified 5 high-drift activities as chore work item
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

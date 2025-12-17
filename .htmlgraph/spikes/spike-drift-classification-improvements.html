@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Improve Drift Classification Accuracy</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-improvements"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T13:12:27.000000"
+             data-updated="2025-12-16T13:12:27.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Spike: Improve Drift Classification Accuracy</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification</dt>
+                <dd data-key="type">spike - research/investigation</dd>
+
+                <dt>Trigger</dt>
+                <dd data-key="trigger">High drift score (0.71) on repeated file reads during drift queue review</dd>
+
+                <dt>Investigation Scope</dt>
+                <dd data-key="scope">Understand why metadata access patterns generate high drift scores</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identify high-drift activities in queue
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze drift calculation logic for file reads
+                </li>
+                <li data-completed="false">
+                    ⏳ Review feature pattern matching for self-tracking feature
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if drift classification needs refinement
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommendations
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>During feature-self-tracking work, multiple activities were flagged with high drift scores (0.71):</p>
+
+            <ul>
+                <li>Reading drift-queue.json (system metadata file)</li>
+                <li>Reading feature-self-tracking.html (feature definition file)</li>
+                <li>Reading drift improvement spike file</li>
+                <li>Listing spike directory contents</li>
+            </ul>
+
+            <h4>Problem Statement</h4>
+            <p>These are legitimate self-tracking activities (reading your own progress, checking queue) but are being classified as drift. The drift classifier may need tuning to recognize:</p>
+            <ul>
+                <li>System metadata access as part of feature work</li>
+                <li>Checking own progress/status as related to current feature</li>
+                <li>Investigation of drift signals as system maintenance</li>
+            </ul>
+
+            <h4>Questions to Answer</h4>
+            <ul>
+                <li>Should .htmlgraph/* reads be auto-excluded from drift scoring?</li>
+                <li>Should reading the current feature's file be considered drift-free?</li>
+                <li>Is the drift threshold (0.71) appropriate for metadata operations?</li>
+                <li>Could file path patterns improve classification?</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:27.000000" data-agent="claude">
+                    Classified high-drift activities into spike for further investigation
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

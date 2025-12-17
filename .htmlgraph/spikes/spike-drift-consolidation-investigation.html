@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Classification Consolidation Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-consolidation-investigation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T14:30:00Z"
+             data-updated="2025-12-16T14:30:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Classification Consolidation Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocked By:</h3>
+                <ul>
+                    <li>
+                        <a href="spike-drift-auto-classification.html"
+                           data-relationship="blocks">Understanding of auto-classification system behavior</a>
+                    </li>
+                </ul>
+            </section>
+
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html">Drift Classification Consolidation Chore</a></li>
+                    <li><a href="spike-classify-high-drift-activities.html">Classify High-Drift Activities Spike</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/" data-relationship="implemented-in">Current session</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Level</dt>
+                <dd data-key="drift-level" data-value="0.71">High (0.71)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities detected</dd>
+
+                <dt>Primary Pattern</dt>
+                <dd data-key="pattern">Repeated reads of consolidation chore + directory checks</dd>
+
+                <dt>Investigation Focus</dt>
+                <dd data-key="focus">Auto-classification system behavior and chore consolidation logic</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Understand what chore-drift-classification-consolidation.html does
+                </li>
+                <li data-completed="false">
+                    ⏳ Review auto-classification logic and triggering conditions
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify chores directory structure and file creation patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Check if consolidation chore completed or is pending
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if htmlgraph-tracker skill activation is expected behavior
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and consolidate investigation results
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Content -->
+        <section data-content>
+            <h3>Objective</h3>
+            <p>Investigate why the drift classification consolidation chore is being repeatedly read (multiple high-drift activities) and whether the auto-classification system is working correctly.</p>
+
+            <h4>Detected High-Drift Activities (0.71 drift):</h4>
+            <ul>
+                <li>
+                    <strong>Read:</strong> chore-drift-classification-consolidation.html
+                    <br><em>Multiple reads detected - suggests repeated loops or retries</em>
+                </li>
+                <li>
+                    <strong>Bash:</strong> Check for newly created work items from auto-classification
+                    <br><em>Looking for output of auto-classification system</em>
+                </li>
+                <li>
+                    <strong>Skill:</strong> htmlgraph:htmlgraph-tracker activation
+                    <br><em>Possibly triggered by auto-classification or consolidation logic</em>
+                </li>
+                <li>
+                    <strong>Bash:</strong> Check if chores directory exists
+                    <br><em>Verifying directory structure for work item storage</em>
+                </li>
+            </ul>
+
+            <h4>Key Questions to Answer:</h4>
+            <ul>
+                <li>Why are we repeatedly reading the consolidation chore file?</li>
+                <li>Is the auto-classification system finding new work items as expected?</li>
+                <li>Is the htmlgraph-tracker skill being activated correctly?</li>
+                <li>Are there any errors or failures in the consolidation process?</li>
+                <li>Should these directory check operations be part of the normal workflow?</li>
+            </ul>
+
+            <h4>Investigation Plan:</h4>
+            <ol>
+                <li>Read the consolidation chore HTML to understand its implementation</li>
+                <li>Review the auto-classification logic in spikes</li>
+                <li>Verify the chores directory exists and is accessible</li>
+                <li>Check if work items are being created from auto-classification</li>
+                <li>Assess whether the drift pattern indicates a problem or expected behavior</li>
+            </ol>
+        </section>
+
+        <!-- Hypotheses -->
+        <section data-hypotheses>
+            <h3>Initial Hypotheses</h3>
+            <ol>
+                <li>
+                    <strong>Hypothesis A (Likely):</strong> Auto-classification system is working correctly and creating new work items, causing repeated reads to detect these items.
+                </li>
+                <li>
+                    <strong>Hypothesis B:</strong> Consolidation chore is in a retry loop due to missing directory or permission issues.
+                </li>
+                <li>
+                    <strong>Hypothesis C:</strong> htmlgraph-tracker skill is being repeatedly activated as part of normal self-tracking workflow.
+                </li>
+                <li>
+                    <strong>Hypothesis D:</strong> Drift queue itself is causing meta-work (investigating itself) - need to break cycle or add safeguards.
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:30:00Z" data-agent="claude">
+                    Created spike work item for drift consolidation investigation
+                </li>
+                <li data-timestamp="2025-12-16T14:30:00Z" data-agent="system">
+                    High-drift activities (0.71) classified as SPIKE: Consolidation investigation
+                </li>
+            </ol>
+        </section>
+
+        <!-- Reference -->
+        <section data-reference>
+            <h3>Related Files</h3>
+            <ul>
+                <li><code>.htmlgraph/chores/chore-drift-classification-consolidation.html</code></li>
+                <li><code>.htmlgraph/spikes/spike-drift-auto-classification.html</code></li>
+                <li><code>.htmlgraph/drift-queue.json</code></li>
+                <li><code>.htmlgraph/features/feature-self-tracking.html</code></li>
+            </ul>
+        </section>
+    </article>
+</body>
+</html>

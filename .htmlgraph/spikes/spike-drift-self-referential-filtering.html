@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Implement Self-Referential Drift Filtering</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-self-referential-filtering"
+             data-type="spike"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T20:16:00Z"
+             data-updated="2025-12-16T20:16:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Implement Self-Referential Drift Filtering</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="spike-classify-high-drift-activities.html">Classify High-Drift Activities</a></li>
+                    <li><a href="spike-drift-auto-classification.html">Drift Auto-Classification System</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocking">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html" data-relationship="blocks">Drift Classification Consolidation</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/" data-relationship="implemented-in">Current session context</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Root Cause Drift Activities</dt>
+                <dd data-key="root-cause-count" data-value="5">5 high-drift activities detected</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Primary Pattern</dt>
+                <dd data-key="pattern">Self-referential metadata reads from .htmlgraph/** infrastructure</dd>
+
+                <dt>Problem Type</dt>
+                <dd data-key="problem-type">False positive drift detection from system internal files</dd>
+
+                <dt>Estimated Complexity</dt>
+                <dd data-key="complexity" data-value="medium">Medium (filter logic + test coverage)</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Review drift-queue.json structure and current filtering logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze patterns in activity classification rules
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify all .htmlgraph/** file paths that should be excluded
+                </li>
+                <li data-completed="false">
+                    ⏳ Design filtering heuristics (meta-file detection, system operations)
+                </li>
+                <li data-completed="false">
+                    ⏳ Propose test strategy for validating filter accuracy
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings in implementation plan
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Content -->
+        <section data-content>
+            <h3>Objective</h3>
+            <p>Investigate and design a solution for preventing self-referential drift classification—where the drift monitoring system's own infrastructure reads are incorrectly flagged as high-drift activity.</p>
+
+            <h4>Problem Statement:</h4>
+            <p>During feature-self-tracking implementation, the drift detector identified 5 high-drift activities (0.71 score) consisting entirely of:</p>
+            <ul>
+                <li>Repeated reads of .htmlgraph/drift-queue.json</li>
+                <li>Reads of .htmlgraph/spikes/spike-*.html files</li>
+                <li>Reads of .htmlgraph/chores/chore-*.html files</li>
+                <li>Activation of htmlgraph:htmlgraph-tracker skill</li>
+            </ul>
+            <p><strong>Root cause:</strong> These are infrastructure/system activities required to manage drift classification itself, not user-facing feature work. They should not count as "drift" in the feature context.</p>
+
+            <h4>Why This Matters:</h4>
+            <ul>
+                <li><strong>Signal-to-Noise Ratio:</strong> False positives in drift detection reduce confidence in the system</li>
+                <li><strong>Feature Progress:</strong> High-drift false alarms block legitimate feature development</li>
+                <li><strong>System Reliability:</strong> Meta-work (agents querying their own operational files) is expected and healthy</li>
+                <li><strong>Scalability:</strong> As self-tracking expands, internal reads will increase; filtering becomes critical</li>
+            </ul>
+
+            <h4>Key Questions for Investigation:</h4>
+            <ol>
+                <li>What is the complete list of .htmlgraph/** paths that should be filtered?</li>
+                <li>Are there generic patterns (e.g., dotfiles, system directories) that indicate meta-work?</li>
+                <li>Should system-generated activities (Skill activations, Tool invocations from CLI) be separately classified?</li>
+                <li>How do we balance false positive reduction with drift detection accuracy?</li>
+                <li>What's the minimal viable filter that solves this without over-generalizing?</li>
+            </ol>
+
+            <h4>Suspected Solution Approach:</h4>
+            <ul>
+                <li><strong>File Path Filtering:</strong> Exclude reads matching .htmlgraph/** pattern from drift scoring</li>
+                <li><strong>Tool Classification:</strong> Tag system tools (htmlgraph-tracker, etc.) as infrastructure rather than feature work</li>
+                <li><strong>Context Awareness:</strong> Check if parent feature is about the tracking system itself</li>
+                <li><strong>Gradual Thresholds:</strong> Adjust drift weight for internal operations vs external tools</li>
+            </ul>
+
+            <h4>Deliverables:</h4>
+            <ul>
+                <li>✓ Detailed analysis of drift filtering requirements</li>
+                <li>✓ Design document for self-referential filtering logic</li>
+                <li>✓ Test cases for validating filter effectiveness</li>
+                <li>✓ Recommendation for implementation approach</li>
+            </ul>
+        </section>
+
+        <!-- Context from Discovered Artifacts -->
+        <section data-reference>
+            <h3>Related Artifacts Discovered</h3>
+            <dl>
+                <dt>spike-classify-high-drift-activities.html</dt>
+                <dd>Documents the investigation that led to this spike; contains classification framework table</dd>
+
+                <dt>chore-drift-classification-consolidation.html</dt>
+                <dd>Proposes solution tasks (exclusion of .htmlgraph/**, purge strategy, documentation)</dd>
+
+                <dt>activity-pattern</dt>
+                <dd>5 repeated activities: Read drift-queue (3x), Read spike files (2x), Skill activation (1x)</dd>
+            </dl>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:16:00Z" data-agent="claude">
+                    Created spike work item from high-drift activity classification
+                </li>
+                <li data-timestamp="2025-12-16T14:07:00Z" data-agent="system">
+                    High-drift activities detected and analyzed from feature-self-tracking session
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Improve Drift Classification and Reduce Tracker Invocations</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-classification"
+             data-type="chore"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T13:11:38.000000Z"
+             data-updated="2025-12-16T13:11:38.000000Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Improve Drift Classification and Reduce Tracker Invocations</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Analyze drift-queue.json activity patterns (5 Skill invocations with 0.71 drift in &lt;1 second)
+                </li>
+                <li data-completed="false">
+                    Investigate root cause: why is htmlgraph-tracker skill being invoked repeatedly?
+                </li>
+                <li data-completed="false">
+                    Implement deduplication logic to prevent redundant skill invocations
+                </li>
+                <li data-completed="false">
+                    Refine drift scoring algorithm to better distinguish meta-activities from core work
+                </li>
+                <li data-completed="false">
+                    Add test cases for rapid activity sequences
+                </li>
+                <li data-completed="false">
+                    Validate that feature-self-tracking activities are properly classified
+                </li>
+            </ol>
+        </section>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Estimated Effort</dt>
+                <dd data-key="effort" data-value="3" data-unit="hours">3 hours</dd>
+
+                <dt>Type</dt>
+                <dd data-key="type">Maintenance</dd>
+
+                <dt>Impact</dt>
+                <dd data-key="impact">Improves session accuracy and reduces noise in activity logs</dd>
+            </dl>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Recent activity monitoring detected high drift (0.71) from repeated htmlgraph-tracker skill invocations within feature-self-tracking.</p>
+
+            <h4>Issues Identified:</h4>
+            <ul>
+                <li>Multiple Skill invocations in rapid succession (3 within ~100ms)</li>
+                <li>Read operation on drift-queue.json suggesting activity introspection</li>
+                <li>All activities attributed to feature-self-tracking despite being meta-activities</li>
+            </ul>
+
+            <h4>Goals:</h4>
+            <ul>
+                <li>Reduce false positives in drift detection</li>
+                <li>Prevent redundant tracker invocations</li>
+                <li>Improve attribution accuracy for meta-activities vs actual work</li>
+                <li>Create pattern recognition for skill invocation sequences</li>
+            </ul>
+
+            <h4>Success Criteria:</h4>
+            <ul>
+                <li>No more than 1 tracker invocation per session phase</li>
+                <li>Drift scores for meta-activities &lt; 0.5</li>
+                <li>Clear distinction between tracking activity and feature work</li>
+                <li>Activity logs remain clean and actionable</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:11:38.000000Z" data-agent="claude">
+                    Classified high-drift activities (5 Skill invocations + Read) into work item
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

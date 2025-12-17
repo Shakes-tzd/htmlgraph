@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Fix Drift Classification Infrastructure Noise</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-classification-fix-infrastructure"
+             data-type="chore"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T14:30:00Z"
+             data-updated="2025-12-16T14:30:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Fix Drift Classification Infrastructure Noise</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="blocks">feature-self-tracking</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="related">Drift Classification Consolidation</a></li>
+                    <li><a href="../spikes/spike-classify-high-drift-activities.html" data-relationship="related">Spike: Classify High-Drift Activities</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Context:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="context">Self-Tracking Feature</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">CHORE - Infrastructure Maintenance</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">Drift classification system includes system metadata operations in scoring</dd>
+
+                <dt>Detection Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Pattern</dt>
+                <dd data-key="pattern">5 activities: 4 metadata reads + 1 directory exploration</dd>
+
+                <dt>Impact</dt>
+                <dd data-key="impact">False positive drift detection blocks feature development workflow</dd>
+            </dl>
+        </section>
+
+        <!-- Consolidation Steps -->
+        <section data-steps>
+            <h3>Consolidation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Exclude .htmlgraph/** files from drift scoring algorithm
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift filtering rules in event_log.py or converter.py
+                </li>
+                <li data-completed="false">
+                    ⏳ Add whitelist for system metadata patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Test drift classification with excluded patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Document classification rules in CLAUDE.md
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify feature-self-tracking works without false drift warnings
+                </li>
+            </ol>
+        </section>
+
+        <!-- Problem Description -->
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>The drift classification system detected 5 high-drift activities (0.71 score) during feature-self-tracking work. Analysis reveals these are infrastructure/system operations, not feature drift:</p>
+
+            <h4>Detected High-Drift Activities:</h4>
+            <ul>
+                <li><strong>Read:</strong> .htmlgraph/drift-queue.json (3×)</li>
+                <li><strong>Read:</strong> .htmlgraph/features/feature-self-tracking.html</li>
+                <li><strong>Read:</strong> .htmlgraph/spikes/spike-*.html</li>
+                <li><strong>Bash:</strong> ls .htmlgraph/ (directory exploration)</li>
+                <li><strong>Skill:</strong> htmlgraph-tracker activation</li>
+            </ul>
+
+            <h4>Why This Is a Problem:</h4>
+            <ul>
+                <li>System metadata operations trigger false positive drift warnings</li>
+                <li>Blocks legitimate feature work from proceeding</li>
+                <li>Reduces signal-to-noise ratio of drift detection</li>
+                <li>Creates meta-circular feedback (investigating drift while causing drift)</li>
+            </ul>
+
+            <h3>Solution Design</h3>
+
+            <h4>Filtering Strategy:</h4>
+            <ul>
+                <li><strong>Whitelist approach:</strong> Exclude .htmlgraph/** from drift calculations</li>
+                <li><strong>System operations:</strong> Exclude directory listing, metadata reads</li>
+                <li><strong>Skill activations:</strong> Exclude self-referential tool activations</li>
+            </ul>
+
+            <h4>Implementation Location:</h4>
+            <ul>
+                <li><strong>Primary:</strong> src/python/htmlgraph/event_log.py or converter.py</li>
+                <li><strong>Config:</strong> Add classification rules section to CLAUDE.md</li>
+                <li><strong>Tests:</strong> tests/python/test_event_index.py (if exists)</li>
+            </ul>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ Drift scores no longer include .htmlgraph/** operations</li>
+                <li>✓ System metadata reads are filtered before classification</li>
+                <li>✓ feature-self-tracking can proceed without false drift alerts</li>
+                <li>✓ Classification rules documented</li>
+                <li>✓ No regression in legitimate drift detection</li>
+            </ul>
+        </section>
+
+        <!-- Classification Rationale -->
+        <section data-rationale>
+            <h3>Classification Rationale</h3>
+
+            <h4>Why CHORE (not SPIKE)?</h4>
+            <ul>
+                <li>✅ Infrastructure maintenance (improving detection system)</li>
+                <li>✅ System consolidation (reducing noise)</li>
+                <li>✅ Blocked feature work (blocking criterion for maintenance)</li>
+                <li>✗ Not research/exploration (solution is clear)</li>
+            </ul>
+
+            <h4>High Priority Justification:</h4>
+            <ul>
+                <li>Currently blocks feature-self-tracking progress</li>
+                <li>Affects system reliability and observability</li>
+                <li>Quick fix with high impact</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:30:00Z" data-agent="claude">
+                    Created consolidation chore from high-drift activity classification (0.71 drift, 5 activities)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Drift Auto-Classification System</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="chore-drift-auto-classification-system"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T10:19:00Z"
+             data-updated="2025-12-16T10:19:20Z"
+             data-feature="feature-self-tracking"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Auto-Classification System</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge type-chore">Chore</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-drift-investigation.html">Drift Detection Investigation Spike</a></li>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="enables">
+                <h3>✅ Enables:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Auto-Classification Feature</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification Trigger</dt>
+                <dd data-key="trigger">High-drift activity detection (drift score ≥ 0.70)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="6">6 activities</dd>
+
+                <dt>Average Drift Score</dt>
+                <dd data-key="avg_drift_score" data-value="0.707">0.707</dd>
+
+                <dt>Work Item Type</dt>
+                <dd data-key="work_item_type">Chore (Infrastructure/Maintenance)</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Activate htmlgraph-tracker skill to enable session tracking
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read and analyze drift-queue.json structure
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Review existing drift investigation spike findings
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Examine drift classifier integration chore requirements
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement drift activity classification rules mapping
+                </li>
+                <li data-completed="false">
+                    ⏳ Build automatic work item generation from drift queue
+                </li>
+                <li data-completed="false">
+                    ⏳ Test classification accuracy and edge cases
+                </li>
+                <li data-completed="false">
+                    ⏳ Document auto-classification patterns and thresholds
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Build automated system to classify high-drift activities into appropriate work items (bugs, features, spikes, chores, hotfixes) based on activity patterns and content analysis.</p>
+
+            <h4>What is High Drift?</h4>
+            <p>Activities with drift score ≥ 0.70 indicate work that diverges from the currently assigned feature context. This is often legitimate (e.g., infrastructure maintenance, cross-cutting concerns) but needs proper classification for accurate project tracking and attribution.</p>
+
+            <h4>Activities Classified (6 total):</h4>
+            <ul>
+                <li><strong>3x Skill invocations</strong> - htmlgraph-tracker activation (drift: 0.707)</li>
+                <li><strong>2x Read operations</strong> - drift-queue.json analysis (drift: 0.707)</li>
+                <li><strong>1x Read operation</strong> - spike investigation review (drift: 0.707)</li>
+                <li><strong>1x Glob operation</strong> - chores directory discovery (drift: 0.707)</li>
+            </ul>
+
+            <h4>Classification Analysis:</h4>
+            <ul>
+                <li><strong>Work Item Type:</strong> Chore - This is infrastructure maintenance work (drift system)</li>
+                <li><strong>Feature Context:</strong> feature-self-tracking (HtmlGraph self-tracking capability)</li>
+                <li><strong>Rationale:</strong> Activities focus on drift detection, queue management, and auto-classification infrastructure—core to the self-tracking feature</li>
+                <li><strong>Pattern:</strong> Discovery and analysis phase → investigation spike → chore implementation</li>
+            </ul>
+
+            <h4>Success Criteria:</h4>
+            <ul>
+                <li>Drift queue processed and all high-drift activities classified</li>
+                <li>Appropriate work items created in .htmlgraph/ with correct type</li>
+                <li>Feature attribution accurate (related to feature-self-tracking)</li>
+                <li>Activity logs properly documented with timestamps</li>
+                <li>Classification rules automated and reusable</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:19:20Z" data-agent="claude">
+                    Analyzed high-drift activities and created auto-classification system chore
+                </li>
+                <li data-timestamp="2025-12-16T10:19:15Z" data-agent="claude">
+                    Reviewed drift investigation spike and classifier integration chore
+                </li>
+                <li data-timestamp="2025-12-16T10:19:13Z" data-agent="claude">
+                    Examined drift-queue.json and chores directory structure
+                </li>
+                <li data-timestamp="2025-12-16T10:19:08Z" data-agent="claude">
+                    Activated htmlgraph-tracker skill for session tracking
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

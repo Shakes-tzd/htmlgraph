@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Repeated Tracker Skill Invocations with High Drift</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-repeated-tracker-invocations"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T20:15:00Z"
+             data-updated="2025-12-16T20:15:00Z"
+             data-agent-assigned="claude"
+             data-drift-classification="true">
+
+        <header>
+            <h1>🔬 Spike: Repeated Tracker Skill Invocations with High Drift</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">Investigating</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge drift-critical">Critical Drift (0.71)</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../chores/chore-setup-htmlgraph-tracker.html">Setup HtmlGraph Tracker Skill</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Classification Details -->
+        <section data-properties>
+            <h3>Classification Details</h3>
+            <dl>
+                <dt>Detection Time</dt>
+                <dd data-key="detection_time" data-timestamp="2025-12-16T20:15:00Z">2025-12-16T20:15:00Z</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Repeated Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 identical invocations</dd>
+
+                <dt>Affected Skill</dt>
+                <dd data-key="affected_skill">htmlgraph:htmlgraph-tracker</dd>
+
+                <dt>Activity Types</dt>
+                <dd data-key="activity_types">Skill invocation + File writes (chore + spike creation)</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Questions -->
+        <section data-content>
+            <h3>Investigation Scope</h3>
+
+            <h4>Problem Statement</h4>
+            <p>The htmlgraph-tracker skill shows 5 consecutive invocations with high drift (0.71), suggesting possible issues with skill initialization, error handling, or drift detection sensitivity. This pattern occurred while implementing feature-self-tracking.</p>
+
+            <h4>Key Questions</h4>
+            <ol>
+                <li>Why was the tracker skill invoked 5 times in rapid succession?</li>
+                <li>Is this expected behavior (retry logic, hook mechanism) or an error?</li>
+                <li>Does the skill have idempotency guarantees?</li>
+                <li>Is drift detection sensitivity appropriately calibrated for idempotent operations?</li>
+                <li>Should the system suppress or batch repeated identical skill invocations?</li>
+                <li>What is the actual failure mode or blocker preventing normal operation?</li>
+            </ol>
+
+            <h4>Observed Pattern</h4>
+            <ul>
+                <li>Multiple Skill tool invocations with identical parameters</li>
+                <li>Followed by Write operations creating chore and spike files</li>
+                <li>All marked with drift score 0.71</li>
+                <li>Indicates system automatically classified high-drift activities into work items</li>
+            </ul>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Review session logs (session-20251216-200428.html) for context and error messages
+                </li>
+                <li data-completed="false">
+                    ⏳ Check tracker skill initialization logic and error handling
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze drift scoring algorithm - is it appropriate for idempotent operations?
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if repeated invocations are expected or indicate a bug
+                </li>
+                <li data-completed="false">
+                    ⏳ Evaluate whether auto-classification of high-drift activities is working as intended
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommend action (fix, adjust scoring, suppress duplicate invocations)
+                </li>
+                <li data-completed="false">
+                    ⏳ Update feature-self-tracking with resolution
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:15:00Z" data-agent="system">
+                    Created spike from high-drift activity classification. Pattern: repeated skill invocations + auto-generated chore + auto-generated spike work items.
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

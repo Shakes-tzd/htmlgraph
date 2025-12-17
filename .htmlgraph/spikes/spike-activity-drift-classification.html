@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Investigate Repeated Skill Invocations and Drift Classification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-activity-drift-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:17:00Z"
+             data-updated="2025-12-16T13:17:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Investigate Repeated Skill Invocations and Drift Classification</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="spike-repeated-skill-invocations.html" data-relationship="related">Repeated Skill Invocations Investigation</a></li>
+                    <li><a href="spike-drift-classification-mechanism.html" data-relationship="related">Drift Classification Mechanism</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Investigation Focus</h3>
+            <dl>
+                <dt>Observed Drift Score</dt>
+                <dd data-key="drift_score">0.71</dd>
+
+                <dt>Activity Pattern</dt>
+                <dd data-key="pattern">Repeated skill invocations + file operations + exploration</dd>
+
+                <dt>Affected Components</dt>
+                <dd data-key="components">htmlgraph-tracker skill, drift classification system, spike documentation</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identify pattern of repeated skill invocations
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze drift scores for consistency
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine root cause of high drift (skill reuse vs new context vs classification issue)
+                </li>
+                <li data-completed="false">
+                    ⏳ Evaluate impact on activity tracking accuracy
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommendations
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement fixes if needed (filtering, deduplication, or classification refinement)
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>During self-tracking implementation, the htmlgraph-tracker skill was invoked multiple times in sequence, and all related activities (skill invocation, file reads, file edits, and bash operations) were flagged with consistent high drift (0.71).</p>
+
+            <h4>Questions to Investigate:</h4>
+            <ul>
+                <li>Is the drift score legitimate (indicating off-task behavior) or a false positive?</li>
+                <li>Are repeated skill invocations within the same session a classification problem?</li>
+                <li>Should file operations be grouped with their triggering skill invocation?</li>
+                <li>Is the drift threshold (0.71) appropriate for this activity pattern?</li>
+                <li>How should we distinguish between intentional exploration and actual drift?</li>
+            </ul>
+
+            <h4>Spike Goals:</h4>
+            <ul>
+                <li>Understand the drift classification algorithm</li>
+                <li>Identify why these activities triggered high drift flags</li>
+                <li>Determine if the classification is correct or needs refinement</li>
+                <li>Create test cases for edge cases in drift detection</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:17:00Z" data-agent="claude">
+                    Created spike work item for drift classification investigation
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

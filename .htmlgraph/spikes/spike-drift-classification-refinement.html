@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Refine Drift Classification Algorithm</title>
+    <link rel="stylesheet" href="../../src/styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-refinement"
+             data-type="spike"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T20:10:00Z"
+             data-updated="2025-12-16T20:10:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Refine Drift Classification Algorithm</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="blocks">Self-Tracking Feature</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html" data-relationship="related">Consolidation Chore</a></li>
+                    <li><a href="spike-drift-classification-investigation.html" data-relationship="related">Investigation Spike</a></li>
+                    <li><a href="../bugs/bug-skill-invocation-drift-attribution.html" data-relationship="related">Skill Invocation Drift Bug</a></li>
+                    <li><a href="../bugs/bug-high-drift-skill-invocations.html" data-relationship="related">High Drift Skills Bug</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Investigation Focus</h3>
+            <dl>
+                <dt>Current Issue</dt>
+                <dd data-key="issue">5 high-drift activities (0.71 score) flagged as off-topic during feature-self-tracking work</dd>
+
+                <dt>Root Cause Hypothesis</dt>
+                <dd data-key="hypothesis">Drift classification conflates system infrastructure reads (.htmlgraph/*) with actual off-topic work</dd>
+
+                <dt>Activity Pattern</dt>
+                <dd data-key="pattern">Read, Glob, Skill invocations on metadata files and system directories</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze existing drift detection logic in codebase
+                </li>
+                <li data-completed="false">
+                    ⏳ Review the 3 related bugs for commonalities and patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify tool types that should be excluded from drift scoring (.htmlgraph/*, metadata reads)
+                </li>
+                <li data-completed="false">
+                    ⏳ Design filtering rules (whitelist system dirs, classify by tool type)
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift classification decision tree
+                </li>
+                <li data-completed="false">
+                    ⏳ Create test cases for edge cases (system exploration vs legitimate drift)
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The drift classification system is detecting infrastructure/system exploration activities as high-drift "off-topic" work. This investigation spike will clarify what should and shouldn't count as drift.</p>
+
+            <h4>Problem Statement:</h4>
+            <p>When implementing features that touch HtmlGraph's own infrastructure (self-tracking, drift classification), legitimate system exploration activities get flagged as off-topic drift, creating noise and false positives.</p>
+
+            <h4>High-Drift Activities Classified (0.71 score):</h4>
+            <ul>
+                <li>Read: feature-self-tracking.html metadata</li>
+                <li>Glob: .htmlgraph/bugs/*.html (system directory)</li>
+                <li>Skill: htmlgraph-tracker invocation (x2)</li>
+                <li>Read: chore-drift-classification-consolidation.html</li>
+            </ul>
+
+            <h4>Key Questions:</h4>
+            <ol>
+                <li>Should reads from .htmlgraph/* count toward drift? (Likely: NO)</li>
+                <li>Should system-level Skill invocations (htmlgraph-tracker) count toward drift? (Likely: NO)</li>
+                <li>How to distinguish "system exploration" from "genuine off-topic drift"?</li>
+                <li>Are there other tool types that should be excluded?</li>
+            </ol>
+
+            <h4>Classification Decision Rules to Establish:</h4>
+            <ul>
+                <li><strong>System Infrastructure</strong>: .htmlgraph/* paths → NO drift</li>
+                <li><strong>System Skills</strong>: htmlgraph-tracker, drift-related tools → NO drift</li>
+                <li><strong>Metadata Reads</strong>: Self-referential file reads on current work → LOW drift (0.1-0.2)</li>
+                <li><strong>Genuine Drift</strong>: Tool usage completely unrelated to stated feature → HIGH drift (0.7+)</li>
+            </ul>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ Clear drift classification rules documented</li>
+                <li>✓ System infrastructure reads excluded from scoring</li>
+                <li>✓ Spike identifies root causes from existing bugs</li>
+                <li>✓ Recommendations provided for filtering logic</li>
+                <li>✓ No false positives when agents work on self-referential features</li>
+                <li>✓ Decision tree created for future classification edge cases</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:10:00Z" data-agent="claude">
+                    Created spike: drift classification refinement investigation from high-drift activity pattern
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

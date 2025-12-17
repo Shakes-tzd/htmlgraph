@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Debug Drift Classification for Self-Tracking Feature</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-self-tracking-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:42:00Z"
+             data-updated="2025-12-16T13:42:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Debug Drift Classification for Self-Tracking Feature</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="spike-drift-classification-investigation.html" data-relationship="related">Drift Classification Investigation</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked-by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="spike-drift-classification-investigation.html" data-relationship="blocked-by">Understanding root cause of drift scoring</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification Reason</dt>
+                <dd data-key="classification">High-drift activities (0.71 score) performing self-checks on drift system</dd>
+
+                <dt>Activities Analyzed</dt>
+                <dd data-key="activity-count">5 activities</dd>
+
+                <dt>Root File</dt>
+                <dd data-key="root-file">.htmlgraph/drift-queue.json</dd>
+
+                <dt>Time Range</dt>
+                <dd data-key="time-range">2025-12-16 13:38:11 to 13:41:13</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Understand current drift calculation algorithm in drift-queue.json
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify why feature-self-tracking activities trigger 0.71 drift when accessing system files
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if drift score is correct (activity is meta-work on tracking system)
+                </li>
+                <li data-completed="false">
+                    ⏳ Review feature patterns/keywords in feature-self-tracking.html
+                </li>
+                <li data-completed="false">
+                    ⏳ Propose fix: either update feature scope or adjust drift calculation
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation spike to understand why activities related to drift detection itself are being flagged as high-drift when they should be attributed to feature-self-tracking.</p>
+
+            <h4>Activity Summary</h4>
+            <ul>
+                <li>Activated htmlgraph-tracker skill (drift: 0.71)</li>
+                <li>Checked spikes directory contents (drift: 0.71)</li>
+                <li>Read spike-drift-classification-investigation.html (drift: 0.71)</li>
+                <li>Re-activated tracker skill (drift: 0.71)</li>
+            </ul>
+
+            <h4>Questions to Answer</h4>
+            <ul>
+                <li>Why does accessing .htmlgraph/* files trigger drift detection?</li>
+                <li>Should meta-work on the tracking system be scoped differently?</li>
+                <li>Is the 0.71 score correct, or is there a bug in the calculation?</li>
+                <li>Should feature-self-tracking have broader file patterns?</li>
+            </ul>
+
+            <h4>Potential Outcomes</h4>
+            <ul>
+                <li>Update feature-self-tracking file patterns to include .htmlgraph/* access</li>
+                <li>Adjust drift calculation to recognize system introspection as on-scope</li>
+                <li>Create separate feature/spike for drift system investigation</li>
+                <li>Document expected drift behavior for meta-work</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:42:00Z" data-agent="claude">
+                    Created spike from high-drift activity classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

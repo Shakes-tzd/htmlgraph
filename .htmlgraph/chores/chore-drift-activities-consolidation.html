@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Consolidate High-Drift Activity Cluster</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-activities-consolidation"
+             data-type="chore"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T20:08:30Z"
+             data-updated="2025-12-16T20:08:30Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Consolidate High-Drift Activity Cluster</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">feature-self-tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">feature-drift-auto-classification</a></li>
+                    <li><a href="chore-drift-classification-workflow-automation.html" data-relationship="related">chore-drift-classification-workflow-automation</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="blocks">Self-Tracking Feature Progress</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Classification Summary</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">CHORE - Infrastructure Maintenance</dd>
+
+                <dt>Identified Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 clustered activities</dd>
+
+                <dt>Clustering Reason</dt>
+                <dd data-key="reason">Self-referential drift classification loop - activities about tracking drift are themselves classified as high-drift</dd>
+
+                <dt>Primary Issue</dt>
+                <dd data-key="issue">Skill invocation and file operations related to drift tracking system are triggering false-positive drift classifications, creating feedback loop</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Actions Required</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift threshold for Skill invocations (htmlgraph:htmlgraph-tracker)
+                </li>
+                <li data-completed="false">
+                    ⏳ Review drift scoring for file system Read/Write operations on .htmlgraph/ directory
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify false positives in the 5-activity cluster
+                </li>
+                <li data-completed="false">
+                    ⏳ Adjust drift classification rules to reduce self-referential feedback
+                </li>
+                <li data-completed="false">
+                    ⏳ Document exceptions for internal tracking operations
+                </li>
+                <li data-completed="false">
+                    ⏳ Validate that legitimate high-drift patterns still detected
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>A cluster of 5 high-drift activities (0.71 score) has been identified that reveal a self-referential drift classification loop. The drift tracking system itself is being flagged as high-drift, creating a feedback cycle where activities designed to manage drift classification are classified as drift.</p>
+
+            <h4>Activities in Cluster:</h4>
+            <ol>
+                <li>Skill: htmlgraph:htmlgraph-tracker (Skill invocation #1) - 0.71</li>
+                <li>Skill: htmlgraph:htmlgraph-tracker (Skill invocation #2) - 0.71</li>
+                <li>Write: spike-drift-activities-consolidation.html (File creation) - 0.71</li>
+                <li>Bash: Check most recent chore files (Directory listing) - 0.71</li>
+                <li>Read: chore-drift-classification-workflow-automation.html (File read) - 0.71</li>
+            </ol>
+
+            <h4>Pattern Analysis:</h4>
+            <p>All 5 activities share identical drift scores (0.71) and relate directly to drift classification management:</p>
+            <ul>
+                <li><strong>Skills</strong>: Direct invocation of tracking system (meta-tracking)</li>
+                <li><strong>File Operations</strong>: Create/read/list operations in .htmlgraph/ directory</li>
+                <li><strong>Consistency</strong>: All occur within 1-2 minute window, identical scoring</li>
+                <li><strong>Context</strong>: All triggered by drift classification system, not application code</li>
+            </ul>
+
+            <h4>Root Cause Hypothesis:</h4>
+            <p>The drift classification algorithm may be over-weighting "infrastructure self-referential" operations. When the tracking system creates work items to consolidate its own activities, this creates a logical loop:</p>
+            <ol>
+                <li>High-drift activity detected (e.g., repeated Skill invocation)</li>
+                <li>Tracking system creates work item to classify the drift</li>
+                <li>Creating work item triggers file I/O (Read, Write, Bash)</li>
+                <li>File I/O on .htmlgraph/ is classified as high-drift</li>
+                <li>Loop continues - drift about drift about drift...</li>
+            </ol>
+
+            <h4>Impact:</h4>
+            <ul>
+                <li>False positives prevent accurate identification of genuine high-drift patterns</li>
+                <li>Workflow overhead - time spent managing drift classification vs. development</li>
+                <li>Context pollution - legitimate work items mixed with meta-tracking items</li>
+                <li>Feedback loop reduces signal-to-noise ratio over time</li>
+            </ul>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ Drift scoring differentiation between application operations and meta-tracking</li>
+                <li>✓ Self-referential loops identified and documented</li>
+                <li>✓ False positive rate reduced while maintaining real drift detection</li>
+                <li>✓ .htmlgraph/ operations no longer trigger automatic high-drift classification</li>
+                <li>✓ Workflow overhead measurably reduced</li>
+                <li>✓ Future drift reports clearly distinguish genuine vs. meta-drift</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:08:30Z" data-agent="claude">
+                    Created consolidation chore from 5-activity high-drift cluster (0.71 score) - addressing self-referential tracking loop
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

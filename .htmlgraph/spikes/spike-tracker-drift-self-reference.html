@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Tracker Drift Self-Reference Pattern</title>
+</head>
+<body>
+    <article id="spike-tracker-drift-self-reference"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2024-12-16T00:00:00Z"
+             data-updated="2024-12-16T00:00:00Z"
+             data-feature="feature-self-tracking"
+             data-drift="0.71">
+
+        <header>
+            <h1>Tracker Drift Self-Reference Pattern</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge drift-high">High Drift (0.71)</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related Work Items:</h3>
+                <ul>
+                    <li><a href="spike-htmlgraph-tracker-investigation.html">HtmlGraph Tracker Investigation</a></li>
+                    <li><a href="spike-drift-activities-classification.html">Drift Activities Classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="parent">
+                <h3>📦 Feature:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Score</dt>
+                <dd data-key="drift" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root_cause">Tracker itself invoking high-drift activities during self-tracking</dd>
+
+                <dt>Investigation Pattern</dt>
+                <dd data-key="pattern">Meta-loop: Tracker activity → Drift detection → Classification</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true">
+                    ✅ Identified high-drift activity pattern (0.71 drift score)
+                </li>
+                <li data-completed="true">
+                    ✅ Recognized tool invocations: Glob, Skill×2, Write×2
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if this represents meta-level tracking overhead
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze whether tracker drift is legitimate signal or noise
+                </li>
+                <li data-completed="false">
+                    ⏳ Propose filtering strategy for self-referential activities
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>During self-tracking session (feature-self-tracking), the htmlgraph tracker plugin itself invoked multiple activities that registered as high-drift:</p>
+
+            <ul>
+                <li><code>Glob: .htmlgraph/bugs/*.html</code></li>
+                <li><code>Skill: htmlgraph:htmlgraph-tracker</code> (×2)</li>
+                <li><code>Write: chore-setup-htmlgraph-tracker.html</code></li>
+                <li><code>Write: spike-tracker-drift-invocations.html</code></li>
+            </ul>
+
+            <h4>Key Questions:</h4>
+            <ol>
+                <li>Is tracker plugin activity drift legitimate or a bootstrap problem?</li>
+                <li>Should self-referential tool invocations be classified differently?</li>
+                <li>Does high drift from tracker setup indicate need for optimization?</li>
+                <li>How to distinguish tracker overhead from actual feature drift?</li>
+            </ol>
+
+            <h4>Hypothesis:</h4>
+            <p>The tracker system itself creates a "meta-overhead" of drift when initializing or classifying activities. This could be:</p>
+            <ul>
+                <li><strong>Expected overhead</strong>: Bootstrap cost of any tracking system (acceptable)</li>
+                <li><strong>Inefficiency signal</strong>: Too many tool invocations for classification task (needs optimization)</li>
+                <li><strong>Scope creep</strong>: Tracker doing more than needed (needs scope reduction)</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T00:00:00Z" data-agent="claude">
+                    Created meta-spike to track tracker drift self-reference pattern
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

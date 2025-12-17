@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Self-Referential Classification Loop</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-self-referential-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:42:40.000000"
+             data-updated="2025-12-16T13:42:40.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Spike: Drift Self-Referential Classification Loop</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">feature-self-tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">feature-drift-auto-classification</a></li>
+                    <li><a href="../chores/chore-drift-metadata-reads.html" data-relationship="related">chore-drift-metadata-reads</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">feature-drift-auto-classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Investigation Details</h3>
+            <dl>
+                <dt>Issue Type</dt>
+                <dd data-key="issue_type">System Feedback Loop</dd>
+
+                <dt>Detected Drift Score</dt>
+                <dd data-key="drift_score">0.71 (Multiple activities)</dd>
+
+                <dt>Activities Involved</dt>
+                <dd data-key="activity_count">5 high-drift activities in 26 seconds</dd>
+
+                <dt>Timeline</dt>
+                <dd data-key="timeline">2025-12-16T13:42:12 to 2025-12-16T13:42:39</dd>
+
+                <dt>Root Pattern</dt>
+                <dd data-key="pattern">Classification system reading drift metadata while attributed to feature-self-tracking</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identified 5 high-drift activities (0.71 score) all within 26-second window
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed activity pattern: Edit spike, Read drift-queue.json (3x), Read feature file, Glob spikes
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Recognized self-referential loop: drift classification system reading its own operational files
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine root cause: Is the issue in the hook invoking classification, or classification reading metadata?
+                </li>
+                <li data-completed="false">
+                    ⏳ Evaluate solutions: Skip metadata files, reduce classification frequency, or change attribution
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement fix and verify drift scores normalize
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Problem Description</h3>
+            <p>The drift classification system has created a feedback loop where it reads its own metadata files (drift-queue.json, spike files, feature files) during its own execution, while being attributed to the current feature.</p>
+
+            <h4>Symptom: High-Drift Activity Cluster</h4>
+            <p>Between 13:42:12 and 13:42:39 UTC, 5 activities recorded with drift score 0.71:</p>
+            <ul>
+                <li><strong>13:42:12</strong> - Edit: spike-drift-classification-investigation.html</li>
+                <li><strong>13:42:34</strong> - Skill: htmlgraph:htmlgraph-tracker (activation)</li>
+                <li><strong>13:42:34</strong> - Read: spike-drift-classification-investigation.html</li>
+                <li><strong>13:42:36</strong> - Read: drift-queue.json</li>
+                <li><strong>13:42:39</strong> - Read: feature-self-tracking.html</li>
+                <li><strong>13:42:39</strong> - Glob: .htmlgraph/spikes/*.html</li>
+            </ul>
+
+            <h4>Root Cause Analysis</h4>
+            <p>When the classification hook runs, it:</p>
+            <ol>
+                <li>Reads drift-queue.json to get pending activities</li>
+                <li>Reads spike/feature files to classify activities</li>
+                <li>These reads get logged as activities themselves</li>
+                <li>The system has high drift because it's reading infrastructure files instead of working on features</li>
+                <li>This creates a spiral where drift classification generates its own high-drift activities</li>
+            </ol>
+
+            <h4>Impact</h4>
+            <ul>
+                <li>Noise in drift detection - metadata operations reported as high-drift</li>
+                <li>Potential false positives in activity classification</li>
+                <li>Self-sustaining loop that gets worse if classification runs frequently</li>
+                <li>Makes drift scores less trustworthy for identifying off-topic work</li>
+            </ul>
+
+            <h4>Acceptance Criteria for Resolution</h4>
+            <ul>
+                <li>✅ Drift metadata files excluded from drift calculations</li>
+                <li>✅ System operations don't generate false high-drift scores</li>
+                <li>✅ Classification can run without amplifying its own drift</li>
+                <li>✅ Future activities show accurate relevance to assigned feature</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:42:40.000000" data-agent="claude">
+                    Created spike work item for self-referential drift classification investigation
+                </li>
+                <li data-timestamp="2025-12-16T13:42:40.000000" data-agent="claude">
+                    Classified high-drift activities: 5 metadata reads between 13:42:12 and 13:42:39
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

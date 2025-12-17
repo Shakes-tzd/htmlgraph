@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Activity Auto-Classification to Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-auto-classification-tracking"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:47:00.000000"
+             data-updated="2025-12-16T13:47:00.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Spike: Drift Activity Auto-Classification to Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocking">
+                <h3>Blocking:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification Source</dt>
+                <dd data-key="source">High-drift activities (drift_score: 0.71)</dd>
+
+                <dt>Work Item Type</dt>
+                <dd data-key="work_item_type">spike</dd>
+
+                <dt>Reason</dt>
+                <dd data-key="reason">Exploration of drift detection mechanism and activity pattern classification</dd>
+
+                <dt>Drift Activities Detected</dt>
+                <dd data-key="activity_count">5</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identify high-drift activities from feature-self-tracking
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze activity patterns (Glob, Edit, Read, Read, Read sequence)
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine classification rules for auto-categorization
+                </li>
+                <li data-completed="false">
+                    ⏳ Design drift-to-work-item mapping algorithm
+                </li>
+                <li data-completed="false">
+                    ⏳ Prototype auto-classification system
+                </li>
+                <li data-completed="false">
+                    ⏳ Test with real drift patterns from current session
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research and spike on automatically classifying high-drift activities into appropriate work items (bugs, features, spikes, chores).</p>
+
+            <h4>Observations from Detected Drift:</h4>
+            <ul>
+                <li><strong>Activity Pattern:</strong> Glob → Edit → Read → Read → Read</li>
+                <li><strong>Drift Score:</strong> 0.71 (high drift)</li>
+                <li><strong>Tool Sequence:</strong> File discovery, exploration, investigation</li>
+                <li><strong>Feature Context:</strong> feature-self-tracking (ongoing)</li>
+                <li><strong>Files Involved:</strong>
+                    <ul>
+                        <li>.htmlgraph/spikes/ directory</li>
+                        <li>spike-drift-auto-classification.html</li>
+                        <li>.htmlgraph/drift-queue.json</li>
+                        <li>feature-self-tracking.html</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h4>Classification Rationale:</h4>
+            <ul>
+                <li><strong>Type: Spike</strong> - This is exploratory research into drift detection patterns and activity classification, not a feature implementation</li>
+                <li><strong>Priority: High</strong> - Understanding drift patterns is critical for self-tracking effectiveness</li>
+                <li><strong>Status: In Progress</strong> - Currently investigating the mechanism during active session</li>
+            </ul>
+
+            <h4>Next Questions to Investigate:</h4>
+            <ul>
+                <li>What tool sequence patterns indicate each work item type?</li>
+                <li>How reliable is drift score for classification?</li>
+                <li>Should we maintain a drift-to-classification mapping table?</li>
+                <li>Can we automate work item creation from drift patterns?</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:47:00.000000" data-agent="claude">
+                    Created spike work item from high-drift activities
+                </li>
+                <li data-timestamp="2025-12-16T13:46:26.000000" data-agent="claude">
+                    Detected high-drift activity sequence (drift: 0.71)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

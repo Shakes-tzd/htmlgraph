@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Classify High-Drift Metadata Activities into Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-metadata-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T14:25:00Z"
+             data-updated="2025-12-16T14:25:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify High-Drift Metadata Activities into Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                    <li><a href="spike-drift-auto-classification.html" data-relationship="related">Spike: Drift Auto-Classification System</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="triggered-by">
+                <h3>⚡ Triggered By:</h3>
+                <ul>
+                    <li data-file="drift-queue.json">Drift activities in drift-queue.json (drift score: 0.71)</li>
+                    <li data-count="5">5 high-drift read/write operations on infrastructure files</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Investigation Type</dt>
+                <dd data-key="investigation-type">Activity pattern classification and work item categorization</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High drift threshold)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities detected</dd>
+
+                <dt>Classification Context</dt>
+                <dd data-key="context">Metadata reads on drift infrastructure while working on feature-self-tracking</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Scope -->
+        <section data-investigation-scope>
+            <h3>Investigation Scope</h3>
+            <p>Analyze the following high-drift activities (drift score: 0.71) and classify them into appropriate work item types:</p>
+            <ol>
+                <li><strong>Read Activity:</strong> drift-queue.json (metadata analysis)</li>
+                <li><strong>Read Activity:</strong> feature-self-tracking.html (feature context)</li>
+                <li><strong>Read Activity:</strong> spike-drift-auto-classification.html (related spike)</li>
+                <li><strong>Read Activity:</strong> drift-queue.json (secondary read)</li>
+                <li><strong>Read Activity:</strong> chore-drift-metadata-reads.html (related chore)</li>
+            </ol>
+        </section>
+
+        <!-- Classification Rules -->
+        <section data-classification-rules>
+            <h3>Classification Rules</h3>
+            <dl>
+                <dt>Spike</dt>
+                <dd>Research, exploration, investigation - discovering how to solve a problem</dd>
+
+                <dt>Feature</dt>
+                <dd>New functionality, additions to existing capabilities</dd>
+
+                <dt>Chore</dt>
+                <dd>Maintenance, refactoring, cleanup, infrastructure improvements</dd>
+
+                <dt>Bug</dt>
+                <dd>Fixing errors, incorrect behavior, regression</dd>
+
+                <dt>Hotfix</dt>
+                <dd>Urgent production issues requiring immediate action</dd>
+            </dl>
+        </section>
+
+        <!-- Key Questions -->
+        <section data-questions>
+            <h3>Key Classification Questions</h3>
+            <ol>
+                <li data-question="activity-purpose">
+                    <strong>Are these activities part of a planned feature or unplanned investigation?</strong>
+                    Answer: Metadata reads during feature-self-tracking work - suggests investigation into drift patterns
+                </li>
+                <li data-question="context-relevance">
+                    <strong>Are the metadata reads directly supporting the current feature or exploring new concerns?</strong>
+                    Answer: Mixed - some support tracking feature, others explore drift classification system
+                </li>
+                <li data-question="work-type">
+                    <strong>Should this be classified as one consolidated spike or multiple work items?</strong>
+                    Answer: Should consolidate as single spike - represents cohesive investigation thread
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step="analyze-drift-queue">
+                    ✅ Analyze drift-queue.json entries (0.71 score activities)
+                </li>
+                <li data-completed="true" data-step="identify-patterns">
+                    ✅ Identify activity patterns (all are Read operations on infrastructure)
+                </li>
+                <li data-completed="false" data-step="determine-classification">
+                    ⏳ Determine optimal work item type (spike vs chore vs feature)
+                </li>
+                <li data-completed="false" data-step="create-work-item">
+                    ⏳ Create consolidated work item based on classification
+                </li>
+                <li data-completed="false" data-step="link-relationships">
+                    ⏳ Link to related work items and feature context
+                </li>
+            </ol>
+        </section>
+
+        <!-- Findings -->
+        <section data-findings>
+            <h3>Initial Findings</h3>
+            <ul>
+                <li><strong>Activity Pattern:</strong> Multiple read operations (5 total) on drift infrastructure files and feature file</li>
+                <li><strong>Tool Used:</strong> Exclusively Read tool operations</li>
+                <li><strong>File Pattern:</strong> Accessing .htmlgraph/* metadata files plus feature context file</li>
+                <li><strong>Context:</strong> All activities share same drift score (0.71) and feature-self-tracking assignment</li>
+                <li><strong>Interpretation:</strong> Activities represent investigation/spike work on drift classification system</li>
+            </ul>
+        </section>
+
+        <!-- Recommended Classification -->
+        <section data-recommendation>
+            <h3>Classification Recommendation</h3>
+            <div class="recommendation-box">
+                <h4>Type: <span class="badge type-spike">SPIKE</span></h4>
+                <h4>Rationale:</h4>
+                <ul>
+                    <li>Activities involve exploration and investigation of drift classification patterns</li>
+                    <li>Multiple reads of infrastructure and related spike suggest research phase</li>
+                    <li>Goal is to understand how to classify and handle drifted activities</li>
+                    <li>Directly supports future "drift-auto-classification" feature development</li>
+                    <li>Should result in documented findings and classification rules</li>
+                </ul>
+                <h4>Title:</h4>
+                <p>"Investigate and Classify High-Drift Metadata Read Activities"</p>
+                <h4>Priority:</h4>
+                <p>High (blocks feature-drift-auto-classification implementation)</p>
+            </div>
+        </section>
+
+        <!-- Implementation -->
+        <section data-implementation>
+            <h3>Implementation</h3>
+            <ol>
+                <li>Consolidate all 5 detected activities into this spike work item</li>
+                <li>Document drift classification patterns discovered</li>
+                <li>Link spike to spike-drift-auto-classification for tracking continuity</li>
+                <li>Add findings to inform future chore-drift-activity-classification work</li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:25:00Z" data-agent="claude">
+                    Created spike work item to consolidate and classify high-drift metadata activities (0.71 score)
+                </li>
+            </ol>
+        </section>
+
+        <!-- Notes -->
+        <section data-notes>
+            <h3>Research Notes</h3>
+            <pre data-content="research-notes">
+# High-Drift Metadata Activity Classification
+
+## Detected Activities (Drift Score: 0.71)
+1. Read: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/drift-queue.json
+2. Read: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/features/feature-self-tracking.html
+3. Read: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/spike-drift-auto-classification.html
+4. Read: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/drift-queue.json (duplicate)
+5. Read: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/chores/chore-drift-metadata-reads.html
+
+## Pattern Analysis
+- Tool Pattern: All Read operations (consistent)
+- File Pattern: Drift infrastructure (drift-queue.json, spikes/, chores/)
+- Feature Context: All tagged to feature-self-tracking
+- Purpose: Investigating how drift classification works
+
+## Classification Decision Matrix
+| Factor | Value | Score |
+|--------|-------|-------|
+| Exploratory | Yes (investigating drift patterns) | Spike +1 |
+| Research Phase | Yes (multiple infrastructure reads) | Spike +1 |
+| New Functionality | No (analyzing existing) | Feature -1 |
+| Maintenance | Partial (understanding system) | Chore 0 |
+| Emergency | No | Hotfix -1 |
+| Bug Fix | No | Bug -1 |
+
+## Final Classification: SPIKE ✅
+
+This represents investigation work into understanding the drift classification
+system that emerged from self-tracking activities. The consolidation into a
+single spike work item captures the research phase and outputs.
+            </pre>
+        </section>
+    </article>
+</body>
+</html>

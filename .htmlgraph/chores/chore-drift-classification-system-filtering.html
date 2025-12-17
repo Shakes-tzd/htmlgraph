@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Implement Drift Classification System Filtering</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-classification-system-filtering"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T20:30:00Z"
+             data-updated="2025-12-16T20:30:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Implement Drift Classification System Filtering</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="chore-high-drift-activity-consolidation.html" data-relationship="related">High-Drift Activity Consolidation (Parent)</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="blocks">False-positive drift signals blocking feature progress</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="derived-from">
+                <h3>📋 Derived From:</h3>
+                <ul>
+                    <li><a href="../spikes/spike-drift-activity-classification-workitem.html">Drift Activity Classification Spike (Completed)</a></li>
+                    <li><a href="chore-high-drift-activity-consolidation.html">High-Drift Activity Consolidation Chore</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Score Triggering Work</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activities Analyzed</dt>
+                <dd data-key="activity-count" data-value="5">5 infrastructure activities</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">Self-referential .htmlgraph/* reads flagged as drift</dd>
+
+                <dt>Classification Type</dt>
+                <dd data-key="classification">CHORE - Infrastructure Maintenance</dd>
+
+                <dt>Confidence</dt>
+                <dd data-key="confidence" data-value="0.85">High (0.85)</dd>
+
+                <dt>Business Impact</dt>
+                <dd data-key="impact">Unblocks feature-self-tracking feature completion</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed 5 high-drift activities (0.71 score)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Confirmed pattern: infrastructure metadata reads with no production edits
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Reviewed spike-drift-activity-classification-workitem.html
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Reviewed chore-high-drift-activity-consolidation.html
+                </li>
+                <li data-completed="false">
+                    ⏳ Modify drift scoring algorithm to exclude .htmlgraph/** directory reads
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement whitelist for infrastructure files in drift calculation
+                </li>
+                <li data-completed="false">
+                    ⏳ Add unit tests for drift filtering logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Purge false-positive entries from drift-queue.json
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift classification rules in CLAUDE.md
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify feature-self-tracking progresses without false drift warnings
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>During feature-self-tracking development, high-drift activities (0.71 score) were detected. These activities represent legitimate infrastructure work to analyze and improve the drift classification system itself:</p>
+
+            <h4>Detected High-Drift Activities (Current Cluster):</h4>
+            <ul>
+                <li><strong>Bash:</strong> Verify spikes directory exists [drift: 0.71]</li>
+                <li><strong>Read:</strong> spike-drift-activity-classification-workitem.html [drift: 0.71]</li>
+                <li><strong>Skill:</strong> htmlgraph:htmlgraph-tracker activation [drift: 0.71]</li>
+                <li><strong>Read:</strong> chore-high-drift-activity-consolidation.html [drift: 0.71]</li>
+                <li><strong>Bash:</strong> List chores directory verification [drift: 0.71]</li>
+            </ul>
+
+            <h4>Why This Is Legitimate Infrastructure Work (Not Off-Topic Drift):</h4>
+            <ul>
+                <li>✅ Analyzing system files to improve drift classification</li>
+                <li>✅ No write operations to non-infrastructure files</li>
+                <li>✅ Skill activation (htmlgraph-tracker) is part of self-tracking infrastructure</li>
+                <li>✅ Work directly supports feature-self-tracking feature goal</li>
+                <li>✅ Cross-file analysis pattern indicates exploratory research (spike work)</li>
+            </ul>
+
+            <h3>Solution</h3>
+
+            <h4>Approach: Whitelist .htmlgraph/* from Drift Calculation</h4>
+            <p>The drift scoring algorithm should exclude reads/writes to .htmlgraph/** directory because these are:</p>
+            <ul>
+                <li><strong>System metadata:</strong> Internal tracking/indexing files</li>
+                <li><strong>Not user-facing:</strong> Support infrastructure, not feature code</li>
+                <li><strong>Expected for self-tracking:</strong> By definition, self-tracking requires reading its own infrastructure</li>
+                <li><strong>Maintenance work:</strong> Improving the system itself is not "off-topic"</li>
+            </ul>
+
+            <h4>Implementation Plan:</h4>
+            <ol>
+                <li>Modify drift calculation in src/python/htmlgraph/analytics_index.py to filter .htmlgraph/** paths</li>
+                <li>Create whitelist configuration in CLAUDE.md for on-topic infrastructure directories</li>
+                <li>Add unit tests in tests/python/test_event_index.py to verify filtering</li>
+                <li>Purge historical false-positives from .htmlgraph/drift-queue.json</li>
+                <li>Re-analyze drift signals to ensure legitimate off-topic work is still detected</li>
+            </ol>
+
+            <h3>Success Criteria</h3>
+            <ul>
+                <li>✓ .htmlgraph/** reads excluded from drift scoring</li>
+                <li>✓ Drift detection still catches actual off-topic work</li>
+                <li>✓ feature-self-tracking progresses without false drift warnings</li>
+                <li>✓ Filtering logic covered by unit tests</li>
+                <li>✓ Documentation updated with classification rules</li>
+            </ul>
+
+            <h3>Context: What is High Drift?</h3>
+            <p><strong>Drift:</strong> Activities that deviate from current feature/task focus. Used to identify off-topic work or context switching.</p>
+
+            <p><strong>Why These Activities Have High Drift Score:</strong> They involve reading/analyzing infrastructure files (.htmlgraph/*) rather than working on feature code. However, this is self-referential—the feature being developed (feature-self-tracking) IS about building HtmlGraph's self-tracking infrastructure. Therefore, infrastructure reads are on-topic, not off-topic.</p>
+
+            <p><strong>Classification Rule:</strong> Meta-work on the system itself should not be penalized as "drift" when working on infrastructure features. The current algorithm is too naive and needs context-aware filtering.</p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:30:00Z" data-agent="claude">
+                    ✅ Created chore to implement drift classification filtering system
+                </li>
+                <li data-timestamp="2025-12-16T20:20:00Z" data-agent="claude">
+                    Analyzed pattern of 5 high-drift activities related to infrastructure work
+                </li>
+                <li data-timestamp="2025-12-16T20:10:00Z" data-agent="claude">
+                    Classified activities as legitimate spike/chore work (not off-topic drift)
+                </li>
+            </ol>
+        </section>
+
+        <!-- Classification Framework -->
+        <section data-reference>
+            <h3>Classification Analysis</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Work Item Type</th>
+                        <th>Indicators</th>
+                        <th>Match?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>Infrastructure maintenance • System-level work • No user-facing changes • Foundational for features</td>
+                        <td>✓ <strong>MATCH</strong></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>Exploratory • Multiple reads • No writes • Research-focused</td>
+                        <td>🟡 Partial (spike already created and completed)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-feature">FEATURE</span></td>
+                        <td>Read→Write sequence • Progressive implementation • Feature code</td>
+                        <td>✗ No match (this is chore not feature)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-bug">BUG</span></td>
+                        <td>Error context • Specific fix • Regression</td>
+                        <td>✗ No match</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge type-hotfix">HOTFIX</span></td>
+                        <td>Urgent production issue • Quick fix • Single focus</td>
+                        <td>✗ No match</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Why CHORE (Not SPIKE)?</h3>
+            <p>While the underlying investigation was spike work (already completed in spike-drift-activity-classification-workitem), the current activity cluster is <strong>implementing the solution</strong> from that spike. Implementation of system improvements is chore work: maintenance, refactoring, and infrastructure improvements that don't add user-facing features.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: High-Drift Activity Classification to Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-high-drift-classification-workitem"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:42:12Z"
+             data-updated="2025-12-16T13:42:12Z"
+             data-agent-assigned="claude"
+             data-parent-feature="feature-self-tracking">
+
+        <header>
+            <h1>High-Drift Activity Classification to Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge type-spike">Spike</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="parent">
+                <h3>👤 Parent Feature:</h3>
+                <ul>
+                    <li>
+                        <a href="../features/feature-self-tracking.html"
+                           data-relationship="parent">
+                           Use HtmlGraph to Track HtmlGraph Development
+                        </a>
+                    </li>
+                </ul>
+            </section>
+
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li>
+                        <a href="spike-drift-activity-tracking.html"
+                           data-relationship="related">
+                           Drift Activity Classification and Attribution
+                        </a>
+                    </li>
+                    <li>
+                        <a href="spike-drift-auto-classification.html"
+                           data-relationship="related">
+                           Drift Auto-Classification Investigation
+                        </a>
+                    </li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>High-Drift Threshold</dt>
+                <dd data-key="drift-threshold" data-value="0.71">0.71</dd>
+
+                <dt>Activities Analyzed</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities</dd>
+
+                <dt>Tool Distribution</dt>
+                <dd data-key="tool-distribution">Skill (2x), Bash (1x), Read (2x), Edit (implicit)</dd>
+
+                <dt>Classification Result</dt>
+                <dd data-key="result-type">spike</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read drift-queue.json to identify high-drift patterns
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Review feature-self-tracking.html for context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze tool invocation sequence and frequency
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classify activity cluster as spike (research/investigation)
+                </li>
+                <li data-completed="false">
+                    ⏳ Document classification decision framework
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement automated classification in drift system
+                </li>
+                <li data-completed="false">
+                    ⏳ Create classification audit log
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Classify a cluster of high-drift (0.71) activities into appropriate work item types (bug, feature, spike, chore, hotfix) based on tool usage patterns and activity characteristics.</p>
+
+            <h4>Activities to Classify:</h4>
+            <ul>
+                <li><strong>Skill: htmlgraph:htmlgraph-tracker</strong> - Drift 0.71 (x2)</li>
+                <li><strong>Bash: Check if spikes directory exists</strong> - Drift 0.71</li>
+                <li><strong>Read: drift-queue.json</strong> - Drift 0.71</li>
+                <li><strong>Read: feature-self-tracking.html</strong> - Drift 0.71</li>
+            </ul>
+
+            <h4>Classification Rules Applied:</h4>
+            <table data-classification-rules>
+                <tr>
+                    <th>Work Item Type</th>
+                    <th>Characteristics</th>
+                    <th>Activity Pattern</th>
+                </tr>
+                <tr>
+                    <td><strong>bug</strong></td>
+                    <td>Fixing errors, incorrect behavior</td>
+                    <td>Edit tool with fixes, error references</td>
+                </tr>
+                <tr>
+                    <td><strong>feature</strong></td>
+                    <td>New functionality, additions</td>
+                    <td>Write, Edit with feature code</td>
+                </tr>
+                <tr>
+                    <td><strong>spike</strong></td>
+                    <td>Research, exploration, investigation</td>
+                    <td>Multiple Read operations, Skill activation, directory inspection</td>
+                </tr>
+                <tr>
+                    <td><strong>chore</strong></td>
+                    <td>Maintenance, refactoring, cleanup</td>
+                    <td>Edit with refactoring, file cleanup</td>
+                </tr>
+                <tr>
+                    <td><strong>hotfix</strong></td>
+                    <td>Urgent production issues</td>
+                    <td>Quick edits, error-focused</td>
+                </tr>
+            </table>
+
+            <h4>Classification Reasoning:</h4>
+            <p><strong>Result: SPIKE</strong></p>
+            <ul>
+                <li>Multiple exploratory Read operations (drift-queue.json, feature-self-tracking.html)</li>
+                <li>Skill activation to understand system state</li>
+                <li>Directory inspection to understand structure</li>
+                <li>Investigation-focused tool usage pattern</li>
+                <li>No code modifications or fixes (no Edit operations for production code)</li>
+                <li>Diagnostic and analysis-focused activity cluster</li>
+            </ul>
+
+            <h4>Work Item Title:</h4>
+            <blockquote>
+                "High-Drift Activity Classification to Work Items"
+            </blockquote>
+
+            <h4>Next Steps:</h4>
+            <ol>
+                <li>Create spike HTML work item in .htmlgraph/spikes/</li>
+                <li>Link to parent feature (feature-self-tracking)</li>
+                <li>Document investigation steps and findings</li>
+                <li>Record activity timestamp and agent attribution</li>
+                <li>Integrate classification into future drift analysis</li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:42:12Z" data-agent="claude">
+                    Completed spike classification and created work item
+                </li>
+                <li data-timestamp="2025-12-16T13:42:10Z" data-agent="claude">
+                    Analyzed activity patterns and tool distribution
+                </li>
+                <li data-timestamp="2025-12-16T13:42:09Z" data-agent="claude">
+                    Started classification of high-drift activities
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

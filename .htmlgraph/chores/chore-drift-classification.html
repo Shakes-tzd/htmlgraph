@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Improve Drift Detection and Work Item Classification</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="chore-drift-classification"
+             data-type="chore"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T11:42:00Z"
+             data-updated="2025-12-16T11:42:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Improve Drift Detection and Work Item Classification</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related Features:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Issue Category</dt>
+                <dd data-key="category">System Maintenance</dd>
+
+                <dt>Effort Estimate</dt>
+                <dd data-key="effort" data-value="3" data-unit="hours">3 hours</dd>
+
+                <dt>Status</dt>
+                <dd data-key="status">Pending</dd>
+            </dl>
+        </section>
+
+        <!-- Issue Description -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>High-drift activities detected during feature-self-tracking session indicate the need to improve how activities are classified into work items.</p>
+
+            <h4>Observations:</h4>
+            <ul>
+                <li>Multiple skill invocations (htmlgraph-tracker) showing 0.71 drift</li>
+                <li>Glob queries to .htmlgraph/bugs/ and .htmlgraph/chores/ directories showing 0.71 drift</li>
+                <li>Pattern suggests system is attempting to auto-classify but drift thresholds may be too sensitive</li>
+            </ul>
+
+            <h4>Root Causes to Investigate:</h4>
+            <ul>
+                <li>Drift calculation algorithm may not account for legitimate cross-feature activities</li>
+                <li>Feature context keywords may need refinement for htmlgraph-tracker skill</li>
+                <li>Work item classification patterns need to be reviewed and updated</li>
+                <li>Skill invocation patterns may be legitimate framework operations, not drift</li>
+            </ul>
+
+            <h4>Scope:</h4>
+            <ul>
+                <li>Review drift detection thresholds (currently 0.71)</li>
+                <li>Audit feature keyword patterns against actual tool usage</li>
+                <li>Improve classification rules for system maintenance activities</li>
+                <li>Document which activities are expected to show cross-feature drift</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Analyze current drift calculation logic
+                </li>
+                <li data-completed="false">
+                    Review feature keyword patterns and CLI tool invocations
+                </li>
+                <li data-completed="false">
+                    Distinguish between legitimate framework operations and true drift
+                </li>
+                <li data-completed="false">
+                    Update classification rules if needed
+                </li>
+                <li data-completed="false">
+                    Test with improved thresholds
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T11:42:00Z" data-agent="claude">
+                    Created work item from high-drift activity classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

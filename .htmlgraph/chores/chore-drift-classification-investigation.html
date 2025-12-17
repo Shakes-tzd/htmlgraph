@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chore: Drift Detection Classification System Investigation</title>
+    <link rel="stylesheet" href="../../index.html">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; }
+        article { max-width: 1000px; margin: 2rem auto; padding: 2rem; border: 1px solid #ccc; }
+        h1 { color: #333; margin-bottom: 0.5rem; }
+        .metadata { margin: 1rem 0; font-size: 0.9em; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; margin-right: 0.5rem; border-radius: 3px; font-weight: bold; }
+        .badge.type-chore { background: #f0f0f0; color: #333; }
+        .badge.priority-medium { background: #fff3cd; color: #333; }
+        nav { margin: 2rem 0; padding: 1rem; background: #f9f9f9; border-left: 3px solid #333; }
+        section { margin: 2rem 0; }
+        h3 { color: #333; margin-top: 1.5rem; }
+        dl { display: grid; grid-template-columns: 200px 1fr; gap: 1rem; }
+        dt { font-weight: bold; color: #555; }
+        dd { margin: 0; }
+        ol, ul { line-height: 1.8; }
+        li { margin: 0.5rem 0; }
+        a { color: #0066cc; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <article id="chore-drift-investigation"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T09:46:43Z"
+             data-updated="2025-12-16T09:46:43Z"
+             data-agent-assigned="claude"
+             data-feature="feature-self-tracking">
+
+        <header>
+            <h1>🔍 Drift Detection Classification System Investigation</h1>
+            <div class="metadata">
+                <span class="badge type-chore">Chore</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span>ID: chore-drift-investigation</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related To:</h3>
+                <ul>
+                    <li><a href="../../.htmlgraph/features/feature-self-tracking.html">feature-self-tracking</a> - Primary tracking context</li>
+                    <li><a href="../../.htmlgraph/features/feature-drift-auto-classification.html">feature-drift-auto-classification</a> - Drift classification feature</li>
+                </ul>
+            </section>
+
+            <section data-edge-type="subtasks">
+                <h3>📋 Subtasks:</h3>
+                <ul>
+                    <li>Analyze drift-queue.json state and activity patterns</li>
+                    <li>Review drift-config.json classification rules</li>
+                    <li>Determine root cause of repeated Skill activations</li>
+                    <li>Update classification queue if needed</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Estimated Effort</dt>
+                <dd data-key="effort" data-value="2" data-unit="hours">2 hours</dd>
+
+                <dt>Completion</dt>
+                <dd data-key="completion" data-value="10" data-unit="percent">10%</dd>
+
+                <dt>Owner</dt>
+                <dd data-key="owner">Claude</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read drift-queue.json to understand queued activities
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read drift-config.json to review classification thresholds
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze activity patterns (Glob + Skill calls, 0.71 drift)
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine classification: bug, feature, spike, chore, or hotfix
+                </li>
+                <li data-completed="false">
+                    ⏳ Create work item HTML file in appropriate directory
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift-queue.json with classification result
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+                The HtmlGraph drift detection system identified high-drift activities (0.71 score)
+                during the feature-self-tracking session. These activities primarily involve:
+            </p>
+            <ul>
+                <li>Globbing for chores/ and bugs/ directories</li>
+                <li>Multiple skill activations (htmlgraph-tracker)</li>
+                <li>Configuration checks on drift detection system</li>
+            </ul>
+
+            <h4>Root Cause Analysis</h4>
+            <p>
+                These activities represent investigation and maintenance of the drift detection
+                system itself, not feature implementation work. The high drift score (0.71)
+                indicates work that doesn't align with the feature's implementation scope.
+            </p>
+
+            <h4>Classification Determination</h4>
+            <p>
+                <strong>Type: CHORE</strong>
+            </p>
+            <p>
+                Rationale:
+            </p>
+            <ul>
+                <li>Activity: System maintenance and investigation</li>
+                <li>Keywords: "update config", "check queue", "skill activation"</li>
+                <li>Impact: Improving tracking/monitoring infrastructure</li>
+                <li>Not urgent: Can be scheduled alongside features</li>
+            </ul>
+
+            <h4>What This Chore Addresses</h4>
+            <ul>
+                <li>Ensures drift detection system is functioning correctly</li>
+                <li>Validates configuration thresholds (0.70 auto-classify threshold)</li>
+                <li>Investigates why legitimate maintenance work triggers high drift</li>
+                <li>Improves activity classification for future sessions</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T09:46:43.363720Z" data-agent="claude">
+                    Chore created: Classified drift activities as system maintenance/investigation
+                </li>
+                <li data-timestamp="2025-12-16T09:46:43.160490Z" data-agent="claude">
+                    Skill activation: htmlgraph-tracker (drift: 0.71)
+                </li>
+                <li data-timestamp="2025-12-16T09:46:40.524359Z" data-agent="claude">
+                    Skill activation: htmlgraph-tracker (drift: 0.71)
+                </li>
+                <li data-timestamp="2025-12-16T09:46:39.759989Z" data-agent="claude">
+                    Glob: .htmlgraph/bugs/*.html (drift: 0.71)
+                </li>
+                <li data-timestamp="2025-12-16T09:46:39.747605Z" data-agent="claude">
+                    Glob: .htmlgraph/chores/*.html (drift: 0.71)
+                </li>
+            </ol>
+        </section>
+
+        <!-- Metadata -->
+        <section data-metadata>
+            <h3>Technical Notes</h3>
+            <dl>
+                <dt>Drift Detection Threshold</dt>
+                <dd>Auto-classify at 0.70; these activities scored 0.71</dd>
+
+                <dt>Queue State</dt>
+                <dd>5 activities pending classification in drift-queue.json</dd>
+
+                <dt>Config Version</dt>
+                <dd>drift-config.json with Haiku agent classification enabled</dd>
+
+                <dt>Context</dt>
+                <dd>Work attributed to feature-self-tracking (HtmlGraph self-tracking)</dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

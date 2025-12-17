@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: High-Drift Activity Classification System</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="spike-drift-activities-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T10:19:30Z"
+             data-updated="2025-12-16T10:19:30Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>High-Drift Activity Classification System</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="spike-drift-auto-classification.html">Drift Threshold Auto-Classification</a></li>
+                    <li><a href="spike-drift-detection-investigation.html">Drift Detection Investigation</a></li>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Category</dt>
+                <dd data-key="category">System Observability</dd>
+
+                <dt>Trigger Type</dt>
+                <dd data-key="trigger_type">High Drift Detection</dd>
+
+                <dt>Discovered Activities</dt>
+                <dd data-key="activity_count">5 activities with 0.71 drift score</dd>
+
+                <dt>Pattern</dt>
+                <dd data-key="pattern">Drift queue inspection + spike investigation</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Overview -->
+        <section data-content>
+            <h3>Overview</h3>
+            <p>
+                Detected high-drift activity cluster (drift score: 0.71) during feature-self-tracking session.
+                Activities show pattern of infrastructure introspection: reading drift queue, checking existing
+                spikes, and activating tracking skill.
+            </p>
+
+            <h4>Detected Activities:</h4>
+            <ul>
+                <li><code>Skill activation</code> - htmlgraph-tracker initialization</li>
+                <li><code>Drift queue inspection</code> - Reading drift-queue.json to classify high-drift activities</li>
+                <li><code>Pattern discovery</code> - Globbing for existing spikes and chores</li>
+                <li><code>Repeated patterns</code> - Multiple spike glob operations (2x spike-*.html)</li>
+            </ul>
+
+            <h4>Classification Challenge:</h4>
+            <p>
+                These activities have high drift because they represent meta-work: the system introspecting itself
+                to improve self-tracking. They are legitimate feature-self-tracking work, but the current drift
+                detection treats any deviation from normal coding patterns as high-drift.
+            </p>
+
+            <h4>Key Questions:</h4>
+            <ul>
+                <li>Should system introspection activities be classified differently?</li>
+                <li>Can we identify "legitimate drift" patterns for self-improving systems?</li>
+                <li>Should spike/chore investigation reduce drift scoring?</li>
+                <li>How do we distinguish self-tracking from off-task activity?</li>
+            </ul>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Plan</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Detect high-drift activity cluster (0.71 drift score)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classify work item type based on activity patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Create this spike to document the finding
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze root cause of drift in system introspection
+                </li>
+                <li data-completed="false">
+                    ⏳ Propose drift detection refinements
+                </li>
+                <li data-completed="false">
+                    ⏳ Document legitimate drift patterns for self-tracking
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:19:30Z" data-agent="claude">
+                    Created spike document to classify high-drift activities
+                </li>
+                <li data-timestamp="2025-12-16T10:19:29Z" data-agent="claude">
+                    Globbed spike directory to check existing investigations
+                </li>
+                <li data-timestamp="2025-12-16T10:19:27Z" data-agent="claude">
+                    Globbed chores and spikes directories
+                </li>
+                <li data-timestamp="2025-12-16T10:19:26Z" data-agent="claude">
+                    Read drift-queue.json to understand high-drift activities
+                </li>
+                <li data-timestamp="2025-12-16T10:19:25Z" data-agent="claude">
+                    Activated htmlgraph-tracker skill for session tracking
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

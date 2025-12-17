@@ -42,3 +42,8 @@ Thumbs.db
 
 # Local development
 *.log
+
+# HtmlGraph analytics index (rebuildable cache)
+.htmlgraph/index.sqlite
+.htmlgraph/index.sqlite-wal
+.htmlgraph/index.sqlite-shm

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Classification Workflow</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-workflow"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:12:45.535758Z"
+             data-updated="2025-12-16T13:12:45.535758Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Classification Workflow</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Feature: Drift Threshold Auto-Classification</a></li>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>🚧 Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">Feature: Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Activities Analyzed</dt>
+                <dd data-key="activity_count">5 high-drift activities detected</dd>
+
+                <dt>Drift Score Range</dt>
+                <dd data-key="drift_range">0.70-0.71</dd>
+
+                <dt>Primary Feature Context</dt>
+                <dd data-key="feature_context">feature-self-tracking</dd>
+
+                <dt>Investigation Type</dt>
+                <dd data-key="investigation">Workflow validation and classification rules</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Detect high-drift activities from drift-queue.json
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyze activity patterns (Read, Skill tool usage)
+                </li>
+                <li data-completed="false">
+                    ⏳ Evaluate classification rules: bug vs feature vs spike vs chore
+                </li>
+                <li data-completed="false">
+                    ⏳ Create work item for drift classification task
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommendations
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research investigation into the drift classification workflow when HtmlGraph detects high-drift activities. The system queued 5 activities with 0.70+ drift scores, all related to drift detection and feature tracking itself.</p>
+
+            <h4>Key Questions</h4>
+            <ul>
+                <li>Are these activities legitimately part of feature-self-tracking?</li>
+                <li>Should drift detection activities be auto-classified as a separate work item?</li>
+                <li>What are the optimal thresholds for creating work items from drift?</li>
+                <li>How should the classification workflow handle self-referential activities?</li>
+            </ul>
+
+            <h4>Activities Detected</h4>
+            <ul>
+                <li><strong>Tool:</strong> Skill - Activated htmlgraph-tracker skill</li>
+                <li><strong>Tool:</strong> Read - drift-queue.json for classification</li>
+                <li><strong>Tool:</strong> Read - feature-self-tracking.html for context</li>
+                <li><strong>Tool:</strong> Read - spike-drift-auto-classification.html for reference</li>
+                <li><strong>Pattern:</strong> All activities are meta-tracking of the tracking system itself</li>
+            </ul>
+
+            <h4>Observations</h4>
+            <ul>
+                <li>High drift activities are themselves drift classification work</li>
+                <li>Multiple reads of drift-queue.json suggest iterative classification process</li>
+                <li>Skill activation triggered by SessionStart hook for proper tracking</li>
+                <li>This creates a potential feedback loop: drift detection → work item creation → more drift detection</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:45.535758Z" data-agent="claude">
+                    Created spike for drift classification workflow investigation
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

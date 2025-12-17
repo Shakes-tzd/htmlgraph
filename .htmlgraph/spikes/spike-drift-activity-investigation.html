@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Activity Investigation and Classification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-activity-investigation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T14:25:00Z"
+             data-updated="2025-12-16T14:25:00Z"
+             data-agent-assigned="system">
+
+        <header>
+            <h1>Drift Activity Investigation and Classification</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">feature-drift-auto-classification</a></li>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html" data-relationship="related">Consolidate Drift Classification System</a></li>
+                    <li><a href="../chores/chore-setup-htmlgraph-tracker.html" data-relationship="related">Setup HtmlGraph Tracker Skill</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html" data-relationship="blocks">Consolidate Drift Classification System</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented-in">
+                <h3>📝 Session:</h3>
+                <ul>
+                    <li><a href="../sessions/session-20251216-200428.html" data-relationship="implemented-in">Session: Drift Activity Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Investigation Summary</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">SPIKE - Research/Investigation</dd>
+
+                <dt>Drift Score Range</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 high-drift activities detected</dd>
+
+                <dt>Activity Pattern</dt>
+                <dd data-key="pattern">Repeated skill invocations + metadata exploration + system file operations</dd>
+
+                <dt>Classification Reason</dt>
+                <dd data-key="reason">Exploration and investigation of drift classification behavior within the self-tracking system</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="system">
+                    ✅ Detected 5 high-drift activities (0.71 score) in feature-self-tracking context
+                </li>
+                <li data-completed="true" data-agent="system">
+                    ✅ Identified activity patterns: skill invocations + metadata reads + file operations
+                </li>
+                <li data-completed="true" data-agent="system">
+                    ✅ Classified root cause: infrastructure/drift-classification investigation (not off-topic)
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze why htmlgraph-tracker skill is repeatedly invoked (5x)
+                </li>
+                <li data-completed="false">
+                    ⏳ Investigate .htmlgraph/drift-queue.json access pattern and metadata reads
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings on drift classification behavior
+                </li>
+                <li data-completed="false">
+                    ⏳ Recommend filtering rules for .htmlgraph/* entries in drift scoring
+                </li>
+                <li data-completed="false">
+                    ⏳ Propose solution to chore-drift-classification-consolidation
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation spike to understand and classify high-drift activities detected during feature-self-tracking work. The 5 detected activities show a consistent pattern of infrastructure work (skill setup, metadata exploration) rather than off-topic behavior.</p>
+
+            <h4>Activities Detected:</h4>
+            <ul>
+                <li><strong>Skill: htmlgraph:htmlgraph-tracker</strong> × 3 invocations (drift: 0.71)</li>
+                <li><strong>Write:</strong> .htmlgraph/chores/chore-setup-htmlgraph-tracker.html (drift: 0.71)</li>
+                <li><strong>Read:</strong> .htmlgraph/chores/chore-drift-classification-consolidation.html (drift: 0.71)</li>
+            </ul>
+
+            <h4>Investigation Questions:</h4>
+            <ol>
+                <li>Why is the htmlgraph-tracker skill being invoked repeatedly (3x)?
+                    <ul>
+                        <li>Is this a normal initialization pattern?</li>
+                        <li>Does it indicate a failed activation sequence?</li>
+                        <li>Should skill invocations be excluded from drift scoring?</li>
+                    </ul>
+                </li>
+                <li>Why are .htmlgraph/* reads being scored as "drift"?
+                    <ul>
+                        <li>Are system metadata reads legitimate parts of feature work?</li>
+                        <li>Should internal infrastructure files be excluded from drift calculation?</li>
+                        <li>Is there a pattern to when these reads occur?</li>
+                    </ul>
+                </li>
+                <li>What is the correct classification for infrastructure investigation?
+                    <ul>
+                        <li>Is this "chore" (maintenance) or "spike" (investigation)?</li>
+                        <li>How should drift scores distinguish between feature drift and system work?</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h4>Findings:</h4>
+            <ul>
+                <li>✓ Activities are NOT off-topic (drift classification is working as intended)</li>
+                <li>✓ Activities ARE related to improving the drift classification system itself</li>
+                <li>✓ Pattern suggests multiple attempts at setting up/investigating the tracker</li>
+                <li>✓ This is infrastructure work, not feature implementation drift</li>
+            </ul>
+
+            <h4>Hypothesis:</h4>
+            <p>The high drift score (0.71) is caused by a mismatch between what the drift classifier considers "feature work" and what is actually occurring:</p>
+            <ul>
+                <li><strong>Hypothesis A:</strong> Drift classifier is too sensitive - it's flagging legitimate infrastructure investigation as "drift"</li>
+                <li><strong>Hypothesis B:</strong> Skill activation pattern is inefficient - repeated invocations indicate a setup issue that should be fixed</li>
+                <li><strong>Hypothesis C:</strong> .htmlgraph/* files should be excluded from drift scoring - they represent system metadata, not feature content</li>
+            </ul>
+
+            <h4>Next Steps:</h4>
+            <ol>
+                <li>Debug the htmlgraph-tracker skill invocation sequence</li>
+                <li>Implement filtering to exclude .htmlgraph/** reads from drift scoring</li>
+                <li>Document clear rules for what constitutes "feature work" vs "system work"</li>
+                <li>Validate that chore-drift-classification-consolidation can now proceed</li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:25:00Z" data-agent="system">
+                    Created spike: High-drift activities classified as infrastructure investigation work
+                </li>
+                <li data-timestamp="2025-12-16T14:25:00Z" data-agent="system">
+                    Consolidated 5 high-drift activities into unified investigation narrative
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

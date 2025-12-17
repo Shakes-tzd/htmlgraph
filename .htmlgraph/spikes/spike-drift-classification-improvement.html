@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Improve Drift Classification System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-improvement"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:12:13Z"
+             data-updated="2025-12-16T13:12:13Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Improve Drift Classification System</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related Features:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implements">
+                <h3>📋 Blocked By:</h3>
+                <ul>
+                    <li><a href="../chores/drift-queue.html" data-relationship="implements">Drift Queue Analysis</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Discovered Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (high - activities misaligned with feature)</dd>
+
+                <dt>Investigation Focus</dt>
+                <dd data-key="focus">Drift detection accuracy and feature classification rules</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">Current drift classifier flags system improvement work as off-topic</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Questions -->
+        <section data-investigation>
+            <h3>Key Questions</h3>
+            <ol>
+                <li data-completed="false">
+                    Why does drift score spike when reading drift-queue.json?
+                </li>
+                <li data-completed="false">
+                    Should "drift classification" activities be excluded from feature-self-tracking's drift calculation?
+                </li>
+                <li data-completed="false">
+                    How should we distinguish between "meta work" (improving the system) vs "feature work"?
+                </li>
+                <li data-completed="false">
+                    Should we create a separate feature for "system improvement" activities?
+                </li>
+                <li data-completed="false">
+                    What's the optimal drift threshold before auto-classification kicks in?
+                </li>
+            </ol>
+        </section>
+
+        <!-- Implementation Research -->
+        <section data-research>
+            <h3>Research Tasks</h3>
+            <ol>
+                <li data-completed="false">
+                    Analyze drift-queue.json patterns to understand scoring logic
+                </li>
+                <li data-completed="false">
+                    Review existing spike files for classification patterns
+                </li>
+                <li data-completed="false">
+                    Document current feature keyword matching rules
+                </li>
+                <li data-completed="false">
+                    Evaluate if file path patterns should influence drift score
+                </li>
+                <li data-completed="false">
+                    Consider meta-feature concept: work on the system itself
+                </li>
+            </ol>
+        </section>
+
+        <!-- Background -->
+        <section data-background>
+            <h3>Background</h3>
+            <p>During session tracking, high-drift activities were detected (0.71 score) while working on the drift classification system itself. This reveals a fundamental challenge in the HtmlGraph tracking system:</p>
+
+            <h4>The Problem:</h4>
+            <ul>
+                <li>Activities related to improving the tracking system are flagged as "off-topic"</li>
+                <li>System improvement work is legitimate but doesn't fit cleanly into feature classification</li>
+                <li>Current drift detection treats all non-feature-matching work equally</li>
+            </ul>
+
+            <h4>Why This Matters:</h4>
+            <ul>
+                <li>Improves tracking accuracy and reduces false positives</li>
+                <li>Enables better prioritization of system vs feature work</li>
+                <li>Creates feedback loop: tracking system improvement gets tracked accurately</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:13Z" data-agent="claude">
+                    Created spike to formalize drift classification investigation
+                </li>
+                <li data-timestamp="2025-12-16T13:12:10Z" data-agent="claude">
+                    Detected high-drift pattern in drift queue (0.71 score on system work)
+                </li>
+            </ol>
+        </section>
+
+        <!-- Next Steps -->
+        <section data-next-steps>
+            <h3>Recommended Next Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Analyze drift queue patterns to identify feature vs system work patterns
+                </li>
+                <li data-completed="false">
+                    Create proposal for "meta-feature" or "system" work classification
+                </li>
+                <li data-completed="false">
+                    Update feature-self-tracking rules to include drift classification keywords
+                </li>
+                <li data-completed="false">
+                    Test improved classification against historical activity logs
+                </li>
+                <li data-completed="false">
+                    Document findings and make the improvement feature-agnostic
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

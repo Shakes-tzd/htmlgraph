@@ -9,6 +9,7 @@ from htmlgraph.models import Node, Edge, Step, Graph, Session, ActivityEntry
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.server import serve
+from htmlgraph.session_manager import SessionManager
 
 __version__ = "0.1.0"
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "ActivityEntry",
     "HtmlGraph",
     "AgentInterface",
+    "SessionManager",
     "serve",
 ]

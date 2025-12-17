@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Classification Rules Research</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="spike-drift-classification-rules"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T07:30:00Z"
+             data-updated="2025-12-16T07:30:00Z"
+             data-feature="feature-self-tracking"
+             data-drift-score="0.71">
+
+        <header>
+            <h1>Drift Classification Rules Research</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge type-spike">Spike</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Auto-Classification Feature</a></li>
+                    <li><a href="../../packages/claude-plugin/config/drift-config.json">Drift Configuration</a></li>
+                    <li><a href="../drift-queue.json">Drift Queue</a></li>
+                    <li><a href="../chores/chore-drift-classification-investigation.html">Classification Investigation Chore</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Investigation Focus</dt>
+                <dd data-key="focus">Understanding how drift activities should be classified into work item types</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activities Analyzed</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Research Steps</h3>
+            <ol>
+                <li data-completed="true">Review drift-queue.json structure and contents</li>
+                <li data-completed="true">Examine drift-config.json classification rules</li>
+                <li data-completed="true">Study feature-drift-auto-classification.html specification</li>
+                <li data-completed="true">Explore existing chores directory structure</li>
+                <li data-completed="false">Define activity pattern signatures for each work type</li>
+                <li data-completed="false">Document classification decision tree</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Research spike to understand and document the rules for classifying high-drift activities into appropriate work item types (bug, feature, spike, chore, hotfix).</p>
+
+            <h4>Classification Patterns Observed:</h4>
+            <ul>
+                <li><strong>Spike indicators:</strong> Multiple Read operations, config file examination, feature file research</li>
+                <li><strong>Chore indicators:</strong> Maintenance files, cleanup operations, refactoring patterns</li>
+                <li><strong>Bug indicators:</strong> Error-related files, fix-prefixed operations</li>
+                <li><strong>Feature indicators:</strong> New file creation, functionality additions</li>
+            </ul>
+
+            <h4>Key Findings:</h4>
+            <ul>
+                <li>Activities with multiple Read operations suggest investigation/research (spike)</li>
+                <li>Write operations to chores/ directory indicate maintenance work</li>
+                <li>Glob patterns show exploration behavior typical of spikes</li>
+                <li>Drift score of 0.71 indicates significant deviation from primary feature work</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T07:30:00Z" data-agent="claude">
+                    Created spike from high-drift activities: investigating drift classification rules
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

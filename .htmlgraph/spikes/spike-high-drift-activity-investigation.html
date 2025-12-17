@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Investigate High-Drift Activity Patterns</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-high-drift-activity-investigation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T20:10:00Z"
+             data-updated="2025-12-16T20:10:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Investigate High-Drift Activity Patterns</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification</a></li>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html" data-relationship="related">Drift Classification Consolidation</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="blocks">Self-Tracking Feature Accuracy</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented-in">
+                <h3>Investigation Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/session-20251216-200428.html" data-relationship="implemented-in">Session 2025-12-16 20:04:28</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Investigation Summary</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">SPIKE - Research & Investigation</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High - but legitimate)</dd>
+
+                <dt>Investigation Scope</dt>
+                <dd data-key="scope">Understanding why drift classification system flags internal tooling activities</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root_cause">Drift detector treating internal HtmlGraph infrastructure operations as off-topic activities</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Tasks</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identified 5 high-drift activities (0.71 score)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed activity pattern: Glob bugs, Skill invocations, Write chore file, Read consolidation chore
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Determined activities are investigation/setup work, not feature drift
+                </li>
+                <li data-completed="false">
+                    ⏳ Document which tool operations should exclude from drift scoring
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if .htmlgraph/* directory operations need filtering
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify patterns of "legitimate internal work" vs "actual topic drift"
+                </li>
+                <li data-completed="false">
+                    ⏳ Create drift filtering rules for next iteration
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>During feature-self-tracking work session, the drift classification system flagged 5 activities with 0.71 drift score. This spike investigates whether this is a true positive (agent went off-topic) or a false positive (legitimate infrastructure work).</p>
+
+            <h4>Flagged Activities:</h4>
+            <ul>
+                <li><strong>Glob:</strong> .htmlgraph/bugs/*.html - exploring bug files [drift: 0.71]</li>
+                <li><strong>Skill:</strong> htmlgraph:htmlgraph-tracker - activating tracking skill [drift: 0.71]</li>
+                <li><strong>Skill:</strong> htmlgraph:htmlgraph-tracker - tracking skill again [drift: 0.71]</li>
+                <li><strong>Write:</strong> chore-setup-htmlgraph-tracker.html - creating chore file [drift: 0.71]</li>
+                <li><strong>Read:</strong> chore-drift-classification-consolidation.html - reading consolidation chore [drift: 0.71]</li>
+            </ul>
+
+            <h4>Initial Assessment:</h4>
+            <p><strong>Type: SPIKE (Research/Investigation)</strong></p>
+            <ul>
+                <li>✅ Activities are investigating drift classification system itself</li>
+                <li>✅ Legitimate meta-work: understanding how tooling functions</li>
+                <li>✅ Not implementing new features or fixing bugs</li>
+                <li>✅ System/infrastructure exploration</li>
+            </ul>
+
+            <h4>Key Questions:</h4>
+            <ol>
+                <li>Are reads from .htmlgraph/* directory always legitimate infrastructure work?</li>
+                <li>Should Skill invocations be scored differently than user-facing operations?</li>
+                <li>Is there a pattern distinguishing "meta-work" from "topic drift"?</li>
+                <li>How should drift scoring handle self-referential operations?</li>
+            </ol>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ Documented which tool operations are legitimate "infrastructure work"</li>
+                <li>✓ Identified specific filtering rules for drift calculation</li>
+                <li>✓ Clarified distinction between meta-work and feature drift</li>
+                <li>✓ Provided recommendations for drift scoring improvement</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:10:00Z" data-agent="claude">
+                    Created spike: classified high-drift activities as investigation work
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Classification Mechanism</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification"
+             data-type="spike"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T13:11:50Z"
+             data-updated="2025-12-16T13:11:50Z"
+             data-feature-related="feature-self-tracking"
+             data-drift-score="0.71">
+
+        <header>
+            <h1>Spike: Drift Classification Mechanism</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge type-spike">Spike</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related To:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="parent">Feature: Use HtmlGraph to Track HtmlGraph Development</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Problem Statement -->
+        <section data-problem>
+            <h3>Problem</h3>
+            <p>
+                Multiple high-drift activities detected (drift score 0.71) related to:
+                <ul>
+                    <li>Reading drift-queue.json repeatedly</li>
+                    <li>Reading feature-self-tracking.html</li>
+                    <li>Activating htmlgraph-tracker skill multiple times</li>
+                </ul>
+            </p>
+            <p>
+                <strong>Root cause investigation needed:</strong> Why are these activities classified as high-drift?
+                Are they actually off-topic for the feature, or is the classification algorithm too aggressive?
+            </p>
+        </section>
+
+        <!-- Investigation Goals -->
+        <section data-investigation-goals>
+            <h3>Investigation Goals</h3>
+            <ol>
+                <li>Understand drift score calculation algorithm</li>
+                <li>Analyze why skill activation (htmlgraph-tracker) scores 0.71 drift</li>
+                <li>Determine if reading feature context files is legitimately drift</li>
+                <li>Identify false positives vs true drift activities</li>
+                <li>Propose improvement to classification rules or thresholds</li>
+            </ol>
+        </section>
+
+        <!-- Research Questions -->
+        <section data-research>
+            <h3>Research Questions</h3>
+            <ul>
+                <li>Is 0.71 the correct threshold for high drift?</li>
+                <li>Should skill invocations in response to system hooks count as drift?</li>
+                <li>Should reading feature context files be excluded from drift calculation?</li>
+                <li>How does the classifier distinguish between on-task research and genuine drift?</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Spike Tasks</h3>
+            <ol>
+                <li data-completed="false">
+                    Review drift classification code and algorithm
+                </li>
+                <li data-completed="false">
+                    Analyze drift-queue.json patterns and scores
+                </li>
+                <li data-completed="false">
+                    Check feature-self-tracking.html context
+                </li>
+                <li data-completed="false">
+                    Document findings about false positives
+                </li>
+                <li data-completed="false">
+                    Propose improvements to classification rules
+                </li>
+            </ol>
+        </section>
+
+        <!-- Context -->
+        <section data-context>
+            <h3>Context</h3>
+            <p>
+                These activities occurred during the system's initial setup phase when:
+            </p>
+            <ul>
+                <li>Session hooks were being tested</li>
+                <li>htmlgraph-tracker skill was being activated for session continuity</li>
+                <li>Drift detection system was reading its own queue for classification</li>
+            </ul>
+            <p>
+                It's unclear if these self-referential activities should be flagged as drift at all.
+            </p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:11:50Z">
+                    Created spike work item for drift classification investigation
+                </li>
+                <li data-timestamp="2025-12-16T13:11:48Z">
+                    htmlgraph-tracker skill activated (drift: 0.71)
+                </li>
+                <li data-timestamp="2025-12-16T13:11:46Z">
+                    Read feature-self-tracking.html context (drift: 0.71)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

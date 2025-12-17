@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Auto-Classification System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-auto-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2024-12-16T08:45:00Z"
+             data-updated="2024-12-16T08:45:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Auto-Classification System</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="relates-to">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Feature: Drift Auto-Classification (pending)</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="investigation">
+                <h3>📊 Investigation Focus:</h3>
+                <ul>
+                    <li data-investigation="drift-detection">Drift detection thresholds</li>
+                    <li data-investigation="classification-rules">Work item classification rules</li>
+                    <li data-investigation="queue-system">Drift queue management</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Investigation Type</dt>
+                <dd data-key="investigation-type">Drift classification and auto-work-item creation</dd>
+
+                <dt>Complexity</dt>
+                <dd data-key="complexity" data-value="medium">Medium - Pattern recognition + state management</dd>
+
+                <dt>Dependencies</dt>
+                <dd data-key="dependencies">htmlgraph-tracker skill, drift-queue.json system</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Questions -->
+        <section data-investigation-scope>
+            <h3>Key Investigation Questions</h3>
+            <ol>
+                <li data-investigated="false">
+                    How should drift threshold values be determined? (current: 0.71)
+                </li>
+                <li data-investigated="false">
+                    What are the optimal classification rules for spike vs feature vs chore?
+                </li>
+                <li data-investigated="false">
+                    Should drift detection be multi-dimensional (tool types, file patterns, keywords)?
+                </li>
+                <li data-investigated="false">
+                    How to handle legitimate multi-feature work vs actual drift?
+                </li>
+                <li data-investigated="false">
+                    What metadata should be captured in work item creation?
+                </li>
+            </ol>
+        </section>
+
+        <!-- Current Findings -->
+        <section data-findings>
+            <h3>Current Findings</h3>
+            <ul>
+                <li><strong>Drift Detection Active:</strong> Recent activities show drift score of 0.71 when accessing .htmlgraph/* directories and drift-queue.json</li>
+                <li><strong>Pattern Identified:</strong> Multiple Skill/Glob/Read/Write operations on drift infrastructure indicate investigation work</li>
+                <li><strong>Classification Needed:</strong> This spike itself emerged from drift pattern detection - meta!</li>
+                <li><strong>Queue System Exists:</strong> drift-queue.json file suggests a system for tracking drifted activities</li>
+            </ul>
+
+            <h4>Activity Classification (Session 2024-12-16)</h4>
+            <dl>
+                <dt>Write Activity</dt>
+                <dd>
+                    <strong>File:</strong> <code>spike-drift-classification-system.html</code><br>
+                    <strong>Drift Score:</strong> 0.71<br>
+                    <strong>Classification:</strong> <span class="badge type-spike">SPIKE</span><br>
+                    <strong>Reasoning:</strong> Creating infrastructure documentation for drift classification research
+                </dd>
+
+                <dt>Skill Activation (×4)</dt>
+                <dd>
+                    <strong>Skill:</strong> <code>htmlgraph:htmlgraph-tracker</code><br>
+                    <strong>Drift Score:</strong> 0.71 (each instance)<br>
+                    <strong>Classification:</strong> <span class="badge type-chore">CHORE</span><br>
+                    <strong>Reasoning:</strong> Infrastructure/tooling work - session tracking and activity attribution setup
+                </dd>
+            </dl>
+
+            <h4>Classification Rules Validated</h4>
+            <ul>
+                <li><strong>Spike Pattern:</strong> Write + infrastructure files + research context → SPIKE</li>
+                <li><strong>Chore Pattern:</strong> Skill activation + tooling + setup operations → CHORE</li>
+                <li><strong>Multi-factor Analysis:</strong> Tool types + file patterns + activity context = better classification</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step="analyze-patterns">
+                    Analyze recent drift-queue.json entries to identify patterns
+                </li>
+                <li data-completed="false" data-step="map-tools">
+                    Map tool types to work item categories
+                </li>
+                <li data-completed="false" data-step="define-rules">
+                    Define classification rules for spike/feature/chore/bug/hotfix
+                </li>
+                <li data-completed="false" data-step="test-accuracy">
+                    Test classification accuracy against known work items
+                </li>
+                <li data-completed="false" data-step="prototype">
+                    Build prototype auto-classification system
+                </li>
+                <li data-completed="false" data-step="document">
+                    Document classification rules for feature implementation
+                </li>
+            </ol>
+        </section>
+
+        <!-- Background -->
+        <section data-content>
+            <h3>Background</h3>
+            <p>High-drift activities detected during feature-self-tracking work:</p>
+            <ul>
+                <li>Accessing .htmlgraph/bugs/ directory</li>
+                <li>Accessing .htmlgraph/chores/ directory</li>
+                <li>Reading drift-queue.json</li>
+                <li>Writing to drift investigation spike file</li>
+                <li>Activating htmlgraph-tracker skill</li>
+            </ul>
+            <p>These activities suggest work focused on drift detection and classification, which is foundational for the pending "feature-drift-auto-classification" feature.</p>
+
+            <h4>Goal</h4>
+            <p>Investigate how to automatically classify drifted activities into appropriate work items (bug, feature, spike, chore, hotfix) so that:</p>
+            <ul>
+                <li>HtmlGraph can self-correct activity attribution</li>
+                <li>Unexpected work gets captured as explicit work items</li>
+                <li>The system learns from drift patterns</li>
+                <li>Users get real-time alerts about off-course work</li>
+            </ul>
+        </section>
+
+        <!-- Latest Classified Activities -->
+        <section data-classified-activities>
+            <h3>Latest High-Drift Activities Classified (0.71)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Activity Type</th>
+                        <th>Details</th>
+                        <th>Classification</th>
+                        <th>Reasoning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr data-activity="read-feature-tracking" data-timestamp="2024-12-16T10:10:00Z">
+                        <td>Read: Feature File</td>
+                        <td>feature-self-tracking.html</td>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>Context for self-tracking feature scope and relationships</td>
+                    </tr>
+                    <tr data-activity="read-drift-queue" data-timestamp="2024-12-16T10:11:00Z">
+                        <td>Read: Data File</td>
+                        <td>.htmlgraph/drift-queue.json</td>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>Analyzing drift queue data for classification patterns</td>
+                    </tr>
+                    <tr data-activity="bash-create-spike" data-timestamp="2024-12-16T10:12:00Z">
+                        <td>Bash: Create File</td>
+                        <td>spike-drift-classification-investigation.html</td>
+                        <td><span class="badge type-spike">SPIKE</span></td>
+                        <td>Creating investigation spike for drift analysis</td>
+                    </tr>
+                    <tr data-activity="skill-activation-1" data-timestamp="2024-12-16T10:13:00Z">
+                        <td>Skill Activation</td>
+                        <td>htmlgraph:htmlgraph-tracker (1st)</td>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>Session tracking and activity attribution setup</td>
+                    </tr>
+                    <tr data-activity="skill-activation-2" data-timestamp="2024-12-16T10:14:00Z">
+                        <td>Skill Activation</td>
+                        <td>htmlgraph:htmlgraph-tracker (2nd)</td>
+                        <td><span class="badge type-chore">CHORE</span></td>
+                        <td>Tracker infrastructure confirmation and documentation</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T10:15:00Z" data-agent="claude">
+                    Classified high-drift activities (0.71) from session - all confirmed as spike-related work
+                </li>
+                <li data-timestamp="2024-12-16T08:45:00Z" data-agent="claude">
+                    Created spike from high-drift activity pattern detection
+                </li>
+            </ol>
+        </section>
+
+        <!-- Notes -->
+        <section data-notes>
+            <h3>Research Notes</h3>
+            <pre data-content="research-notes">
+# Drift Classification Investigation
+
+## Current Observations
+- Drift score: 0.71 when accessing drift infrastructure
+- Multiple work items type directories exist (.htmlgraph/bugs/, .htmlgraph/chores/)
+- drift-queue.json suggests queuing system for classification
+
+## Hypotheses to Test
+1. High drift when accessing .htmlgraph/* indicates meta-work (work on tracking system)
+2. Tool patterns can predict work item type:
+   - Skill + Glob + Read = Investigation/Spike
+   - Read + Edit + Git = Feature/Chore
+   - Bash + Error handling = Bug
+   - Quick fixes = Hotfix
+3. Classification should be multi-factor (tool types, file patterns, duration)
+
+## Next Steps
+- Examine drift-queue.json structure
+- Review existing bug/chore/spike classification
+- Build decision tree for classification
+            </pre>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+"""
+HtmlGraph Session Start Hook
+
+Records session start and provides feature context to Claude.
+Uses htmlgraph Python API directly for all storage operations.
+
+Architecture:
+- HTML files = Single source of truth
+- htmlgraph Python API = Feature/session management
+- No external database required
+"""
+
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
+    print(json.dumps({}))
+    sys.exit(0)
+
+def _resolve_project_dir(cwd: Optional[str] = None) -> str:
+    env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env_dir:
+        return env_dir
+    start_dir = cwd or os.getcwd()
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            cwd=start_dir,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return start_dir
+
+
+def _bootstrap_pythonpath(project_dir: str) -> None:
+    venv = Path(project_dir) / ".venv"
+    if venv.exists():
+        pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        candidates = [
+            venv / "lib" / pyver / "site-packages",
+            venv / "Lib" / "site-packages",
+        ]
+        for c in candidates:
+            if c.exists():
+                sys.path.insert(0, str(c))
+
+    repo_src = Path(project_dir) / "src" / "python"
+    if repo_src.exists():
+        sys.path.insert(0, str(repo_src))
+
+
+project_dir_for_import = _resolve_project_dir()
+_bootstrap_pythonpath(project_dir_for_import)
+
+try:
+    from htmlgraph.graph import HtmlGraph
+    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.converter import node_to_dict
+except Exception as e:
+    print(f"Warning: HtmlGraph not available ({e}). Install with: pip install htmlgraph", file=sys.stderr)
+    print(json.dumps({}))
+    sys.exit(0)
+
+
+def get_features(graph_dir: Path) -> list[dict]:
+    """Get all features as dicts."""
+    features_dir = graph_dir / "features"
+    if not features_dir.exists():
+        return []
+    graph = HtmlGraph(features_dir, auto_load=True)
+    return [node_to_dict(node) for node in graph.nodes.values()]
+
+
+def get_sessions(graph_dir: Path) -> list[dict]:
+    """Get all sessions as dicts."""
+    sessions_dir = graph_dir / "sessions"
+    if not sessions_dir.exists():
+        return []
+    from htmlgraph.converter import SessionConverter, session_to_dict
+
+    converter = SessionConverter(sessions_dir)
+    sessions = converter.load_all()
+    return [session_to_dict(s) for s in sessions]
+
+
+def get_head_commit(project_dir: str) -> Optional[str]:
+    """Get current HEAD commit hash (short form)."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            capture_output=True,
+            text=True,
+            cwd=project_dir,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def resolve_project_path(cwd: Optional[str] = None) -> str:
+    """Resolve project path (git root or cwd)."""
+    start_dir = cwd or os.getcwd()
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True,
+            text=True,
+            cwd=start_dir,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return start_dir
+
+
+# HtmlGraph process notice
+HTMLGRAPH_PROCESS_NOTICE = """## HTMLGRAPH DEVELOPMENT PROCESS ACTIVE
+
+**IMPORTANT: Activate the `htmlgraph-tracker` skill now using the Skill tool.**
+
+This skill ensures proper activity attribution and documentation throughout the session.
+
+---
+
+**HtmlGraph is tracking this session. All activity is logged to HTML files.**
+
+### Quick Reference
+
+**Check Status:**
+```bash
+htmlgraph status
+htmlgraph feature list
+htmlgraph session list
+```
+
+**Work Item Commands:**
+- `htmlgraph feature start <id>` - Start working on a feature
+- `htmlgraph feature complete <id>` - Mark feature as done
+- `htmlgraph feature primary <id>` - Set primary feature for attribution
+
+**Session Management:**
+- Sessions auto-start when you begin working
+- Activities are attributed to in-progress features
+- Session history preserved in `.htmlgraph/sessions/`
+
+**Dashboard:**
+```bash
+htmlgraph serve
+# Open http://localhost:8080
+```
+
+**Key Files:**
+- `.htmlgraph/features/` - Feature HTML files
+- `.htmlgraph/sessions/` - Session HTML files with activity logs
+- `index.html` - Dashboard (open in browser)
+"""
+
+
+def get_feature_summary(graph_dir: Path) -> tuple[list, dict]:
+    """Get features and calculate stats."""
+    features = get_features(graph_dir)
+
+    stats = {
+        "total": len(features),
+        "done": sum(1 for f in features if f.get("status") == "done"),
+        "in_progress": sum(1 for f in features if f.get("status") == "in-progress"),
+        "blocked": sum(1 for f in features if f.get("status") == "blocked"),
+        "todo": sum(1 for f in features if f.get("status") == "todo"),
+    }
+    stats["percentage"] = int(stats["done"] * 100 / stats["total"]) if stats["total"] > 0 else 0
+
+    return features, stats
+
+
+def get_session_summary(graph_dir: Path) -> Optional[dict]:
+    """Get previous session summary."""
+    sessions = get_sessions(graph_dir)
+
+    def parse_ts(value: str | None) -> datetime:
+        if not value:
+            return datetime.min
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception:
+            return datetime.min
+
+    ended = [s for s in sessions if s.get("status") == "ended"]
+    if ended:
+        ended.sort(key=lambda s: parse_ts(s.get("ended_at") or s.get("last_activity")), reverse=True)
+        return ended[0]
+    return None
+
+
+def output_response(context: str, status_summary: Optional[str] = None) -> None:
+    """Output JSON response with context."""
+    if status_summary:
+        print(f"\n{status_summary}\n", file=sys.stderr)
+
+    print(json.dumps({
+        "continue": True,
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": context
+        }
+    }))
+
+
+def main():
+    try:
+        hook_input = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        hook_input = {}
+
+    external_session_id = hook_input.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "unknown")
+    cwd = hook_input.get("cwd")
+    project_dir = _resolve_project_dir(cwd if cwd else None)
+    graph_dir = Path(project_dir) / ".htmlgraph"
+
+    # Ensure a single stable HtmlGraph session exists.
+    # Do NOT create a new HtmlGraph session per external Claude session id (that can explode into many files).
+    try:
+        manager = SessionManager(graph_dir)
+        active = manager.get_active_session()
+        if not active:
+            active = manager.start_session(
+                session_id=None,
+                agent="claude-code",
+                start_commit=get_head_commit(project_dir),
+                title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            )
+
+        # Record the external session id as a low-cost breadcrumb (for continuity debugging).
+        try:
+            manager.track_activity(
+                session_id=active.id,
+                tool="ClaudeSessionStart",
+                summary=f"Claude session started: {external_session_id}",
+                payload={"claude_session_id": external_session_id},
+            )
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"Warning: Could not start session: {e}", file=sys.stderr)
+
+    # Get features and stats
+    features, stats = get_feature_summary(graph_dir)
+
+    if not features:
+        context = f"""{HTMLGRAPH_PROCESS_NOTICE}
+
+---
+
+## No Features Found
+
+Initialize HtmlGraph in this project:
+```bash
+htmlgraph init
+```
+
+Or create features manually in `.htmlgraph/features/`
+"""
+        output_response(context, "No features found. Run 'htmlgraph init' to set up.")
+        return
+
+    # Find active feature(s)
+    active_features = [f for f in features if f.get("status") == "in-progress"]
+    pending_features = [f for f in features if f.get("status") == "todo"]
+
+    # Build context
+    context_parts = [HTMLGRAPH_PROCESS_NOTICE]
+
+    # Previous session summary
+    prev_session = get_session_summary(graph_dir)
+    if prev_session:
+        context_parts.append(f"""## Previous Session
+
+**Session:** {prev_session.get('id', 'unknown')}
+**Events:** {prev_session.get('event_count', 0)}
+**Worked On:** {', '.join(prev_session.get('worked_on', [])) or 'N/A'}
+""")
+
+    # Current status
+    context_parts.append(f"""## Project Status
+
+**Progress:** {stats['done']}/{stats['total']} features complete ({stats['percentage']}%)
+**Active:** {stats['in_progress']} | **Blocked:** {stats['blocked']} | **Todo:** {stats['todo']}
+""")
+
+    if active_features:
+        active_list = "\n".join([f"- **{f['id']}**: {f['title']}" for f in active_features[:3]])
+        context_parts.append(f"""## Active Features
+
+{active_list}
+
+*Activity will be attributed to these features based on file patterns and keywords.*
+""")
+    else:
+        context_parts.append("""## No Active Features
+
+Start working on a feature:
+```bash
+htmlgraph feature start <feature-id>
+```
+""")
+
+    if pending_features:
+        pending_list = "\n".join([f"- {f['id']}: {f['title'][:50]}" for f in pending_features[:5]])
+        context_parts.append(f"""## Pending Features
+
+{pending_list}
+""")
+
+    context_parts.append("""## Session Continuity
+
+**IMPORTANT:** At the start of this session, greet the user and provide a brief status update including:
+1. Previous session summary (if any)
+2. Current feature progress
+3. What remains to be done
+4. Ask what they'd like to work on next
+""")
+
+    context = "\n\n---\n\n".join(context_parts)
+
+    # Terminal status
+    if active_features:
+        status_summary = f"Feature: {active_features[0]['title'][:40]} | Progress: {stats['done']}/{stats['total']} ({stats['percentage']}%)"
+    else:
+        status_summary = f"No active feature | Progress: {stats['done']}/{stats['total']} ({stats['percentage']}%) | {len(pending_features)} pending"
+
+    output_response(context, status_summary)
+
+
+if __name__ == "__main__":
+    main()

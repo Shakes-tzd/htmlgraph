@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Classification Pattern Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-analyzer"
+             data-type="spike"
+             data-status="pending"
+             data-priority="medium"
+             data-created="2025-12-16T13:11:48.077783"
+             data-updated="2025-12-16T13:11:48.077783"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Classification Pattern Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Investigation Details</h3>
+            <dl>
+                <dt>Drift Score Range</dt>
+                <dd data-key="drift_range">0.70-0.71 (high)</dd>
+
+                <dt>Pattern Type</dt>
+                <dd data-key="pattern">Repeated skill invocations with drift queue/feature reads</dd>
+
+                <dt>Frequency</dt>
+                <dd data-key="frequency">5 high-drift activities detected</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift queue structure and classification logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify patterns in skill invocation drift
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if drift is systematic or anomalous
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and recommend improvements
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+                Multiple high-drift activities (0.70-0.71) detected in current session:
+            </p>
+            <ul>
+                <li>Repeated <code>htmlgraph:htmlgraph-tracker</code> skill invocations</li>
+                <li>Multiple reads of <code>.htmlgraph/drift-queue.json</code></li>
+                <li>Reads of feature tracking files</li>
+            </ul>
+            <p>
+                This spike investigates whether these patterns represent:
+                1. Normal self-tracking behavior (dogfooding the system)
+                2. A systematic classification issue
+                3. Feedback loops that should be optimized
+            </p>
+
+            <h4>Context</h4>
+            <p>
+                Current feature <code>feature-self-tracking</code> uses HtmlGraph to track HtmlGraph development.
+                Repeated invocations of the tracker skill may be contributing to perceived drift.
+            </p>
+
+            <h4>Success Criteria</h4>
+            <ul>
+                <li>Understand root cause of drift scores</li>
+                <li>Determine if behavior is correct or needs adjustment</li>
+                <li>Recommendations for drift classification improvements</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:11:48.077783" data-agent="system">
+                    Spike created from drift queue analysis
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

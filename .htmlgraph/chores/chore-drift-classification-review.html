@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Review and Improve Drift Classification Logic</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-classification-review"
+             data-type="chore"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T10:32:00Z"
+             data-updated="2025-12-16T10:32:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Review and Improve Drift Classification Logic</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Threshold Auto-Classification Feature</a></li>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Analyze drift detection thresholds and accuracy
+                </li>
+                <li data-completed="false">
+                    ⏳ Review feature classification rules and keywords
+                </li>
+                <li data-completed="false">
+                    ⏳ Investigate repeated skill activations (0.71 drift alerts)
+                </li>
+                <li data-completed="false">
+                    ⏳ Improve classification algorithm or adjust thresholds
+                </li>
+                <li data-completed="false">
+                    ⏳ Add validation tests for drift detection
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Recent session activities show repeated high-drift alerts (0.71) when working within feature-self-tracking context. Activities included:</p>
+            <ul>
+                <li>Activating htmlgraph-tracker skill multiple times</li>
+                <li>Reading feature tracking files</li>
+                <li>Checking directory structure</li>
+            </ul>
+            <p>These are all directly related to the assigned feature, suggesting the drift classification logic may need refinement.</p>
+
+            <h4>Root Cause Analysis:</h4>
+            <p>Possible issues:</p>
+            <ul>
+                <li>Drift threshold may be too sensitive (0.71 seems high for on-task work)</li>
+                <li>Feature classification rules may not account for drift-detection and infrastructure work</li>
+                <li>Skill activation may not be properly recognized as feature-aligned</li>
+                <li>Infrastructure/debugging activities may need their own classification</li>
+            </ul>
+
+            <h4>Success Criteria:</h4>
+            <ul>
+                <li>Drift alerts only appear for genuinely off-task activities</li>
+                <li>Infrastructure work is properly classified or exempted</li>
+                <li>Repeated skill activations don't trigger false positives</li>
+                <li>Threshold can be tuned per-feature or work-type</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T10:32:00Z" data-agent="claude">
+                    Created chore from high-drift activity pattern (0.71 alerts)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Drift Activity Pattern Analysis & Resolution</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-drift-activity-pattern-analysis"
+             data-type="chore"
+             data-status="pending"
+             data-priority="high"
+             data-created="2025-12-16T20:16:00Z"
+             data-updated="2025-12-16T20:16:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Activity Pattern Analysis & Resolution</h1>
+            <div class="metadata">
+                <span class="badge status-pending">Pending</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html">Drift Classification Consolidation</a></li>
+                    <li><a href="../spikes/spike-classify-high-drift-activities.html">Classification Spike</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocked By:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a> - waiting for stabilization</li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Source Activities:</h3>
+                <ul>
+                    <li data-activity="read-drift-queue">Multiple reads of drift-queue.json [drift: 0.71]</li>
+                    <li data-activity="read-spike-files">Multiple reads of spike classification files [drift: 0.71]</li>
+                    <li data-activity="read-chore-files">Multiple reads of chore consolidation files [drift: 0.71]</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Pattern Summary</h3>
+            <dl>
+                <dt>Detected Drift Score</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count" data-value="5">5 high-drift activities</dd>
+
+                <dt>Activity Pattern</dt>
+                <dd data-key="pattern">Repeated reads of metadata/infrastructure files</dd>
+
+                <dt>Classification</dt>
+                <dd data-key="classification">CHORE - System maintenance, not feature drift</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">Self-referential drift classification system reading its own tracking files</dd>
+
+                <dt>Confidence</dt>
+                <dd data-key="confidence" data-value="0.90">Very High (0.90)</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Resolution Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identified 5 high-drift activities (0.71 drift level)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed activity pattern: repeated .htmlgraph/** reads
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classified as CHORE (infrastructure maintenance)
+                </li>
+                <li data-completed="false">
+                    ⏳ Filter .htmlgraph/* paths from drift calculation
+                </li>
+                <li data-completed="false">
+                    ⏳ Add exclusion rules to drift-queue configuration
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift classification thresholds
+                </li>
+                <li data-completed="false">
+                    ⏳ Test filtered drift scores on self-tracking feature
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify feature-self-tracking can proceed cleanly
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Content -->
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>The self-tracking feature detected 5 high-drift activities (0.71 drift level) that were repeatedly reading the same set of infrastructure files related to drift classification itself. This is a self-referential pattern where the tracking system's analysis of its own tracking data creates the drift signal.</p>
+
+            <h4>Activities Classified:</h4>
+            <ul>
+                <li>Read: spike-classify-high-drift-activities.html (×3)</li>
+                <li>Read: chore-drift-classification-consolidation.html (×2)</li>
+            </ul>
+
+            <h4>Why This Is a CHORE (Not a Feature Drift):</h4>
+            <ul>
+                <li>✅ No code changes or feature work being done</li>
+                <li>✅ Reading metadata/analysis files for tracking system improvement</li>
+                <li>✅ Infrastructure investigation, not business logic changes</li>
+                <li>✅ Self-referential loop in drift classification system</li>
+                <li>✅ No impact on feature-self-tracking functionality</li>
+            </ul>
+
+            <h4>Classification Rules Applied:</h4>
+            <dl>
+                <dt>Rule: System File Exclusion</dt>
+                <dd>Files under .htmlgraph/* are infrastructure/metadata and should not contribute to drift scoring</dd>
+
+                <dt>Rule: Repeated Read Pattern</dt>
+                <dd>Multiple reads of the same files without writes indicate analysis/research, not feature development</dd>
+
+                <dt>Rule: Cross-File Infrastructure Reading</dt>
+                <dd>Reading classification system files (spikes, chores) is maintenance work, not production feature work</dd>
+            </dl>
+
+            <h4>Required Actions:</h4>
+            <ol>
+                <li><strong>Exclude .htmlgraph/** from drift calculation</strong>
+                    <ul>
+                        <li>Update drift-queue.json generation logic</li>
+                        <li>Add path filter before drift score calculation</li>
+                    </ul>
+                </li>
+                <li><strong>Document drift classification rules</strong>
+                    <ul>
+                        <li>What counts as "off-topic" (drift)</li>
+                        <li>What counts as "on-topic" (feature-related)</li>
+                        <li>Exclusion patterns for infrastructure files</li>
+                    </ul>
+                </li>
+                <li><strong>Add unit tests</strong>
+                    <ul>
+                        <li>Test drift filtering with .htmlgraph/* paths</li>
+                        <li>Test classification accuracy on known patterns</li>
+                        <li>Test regression on existing drift detection</li>
+                    </ul>
+                </li>
+                <li><strong>Verify self-tracking feature progression</strong>
+                    <ul>
+                        <li>Re-run feature-self-tracking with filtered drift</li>
+                        <li>Confirm no false positives</li>
+                        <li>Document baseline drift patterns</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ High-drift activities no longer include .htmlgraph/** reads</li>
+                <li>✓ Drift score for self-tracking feature drops to expected baseline</li>
+                <li>✓ Classification rules documented in project CLAUDE.md</li>
+                <li>✓ Unit tests pass for drift filtering logic</li>
+                <li>✓ No regression in legitimate drift detection</li>
+            </ul>
+        </section>
+
+        <!-- Key Insights -->
+        <section data-findings>
+            <h3>Key Insights</h3>
+            <ul>
+                <li><strong>Meta-Loop Detected:</strong> The drift classification system was analyzing its own tracking data, creating a self-referential high-drift signal</li>
+                <li><strong>Classification is Working:</strong> The system correctly identified these as exploration activities (spikes) and maintenance (chores), but they shouldn't influence feature-level drift scoring</li>
+                <li><strong>System is Learning:</strong> This chore demonstrates the drift system maturing - distinguishing infrastructure work from feature drift</li>
+                <li><strong>Pattern Clarity:</strong> Clear signal patterns emerged: reads-only with cross-file access = analysis/maintenance, not off-topic drift</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:16:00Z" data-agent="claude">
+                    Classified high-drift activities as CHORE work item: drift pattern analysis & system exclusion
+                </li>
+                <li data-timestamp="2025-12-16T20:15:00Z" data-agent="system">
+                    5 high-drift activities (0.71 drift) detected reading drift infrastructure files
+                </li>
+            </ol>
+        </section>
+
+        <!-- Implementation Reference -->
+        <section data-reference>
+            <h3>Implementation Reference</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Change Required</th>
+                        <th>Rationale</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>drift-queue.json generation</td>
+                        <td>Add path filter: exclude paths matching .htmlgraph/**</td>
+                        <td>Metadata reads should not contribute to drift scoring</td>
+                    </tr>
+                    <tr>
+                        <td>Drift scoring algorithm</td>
+                        <td>Apply exclusion rules before scoring</td>
+                        <td>Ensure infrastructure work doesn't inflate scores</td>
+                    </tr>
+                    <tr>
+                        <td>Classification thresholds</td>
+                        <td>Document in project CLAUDE.md</td>
+                        <td>Establish baseline for different work item types</td>
+                    </tr>
+                    <tr>
+                        <td>Test suite</td>
+                        <td>Add tests/python/test_drift_filtering.py</td>
+                        <td>Verify filtering logic and prevent regressions</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </article>
+</body>
+</html>

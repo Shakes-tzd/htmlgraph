@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Improve Drift Classification Rules</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2024-12-16T20:45:00Z"
+             data-updated="2024-12-16T20:45:00Z"
+             data-agent-assigned="claude"
+             data-parent-feature="feature-self-tracking">
+
+        <header>
+            <h1>Improve Drift Classification Rules</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge type-spike">Spike</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="parent">
+                <h3>👤 Parent Feature:</h3>
+                <ul>
+                    <li>
+                        <a href="../features/feature-self-tracking.html"
+                           data-relationship="parent">
+                           Use HtmlGraph to Track HtmlGraph Development
+                        </a>
+                    </li>
+                </ul>
+            </section>
+
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li>
+                        <a href="../features/feature-drift-auto-classification.html"
+                           data-relationship="related">
+                           Drift Threshold Auto-Classification
+                        </a>
+                    </li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Threshold</dt>
+                <dd data-key="drift-threshold" data-value="0.71">0.71</dd>
+
+                <dt>Activity Type</dt>
+                <dd data-key="activity-type">Tool/Skill Configuration</dd>
+
+                <dt>Investigation Focus</dt>
+                <dd data-key="investigation-focus">drift-queue.json and feature configuration patterns</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    Analyze current drift classification thresholds (0.71)
+                </li>
+                <li data-completed="false">
+                    Review drift-queue.json format and patterns
+                </li>
+                <li data-completed="false">
+                    Examine feature configuration structure
+                </li>
+                <li data-completed="false">
+                    Identify false positives in drift classification
+                </li>
+                <li data-completed="false">
+                    Propose improved classification rules
+                </li>
+                <li data-completed="false">
+                    Document findings and recommendations
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation into high-drift activities that appear to be related to HtmlGraph self-tracking configuration and feature management.</p>
+
+            <h4>Observations:</h4>
+            <ul>
+                <li>Multiple consecutive skill activations (htmlgraph:htmlgraph-tracker) with drift: 0.71</li>
+                <li>File reads targeting drift classification infrastructure</li>
+                <li>Activities don't clearly align with feature-self-tracking work</li>
+                <li>Suggests drift classification may need tuning for tooling/infrastructure activities</li>
+            </ul>
+
+            <h4>Goal:</h4>
+            <p>Determine whether drift threshold 0.71 is appropriate for infrastructure-related activities, or if classification rules need refinement to better distinguish productive work from tooling/framework activities.</p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T20:45:00Z" data-agent="claude">
+                    Created spike from high-drift activity pattern
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

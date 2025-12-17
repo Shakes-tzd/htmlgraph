@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Classify High-Drift Activities into Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-classify-drift-activities-as-work-item"
+             data-type="chore"
+             data-status="completed"
+             data-priority="high"
+             data-created="2025-12-16T14:07:00Z"
+             data-updated="2025-12-16T14:07:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify High-Drift Activities into Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html">Drift Classification Consolidation</a></li>
+                    <li><a href="../spikes/spike-classify-high-drift-activities.html">Drift Classification Spike</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li data-relationship="implemented-in">Current session (feature-self-tracking)</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Work Item Type Classification</dt>
+                <dd data-key="classification">CHORE</dd>
+
+                <dt>Drift Score Detected</dt>
+                <dd data-key="drift-score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity-count" data-value="5">5 activities analyzed</dd>
+
+                <dt>Classification Confidence</dt>
+                <dd data-key="confidence" data-value="0.90">Very High (0.90)</dd>
+
+                <dt>Why CHORE?</dt>
+                <dd data-key="reason">Infrastructure/maintenance work - analyzing and improving the drift classification system itself, not implementing user features</dd>
+            </dl>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Classification Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed 5 high-drift activities (0.71 score) from feature-self-tracking context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Examined activity pattern: repeated reads of drift/classification system files
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Applied classification rules: Read-only, infrastructure-focused, no production changes
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classified as CHORE: System maintenance on drift classification infrastructure
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Created consolidated work item (this file)
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Decision Summary</h3>
+            <p>High-drift activities detected during feature-self-tracking work have been analyzed and classified.</p>
+
+            <h4>Activities Classified (0.71 drift):</h4>
+            <ul>
+                <li><strong>Skill:</strong> htmlgraph-tracker activation</li>
+                <li><strong>Read:</strong> spike-classify-high-drift-activities.html</li>
+                <li><strong>Read:</strong> spike-drift-work-item-classification.html</li>
+                <li><strong>Read:</strong> chore-drift-classification-consolidation.html</li>
+                <li><strong>Read:</strong> Multiple metadata and system infrastructure files</li>
+            </ul>
+
+            <h4>Classification Analysis:</h4>
+            <table>
+                <tr>
+                    <th>Criteria</th>
+                    <th>Observation</th>
+                    <th>Type Signal</th>
+                </tr>
+                <tr>
+                    <td>Operation Type</td>
+                    <td>Read-only operations, no writes to production code</td>
+                    <td>✓ CHORE/SPIKE</td>
+                </tr>
+                <tr>
+                    <td>File Focus</td>
+                    <td>All reads target drift/classification/meta infrastructure</td>
+                    <td>✓ CHORE (maintenance)</td>
+                </tr>
+                <tr>
+                    <td>Scope</td>
+                    <td>Multiple files, cross-file analysis (not single-file bug fix)</td>
+                    <td>~ Could be SPIKE</td>
+                </tr>
+                <tr>
+                    <td>Purpose</td>
+                    <td>Investigating/improving the drift system, not implementing features</td>
+                    <td>✓ CHORE (infrastructure)</td>
+                </tr>
+                <tr>
+                    <td>Business Value</td>
+                    <td>Improves HtmlGraph's self-observation capability (observability infrastructure)</td>
+                    <td>✓ CHORE (infrastructure investment)</td>
+                </tr>
+            </table>
+
+            <h4>Classification Decision: CHORE ✓</h4>
+            <p><strong>Rationale:</strong> While this could be classified as a SPIKE (research/investigation), the primary signal is maintenance work on the drift classification infrastructure itself. The activities are focused on understanding and improving how HtmlGraph tracks its own operations, which is observability/infrastructure maintenance rather than research exploration.</p>
+
+            <h4>Implications:</h4>
+            <ul>
+                <li>✓ Not a bug - no errors being fixed</li>
+                <li>✓ Not a feature - no new user-facing functionality</li>
+                <li>✓ Not a hotfix - no urgent production issue</li>
+                <li>✓ IS a chore - infrastructure/observability maintenance</li>
+                <li>~ Could also be SPIKE - but CHORE is more specific given infrastructure focus</li>
+            </ul>
+
+            <h4>Next Actions:</h4>
+            <ul>
+                <li>Continue feature-self-tracking implementation with this classification context</li>
+                <li>Use drift classification rules to avoid false positives on infrastructure work</li>
+                <li>Update drift filtering to exclude .htmlgraph/* reads from drift scoring</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:07:00Z" data-agent="claude">
+                    Classified high-drift activities as CHORE: drift classification system maintenance
+                </li>
+                <li data-timestamp="2025-12-16T14:07:00Z" data-agent="claude">
+                    Created consolidated classification work item
+                </li>
+                <li data-timestamp="2025-12-16T14:07:00Z" data-agent="system">
+                    Classification rule applied: Infrastructure-focused + read-only = CHORE type
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

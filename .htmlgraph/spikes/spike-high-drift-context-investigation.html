@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: High-Drift Context Investigation</title>
+    <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+    <article id="spike-high-drift-context"
+             data-type="spike"
+             data-status="completed"
+             data-priority="medium"
+             data-created="2025-12-16T20:04:28Z"
+             data-updated="2025-12-16T20:04:28Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>High-Drift Context Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Feature: Self-Tracking</a></li>
+                    <li><a href="spike-tracker-drift-invocations.html">Spike: Tracker Drift Invocations</a></li>
+                    <li><a href="../chores/chore-setup-htmlgraph-tracker.html">Chore: Setup HtmlGraph Tracker</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Divergence Type</dt>
+                <dd data-key="divergence_type">Context drift from main feature task</dd>
+
+                <dt>Activities Count</dt>
+                <dd data-key="activities_count" data-value="5">5 high-drift activities</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identified high-drift activities from feature-self-tracking context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classified divergence as tracker setup and drift classification exploration
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Created work item classification for context tracking
+                </li>
+                <li data-completed="false">
+                    ⏳ Review impact on feature-self-tracking progress
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if tracker setup should be prerequisite
+                </li>
+            </ol>
+        </section>
+
+        <!-- Content -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation into high-drift activities detected during feature-self-tracking development.</p>
+
+            <h4>Observations:</h4>
+            <ul>
+                <li>Multiple invocations of htmlgraph-tracker skill (drift: 0.71)</li>
+                <li>Setup activities in chore-setup-htmlgraph-tracker.html</li>
+                <li>Exploration of tracker drift classification patterns</li>
+                <li>Context divergence from main feature task goals</li>
+            </ul>
+
+            <h4>Activity Pattern:</h4>
+            <ul>
+                <li>Write to chore setup file</li>
+                <li>Write to spike tracker drift file</li>
+                <li>Skill invocation x3 (htmlgraph-tracker)</li>
+            </ul>
+
+            <h4>Classification Decision:</h4>
+            <p><strong>Spike</strong> - This represents exploratory work into tracker infrastructure and drift classification mechanisms. These activities are tangential to the feature-self-tracking task and should be tracked separately to avoid contaminating feature metrics.</p>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:04:28Z" data-agent="claude">
+                    Classified high-drift activities as spike investigation
+                </li>
+                <li data-timestamp="2025-12-16T20:04:00Z" data-agent="system">
+                    Detected 5 high-drift activities (drift ≥ 0.71)
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

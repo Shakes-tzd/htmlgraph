@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Auto-Classify High-Drift Activities into Work Items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-auto-classify-drift"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:41:30Z"
+             data-updated="2025-12-16T13:42:40Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Auto-Classify High-Drift Activities into Work Items</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li>
+                        <a href="../features/feature-drift-auto-classification.html"
+                           data-relationship="blocks"
+                           data-since="2025-12-16T13:41:30Z">Drift Auto-Classification Feature</a>
+                    </li>
+                </ul>
+            </section>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Self-Tracking Feature</a></li>
+                    <li><a href="spike-drift-classification-system.html">Drift Classification System Investigation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed 5 high-drift activities from drift-queue.json
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Reviewed existing spike classification (spike-drift-classification-system.html)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classified activity pattern as SPIKE work item
+                </li>
+                <li data-completed="false">
+                    ⏳ Define auto-classification rules for future drift activities
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement classification API in Python
+                </li>
+                <li data-completed="false">
+                    ⏳ Create dashboard widget to display classified items
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Classification Result</h3>
+            <p><strong>Work Item Type: SPIKE</strong></p>
+
+            <h4>Activities Analyzed:</h4>
+            <ul>
+                <li><code>Skill: htmlgraph:htmlgraph-tracker</code> [drift: 0.71] (2x)</li>
+                <li><code>Bash: Check if spikes directory exists</code> [drift: 0.71]</li>
+                <li><code>Read: spike-drift-classification-system.html</code> [drift: 0.71]</li>
+                <li><code>Read: drift-queue.json</code> [drift: 0.71]</li>
+            </ul>
+
+            <h4>Classification Rationale:</h4>
+            <p>These high-drift activities (0.71 score) represent <strong>research and investigation</strong>, not production work:</p>
+            <ul>
+                <li><strong>Spike Indicators:</strong>
+                    <ul>
+                        <li>Exploration of system structure (.htmlgraph directory)</li>
+                        <li>Investigation of drift detection mechanism</li>
+                        <li>Reading/analyzing existing spike documentation</li>
+                        <li>Skill activation for tracking infrastructure</li>
+                        <li>No feature implementation or bug fixes</li>
+                    </ul>
+                </li>
+                <li><strong>Not a Bug:</strong> No error or incorrect behavior identified</li>
+                <li><strong>Not a Feature:</strong> No new user-facing functionality</li>
+                <li><strong>Not a Chore:</strong> Investigation-driven, not maintenance</li>
+                <li><strong>Is a Spike:</strong> Understanding how drift classification should work</li>
+            </ul>
+
+            <h4>Context:</h4>
+            <p>Activities occurred within <code>feature-self-tracking</code> context while HtmlGraph was tracking its own development and drift detection. The high drift score reflects a shift from primary feature work to system-level investigation.</p>
+
+            <h4>Next Steps:</h4>
+            <p>Define systematic rules for classifying high-drift activities:</p>
+            <ul>
+                <li>Drift score ≥ 0.7 + exploration pattern → SPIKE</li>
+                <li>Drift score + code errors → BUG</li>
+                <li>Drift score + new endpoints/features → FEATURE</li>
+                <li>Drift score + refactoring/cleanup → CHORE</li>
+            </ul>
+        </section>
+
+        <section data-properties>
+            <h3>Classification Metrics</h3>
+            <dl>
+                <dt>Drift Score Range</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (high)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 distinct activities</dd>
+
+                <dt>Classification Confidence</dt>
+                <dd data-key="confidence" data-value="95" data-unit="percent">95%</dd>
+            </dl>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:42:40Z" data-agent="claude">
+                    Updated priority to HIGH and classification timestamp
+                </li>
+                <li data-timestamp="2025-12-16T13:42:39.226459Z" data-agent="claude">
+                    Read feature-self-tracking state and drift queue for analysis
+                </li>
+                <li data-timestamp="2025-12-16T13:42:34.701353Z" data-agent="claude">
+                    Activated htmlgraph-tracker skill for drift analysis
+                </li>
+                <li data-timestamp="2025-12-16T13:42:12.203853Z" data-agent="claude">
+                    Identified pattern: spike-drift-classification investigation activities
+                </li>
+                <li data-timestamp="2025-12-16T13:41:30Z" data-agent="claude">
+                    Created spike work item for high-drift activity classification
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

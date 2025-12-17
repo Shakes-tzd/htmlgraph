@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: Classify High-Drift Activities as System Maintenance</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-high-drift-activity-classification"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T20:16:00Z"
+             data-updated="2025-12-16T20:44:45Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify High-Drift Activities as System Maintenance</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked-by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="blocked-by">Drift Classification Consolidation</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Drift Auto-Classification Feature</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="related">Drift Classification Consolidation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Classification Analysis</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">CHORE - Infrastructure Maintenance</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 activities</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root_cause">System interrogating its own metadata (drift classification files)</dd>
+
+                <dt>Classification Rationale</dt>
+                <dd data-key="rationale">These are necessary infrastructure operations (introspection, tracking system refinement), not off-topic drift</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Classification Tasks</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Document these 5 activities in drift classification rules
+                </li>
+                <li data-completed="false">
+                    ⏳ Add to exclusion list: .htmlgraph/features/*, .htmlgraph/spikes/*, .htmlgraph/chores/*
+                </li>
+                <li data-completed="false">
+                    ⏳ Update drift filtering logic to ignore system introspection patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Mark this classification as complete in work item tracker
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Five high-drift activities (drift score: 0.71) were detected during feature-self-tracking work. These should be classified as <strong>CHORE</strong> (system maintenance), not feature drift.</p>
+
+            <h4>Activities Detected:</h4>
+            <ol>
+                <li><strong>Read</strong>: feature-self-tracking.html [drift: 0.71]
+                    <ul>
+                        <li>Path: .htmlgraph/features/feature-self-tracking.html</li>
+                        <li>Purpose: Querying current feature metadata</li>
+                        <li>Classification: System introspection</li>
+                    </ul>
+                </li>
+                <li><strong>Read</strong>: spike-classify-high-drift-activities.html [drift: 0.71]
+                    <ul>
+                        <li>Path: .htmlgraph/spikes/spike-classify-high-drift-activities.html</li>
+                        <li>Purpose: Investigating drift classification approach</li>
+                        <li>Classification: System research</li>
+                    </ul>
+                </li>
+                <li><strong>Read</strong>: chore-drift-classification-consolidation.html [drift: 0.71]
+                    <ul>
+                        <li>Path: .htmlgraph/chores/chore-drift-classification-consolidation.html</li>
+                        <li>Purpose: Understanding consolidation strategy</li>
+                        <li>Classification: Maintenance planning</li>
+                    </ul>
+                </li>
+                <li><strong>Skill</strong>: htmlgraph-tracker activation [drift: 0.71]
+                    <ul>
+                        <li>Action: Activated tracking skill</li>
+                        <li>Purpose: Enabling drift analysis</li>
+                        <li>Classification: System initialization</li>
+                    </ul>
+                </li>
+                <li><strong>Read</strong>: chore-drift-classification-consolidation.html (repeated) [drift: 0.71]
+                    <ul>
+                        <li>Purpose: Re-examining consolidation strategy</li>
+                        <li>Classification: System planning</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h4>Why This Is CHORE, Not Feature Drift:</h4>
+            <ul>
+                <li>✅ <strong>System maintenance</strong>: Improving tracking accuracy, not implementing features</li>
+                <li>✅ <strong>Infrastructure work</strong>: Refining drift classification, not building new functionality</li>
+                <li>✅ <strong>No user impact</strong>: These are operational/meta activities</li>
+                <li>✅ <strong>Necessary overhead</strong>: System must examine its own structure to function correctly</li>
+            </ul>
+
+            <h4>Solution:</h4>
+            <p>Mark all activities as system maintenance by filtering .htmlgraph/** paths from drift calculations. This prevents false positives when the tracking system examines its own metadata.</p>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ Activities classified as CHORE in work tracking system</li>
+                <li>✓ .htmlgraph/* paths excluded from drift scoring</li>
+                <li>✓ Drift classification rules updated with this pattern</li>
+                <li>✓ feature-self-tracking can proceed without false drift warnings</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:16:00Z" data-agent="claude">
+                    Created chore: High-drift activities classified as system maintenance work
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

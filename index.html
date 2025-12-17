@@ -755,6 +755,155 @@
         .legend-default { background: var(--border); }
 
         /* ================================================================
+           ANALYTICS VIEW
+           ================================================================ */
+        .analytics {
+            display: none;
+            margin-top: 1.5rem;
+        }
+
+        .analytics.active {
+            display: block;
+        }
+
+        .analytics-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 1rem;
+        }
+
+        .analytics-header h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.25rem;
+        }
+
+        .analytics-header p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 1100px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .analytics-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            padding: 1rem 1.25rem;
+        }
+
+        .analytics-card h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .analytics-kpis {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 700px) {
+            .analytics-kpis {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .kpi {
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            padding: 0.75rem;
+        }
+
+        .kpi .kpi-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .kpi .kpi-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .table th, .table td {
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0.25rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.625rem;
+        }
+
+        .table tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .table .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .feature-link {
+            border: none;
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .feature-link:hover {
+            color: var(--status-active);
+        }
+
+        .analytics-note {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        /* ================================================================
            DETAIL PANEL
            ================================================================ */
         .panel-overlay {
@@ -932,6 +1081,91 @@
 
         .edge-type {
             font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Session Activity Preview */
+        .session-preview {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-top: 0.75rem;
+            overflow: hidden;
+        }
+
+        .session-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .session-preview-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .session-preview-title {
+            font-weight: 600;
+            font-size: 0.8125rem;
+        }
+
+        .session-preview-meta {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+        }
+
+        .session-preview-body {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+
+        .session-preview-body.collapsed {
+            display: none;
+        }
+
+        .activity-entry {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .activity-entry:last-child {
+            border-bottom: none;
+        }
+
+        .activity-tool {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--status-active);
+            min-width: 70px;
+        }
+
+        .activity-tool.Edit { color: var(--priority-high); }
+        .activity-tool.Bash { color: var(--status-done); }
+        .activity-tool.Read { color: var(--text-muted); }
+        .activity-tool.UserQuery { color: var(--priority-critical); }
+
+        .activity-summary {
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        .activity-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            color: var(--text-muted);
+        }
+
+        .drift-warning {
+            color: var(--priority-high);
+            font-size: 0.625rem;
             font-size: 0.6875rem;
             color: var(--text-muted);
             margin-left: 0.5rem;
@@ -1060,6 +1294,7 @@
         <div class="view-toggle">
             <button class="view-btn active" data-view="kanban">Kanban</button>
             <button class="view-btn" data-view="graph">Graph</button>
+            <button class="view-btn" data-view="analytics">Analytics</button>
         </div>
 
         <!-- Kanban View -->
@@ -1080,6 +1315,34 @@
                 <div class="graph-legend-item"><span class="legend-blocked"></span> Blocked by</div>
                 <div class="graph-legend-item"><span class="legend-related"></span> Related</div>
                 <div class="graph-legend-item"><span class="legend-default"></span> Other</div>
+            </div>
+        </div>
+
+        <!-- Analytics View -->
+        <div class="analytics" id="analytics">
+            <div class="analytics-header">
+                <div>
+                    <h2>Analytics</h2>
+                    <p>Powered by `.htmlgraph/index.sqlite` (rebuildable cache) generated from Git-friendly event logs.</p>
+                </div>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <button class="btn btn-primary" id="analytics-refresh">Refresh</button>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="analytics-card" id="analytics-overview">
+                    <div class="loading">Loading overview…</div>
+                </div>
+                <div class="analytics-card" id="analytics-tools">
+                    <div class="loading">Loading tool patterns…</div>
+                </div>
+                <div class="analytics-card" id="analytics-features">
+                    <div class="loading">Loading top features…</div>
+                </div>
+                <div class="analytics-card" id="analytics-continuity">
+                    <div class="loading">Select a feature to see continuity…</div>
+                </div>
             </div>
         </div>
     </div>
@@ -1154,6 +1417,13 @@
 
         let allNodes = [];
         let currentNode = null;
+        let analyticsLoadedAt = 0;
+        let analyticsCache = {
+            overview: null,
+            features: null,
+            transitions: null,
+            selectedFeatureId: null,
+        };
 
         // =====================================================================
         // Data Loading
@@ -1166,6 +1436,27 @@
             ]);
             allNodes = query.nodes;
             return { status, nodes: query.nodes };
+        }
+
+        async function fetchJson(url) {
+            const res = await fetch(url);
+            const text = await res.text();
+            let data = null;
+            try { data = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+            if (!res.ok) {
+                const msg = data && data.error ? data.error : `${res.status} ${res.statusText}`;
+                throw new Error(msg);
+            }
+            return data;
+        }
+
+        async function fetchAnalytics(endpoint, params = {}) {
+            const url = new URL(`${API}/analytics/${endpoint}`, window.location.origin);
+            Object.entries(params).forEach(([k, v]) => {
+                if (v === undefined || v === null || v === '') return;
+                url.searchParams.set(k, String(v));
+            });
+            return fetchJson(url.toString());
         }
 
         async function loadNode(collection, id) {
@@ -1197,6 +1488,172 @@
                 <div class="stat"><span class="stat-value">${s['in-progress'] || 0}</span><span class="stat-label">Active</span></div>
                 <div class="stat"><span class="stat-value">${s['blocked'] || 0}</span><span class="stat-label">Blocked</span></div>
             `;
+        }
+
+        function formatPercent(value) {
+            if (value === null || value === undefined || Number.isNaN(value)) return '—';
+            return `${(value * 100).toFixed(1)}%`;
+        }
+
+        function formatFloat(value) {
+            if (value === null || value === undefined || Number.isNaN(value)) return '—';
+            return Number(value).toFixed(2);
+        }
+
+        function renderAnalyticsOverview(overview) {
+            const el = document.getElementById('analytics-overview');
+            el.innerHTML = `
+                <h3>Overview</h3>
+                <div class="analytics-kpis">
+                    <div class="kpi">
+                        <div class="kpi-value">${overview.events}</div>
+                        <div class="kpi-label">Events</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-value">${formatPercent(overview.failure_rate)}</div>
+                        <div class="kpi-label">Failure Rate</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="kpi-value">${formatFloat(overview.avg_drift)}</div>
+                        <div class="kpi-label">Avg Drift</div>
+                    </div>
+                </div>
+                <p class="analytics-note">If this is empty, run: <span class="mono">htmlgraph events export-sessions</span> then <span class="mono">htmlgraph index rebuild</span>.</p>
+            `;
+        }
+
+        function renderAnalyticsTools(transitions) {
+            const el = document.getElementById('analytics-tools');
+            const rows = (transitions || []).map(t => `
+                <tr>
+                    <td>${t.tool}</td>
+                    <td>${t.next_tool}</td>
+                    <td>${t.count}</td>
+                </tr>
+            `).join('');
+
+            el.innerHTML = `
+                <h3>Top Tool Transitions</h3>
+                <table class="table">
+                    <thead>
+                        <tr><th>Tool</th><th>Next</th><th>Count</th></tr>
+                    </thead>
+                    <tbody>
+                        ${rows || `<tr><td colspan="3">No data.</td></tr>`}
+                    </tbody>
+                </table>
+                <p class="analytics-note">Use this to spot repeated workflows worth automating (e.g. Grep → Read → Edit → Bash).</p>
+            `;
+        }
+
+        function renderAnalyticsFeatures(features) {
+            const el = document.getElementById('analytics-features');
+            const rows = (features || []).map(f => `
+                <tr>
+                    <td><button class="feature-link" data-feature="${f.feature_id}">${f.feature_id}</button></td>
+                    <td>${f.count}</td>
+                    <td>${formatFloat(f.avg_drift)}</td>
+                    <td>${f.failures}</td>
+                </tr>
+            `).join('');
+
+            el.innerHTML = `
+                <h3>Top Features</h3>
+                <table class="table">
+                    <thead>
+                        <tr><th>Feature</th><th>Events</th><th>Avg Drift</th><th>Failures</th></tr>
+                    </thead>
+                    <tbody>
+                        ${rows || `<tr><td colspan="4">No feature activity recorded.</td></tr>`}
+                    </tbody>
+                </table>
+                <p class="analytics-note">Click a feature to see continuity across sessions.</p>
+            `;
+        }
+
+        function renderAnalyticsContinuity(featureId, sessions) {
+            const el = document.getElementById('analytics-continuity');
+            const rows = (sessions || []).map(s => `
+                <tr>
+                    <td>${s.session_id}</td>
+                    <td>${s.agent || '—'}</td>
+                    <td>${s.events}</td>
+                    <td>${s.failures}</td>
+                    <td>${formatFloat(s.avg_drift)}</td>
+                    <td class="mono">${(s.first_ts || '').slice(0, 19)}</td>
+                    <td class="mono">${(s.last_ts || '').slice(0, 19)}</td>
+                </tr>
+            `).join('');
+
+            el.innerHTML = `
+                <h3>Continuity: ${featureId}</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Session</th><th>Agent</th><th>Events</th><th>Fail</th><th>Avg Drift</th><th>First</th><th>Last</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows || `<tr><td colspan="7">No continuity data.</td></tr>`}
+                    </tbody>
+                </table>
+                <p class="analytics-note">Continuity helps identify repeated context rebuild, drift, and “same work across sessions”.</p>
+            `;
+        }
+
+        function renderAnalyticsError(err) {
+            const msg = err && err.message ? err.message : String(err);
+            const overview = document.getElementById('analytics-overview');
+            const tools = document.getElementById('analytics-tools');
+            const features = document.getElementById('analytics-features');
+            const continuity = document.getElementById('analytics-continuity');
+
+            const html = `
+                <h3>Analytics Unavailable</h3>
+                <p class="analytics-note">${msg}</p>
+                <p class="analytics-note">Build the index:</p>
+                <pre class="mono">PYTHONPATH=src/python .venv/bin/python -m htmlgraph.cli events export-sessions -g .htmlgraph\nPYTHONPATH=src/python .venv/bin/python -m htmlgraph.cli index rebuild -g .htmlgraph</pre>
+            `;
+            overview.innerHTML = html;
+            tools.innerHTML = html;
+            features.innerHTML = html;
+            continuity.innerHTML = html;
+        }
+
+        async function loadAndRenderAnalyticsBase() {
+            const [overview, features, transitions] = await Promise.all([
+                fetchAnalytics('overview'),
+                fetchAnalytics('features', { limit: 50 }).then(r => r.features),
+                fetchAnalytics('transitions', { limit: 25 }).then(r => r.transitions),
+            ]);
+
+            analyticsCache.overview = overview;
+            analyticsCache.features = features;
+            analyticsCache.transitions = transitions;
+            analyticsLoadedAt = Date.now();
+
+            renderAnalyticsOverview(overview);
+            renderAnalyticsTools(transitions);
+            renderAnalyticsFeatures(features);
+        }
+
+        async function loadAndRenderContinuity(featureId) {
+            analyticsCache.selectedFeatureId = featureId;
+            const data = await fetchAnalytics('continuity', { feature_id: featureId, limit: 200 });
+            renderAnalyticsContinuity(featureId, data.sessions || []);
+        }
+
+        async function ensureAnalyticsLoaded(force = false) {
+            const stale = (Date.now() - analyticsLoadedAt) > 60_000;
+            if (!force && analyticsCache.overview && !stale) return;
+            try {
+                await loadAndRenderAnalyticsBase();
+                if (!analyticsCache.selectedFeatureId && analyticsCache.features && analyticsCache.features.length) {
+                    await loadAndRenderContinuity(analyticsCache.features[0].feature_id);
+                }
+            } catch (err) {
+                renderAnalyticsError(err);
+            }
         }
 
         // Get collapsed columns from localStorage
@@ -1427,8 +1884,8 @@
                 `;
             }
 
-            // Edges section
-            const edgeTypes = Object.keys(node.edges || {});
+            // Edges section (excluding implemented-in which gets special handling)
+            const edgeTypes = Object.keys(node.edges || {}).filter(t => t !== 'implemented-in');
             if (edgeTypes.length > 0) {
                 bodyHtml += `<div class="panel-section"><h3>Relationships</h3>`;
                 edgeTypes.forEach(edgeType => {
@@ -1447,6 +1904,31 @@
                     }
                 });
                 bodyHtml += `</div>`;
+            }
+
+            // Session previews (implemented-in edges)
+            const sessionEdges = (node.edges || {})['implemented-in'] || [];
+            if (sessionEdges.length > 0) {
+                bodyHtml += `
+                    <div class="panel-section">
+                        <h3>Sessions (${sessionEdges.length})</h3>
+                        <div id="session-previews">
+                            ${sessionEdges.map(e => `
+                                <div class="session-preview" data-session-id="${e.target_id}">
+                                    <div class="session-preview-header" onclick="toggleSessionPreview('${e.target_id}')">
+                                        <span class="session-preview-title">${e.target_id}</span>
+                                        <span class="session-preview-meta">
+                                            <span>Loading...</span>
+                                        </span>
+                                    </div>
+                                    <div class="session-preview-body collapsed" id="session-body-${e.target_id}">
+                                        <div class="activity-entry">Loading activity log...</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
             }
 
             // Content section
@@ -1582,6 +2064,115 @@
                     }
                 });
             });
+        }
+
+        // =====================================================================
+        // Session Preview
+        // =====================================================================
+
+        const sessionCache = new Map();
+
+        async function toggleSessionPreview(sessionId) {
+            const body = document.getElementById(`session-body-${sessionId}`);
+            if (!body) return;
+
+            const isCollapsed = body.classList.contains('collapsed');
+
+            if (isCollapsed) {
+                // Expand and load if needed
+                body.classList.remove('collapsed');
+                if (!sessionCache.has(sessionId)) {
+                    await loadSessionPreview(sessionId);
+                }
+            } else {
+                // Collapse
+                body.classList.add('collapsed');
+            }
+        }
+
+        async function loadSessionPreview(sessionId) {
+            const body = document.getElementById(`session-body-${sessionId}`);
+            const preview = document.querySelector(`.session-preview[data-session-id="${sessionId}"]`);
+            if (!body || !preview) return;
+
+            try {
+                // Fetch session HTML and parse it
+                const response = await fetch(`.htmlgraph/sessions/${sessionId}.html`);
+                if (!response.ok) throw new Error('Session not found');
+
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Extract session metadata
+                const article = doc.querySelector('article[data-type="session"]');
+                const status = article?.getAttribute('data-status') || 'unknown';
+                const eventCount = article?.getAttribute('data-event-count') || '0';
+                const agent = article?.getAttribute('data-agent') || 'unknown';
+
+                // Update header meta
+                const metaEl = preview.querySelector('.session-preview-meta');
+                if (metaEl) {
+                    metaEl.innerHTML = `
+                        <span class="badge">${status}</span>
+                        <span>${eventCount} events</span>
+                        <span>${agent}</span>
+                    `;
+                }
+
+                // Extract activity log entries
+                const entries = doc.querySelectorAll('section[data-activity-log] ol li');
+                const activities = [];
+
+                entries.forEach(li => {
+                    const tool = li.getAttribute('data-tool') || 'unknown';
+                    const ts = li.getAttribute('data-ts');
+                    const drift = li.getAttribute('data-drift');
+                    let summary = li.textContent.trim();
+
+                    // Remove tool prefix from summary if present (avoid duplication)
+                    if (summary.startsWith(tool + ':')) {
+                        summary = summary.substring(tool.length + 1).trim();
+                    } else if (summary.startsWith(tool + ' ')) {
+                        summary = summary.substring(tool.length + 1).trim();
+                    }
+
+                    // Skip SessionStart/SessionEnd for cleaner display
+                    if (tool === 'SessionStart' || tool === 'SessionEnd') return;
+
+                    activities.push({ tool, ts, drift, summary });
+                });
+
+                // Render activity log (most recent first, already in that order from HTML)
+                if (activities.length > 0) {
+                    body.innerHTML = activities.slice(0, 10).map(a => `
+                        <div class="activity-entry">
+                            <span class="activity-tool ${a.tool}">${a.tool}</span>
+                            <span class="activity-summary">${escapeHtml(a.summary)}</span>
+                            ${a.drift && parseFloat(a.drift) > 0.3 ? `<span class="drift-warning">⚠️ ${a.drift}</span>` : ''}
+                            ${a.ts ? `<span class="activity-time">${new Date(a.ts).toLocaleTimeString()}</span>` : ''}
+                        </div>
+                    `).join('');
+
+                    if (activities.length > 10) {
+                        body.innerHTML += `<div class="activity-entry" style="color: var(--text-muted);">... and ${activities.length - 10} more</div>`;
+                    }
+                } else {
+                    body.innerHTML = '<div class="activity-entry" style="color: var(--text-muted);">No activities recorded</div>';
+                }
+
+                // Cache the result
+                sessionCache.set(sessionId, { status, eventCount, activities });
+
+            } catch (err) {
+                body.innerHTML = `<div class="activity-entry" style="color: var(--priority-critical);">Failed to load: ${err.message}</div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         async function refreshDashboard() {
@@ -1808,6 +2399,7 @@
         function switchView(view) {
             const kanban = document.getElementById('kanban');
             const graph = document.getElementById('graph-container');
+            const analytics = document.getElementById('analytics');
             const buttons = document.querySelectorAll('.view-btn');
 
             buttons.forEach(btn => {
@@ -1817,10 +2409,17 @@
             if (view === 'kanban') {
                 kanban.classList.add('active');
                 graph.classList.remove('active');
-            } else {
+                analytics.classList.remove('active');
+            } else if (view === 'graph') {
                 kanban.classList.remove('active');
                 graph.classList.add('active');
+                analytics.classList.remove('active');
                 renderGraph(allNodes);
+            } else if (view === 'analytics') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.add('active');
+                ensureAnalyticsLoaded(false);
             }
         }
 
@@ -1833,6 +2432,16 @@
 
         document.querySelectorAll('.view-btn').forEach(btn => {
             btn.addEventListener('click', () => switchView(btn.dataset.view));
+        });
+
+        document.getElementById('analytics-refresh').addEventListener('click', () => {
+            ensureAnalyticsLoaded(true);
+        });
+
+        document.getElementById('analytics-features').addEventListener('click', (e) => {
+            const btn = e.target.closest && e.target.closest('button[data-feature]');
+            if (!btn) return;
+            loadAndRenderContinuity(btn.dataset.feature).catch(err => renderAnalyticsError(err));
         });
 
         document.addEventListener('keydown', (e) => {

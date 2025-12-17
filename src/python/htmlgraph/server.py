@@ -23,6 +23,8 @@ from typing import Any
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Edge, Step
 from htmlgraph.converter import node_to_dict, dict_to_node
+from htmlgraph.analytics_index import AnalyticsIndex
+from htmlgraph.event_log import JsonlEventLog
 
 
 class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
@@ -32,6 +34,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
     graph_dir: Path = Path(".htmlgraph")
     static_dir: Path = Path(".")
     graphs: dict[str, HtmlGraph] = {}
+    analytics_db: AnalyticsIndex | None = None
 
     # Work item types (subfolders in .htmlgraph/)
     COLLECTIONS = ["features", "bugs", "spikes", "chores", "epics", "sessions", "agents"]
@@ -125,6 +128,10 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         # GET /api/query?selector=... - CSS selector query
         if collection == "query":
             return self._handle_query(params)
+
+        # GET /api/analytics/... - Analytics endpoints backed by SQLite index
+        if collection == "analytics":
+            return self._handle_analytics(node_id, params)
 
         # GET /api/collections - List available collections
         if collection == "collections":
@@ -239,6 +246,71 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                 status["by_priority"][p] = status["by_priority"].get(p, 0) + count
 
         self._send_json(status)
+
+    def _get_analytics(self) -> AnalyticsIndex:
+        if self.analytics_db is None:
+            self.analytics_db = AnalyticsIndex(self.graph_dir / "index.sqlite")
+        return self.analytics_db
+
+    def _handle_analytics(self, endpoint: str | None, params: dict):
+        """
+        Analytics endpoints.
+
+        Backed by a rebuildable SQLite index at `.htmlgraph/index.sqlite`.
+        If the index doesn't exist yet, we build it on-demand from `.htmlgraph/events/*.jsonl`.
+        """
+        if endpoint is None:
+            return self._send_error_json("Specify an analytics endpoint (overview, features, session)", 400)
+
+        db_path = self.graph_dir / "index.sqlite"
+        if not db_path.exists():
+            events_dir = self.graph_dir / "events"
+            if not events_dir.exists() or not any(events_dir.glob("*.jsonl")):
+                return self._send_error_json(
+                    "Analytics index not found and no event logs present. Start tracking, or run: htmlgraph events export-sessions",
+                    404,
+                )
+
+            try:
+                log = JsonlEventLog(events_dir)
+                index = AnalyticsIndex(db_path)
+                events = (event for _, event in log.iter_events())
+                index.rebuild_from_events(events)
+            except Exception as e:
+                return self._send_error_json(f"Failed to build analytics index: {e}", 500)
+
+        analytics = self._get_analytics()
+
+        since = params.get("since")
+        until = params.get("until")
+
+        if endpoint == "overview":
+            return self._send_json(analytics.overview(since=since, until=until))
+
+        if endpoint == "features":
+            limit = int(params.get("limit", 50))
+            return self._send_json({"features": analytics.top_features(since=since, until=until, limit=limit)})
+
+        if endpoint == "session":
+            session_id = params.get("id")
+            if not session_id:
+                return self._send_error_json("Missing required param: id", 400)
+            limit = int(params.get("limit", 500))
+            return self._send_json({"events": analytics.session_events(session_id=session_id, limit=limit)})
+
+        if endpoint == "continuity":
+            feature_id = params.get("feature_id") or params.get("feature")
+            if not feature_id:
+                return self._send_error_json("Missing required param: feature_id", 400)
+            limit = int(params.get("limit", 200))
+            return self._send_json({"sessions": analytics.feature_continuity(feature_id=feature_id, since=since, until=until, limit=limit)})
+
+        if endpoint == "transitions":
+            limit = int(params.get("limit", 50))
+            feature_id = params.get("feature_id") or params.get("feature")
+            return self._send_json({"transitions": analytics.top_tool_transitions(since=since, until=until, feature_id=feature_id, limit=limit)})
+
+        return self._send_error_json(f"Unknown analytics endpoint: {endpoint}", 404)
 
     def _handle_query(self, params: dict):
         """Handle CSS selector query across collections."""
@@ -458,6 +530,7 @@ def serve(
     HtmlGraphAPIHandler.graph_dir = graph_dir
     HtmlGraphAPIHandler.static_dir = static_dir
     HtmlGraphAPIHandler.graphs = {}
+    HtmlGraphAPIHandler.analytics_db = None
 
     server = HTTPServer((host, port), HtmlGraphAPIHandler)
 
@@ -474,6 +547,10 @@ API Endpoints:
   GET    /api/status              - Overall status
   GET    /api/collections         - List collections
   GET    /api/query?status=todo   - Query across collections
+  GET    /api/analytics/overview  - Analytics overview (requires index)
+  GET    /api/analytics/features  - Top features (requires index)
+  GET    /api/analytics/continuity?feature_id=... - Feature continuity (requires index)
+  GET    /api/analytics/transitions - Tool transitions (requires index)
 
   GET    /api/{{collection}}        - List nodes
   POST   /api/{{collection}}        - Create node

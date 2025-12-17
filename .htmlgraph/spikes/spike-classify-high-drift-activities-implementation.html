@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Implement High-Drift Activity Classification System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-classify-high-drift-activities-implementation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T14:15:00Z"
+             data-updated="2025-12-16T14:15:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Implement High-Drift Activity Classification System</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">feature-self-tracking (parent feature)</a></li>
+                    <li><a href="spike-classify-high-drift-activities.html" data-relationship="related">spike-classify-high-drift-activities (discovery spike)</a></li>
+                    <li><a href="../chores/chore-drift-classification-consolidation.html" data-relationship="related">chore-drift-classification-consolidation</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="blocks">Prevents self-tracking feature from proceeding cleanly</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implemented-in">
+                <h3>📝 Sessions:</h3>
+                <ul>
+                    <li><a href="../sessions/" data-relationship="implemented-in">Current session</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Node Properties -->
+        <section data-properties>
+            <h3>Classification Metadata</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">SPIKE - Research & Investigation</dd>
+
+                <dt>Drift Activities Detected</dt>
+                <dd data-key="drift-count" data-value="5">5 high-drift activities (0.71 score)</dd>
+
+                <dt>Root Cause</dt>
+                <dd data-key="root-cause">Drift classification system treating infrastructure file reads as off-topic activities</dd>
+
+                <dt>Classification Confidence</dt>
+                <dd data-key="confidence" data-value="0.85">High (0.85) - Clear spike pattern</dd>
+
+                <dt>Spike Category</dt>
+                <dd data-key="category">System Design & Tooling Investigation</dd>
+            </dl>
+        </section>
+
+        <!-- Investigation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Detected high-drift activities (5 activities, 0.71 drift score)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Analyzed activity pattern (Skill activations + metadata reads)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read and reviewed drift classification context files
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Applied classification rules to determine work item type
+                </li>
+                <li data-completed="false" data-agent="claude">
+                    ⏳ Design solution to exclude .htmlgraph/* files from drift scoring
+                </li>
+                <li data-completed="false" data-agent="claude">
+                    ⏳ Implement filtering logic in drift classification algorithm
+                </li>
+                <li data-completed="false" data-agent="claude">
+                    ⏳ Add unit tests for drift classification edge cases
+                </li>
+                <li data-completed="false" data-agent="claude">
+                    ⏳ Verify feature-self-tracking no longer generates false drift alerts
+                </li>
+            </ol>
+        </section>
+
+        <!-- Investigation Content -->
+        <section data-content>
+            <h3>Objective</h3>
+            <p>Investigate and resolve high-drift activities detected during feature-self-tracking work. The current drift classification system incorrectly flags system infrastructure file reads as off-topic work, creating false positive drift alerts that block feature development.</p>
+
+            <h4>Detected High-Drift Activities (0.71 drift):</h4>
+            <ul>
+                <li><strong>Skill:</strong> htmlgraph-tracker activation (×2) - Meta-work system initialization</li>
+                <li><strong>Read:</strong> .htmlgraph/drift-queue.json - Infrastructure metadata reading</li>
+                <li><strong>Read:</strong> .htmlgraph/features/feature-self-tracking.html - Feature context analysis</li>
+                <li><strong>Read:</strong> .htmlgraph/spikes/spike-classify-high-drift-activities.html - Related spike investigation</li>
+            </ul>
+
+            <h4>Pattern Analysis:</h4>
+            <dl>
+                <dt>Activity Type</dt>
+                <dd>Exploratory/investigative (multiple reads, no writes)</dd>
+
+                <dt>Focus Area</dt>
+                <dd>Drift classification system itself (meta-circular work)</dd>
+
+                <dt>Signal Pattern</dt>
+                <dd>
+                    <ul>
+                        <li>✓ 4+ file reads in sequence</li>
+                        <li>✓ All reads from .htmlgraph/* infrastructure directory</li>
+                        <li>✓ Zero write/edit operations</li>
+                        <li>✓ Cross-file analysis (spike + chore + feature context)</li>
+                    </ul>
+                </dd>
+
+                <dt>Classification Rationale</dt>
+                <dd><strong>SPIKE</strong> - Meets spike criteria: multiple related file reads, exploratory research pattern, no implementation code changes, infrastructure/system investigation focus</dd>
+            </dl>
+
+            <h4>Why This Is a Problem:</h4>
+            <ul>
+                <li><strong>False Positives:</strong> System infrastructure work is triggering drift alerts meant to catch off-topic exploration</li>
+                <li><strong>Feedback Loop:</strong> Drift classifier itself becomes off-topic when investigating drift (recursive meta-problem)</li>
+                <li><strong>Feature Blocking:</strong> feature-self-tracking cannot proceed cleanly while generating high-drift alerts</li>
+                <li><strong>Signal Noise:</strong> Reduces trustworthiness of drift classification for legitimate off-topic detection</li>
+            </ul>
+
+            <h4>Proposed Solutions:</h4>
+            <ol>
+                <li><strong>Filter Infrastructure Reads:</strong> Exclude .htmlgraph/* files from drift scoring algorithm</li>
+                <li><strong>Define System Activities:</strong> Create whitelist of "system work" that should not count toward drift</li>
+                <li><strong>Context-Aware Classification:</strong> Consider parent feature/spike context - are these reads supporting the intended work?</li>
+                <li><strong>Activity Categorization:</strong> Tag activities (feature, chore, spike, system) and apply different drift thresholds</li>
+            </ol>
+
+            <h4>Success Criteria:</h4>
+            <ul>
+                <li>✓ Drift classifier correctly identifies true off-topic work</li>
+                <li>✓ System infrastructure reads no longer trigger false drift alerts</li>
+                <li>✓ feature-self-tracking can proceed without drift noise</li>
+                <li>✓ Classification rules documented and testable</li>
+                <li>✓ Unit tests validate edge cases (meta-work, tool activation, infrastructure reads)</li>
+            </ul>
+
+            <h4>Acceptance Criteria:</h4>
+            <ul>
+                <li>✓ .htmlgraph/* reads excluded from drift calculation</li>
+                <li>✓ Drift-queue.json no longer populated with self-referential entries</li>
+                <li>✓ Next feature-self-tracking session shows 0.0 drift</li>
+                <li>✓ Classification rules documented in CLAUDE.md</li>
+                <li>✓ All existing drift detection tests still pass</li>
+                <li>✓ New tests added for system activity filtering</li>
+            </ul>
+        </section>
+
+        <!-- Research Findings -->
+        <section data-findings>
+            <h3>Key Research Findings</h3>
+            <ul>
+                <li><strong>Meta-Circular Problem:</strong> The activity that detects high-drift is itself classified as high-drift work - system investigating itself</li>
+                <li><strong>System vs Feature Work:</strong> Need clear boundaries between infrastructure maintenance (system) and feature development (application)</li>
+                <li><strong>Drift Scope:</strong> Current implementation treats all file reads equally - should differentiate system infrastructure from application code</li>
+                <li><strong>Related Infrastructure:</strong> chore-drift-classification-consolidation already identified similar issues with system metadata reads</li>
+                <li><strong>Convergent Discovery:</strong> Multiple work items (spike, chore) independently identified the same root cause - strong signal of real problem</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T14:15:00Z" data-agent="claude">
+                    Created spike: classified high-drift activities as legitimate system investigation work
+                </li>
+                <li data-timestamp="2025-12-16T14:07:00Z" data-agent="claude">
+                    Analyzed 5 high-drift activities from feature-self-tracking context
+                </li>
+                <li data-timestamp="2025-12-16T14:00:00Z" data-agent="system">
+                    High-drift activities detected with 0.71 drift score
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

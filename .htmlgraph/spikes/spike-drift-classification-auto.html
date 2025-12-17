@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Automated Drift Activity Classification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-classification-auto"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:12:27Z"
+             data-updated="2025-12-16T13:12:27Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Spike: Automated Drift Activity Classification</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="related">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">Drift Auto-Classification Feature</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Classification Rule</dt>
+                <dd data-key="classification_rule">spike</dd>
+
+                <dt>Drift Pattern</dt>
+                <dd data-key="drift_pattern">Meta activities - reading tracking system state, activating tracker skill</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-unit="percent">71%</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count">5</dd>
+            </dl>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Identify drift activity pattern (meta activities)
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Classify into spike work item type
+                </li>
+                <li data-completed="false">
+                    ⏳ Design classification rules for drift activities
+                </li>
+                <li data-completed="false">
+                    ⏳ Implement automated classification logic
+                </li>
+                <li data-completed="false">
+                    ⏳ Test with real drift queue data
+                </li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Investigation into automated classification of high-drift activities into appropriate work item types.</p>
+
+            <h4>Problem</h4>
+            <p>Drift detection identifies activities that may not align with current feature context, but doesn't automatically classify them into work items (bug, feature, spike, chore, hotfix).</p>
+
+            <h4>Current Activity Pattern</h4>
+            <ul>
+                <li>5 activities detected with 0.71 drift score</li>
+                <li>Pattern: Meta activities - reading tracking system state, skill activation</li>
+                <li>Context: Part of feature-self-tracking implementation</li>
+            </ul>
+
+            <h4>Classification Decision</h4>
+            <p><strong>Type: Spike</strong> - This is exploratory/investigative work into drift classification rules and patterns, not a direct feature implementation or bug fix.</p>
+
+            <h4>Next Steps</h4>
+            <ul>
+                <li>Design heuristic rules for automatic classification</li>
+                <li>Pattern library: meta activities, system operations, documentation</li>
+                <li>Integrate with drift queue processing</li>
+                <li>Test classification accuracy on historical data</li>
+            </ul>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:12:27Z" data-agent="claude">
+                    Created spike work item for drift classification investigation
+                </li>
+                <li data-timestamp="2025-12-16T13:12:26Z" data-agent="claude">
+                    Analyzed drift queue and feature context
+                </li>
+                <li data-timestamp="2025-12-16T13:12:24Z" data-agent="claude">
+                    Received high-drift activity classification request
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

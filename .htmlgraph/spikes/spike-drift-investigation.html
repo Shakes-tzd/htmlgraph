@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Queue Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-investigation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2024-12-16T19:35:00Z"
+             data-updated="2024-12-16T19:35:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Queue Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Problem Statement -->
+        <section data-content>
+            <h3>Problem</h3>
+            <p>High-drift activities detected during feature-self-tracking work. Need to understand:</p>
+            <ul>
+                <li>How drift scoring works in the htmlgraph-tracker</li>
+                <li>What causes drift values to reach 0.71+</li>
+                <li>Why multiple reads of drift-queue.json are registering as drift</li>
+                <li>How to properly classify activities with high drift into work items</li>
+            </ul>
+        </section>
+
+        <!-- Objectives -->
+        <section data-goals>
+            <h3>Investigation Goals</h3>
+            <ol>
+                <li>Understand drift-queue.json structure and content</li>
+                <li>Review htmlgraph-tracker skill implementation</li>
+                <li>Analyze activity classification logic</li>
+                <li>Determine if drift thresholds are appropriately calibrated</li>
+                <li>Document findings for feature-drift-auto-classification</li>
+            </ol>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Read and analyze drift-queue.json structure
+                </li>
+                <li data-completed="false">
+                    ⏳ Examine htmlgraph-tracker skill source code
+                </li>
+                <li data-completed="false">
+                    ⏳ Review drift scoring algorithm
+                </li>
+                <li data-completed="false">
+                    ⏳ Test activity classification with various tool types
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift threshold calibration needs
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T19:35:00Z" data-agent="claude">
+                    Created spike for drift queue investigation
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

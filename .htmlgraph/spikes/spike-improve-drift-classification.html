@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-type" content="spike">
+    <title>Spike: Improve Drift Classification System</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="spike-improve-drift-classification"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T13:06:48Z"
+             data-updated="2025-12-16T13:06:48Z"
+             data-feature="feature-self-tracking"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Improve Drift Classification System</h1>
+            <div class="metadata">
+                <span class="badge spike">🔬 Spike</span>
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="parent">
+                <h3>📌 Parent Feature:</h3>
+                <ul>
+                    <li>
+                        <a href="../features/feature-self-tracking.html"
+                           data-relationship="parent">Use HtmlGraph to Track HtmlGraph Development</a>
+                    </li>
+                </ul>
+            </section>
+
+            <section data-edge-type="related">
+                <h3>🔗 Related Spikes:</h3>
+                <ul>
+                    <li><a href="spike-drift-classification-investigation.html">Drift Classification Investigation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Problem Statement -->
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>
+                Recent activity analysis revealed high-drift activities related to drift classification work
+                that weren't being properly categorized into work items. Multiple Skill invocations, Read
+                operations, and spike investigations were detected with 0.71 drift scores, indicating they
+                represent legitimate work that should be tracked and classified.
+            </p>
+        </section>
+
+        <!-- Investigation Goals -->
+        <section data-goals>
+            <h3>Investigation Goals</h3>
+            <ol>
+                <li>Analyze patterns in high-drift activities that represent research/exploration</li>
+                <li>Identify when drift classification itself becomes a work item</li>
+                <li>Define rules for auto-categorizing drift-related activities</li>
+                <li>Implement work item creation from drift queue</li>
+                <li>Create feedback loop to improve classification accuracy</li>
+            </ol>
+        </section>
+
+        <!-- Investigation Findings -->
+        <section data-findings>
+            <h3>Key Findings</h3>
+            <ul>
+                <li>High-drift activities from 2025-12-16T13:06:47Z clustered around drift classification research</li>
+                <li>Pattern: Read rules → Write spike investigations → Activate skill → Repeat</li>
+                <li>Activities were genuinely productive (created 3 spike investigation files)</li>
+                <li>Drift classifier is working correctly but needs work item categorization</li>
+                <li>Root cause: No mechanism to convert classified drift activities into tracked work items</li>
+            </ul>
+        </section>
+
+        <!-- Next Steps -->
+        <section data-steps>
+            <h3>Next Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    📋 Design work item classification rules based on activity patterns
+                </li>
+                <li data-completed="false">
+                    🔧 Implement auto-categorization logic (bug|feature|spike|chore|hotfix)
+                </li>
+                <li data-completed="false">
+                    ✍️ Create work item HTML generator from drift activities
+                </li>
+                <li data-completed="false">
+                    🧪 Test with current drift queue
+                </li>
+                <li data-completed="false">
+                    📊 Update drift classifier to close loop on work items
+                </li>
+            </ol>
+        </section>
+
+        <!-- Technical Notes -->
+        <section data-technical>
+            <h3>Technical Considerations</h3>
+            <dl>
+                <dt>Activity Clustering</dt>
+                <dd>Group consecutive high-drift activities within 1-second time window as related work</dd>
+
+                <dt>Tool Signature Analysis</dt>
+                <dd>Skill invocations + Read/Write operations = Research/Spike activity</dd>
+
+                <dt>Context Detection</dt>
+                <dd>Use tool_summary and file_paths to infer work type</dd>
+
+                <dt>Timestamp Correlation</dt>
+                <dd>Match drift queue activities to session logs for attribution</dd>
+            </dl>
+        </section>
+
+        <!-- References -->
+        <section data-references>
+            <h3>References</h3>
+            <ul>
+                <li><code>.htmlgraph/drift-queue.json</code> - Source drift activity data</li>
+                <li><code>.htmlgraph/spikes/spike-drift-classification-rules.html</code> - Classification rules</li>
+                <li><code>.htmlgraph/features/feature-self-tracking.html</code> - Parent feature</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:06:48Z" data-agent="claude">
+                    Created spike work item from high-drift activities
+                </li>
+                <li data-timestamp="2025-12-16T13:06:47Z" data-agent="system">
+                    Detected 5 high-drift activities (0.71 score) in drift queue
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

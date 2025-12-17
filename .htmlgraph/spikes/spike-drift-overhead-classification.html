@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Classify System Overhead vs True Drift Activities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-overhead-classification"
+             data-type="spike"
+             data-status="todo"
+             data-priority="high"
+             data-created="2025-12-16T20:15:00Z"
+             data-updated="2025-12-16T20:15:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify System Overhead vs True Drift Activities</h1>
+            <div class="metadata">
+                <span class="badge type-spike">Spike</span>
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-high-drift-skill-invocations.html">High Drift Score on Repeated Skill Invocations</a></li>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ Blocks:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-high-drift-skill-invocations.html">Resolution of high-drift false positives</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Objective</h3>
+            <p>Investigate and establish a classification system to distinguish between legitimate system overhead activities and true off-topic drift in activity tracking.</p>
+
+            <h3>Context</h3>
+            <p>Current drift-queue.json classification assigns high drift scores (0.71) to activities that are actually system overhead:</p>
+            <ul>
+                <li>htmlgraph-tracker skill invocations (system tracking mechanism)</li>
+                <li>Reads from .htmlgraph/ internal metadata directory</li>
+                <li>Glob operations on .htmlgraph/bugs/ for file discovery</li>
+            </ul>
+            <p>These are legitimate self-referential activities from HtmlGraph's self-tracking feature, not actual context drift.</p>
+
+            <h3>Research Questions</h3>
+            <ol>
+                <li>What activity types should be classified as "system overhead" vs "drift"?</li>
+                <li>Should overhead activities be excluded entirely or weighted differently?</li>
+                <li>How can we distinguish between feature-relevant operations and true divergence?</li>
+                <li>What metrics best characterize true drift vs normal system activity?</li>
+                <li>Should there be separate categories for: overhead, drift, related, and on-topic?</li>
+            </ol>
+
+            <h3>Approach</h3>
+            <ol>
+                <li>Analyze current high-drift activities in drift-queue.json</li>
+                <li>Categorize by type (skill, read, glob, etc.) and purpose</li>
+                <li>Identify patterns that indicate system overhead vs genuine off-topic work</li>
+                <li>Document classification rules and thresholds</li>
+                <li>Propose updated drift calculation algorithm</li>
+                <li>Design filtering/exclusion rules for drift calculation</li>
+            </ol>
+
+            <h3>Success Criteria</h3>
+            <ul>
+                <li>Clear definition of "system overhead" vs "drift" established</li>
+                <li>Classification rules documented in drift-queue.json</li>
+                <li>Current false-positive activities reclassified as overhead or filtered out</li>
+                <li>Remaining drift activities are genuinely off-topic</li>
+                <li>Bug #bug-high-drift-skill-invocations can be closed</li>
+            </ul>
+        </section>
+
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Examine drift-queue.json and identify activity type patterns
+                </li>
+                <li data-completed="false">
+                    ⏳ Categorize each high-drift activity (overhead, drift, on-topic)
+                </li>
+                <li data-completed="false">
+                    ⏳ Define classification rules for each activity type
+                </li>
+                <li data-completed="false">
+                    ⏳ Create filtering/exclusion rules for system operations
+                </li>
+                <li data-completed="false">
+                    ⏳ Document findings and update drift-auto-classification feature
+                </li>
+                <li data-completed="false">
+                    ⏳ Test reclassification with current activity set
+                </li>
+            </ol>
+        </section>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Work Item Type</dt>
+                <dd data-key="type">Spike - Investigation</dd>
+
+                <dt>Trigger Activities</dt>
+                <dd data-key="trigger_count">5 high-drift activities from feature-self-tracking</dd>
+
+                <dt>Common Drift Score</dt>
+                <dd data-key="drift_score">0.71</dd>
+
+                <dt>Feature Context</dt>
+                <dd data-key="feature">feature-self-tracking</dd>
+
+                <dt>Issue Category</dt>
+                <dd data-key="category">Classification false positives - system overhead misidentified as drift</dd>
+            </dl>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:15:00Z" data-agent="claude">
+                    Created spike from high-drift activity classification. Pattern: Skill invocations (0.71), Read operations, Glob operations on .htmlgraph/ directory. These are system overhead, not true drift.
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

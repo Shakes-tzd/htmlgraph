@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Drift Context Oscillation Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spike-drift-oscillation"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2024-12-16T20:15:00Z"
+             data-updated="2024-12-16T20:15:00Z"
+             data-drift-score="0.72">
+
+        <header>
+            <h1>Drift Context Oscillation Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related Work Items:</h3>
+                <ul>
+                    <li>
+                        <a href="../features/feature-self-tracking.html"
+                           data-relationship="related">Feature: Use HtmlGraph to Track HtmlGraph Development</a>
+                    </li>
+                    <li>
+                        <a href="../chores/chore-drift-classifier-integration.html"
+                           data-relationship="related">Chore: Drift Classifier Integration</a>
+                    </li>
+                    <li>
+                        <a href="../features/feature-drift-auto-classification.html"
+                           data-relationship="blocked_by">Feature: Drift Threshold Auto-Classification</a>
+                    </li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Problem Statement -->
+        <section data-content>
+            <h3>Problem Statement</h3>
+            <p>Detected high-drift activity pattern (0.71-0.74 drift scores) characterized by context oscillation:</p>
+            <ul>
+                <li>Repeated reads of <code>feature-self-tracking.html</code></li>
+                <li>Reads of drift classifier related files</li>
+                <li>TaskOutput operations suggesting async task checking</li>
+            </ul>
+            <p><strong>Root cause to investigate:</strong> Is the drift classifier correctly categorizing activities related to meta-tracking and self-referential operations?</p>
+        </section>
+
+        <!-- Investigation Scope -->
+        <section data-investigation>
+            <h3>Investigation Scope</h3>
+            <ol>
+                <li data-completed="false">Analyze drift scoring algorithm for self-referential activity patterns</li>
+                <li data-completed="false">Review drift classifier training data and thresholds</li>
+                <li data-completed="false">Identify if context oscillation is expected behavior for meta-work</li>
+                <li data-completed="false">Document findings and recommendations</li>
+                <li data-completed="false">Propose improvements to drift classification for tracking activities</li>
+            </ol>
+        </section>
+
+        <!-- Key Questions -->
+        <section data-questions>
+            <h3>Key Questions</h3>
+            <ul>
+                <li>Is oscillation between feature state reads and drift classifier reads expected for self-tracking work?</li>
+                <li>Should the drift classifier have different thresholds for meta-work vs regular work?</li>
+                <li>Are we correctly distinguishing between productive context oscillation vs problematic context drift?</li>
+                <li>How should TaskOutput operations be weighted in drift scoring?</li>
+            </ul>
+        </section>
+
+        <!-- Hypotheses -->
+        <section data-hypotheses>
+            <h3>Working Hypotheses</h3>
+            <ul>
+                <li><strong>H1:</strong> The drift classifier is too sensitive to reads of the same file across sessions</li>
+                <li><strong>H2:</strong> Meta-work (tracking the tracker) inherently has higher drift due to self-referential nature</li>
+                <li><strong>H3:</strong> TaskOutput operations should not contribute to drift scoring</li>
+                <li><strong>H4:</strong> Need temporal bucketing to distinguish context switches vs oscillation</li>
+            </ul>
+        </section>
+
+        <!-- Acceptance Criteria -->
+        <section data-acceptance>
+            <h3>Acceptance Criteria</h3>
+            <ul>
+                <li>[ ] Documented understanding of why this activity pattern has high drift</li>
+                <li>[ ] Identified whether this is expected or anomalous behavior</li>
+                <li>[ ] Clear recommendation for drift classifier improvement</li>
+                <li>[ ] Test case added to prevent regression</li>
+            </ul>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2024-12-16T20:15:00Z" data-agent="system">
+                    Spike created from drift classification of high-drift activities
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spike: Drift Classification for Tracking Overhead</title>
+    <link rel="stylesheet" href="../../src/styles.css">
+</head>
+<body>
+    <article id="spike-drift-tracking-overhead"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2025-12-16T13:38:11.881731"
+             data-updated="2025-12-16T13:41:13.267401"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Drift Classification for Tracking Overhead</h1>
+            <div class="metadata">
+                <span class="badge type-spike">Spike</span>
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <!-- Graph Edges -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="spike-drift-classification-investigation.html">Drift Classification Investigation</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="implements">
+                <h3>📝 Implements:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="implements">Drift Threshold Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Description -->
+        <section data-content>
+            <h3>Description</h3>
+            <p>Auto-classification of high-drift activities (0.71 score) that are actually legitimate tracking overhead, not true feature drift.</p>
+
+            <h4>Problem Statement</h4>
+            <p>Recent activity session detected repeated high-drift activities:</p>
+            <ul>
+                <li>Activating htmlgraph-tracker skill (tracking infrastructure)</li>
+                <li>Reading .htmlgraph/drift-queue.json (meta-tracking)</li>
+                <li>Reading spike investigation files (analyzing the tracking system itself)</li>
+                <li>Bash commands to inspect spike directory structure</li>
+            </ul>
+            <p>These activities are <strong>system overhead</strong>, not feature drift. They should be:</p>
+            <ul>
+                <li>Either excluded from drift calculation entirely</li>
+                <li>Or classified as "legitimate non-feature work"</li>
+                <li>Rather than flagged as drift violations</li>
+            </ul>
+
+            <h4>Root Cause</h4>
+            <p>The drift classification algorithm doesn't distinguish between:</p>
+            <ul>
+                <li><strong>Feature drift</strong>: Working on unrelated features (problem)</li>
+                <li><strong>Tracking overhead</strong>: Maintaining the tracking system itself (expected)</li>
+                <li><strong>Tool housekeeping</strong>: Using tracking tools and utilities (expected)</li>
+            </ul>
+
+            <h4>Success Criteria</h4>
+            <ul>
+                <li>Identify file patterns and keywords that indicate tracking overhead</li>
+                <li>Create classification rules to exclude or de-weight these activities</li>
+                <li>Test against current activity queue to verify false positives are eliminated</li>
+                <li>Document findings for feature-drift-auto-classification implementation</li>
+            </ul>
+        </section>
+
+        <!-- Implementation Steps -->
+        <section data-steps>
+            <h3>Investigation Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Activate htmlgraph-tracker skill for session context
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read feature-self-tracking.html to understand current status
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Read drift-queue.json to see activity patterns
+                </li>
+                <li data-completed="true" data-agent="claude">
+                    ✅ Review spike-drift-classification-investigation.html for context
+                </li>
+                <li data-completed="false">
+                    ⏳ Analyze drift classification rules and thresholds
+                </li>
+                <li data-completed="false">
+                    ⏳ Identify tracking overhead patterns to exclude
+                </li>
+                <li data-completed="false">
+                    ⏳ Create classification refinement rules
+                </li>
+                <li data-completed="false">
+                    ⏳ Document recommendations for auto-classification feature
+                </li>
+            </ol>
+        </section>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T13:41:13.267401" data-agent="claude">
+                    Auto-classified from high-drift activity pattern - tracking overhead investigation
+                </li>
+                <li data-timestamp="2025-12-16T13:40:59.662184" data-agent="claude">
+                    Read spike-drift-classification-investigation.html
+                </li>
+                <li data-timestamp="2025-12-16T13:40:51.352473" data-agent="claude">
+                    Reviewed spikes directory structure
+                </li>
+                <li data-timestamp="2025-12-16T13:38:25.143791" data-agent="claude">
+                    Checked drift-queue.json configuration
+                </li>
+                <li data-timestamp="2025-12-16T13:38:11.881731" data-agent="claude">
+                    Spike auto-created from drift classification workflow
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

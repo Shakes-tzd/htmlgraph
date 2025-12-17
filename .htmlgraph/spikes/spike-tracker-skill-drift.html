@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spike: Investigate High Drift on htmlgraph-tracker Skill Activation</title>
+    <link rel="stylesheet" href="../../index.html">
+</head>
+<body>
+    <article id="spike-tracker-drift"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-16T20:04:28Z"
+             data-updated="2025-12-16T20:04:28Z"
+             data-drift-score="0.71"
+             data-related-feature="feature-self-tracking">
+
+        <header>
+            <h1>Investigate High Drift on htmlgraph-tracker Skill Activation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-spike">Spike</span>
+            </div>
+        </header>
+
+        <!-- Problem Statement -->
+        <section data-content>
+            <h3>Problem</h3>
+            <p>
+                Drift detection is flagging repeated activations of the <code>htmlgraph:htmlgraph-tracker</code>
+                skill as high-drift activities (0.71) when the current feature context is
+                <code>feature-self-tracking</code>.
+            </p>
+
+            <p>
+                <strong>Question:</strong> Why is tracker skill activation being classified as off-topic
+                when the entire feature is about self-tracking?
+            </p>
+
+            <h3>Hypothesis</h3>
+            <ul>
+                <li>Drift classifier may not recognize meta-work (work about tracking) as aligned with feature-self-tracking</li>
+                <li>Skill activation keywords may not be in the feature's keyword pattern matching</li>
+                <li>The drift threshold may be too sensitive for internal/tooling activities</li>
+            </ul>
+
+            <h3>Investigation Tasks</h3>
+            <ol>
+                <li data-completed="false">
+                    Review drift classification rules in <code>feature-self-tracking.html</code>
+                </li>
+                <li data-completed="false">
+                    Analyze why "skill: htmlgraph:htmlgraph-tracker" pattern doesn't match feature keywords
+                </li>
+                <li data-completed="false">
+                    Check if drift scoring algorithm accounts for meta-work/tooling activities
+                </li>
+                <li data-completed="false">
+                    Determine if threshold (0.71) is appropriate or if it should exclude tracking activities
+                </li>
+                <li data-completed="false">
+                    Document findings and recommendations
+                </li>
+            </ol>
+        </section>
+
+        <!-- Related Items -->
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html">feature-self-tracking</a></li>
+                    <li><a href="../features/feature-drift-auto-classification.html">feature-drift-auto-classification</a></li>
+                </ul>
+            </section>
+
+            <section data-edge-type="blocks">
+                <h3>⚠️ May Block:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html">Drift Threshold Auto-Classification</a> - if classifier needs tuning</li>
+                </ul>
+            </section>
+        </nav>
+
+        <!-- Activity Log -->
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:04:28Z" data-agent="claude">
+                    Created spike from high-drift activity detection
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

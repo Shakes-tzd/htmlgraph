@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Classify and Resolve High-Drift Activity Patterns</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-classify-drift-patterns"
+             data-type="chore"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2025-12-16T20:10:00.000000"
+             data-updated="2025-12-16T20:10:00.000000"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>Classify and Resolve High-Drift Activity Patterns</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge type-chore">Maintenance</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>🔗 Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Use HtmlGraph to Track HtmlGraph Development</a></li>
+                    <li><a href="../spikes/spike-tracker-drift-invocations.html" data-relationship="related">Spike: Repeated Skill Invocation Drift Pattern</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-properties>
+            <h3>Activity Analysis</h3>
+            <dl>
+                <dt>Detection Time</dt>
+                <dd data-key="detection_time">2025-12-16T20:09:00Z</dd>
+
+                <dt>Drift Score</dt>
+                <dd data-key="drift_score" data-value="0.71">0.71 (High)</dd>
+
+                <dt>Activity Count</dt>
+                <dd data-key="activity_count" data-value="5">5 high-drift activities</dd>
+
+                <dt>Primary Pattern</dt>
+                <dd data-key="primary_pattern">Repeated htmlgraph:htmlgraph-tracker skill invocations</dd>
+
+                <dt>Feature Context</dt>
+                <dd data-key="feature_context">feature-self-tracking</dd>
+            </dl>
+        </section>
+
+        <section data-content>
+            <h3>High-Drift Activities Classified</h3>
+            <ol>
+                <li><strong>Write Operation</strong>: spike-tracker-drift-invocations.html (drift: 0.71)
+                    <ul>
+                        <li>Action: Created spike documentation file</li>
+                        <li>Classification: Off-topic research spike</li>
+                    </ul>
+                </li>
+                <li><strong>Skill Invocation (x4)</strong>: htmlgraph:htmlgraph-tracker (drift: 0.71 each)
+                    <ul>
+                        <li>Action: Tracker skill called repeatedly</li>
+                        <li>Classification: Possible auto-retry or hook loop</li>
+                    </ul>
+                </li>
+                <li><strong>Read Operation</strong>: feature-self-tracking.html (drift: 0.71)
+                    <ul>
+                        <li>Action: Fetched feature context</li>
+                        <li>Classification: Supporting read for drift investigation</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3>Root Cause Analysis</h3>
+            <p>The pattern suggests:</p>
+            <ul>
+                <li>Self-referential drift tracking investigating itself</li>
+                <li>Skill invocation auto-triggering during session lifecycle</li>
+                <li>Possible hook retry logic creating repeated invocations</li>
+                <li>Idempotent operations being flagged as drift when they're intentional</li>
+            </ul>
+
+            <h3>Resolution Path</h3>
+            <p>This is a <strong>chore (maintenance)</strong> because:</p>
+            <ul>
+                <li>✅ Not a bug (behavior is intentional)</li>
+                <li>✅ Not a feature (no new functionality)</li>
+                <li>❌ Not a spike (already investigated via spike-tracker-drift-invocations)</li>
+                <li>✅ IS maintenance/cleanup (normalizing drift classification system)</li>
+            </ul>
+        </section>
+
+        <section data-steps>
+            <h3>Resolution Steps</h3>
+            <ol>
+                <li data-completed="false">
+                    ⏳ Review drift scoring algorithm for idempotent operations
+                </li>
+                <li data-completed="false">
+                    ⏳ Determine if tracker skill should have lower drift weight
+                </li>
+                <li data-completed="false">
+                    ⏳ Add logic to deduplicate consecutive identical skill invocations
+                </li>
+                <li data-completed="false">
+                    ⏳ Document drift classification rules in kanban_policy.md
+                </li>
+                <li data-completed="false">
+                    ⏳ Verify no more false-positive high-drift classifications
+                </li>
+            </ol>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T20:10:00Z" data-agent="claude">
+                    Created chore from classified high-drift activities
+                </li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>
