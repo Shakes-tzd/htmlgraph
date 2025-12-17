@@ -234,6 +234,12 @@ def main():
 
     # Ensure a single stable HtmlGraph session exists.
     # Do NOT create a new HtmlGraph session per external Claude session id (that can explode into many files).
+    #
+    # DESIGN DECISION: Task subagents share the parent's session.
+    # - All work related to a conversation stays in one session file
+    # - Agent attribution is tracked via data-agent attribute in activity logs
+    # - This provides better continuity and easier debugging
+    # - Alternative would be separate sessions per Task, but that fragments related work
     try:
         manager = SessionManager(graph_dir)
         active = manager.get_active_session()
