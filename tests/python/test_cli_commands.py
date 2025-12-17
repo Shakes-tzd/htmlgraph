@@ -263,3 +263,32 @@ def test_node_priority_values(sample_graph, priority):
     sample_graph.add(node)
     retrieved = sample_graph.get(f'test-priority-{priority}')
     assert retrieved.priority == priority
+
+
+def test_cli_init_bootstraps_events_index_and_hooks(temp_graph_dir):
+    from htmlgraph.cli import cmd_init
+    import argparse
+
+    # Use a fresh temp project dir (with no .gitignore yet).
+    args = argparse.Namespace(
+        dir=str(temp_graph_dir),
+        install_hooks=False,
+        no_index=False,
+        no_update_gitignore=False,
+        no_events_keep=False,
+    )
+
+    cmd_init(args)
+
+    graph_dir = temp_graph_dir / ".htmlgraph"
+    assert (temp_graph_dir / "index.html").exists()
+    assert (graph_dir / "events").exists()
+    assert (graph_dir / "events" / ".gitkeep").exists()
+    assert (graph_dir / "index.sqlite").exists()
+    assert (graph_dir / "hooks" / "post-commit.sh").exists()
+    assert (graph_dir / "hooks" / "post-checkout.sh").exists()
+    assert (graph_dir / "hooks" / "post-merge.sh").exists()
+    assert (graph_dir / "hooks" / "pre-push.sh").exists()
+
+    gitignore = (temp_graph_dir / ".gitignore").read_text(encoding="utf-8")
+    assert ".htmlgraph/index.sqlite" in gitignore

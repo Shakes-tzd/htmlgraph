@@ -41,6 +41,7 @@ def cmd_serve(args):
 def cmd_init(args):
     """Initialize a new .htmlgraph directory."""
     from htmlgraph.server import HtmlGraphAPIHandler
+    from htmlgraph.analytics_index import AnalyticsIndex
     import shutil
 
     graph_dir = Path(args.dir) / ".htmlgraph"
@@ -48,6 +49,14 @@ def cmd_init(args):
 
     for collection in HtmlGraphAPIHandler.COLLECTIONS:
         (graph_dir / collection).mkdir(exist_ok=True)
+
+    # Event stream directory (Git-friendly source of truth)
+    events_dir = graph_dir / "events"
+    events_dir.mkdir(exist_ok=True)
+    if not args.no_events_keep:
+        keep = events_dir / ".gitkeep"
+        if not keep.exists():
+            keep.write_text("", encoding="utf-8")
 
     # Copy stylesheet
     styles_src = Path(__file__).parent / "styles.css"
@@ -60,9 +69,191 @@ def cmd_init(args):
     if not index_path.exists():
         create_default_index(index_path)
 
+    # Create analytics cache DB (rebuildable; typically gitignored)
+    if not args.no_index:
+        try:
+            AnalyticsIndex(graph_dir / "index.sqlite").ensure_schema()
+        except Exception:
+            # Never fail init because of analytics cache.
+            pass
+
+    def ensure_gitignore_entries(project_dir: Path, lines: list[str]) -> None:
+        if args.no_update_gitignore:
+            return
+        gitignore_path = project_dir / ".gitignore"
+        existing = ""
+        if gitignore_path.exists():
+            try:
+                existing = gitignore_path.read_text(encoding="utf-8")
+            except Exception:
+                existing = ""
+        existing_lines = set(existing.splitlines())
+        missing = [ln for ln in lines if ln not in existing_lines]
+        if not missing:
+            return
+        block = "\n".join(
+            ["", "# HtmlGraph analytics index (rebuildable cache)", *missing, ""]
+            if "# HtmlGraph analytics index (rebuildable cache)" not in existing_lines
+            else ["", *missing, ""]
+        )
+        try:
+            gitignore_path.write_text(existing + block, encoding="utf-8")
+        except Exception:
+            # Don't fail init on .gitignore issues.
+            pass
+
+    ensure_gitignore_entries(
+        Path(args.dir),
+        [
+            ".htmlgraph/index.sqlite",
+            ".htmlgraph/index.sqlite-wal",
+            ".htmlgraph/index.sqlite-shm",
+            ".htmlgraph/git-hook-errors.log",
+        ],
+    )
+
+    # Ensure versioned hook scripts exist (installation into .git/hooks is optional)
+    hooks_dir = graph_dir / "hooks"
+    hooks_dir.mkdir(exist_ok=True)
+
+    # Hook templates (used when htmlgraph is installed without this repo layout).
+    post_commit = """#!/bin/bash
+#
+# HtmlGraph Post-Commit Hook
+# Logs Git commit events for agent-agnostic continuity tracking
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
+fi
+
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    python3 -m htmlgraph.git_events commit &> /dev/null &
+  fi
+  exit 0
+fi
+
+htmlgraph git-event commit &> /dev/null &
+exit 0
+"""
+
+    post_checkout = """#!/bin/bash
+#
+# HtmlGraph Post-Checkout Hook
+# Logs branch switches / checkouts for continuity tracking
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
+fi
+
+OLD_HEAD="$1"
+NEW_HEAD="$2"
+FLAG="$3"
+
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    python3 -m htmlgraph.git_events checkout "$OLD_HEAD" "$NEW_HEAD" "$FLAG" &> /dev/null &
+  fi
+  exit 0
+fi
+
+htmlgraph git-event checkout "$OLD_HEAD" "$NEW_HEAD" "$FLAG" &> /dev/null &
+exit 0
+"""
+
+    post_merge = """#!/bin/bash
+#
+# HtmlGraph Post-Merge Hook
+# Logs successful merges for continuity tracking
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
+fi
+
+SQUASH_FLAG="$1"
+
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    python3 -m htmlgraph.git_events merge "$SQUASH_FLAG" &> /dev/null &
+  fi
+  exit 0
+fi
+
+htmlgraph git-event merge "$SQUASH_FLAG" &> /dev/null &
+exit 0
+"""
+
+    pre_push = """#!/bin/bash
+#
+# HtmlGraph Pre-Push Hook
+# Logs pushes for continuity tracking / team boundary events
+#
+
+set +e
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT" || exit 0
+
+if [ ! -d ".htmlgraph" ]; then
+  exit 0
+fi
+
+REMOTE_NAME="$1"
+REMOTE_URL="$2"
+UPDATES="$(cat)"
+
+if ! command -v htmlgraph &> /dev/null; then
+  if command -v python3 &> /dev/null; then
+    printf "%s" "$UPDATES" | python3 -m htmlgraph.git_events push "$REMOTE_NAME" "$REMOTE_URL" &> /dev/null &
+  fi
+  exit 0
+fi
+
+printf "%s" "$UPDATES" | htmlgraph git-event push "$REMOTE_NAME" "$REMOTE_URL" &> /dev/null &
+exit 0
+"""
+
+    def ensure_hook_file(hook_name: str, hook_content: str) -> Path:
+        hook_dest = hooks_dir / f"{hook_name}.sh"
+        if not hook_dest.exists():
+            hook_dest.write_text(hook_content)
+        try:
+            hook_dest.chmod(0o755)
+        except Exception:
+            pass
+        return hook_dest
+
+    hook_files = {
+        "post-commit": ensure_hook_file("post-commit", post_commit),
+        "post-checkout": ensure_hook_file("post-checkout", post_checkout),
+        "post-merge": ensure_hook_file("post-merge", post_merge),
+        "pre-push": ensure_hook_file("pre-push", pre_push),
+    }
+
     print(f"Initialized HtmlGraph in {graph_dir}")
     print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
     print(f"\nStart server with: htmlgraph serve")
+    if not args.no_index:
+        print(f"Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)")
+    print(f"Events: {events_dir}/ (append-only JSONL)")
 
     # Install Git hooks if requested
     if args.install_hooks:
@@ -71,9 +262,6 @@ def cmd_init(args):
             print(f"\n⚠️  Warning: No .git directory found. Git hooks not installed.")
             print(f"   Initialize git first: git init")
             return
-
-        hooks_dir = graph_dir / "hooks"
-        hooks_dir.mkdir(exist_ok=True)
 
         def install_hook(hook_name: str, hook_dest: Path, hook_content: str | None) -> None:
             """
@@ -130,125 +318,10 @@ fi
                 print(f"\n✓ Git hooks installed")
                 print(f"  {hook_name}: {git_hook_path}")
 
-        # Hook templates (used when htmlgraph is installed without this repo layout).
-        post_commit = """#!/bin/bash
-#
-# HtmlGraph Post-Commit Hook
-# Logs Git commit events for agent-agnostic continuity tracking
-#
-
-set +e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_ROOT" || exit 0
-
-if [ ! -d ".htmlgraph" ]; then
-  exit 0
-fi
-
-if ! command -v htmlgraph &> /dev/null; then
-  if command -v python3 &> /dev/null; then
-    python3 -m htmlgraph.git_events commit &> /dev/null &
-  fi
-  exit 0
-fi
-
-htmlgraph git-event commit &> /dev/null &
-exit 0
-"""
-
-        post_checkout = """#!/bin/bash
-#
-# HtmlGraph Post-Checkout Hook
-# Logs branch switches / checkouts for continuity tracking
-#
-
-set +e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_ROOT" || exit 0
-
-if [ ! -d ".htmlgraph" ]; then
-  exit 0
-fi
-
-OLD_HEAD="$1"
-NEW_HEAD="$2"
-FLAG="$3"
-
-if ! command -v htmlgraph &> /dev/null; then
-  if command -v python3 &> /dev/null; then
-    python3 -m htmlgraph.git_events checkout "$OLD_HEAD" "$NEW_HEAD" "$FLAG" &> /dev/null &
-  fi
-  exit 0
-fi
-
-htmlgraph git-event checkout "$OLD_HEAD" "$NEW_HEAD" "$FLAG" &> /dev/null &
-exit 0
-"""
-
-        post_merge = """#!/bin/bash
-#
-# HtmlGraph Post-Merge Hook
-# Logs successful merges for continuity tracking
-#
-
-set +e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_ROOT" || exit 0
-
-if [ ! -d ".htmlgraph" ]; then
-  exit 0
-fi
-
-SQUASH_FLAG="$1"
-
-if ! command -v htmlgraph &> /dev/null; then
-  if command -v python3 &> /dev/null; then
-    python3 -m htmlgraph.git_events merge "$SQUASH_FLAG" &> /dev/null &
-  fi
-  exit 0
-fi
-
-htmlgraph git-event merge "$SQUASH_FLAG" &> /dev/null &
-exit 0
-"""
-
-        pre_push = """#!/bin/bash
-#
-# HtmlGraph Pre-Push Hook
-# Logs pushes for continuity tracking / team boundary events
-#
-
-set +e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-cd "$PROJECT_ROOT" || exit 0
-
-if [ ! -d ".htmlgraph" ]; then
-  exit 0
-fi
-
-REMOTE_NAME="$1"
-REMOTE_URL="$2"
-UPDATES="$(cat)"
-
-if ! command -v htmlgraph &> /dev/null; then
-  if command -v python3 &> /dev/null; then
-    printf "%s" "$UPDATES" | python3 -m htmlgraph.git_events push "$REMOTE_NAME" "$REMOTE_URL" &> /dev/null &
-  fi
-  exit 0
-fi
-
-printf "%s" "$UPDATES" | htmlgraph git-event push "$REMOTE_NAME" "$REMOTE_URL" &> /dev/null &
-exit 0
-"""
-
-        install_hook("post-commit", hooks_dir / "post-commit.sh", post_commit)
-        install_hook("post-checkout", hooks_dir / "post-checkout.sh", post_checkout)
-        install_hook("post-merge", hooks_dir / "post-merge.sh", post_merge)
-        install_hook("pre-push", hooks_dir / "pre-push.sh", pre_push)
+        install_hook("post-commit", hook_files["post-commit"], post_commit)
+        install_hook("post-checkout", hook_files["post-checkout"], post_checkout)
+        install_hook("post-merge", hook_files["post-merge"], post_merge)
+        install_hook("pre-push", hook_files["pre-push"], pre_push)
 
         print("\nGit events will now be logged to HtmlGraph automatically.")
 
@@ -1173,6 +1246,9 @@ curl Examples:
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
     init_parser.add_argument("dir", nargs="?", default=".", help="Directory to initialize")
     init_parser.add_argument("--install-hooks", action="store_true", help="Install Git hooks for event logging")
+    init_parser.add_argument("--no-index", action="store_true", help="Do not create the analytics cache (index.sqlite)")
+    init_parser.add_argument("--no-update-gitignore", action="store_true", help="Do not update/create .gitignore for HtmlGraph cache files")
+    init_parser.add_argument("--no-events-keep", action="store_true", help="Do not create .htmlgraph/events/.gitkeep")
 
     # status
     status_parser = subparsers.add_parser("status", help="Show graph status")

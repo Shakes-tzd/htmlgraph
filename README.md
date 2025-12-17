@@ -26,6 +26,19 @@ pip install htmlgraph
 
 ## Quick Start
 
+### CLI (recommended for new projects)
+
+```bash
+htmlgraph init --install-hooks
+htmlgraph serve
+```
+
+This bootstraps:
+- `index.html` dashboard at the project root
+- `.htmlgraph/events/` append-only JSONL event stream (Git-friendly)
+- `.htmlgraph/index.sqlite` analytics cache (rebuildable; gitignored via `.gitignore`)
+- versioned hook scripts under `.htmlgraph/hooks/` (installed into `.git/hooks/` with `--install-hooks`)
+
 ### Python
 
 ```python

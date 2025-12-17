@@ -11,7 +11,7 @@ from htmlgraph.agents import AgentInterface
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = [
     "Node",
     "Edge",

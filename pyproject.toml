@@ -1,6 +1,6 @@
 [project]
 name = "htmlgraph"
-version = "0.1.0"
+version = "0.1.1"
 description = "HTML is All You Need - Graph database on web standards"
 authors = [{name = "Shakes", email = "shakes@example.com"}]
 readme = "README.md"
