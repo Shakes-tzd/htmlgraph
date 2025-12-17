@@ -71,6 +71,32 @@ class JsonlEventLog:
         path = self.path_for_session(record.session_id)
         line = json.dumps(record.to_json(), ensure_ascii=False, default=str) + "\n"
         path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Best-effort dedupe: some producers (e.g. git hooks) may retry or be chained.
+        # Event IDs are intended to be unique; if we already have this ID in the
+        # existing file tail, skip appending.
+        try:
+            if path.exists():
+                with path.open("rb") as f:
+                    f.seek(0, 2)
+                    size = f.tell()
+                    tail_size = min(size, 64 * 1024)
+                    if tail_size:
+                        f.seek(-tail_size, 2)
+                        tail = f.read(tail_size).decode("utf-8", errors="ignore")
+                        for raw in tail.splitlines()[-250:]:
+                            raw = raw.strip()
+                            if not raw:
+                                continue
+                            try:
+                                existing = json.loads(raw)
+                            except json.JSONDecodeError:
+                                continue
+                            if existing.get("event_id") == record.event_id:
+                                return path
+        except Exception:
+            pass
+
         with path.open("a", encoding="utf-8") as f:
             f.write(line)
         return path

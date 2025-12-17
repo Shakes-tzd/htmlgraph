@@ -36,6 +36,50 @@ def test_jsonl_event_log_append_and_iter(tmp_path: Path):
     assert events[0]["file_paths"] == ["foo.py"]
 
 
+def test_jsonl_event_log_dedupes_duplicate_event_id(tmp_path: Path):
+    log = JsonlEventLog(tmp_path / "events")
+
+    record = EventRecord(
+        event_id="dup-1",
+        timestamp=datetime(2025, 1, 1, 12, 0, 0),
+        session_id="s",
+        agent="claude-code",
+        tool="GitCommit",
+        summary="Commit abc",
+        success=True,
+        feature_id="feature-1",
+        drift_score=None,
+        start_commit=None,
+        continued_from=None,
+        file_paths=[],
+        payload={"type": "GitCommit"},
+    )
+
+    log.append(record)
+    # Duplicate ID should be ignored even if timestamp differs.
+    log.append(
+        EventRecord(
+            event_id="dup-1",
+            timestamp=datetime(2025, 1, 1, 12, 0, 1),
+            session_id="s",
+            agent="claude-code",
+            tool="GitCommit",
+            summary="Commit abc (retry)",
+            success=True,
+            feature_id="feature-1",
+            drift_score=None,
+            start_commit=None,
+            continued_from=None,
+            file_paths=[],
+            payload={"type": "GitCommit"},
+        )
+    )
+
+    path = (tmp_path / "events" / "s.jsonl")
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(lines) == 1
+
+
 def test_analytics_index_rebuild_overview(tmp_path: Path):
     db = AnalyticsIndex(tmp_path / "index.sqlite")
 
