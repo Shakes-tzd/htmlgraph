@@ -15,7 +15,7 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -194,11 +194,11 @@ def get_session_summary(graph_dir: Path) -> Optional[dict]:
 
     def parse_ts(value: str | None) -> datetime:
         if not value:
-            return datetime.min
+            return datetime.min.replace(tzinfo=timezone.utc)
         try:
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
         except Exception:
-            return datetime.min
+            return datetime.min.replace(tzinfo=timezone.utc)
 
     ended = [s for s in sessions if s.get("status") == "ended"]
     if ended:
