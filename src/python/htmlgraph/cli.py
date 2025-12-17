@@ -429,8 +429,17 @@ def cmd_feature_list(args):
         nodes = list(graph.nodes.values())
 
     # Sort by priority then updated
+    from datetime import timezone
     priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    nodes.sort(key=lambda n: (priority_order.get(n.priority, 99), n.updated), reverse=True)
+
+    def sort_key(n):
+        # Ensure timezone-aware datetime for comparison
+        updated = n.updated
+        if updated.tzinfo is None:
+            updated = updated.replace(tzinfo=timezone.utc)
+        return (priority_order.get(n.priority, 99), updated)
+
+    nodes.sort(key=sort_key, reverse=True)
 
     if args.format == "json":
         print(json.dumps([node_to_dict(n) for n in nodes], indent=2, default=str))
