@@ -361,17 +361,22 @@ htmlgraph feature start <feature-id>
 {pending_list}
 """)
 
-    context_parts.append("""## Session Continuity
+    context_parts.append("""## Session Continuity & Checklist
 
 **CRITICAL - DO THIS FIRST:**
 1. **IMMEDIATELY activate the `htmlgraph-tracker` skill** using the Skill tool (required for every session start and after every compact)
-2. Then greet the user with a brief status update:
+2. **Follow the Session Workflow Checklist** (see skill for quick reference, `docs/WORKFLOW.md` for full version)
+3. Then greet the user with a brief status update:
    - Previous session summary (if any)
    - Current feature progress
    - What remains to be done
    - Ask what they'd like to work on next
 
-The htmlgraph-tracker skill MUST be activated to ensure proper feature creation decisions and attribution.
+The htmlgraph-tracker skill contains the Session Workflow Checklist to ensure:
+- Proper feature creation decisions (use decision framework)
+- Correct attribution throughout work
+- Quality checks before completion
+- Proper testing and validation
 """)
 
     context = "\n\n---\n\n".join(context_parts)

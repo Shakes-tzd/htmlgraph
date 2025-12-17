@@ -115,6 +115,36 @@ User request received
 
 See `docs/WORKFLOW.md` for the complete decision framework with detailed criteria, thresholds, and edge cases.
 
+## Session Workflow Checklist
+
+**Use this checklist for EVERY session to ensure quality and proper attribution.**
+
+### Session Start
+- [ ] Activate this skill (done)
+- [ ] Check status: `htmlgraph status`
+- [ ] Review active features
+- [ ] Greet user with status update
+- [ ] Decide: Create feature or implement directly? (use decision framework)
+- [ ] Start feature: `htmlgraph feature start <id>`
+
+### During Work
+- [ ] Feature marked "in-progress" before coding
+- [ ] Mark steps complete via API as you finish
+- [ ] Document decisions with `htmlgraph track`
+- [ ] Test incrementally
+- [ ] Watch for drift warnings
+
+### Session End (Before Completion)
+- [ ] All tests pass: `uv run pytest`
+- [ ] Validate attribution: `htmlgraph session validate-attribution <feature-id>`
+- [ ] All feature steps complete
+- [ ] No debug code or TODOs
+- [ ] Commit with feature ID
+- [ ] Mark feature complete: `htmlgraph feature complete <id>`
+- [ ] Update epic step (if applicable)
+
+**Full checklist:** See `docs/WORKFLOW.md` → "Claude Code Session Checklist"
+
 ## Handling Drift Warnings
 
 When you see a drift warning like:

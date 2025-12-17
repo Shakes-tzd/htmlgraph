@@ -218,6 +218,170 @@ Ask yourself:
 
 ---
 
+## Claude Code Session Checklist
+
+Use this checklist to ensure consistent workflow quality and proper attribution throughout your session.
+
+### 🚀 Session Startup Checklist
+
+**Run IMMEDIATELY at session start:**
+
+- [ ] **Activate htmlgraph-tracker skill** - Use Skill tool to activate (mandatory)
+- [ ] **Check project status** - Run `htmlgraph status`
+- [ ] **Review active features** - Run `htmlgraph feature list --status in-progress`
+- [ ] **Read session context** - Review previous session summary if provided
+- [ ] **Verify tracking** - Confirm HtmlGraph is tracking (check `.htmlgraph/` exists)
+- [ ] **Greet user** - Provide brief status update and ask what to work on
+
+**Commands to run:**
+```bash
+# 1. Check status
+htmlgraph status
+
+# 2. List active features
+htmlgraph feature list --status in-progress
+
+# 3. View sessions
+htmlgraph session list
+```
+
+**Decision point:** Should this request become a feature?
+- Use the Feature Creation Decision Framework above
+- **When in doubt, CREATE A FEATURE**
+- If creating feature: Use Python API or create via API endpoint
+- If starting existing feature: `htmlgraph feature start <feature-id>`
+
+---
+
+### 💻 During Work Checklist
+
+**Throughout the session:**
+
+- [ ] **Feature is started** - Verify `htmlgraph feature list` shows feature as "in-progress"
+- [ ] **Mark steps complete** - Update feature steps via API as you complete them
+- [ ] **Document decisions** - Record architectural decisions and tradeoffs
+- [ ] **Test incrementally** - Don't wait until the end to test
+- [ ] **Watch for drift** - If drift warning appears, assess if feature scope is correct
+- [ ] **Use descriptive tool descriptions** - All Bash commands should have clear descriptions
+- [ ] **Keep user informed** - Provide progress updates, explain what you're doing
+
+**When making significant decisions:**
+```bash
+# Track decision with context
+htmlgraph track "Decision" "Chose X over Y because Z"
+```
+
+**If work drifts to different scope:**
+- Consider if current feature scope is correct
+- May need to create a new related feature
+- Use `htmlgraph feature primary <id>` to change attribution
+
+**Progress tracking:**
+- Mark feature steps complete via API as you finish them
+- Don't batch step completions - mark immediately
+- Document blockers or dependencies in feature content
+
+---
+
+### ✅ Session Ending Checklist
+
+**Before marking feature complete or ending session:**
+
+#### 1. Testing & Validation
+- [ ] **Run all tests** - `uv run pytest` exits with code 0
+- [ ] **UI tests pass** (if UI changes) - `uv run pytest tests/python/test_dashboard_ui.py`
+- [ ] **Backend tests pass** (if backend changes) - `uv run pytest tests/python/`
+- [ ] **Manual testing done** - Primary use case works as expected
+- [ ] **No errors in console** - Check for warnings/errors
+- [ ] **Server starts cleanly** (if applicable) - `htmlgraph serve`
+
+#### 2. Attribution Validation
+- [ ] **Feature started before work** - Verify feature was "in-progress" during implementation
+- [ ] **Attribution validated** - Run `htmlgraph session validate-attribution <feature-id>`
+- [ ] **No suspicious drift** - Check drift warnings were addressed
+- [ ] **Session linked** - Feature should appear in session's "worked-on" list
+
+#### 3. Code Quality
+- [ ] **All feature steps complete** - Check via dashboard or API
+- [ ] **No TODO comments** - Remove or track as follow-up
+- [ ] **No debug code** - Remove console.logs, debug prints
+- [ ] **Linter passes** - Run project linter if available
+- [ ] **Type checks pass** (if applicable) - Run type checker
+
+#### 4. Documentation
+- [ ] **Code comments added** - For non-obvious logic
+- [ ] **API changes documented** - Update docs if API changed
+- [ ] **Examples updated** (if applicable) - Keep examples current
+- [ ] **User-facing docs** (if applicable) - README, WORKFLOW, etc.
+
+#### 5. Git Commit
+- [ ] **All changes staged** - `git add .`
+- [ ] **Proper commit message** - Follow format (see below)
+- [ ] **Feature ID in message** - `Implements: <feature-id>`
+- [ ] **Clean working tree** - `git status` shows nothing uncommitted
+- [ ] **DO NOT push** - Unless user explicitly requests it
+
+**Commit message format:**
+```bash
+git commit -m "$(cat <<'EOF'
+<type>: <title>
+
+Implements: <feature-id>
+
+<description of what was done>
+
+🤖 Generated with Claude Code
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+Types: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`
+
+#### 6. Feature Completion
+- [ ] **Mark feature complete** - `htmlgraph feature complete <feature-id>`
+- [ ] **Update epic steps** (if part of epic) - Mark epic step complete via API
+- [ ] **Verify in dashboard** - Open http://localhost:8080 and check status
+
+#### 7. Final Verification
+- [ ] **Read feature description** - Confirm everything implemented
+- [ ] **Check acceptance criteria** - All criteria met
+- [ ] **Review modified files** - No unintended changes
+- [ ] **Feature demonstrates behavior** - Works as intended
+
+---
+
+### 📋 Quick Reference Card
+
+**START → WORK → END**
+
+**START:**
+1. Activate skill
+2. Check status
+3. Start feature
+4. Decide: create feature or direct?
+
+**WORK:**
+1. Track progress (mark steps)
+2. Document decisions
+3. Test incrementally
+4. Watch for drift
+
+**END:**
+1. Run tests (all pass)
+2. Validate attribution
+3. Commit with feature ID
+4. Mark feature complete
+5. Update epic (if applicable)
+
+**REMEMBER:**
+- Feature started BEFORE coding
+- Tests BEFORE marking done
+- Commit BEFORE completing
+- Push ONLY if user requests
+
+---
+
 ## Bug Fix Workflow for "Done" Features
 
 When a bug is found in a feature that was previously marked "done":
