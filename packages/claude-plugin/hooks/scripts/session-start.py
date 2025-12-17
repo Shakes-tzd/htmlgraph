@@ -196,7 +196,11 @@ def get_session_summary(graph_dir: Path) -> Optional[dict]:
         if not value:
             return datetime.min.replace(tzinfo=timezone.utc)
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            # Ensure timezone-aware: if naive, assume UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
         except Exception:
             return datetime.min.replace(tzinfo=timezone.utc)
 
