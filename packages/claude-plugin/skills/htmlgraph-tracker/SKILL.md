@@ -41,25 +41,27 @@ For every significant piece of work:
 
 ## Working with Features
 
+**IMPORTANT:** Always use `uv run` when running htmlgraph commands to ensure the correct environment.
+
 ### Check Current Status
 ```bash
-htmlgraph status
-htmlgraph feature list
+uv run htmlgraph status
+uv run htmlgraph feature list
 ```
 
 ### Start Working on a Feature
 ```bash
-htmlgraph feature start <feature-id>
+uv run htmlgraph feature start <feature-id>
 ```
 
 ### Set Primary Feature (when multiple are active)
 ```bash
-htmlgraph feature primary <feature-id>
+uv run htmlgraph feature primary <feature-id>
 ```
 
 ### Complete a Feature
 ```bash
-htmlgraph feature complete <feature-id>
+uv run htmlgraph feature complete <feature-id>
 ```
 
 ## Feature Creation Decision Framework
@@ -121,26 +123,26 @@ See `docs/WORKFLOW.md` for the complete decision framework with detailed criteri
 
 ### Session Start
 - [ ] Activate this skill (done)
-- [ ] Check status: `htmlgraph status`
+- [ ] Check status: `uv run htmlgraph status`
 - [ ] Review active features
 - [ ] Greet user with status update
 - [ ] Decide: Create feature or implement directly? (use decision framework)
-- [ ] Start feature: `htmlgraph feature start <id>`
+- [ ] Start feature: `uv run htmlgraph feature start <id>`
 
 ### During Work
 - [ ] Feature marked "in-progress" before coding
 - [ ] Mark steps complete via API as you finish
-- [ ] Document decisions with `htmlgraph track`
+- [ ] Document decisions with `uv run htmlgraph track`
 - [ ] Test incrementally
 - [ ] Watch for drift warnings
 
 ### Session End (Before Completion)
 - [ ] All tests pass: `uv run pytest`
-- [ ] Validate attribution: `htmlgraph session validate-attribution <feature-id>`
+- [ ] Validate attribution: `uv run htmlgraph session validate-attribution <feature-id>`
 - [ ] All feature steps complete
 - [ ] No debug code or TODOs
 - [ ] Commit with feature ID
-- [ ] Mark feature complete: `htmlgraph feature complete <id>`
+- [ ] Mark feature complete: `uv run htmlgraph feature complete <id>`
 - [ ] Update epic step (if applicable)
 
 **Full checklist:** See `docs/WORKFLOW.md` → "Claude Code Session Checklist"
@@ -152,7 +154,7 @@ When you see a drift warning like:
 
 Consider:
 1. **Is this expected?** Sometimes work naturally spans multiple features
-2. **Should you switch features?** Use `htmlgraph feature primary <id>` to change attribution
+2. **Should you switch features?** Use `uv run htmlgraph feature primary <id>` to change attribution
 3. **Is the feature scope wrong?** The feature's file patterns or keywords may need updating
 
 ## Session Continuity
@@ -193,14 +195,15 @@ Bash(command="npm install")
 
 ### Decision Documentation
 When making architectural decisions:
-1. Track with `htmlgraph track "Decision" "Chose X over Y because Z"`
+
+1. Track with `uv run htmlgraph track "Decision" "Chose X over Y because Z"`
 2. Or note in the feature's HTML file under activity log
 
 ## Dashboard Access
 
 View progress visually:
 ```bash
-htmlgraph serve
+uv run htmlgraph serve
 # Open http://localhost:8080
 ```
 

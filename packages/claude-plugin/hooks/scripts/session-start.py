@@ -17,11 +17,76 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     print(json.dumps({}))
     sys.exit(0)
+
+
+def check_htmlgraph_version() -> Tuple[Optional[str], Optional[str], bool]:
+    """
+    Check if installed htmlgraph version matches latest on PyPI.
+
+    Returns:
+        (installed_version, latest_version, is_outdated)
+    """
+    installed_version = None
+    latest_version = None
+
+    # Get installed version
+    try:
+        result = subprocess.run(
+            ["uv", "run", "python", "-c", "import htmlgraph; print(htmlgraph.__version__)"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            installed_version = result.stdout.strip()
+    except Exception:
+        # Fallback to pip show
+        try:
+            result = subprocess.run(
+                ["pip", "show", "htmlgraph"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if line.startswith("Version:"):
+                        installed_version = line.split(":", 1)[1].strip()
+                        break
+        except Exception:
+            pass
+
+    # Get latest version from PyPI
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            "https://pypi.org/pypi/htmlgraph/json",
+            headers={"Accept": "application/json", "User-Agent": "htmlgraph-version-check"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            latest_version = data.get("info", {}).get("version")
+    except Exception:
+        pass
+
+    is_outdated = False
+    if installed_version and latest_version and installed_version != latest_version:
+        # Simple version comparison (works for semver)
+        try:
+            installed_parts = [int(x) for x in installed_version.split(".")]
+            latest_parts = [int(x) for x in latest_version.split(".")]
+            is_outdated = installed_parts < latest_parts
+        except ValueError:
+            # Fallback to string comparison
+            is_outdated = installed_version != latest_version
+
+    return installed_version, latest_version, is_outdated
 
 def _resolve_project_dir(cwd: Optional[str] = None) -> str:
     env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
@@ -129,7 +194,20 @@ def resolve_project_path(cwd: Optional[str] = None) -> str:
     return start_dir
 
 
-# HtmlGraph process notice
+# HtmlGraph process notice (template with placeholder for version warning)
+HTMLGRAPH_VERSION_WARNING = """## ⚠️ HTMLGRAPH UPDATE AVAILABLE
+
+**Installed:** {installed} → **Latest:** {latest}
+
+Update now to get the latest features and fixes:
+```bash
+uv pip install --upgrade htmlgraph
+```
+
+---
+
+"""
+
 HTMLGRAPH_PROCESS_NOTICE = """## HTMLGRAPH DEVELOPMENT PROCESS ACTIVE
 
 **IMPORTANT: Activate the `htmlgraph-tracker` skill now using the Skill tool.**
@@ -167,17 +245,19 @@ See the `htmlgraph-tracker` skill for complete framework details.
 
 ### Quick Reference
 
+**IMPORTANT:** Always use `uv run` when running htmlgraph commands.
+
 **Check Status:**
 ```bash
-htmlgraph status
-htmlgraph feature list
-htmlgraph session list
+uv run htmlgraph status
+uv run htmlgraph feature list
+uv run htmlgraph session list
 ```
 
 **Work Item Commands:**
-- `htmlgraph feature start <id>` - Start working on a feature
-- `htmlgraph feature complete <id>` - Mark feature as done
-- `htmlgraph feature primary <id>` - Set primary feature for attribution
+- `uv run htmlgraph feature start <id>` - Start working on a feature
+- `uv run htmlgraph feature complete <id>` - Mark feature as done
+- `uv run htmlgraph feature primary <id>` - Set primary feature for attribution
 
 **Session Management:**
 - Sessions auto-start when you begin working
@@ -186,7 +266,7 @@ htmlgraph session list
 
 **Dashboard:**
 ```bash
-htmlgraph serve
+uv run htmlgraph serve
 # Open http://localhost:8080
 ```
 
@@ -256,6 +336,19 @@ def main():
     except json.JSONDecodeError:
         hook_input = {}
 
+    # Check for version updates (non-blocking, best-effort)
+    version_warning = ""
+    try:
+        installed_ver, latest_ver, is_outdated = check_htmlgraph_version()
+        if is_outdated and installed_ver and latest_ver:
+            version_warning = HTMLGRAPH_VERSION_WARNING.format(
+                installed=installed_ver,
+                latest=latest_ver
+            )
+            print(f"⚠️  HtmlGraph update available: {installed_ver} → {latest_ver}", file=sys.stderr)
+    except Exception:
+        pass  # Never block on version check failure
+
     external_session_id = hook_input.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "unknown")
     cwd = hook_input.get("cwd")
     project_dir = _resolve_project_dir(cwd if cwd else None)
@@ -297,7 +390,7 @@ def main():
     features, stats = get_feature_summary(graph_dir)
 
     if not features:
-        context = f"""{HTMLGRAPH_PROCESS_NOTICE}
+        context = f"""{version_warning}{HTMLGRAPH_PROCESS_NOTICE}
 
 ---
 
@@ -305,6 +398,7 @@ def main():
 
 Initialize HtmlGraph in this project:
 ```bash
+uv pip install htmlgraph
 htmlgraph init
 ```
 
@@ -317,8 +411,11 @@ Or create features manually in `.htmlgraph/features/`
     active_features = [f for f in features if f.get("status") == "in-progress"]
     pending_features = [f for f in features if f.get("status") == "todo"]
 
-    # Build context
-    context_parts = [HTMLGRAPH_PROCESS_NOTICE]
+    # Build context (prepend version warning if outdated)
+    context_parts = []
+    if version_warning:
+        context_parts.append(version_warning.strip())
+    context_parts.append(HTMLGRAPH_PROCESS_NOTICE)
 
     # Previous session summary
     prev_session = get_session_summary(graph_dir)
