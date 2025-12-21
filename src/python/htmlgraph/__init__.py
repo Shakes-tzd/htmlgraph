@@ -10,6 +10,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
+from htmlgraph.sdk import SDK
 
 __version__ = "0.1.3"
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "HtmlGraph",
     "AgentInterface",
     "SessionManager",
+    "SDK",
     "serve",
 ]
