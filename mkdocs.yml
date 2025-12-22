@@ -4,7 +4,7 @@ site_url: https://shakes-tzd.github.io/htmlgraph/
 repo_url: https://github.com/Shakes-tzd/htmlgraph
 repo_name: Shakes-tzd/htmlgraph
 edit_uri: edit/main/docs/
-copyright: Copyright &copy; 2025 Shakes Tzedakis
+copyright: Copyright &copy; 2025 TZDLabs
 
 exclude_docs: |
   archive/
@@ -21,8 +21,10 @@ theme:
     - navigation.tabs.sticky    # Sticky tabs on scroll
     - navigation.sections       # Collapsible sections in sidebar
     - navigation.expand         # Expand all sections by default
+    - navigation.indexes        # Section index pages
     - navigation.top            # Back-to-top button
     - navigation.footer         # Prev/next footer
+    - toc.integrate             # Integrate TOC into left sidebar (nested)
     - search.suggest            # Search suggestions
     - search.highlight          # Highlight search matches
     - search.share              # Share search query

@@ -1,6 +1,6 @@
 # HTML is All You Need
 
-<div style="text-align: center; margin: 2rem 0 3rem; font-size: 1.5rem; color: var(--hg-text-secondary); font-weight: 300; letter-spacing: 0.02em;">
+<div class="hero-subtitle" style="text-align: center; margin: 2rem 0 3rem; font-size: 1.5rem; font-weight: 300; letter-spacing: 0.02em;">
 A lightweight graph database framework built entirely on web standards
 </div>
 
