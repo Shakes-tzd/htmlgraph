@@ -58,10 +58,12 @@ plugins:
       default_handler: python
       handlers:
         python:
+          # Python module paths
+          paths: [src/python]
           # Cross-reference inventories (at handler level, not in options)
           inventories:
             - https://docs.python.org/3/objects.inv
-            - https://pydantic-docs.helpmanual.io/objects.inv
+            - https://docs.pydantic.dev/latest/objects.inv
           options:
             # Display options
             show_root_heading: true

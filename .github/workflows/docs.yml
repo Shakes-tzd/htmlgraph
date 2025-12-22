@@ -23,6 +23,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python
+          pip install -e .
+
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${{ github.workspace }}/src/python" >> $GITHUB_ENV
 
       - name: Deploy to GitHub Pages
         run: |
