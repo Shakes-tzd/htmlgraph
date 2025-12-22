@@ -480,9 +480,15 @@ class SessionManager:
             drift_score = attribution["drift_score"]
             attribution_reason = attribution["reason"]
 
-        # Create activity entry
+        # Create activity entry with collision-resistant hash-based ID
+        # This ensures multi-agent safety - no race conditions even with parallel agents
+        event_id = generate_id(
+            node_type="event",
+            title=f"{tool}:{summary[:50]}"  # Include tool + summary for content-addressability
+        )
+
         entry = ActivityEntry(
-            id=f"{session_id}-{session.event_count}",
+            id=event_id,
             timestamp=datetime.now(),
             tool=tool,
             summary=summary,
@@ -493,7 +499,8 @@ class SessionManager:
                 **(payload or {}),
                 "file_paths": file_paths,
                 "attribution_reason": attribution_reason,
-            } if file_paths or attribution_reason else payload,
+                "session_id": session_id,  # Include session context in payload
+            } if file_paths or attribution_reason or session_id else payload,
         )
 
         # Append to JSONL event log (source of truth for analytics)

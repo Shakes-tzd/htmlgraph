@@ -26,7 +26,7 @@ from typing import Literal
 # Type alias for valid node types
 NodeType = Literal[
     "feature", "bug", "chore", "spike", "epic",
-    "session", "track", "phase", "agent", "spec", "plan"
+    "session", "track", "phase", "agent", "spec", "plan", "event"
 ]
 
 # Prefix mapping for human readability
@@ -43,6 +43,7 @@ PREFIXES: dict[str, str] = {
     "agent": "agt",
     "spec": "spec",
     "plan": "plan",
+    "event": "evt",  # Activity/event tracking
 }
 
 # Reverse mapping for type lookup from prefix
