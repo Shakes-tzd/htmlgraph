@@ -236,11 +236,19 @@ def setup_gemini(args):
     except Exception as e:
         print(f"⚠️  Could not check extensions: {e}")
 
+    # Check hooks capability
+    print("\n🎉 Good news: Gemini CLI supports hooks!")
+    print("   The HtmlGraph extension includes automatic session tracking:")
+    print("   - SessionStart hook → Auto-start session")
+    print("   - AfterTool hook → Track all tool usage")
+    print("   - SessionEnd hook → Auto-finalize session")
+    print("   Just like Claude Code - no manual session management needed!")
+
     print("\n✅ Gemini CLI setup complete!")
     print("\n📚 Next steps:")
     print("   1. Install the extension (see options above)")
     print("   2. Run: htmlgraph init --install-hooks")
-    print("   3. Start Gemini - extension will be available!")
+    print("   3. Start Gemini - tracking is automatic!")
     return True
 
 

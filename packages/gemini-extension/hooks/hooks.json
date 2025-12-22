@@ -1,0 +1,32 @@
+{
+  "SessionStart": [
+    {
+      "name": "htmlgraph-session-start",
+      "type": "command",
+      "command": "$GEMINI_EXTENSION_DIR/hooks/scripts/session-start.sh",
+      "description": "Initialize HtmlGraph session tracking and feature awareness",
+      "timeout": 5000,
+      "matcher": "startup"
+    }
+  ],
+  "AfterTool": [
+    {
+      "name": "htmlgraph-track-activity",
+      "type": "command",
+      "command": "$GEMINI_EXTENSION_DIR/hooks/scripts/post-tool.sh",
+      "description": "Track tool usage for activity attribution",
+      "timeout": 3000,
+      "matcher": "*"
+    }
+  ],
+  "SessionEnd": [
+    {
+      "name": "htmlgraph-session-end",
+      "type": "command",
+      "command": "$GEMINI_EXTENSION_DIR/hooks/scripts/session-end.sh",
+      "description": "Finalize session and ensure proper tracking",
+      "timeout": 5000,
+      "matcher": "*"
+    }
+  ]
+}
