@@ -5,7 +5,7 @@ A lightweight graph database framework built entirely on web standards
 </div>
 
 <div style="text-align: center; margin: 2rem 0;">
-<img src="assets/graph-hero.jpg" alt="HtmlGraph - Graph Database Visualization" style="width: 100%; max-width: 1200px; border-radius: 8px; box-shadow: 0 4px 20px rgba(205, 255, 0, 0.2);">
+<img src="assets/graph-hero.png" alt="HtmlGraph - Graph Database Visualization" style="width: 100%; max-width: 1200px; border-radius: 8px; box-shadow: 0 4px 20px rgba(205, 255, 0, 0.2);">
 </div>
 
 <div class="quick-start">
