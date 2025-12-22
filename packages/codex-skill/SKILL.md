@@ -16,6 +16,43 @@ Use this skill when HtmlGraph is tracking your session to ensure proper activity
 
 ---
 
+## ⚠️ CRITICAL: Session Management (NO AUTOMATIC HOOKS)
+
+**IMPORTANT: Unlike Claude Code, Codex does NOT have automatic session tracking hooks.**
+
+**YOU MUST MANUALLY MANAGE SESSIONS - THIS IS NOT OPTIONAL.**
+
+### Session Lifecycle (DO THIS EVERY TIME)
+
+**1. START OF EVERY WORK SESSION:**
+```bash
+# FIRST THING - Start a session
+uv run htmlgraph session start --agent codex
+
+# This returns a session ID - use it throughout the session
+```
+
+**2. DURING WORK:**
+All activities are automatically tracked to the active session, BUT you must:
+- Mark steps complete immediately
+- Update feature status as you progress
+- Track significant decisions
+
+**3. END OF SESSION (BEFORE YOU STOP):**
+```bash
+# Get the active session ID
+uv run htmlgraph session list
+
+# End the session explicitly
+uv run htmlgraph session end <session-id>
+```
+
+**If you forget to manage sessions, ALL WORK ATTRIBUTION WILL BE LOST.**
+
+Think of sessions like Git commits - you wouldn't code without committing. Don't code without session management.
+
+---
+
 ## Core Responsibilities
 
 ### 1. **Use SDK, Not Direct File Edits** (CRITICAL)
@@ -254,12 +291,15 @@ User request received
 
 **MANDATORY: Follow this checklist for EVERY session. No exceptions.**
 
-### Session Start (DO THESE FIRST)
-1. ✅ Check status: `uv run htmlgraph status`
-2. ✅ Review active features and decide if you need to create a new one
-3. ✅ Greet user with brief status update
-4. ✅ **DECIDE:** Create feature or implement directly? (use decision framework above)
-5. ✅ **If creating feature:** Run `uv run htmlgraph feature start <id>`
+### Session Start (DO THESE FIRST - IN ORDER)
+1. ✅ **START SESSION:** `uv run htmlgraph session start --agent codex` (FIRST THING!)
+2. ✅ **CHECK STATUS:** `uv run htmlgraph status`
+3. ✅ Review active features and decide if you need to create a new one
+4. ✅ Greet user with brief status update
+5. ✅ **DECIDE:** Create feature or implement directly? (use decision framework above)
+6. ✅ **If creating feature:** Run `uv run htmlgraph feature start <id>`
+
+**⚠️  If you skip step 1, nothing will be tracked!**
 
 ### During Work (DO CONTINUOUSLY)
 1. ✅ Feature MUST be marked "in-progress" before you write any code
@@ -281,7 +321,7 @@ with sdk.features.edit('feature-123') as f:
 "
 ```
 
-### Session End (MUST DO BEFORE MARKING COMPLETE)
+### Session End (MUST DO BEFORE STOPPING - IN ORDER)
 1. ✅ **RUN TESTS:** All tests MUST pass
 2. ✅ **VERIFY ATTRIBUTION:** Check that activities are linked to correct feature
 3. ✅ **CHECK STEPS:** ALL feature steps MUST be marked complete
@@ -289,6 +329,9 @@ with sdk.features.edit('feature-123') as f:
 5. ✅ **COMMIT:** Git commit with feature ID in message
 6. ✅ **COMPLETE FEATURE:** `uv run htmlgraph feature complete <id>`
 7. ✅ **UPDATE EPIC:** If part of epic, mark epic step complete
+8. ✅ **END SESSION:** `uv run htmlgraph session end <session-id>` (LAST THING!)
+
+**⚠️  CRITICAL:** If you don't end the session (step 8), the session remains open and work attribution will be incorrect for future sessions.
 
 **REMINDER:** Completing a feature without doing all of the above means incomplete work. Don't skip steps.
 
