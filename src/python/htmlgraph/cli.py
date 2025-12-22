@@ -1469,9 +1469,21 @@ def cmd_track_list(args):
         print(f"Tracks in {args.graph_dir}/tracks/:")
         print("=" * 60)
         for track_id in track_ids:
-            track_path = Path(args.graph_dir) / "tracks" / track_id
-            has_spec = (track_path / "spec.html").exists()
-            has_plan = (track_path / "plan.html").exists()
+            # Check for both consolidated (single file) and directory-based formats
+            track_file = Path(args.graph_dir) / "tracks" / f"{track_id}.html"
+            track_dir = Path(args.graph_dir) / "tracks" / track_id
+
+            if track_file.exists():
+                # Consolidated format - spec and plan are in the same file
+                content = track_file.read_text(encoding="utf-8")
+                has_spec = 'data-section="overview"' in content or 'data-section="requirements"' in content
+                has_plan = 'data-section="plan"' in content
+                format_indicator = " (consolidated)"
+            else:
+                # Directory format
+                has_spec = (track_dir / "spec.html").exists()
+                has_plan = (track_dir / "plan.html").exists()
+                format_indicator = ""
 
             components = []
             if has_spec:
@@ -1480,7 +1492,7 @@ def cmd_track_list(args):
                 components.append("plan")
 
             components_str = f" [{', '.join(components)}]" if components else " [empty]"
-            print(f"  {track_id}{components_str}")
+            print(f"  {track_id}{components_str}{format_indicator}")
 
 
 def cmd_track_spec(args):
@@ -1489,6 +1501,15 @@ def cmd_track_spec(args):
     import json
 
     manager = TrackManager(args.graph_dir)
+
+    # Check if track uses consolidated format
+    if manager.is_consolidated(args.track_id):
+        track_file = manager.tracks_dir / f"{args.track_id}.html"
+        print(f"Track '{args.track_id}' uses consolidated single-file format.")
+        print(f"Spec is embedded in: {track_file}")
+        print(f"\nTo create a track with separate spec/plan files, use:")
+        print(f"  sdk.tracks.builder().separate_files().title('...').create()")
+        return
 
     try:
         spec = manager.create_spec(
@@ -1529,6 +1550,15 @@ def cmd_track_plan(args):
     import json
 
     manager = TrackManager(args.graph_dir)
+
+    # Check if track uses consolidated format
+    if manager.is_consolidated(args.track_id):
+        track_file = manager.tracks_dir / f"{args.track_id}.html"
+        print(f"Track '{args.track_id}' uses consolidated single-file format.")
+        print(f"Plan is embedded in: {track_file}")
+        print(f"\nTo create a track with separate spec/plan files, use:")
+        print(f"  sdk.tracks.builder().separate_files().title('...').create()")
+        return
 
     try:
         plan = manager.create_plan(

@@ -332,22 +332,69 @@ class TrackManager:
         """
         List all track IDs.
 
+        Supports both consolidated (single .html file) and directory-based tracks.
+
         Returns:
             List of track IDs
         """
         if not self.tracks_dir.exists():
             return []
 
-        tracks = []
+        tracks = set()
+
         for item in self.tracks_dir.iterdir():
-            if item.is_dir() and not item.name.startswith("."):
-                tracks.append(item.name)
+            if item.name.startswith("."):
+                continue
+
+            if item.is_dir():
+                # Directory-based track (legacy 3-file format)
+                tracks.add(item.name)
+            elif item.is_file() and item.suffix == ".html":
+                # Consolidated single-file track
+                tracks.add(item.stem)
 
         return sorted(tracks)
+
+    def get_track_path(self, track_id: str) -> Path | None:
+        """
+        Get the path to a track (file or directory).
+
+        Args:
+            track_id: Track ID
+
+        Returns:
+            Path to track file or directory, or None if not found
+        """
+        # Check for consolidated format first (single file)
+        track_file = self.tracks_dir / f"{track_id}.html"
+        if track_file.exists():
+            return track_file
+
+        # Check for directory format
+        track_dir = self.tracks_dir / track_id
+        if track_dir.exists():
+            return track_dir
+
+        return None
+
+    def is_consolidated(self, track_id: str) -> bool:
+        """
+        Check if a track uses the consolidated single-file format.
+
+        Args:
+            track_id: Track ID
+
+        Returns:
+            True if consolidated, False if directory-based
+        """
+        track_file = self.tracks_dir / f"{track_id}.html"
+        return track_file.exists()
 
     def delete_track(self, track_id: str) -> None:
         """
         Delete a track and all its components.
+
+        Supports both consolidated (single file) and directory-based tracks.
 
         Args:
             track_id: Track ID to delete
@@ -357,12 +404,19 @@ class TrackManager:
         """
         import shutil
 
-        track_path = self.tracks_dir / track_id
-        if not track_path.exists():
-            raise ValueError(f"Track '{track_id}' not found")
+        # Check for consolidated format first
+        track_file = self.tracks_dir / f"{track_id}.html"
+        if track_file.exists():
+            track_file.unlink()
+            return
 
-        # Delete the entire track directory
-        shutil.rmtree(track_path)
+        # Check for directory format
+        track_dir = self.tracks_dir / track_id
+        if track_dir.exists():
+            shutil.rmtree(track_dir)
+            return
+
+        raise ValueError(f"Track '{track_id}' not found")
 
     def _write_track_index(self, track: Track, track_path: Path) -> None:
         """

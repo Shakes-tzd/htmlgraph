@@ -66,9 +66,20 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
                 # Helper to convert Node to Track with has_spec/has_plan detection
                 def node_to_track(node: Node, filepath: Path) -> Track:
-                    track_dir = filepath.parent if filepath.name == "index.html" else None
-                    has_spec = (track_dir / "spec.html").exists() if track_dir else False
-                    has_plan = (track_dir / "plan.html").exists() if track_dir else False
+                    # Check if this is a consolidated single-file track or directory-based
+                    is_consolidated = filepath.name != "index.html"
+                    track_dir = filepath.parent if not is_consolidated else None
+
+                    if is_consolidated:
+                        # Consolidated format: spec/plan are in the same file
+                        # Check for data-section attributes in the file
+                        content = filepath.read_text(encoding="utf-8")
+                        has_spec = 'data-section="overview"' in content or 'data-section="requirements"' in content
+                        has_plan = 'data-section="plan"' in content
+                    else:
+                        # Directory format: separate spec.html and plan.html files
+                        has_spec = (track_dir / "spec.html").exists() if track_dir else False
+                        has_plan = (track_dir / "plan.html").exists() if track_dir else False
 
                     return Track(
                         id=node.id,
@@ -775,11 +786,27 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if context["track_id"]:
             from htmlgraph.track_manager import TrackManager
             manager = TrackManager(self.graph_dir)
-            track_path = manager.tracks_dir / context["track_id"]
+            track_dir = manager.tracks_dir / context["track_id"]
+            track_file = manager.tracks_dir / f"{context['track_id']}.html"
 
-            context["track_exists"] = track_path.exists()
-            context["has_spec"] = (track_path / "spec.html").exists()
-            context["has_plan"] = (track_path / "plan.html").exists()
+            # Support both consolidated (single file) and directory-based tracks
+            if track_file.exists():
+                # Consolidated format
+                context["track_exists"] = True
+                content = track_file.read_text(encoding="utf-8")
+                context["has_spec"] = 'data-section="overview"' in content or 'data-section="requirements"' in content
+                context["has_plan"] = 'data-section="plan"' in content
+                context["is_consolidated"] = True
+            elif track_dir.exists():
+                # Directory format
+                context["track_exists"] = True
+                context["has_spec"] = (track_dir / "spec.html").exists()
+                context["has_plan"] = (track_dir / "plan.html").exists()
+                context["is_consolidated"] = False
+            else:
+                context["track_exists"] = False
+                context["has_spec"] = False
+                context["has_plan"] = False
 
         self._send_json(context)
 

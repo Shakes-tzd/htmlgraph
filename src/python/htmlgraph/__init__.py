@@ -19,6 +19,9 @@ from htmlgraph.models import (
     MaintenanceType,
 )
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.edge_index import EdgeIndex, EdgeRef
+from htmlgraph.query_builder import QueryBuilder, Condition, Operator
+from htmlgraph.find_api import FindAPI, find, find_all
 from htmlgraph.agents import AgentInterface
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
@@ -44,6 +47,14 @@ __all__ = [
     "MaintenanceType",
     # Graph operations
     "HtmlGraph",
+    "EdgeIndex",
+    "EdgeRef",
+    "QueryBuilder",
+    "Condition",
+    "Operator",
+    "FindAPI",
+    "find",
+    "find_all",
     "AgentInterface",
     "SessionManager",
     "SDK",

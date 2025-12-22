@@ -4414,17 +4414,20 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
 
         function initializeModalInteractivity() {
             // Intercept clicks on spec/plan links in track content
-            const specPlanLinks = document.querySelectorAll('.spec-plan-content nav[data-track-components] a');
+            // Supports both directory format (spec.html, plan.html) and consolidated format (#overview, #plan)
+            const specPlanLinks = document.querySelectorAll('.spec-plan-content nav[data-track-components] a, .spec-plan-content nav.track-nav a');
             specPlanLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     const href = this.getAttribute('href');
-                    if (href === '#' || href === 'spec.html' || href === 'plan.html') {
+                    // Match directory format links or consolidated anchor links
+                    if (href === '#' || href === 'spec.html' || href === 'plan.html' ||
+                        href === '#overview' || href === '#plan' || href === '#requirements') {
                         e.preventDefault();
-                        // Determine type from link text
+                        // Determine type from link text or href
                         const text = this.textContent.toLowerCase();
-                        if (text.includes('spec')) {
+                        if (text.includes('spec') || href === '#overview' || href === '#requirements') {
                             toggleSpecPlan('spec');
-                        } else if (text.includes('plan')) {
+                        } else if (text.includes('plan') || href === '#plan') {
                             toggleSpecPlan('plan');
                         }
                     }
