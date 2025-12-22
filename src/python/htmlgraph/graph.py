@@ -16,6 +16,7 @@ from htmlgraph.models import Node, Edge
 from htmlgraph.converter import html_to_node, node_to_html, NodeConverter
 from htmlgraph.parser import HtmlParser
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
+from htmlgraph.query_builder import QueryBuilder
 
 
 class HtmlGraph:
@@ -267,6 +268,42 @@ class HtmlGraph:
     def by_priority(self, priority: str) -> list[Node]:
         """Get all nodes with given priority."""
         return self.filter(lambda n: n.priority == priority)
+
+    def query_builder(self) -> QueryBuilder:
+        """
+        Create a fluent query builder for complex queries.
+
+        The query builder provides a chainable API that goes beyond
+        CSS selectors with support for:
+        - Logical operators (and, or, not)
+        - Comparison operators (eq, gt, lt, between)
+        - Text search (contains, matches)
+        - Nested attribute access (properties.effort)
+
+        Returns:
+            QueryBuilder instance for building queries
+
+        Example:
+            # Find high-priority blocked features
+            results = graph.query_builder() \\
+                .where("status", "blocked") \\
+                .and_("priority").in_(["high", "critical"]) \\
+                .execute()
+
+            # Find features with "auth" in title
+            results = graph.query_builder() \\
+                .where("title").contains("auth") \\
+                .or_("title").contains("login") \\
+                .execute()
+
+            # Find low-completion features
+            results = graph.query_builder() \\
+                .where("properties.completion").lt(50) \\
+                .and_("status").ne("done") \\
+                .of_type("feature") \\
+                .execute()
+        """
+        return QueryBuilder(_graph=self)
 
     # =========================================================================
     # Edge Index Operations (O(1) lookups)
