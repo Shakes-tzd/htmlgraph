@@ -226,6 +226,10 @@ def _append_event(
     session_status: str | None,
     now: datetime | None = None,
 ) -> None:
+    # Auto-infer work type from feature_id (Phase 1: Work Type Classification)
+    from htmlgraph.work_type_utils import infer_work_type_from_id
+    work_type = infer_work_type_from_id(feature_id)
+
     record = EventRecord(
         event_id=event_id,
         timestamp=now or datetime.now(),
@@ -238,6 +242,7 @@ def _append_event(
         drift_score=None,
         start_commit=start_commit,
         continued_from=continued_from,
+        work_type=work_type,
         session_status=session_status,
         file_paths=file_paths or [],
         payload=payload,

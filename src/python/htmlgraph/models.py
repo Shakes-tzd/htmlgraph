@@ -9,7 +9,54 @@ These models provide:
 
 from datetime import datetime
 from typing import Any, Literal
+from enum import Enum
 from pydantic import BaseModel, Field
+
+
+class WorkType(str, Enum):
+    """
+    Classification of work/activity type for events and sessions.
+
+    Used to differentiate exploratory work from implementation work in analytics.
+    """
+    FEATURE = "feature-implementation"
+    SPIKE = "spike-investigation"
+    BUG_FIX = "bug-fix"
+    MAINTENANCE = "maintenance"
+    DOCUMENTATION = "documentation"
+    PLANNING = "planning"
+    REVIEW = "review"
+    ADMIN = "admin"
+
+
+class SpikeType(str, Enum):
+    """
+    Categorization of spike investigations based on Agile best practices.
+
+    - TECHNICAL: Investigate technical implementation options
+    - ARCHITECTURAL: Research system design and architecture decisions
+    - RISK: Identify and assess project risks
+    - GENERAL: Uncategorized investigation
+    """
+    TECHNICAL = "technical"
+    ARCHITECTURAL = "architectural"
+    RISK = "risk"
+    GENERAL = "general"
+
+
+class MaintenanceType(str, Enum):
+    """
+    Software maintenance categorization based on IEEE standards.
+
+    - CORRECTIVE: Fix defects and errors
+    - ADAPTIVE: Adapt to environment changes (OS, dependencies)
+    - PERFECTIVE: Improve performance, usability, maintainability
+    - PREVENTIVE: Prevent future problems (refactoring, tech debt)
+    """
+    CORRECTIVE = "corrective"
+    ADAPTIVE = "adaptive"
+    PERFECTIVE = "perfective"
+    PREVENTIVE = "preventive"
 
 
 class Step(BaseModel):
@@ -330,6 +377,46 @@ class Node(BaseModel):
         return cls(**data)
 
 
+class Spike(Node):
+    """
+    A Spike node representing timeboxed investigation/research work.
+
+    Extends Node with spike-specific fields:
+    - spike_type: Classification (technical/architectural/risk)
+    - timebox_hours: Time budget for investigation
+    - findings: Summary of what was learned
+    - decision: Decision made based on spike results
+    """
+
+    spike_type: SpikeType = SpikeType.GENERAL
+    timebox_hours: int | None = None
+    findings: str | None = None
+    decision: str | None = None
+
+    def __init__(self, **data: Any):
+        # Ensure type is always "spike"
+        data["type"] = "spike"
+        super().__init__(**data)
+
+
+class Chore(Node):
+    """
+    A Chore node representing maintenance work.
+
+    Extends Node with maintenance-specific fields:
+    - maintenance_type: Classification (corrective/adaptive/perfective/preventive)
+    - technical_debt_score: Estimated tech debt impact (0-10)
+    """
+
+    maintenance_type: MaintenanceType | None = None
+    technical_debt_score: int | None = None
+
+    def __init__(self, **data: Any):
+        # Ensure type is always "chore"
+        data["type"] = "chore"
+        super().__init__(**data)
+
+
 class ActivityEntry(BaseModel):
     """
     A lightweight activity log entry for high-frequency events.
@@ -398,6 +485,10 @@ class Session(BaseModel):
 
     # High-frequency activity log
     activity_log: list[ActivityEntry] = Field(default_factory=list)
+
+    # Work type categorization (Phase 1: Work Type Classification)
+    primary_work_type: str | None = None  # WorkType enum value
+    work_breakdown: dict[str, int] | None = None  # {work_type: event_count}
 
     def add_activity(self, entry: ActivityEntry) -> None:
         """Add an activity entry to the log."""
@@ -512,6 +603,48 @@ class Session(BaseModel):
             'tools_used': len(by_tool),
             'features_worked': len(by_feature)
         }
+
+    def calculate_work_breakdown(self, events_dir: str = ".htmlgraph/events") -> dict[str, int]:
+        """
+        Calculate distribution of work types from events.
+
+        Returns:
+            Dictionary mapping work type to event count
+
+        Example:
+            >>> session = sdk.sessions.get("session-123")
+            >>> breakdown = session.calculate_work_breakdown()
+            >>> print(breakdown)
+            {"feature-implementation": 120, "spike-investigation": 45, "maintenance": 30}
+        """
+        events = self.get_events(limit=None, events_dir=events_dir)
+        breakdown: dict[str, int] = {}
+
+        for evt in events:
+            work_type = evt.get("work_type")
+            if work_type:
+                breakdown[work_type] = breakdown.get(work_type, 0) + 1
+
+        return breakdown
+
+    def calculate_primary_work_type(self, events_dir: str = ".htmlgraph/events") -> str | None:
+        """
+        Determine primary work type based on event distribution.
+
+        Returns work type with most events, or None if no work types recorded.
+
+        Example:
+            >>> session = sdk.sessions.get("session-123")
+            >>> primary = session.calculate_primary_work_type()
+            >>> print(primary)
+            "feature-implementation"
+        """
+        breakdown = self.calculate_work_breakdown(events_dir=events_dir)
+        if not breakdown:
+            return None
+
+        # Return work type with most events
+        return max(breakdown, key=breakdown.get)  # type: ignore
 
     def to_html(self, stylesheet_path: str = "../styles.css") -> str:
         """Convert session to HTML document with inline activity log."""

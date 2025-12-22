@@ -15,7 +15,10 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from htmlgraph.models import WorkType
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,7 @@ class EventRecord:
     drift_score: float | None
     start_commit: str | None
     continued_from: str | None
+    work_type: str | None = None  # WorkType enum value
     session_status: str | None = None
     file_paths: list[str] | None = None
     payload: dict[str, Any] | None = None
@@ -45,6 +49,7 @@ class EventRecord:
             "summary": self.summary,
             "success": self.success,
             "feature_id": self.feature_id,
+            "work_type": self.work_type,
             "drift_score": self.drift_score,
             "start_commit": self.start_commit,
             "continued_from": self.continued_from,

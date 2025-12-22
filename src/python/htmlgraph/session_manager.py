@@ -505,6 +505,10 @@ class SessionManager:
 
         # Append to JSONL event log (source of truth for analytics)
         try:
+            # Auto-infer work type from feature_id (Phase 1: Work Type Classification)
+            from htmlgraph.work_type_utils import infer_work_type_from_id
+            work_type = infer_work_type_from_id(entry.feature_id)
+
             self.event_log.append(EventRecord(
                 event_id=entry.id or "",
                 timestamp=entry.timestamp,
@@ -517,6 +521,7 @@ class SessionManager:
                 drift_score=entry.drift_score,
                 start_commit=session.start_commit,
                 continued_from=session.continued_from,
+                work_type=work_type,
                 session_status=session.status,
                 file_paths=file_paths,
                 payload=entry.payload if isinstance(entry.payload, dict) else payload,
