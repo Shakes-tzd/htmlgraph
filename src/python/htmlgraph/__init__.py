@@ -12,7 +12,7 @@ from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.sdk import SDK
 
-__version__ = "0.3.1"
+__version__ = "0.3.3"
 __all__ = [
     "Node",
     "Edge",
