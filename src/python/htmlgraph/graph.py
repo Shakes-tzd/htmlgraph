@@ -17,6 +17,7 @@ from htmlgraph.converter import html_to_node, node_to_html, NodeConverter
 from htmlgraph.parser import HtmlParser
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
 from htmlgraph.query_builder import QueryBuilder
+from htmlgraph.find_api import FindAPI
 
 
 class HtmlGraph:
@@ -304,6 +305,81 @@ class HtmlGraph:
                 .execute()
         """
         return QueryBuilder(_graph=self)
+
+    def find(self, type: str | None = None, **kwargs) -> Node | None:
+        """
+        Find the first node matching the given criteria.
+
+        BeautifulSoup-style find method with keyword argument filtering.
+        Supports lookup suffixes like __contains, __gt, __in.
+
+        Args:
+            type: Node type filter (e.g., "feature", "bug")
+            **kwargs: Attribute filters with optional lookup suffixes
+
+        Returns:
+            First matching Node or None
+
+        Example:
+            # Find first blocked feature
+            node = graph.find(type="feature", status="blocked")
+
+            # Find with text search
+            node = graph.find(title__contains="auth")
+
+            # Find with numeric comparison
+            node = graph.find(properties__effort__gt=8)
+        """
+        return FindAPI(self).find(type=type, **kwargs)
+
+    def find_all(self, type: str | None = None, limit: int | None = None, **kwargs) -> list[Node]:
+        """
+        Find all nodes matching the given criteria.
+
+        BeautifulSoup-style find_all method with keyword argument filtering.
+
+        Args:
+            type: Node type filter
+            limit: Maximum number of results
+            **kwargs: Attribute filters with optional lookup suffixes
+
+        Returns:
+            List of matching Nodes
+
+        Example:
+            # Find all high-priority features
+            nodes = graph.find_all(type="feature", priority="high")
+
+            # Find with multiple conditions
+            nodes = graph.find_all(
+                status__in=["todo", "blocked"],
+                priority__in=["high", "critical"],
+                limit=10
+            )
+
+            # Find with nested attribute
+            nodes = graph.find_all(properties__completion__lt=50)
+        """
+        return FindAPI(self).find_all(type=type, limit=limit, **kwargs)
+
+    def find_related(
+        self,
+        node_id: str,
+        relationship: str | None = None,
+        direction: str = "outgoing"
+    ) -> list[Node]:
+        """
+        Find nodes related to a given node.
+
+        Args:
+            node_id: Node ID to find relations for
+            relationship: Optional filter by relationship type
+            direction: "outgoing", "incoming", or "both"
+
+        Returns:
+            List of related nodes
+        """
+        return FindAPI(self).find_related(node_id, relationship, direction)
 
     # =========================================================================
     # Edge Index Operations (O(1) lookups)
