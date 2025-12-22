@@ -253,14 +253,24 @@ class NodeConverter:
             return html_to_node(filepath)
         return None
 
-    def load_all(self, pattern: str = "*.html") -> list[Node]:
-        """Load all nodes matching pattern."""
+    def load_all(self, pattern: str | list[str] = "*.html") -> list[Node]:
+        """
+        Load all nodes matching pattern(s).
+
+        Args:
+            pattern: Glob pattern(s) to match. Can be a single pattern or list of patterns.
+                     Examples: "*.html", ["*.html", "*/index.html"]
+        """
         nodes = []
-        for filepath in self.directory.glob(pattern):
-            try:
-                nodes.append(html_to_node(filepath))
-            except (ValueError, KeyError):
-                continue  # Skip malformed files
+        patterns = [pattern] if isinstance(pattern, str) else pattern
+
+        for pat in patterns:
+            for filepath in self.directory.glob(pat):
+                if filepath.is_file():  # Skip directories
+                    try:
+                        nodes.append(html_to_node(filepath))
+                    except (ValueError, KeyError):
+                        continue  # Skip malformed files
         return nodes
 
     def save(self, node: Node) -> Path:

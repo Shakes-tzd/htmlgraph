@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spec: Multi-Agent Collaboration Specification</title>
+    <link rel="stylesheet" href="../../.htmlgraph/styles.css">
+    <style>
+        /* HtmlGraph Dashboard Design System */
+        :root {
+            --bg-primary: #151518;
+            --bg-secondary: #1C1C20;
+            --bg-tertiary: #252528;
+            --text-primary: #E0DED8;
+            --text-secondary: #A0A0A0;
+            --text-muted: #707070;
+            --border: #333338;
+            --border-strong: #606068;
+            --accent: #CDFF00;
+            --accent-text: #0A0A0A;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            max-width: 1200px;
+            margin-inline: auto;
+        }
+
+        .spec-nav {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-strong);
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-strong);
+            border-radius: 0;
+            transition: all 0.2s;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        article {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            padding: 0;
+        }
+
+        header {
+            padding: 2rem;
+            border-bottom: 2px solid var(--border-strong);
+            background: var(--bg-tertiary);
+        }
+
+        h1 {
+            margin: 0 0 1rem 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        h2 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin: 0 0 1rem 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .badge {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.7rem;
+        }
+
+        .status-draft {
+            color: var(--text-muted);
+            border-color: var(--text-muted);
+        }
+
+        .status-review {
+            color: #f59e0b;
+            border-color: #f59e0b;
+        }
+
+        .status-approved {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        section {
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        p {
+            margin: 0;
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .muted {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .requirements-list article,
+        .criteria-list li {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .criteria-list {
+            list-style: none;
+            counter-reset: criteria;
+            padding: 0;
+            margin: 0;
+        }
+
+        .criteria-list li {
+            counter-increment: criteria;
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .criteria-list li::before {
+            content: counter(criteria);
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            background: var(--accent);
+            color: var(--accent-text);
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    
+        <div class="spec-nav">
+            <a href="index.html" class="nav-link">← Track</a>
+            <a href="plan.html" class="nav-link">Plan →</a>
+        </div>
+    <article id="track-20251221-211303-spec" data-type="spec" data-status="draft" data-track="track-20251221-211303">
+        <header>
+            <h1>Multi-Agent Collaboration Specification</h1>
+            <div class="metadata">
+                <span class="badge status-draft">Draft</span>
+                <span class="badge">Author: claude-code</span>
+                <span class="badge">Created: 2025-12-21</span>
+            </div>
+        </header>
+
+        <section data-section="overview">
+            <h2>Overview</h2>
+            <p>HtmlGraph enables multiple AI agents (Claude Code, Codex CLI, Gemini CLI) to work together on the same project, with automatic session management, work attribution, and handoff capabilities. This track implements a comprehensive multi-agent collaboration system with feature claiming, handoff context, smart routing, work queue management, and enhanced session continuity.</p>
+        </section>
+
+        <section data-section="context">
+            <h2>Context</h2>
+            <p>**Current Capabilities:**
+• Agent-Specific Sessions: Each agent maintains its own session with automatic tracking
+• Automatic Activity Attribution: Smart scoring based on file patterns, keywords, and priority
+• Session Continuity: Full context preservation across agent handoffs
+• Unified SDK: Same API for all agents
+
+**Gaps & Limitations:**
+1. No Feature Assignment: No assigned_agent field, unclear ownership
+2. No Work Claiming: Race conditions possible with multiple agents
+3. Limited Handoff Context: Missing notes, recommendations, and blockers
+4. No Agent Capabilities: Can't route work based on agent strengths
+5. No Work Queue: Manual search for tasks, no priority visibility</p>
+        </section>
+        
+        <section data-section="requirements">
+            <h2>Requirements</h2>
+            <div class="requirements-list">
+                
+        <article class="requirement" data-priority="must-have" data-verified="false" id="req-1">
+            <h3>⏳ Add assigned_agent, claimed_at, claimed_by_session fields to Node model</h3>
+            
+            
+        </article>
+
+        <article class="requirement" data-priority="must-have" data-verified="false" id="req-2">
+            <h3>⏳ Implement feature claim/release/auto-release CLI commands and SDK methods</h3>
+            
+            
+        </article>
+
+        <article class="requirement" data-priority="must-have" data-verified="false" id="req-3">
+            <h3>⏳ Add handoff_notes, recommended_next, blockers fields to Session model</h3>
+            
+            
+        </article>
+
+        <article class="requirement" data-priority="should-have" data-verified="false" id="req-4">
+            <h3>⏳ Create agent capabilities registry and smart routing algorithm</h3>
+            
+            
+        </article>
+
+        <article class="requirement" data-priority="should-have" data-verified="false" id="req-5">
+            <h3>⏳ Implement work queue CLI and session-start hook integration</h3>
+            
+            
+        </article>
+            </div>
+        </section>
+        <section data-section="acceptance-criteria">
+            <h2>Acceptance Criteria</h2>
+            <ol class="criteria-list">
+                <li data-completed="false">⏳ Multiple agents can work simultaneously without conflicts or duplicate work <code>Start two features with different agents - no conflicts</code></li>
+                <li data-completed="false">⏳ Agent B has full context when continuing Agent A's work <code>Agent A ends with notes, Agent B sees notes on session start</code></li>
+                <li data-completed="false">⏳ UI features automatically routed to browser-capable agents <code>Feature with UI requirement only shown to Claude Code in work queue</code></li>
+                <li data-completed="false">⏳ Work queue shows available work with intelligent recommendations <code>htmlgraph work queue shows prioritized, capability-matched features</code></li>
+                <li data-completed="false">⏳ Backward compatible - existing projects work without changes <code>Existing HtmlGraph project continues functioning after upgrade</code></li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -47,6 +47,7 @@ from dataclasses import dataclass
 from htmlgraph.models import Node, Step, Edge
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
+from htmlgraph.track_builder import TrackCollection
 
 
 @dataclass
@@ -409,7 +410,7 @@ class SDK:
 
         # Non-work collections
         self.sessions = Collection(self, "sessions", "session")
-        self.tracks = Collection(self, "tracks", "track")
+        self.tracks = TrackCollection(self)  # Use specialized collection with builder support
         self.agents = Collection(self, "agents", "agent")
 
     @staticmethod

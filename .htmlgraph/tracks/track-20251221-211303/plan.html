@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Multi-Agent Collaboration Implementation Plan</title>
+    <link rel="stylesheet" href="../../.htmlgraph/styles.css">
+    <style>
+        /* HtmlGraph Dashboard Design System - Plan View */
+        :root {
+            --bg-primary: #151518;
+            --bg-secondary: #1C1C20;
+            --bg-tertiary: #252528;
+            --text-primary: #E0DED8;
+            --text-secondary: #A0A0A0;
+            --text-muted: #707070;
+            --border: #333338;
+            --border-strong: #606068;
+            --accent: #CDFF00;
+            --accent-dim: #B8E600;
+            --accent-text: #0A0A0A;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            max-width: 1400px;
+            margin-inline: auto;
+        }
+
+        /* Navigation */
+        .plan-nav {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border-strong);
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-strong);
+            transition: all 0.2s;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Article/Container */
+        article {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            padding: 0;
+        }
+
+        header {
+            padding: 2rem;
+            border-bottom: 2px solid var(--border-strong);
+            background: var(--bg-tertiary);
+        }
+
+        h1 {
+            margin: 0 0 1rem 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .badge {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.7rem;
+        }
+
+        .status-active { color: var(--accent); border-color: var(--accent); }
+        .status-draft { color: var(--text-muted); }
+        .status-completed { color: #16a34a; border-color: #16a34a; }
+
+        /* Progress Bar */
+        .progress-container {
+            padding: 2rem;
+            border-bottom: 2px solid var(--border-strong);
+            background: var(--bg-tertiary);
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .progress-label {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .progress-count {
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-strong);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        /* View Toggle - Exact Dashboard Match */
+        .view-toggle {
+            display: flex;
+            gap: 0;
+            margin: 2rem;
+            border: 2px solid var(--border-strong);
+            width: fit-content;
+        }
+
+        .view-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .view-btn:not(:last-child) {
+            border-right: 2px solid var(--border-strong);
+        }
+
+        .view-btn:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .view-btn.active {
+            background: var(--accent);
+            color: var(--accent-text);
+        }
+
+        /* Controls */
+        .controls {
+            margin: 2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .search-input,
+        .agent-filter {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .search-input {
+            flex: 1;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Phases */
+        .phases-container {
+            padding: 0 2rem 2rem;
+        }
+
+        details {
+            border: 1px solid var(--border);
+            margin-bottom: 1rem;
+            background: var(--bg-tertiary);
+        }
+
+        summary {
+            padding: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.875rem;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        summary:hover {
+            background: var(--bg-tertiary);
+            color: var(--accent);
+        }
+
+        /* Tasks */
+        [data-task] {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        [data-task]:last-child {
+            border-bottom: none;
+        }
+
+        .estimate {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-left: auto;
+        }
+
+        /* Kanban Board */
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            padding: 2rem;
+        }
+
+        .kanban-column {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-strong);
+            min-height: 400px;
+        }
+
+        .column-header {
+            margin: 0;
+            padding: 1rem;
+            background: var(--bg-primary);
+            border-bottom: 2px solid var(--border-strong);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 600;
+        }
+
+        .column-content {
+            padding: 1rem;
+        }
+
+        /* Placeholders */
+        .timeline-placeholder,
+        .graph-placeholder {
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .muted {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    
+        <div class="plan-nav">
+            <a href="../../index.html" class="nav-link">← Dashboard</a>
+            <a href="index.html" class="nav-link">Track</a>
+            <a href="spec.html" class="nav-link">Spec</a>
+        </div>
+    <article id="track-20251221-211303-plan" data-type="plan" data-status="draft" data-track="track-20251221-211303">
+        <header>
+            <h1>Multi-Agent Collaboration Implementation Plan</h1>
+            <div class="metadata">
+                <span class="badge status-draft">Draft</span>
+                <span class="badge">Created: 2025-12-21</span>
+            </div>
+        </header>
+
+        
+        <div class="progress-container">
+            <div class="progress-info">
+                <span class="progress-label">0% Complete</span>
+                <span class="progress-count">(0/25 tasks)</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div class="view-toggle">
+            <button onclick="showView('list')" class="view-btn active" data-view="list">List</button>
+            <button onclick="showView('kanban')" class="view-btn" data-view="kanban">Kanban</button>
+            <button onclick="showView('timeline')" class="view-btn" data-view="timeline">Timeline</button>
+            <button onclick="showView('graph')" class="view-btn" data-view="graph">Graph</button>
+        </div>
+        
+        <div class="view-container" data-view="list">
+            
+        <div class="controls">
+            <input type="search" class="search-input" placeholder="Search tasks..." oninput="filterTasks(this.value)">
+            <select class="agent-filter" onchange="filterByAgent(this.value)">
+                <option value="">All Agents</option>
+                <option value="claude">Claude</option>
+                <option value="copilot">Copilot</option>
+            </select>
+        </div>
+            <div class="phases-container">
+                
+        <section data-phase="phase-1" data-status="not-started">
+            <h2>▶ Phase phase-1: Feature Assignment & Claiming (0/5 tasks) ○○○</h2>
+            <p>Implement feature ownership and claiming mechanism to prevent duplicate work</p>
+            
+        <article data-task="task-1-1" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add assigned_agent, claimed_at, claimed_by_session fields to Node model <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-1-2" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Implement feature claim/release/auto-release CLI commands <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-1-3" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add claim/release methods to SDK with automatic claim on feature start <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-1-4" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Update hooks to auto-release claims on session end <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-1-5" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add claim enforcement to prevent starting already-claimed features <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+        </section>
+
+        <section data-phase="phase-2" data-status="not-started">
+            <h2>▶ Phase phase-2: Handoff Context & Notes (0/5 tasks) ○○○</h2>
+            <p>Enable agents to pass context and recommendations when ending sessions</p>
+            
+        <article data-task="task-2-1" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add handoff_notes, recommended_next, blockers fields to Session model <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-2-2" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Implement session end with --notes/--recommend/--blocker CLI options <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-2-3" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add session handoff CLI command to view previous session context <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-2-4" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Update session-end hooks to prompt for handoff notes <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-2-5" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Update session-start hooks to display handoff context from previous session <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+        </section>
+
+        <section data-phase="phase-3" data-status="not-started">
+            <h2>▶ Phase phase-3: Agent Capabilities & Smart Routing (0/5 tasks) ○○○</h2>
+            <p>Implement capability-based work routing to match tasks with agent strengths</p>
+            
+        <article data-task="task-3-1" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add required_capabilities, complexity, estimated_effort_minutes to Node model <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-3-2" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Create .htmlgraph/agents.json registry with agent capabilities and cost tiers <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-3-3" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Implement work next CLI command with smart routing algorithm <span class="estimate">(3.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-3-4" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add capability-based filtering to feature queries <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-3-5" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Create work queue scoring algorithm (capability match, priority, complexity) <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+        </section>
+
+        <section data-phase="phase-4" data-status="not-started">
+            <h2>▶ Phase phase-4: Work Queue Dashboard (0/5 tasks) ○○○</h2>
+            <p>Provide visibility into available work and agent activity</p>
+            
+        <article data-task="task-4-1" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Implement work queue CLI command with interactive display <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-4-2" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Show available work, in-progress work by others, and blocked features <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-4-3" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add recommended work logic based on priority, capabilities, and effort <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-4-4" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Display blocking/dependency visualization in work queue <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-4-5" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Integrate work queue display into session-start hook <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+        </section>
+
+        <section data-phase="phase-5" data-status="not-started">
+            <h2>▶ Phase phase-5: Enhanced Session Continuity (0/5 tasks) ○○○</h2>
+            <p>Provide seamless context and recommendations at session start</p>
+            
+        <article data-task="task-5-1" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Update session-start hook with full context display <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-5-2" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Show previous session summary (what was done, recommended next) <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-5-3" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Display other active agents and their current work <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-5-4" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Show work queue with smart recommendations in session start <span class="estimate">(1.0h)</span>
+            </h3>
+            
+        </article>
+
+        <article data-task="task-5-5" data-completed="false" data-priority="medium">
+            <h3>
+                <input type="checkbox"  disabled>
+                ○ Add conflict detection warning when multiple agents work on same feature <span class="estimate">(2.0h)</span>
+            </h3>
+            
+        </article>
+        </section>
+            </div>
+        </div>
+        
+        <div class="view-container kanban-view" data-view="kanban" style="display: none;">
+            <div class="kanban-board">
+                <div class="kanban-column" data-status="todo">
+                    <h3 class="column-header">To Do</h3>
+                    <div id="kanban-todo" class="column-content"></div>
+                </div>
+                <div class="kanban-column" data-status="in-progress">
+                    <h3 class="column-header">In Progress</h3>
+                    <div id="kanban-progress" class="column-content"></div>
+                </div>
+                <div class="kanban-column" data-status="done">
+                    <h3 class="column-header">Done</h3>
+                    <div id="kanban-done" class="column-content"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="view-container" data-view="timeline" style="display: none;">
+            <div class="timeline-placeholder">
+                <p class="muted">Timeline view - Coming soon</p>
+                <p class="muted">Will visualize tasks on a timeline with milestones</p>
+            </div>
+        </div>
+        
+        <div class="view-container" data-view="graph" style="display: none;">
+            <div class="graph-placeholder">
+                <p class="muted">Dependency graph - Coming soon</p>
+                <p class="muted">Will visualize task dependencies and blocking relationships</p>
+            </div>
+            <svg id="dependency-graph" width="100%" height="600"></svg>
+        </div>
+    </article>
+    
+        <script>
+        function showView(view) {
+            // Hide all view containers
+            document.querySelectorAll('.view-container').forEach(v => {
+                v.style.display = v.dataset.view === view ? 'block' : 'none';
+            });
+            // Update button active states
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+            // Render view-specific content
+            if (view === 'kanban') renderKanban();
+            if (view === 'timeline') renderTimeline();
+            if (view === 'graph') renderGraph();
+        }
+
+        function filterTasks(query) {
+            document.querySelectorAll('[data-task]').forEach(task => {
+                const text = task.textContent.toLowerCase();
+                task.style.display = text.includes(query.toLowerCase()) ? 'block' : 'none';
+            });
+        }
+
+        function filterByAgent(agent) {
+            if (!agent) {
+                document.querySelectorAll('[data-task]').forEach(t => t.style.display = 'block');
+                return;
+            }
+            document.querySelectorAll('[data-task]').forEach(task => {
+                task.style.display = task.dataset.assigned === agent ? 'block' : 'none';
+            });
+        }
+
+        function renderKanban() {
+            const todo = document.getElementById('kanban-todo');
+            const progress = document.getElementById('kanban-progress');
+            const done = document.getElementById('kanban-done');
+
+            todo.innerHTML = '';
+            progress.innerHTML = '';
+            done.innerHTML = '';
+
+            document.querySelectorAll('[data-task]').forEach(task => {
+                const clone = task.cloneNode(true);
+                if (task.dataset.completed === 'true') {
+                    done.appendChild(clone);
+                } else if (task.dataset.assigned) {
+                    progress.appendChild(clone);
+                } else {
+                    todo.appendChild(clone);
+                }
+            });
+        }
+
+        function renderTimeline() {
+            // TODO: Implement timeline view with milestones
+            console.log('Timeline view');
+        }
+
+        function renderGraph() {
+            // TODO: Implement graph visualization of dependencies
+            console.log('Graph view');
+        }
+        </script>
+</body>
+</html>

@@ -36,7 +36,7 @@ class HtmlGraph:
         directory: Path | str,
         stylesheet_path: str = "../styles.css",
         auto_load: bool = True,
-        pattern: str = "*.html"
+        pattern: str | list[str] = "*.html"
     ):
         """
         Initialize graph from a directory.
@@ -45,7 +45,8 @@ class HtmlGraph:
             directory: Directory containing HTML node files
             stylesheet_path: Default stylesheet path for new files
             auto_load: Whether to load all nodes on init
-            pattern: Glob pattern for node files
+            pattern: Glob pattern(s) for node files. Can be a single pattern or list.
+                     Examples: "*.html", ["*.html", "*/index.html"]
         """
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
@@ -195,16 +196,19 @@ class HtmlGraph:
         """
         matching = []
 
-        for filepath in self.directory.glob(self.pattern):
-            try:
-                parser = HtmlParser.from_file(filepath)
-                # Query for article matching selector
-                if parser.query(f"article{selector}"):
-                    node_id = parser.get_node_id()
-                    if node_id and node_id in self._nodes:
-                        matching.append(self._nodes[node_id])
-            except Exception:
-                continue
+        patterns = [self.pattern] if isinstance(self.pattern, str) else self.pattern
+        for pat in patterns:
+            for filepath in self.directory.glob(pat):
+                if filepath.is_file():
+                    try:
+                        parser = HtmlParser.from_file(filepath)
+                        # Query for article matching selector
+                        if parser.query(f"article{selector}"):
+                            node_id = parser.get_node_id()
+                            if node_id and node_id in self._nodes:
+                                matching.append(self._nodes[node_id])
+                    except Exception:
+                        continue
 
         return matching
 

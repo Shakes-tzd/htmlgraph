@@ -54,65 +54,62 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             # Tracks support both file-based (track-xxx.html) and directory-based (track-xxx/index.html)
             if collection == "tracks":
                 from htmlgraph.planning import Track
+                from htmlgraph.converter import html_to_node
 
                 graph = HtmlGraph(
                     collection_dir,
                     stylesheet_path="../styles.css",
-                    auto_load=False  # Manual load to handle both patterns
+                    auto_load=False,  # Manual load to convert to Track objects
+                    pattern=["*.html", "*/index.html"]
                 )
 
-                # Helper function to convert Node to Track with file existence checks
+                # Helper to convert Node to Track with has_spec/has_plan detection
                 def node_to_track(node: Node, filepath: Path) -> Track:
-                    """Convert a Node to a Track with has_spec/has_plan detection."""
-                    # Determine track directory
-                    if filepath.name == "index.html":
-                        # Directory-based: track-id/index.html
-                        track_dir = filepath.parent
-                    else:
-                        # File-based: track-id.html (no spec/plan support)
-                        track_dir = None
+                    track_dir = filepath.parent if filepath.name == "index.html" else None
+                    has_spec = (track_dir / "spec.html").exists() if track_dir else False
+                    has_plan = (track_dir / "plan.html").exists() if track_dir else False
 
-                    # Check for spec and plan files
-                    has_spec = track_dir and (track_dir / "spec.html").exists() if track_dir else False
-                    has_plan = track_dir and (track_dir / "plan.html").exists() if track_dir else False
+                    return Track(
+                        id=node.id,
+                        title=node.title,
+                        description=node.content or "",
+                        status=node.status if node.status in ["planned", "active", "completed", "abandoned"] else "planned",
+                        priority=node.priority,
+                        created=node.created,
+                        updated=node.updated,
+                        has_spec=has_spec,
+                        has_plan=has_plan,
+                        features=[],
+                        sessions=[]
+                    )
 
-                    # Create Track object from Node data
-                    track_data = {
-                        "id": node.id,
-                        "title": node.title,
-                        "description": node.content or "",
-                        "status": node.status if node.status in ["planned", "active", "completed", "abandoned"] else "planned",
-                        "priority": node.priority,
-                        "created": node.created,
-                        "updated": node.updated,
-                        "has_spec": has_spec,
-                        "has_plan": has_plan,
-                        "features": [],  # Will be populated from properties if present
-                        "sessions": [],  # Will be populated from properties if present
-                    }
+                # Load and convert tracks
+                patterns = graph.pattern if isinstance(graph.pattern, list) else [graph.pattern]
+                for pat in patterns:
+                    for filepath in collection_dir.glob(pat):
+                        if filepath.is_file():
+                            try:
+                                node = html_to_node(filepath)
+                                track = node_to_track(node, filepath)
+                                graph._nodes[track.id] = track
+                            except Exception:
+                                continue
 
-                    return Track(**track_data)
+                # Override reload to maintain Track conversion
+                def reload_tracks():
+                    graph._nodes.clear()
+                    for pat in patterns:
+                        for filepath in collection_dir.glob(pat):
+                            if filepath.is_file():
+                                try:
+                                    node = html_to_node(filepath)
+                                    track = node_to_track(node, filepath)
+                                    graph._nodes[track.id] = track
+                                except Exception:
+                                    continue
+                    return len(graph._nodes)
 
-                # Load file-based tracks (track-xxx.html)
-                for filepath in collection_dir.glob("*.html"):
-                    try:
-                        from htmlgraph.converter import html_to_node
-                        node = html_to_node(filepath)
-                        track = node_to_track(node, filepath)
-                        graph._nodes[track.id] = track
-                    except Exception:
-                        continue
-
-                # Load directory-based tracks (track-xxx/index.html)
-                for filepath in collection_dir.glob("*/index.html"):
-                    try:
-                        from htmlgraph.converter import html_to_node
-                        node = html_to_node(filepath)
-                        track = node_to_track(node, filepath)
-                        graph._nodes[track.id] = track
-                    except Exception:
-                        continue
-
+                graph.reload = reload_tracks
                 self.graphs[collection] = graph
             else:
                 self.graphs[collection] = HtmlGraph(
