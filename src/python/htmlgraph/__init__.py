@@ -27,7 +27,7 @@ from htmlgraph.analytics import Analytics
 from htmlgraph.ids import generate_id, generate_hierarchical_id, parse_id, is_valid_id, is_legacy_id
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __all__ = [
     # Core models
     "Node",
