@@ -310,6 +310,59 @@ class Collection:
         }
         return self.batch_update(node_ids, updates)
 
+    def claim(self, node_id: str, agent: str | None = None) -> Node:
+        """
+        Claim a node for an agent.
+
+        Args:
+            node_id: Node ID to claim
+            agent: Agent ID (defaults to SDK agent)
+
+        Returns:
+            The claimed Node
+        """
+        agent = agent or self._sdk.agent
+        if not agent:
+            raise ValueError("Agent ID required for claiming")
+
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if not node:
+            raise ValueError(f"Node {node_id} not found")
+
+        if node.agent_assigned and node.agent_assigned != agent:
+            raise ValueError(f"Node {node_id} is already claimed by {node.agent_assigned}")
+
+        node.agent_assigned = agent
+        node.claimed_at = datetime.now()
+        node.status = "in-progress"
+        node.updated = datetime.now()
+        graph.update(node)
+        return node
+
+    def release(self, node_id: str) -> Node:
+        """
+        Release a claimed node.
+
+        Args:
+            node_id: Node ID to release
+
+        Returns:
+            The released Node
+        """
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if not node:
+            raise ValueError(f"Node {node_id} not found")
+
+        node.agent_assigned = None
+        node.claimed_at = None
+        node.claimed_by_session = None
+        node.status = "todo"
+        node.updated = datetime.now()
+        graph.update(node)
+        return node
+
 
 class FeatureCollection(Collection):
     """Collection interface for features with builder support."""

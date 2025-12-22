@@ -100,6 +100,8 @@ class Node(BaseModel):
     steps: list[Step] = Field(default_factory=list)
     content: str = ""
     agent_assigned: str | None = None
+    claimed_at: datetime | None = None
+    claimed_by_session: str | None = None
 
     # Vertical integration: Track/Spec/Plan relationships
     track_id: str | None = None  # Which track this feature belongs to
@@ -234,6 +236,10 @@ class Node(BaseModel):
 
         # Agent attribute
         agent_attr = f' data-agent-assigned="{self.agent_assigned}"' if self.agent_assigned else ""
+        if self.claimed_at:
+            agent_attr += f' data-claimed-at="{self.claimed_at.isoformat()}"'
+        if self.claimed_by_session:
+            agent_attr += f' data-claimed-by-session="{self.claimed_by_session}"'
 
         # Track ID attribute
         track_attr = f' data-track-id="{self.track_id}"' if self.track_id else ""

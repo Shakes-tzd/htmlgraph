@@ -178,6 +178,7 @@ class AgentInterface:
             return False  # Already claimed by another agent
 
         node.agent_assigned = agent_id
+        node.claimed_at = datetime.now()
         node.status = "in-progress"
         node.updated = datetime.now()
 
@@ -205,6 +206,8 @@ class AgentInterface:
             return False  # Can't release someone else's task
 
         node.agent_assigned = None
+        node.claimed_at = None
+        node.claimed_by_session = None
         node.status = "todo"
         node.updated = datetime.now()
 

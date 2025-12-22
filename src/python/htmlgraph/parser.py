@@ -123,13 +123,20 @@ class HtmlParser:
         }
 
         # Standard attributes
-        for attr in ["type", "status", "priority", "agent-assigned", "track-id", "plan-task-id"]:
+        for attr in ["type", "status", "priority", "agent-assigned", "track-id", "plan-task-id", "claimed-by-session"]:
             value = self.get_data_attribute(article, attr)
             if value:
                 key = attr.replace("-", "_")
                 metadata[key] = value
 
         # Timestamps (with fallbacks for session-specific attributes)
+        claimed_at = self.get_data_attribute(article, "claimed-at")
+        if claimed_at:
+            try:
+                metadata["claimed_at"] = datetime.fromisoformat(claimed_at.replace("Z", "+00:00"))
+            except ValueError:
+                metadata["claimed_at"] = claimed_at
+
         created_value = self.get_data_attribute(article, "created") or self.get_data_attribute(article, "started-at")
         if created_value:
             try:

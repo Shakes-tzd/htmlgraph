@@ -383,12 +383,38 @@ class SessionManager:
             timestamp=datetime.now(),
         ))
 
+        # Release all features claimed by this session
+        self.release_session_features(session_id)
+
         self.session_converter.save(session)
 
         if self._active_session and self._active_session.id == session_id:
             self._active_session = None
 
         return session
+
+    def release_session_features(self, session_id: str) -> list[str]:
+        """
+        Release all features claimed by a specific session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of released feature IDs
+        """
+        released = []
+        for collection in ["features", "bugs"]:
+            graph = self._get_graph(collection)
+            for node in graph:
+                if node.claimed_by_session == session_id:
+                    node.agent_assigned = None
+                    node.claimed_at = None
+                    node.claimed_by_session = None
+                    node.updated = datetime.now()
+                    graph.update(node)
+                    released.append(node.id)
+        return released
 
     # =========================================================================
     # Activity Tracking
@@ -437,6 +463,7 @@ class SessionManager:
                 summary=summary,
                 file_paths=file_paths or [],
                 active_features=active_features,
+                agent=session.agent,
             )
             attributed_feature = attribution["feature_id"]
             drift_score = attribution["drift_score"]
@@ -566,6 +593,7 @@ class SessionManager:
         summary: str,
         file_paths: list[str],
         active_features: list[Node],
+        agent: str | None = None,
     ) -> dict[str, Any]:
         """
         Score and attribute an activity to the best matching feature.
@@ -575,6 +603,7 @@ class SessionManager:
             summary: Activity summary
             file_paths: Files involved
             active_features: Features to score against
+            agent: Agent performing the activity
 
         Returns:
             Dict with feature_id, score, drift_score, reason
@@ -590,9 +619,20 @@ class SessionManager:
         scores = []
         for feature in active_features:
             score, reasons = self._score_feature_match(
-                feature, tool, summary, file_paths
+                feature, tool, summary, file_paths, agent=agent
             )
+            # Filter out explicitly rejected matches
+            if score < 0:
+                continue
             scores.append((feature, score, reasons))
+
+        if not scores:
+            return {
+                "feature_id": None,
+                "score": 0,
+                "drift_score": None,
+                "reason": "no_matching_features_authorized",
+            }
 
         # Sort by score descending
         scores.sort(key=lambda x: x[1], reverse=True)
@@ -614,6 +654,7 @@ class SessionManager:
         tool: str,
         summary: str,
         file_paths: list[str],
+        agent: str | None = None,
     ) -> tuple[float, list[str]]:
         """
         Score how well an activity matches a feature.
@@ -623,6 +664,16 @@ class SessionManager:
         """
         score = 0.0
         reasons = []
+
+        # 0. Check Agent Assignment (Critical)
+        if feature.agent_assigned:
+            if agent and feature.agent_assigned != agent:
+                # Explicitly claimed by someone else -> REJECT
+                return -1.0, ["claimed_by_other"]
+            if agent and feature.agent_assigned == agent:
+                # Claimed by me -> Big Bonus (overrides other heuristics)
+                score += 2.0
+                reasons.append("assigned_to_agent")
 
         # 1. File pattern matching (40%)
         file_patterns = feature.properties.get("file_patterns", [])
@@ -928,10 +979,26 @@ class SessionManager:
         if not node:
             return None
 
+        # Claim enforcement: prevent starting if claimed by someone else
+        if agent and node.agent_assigned and node.agent_assigned != agent:
+            if node.claimed_by_session:
+                session = self.get_session(node.claimed_by_session)
+                if session and session.status == "active":
+                    raise ValueError(
+                        f"Feature '{feature_id}' is claimed by {node.agent_assigned} "
+                        f"(session {node.claimed_by_session})"
+                    )
+
         # Check WIP limit
         active = self.get_active_features()
         if len(active) >= self.wip_limit and node not in active:
             raise ValueError(f"WIP limit ({self.wip_limit}) reached. Complete existing work first.")
+
+        # Auto-claim if starting and not already claimed
+        if agent and not node.agent_assigned:
+            self.claim_feature(feature_id, collection=collection, agent=agent)
+            # Re-load node after claim
+            node = graph.get(feature_id)
 
         node.status = "in-progress"
         node.updated = datetime.now()
@@ -1138,6 +1205,127 @@ class SessionManager:
             "active_features": [f.id for f in active],
             "active_session": active_session.id if active_session else None,
         }
+
+    # =========================================================================
+    # Claiming Mechanism
+    # =========================================================================
+
+    def claim_feature(
+        self,
+        feature_id: str,
+        collection: str = "features",
+        *,
+        agent: str,
+    ) -> Node | None:
+        """
+        Claim a feature for an agent.
+
+        Args:
+            feature_id: Feature to claim
+            collection: Collection name
+            agent: Agent name claiming the feature
+
+        Returns:
+            Updated Node or None
+        """
+        graph = self._get_graph(collection)
+        node = graph.get(feature_id)
+        if not node:
+            return None
+
+        # Check if already claimed by someone else
+        if node.agent_assigned and node.agent_assigned != agent:
+            # Check if session that claimed it is still active
+            if node.claimed_by_session:
+                session = self.get_session(node.claimed_by_session)
+                if session and session.status == "active":
+                    raise ValueError(
+                        f"Feature '{feature_id}' is already claimed by {node.agent_assigned} "
+                        f"(session {node.claimed_by_session})"
+                    )
+
+        session = self._ensure_session_for_agent(agent)
+
+        node.agent_assigned = agent
+        node.claimed_at = datetime.now()
+        node.claimed_by_session = session.id
+        node.updated = datetime.now()
+        graph.update(node)
+
+        self._maybe_log_work_item_action(
+            agent=agent,
+            tool="FeatureClaim",
+            summary=f"Claimed: {collection}/{feature_id}",
+            feature_id=feature_id,
+            payload={"collection": collection, "action": "claim"},
+        )
+
+        return node
+
+    def release_feature(
+        self,
+        feature_id: str,
+        collection: str = "features",
+        *,
+        agent: str,
+    ) -> Node | None:
+        """
+        Release a feature claim.
+
+        Args:
+            feature_id: Feature to release
+            collection: Collection name
+            agent: Agent name releasing the feature
+
+        Returns:
+            Updated Node or None
+        """
+        graph = self._get_graph(collection)
+        node = graph.get(feature_id)
+        if not node:
+            return None
+
+        if node.agent_assigned and node.agent_assigned != agent:
+            raise ValueError(f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}")
+
+        node.agent_assigned = None
+        node.claimed_at = None
+        node.claimed_by_session = None
+        node.updated = datetime.now()
+        graph.update(node)
+
+        self._maybe_log_work_item_action(
+            agent=agent,
+            tool="FeatureRelease",
+            summary=f"Released: {collection}/{feature_id}",
+            feature_id=feature_id,
+            payload={"collection": collection, "action": "release"},
+        )
+
+        return node
+
+    def auto_release_features(self, agent: str) -> list[str]:
+        """
+        Release all features claimed by an agent.
+
+        Args:
+            agent: Agent name
+
+        Returns:
+            List of released feature IDs
+        """
+        released = []
+        for collection in ["features", "bugs"]:
+            graph = self._get_graph(collection)
+            for node in graph:
+                if node.agent_assigned == agent:
+                    node.agent_assigned = None
+                    node.claimed_at = None
+                    node.claimed_by_session = None
+                    node.updated = datetime.now()
+                    graph.update(node)
+                    released.append(node.id)
+        return released
 
     # =========================================================================
     # Helpers

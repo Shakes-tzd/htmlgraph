@@ -18,6 +18,9 @@ Feature Management:
     htmlgraph feature start ID
     htmlgraph feature complete ID
     htmlgraph feature primary ID
+    htmlgraph feature claim ID
+    htmlgraph feature release ID
+    htmlgraph feature auto-release
 
 Track Management (Conductor-Style Planning):
     htmlgraph track new TITLE [--priority PRIORITY]
@@ -1094,6 +1097,75 @@ def cmd_feature_primary(args):
         print(f"  Title: {node.title}")
 
 
+def cmd_feature_claim(args):
+    """Claim a feature."""
+    from htmlgraph.session_manager import SessionManager
+    import json
+
+    manager = SessionManager(args.graph_dir)
+
+    try:
+        node = manager.claim_feature(args.id, collection=args.collection, agent=args.agent)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if node is None:
+        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        from htmlgraph.converter import node_to_dict
+        print(json.dumps(node_to_dict(node), indent=2))
+    else:
+        print(f"Claimed: {node.id}")
+        print(f"  Agent: {node.agent_assigned}")
+        print(f"  Session: {node.claimed_by_session}")
+
+
+def cmd_feature_release(args):
+    """Release a feature."""
+    from htmlgraph.session_manager import SessionManager
+    import json
+
+    manager = SessionManager(args.graph_dir)
+
+    try:
+        node = manager.release_feature(args.id, collection=args.collection, agent=args.agent)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if node is None:
+        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        from htmlgraph.converter import node_to_dict
+        print(json.dumps(node_to_dict(node), indent=2))
+    else:
+        print(f"Released: {node.id}")
+
+
+def cmd_feature_auto_release(args):
+    """Release all features claimed by an agent."""
+    from htmlgraph.session_manager import SessionManager
+    import json
+
+    manager = SessionManager(args.graph_dir)
+    released = manager.auto_release_features(agent=args.agent)
+
+    if args.format == "json":
+        print(json.dumps({"released": released}, indent=2))
+    else:
+        if not released:
+            print(f"No features claimed by agent '{args.agent}'.")
+        else:
+            print(f"Released {len(released)} feature(s):")
+            for node_id in released:
+                print(f"  - {node_id}")
+
+
 def cmd_feature_list(args):
     """List features by status."""
     from htmlgraph.sdk import SDK
@@ -1429,6 +1501,9 @@ Feature Management:
   htmlgraph feature list            # List all features
   htmlgraph feature start feat-001  # Start working on a feature
   htmlgraph feature primary feat-001  # Set primary feature
+  htmlgraph feature claim feat-001  # Claim feature for current agent
+  htmlgraph feature release feat-001  # Release claim
+  htmlgraph feature auto-release    # Release all claims for agent
   htmlgraph feature step-complete feat-001 0 1 2  # Mark steps complete
   htmlgraph feature complete feat-001  # Mark feature as done
 
@@ -1602,6 +1677,40 @@ curl Examples:
     )
     feature_primary.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     feature_primary.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # feature claim
+    feature_claim = feature_subparsers.add_parser("claim", help="Claim a feature")
+    feature_claim.add_argument("id", help="Feature ID")
+    feature_claim.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_claim.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
+    feature_claim.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    feature_claim.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # feature release
+    feature_release = feature_subparsers.add_parser("release", help="Release a feature claim")
+    feature_release.add_argument("id", help="Feature ID")
+    feature_release.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_release.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
+    feature_release.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    feature_release.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # feature auto-release
+    feature_auto_release = feature_subparsers.add_parser("auto-release", help="Release all features claimed by agent")
+    feature_auto_release.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
+        help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
+    )
+    feature_auto_release.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    feature_auto_release.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # feature list
     feature_list = feature_subparsers.add_parser("list", help="List features")
@@ -1793,6 +1902,12 @@ curl Examples:
             cmd_feature_complete(args)
         elif args.feature_command == "primary":
             cmd_feature_primary(args)
+        elif args.feature_command == "claim":
+            cmd_feature_claim(args)
+        elif args.feature_command == "release":
+            cmd_feature_release(args)
+        elif args.feature_command == "auto-release":
+            cmd_feature_auto_release(args)
         elif args.feature_command == "list":
             cmd_feature_list(args)
         elif args.feature_command == "step-complete":
