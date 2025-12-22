@@ -414,6 +414,105 @@ class Session(BaseModel):
         self.status = "ended"
         self.ended_at = datetime.now()
 
+    def get_events(
+        self,
+        limit: int | None = 100,
+        offset: int = 0,
+        events_dir: str = ".htmlgraph/events"
+    ) -> list[dict]:
+        """
+        Get events for this session from JSONL event log.
+
+        Args:
+            limit: Maximum number of events to return (None = all)
+            offset: Number of events to skip from start
+            events_dir: Path to events directory
+
+        Returns:
+            List of event dictionaries, oldest first
+
+        Example:
+            >>> session = sdk.sessions.get("session-123")
+            >>> recent_events = session.get_events(limit=10)
+            >>> for evt in recent_events:
+            ...     print(f"{evt['event_id']}: {evt['tool']}")
+        """
+        from htmlgraph.event_log import JsonlEventLog
+        event_log = JsonlEventLog(events_dir)
+        return event_log.get_session_events(self.id, limit=limit, offset=offset)
+
+    def query_events(
+        self,
+        tool: str | None = None,
+        feature_id: str | None = None,
+        since: any = None,
+        limit: int | None = 100,
+        events_dir: str = ".htmlgraph/events"
+    ) -> list[dict]:
+        """
+        Query events for this session with filters.
+
+        Args:
+            tool: Filter by tool name (e.g., 'Bash', 'Edit')
+            feature_id: Filter by attributed feature ID
+            since: Only events after this timestamp
+            limit: Maximum number of events (newest first)
+            events_dir: Path to events directory
+
+        Returns:
+            List of matching event dictionaries, newest first
+
+        Example:
+            >>> session = sdk.sessions.get("session-123")
+            >>> bash_events = session.query_events(tool='Bash', limit=20)
+            >>> feature_events = session.query_events(feature_id='feat-123')
+        """
+        from htmlgraph.event_log import JsonlEventLog
+        event_log = JsonlEventLog(events_dir)
+        return event_log.query_events(
+            session_id=self.id,
+            tool=tool,
+            feature_id=feature_id,
+            since=since,
+            limit=limit
+        )
+
+    def event_stats(self, events_dir: str = ".htmlgraph/events") -> dict:
+        """
+        Get event statistics for this session.
+
+        Returns:
+            Dictionary with event counts by tool and feature
+
+        Example:
+            >>> session = sdk.sessions.get("session-123")
+            >>> stats = session.event_stats()
+            >>> print(f"Bash commands: {stats['by_tool']['Bash']}")
+            >>> print(f"Total features: {len(stats['by_feature'])}")
+        """
+        events = self.get_events(limit=None, events_dir=events_dir)
+
+        by_tool = {}
+        by_feature = {}
+
+        for evt in events:
+            # Count by tool
+            tool = evt.get('tool', 'Unknown')
+            by_tool[tool] = by_tool.get(tool, 0) + 1
+
+            # Count by feature
+            feature = evt.get('feature_id')
+            if feature:
+                by_feature[feature] = by_feature.get(feature, 0) + 1
+
+        return {
+            'total_events': len(events),
+            'by_tool': by_tool,
+            'by_feature': by_feature,
+            'tools_used': len(by_tool),
+            'features_worked': len(by_feature)
+        }
+
     def to_html(self, stylesheet_path: str = "../styles.css") -> str:
         """Convert session to HTML document with inline activity log."""
         # Build edges HTML for worked_on features

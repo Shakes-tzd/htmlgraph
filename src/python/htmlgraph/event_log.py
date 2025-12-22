@@ -101,10 +101,13 @@ class JsonlEventLog:
             f.write(line)
         return path
 
-    def iter_events(self) -> tuple[Path, dict[str, Any]]:
+    def iter_events(self):
         """
         Yield (path, event_dict) for all events across all JSONL files.
         Skips malformed lines.
+
+        Yields:
+            tuple[Path, dict[str, Any]]: Path and event dictionary
         """
         for path in sorted(self.events_dir.glob("*.jsonl")):
             try:
@@ -119,3 +122,115 @@ class JsonlEventLog:
                             continue
             except OSError:
                 continue
+
+    def get_session_events(
+        self,
+        session_id: str,
+        limit: int | None = None,
+        offset: int = 0
+    ) -> list[dict[str, Any]]:
+        """
+        Get events for a specific session with pagination.
+
+        Args:
+            session_id: Session ID to query
+            limit: Maximum number of events to return (None = all)
+            offset: Number of events to skip from the start
+
+        Returns:
+            List of event dictionaries, oldest first
+        """
+        path = self.path_for_session(session_id)
+        if not path.exists():
+            return []
+
+        events = []
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            return []
+
+        # Apply offset and limit
+        if offset > 0:
+            events = events[offset:]
+        if limit is not None:
+            events = events[:limit]
+
+        return events
+
+    def query_events(
+        self,
+        session_id: str | None = None,
+        tool: str | None = None,
+        feature_id: str | None = None,
+        since: Any = None,  # datetime or ISO string
+        limit: int | None = None
+    ) -> list[dict[str, Any]]:
+        """
+        Query events with filters.
+
+        Args:
+            session_id: Filter by session ID (None = all sessions)
+            tool: Filter by tool name (e.g., 'Bash', 'Edit')
+            feature_id: Filter by attributed feature ID
+            since: Only events after this timestamp (datetime or ISO string)
+            limit: Maximum number of events to return
+
+        Returns:
+            List of matching event dictionaries, newest first
+        """
+        from datetime import datetime
+
+        # Convert since to datetime if needed
+        since_dt = None
+        if since:
+            if isinstance(since, str):
+                since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+            else:
+                since_dt = since
+
+        # Get events from specific session or all sessions
+        events: list[dict[str, Any]] = []
+        if session_id:
+            events = self.get_session_events(session_id, limit=None)
+        else:
+            events = [evt for _, evt in self.iter_events()]
+
+        # Apply filters
+        filtered: list[dict[str, Any]] = []
+        for evt in events:
+            # Tool filter
+            if tool and evt.get('tool') != tool:
+                continue
+
+            # Feature filter
+            if feature_id and evt.get('feature_id') != feature_id:
+                continue
+
+            # Timestamp filter
+            if since_dt:
+                evt_time_str = evt.get('timestamp')
+                if evt_time_str and isinstance(evt_time_str, str):
+                    try:
+                        evt_time = datetime.fromisoformat(evt_time_str.replace('Z', '+00:00'))
+                        if evt_time < since_dt:
+                            continue
+                    except (ValueError, AttributeError):
+                        continue
+
+            filtered.append(evt)
+
+        # Sort newest first and apply limit
+        filtered.reverse()
+        if limit is not None:
+            filtered = filtered[:limit]
+
+        return filtered

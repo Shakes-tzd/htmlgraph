@@ -118,9 +118,51 @@ curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'
 - Skip event logging and activity tracking
 - Can corrupt graph structure and relationships
 
-**Exception:** You MAY read `.htmlgraph/` files to view content, but NEVER write or edit them.
+**NO EXCEPTIONS: NEVER read, write, or edit `.htmlgraph/` files directly.**
 
-**Documentation:** See `AGENTS.md` for complete SDK guide and best practices.
+Use the SDK for ALL operations including inspection:
+
+```python
+# ✅ CORRECT - Inspect sessions/events via SDK
+from htmlgraph import SDK
+from htmlgraph.session_manager import SessionManager
+
+sdk = SDK(agent="claude-code")
+sm = SessionManager()
+
+# Get current session
+session = sm.get_active_session(agent="claude-code")
+
+# Get recent events (last 10)
+recent = session.get_events(limit=10, offset=session.event_count - 10)
+for evt in recent:
+    print(f"{evt['event_id']}: {evt['tool']} - {evt['summary']}")
+
+# Query events by tool
+bash_events = session.query_events(tool='Bash', limit=20)
+
+# Query events by feature
+feature_events = session.query_events(feature_id='feat-123')
+
+# Get event statistics
+stats = session.event_stats()
+print(f"Total: {stats['total_events']}, Tools: {stats['tools_used']}")
+```
+
+❌ **FORBIDDEN - Reading files directly:**
+```python
+# NEVER DO THIS
+with open('.htmlgraph/events/session-123.jsonl') as f:
+    events = [json.loads(line) for line in f]
+
+# NEVER DO THIS
+tail -10 .htmlgraph/events/session-123.jsonl
+```
+
+**Documentation:**
+- Complete SDK guide: `docs/SDK_FOR_AI_AGENTS.md`
+- Event inspection: `docs/SDK_EVENT_INSPECTION.md`
+- Agent best practices: `docs/AGENTS.md`
 
 ### 2. Feature Awareness (MANDATORY)
 You MUST always know which feature(s) are currently in progress:

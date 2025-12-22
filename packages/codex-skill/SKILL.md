@@ -98,7 +98,48 @@ uv run htmlgraph feature complete feat-123
 - Skip event logging and activity tracking
 - Can corrupt graph structure and relationships
 
-**Exception:** You MAY read `.htmlgraph/` files to view content, but NEVER write or edit them.
+**NO EXCEPTIONS: NEVER read, write, or edit `.htmlgraph/` files directly.**
+
+Use the SDK for ALL operations including inspection:
+
+```bash
+# ✅ CORRECT - Inspect sessions/events via SDK
+uv run python -c "
+from htmlgraph import SDK
+from htmlgraph.session_manager import SessionManager
+
+sdk = SDK(agent='codex')
+sm = SessionManager()
+
+# Get current session
+session = sm.get_active_session(agent='codex')
+print(f'Session: {session.id}, Events: {session.event_count}')
+
+# Get recent events (last 10)
+recent = session.get_events(limit=10, offset=session.event_count - 10)
+for evt in recent:
+    print(f\"{evt['event_id']}: {evt['tool']} - {evt['summary']}\")
+
+# Query events by tool
+bash_events = session.query_events(tool='Bash', limit=20)
+
+# Get event statistics
+stats = session.event_stats()
+print(f\"Total: {stats['total_events']}, Tools: {stats['tools_used']}\")
+"
+```
+
+❌ **FORBIDDEN - Reading files directly:**
+```bash
+# NEVER DO THIS
+cat .htmlgraph/events/session-123.jsonl
+tail -10 .htmlgraph/sessions/session-123.html
+grep "feature" .htmlgraph/events/*.jsonl
+```
+
+**Documentation:**
+- Event inspection guide: `docs/SDK_EVENT_INSPECTION.md`
+- Complete SDK guide: `docs/SDK_FOR_AI_AGENTS.md`
 
 ---
 
