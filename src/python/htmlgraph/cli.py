@@ -238,6 +238,75 @@ printf "%s" "$UPDATES" | htmlgraph git-event push "$REMOTE_NAME" "$REMOTE_URL" &
 exit 0
 """
 
+    pre_commit = """#!/bin/bash
+#
+# HtmlGraph Pre-Commit Hook
+# Reminds developers to create/start features for non-trivial work
+#
+# To disable: git config htmlgraph.precommit false
+# To bypass once: git commit --no-verify
+
+# Check if hook is disabled via config
+if [ "$(git config --type=bool htmlgraph.precommit)" = "false" ]; then
+    exit 0
+fi
+
+# Check if HtmlGraph is initialized
+if [ ! -d ".htmlgraph" ]; then
+    # Not an HtmlGraph project, skip silently
+    exit 0
+fi
+
+# Fast check for in-progress features using grep (avoids Python startup)
+# This is 10-100x faster than calling the CLI
+ACTIVE_COUNT=$(find .htmlgraph/features -name "*.html" -exec grep -l 'data-status="in-progress"' {} \\; 2>/dev/null | wc -l | tr -d ' ')
+
+# If we have active features and htmlgraph CLI is available, get details
+if [ "$ACTIVE_COUNT" -gt 0 ] && command -v htmlgraph &> /dev/null; then
+    ACTIVE_FEATURES=$(htmlgraph feature list --status in-progress 2>/dev/null)
+else
+    ACTIVE_FEATURES=""
+fi
+
+# Redirect output to stderr (standard for git hooks)
+exec 1>&2
+
+if [ "$ACTIVE_COUNT" -gt 0 ]; then
+    # Active features exist - show them
+    echo ""
+    echo "✓ HtmlGraph: $ACTIVE_COUNT active feature(s)"
+    echo ""
+    echo "$ACTIVE_FEATURES"
+    echo ""
+else
+    # No active features - show reminder
+    echo ""
+    echo "⚠️  HtmlGraph Feature Reminder"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "No active features found. Did you forget to start one?"
+    echo ""
+    echo "For non-trivial work, consider:"
+    echo "  1. Create feature: (use Python API or dashboard)"
+    echo "  2. Start feature: htmlgraph feature start <feature-id>"
+    echo ""
+    echo "Quick decision:"
+    echo "  • >30 min work? → Create feature"
+    echo "  • 3+ files? → Create feature"
+    echo "  • Needs tests? → Create feature"
+    echo "  • Simple fix? → Direct commit OK"
+    echo ""
+    echo "To disable this reminder: git config htmlgraph.precommit false"
+    echo "To bypass once: git commit --no-verify"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Proceeding with commit..."
+    echo ""
+fi
+
+# Always exit 0 (allow commit)
+exit 0
+"""
+
     def ensure_hook_file(hook_name: str, hook_content: str) -> Path:
         hook_dest = hooks_dir / f"{hook_name}.sh"
         if not hook_dest.exists():
@@ -249,6 +318,7 @@ exit 0
         return hook_dest
 
     hook_files = {
+        "pre-commit": ensure_hook_file("pre-commit", pre_commit),
         "post-commit": ensure_hook_file("post-commit", post_commit),
         "post-checkout": ensure_hook_file("post-checkout", post_checkout),
         "post-merge": ensure_hook_file("post-merge", post_merge),
@@ -325,6 +395,7 @@ fi
                 print(f"\n✓ Git hooks installed")
                 print(f"  {hook_name}: {git_hook_path}")
 
+        install_hook("pre-commit", hook_files["pre-commit"], pre_commit)
         install_hook("post-commit", hook_files["post-commit"], post_commit)
         install_hook("post-checkout", hook_files["post-checkout"], post_checkout)
         install_hook("post-merge", hook_files["post-merge"], post_merge)
