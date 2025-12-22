@@ -899,7 +899,8 @@ def cmd_track(args):
     # Find active session or use specified one
     session_id = args.session
     if not session_id:
-        active = manager.get_active_session()
+        agent = os.environ.get("HTMLGRAPH_AGENT")
+        active = manager.get_active_session(agent=agent)
         if not active:
             print("Error: No active session. Start one with 'htmlgraph session start'.", file=sys.stderr)
             sys.exit(1)

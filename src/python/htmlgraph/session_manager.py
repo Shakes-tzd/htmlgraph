@@ -267,12 +267,22 @@ class SessionManager:
             return self._active_session
         return self.session_converter.load(session_id)
 
-    def get_active_session(self) -> Session | None:
-        """Get the currently active session (if any)."""
-        if self._active_session and self._active_session.status == "active":
-            return self._active_session
+    def get_active_session(self, agent: str | None = None) -> Session | None:
+        """
+        Get the currently active session (if any).
 
-        canonical = self._choose_canonical_active_session(self._list_active_sessions())
+        Args:
+            agent: Optional agent filter
+        """
+        if self._active_session and self._active_session.status == "active":
+            if not agent or self._active_session.agent == agent:
+                return self._active_session
+
+        sessions = self._list_active_sessions()
+        if agent:
+            sessions = [s for s in sessions if s.agent == agent]
+
+        canonical = self._choose_canonical_active_session(sessions)
         if canonical:
             self._active_session = canonical
             return canonical
