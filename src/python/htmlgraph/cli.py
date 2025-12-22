@@ -28,6 +28,11 @@ Track Management (Conductor-Style Planning):
     htmlgraph track spec TRACK_ID TITLE
     htmlgraph track plan TRACK_ID TITLE
     htmlgraph track delete TRACK_ID
+
+Analytics:
+    htmlgraph analytics                           # Project-wide analytics
+    htmlgraph analytics --session-id SESSION_ID   # Single session analysis
+    htmlgraph analytics --recent N                # Analyze recent N sessions
 """
 
 import argparse
@@ -1637,6 +1642,11 @@ Track Management (Conductor-Style Planning):
   htmlgraph track spec track-001-auth "Auth Specification"  # Create spec
   htmlgraph track plan track-001-auth "Auth Implementation Plan"  # Create plan
 
+Analytics:
+  htmlgraph analytics               # Project-wide work type analytics
+  htmlgraph analytics --recent 10   # Analyze last 10 sessions
+  htmlgraph analytics --session-id session-123  # Detailed session metrics
+
 curl Examples:
   curl localhost:8080/api/status
   curl localhost:8080/api/features
@@ -1910,6 +1920,17 @@ curl Examples:
     track_delete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # =========================================================================
+    # Analytics
+    # =========================================================================
+
+    # analytics
+    analytics_parser = subparsers.add_parser("analytics", help="Work type analytics and project health metrics")
+    analytics_parser.add_argument("--session-id", "-s", help="Analyze specific session ID")
+    analytics_parser.add_argument("--recent", "-r", type=int, help="Analyze N recent sessions")
+    analytics_parser.add_argument("--agent", default="cli", help="Agent name for SDK initialization")
+    analytics_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+
+    # =========================================================================
     # Events & Analytics Index
     # =========================================================================
 
@@ -2055,6 +2076,9 @@ curl Examples:
         else:
             feature_parser.print_help()
             sys.exit(1)
+    elif args.command == "analytics":
+        from htmlgraph.cli_analytics import cmd_analytics
+        cmd_analytics(args)
     elif args.command == "events":
         if args.events_command == "export-sessions":
             cmd_events_export(args)

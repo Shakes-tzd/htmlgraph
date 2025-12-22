@@ -49,6 +49,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.ids import generate_id
+from htmlgraph.analytics import Analytics
 
 
 @dataclass
@@ -468,6 +469,9 @@ class SDK:
         self.sessions = Collection(self, "sessions", "session")
         self.tracks = TrackCollection(self)  # Use specialized collection with builder support
         self.agents = Collection(self, "agents", "agent")
+
+        # Analytics interface (Phase 2: Work Type Analytics)
+        self.analytics = Analytics(self)
 
     @staticmethod
     def _discover_htmlgraph() -> Path:
