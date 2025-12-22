@@ -178,6 +178,158 @@ Think of HtmlGraph tracking like Git commits - you wouldn't do work without comm
 
 ---
 
+## Working with Tracks, Specs, and Plans
+
+### What Are Tracks?
+
+**Tracks are high-level containers for multi-feature work** (conductor-style planning):
+- **Track** = Overall initiative with multiple related features
+- **Spec** = Detailed specification with requirements and acceptance criteria
+- **Plan** = Implementation plan with phases and estimated tasks
+- **Features** = Individual work items linked to the track
+
+**When to create a track:**
+- Work involves 3+ related features
+- Need high-level planning before implementation
+- Multi-phase implementation
+- Coordination across multiple sessions or agents
+
+**When to skip tracks:**
+- Single feature work
+- Quick fixes or enhancements
+- Direct implementation without planning phase
+
+---
+
+### Creating Tracks with TrackBuilder (PRIMARY METHOD)
+
+**IMPORTANT: Use the TrackBuilder for deterministic track creation with minimal effort.**
+
+The TrackBuilder provides a fluent API that auto-generates IDs, timestamps, file paths, and HTML files.
+
+```bash
+# Create complete track with spec and plan using Python SDK via bash
+uv run python -c "
+from htmlgraph import SDK
+
+sdk = SDK(agent='codex')
+
+# Create track with spec and plan
+track = sdk.tracks.builder() \\
+    .title('User Authentication System') \\
+    .description('Implement OAuth 2.0 authentication with JWT') \\
+    .priority('high') \\
+    .with_spec(
+        overview='Add secure authentication with OAuth 2.0 support',
+        context='Current system has no authentication',
+        requirements=[
+            ('Implement OAuth 2.0 flow', 'must-have'),
+            ('Add JWT token management', 'must-have'),
+            ('Create user profile endpoint', 'should-have')
+        ],
+        acceptance_criteria=[
+            ('Users can log in with Google/GitHub', 'OAuth test passes'),
+            'JWT tokens expire after 1 hour'
+        ]
+    ) \\
+    .with_plan_phases([
+        ('Phase 1: OAuth Setup', [
+            'Configure OAuth providers (1h)',
+            'Implement OAuth callback (2h)'
+        ]),
+        ('Phase 2: JWT Integration', [
+            'Create JWT signing logic (2h)',
+            'Add token refresh endpoint (1.5h)'
+        ])
+    ]) \\
+    .create()
+
+print(f'Created track: {track.id}')
+print(f'Has spec: {track.has_spec}')
+print(f'Has plan: {track.has_plan}')
+"
+
+# Output:
+# ✓ Created track: track-20251221-220000
+#   - Spec with 3 requirements
+#   - Plan with 2 phases, 4 tasks
+```
+
+**TrackBuilder Features:**
+- ✅ Auto-generates track IDs with timestamps
+- ✅ Creates index.html, spec.html, plan.html automatically
+- ✅ Parses time estimates from task descriptions `"Task (2h)"`
+- ✅ Validates requirements and acceptance criteria via Pydantic
+- ✅ Fluent API with method chaining
+- ✅ Single `.create()` call generates everything
+
+---
+
+### Linking Features to Tracks
+
+After creating a track, link features to it:
+
+```bash
+# Create features linked to track
+uv run python -c "
+from htmlgraph import SDK
+
+sdk = SDK(agent='codex')
+
+track_id = 'track-20251221-220000'
+
+# Create and link features
+oauth_feature = sdk.features.create('OAuth Integration') \\
+    .set_track(track_id) \\
+    .set_priority('high') \\
+    .add_steps([
+        'Configure OAuth providers',
+        'Implement OAuth callback',
+        'Add state verification'
+    ]) \\
+    .save()
+
+print(f'Created feature {oauth_feature.id} linked to {track_id}')
+
+# Query features by track
+track_features = sdk.features.where(track=track_id)
+print(f'Track has {len(track_features)} features')
+"
+```
+
+**The track_id field:**
+- Links features to their parent track
+- Enables track-level progress tracking
+- Used for querying related features
+- Automatically indexed for fast lookups
+
+---
+
+### TrackBuilder API Reference
+
+**Methods:**
+
+- `.title(str)` - Set track title (REQUIRED)
+- `.description(str)` - Set description (optional)
+- `.priority(str)` - Set priority: "low", "medium", "high", "critical" (default: "medium")
+- `.with_spec(...)` - Add specification (optional)
+  - `overview` - High-level summary
+  - `context` - Background and current state
+  - `requirements` - List of `(description, priority)` tuples or strings
+    - Priorities: "must-have", "should-have", "nice-to-have"
+  - `acceptance_criteria` - List of `(description, test_case)` tuples or strings
+- `.with_plan_phases(list)` - Add plan phases (optional)
+  - Format: `[(phase_name, [task_descriptions]), ...]`
+  - Task estimates: Include `(Xh)` in description, e.g., "Implement auth (3h)"
+- `.create()` - Execute build and create all files (returns Track object)
+
+**Documentation:**
+- Quick start: `docs/TRACK_BUILDER_QUICK_START.md`
+- Complete workflow: `docs/TRACK_WORKFLOW.md`
+- Full proposal: `docs/AGENT_FRIENDLY_SDK.md`
+
+---
+
 ## Working with HtmlGraph SDK
 
 ### Python SDK (PRIMARY INTERFACE)

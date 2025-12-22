@@ -171,6 +171,243 @@ For every significant piece of work:
 - Note any decisions made and alternatives considered
 - Record blockers or dependencies discovered
 
+## Working with Tracks, Specs, and Plans
+
+### What Are Tracks?
+
+**Tracks are high-level containers for multi-feature work** (conductor-style planning):
+- **Track** = Overall initiative with multiple related features
+- **Spec** = Detailed specification with requirements and acceptance criteria
+- **Plan** = Implementation plan with phases and estimated tasks
+- **Features** = Individual work items linked to the track
+
+**When to create a track:**
+- Work involves 3+ related features
+- Need high-level planning before implementation
+- Multi-phase implementation
+- Coordination across multiple sessions or agents
+
+**When to skip tracks:**
+- Single feature work
+- Quick fixes or enhancements
+- Direct implementation without planning phase
+
+---
+
+### Creating Tracks with TrackBuilder (PRIMARY METHOD)
+
+**IMPORTANT: Use the TrackBuilder for deterministic track creation with minimal effort.**
+
+The TrackBuilder provides a fluent API that auto-generates IDs, timestamps, file paths, and HTML files.
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Create complete track with spec and plan in one command
+track = sdk.tracks.builder() \
+    .title("User Authentication System") \
+    .description("Implement OAuth 2.0 authentication with JWT") \
+    .priority("high") \
+    .with_spec(
+        overview="Add secure authentication with OAuth 2.0 support for Google and GitHub",
+        context="Current system has no authentication. Users need secure login with session management.",
+        requirements=[
+            ("Implement OAuth 2.0 flow", "must-have"),
+            ("Add JWT token management", "must-have"),
+            ("Create user profile endpoint", "should-have"),
+            "Add password reset functionality"  # Defaults to "must-have"
+        ],
+        acceptance_criteria=[
+            ("Users can log in with Google/GitHub", "OAuth integration test passes"),
+            "JWT tokens expire after 1 hour",
+            "Password reset emails sent within 5 minutes"
+        ]
+    ) \
+    .with_plan_phases([
+        ("Phase 1: OAuth Setup", [
+            "Configure OAuth providers (1h)",
+            "Implement OAuth callback (2h)",
+            "Add state verification (1h)"
+        ]),
+        ("Phase 2: JWT Integration", [
+            "Create JWT signing logic (2h)",
+            "Add token refresh endpoint (1.5h)",
+            "Implement token validation middleware (2h)"
+        ]),
+        ("Phase 3: User Management", [
+            "Create user profile endpoint (3h)",
+            "Add password reset flow (4h)",
+            "Write integration tests (3h)"
+        ])
+    ]) \
+    .create()
+
+# Output:
+# ✓ Created track: track-20251221-220000
+#   - Spec with 4 requirements
+#   - Plan with 3 phases, 9 tasks
+
+# Files created automatically:
+# .htmlgraph/tracks/track-20251221-220000/index.html  (track metadata)
+# .htmlgraph/tracks/track-20251221-220000/spec.html   (specification)
+# .htmlgraph/tracks/track-20251221-220000/plan.html   (implementation plan)
+```
+
+**TrackBuilder Features:**
+- ✅ Auto-generates track IDs with timestamps
+- ✅ Creates index.html, spec.html, plan.html automatically
+- ✅ Parses time estimates from task descriptions `"Task (2h)"`
+- ✅ Validates requirements and acceptance criteria via Pydantic
+- ✅ Fluent API with method chaining
+- ✅ Single `.create()` call generates everything
+
+---
+
+### Linking Features to Tracks
+
+After creating a track, link features to it:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Get the track ID from the track you created
+track_id = "track-20251221-220000"
+
+# Create features and link to track
+oauth_feature = sdk.features.create("OAuth Integration") \
+    .set_track(track_id) \
+    .set_priority("high") \
+    .add_steps([
+        "Configure OAuth providers",
+        "Implement OAuth callback",
+        "Add state verification"
+    ]) \
+    .save()
+
+jwt_feature = sdk.features.create("JWT Token Management") \
+    .set_track(track_id) \
+    .set_priority("high") \
+    .add_steps([
+        "Create JWT signing logic",
+        "Add token refresh endpoint",
+        "Implement validation middleware"
+    ]) \
+    .save()
+
+# Features are now linked to the track
+# Query features by track:
+track_features = sdk.features.where(track=track_id)
+print(f"Track has {len(track_features)} features")
+```
+
+**The track_id field:**
+- Links features to their parent track
+- Enables track-level progress tracking
+- Used for querying related features
+- Automatically indexed for fast lookups
+
+---
+
+### Track Workflow Example
+
+**Complete workflow from track creation to feature completion:**
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# 1. Create track with spec and plan
+track = sdk.tracks.builder() \
+    .title("API Rate Limiting") \
+    .description("Protect API endpoints from abuse") \
+    .priority("critical") \
+    .with_spec(
+        overview="Implement rate limiting to prevent API abuse",
+        context="Current API has no limits, vulnerable to DoS attacks",
+        requirements=[
+            ("Implement token bucket algorithm", "must-have"),
+            ("Add Redis for distributed limiting", "must-have"),
+            ("Create rate limit middleware", "must-have")
+        ],
+        acceptance_criteria=[
+            ("100 requests/minute per API key", "Load test passes"),
+            "429 status code when limit exceeded"
+        ]
+    ) \
+    .with_plan_phases([
+        ("Phase 1: Core", ["Token bucket (3h)", "Redis client (1h)"]),
+        ("Phase 2: Integration", ["Middleware (2h)", "Error handling (1h)"]),
+        ("Phase 3: Testing", ["Unit tests (2h)", "Load tests (3h)"])
+    ]) \
+    .create()
+
+# 2. Create features from plan phases
+for phase_idx, (phase_name, tasks) in enumerate([
+    ("Core Implementation", ["Implement token bucket", "Add Redis client"]),
+    ("API Integration", ["Create middleware", "Add error handling"]),
+    ("Testing & Validation", ["Write unit tests", "Run load tests"])
+]):
+    feature = sdk.features.create(phase_name) \
+        .set_track(track.id) \
+        .set_priority("critical") \
+        .add_steps(tasks) \
+        .save()
+    print(f"✓ Created feature {feature.id} for track {track.id}")
+
+# 3. Work on features
+# Start first feature
+first_feature = sdk.features.where(track=track.id, status="todo")[0]
+with sdk.features.edit(first_feature.id) as f:
+    f.status = "in-progress"
+
+# ... do the work ...
+
+# Mark steps complete as you finish them
+with sdk.features.edit(first_feature.id) as f:
+    f.steps[0].completed = True
+
+# Complete feature when done
+with sdk.features.edit(first_feature.id) as f:
+    f.status = "done"
+
+# 4. Track progress
+track_features = sdk.features.where(track=track.id)
+completed = len([f for f in track_features if f.status == "done"])
+print(f"Track progress: {completed}/{len(track_features)} features complete")
+```
+
+---
+
+### TrackBuilder API Reference
+
+**Methods:**
+
+- `.title(str)` - Set track title (REQUIRED)
+- `.description(str)` - Set description (optional)
+- `.priority(str)` - Set priority: "low", "medium", "high", "critical" (default: "medium")
+- `.with_spec(...)` - Add specification (optional)
+  - `overview` - High-level summary
+  - `context` - Background and current state
+  - `requirements` - List of `(description, priority)` tuples or strings
+    - Priorities: "must-have", "should-have", "nice-to-have"
+  - `acceptance_criteria` - List of `(description, test_case)` tuples or strings
+- `.with_plan_phases(list)` - Add plan phases (optional)
+  - Format: `[(phase_name, [task_descriptions]), ...]`
+  - Task estimates: Include `(Xh)` in description, e.g., "Implement auth (3h)"
+- `.create()` - Execute build and create all files (returns Track object)
+
+**Documentation:**
+- Quick start: `docs/TRACK_BUILDER_QUICK_START.md`
+- Complete workflow: `docs/TRACK_WORKFLOW.md`
+- Full proposal: `docs/AGENT_FRIENDLY_SDK.md`
+
+---
+
 ## Working with HtmlGraph
 
 **RECOMMENDED:** Use the Python SDK for AI agents (cleanest, fastest, most powerful)

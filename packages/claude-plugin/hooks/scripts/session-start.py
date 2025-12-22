@@ -254,10 +254,32 @@ uv run htmlgraph feature list
 uv run htmlgraph session list
 ```
 
-**Work Item Commands:**
+**Feature Commands:**
 - `uv run htmlgraph feature start <id>` - Start working on a feature
 - `uv run htmlgraph feature complete <id>` - Mark feature as done
 - `uv run htmlgraph feature primary <id>` - Set primary feature for attribution
+
+**Track Creation (for multi-feature work):**
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude")
+
+# Create track with spec and plan in one command
+track = sdk.tracks.builder() \\
+    .title("Feature Name") \\
+    .priority("high") \\
+    .with_spec(overview="...", requirements=[...]) \\
+    .with_plan_phases([("Phase 1", ["Task 1 (2h)", ...])]) \\
+    .create()
+
+# Link features to track
+feature = sdk.features.create("Feature") \\
+    .set_track(track.id) \\
+    .add_steps([...]) \\
+    .save()
+```
+
+**See:** `docs/TRACK_BUILDER_QUICK_START.md` for complete track creation guide
 
 **Session Management:**
 - Sessions auto-start when you begin working
