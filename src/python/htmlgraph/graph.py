@@ -679,6 +679,234 @@ class HtmlGraph:
 
         return result
 
+    def ancestors(
+        self,
+        node_id: str,
+        relationship: str = "blocked_by",
+        max_depth: int | None = None
+    ) -> list[str]:
+        """
+        Get all ancestor nodes (nodes that this node depends on).
+
+        Traverses incoming edges recursively to find all predecessors.
+
+        Args:
+            node_id: Starting node ID
+            relationship: Edge type to follow (default: blocked_by)
+            max_depth: Maximum traversal depth (None = unlimited)
+
+        Returns:
+            List of ancestor node IDs in BFS order (nearest first)
+        """
+        if node_id not in self._nodes:
+            return []
+
+        ancestors: list[str] = []
+        visited: set[str] = set()
+        queue = deque([(node_id, 0)])
+        visited.add(node_id)
+
+        while queue:
+            current, depth = queue.popleft()
+
+            # Skip if we've hit max depth
+            if max_depth is not None and depth >= max_depth:
+                continue
+
+            # Get nodes this one depends on (outgoing blocked_by edges)
+            node = self._nodes.get(current)
+            if not node:
+                continue
+
+            for edge in node.edges.get(relationship, []):
+                if edge.target_id not in visited:
+                    visited.add(edge.target_id)
+                    ancestors.append(edge.target_id)
+                    if edge.target_id in self._nodes:
+                        queue.append((edge.target_id, depth + 1))
+
+        return ancestors
+
+    def descendants(
+        self,
+        node_id: str,
+        relationship: str = "blocked_by",
+        max_depth: int | None = None
+    ) -> list[str]:
+        """
+        Get all descendant nodes (nodes that depend on this node).
+
+        Traverses incoming edges (reverse direction) to find all successors.
+
+        Args:
+            node_id: Starting node ID
+            relationship: Edge type to follow (default: blocked_by)
+            max_depth: Maximum traversal depth (None = unlimited)
+
+        Returns:
+            List of descendant node IDs in BFS order (nearest first)
+        """
+        if node_id not in self._nodes:
+            return []
+
+        descendants: list[str] = []
+        visited: set[str] = set()
+        queue = deque([(node_id, 0)])
+        visited.add(node_id)
+
+        while queue:
+            current, depth = queue.popleft()
+
+            if max_depth is not None and depth >= max_depth:
+                continue
+
+            # Get nodes that depend on this one (incoming edges)
+            incoming = self._edge_index.get_incoming(current, relationship)
+
+            for ref in incoming:
+                if ref.source_id not in visited:
+                    visited.add(ref.source_id)
+                    descendants.append(ref.source_id)
+                    queue.append((ref.source_id, depth + 1))
+
+        return descendants
+
+    def subgraph(
+        self,
+        node_ids: list[str] | set[str],
+        include_edges: bool = True
+    ) -> 'HtmlGraph':
+        """
+        Extract a subgraph containing only the specified nodes.
+
+        Args:
+            node_ids: Node IDs to include in subgraph
+            include_edges: Whether to include edges between nodes (default: True)
+
+        Returns:
+            New HtmlGraph containing only specified nodes
+
+        Example:
+            # Get subgraph of a node and its dependencies
+            deps = graph.transitive_deps("feature-001")
+            deps.add("feature-001")
+            sub = graph.subgraph(deps)
+        """
+        import tempfile
+        from htmlgraph.models import Edge
+
+        # Create new graph in temp directory
+        temp_dir = tempfile.mkdtemp(prefix="htmlgraph_subgraph_")
+        subgraph = HtmlGraph(temp_dir, auto_load=False)
+
+        node_ids_set = set(node_ids)
+
+        for node_id in node_ids:
+            node = self._nodes.get(node_id)
+            if not node:
+                continue
+
+            # Create copy of node
+            if include_edges:
+                # Filter edges to only include those pointing to nodes in subgraph
+                filtered_edges = {}
+                for rel_type, edges in node.edges.items():
+                    filtered = [e for e in edges if e.target_id in node_ids_set]
+                    if filtered:
+                        filtered_edges[rel_type] = filtered
+                node_copy = node.model_copy(update={"edges": filtered_edges})
+            else:
+                node_copy = node.model_copy(update={"edges": {}})
+
+            subgraph.add(node_copy)
+
+        return subgraph
+
+    def connected_component(
+        self,
+        node_id: str,
+        relationship: str | None = None
+    ) -> set[str]:
+        """
+        Get all nodes in the same connected component as the given node.
+
+        Treats edges as undirected (both directions).
+
+        Args:
+            node_id: Starting node ID
+            relationship: Optional filter to specific edge type
+
+        Returns:
+            Set of node IDs in the connected component
+        """
+        if node_id not in self._nodes:
+            return set()
+
+        component: set[str] = set()
+        queue = deque([node_id])
+
+        while queue:
+            current = queue.popleft()
+            if current in component:
+                continue
+
+            component.add(current)
+
+            # Get all neighbors (both directions)
+            neighbors = self._edge_index.get_neighbors(current, relationship, "both")
+            for neighbor in neighbors:
+                if neighbor not in component and neighbor in self._nodes:
+                    queue.append(neighbor)
+
+        return component
+
+    def all_paths(
+        self,
+        from_id: str,
+        to_id: str,
+        relationship: str | None = None,
+        max_length: int | None = None
+    ) -> list[list[str]]:
+        """
+        Find all paths between two nodes.
+
+        Args:
+            from_id: Starting node ID
+            to_id: Target node ID
+            relationship: Optional filter to specific edge type
+            max_length: Maximum path length (None = unlimited, but recommended)
+
+        Returns:
+            List of paths, each path is a list of node IDs
+        """
+        if from_id not in self._nodes or to_id not in self._nodes:
+            return []
+
+        if from_id == to_id:
+            return [[from_id]]
+
+        paths: list[list[str]] = []
+        adj = self._build_adjacency(relationship)
+
+        def dfs(current: str, target: str, path: list[str], visited: set[str]):
+            if max_length and len(path) > max_length:
+                return
+
+            if current == target:
+                paths.append(path.copy())
+                return
+
+            for neighbor in adj.get(current, []):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    path.append(neighbor)
+                    dfs(neighbor, target, path, visited)
+                    path.pop()
+                    visited.remove(neighbor)
+
+        dfs(from_id, to_id, [from_id], {from_id})
+        return paths
+
     # =========================================================================
     # Statistics & Analysis
     # =========================================================================
