@@ -604,6 +604,68 @@ def cmd_session_list(args):
             print(f"{session.id:<30} {session.status:<10} {session.agent:<15} {session.event_count:<8} {started}")
 
 
+def cmd_session_status_report(args):
+    """Print a comprehensive status report (Markdown)."""
+    from htmlgraph.session_manager import SessionManager
+    import subprocess
+
+    manager = SessionManager(args.graph_dir)
+    status = manager.get_status()
+
+    # Git log
+    try:
+        git_log = subprocess.check_output(
+            ["git", "log", "--oneline", "-n", "3"],
+            text=True,
+            stderr=subprocess.DEVNULL
+        ).strip()
+    except Exception:
+        git_log = "(Git log unavailable)"
+
+    # Active features detail
+    active_features_text = ""
+    if status['active_features']:
+        active_features_text = "\n### Current Feature(s)\n"
+        for fid in status['active_features']:
+            node = manager.features_graph.get(fid) or manager.bugs_graph.get(fid)
+            if node:
+                active_features_text += f"**Working On:** {node.title} ({node.id})\n"
+                active_features_text += f"**Status:** {node.status}\n"
+                if node.steps:
+                    active_features_text += "**Step Progress**\n"
+                    for step in node.steps:
+                        mark = "[x]" if step.completed else "[ ]"
+                        active_features_text += f"- {mark} {step.description}\n"
+                active_features_text += "\n"
+    else:
+        active_features_text = "\n### Current Feature(s)\nNo active features. Start one with `htmlgraph feature start <id>`.\n"
+
+    # Project Name (from directory)
+    project_name = Path(args.graph_dir).resolve().parent.name
+
+    completed = status['by_status'].get('done', 0)
+    total = status['total_features']
+    pct = int(completed / max(1, total) * 100)
+
+    print(f"""## Session Status
+
+**Project:** {project_name}
+**Progress:** {completed}/{total} features ({pct}%)
+**Active Features (WIP):** {status['wip_count']}
+
+---
+{active_features_text}---
+
+### Recent Commits
+{git_log}
+
+---
+
+### What's Next
+Use `htmlgraph feature list --status todo` to see backlog.
+""")
+
+
 def cmd_session_dedupe(args):
     """Move low-signal session files out of the main sessions directory."""
     from htmlgraph.session_manager import SessionManager
@@ -1576,6 +1638,13 @@ curl Examples:
     session_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     session_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
+    # session status-report (and resume alias)
+    session_report = session_subparsers.add_parser("status-report", help="Print comprehensive session status report")
+    session_report.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    
+    session_resume = session_subparsers.add_parser("resume", help="Alias for status-report (Resume session context)")
+    session_resume.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+
     # session dedupe
     session_dedupe = session_subparsers.add_parser(
         "dedupe",
@@ -1866,6 +1935,8 @@ curl Examples:
             cmd_session_end(args)
         elif args.session_command == "list":
             cmd_session_list(args)
+        elif args.session_command == "status-report" or args.session_command == "resume":
+            cmd_session_status_report(args)
         elif args.session_command == "dedupe":
             cmd_session_dedupe(args)
         elif args.session_command == "link":
