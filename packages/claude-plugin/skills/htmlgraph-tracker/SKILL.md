@@ -21,11 +21,22 @@ Use this skill when HtmlGraph is tracking the session to ensure proper activity 
 
 ## Core Responsibilities
 
-### 1. **NEVER Edit .htmlgraph Files Directly** (CRITICAL)
+### 1. **Use SDK, Not MCP Tools** (CRITICAL)
+
+**IMPORTANT: For Claude Code, use the Python SDK directly instead of MCP tools.**
+
+**Why SDK over MCP:**
+- ✅ **No context bloat** - MCP tool schemas consume precious tokens
+- ✅ **Runtime discovery** - Explore all operations via Python introspection
+- ✅ **Type hints** - See all available methods without schemas
+- ✅ **More powerful** - Full programmatic access, not limited to 3 MCP tools
+- ✅ **Faster** - Direct Python, no JSON-RPC overhead
+
+The SDK provides access to ALL HtmlGraph operations without adding tool definitions to your context.
 
 **ABSOLUTE RULE: You must NEVER use Read, Write, or Edit tools on `.htmlgraph/` HTML files.**
 
-This is the most important architectural principle of HtmlGraph. AI agents MUST use the SDK, API, or CLI to ensure all HTML is validated through Pydantic + justhtml.
+AI agents MUST use the SDK (or API/CLI for special cases) to ensure all HTML is validated through Pydantic + justhtml.
 
 ❌ **FORBIDDEN:**
 ```python
@@ -36,33 +47,68 @@ with open('.htmlgraph/features/feature-123.html', 'w') as f:
     f.write('<html>...</html>')
 ```
 
-✅ **REQUIRED - Use SDK (recommended):**
+✅ **REQUIRED - Use SDK (BEST CHOICE FOR AI AGENTS):**
 ```python
 from htmlgraph import SDK
 
 sdk = SDK(agent="claude")
 
-# Create features
+# Work with ANY collection (features, bugs, chores, spikes, epics, phases)
+sdk.features    # Features with builder support
+sdk.bugs        # Bug reports
+sdk.chores      # Maintenance tasks
+sdk.spikes      # Investigation spikes
+sdk.epics       # Large bodies of work
+sdk.phases      # Project phases
+
+# Create features (fluent interface)
 feature = sdk.features.create("Title") \
     .set_priority("high") \
     .add_steps(["Step 1", "Step 2"]) \
     .save()
 
-# Edit features (auto-saves)
+# Edit ANY collection (auto-saves)
 with sdk.features.edit("feature-123") as f:
     f.status = "done"
+
+with sdk.bugs.edit("bug-001") as bug:
+    bug.status = "in-progress"
+    bug.priority = "critical"
+
+# Vectorized batch updates (efficient!)
+sdk.bugs.batch_update(
+    ["bug-001", "bug-002", "bug-003"],
+    {"status": "done", "resolution": "fixed"}
+)
+
+# Query across collections
+high_priority = sdk.features.where(status="todo", priority="high")
+in_progress_bugs = sdk.bugs.where(status="in-progress")
+
+# All collections have same interface
+sdk.chores.mark_done(["chore-1", "chore-2"])
+sdk.spikes.assign(["spike-1"], agent="claude")
 ```
 
-✅ **ALTERNATIVE - Use API/CLI:**
-```bash
-# API
-curl -X POST localhost:8080/api/features -d '{"title": "..."}'
-curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'
+**Why SDK is best:**
+- ✅ 3-16x faster than CLI (no process startup)
+- ✅ Type-safe with auto-complete
+- ✅ Context managers (auto-save)
+- ✅ Vectorized batch operations
+- ✅ Works offline (no server needed)
+- ✅ Supports ALL collections (features, bugs, chores, spikes, epics, etc.)
 
-# CLI
-htmlgraph feature create/start/complete/step-complete
-htmlgraph track new/list/spec/plan
-htmlgraph session start/end
+✅ **ALTERNATIVE - Use CLI (for one-off commands):**
+```bash
+# CLI is slower (400ms startup per command) but convenient for one-off queries
+uv run htmlgraph feature create/start/complete
+uv run htmlgraph status
+```
+
+⚠️ **AVOID - API/curl (use only for remote access):**
+```bash
+# Requires server + network overhead, only use for remote access
+curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'
 ```
 
 **Why this matters:**
@@ -101,11 +147,13 @@ For every significant piece of work:
 - Note any decisions made and alternatives considered
 - Record blockers or dependencies discovered
 
-## Working with Features
+## Working with HtmlGraph
 
-**RECOMMENDED:** Use the Python SDK for AI agents (cleanest, most powerful)
+**RECOMMENDED:** Use the Python SDK for AI agents (cleanest, fastest, most powerful)
 
-### Python SDK (Recommended for AI Agents)
+### Python SDK (PRIMARY INTERFACE - Use This!)
+
+The SDK supports ALL collections with a unified interface. Use it for maximum performance and type safety.
 
 ```python
 from htmlgraph import SDK
@@ -113,7 +161,8 @@ from htmlgraph import SDK
 # Initialize (auto-discovers .htmlgraph)
 sdk = SDK(agent="claude")
 
-# Create a feature
+# ===== ALL COLLECTIONS SUPPORTED =====
+# Features (with builder support)
 feature = sdk.features.create("User Authentication") \
     .set_priority("high") \
     .add_steps([
@@ -123,22 +172,54 @@ feature = sdk.features.create("User Authentication") \
     ]) \
     .save()
 
-# Edit a feature (auto-saves!)
-with sdk.features.edit(feature.id) as f:
-    f.status = "in-progress"
-    f.steps[0].completed = True
+# Bugs
+with sdk.bugs.edit("bug-001") as bug:
+    bug.status = "in-progress"
+    bug.priority = "critical"
 
-# Query features
-todos = sdk.features.where(status="todo", priority="high")
+# Chores, Spikes, Epics - all work the same way
+chore = sdk.chores.where(status="todo")[0]
+spike_results = sdk.spikes.all()
+epic_steps = sdk.epics.get("epic-001").steps
 
-# Get project summary
-summary = sdk.summary()
-print(summary)
+# ===== EFFICIENT BATCH OPERATIONS =====
+# Mark multiple items done (vectorized!)
+sdk.bugs.mark_done(["bug-001", "bug-002", "bug-003"])
+
+# Assign multiple items to agent
+sdk.features.assign(["feat-001", "feat-002"], agent="claude")
+
+# Custom batch updates (any attributes)
+sdk.chores.batch_update(
+    ["chore-001", "chore-002"],
+    {"status": "done", "agent_assigned": "claude"}
+)
+
+# ===== CROSS-COLLECTION QUERIES =====
+# Find all in-progress work
+in_progress = []
+for coll_name in ['features', 'bugs', 'chores', 'spikes', 'epics']:
+    coll = getattr(sdk, coll_name)
+    in_progress.extend(coll.where(status='in-progress'))
+
+# Find low-lift tasks
+for item in in_progress:
+    if hasattr(item, 'steps'):
+        for step in item.steps:
+            if not step.completed and 'document' in step.description.lower():
+                print(f"📝 {item.id}: {step.description}")
 ```
 
-### CLI (Alternative)
+**SDK Performance (vs CLI):**
+- Single query: **3x faster**
+- 5 queries: **9x faster**
+- 10 batch updates: **16x faster**
+
+### CLI (For One-Off Commands Only)
 
 **IMPORTANT:** Always use `uv run` when running htmlgraph commands to ensure the correct environment.
+
+⚠️ CLI is slower than SDK (400ms startup per command). Use for quick one-off queries only.
 
 ```bash
 # Check Current Status
@@ -154,6 +235,10 @@ uv run htmlgraph feature primary <feature-id>
 # Complete a Feature
 uv run htmlgraph feature complete <feature-id>
 ```
+
+**When to use CLI vs SDK:**
+- CLI: Quick one-off shell command
+- SDK: Everything else (faster, more powerful, better for scripts)
 
 ## Feature Creation Decision Framework
 

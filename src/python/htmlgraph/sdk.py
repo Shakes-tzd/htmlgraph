@@ -130,12 +130,192 @@ class FeatureBuilder:
         return node
 
 
-class FeatureCollection:
-    """Collection interface for features."""
+class Collection:
+    """Generic collection interface for any node type."""
+
+    def __init__(self, sdk: 'SDK', collection_name: str, node_type: str):
+        """
+        Initialize a collection.
+
+        Args:
+            sdk: Parent SDK instance
+            collection_name: Name of the collection (e.g., "features", "bugs")
+            node_type: Node type to filter by (e.g., "feature", "bug")
+        """
+        self._sdk = sdk
+        self._collection_name = collection_name
+        self._node_type = node_type
+        self._graph = None  # Lazy-loaded
+
+    def _ensure_graph(self):
+        """Lazy-load the graph for this collection."""
+        if self._graph is None:
+            from htmlgraph.graph import HtmlGraph
+            collection_path = self._sdk._directory / self._collection_name
+            self._graph = HtmlGraph(collection_path, auto_load=True)
+        return self._graph
+
+    def get(self, node_id: str) -> Node | None:
+        """Get a node by ID."""
+        return self._ensure_graph().get(node_id)
+
+    @contextmanager
+    def edit(self, node_id: str) -> Iterator[Node]:
+        """
+        Context manager for editing a node.
+
+        Auto-saves on exit.
+
+        Example:
+            with sdk.bugs.edit("bug-001") as bug:
+                bug.status = "in-progress"
+        """
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if not node:
+            raise ValueError(f"{self._node_type.capitalize()} {node_id} not found")
+
+        yield node
+
+        # Auto-save on exit
+        graph.update(node)
+
+    def where(
+        self,
+        status: str | None = None,
+        priority: str | None = None,
+        track: str | None = None,
+        assigned_to: str | None = None,
+        **extra_filters
+    ) -> list[Node]:
+        """
+        Query nodes with filters.
+
+        Example:
+            high_bugs = sdk.bugs.where(status="todo", priority="high")
+        """
+        def matches(node: Node) -> bool:
+            if node.type != self._node_type:
+                return False
+            if status and getattr(node, 'status', None) != status:
+                return False
+            if priority and getattr(node, 'priority', None) != priority:
+                return False
+            if track and getattr(node, "track_id", None) != track:
+                return False
+            if assigned_to and getattr(node, 'agent_assigned', None) != assigned_to:
+                return False
+
+            # Check extra filters
+            for key, value in extra_filters.items():
+                if getattr(node, key, None) != value:
+                    return False
+
+            return True
+
+        return self._ensure_graph().filter(matches)
+
+    def all(self) -> list[Node]:
+        """Get all nodes of this type."""
+        return [n for n in self._ensure_graph() if n.type == self._node_type]
+
+    def delete(self, node_id: str) -> bool:
+        """
+        Delete a node.
+
+        Returns:
+            True if deleted, False if not found
+        """
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if not node:
+            return False
+        graph.delete(node_id)
+        return True
+
+    def update(self, node: Node) -> Node:
+        """
+        Update a node.
+
+        Args:
+            node: Node to update
+
+        Returns:
+            Updated node
+        """
+        node.updated = datetime.now()
+        self._ensure_graph().update(node)
+        return node
+
+    def batch_update(
+        self,
+        node_ids: list[str],
+        updates: dict[str, Any]
+    ) -> int:
+        """
+        Vectorized batch update operation.
+
+        Args:
+            node_ids: List of node IDs to update
+            updates: Dictionary of attribute: value pairs to update
+
+        Returns:
+            Number of nodes successfully updated
+
+        Example:
+            sdk.bugs.batch_update(
+                ["bug-1", "bug-2"],
+                {"status": "done", "agent_assigned": "claude"}
+            )
+        """
+        graph = self._ensure_graph()
+        now = datetime.now()
+        count = 0
+
+        # Vectorized retrieval
+        nodes = [graph.get(nid) for nid in node_ids]
+
+        # Batch update
+        for node in nodes:
+            if node:
+                # Apply all updates
+                for attr, value in updates.items():
+                    setattr(node, attr, value)
+                node.updated = now
+                graph.update(node)
+                count += 1
+
+        return count
+
+    def mark_done(self, node_ids: list[str]) -> int:
+        """
+        Batch mark nodes as done.
+
+        Returns:
+            Number of nodes updated
+        """
+        return self.batch_update(node_ids, {"status": "done"})
+
+    def assign(self, node_ids: list[str], agent: str) -> int:
+        """
+        Batch assign nodes to an agent.
+
+        Returns:
+            Number of nodes assigned
+        """
+        updates = {
+            "agent_assigned": agent,
+            "status": "in-progress"
+        }
+        return self.batch_update(node_ids, updates)
+
+
+class FeatureCollection(Collection):
+    """Collection interface for features with builder support."""
 
     def __init__(self, sdk: 'SDK'):
+        super().__init__(sdk, "features", "feature")
         self._sdk = sdk
-        self._graph = sdk._graph
 
     def create(self, title: str, **kwargs) -> FeatureBuilder:
         """
@@ -156,123 +336,42 @@ class FeatureCollection:
         """
         return FeatureBuilder(self._sdk, title, **kwargs)
 
-    def get(self, feature_id: str) -> Node | None:
-        """Get a feature by ID."""
-        return self._graph.get(feature_id)
-
-    @contextmanager
-    def edit(self, feature_id: str) -> Iterator[Node]:
-        """
-        Context manager for editing a feature.
-
-        Auto-saves on exit.
-
-        Example:
-            with sdk.features.edit("feat-001") as feature:
-                feature.status = "in-progress"
-                feature.steps[0].completed = True
-        """
-        node = self._graph.get(feature_id)
-        if not node:
-            raise ValueError(f"Feature {feature_id} not found")
-
-        yield node
-
-        # Auto-save on exit
-        self._graph.update(node)
-
-    def where(
-        self,
-        status: str | None = None,
-        priority: str | None = None,
-        track: str | None = None,
-        assigned_to: str | None = None
-    ) -> list[Node]:
-        """
-        Query features with filters.
-
-        Example:
-            high_priority_todos = sdk.features.where(
-                status="todo",
-                priority="high"
-            )
-        """
-        def matches(node: Node) -> bool:
-            if node.type != "feature":
-                return False
-            if status and node.status != status:
-                return False
-            if priority and node.priority != priority:
-                return False
-            if track and getattr(node, "track_id", None) != track:
-                return False
-            if assigned_to and node.agent_assigned != assigned_to:
-                return False
-            return True
-
-        return self._graph.filter(matches)
-
-    def all(self) -> list[Node]:
-        """Get all features."""
-        return [n for n in self._graph if n.type == "feature"]
-
-    def mark_done(self, feature_ids: list[str]) -> int:
-        """
-        Batch mark features as done.
-
-        Returns:
-            Number of features updated
-        """
-        count = 0
-        for fid in feature_ids:
-            node = self._graph.get(fid)
-            if node:
-                node.status = "done"
-                node.updated = datetime.now()
-                self._graph.update(node)
-                count += 1
-        return count
-
-    def assign(self, feature_ids: list[str], agent: str) -> int:
-        """
-        Batch assign features to an agent.
-
-        Returns:
-            Number of features assigned
-        """
-        count = 0
-        for fid in feature_ids:
-            node = self._graph.get(fid)
-            if node:
-                node.agent_assigned = agent
-                node.status = "in-progress"
-                node.updated = datetime.now()
-                self._graph.update(node)
-                count += 1
-        return count
-
 
 class SDK:
     """
     Main SDK interface for AI agents.
 
-    Auto-discovers .htmlgraph directory and provides fluent API.
+    Auto-discovers .htmlgraph directory and provides fluent API for all collections.
+
+    Available Collections:
+        - features: Feature work items with builder support
+        - bugs: Bug reports
+        - chores: Maintenance and chore tasks
+        - spikes: Investigation and research spikes
+        - epics: Large bodies of work
+        - phases: Project phases
+        - sessions: Agent sessions
+        - tracks: Work tracks
+        - agents: Agent information
 
     Example:
         sdk = SDK(agent="claude")
 
-        # Create a feature
+        # Work with features (has builder support)
         feature = sdk.features.create("User Auth")
             .set_priority("high")
             .add_steps(["Login", "Logout"])
             .save()
 
-        # Edit a feature
-        with sdk.features.edit("feat-001") as f:
-            f.status = "done"
+        # Work with bugs
+        high_bugs = sdk.bugs.where(status="todo", priority="high")
+        with sdk.bugs.edit("bug-001") as bug:
+            bug.status = "in-progress"
 
-        # Query features
-        todos = sdk.features.where(status="todo", priority="high")
+        # Work with any collection
+        all_spikes = sdk.spikes.all()
+        sdk.chores.mark_done(["chore-001", "chore-002"])
+        sdk.epics.assign(["epic-001"], agent="claude")
     """
 
     def __init__(
@@ -293,15 +392,25 @@ class SDK:
         self._directory = Path(directory)
         self._agent_id = agent
 
-        # Initialize underlying components
+        # Initialize underlying components (for backward compatibility)
         self._graph = HtmlGraph(self._directory / "features")
         self._agent_interface = AgentInterface(
             self._directory / "features",
             agent_id=agent
         )
 
-        # Collection interfaces
+        # Collection interfaces - all work item types
         self.features = FeatureCollection(self)
+        self.bugs = Collection(self, "bugs", "bug")
+        self.chores = Collection(self, "chores", "chore")
+        self.spikes = Collection(self, "spikes", "spike")
+        self.epics = Collection(self, "epics", "epic")
+        self.phases = Collection(self, "phases", "phase")
+
+        # Non-work collections
+        self.sessions = Collection(self, "sessions", "session")
+        self.tracks = Collection(self, "tracks", "track")
+        self.agents = Collection(self, "agents", "agent")
 
     @staticmethod
     def _discover_htmlgraph() -> Path:

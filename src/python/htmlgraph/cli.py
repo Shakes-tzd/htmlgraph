@@ -335,27 +335,37 @@ fi
 
 def cmd_status(args):
     """Show status of the graph."""
-    from htmlgraph.graph import HtmlGraph
+    from htmlgraph.sdk import SDK
+    from collections import Counter
 
-    graph_dir = Path(args.graph_dir)
-    if not graph_dir.exists():
-        print(f"Error: {graph_dir} not found. Run 'htmlgraph init' first.")
-        sys.exit(1)
+    # Use SDK to query all collections
+    sdk = SDK(directory=args.graph_dir)
 
     total = 0
-    by_status = {}
+    by_status = Counter()
     by_collection = {}
 
-    for collection_dir in graph_dir.iterdir():
-        if collection_dir.is_dir() and not collection_dir.name.startswith("."):
-            graph = HtmlGraph(collection_dir, auto_load=True)
-            stats = graph.stats()
-            by_collection[collection_dir.name] = stats["total"]
-            total += stats["total"]
-            for status, count in stats["by_status"].items():
-                by_status[status] = by_status.get(status, 0) + count
+    # All available collections
+    collections = ['features', 'bugs', 'chores', 'spikes', 'epics', 'phases', 'sessions', 'tracks', 'agents']
 
-    print(f"HtmlGraph Status: {graph_dir}")
+    for coll_name in collections:
+        coll = getattr(sdk, coll_name)
+        try:
+            nodes = coll.all()
+            count = len(nodes)
+            if count > 0:
+                by_collection[coll_name] = count
+                total += count
+
+                # Count by status
+                for node in nodes:
+                    status = getattr(node, 'status', 'unknown')
+                    by_status[status] += 1
+        except Exception:
+            # Collection might not exist yet
+            pass
+
+    print(f"HtmlGraph Status: {args.graph_dir}")
     print(f"{'=' * 40}")
     print(f"Total nodes: {total}")
     print(f"\nBy Collection:")
@@ -977,21 +987,18 @@ def cmd_feature_primary(args):
 
 def cmd_feature_list(args):
     """List features by status."""
-    from htmlgraph.graph import HtmlGraph
+    from htmlgraph.sdk import SDK
     from htmlgraph.converter import node_to_dict
     import json
 
-    collection_dir = Path(args.graph_dir) / args.collection
-    if not collection_dir.exists():
-        print(f"Error: Collection '{args.collection}' not found.", file=sys.stderr)
-        sys.exit(1)
+    # Use SDK for feature queries
+    sdk = SDK(directory=args.graph_dir)
 
-    graph = HtmlGraph(collection_dir, auto_load=True)
-
+    # Query features with SDK
     if args.status:
-        nodes = graph.query(f"[data-status='{args.status}']")
+        nodes = sdk.features.where(status=args.status)
     else:
-        nodes = list(graph.nodes.values())
+        nodes = sdk.features.all()
 
     # Sort by priority then updated
     from datetime import timezone
