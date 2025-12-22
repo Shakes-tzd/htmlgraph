@@ -15,6 +15,7 @@ from typing import Any, Callable, Iterator
 from htmlgraph.models import Node, Edge
 from htmlgraph.converter import html_to_node, node_to_html, NodeConverter
 from htmlgraph.parser import HtmlParser
+from htmlgraph.edge_index import EdgeIndex, EdgeRef
 
 
 class HtmlGraph:
@@ -55,6 +56,7 @@ class HtmlGraph:
 
         self._nodes: dict[str, Node] = {}
         self._converter = NodeConverter(directory, stylesheet_path)
+        self._edge_index = EdgeIndex()
 
         if auto_load:
             self.reload()
@@ -69,6 +71,10 @@ class HtmlGraph:
         self._nodes.clear()
         for node in self._converter.load_all(self.pattern):
             self._nodes[node.id] = node
+
+        # Rebuild edge index for O(1) reverse lookups
+        self._edge_index.rebuild(self._nodes)
+
         return len(self._nodes)
 
     @property
@@ -109,8 +115,18 @@ class HtmlGraph:
         if node.id in self._nodes and not overwrite:
             raise ValueError(f"Node already exists: {node.id}")
 
+        # If overwriting, remove old edges from index first
+        if overwrite and node.id in self._nodes:
+            self._edge_index.remove_node(node.id)
+
         filepath = self._converter.save(node)
         self._nodes[node.id] = node
+
+        # Add new edges to index
+        for relationship, edges in node.edges.items():
+            for edge in edges:
+                self._edge_index.add(node.id, edge.target_id, edge.relationship)
+
         return filepath
 
     def update(self, node: Node) -> Path:
@@ -128,6 +144,12 @@ class HtmlGraph:
         """
         if node.id not in self._nodes:
             raise KeyError(f"Node not found: {node.id}")
+
+        # Remove old edges from index, then add new ones
+        self._edge_index.remove_node(node.id)
+        for relationship, edges in node.edges.items():
+            for edge in edges:
+                self._edge_index.add(node.id, edge.target_id, edge.relationship)
 
         filepath = self._converter.save(node)
         self._nodes[node.id] = node
@@ -170,6 +192,8 @@ class HtmlGraph:
             True if node was removed
         """
         if node_id in self._nodes:
+            # Remove all edges involving this node from index
+            self._edge_index.remove_node(node_id)
             del self._nodes[node_id]
             return self._converter.delete(node_id)
         return False
@@ -243,6 +267,78 @@ class HtmlGraph:
     def by_priority(self, priority: str) -> list[Node]:
         """Get all nodes with given priority."""
         return self.filter(lambda n: n.priority == priority)
+
+    # =========================================================================
+    # Edge Index Operations (O(1) lookups)
+    # =========================================================================
+
+    def get_incoming_edges(
+        self,
+        node_id: str,
+        relationship: str | None = None
+    ) -> list[EdgeRef]:
+        """
+        Get all edges pointing TO a node (O(1) lookup).
+
+        Uses the edge index for efficient reverse lookups instead of
+        scanning all nodes in the graph.
+
+        Args:
+            node_id: Node ID to find incoming edges for
+            relationship: Optional filter by relationship type
+
+        Returns:
+            List of EdgeRefs for incoming edges
+
+        Example:
+            # Find all nodes that block feature-001
+            blockers = graph.get_incoming_edges("feature-001", "blocked_by")
+            for ref in blockers:
+                blocker_node = graph.get(ref.source_id)
+                print(f"{blocker_node.title} blocks feature-001")
+        """
+        return self._edge_index.get_incoming(node_id, relationship)
+
+    def get_outgoing_edges(
+        self,
+        node_id: str,
+        relationship: str | None = None
+    ) -> list[EdgeRef]:
+        """
+        Get all edges pointing FROM a node (O(1) lookup).
+
+        Args:
+            node_id: Node ID to find outgoing edges for
+            relationship: Optional filter by relationship type
+
+        Returns:
+            List of EdgeRefs for outgoing edges
+        """
+        return self._edge_index.get_outgoing(node_id, relationship)
+
+    def get_neighbors(
+        self,
+        node_id: str,
+        relationship: str | None = None,
+        direction: str = "both"
+    ) -> set[str]:
+        """
+        Get all neighboring node IDs connected to a node (O(1) lookup).
+
+        Args:
+            node_id: Node ID to find neighbors for
+            relationship: Optional filter by relationship type
+            direction: "incoming", "outgoing", or "both"
+
+        Returns:
+            Set of neighboring node IDs
+        """
+        return self._edge_index.get_neighbors(node_id, relationship, direction)
+
+    @property
+    def edge_index(self) -> EdgeIndex:
+        """Access the edge index for advanced queries."""
+        return self._edge_index
 
     # =========================================================================
     # Graph Algorithms
@@ -355,7 +451,9 @@ class HtmlGraph:
         relationship: str = "blocked_by"
     ) -> set[str]:
         """
-        Find all nodes that depend on this node.
+        Find all nodes that depend on this node (O(1) lookup).
+
+        Uses the edge index for efficient reverse lookups.
 
         Args:
             node_id: Node to find dependents for
@@ -364,18 +462,9 @@ class HtmlGraph:
         Returns:
             Set of node IDs that depend on this node
         """
-        dependents: set[str] = set()
-
-        for other_id, node in self._nodes.items():
-            if other_id == node_id:
-                continue
-
-            for edge in node.edges.get(relationship, []):
-                if edge.target_id == node_id:
-                    dependents.add(other_id)
-                    break
-
-        return dependents
+        # O(1) lookup using edge index instead of O(V×E) scan
+        incoming = self._edge_index.get_incoming(node_id, relationship)
+        return {ref.source_id for ref in incoming}
 
     def find_bottlenecks(self, relationship: str = "blocked_by", top_n: int = 5) -> list[tuple[str, int]]:
         """
