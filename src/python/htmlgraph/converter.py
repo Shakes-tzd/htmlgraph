@@ -444,6 +444,10 @@ def html_to_session(filepath: Path | str) -> Session:
         if drift:
             entry_data["drift_score"] = float(drift)
 
+        parent = li.attrs.get("data-parent")
+        if parent:
+            entry_data["parent_activity_id"] = parent
+
         activity_log.append(ActivityEntry(**entry_data))
 
     # Activity log in HTML is reversed (newest first), so reverse back

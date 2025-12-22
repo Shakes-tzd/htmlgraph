@@ -439,6 +439,7 @@ class SessionManager:
         file_paths: list[str] | None = None,
         success: bool = True,
         feature_id: str | None = None,
+        parent_activity_id: str | None = None,
         payload: dict[str, Any] | None = None,
     ) -> ActivityEntry:
         """
@@ -451,6 +452,7 @@ class SessionManager:
             file_paths: Files involved in this activity
             success: Whether the tool call succeeded
             feature_id: Explicit feature ID (skips attribution)
+            parent_activity_id: ID of parent activity (e.g., Skill/Task invocation)
             payload: Optional rich payload data
 
         Returns:
@@ -468,7 +470,17 @@ class SessionManager:
         drift_score = None
         attribution_reason = None
 
-        if not attributed_feature and active_features:
+        # Skip drift calculation for child activities (part of Skill/Task invocation)
+        # Child activities inherit their parent's context and shouldn't be scored independently
+        if parent_activity_id:
+            # Inherit feature from parent if not explicitly set
+            if not attributed_feature and active_features:
+                # Use primary feature or first active feature
+                primary = next((f for f in active_features if f.properties.get("is_primary")), None)
+                attributed_feature = (primary or active_features[0]).id if active_features else None
+            drift_score = None  # No drift for child activities
+            attribution_reason = "child_activity"
+        elif not attributed_feature and active_features:
             attribution = self.attribute_activity(
                 tool=tool,
                 summary=summary,
@@ -495,6 +507,7 @@ class SessionManager:
             success=success,
             feature_id=attributed_feature,
             drift_score=drift_score,
+            parent_activity_id=parent_activity_id,
             payload={
                 **(payload or {}),
                 "file_paths": file_paths,
@@ -674,7 +687,7 @@ class SessionManager:
     def _score_feature_match(
         self,
         feature: Node,
-        tool: str,
+        _tool: str,
         summary: str,
         file_paths: list[str],
         agent: str | None = None,
@@ -1024,6 +1037,8 @@ class SessionManager:
             self.claim_feature(feature_id, collection=collection, agent=agent)
             # Re-load node after claim
             node = graph.get(feature_id)
+            if not node:
+                raise ValueError(f"Feature {feature_id} not found after claiming")
 
         node.status = "in-progress"
         node.updated = datetime.now()

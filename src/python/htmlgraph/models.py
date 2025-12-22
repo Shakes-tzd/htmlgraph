@@ -431,6 +431,7 @@ class ActivityEntry(BaseModel):
     success: bool = True
     feature_id: str | None = None  # Link to feature this activity belongs to
     drift_score: float | None = None  # 0.0-1.0 alignment score
+    parent_activity_id: str | None = None  # Link to parent activity (e.g., Skill invocation)
     payload: dict[str, Any] | None = None  # Optional rich payload for significant events
 
     def to_html(self) -> str:
@@ -446,6 +447,8 @@ class ActivityEntry(BaseModel):
             attrs.append(f'data-feature="{self.feature_id}"')
         if self.drift_score is not None:
             attrs.append(f'data-drift="{self.drift_score:.2f}"')
+        if self.parent_activity_id:
+            attrs.append(f'data-parent="{self.parent_activity_id}"')
 
         return f'<li {" ".join(attrs)}>{self.summary}</li>'
 
@@ -536,7 +539,7 @@ class Session(BaseModel):
         self,
         tool: str | None = None,
         feature_id: str | None = None,
-        since: any = None,
+        since: Any = None,
         limit: int | None = 100,
         events_dir: str = ".htmlgraph/events"
     ) -> list[dict]:

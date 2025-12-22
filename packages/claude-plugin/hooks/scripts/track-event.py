@@ -81,6 +81,8 @@ except Exception as e:
 
 # Drift classification queue (stored in session directory)
 DRIFT_QUEUE_FILE = "drift-queue.json"
+# Active parent activity tracker (for Skill/Task invocations)
+PARENT_ACTIVITY_FILE = "parent-activity.json"
 
 
 def load_drift_config() -> dict:
@@ -117,6 +119,42 @@ def load_drift_config() -> dict:
             "process_on_threshold": True
         }
     }
+
+
+def load_parent_activity(graph_dir: Path) -> dict:
+    """Load the active parent activity state."""
+    path = graph_dir / PARENT_ACTIVITY_FILE
+    if path.exists():
+        try:
+            with open(path) as f:
+                data = json.load(f)
+                # Clean up stale parent activities (older than 5 minutes)
+                if data.get("timestamp"):
+                    ts = datetime.fromisoformat(data["timestamp"])
+                    if datetime.now() - ts > timedelta(minutes=5):
+                        return {}
+                return data
+        except Exception:
+            pass
+    return {}
+
+
+def save_parent_activity(graph_dir: Path, parent_id: str | None, tool: str | None = None) -> None:
+    """Save the active parent activity state."""
+    path = graph_dir / PARENT_ACTIVITY_FILE
+    try:
+        if parent_id:
+            with open(path, "w") as f:
+                json.dump({
+                    "parent_id": parent_id,
+                    "tool": tool,
+                    "timestamp": datetime.now().isoformat()
+                }, f)
+        else:
+            # Clear parent activity
+            path.unlink(missing_ok=True)
+    except Exception as e:
+        print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
 
 
 def load_drift_queue(graph_dir: Path) -> dict:
@@ -434,6 +472,24 @@ def main():
         warning_threshold = drift_settings.get("warning_threshold", 0.7)
         auto_classify_threshold = drift_settings.get("auto_classify_threshold", 0.85)
 
+        # Determine parent activity context
+        parent_activity_state = load_parent_activity(graph_dir)
+        parent_activity_id = None
+
+        # Tools that create parent context (Skill, Task)
+        parent_tools = {"Skill", "Task"}
+
+        # If this is a parent tool invocation, save its context for subsequent activities
+        if tool_name in parent_tools:
+            # We'll get the event_id after tracking, so we use a placeholder for now
+            # The actual parent_id will be set below after we track the activity
+            is_parent_tool = True
+        else:
+            is_parent_tool = False
+            # Check if there's an active parent context
+            if parent_activity_state.get("parent_id"):
+                parent_activity_id = parent_activity_state["parent_id"]
+
         # Track the activity
         nudge = None
         try:
@@ -442,15 +498,23 @@ def main():
                 tool=tool_name,
                 summary=summary,
                 file_paths=file_paths if file_paths else None,
-                success=not is_error
+                success=not is_error,
+                parent_activity_id=parent_activity_id
             )
 
+            # If this was a parent tool, save its ID for subsequent activities
+            if is_parent_tool and result:
+                save_parent_activity(graph_dir, result.id, tool_name)
+            # If this tool finished a parent context (e.g., Task completed), clear it
+            # We'll clear parent context after 5 minutes automatically (see load_parent_activity)
+
             # Check for drift and handle accordingly
-            if result and hasattr(result, 'drift_score'):
+            # Skip drift detection for child activities (they inherit parent's context)
+            if result and hasattr(result, 'drift_score') and not parent_activity_id:
                 drift_score = result.drift_score
                 feature_id = getattr(result, 'feature_id', 'unknown')
 
-                if drift_score >= auto_classify_threshold:
+                if drift_score and drift_score >= auto_classify_threshold:
                     # High drift - add to classification queue
                     queue = add_to_drift_queue(graph_dir, {
                         "tool": tool_name,
