@@ -18,13 +18,13 @@ Run this at the start of every session to:
 
 ## Instructions for Claude
 
-When the user runs `/htmlgraph:start`, follow the **HtmlGraph Development Process**.
+When the user runs `/htmlgraph:start`, you MUST follow the **HtmlGraph Development Process**.
 
 ---
 
-### FIRST ACTION: Check Status
+### MANDATORY FIRST ACTION: Check Status
 
-**BEFORE doing anything else:**
+**YOU MUST RUN THESE COMMANDS FIRST - NO EXCEPTIONS:**
 
 ```bash
 # Get status
@@ -99,7 +99,9 @@ After presenting the status, wait for the user to indicate what they want to do.
 
 ## Key Reminders
 
-1. **Parallel development OK** - Up to 3 features can be in progress (WIP limit)
-2. **Finish over start** - Complete existing work before starting new
-3. **All activity tracked** - Hooks attribute work to features automatically
-4. **View in browser** - Run `htmlgraph serve` and open http://localhost:8080
+1. **USE SDK FOR ALL OPERATIONS** - `from htmlgraph import SDK` - Never edit .htmlgraph/ files directly
+2. **Parallel development OK** - Up to 3 features can be in progress (WIP limit)
+3. **Finish over start** - Complete existing work before starting new
+4. **Mark steps complete IMMEDIATELY** - Use SDK after finishing each step
+5. **All activity tracked** - Hooks attribute work to features automatically
+6. **View in browser** - Run `htmlgraph serve` and open http://localhost:8080

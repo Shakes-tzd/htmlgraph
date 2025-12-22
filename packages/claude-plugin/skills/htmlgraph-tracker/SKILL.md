@@ -122,26 +122,50 @@ curl -X PATCH localhost:8080/api/features/feat-123 -d '{"status": "done"}'
 
 **Documentation:** See `AGENTS.md` for complete SDK guide and best practices.
 
-### 2. Feature Awareness
-Always be aware of which feature(s) are currently in progress:
-- Check active features at session start
+### 2. Feature Awareness (MANDATORY)
+You MUST always know which feature(s) are currently in progress:
+- Check active features at session start (use `uv run htmlgraph status`)
 - Reference the current feature when discussing work
-- Alert if work appears to drift from the assigned feature
+- Alert immediately if work appears to drift from the assigned feature
 
 ### 3. Step Completion (CRITICAL)
 **Mark each step complete IMMEDIATELY after finishing it:**
-- Use curl PATCH to `/api/features/<id>` with `{"complete_step": index}`
+- Use SDK to complete individual steps as you finish them
 - Step 0 = first step, step 1 = second step (0-based indexing)
 - Do NOT wait until all steps are done - mark each one as you finish
 - See "How to Mark Steps Complete" section below for exact commands
 
-### 4. Activity Attribution
+### 4. Continuous Tracking (CRITICAL)
+
+**ABSOLUTE REQUIREMENT: ALL work MUST be tracked in HtmlGraph.**
+
+Think of HtmlGraph tracking like Git commits - you wouldn't do work without committing it, and you shouldn't do work without tracking it.
+
+**Every time you complete work, update HtmlGraph immediately:**
+- ✅ Finished a step? → Mark it complete in SDK
+- ✅ Fixed a bug? → Update bug status
+- ✅ Discovered a decision? → Document it in the feature
+- ✅ Changed approach? → Note it in activity log
+- ✅ Completed a task? → Mark feature/bug/chore as done
+
+**Why this matters:**
+- Attribution ensures work isn't lost across sessions
+- Links between sessions and features preserve context
+- Drift detection helps catch scope creep early
+- Analytics show real progress, not guesses
+
+**The hooks track tool usage automatically**, but YOU must:
+1. Start features before working (`uv run htmlgraph feature start <id>`)
+2. Mark steps complete as you finish them (use SDK)
+3. Complete features when done (`uv run htmlgraph feature complete <id>`)
+
+### 5. Activity Attribution
 HtmlGraph automatically tracks tool usage, but you should:
 - Use descriptive summaries in Bash `description` parameter
 - Reference feature IDs in commit messages
 - Mention the feature context when starting new tasks
 
-### 5. Documentation Habits
+### 6. Documentation Habits
 For every significant piece of work:
 - Summarize what was done and why
 - Note any decisions made and alternatives considered
@@ -295,37 +319,45 @@ See `docs/WORKFLOW.md` for the complete decision framework with detailed criteri
 
 ## Session Workflow Checklist
 
-**Use this checklist for EVERY session to ensure quality and proper attribution.**
+**MANDATORY: Follow this checklist for EVERY session. No exceptions.**
 
-### Session Start
-- [ ] Activate this skill (done)
-- [ ] Check status: `uv run htmlgraph status`
-- [ ] Review active features
-- [ ] Greet user with status update
-- [ ] Decide: Create feature or implement directly? (use decision framework)
-- [ ] Start feature: `uv run htmlgraph feature start <id>`
+### Session Start (DO THESE FIRST)
+1. ✅ Activate this skill (done automatically)
+2. ✅ **RUN:** `uv run htmlgraph status` - Check what's active
+3. ✅ Review active features and decide if you need to create a new one
+4. ✅ Greet user with brief status update
+5. ✅ **DECIDE:** Create feature or implement directly? (use decision framework below)
+6. ✅ **If creating feature:** Use SDK or run `uv run htmlgraph feature start <id>`
 
-### During Work
-- [ ] Feature marked "in-progress" before coding
-- [ ] **CRITICAL: Mark each step complete IMMEDIATELY after finishing it** (see below)
-- [ ] Document decisions with `uv run htmlgraph track`
-- [ ] Test incrementally
-- [ ] Watch for drift warnings
+### During Work (DO CONTINUOUSLY)
+1. ✅ Feature MUST be marked "in-progress" before you write any code
+2. ✅ **CRITICAL:** Mark each step complete IMMEDIATELY after finishing it (use SDK)
+3. ✅ Document ALL decisions as you make them
+4. ✅ Test incrementally - don't wait until the end
+5. ✅ Watch for drift warnings and act on them immediately
 
 #### How to Mark Steps Complete
 
-**IMPORTANT:** After finishing each step, mark it complete using curl:
+**IMPORTANT:** After finishing each step, mark it complete using the SDK:
 
-```bash
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
 # Mark step 0 (first step) as complete
-curl -X PATCH http://localhost:8080/api/features/<feature-id> \
-  -H "Content-Type: application/json" \
-  -d '{"complete_step": 0}'
+with sdk.features.edit("feature-id") as f:
+    f.steps[0].completed = True
 
 # Mark step 1 (second step) as complete
-curl -X PATCH http://localhost:8080/api/features/<feature-id> \
-  -H "Content-Type: application/json" \
-  -d '{"complete_step": 1}'
+with sdk.features.edit("feature-id") as f:
+    f.steps[1].completed = True
+
+# Or mark multiple steps at once
+with sdk.features.edit("feature-id") as f:
+    f.steps[0].completed = True
+    f.steps[1].completed = True
+    f.steps[2].completed = True
 ```
 
 **Step numbering is 0-based** (first step = 0, second step = 1, etc.)
@@ -339,22 +371,22 @@ curl -X PATCH http://localhost:8080/api/features/<feature-id> \
 **Example workflow:**
 1. Start feature: `uv run htmlgraph feature start feature-123`
 2. Work on step 0 (e.g., "Design models")
-3. **MARK STEP 0 COMPLETE** → `curl -X PATCH ...`
+3. **MARK STEP 0 COMPLETE** → Use SDK: `with sdk.features.edit("feature-123") as f: f.steps[0].completed = True`
 4. Work on step 1 (e.g., "Create templates")
-5. **MARK STEP 1 COMPLETE** → `curl -X PATCH ...`
+5. **MARK STEP 1 COMPLETE** → Use SDK: `with sdk.features.edit("feature-123") as f: f.steps[1].completed = True`
 6. Continue until all steps done
 7. Complete feature: `uv run htmlgraph feature complete feature-123`
 
-### Session End (Before Completion)
-- [ ] All tests pass: `uv run pytest`
-- [ ] Validate attribution: `uv run htmlgraph session validate-attribution <feature-id>`
-- [ ] All feature steps complete
-- [ ] No debug code or TODOs
-- [ ] Commit with feature ID
-- [ ] Mark feature complete: `uv run htmlgraph feature complete <id>`
-- [ ] Update epic step (if applicable)
+### Session End (MUST DO BEFORE MARKING COMPLETE)
+1. ✅ **RUN TESTS:** `uv run pytest` - All tests MUST pass
+2. ✅ **VERIFY ATTRIBUTION:** Check that activities are linked to correct feature
+3. ✅ **CHECK STEPS:** ALL feature steps MUST be marked complete
+4. ✅ **CLEAN CODE:** Remove all debug code, console.logs, TODOs
+5. ✅ **COMMIT:** Git commit with feature ID in message
+6. ✅ **COMPLETE FEATURE:** Use SDK or run `uv run htmlgraph feature complete <id>`
+7. ✅ **UPDATE EPIC:** If part of epic, mark epic step complete
 
-**Full checklist:** See `docs/WORKFLOW.md` → "Claude Code Session Checklist"
+**REMINDER:** Completing a feature without doing all of the above means incomplete work. Don't skip steps.
 
 ## Handling Drift Warnings
 
