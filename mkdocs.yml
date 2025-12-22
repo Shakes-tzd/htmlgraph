@@ -58,11 +58,11 @@ plugins:
       default_handler: python
       handlers:
         python:
+          # Cross-reference inventories (at handler level, not in options)
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://pydantic-docs.helpmanual.io/objects.inv
           options:
-            # Cross-reference inventories
-            inventories:
-              - https://docs.python.org/3/objects.inv
-              - https://pydantic-docs.helpmanual.io/objects.inv
             # Display options
             show_root_heading: true
             show_root_full_path: false
