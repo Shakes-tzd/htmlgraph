@@ -175,6 +175,38 @@ HtmlGraph nodes are standard HTML files:
 3. **Documentation** - Interconnected docs with search
 4. **Task Management** - Todo lists with dependencies
 
+## Contributing
+
+HtmlGraph is developed using HtmlGraph itself (dogfooding). This means:
+
+- ✅ Every development action is replicable by users through the package
+- ✅ We use the SDK, CLI, and plugins - not custom scripts
+- ✅ Our development workflow IS the documentation
+
+**See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for:**
+- Dogfooding principles
+- Replicable workflows
+- Environment setup (PyPI tokens, etc.)
+- Development best practices
+
+**Quick start for contributors:**
+```bash
+# Clone and setup
+git clone https://github.com/Shakes-tzd/htmlgraph
+cd htmlgraph
+uv sync
+
+# Start tracking your work (dogfooding!)
+uv run htmlgraph init --install-hooks
+uv run htmlgraph serve  # View dashboard
+
+# Use SDK for development
+uv run python
+>>> from htmlgraph import SDK
+>>> sdk = SDK(agent="your-name")
+>>> sdk.features.where(status="todo")
+```
+
 ## License
 
 MIT
@@ -182,5 +214,6 @@ MIT
 ## Links
 
 - [GitHub](https://github.com/Shakes-tzd/htmlgraph)
-- [Documentation](https://github.com/Shakes-tzd/htmlgraph#readme)
-- [Examples](https://github.com/Shakes-tzd/htmlgraph/tree/main/examples)
+- [Documentation](docs/) - SDK guide, workflows, development principles
+- [Examples](examples/) - Real-world usage examples
+- [PyPI](https://pypi.org/project/htmlgraph/)
