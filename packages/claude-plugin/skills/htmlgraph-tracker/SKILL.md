@@ -543,6 +543,158 @@ uv run htmlgraph feature complete <feature-id>
 - CLI: Quick one-off shell command
 - SDK: Everything else (faster, more powerful, better for scripts)
 
+## Work Type Classification (Phase 1)
+
+**NEW: HtmlGraph now automatically categorizes all work by type to differentiate exploratory work from implementation.**
+
+### Work Type Categories
+
+All events are automatically tagged with a work type based on the active feature:
+
+- **feature-implementation** - Building new functionality (feat-*)
+- **spike-investigation** - Research and exploration (spike-*)
+- **bug-fix** - Correcting defects (bug-*)
+- **maintenance** - Refactoring and tech debt (chore-*)
+- **documentation** - Writing docs (doc-*)
+- **planning** - Design decisions (plan-*)
+- **review** - Code review
+- **admin** - Administrative tasks
+
+### Creating Spikes (Investigation Work)
+
+Use Spike model for timeboxed investigation:
+
+```python
+from htmlgraph import SDK, SpikeType
+
+sdk = SDK(agent="claude")
+
+# Create a spike with classification
+spike = sdk.spikes.create("Investigate OAuth providers") \
+    .set_spike_type(SpikeType.TECHNICAL) \
+    .set_timebox_hours(4) \
+    .add_steps([
+        "Research OAuth 2.0 flow",
+        "Compare Google vs GitHub providers",
+        "Document security considerations"
+    ]) \
+    .save()
+
+# Update findings after investigation
+with sdk.spikes.edit(spike.id) as s:
+    s.findings = "Google OAuth has better docs but GitHub has simpler integration"
+    s.decision = "Use GitHub OAuth for MVP, migrate to Google later if needed"
+    s.status = "done"
+```
+
+**Spike Types:**
+- `TECHNICAL` - Investigate technical implementation options
+- `ARCHITECTURAL` - Research system design decisions
+- `RISK` - Identify and assess project risks
+- `GENERAL` - Uncategorized investigation
+
+### Creating Chores (Maintenance Work)
+
+Use Chore model for maintenance tasks:
+
+```python
+from htmlgraph import SDK, MaintenanceType
+
+sdk = SDK(agent="claude")
+
+# Create a chore with classification
+chore = sdk.chores.create("Refactor authentication module") \
+    .set_maintenance_type(MaintenanceType.PREVENTIVE) \
+    .set_technical_debt_score(7) \
+    .add_steps([
+        "Extract auth logic to separate module",
+        "Add unit tests for auth flows",
+        "Update documentation"
+    ]) \
+    .save()
+```
+
+**Maintenance Types:**
+- `CORRECTIVE` - Fix defects and errors
+- `ADAPTIVE` - Adapt to environment changes (OS, dependencies)
+- `PERFECTIVE` - Improve performance, usability, maintainability
+- `PREVENTIVE` - Prevent future problems (refactoring, tech debt)
+
+### Session Work Type Analytics
+
+Query work type distribution for any session:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Get current session
+from htmlgraph.session_manager import SessionManager
+sm = SessionManager()
+session = sm.get_active_session(agent="claude")
+
+# Calculate work breakdown
+breakdown = session.calculate_work_breakdown()
+# Returns: {"feature-implementation": 120, "spike-investigation": 45, "maintenance": 30}
+
+# Get primary work type
+primary = session.calculate_primary_work_type()
+# Returns: "feature-implementation" (most common type)
+
+# Query events by work type
+spike_events = [e for e in session.get_events() if e.get("work_type") == "spike-investigation"]
+```
+
+### Automatic Work Type Inference
+
+**Work type is automatically inferred from feature_id prefix:**
+
+```python
+# When you start a spike:
+sdk.spikes.start("spike-123")
+# → All events auto-tagged with work_type="spike-investigation"
+
+# When you start a feature:
+sdk.features.start("feat-456")
+# → All events auto-tagged with work_type="feature-implementation"
+
+# When you start a chore:
+sdk.chores.start("chore-789")
+# → All events auto-tagged with work_type="maintenance"
+```
+
+**No manual tagging required!** The system automatically categorizes your work based on what you're working on.
+
+### Why This Matters
+
+Work type classification enables you to:
+
+1. **Differentiate exploration from implementation** - "How much time was spent researching vs building?"
+2. **Track technical debt** - "What % of work is maintenance vs new features?"
+3. **Measure innovation** - "What's our spike-to-feature ratio?"
+4. **Session context** - "Was this primarily an exploratory session or implementation?"
+
+**Example Session Analysis:**
+
+```python
+# After a long session, analyze what you did:
+session = sm.get_active_session(agent="claude")
+breakdown = session.calculate_work_breakdown()
+
+print(f"Primary work type: {session.calculate_primary_work_type()}")
+print(f"Work breakdown: {breakdown}")
+
+# Output:
+# Primary work type: spike-investigation
+# Work breakdown: {
+#   "spike-investigation": 65,
+#   "feature-implementation": 30,
+#   "documentation": 10
+# }
+# → This was primarily an exploratory/research session
+```
+
 ## Feature Creation Decision Framework
 
 **CRITICAL**: Use this framework to decide when to create a feature vs implementing directly.
