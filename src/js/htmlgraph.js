@@ -564,13 +564,152 @@ class HtmlGraph {
   }
 
   /**
-   * CSS selector query (requires DOM context)
+   * Load HTML file and parse as a node
+   * @param {string} url - URL or path to the HTML file
+   * @returns {Promise<Object>} Parsed node object
+   */
+  async loadHtmlFile(url) {
+    const response = await fetch(url);
+    const html = await response.text();
+    return this.parseHtml(html);
+  }
+
+  /**
+   * Parse HTML string into a node object
+   * @param {string} html - HTML string to parse
+   * @returns {Object} Parsed node object
+   */
+  parseHtml(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Find the main article element
+    const article = doc.querySelector('article[id]');
+    if (!article) {
+      throw new Error('No article element with id found in HTML');
+    }
+
+    // Extract basic properties
+    const node = {
+      id: article.id,
+      title: doc.querySelector('title')?.textContent || article.querySelector('h1')?.textContent || 'Untitled',
+      type: article.dataset.type || 'node',
+      status: article.dataset.status || 'todo',
+      priority: article.dataset.priority || 'medium',
+      created: article.dataset.created,
+      updated: article.dataset.updated,
+      properties: {},
+      edges: {},
+      steps: []
+    };
+
+    // Extract custom data attributes as properties
+    for (const [key, value] of Object.entries(article.dataset)) {
+      if (!['type', 'status', 'priority', 'created', 'updated'].includes(key)) {
+        node.properties[key] = value;
+      }
+    }
+
+    // Extract properties from data-properties section
+    const propsSection = article.querySelector('[data-properties]');
+    if (propsSection) {
+      const propItems = propsSection.querySelectorAll('dd[data-key]');
+      propItems.forEach(dd => {
+        const key = dd.dataset.key;
+        const value = dd.dataset.value;
+        const unit = dd.dataset.unit;
+        node.properties[key] = unit ? { value, unit } : value;
+      });
+    }
+
+    // Extract edges
+    const edgesNav = article.querySelector('[data-graph-edges]');
+    if (edgesNav) {
+      const edgeSections = edgesNav.querySelectorAll('[data-edge-type]');
+      edgeSections.forEach(section => {
+        const edgeType = section.dataset.edgeType;
+        node.edges[edgeType] = [];
+
+        const links = section.querySelectorAll('a[href]');
+        links.forEach(link => {
+          const href = link.getAttribute('href');
+          // Extract node ID from href (assuming format like "feature-001.html")
+          const targetId = href.replace(/\.html$/, '').split('/').pop();
+          node.edges[edgeType].push({
+            targetId,
+            href,
+            relationship: link.dataset.relationship || edgeType,
+            title: link.textContent.trim()
+          });
+        });
+      });
+    }
+
+    // Extract steps
+    const stepsSection = article.querySelector('[data-steps]');
+    if (stepsSection) {
+      const stepItems = stepsSection.querySelectorAll('li');
+      stepItems.forEach((li, index) => {
+        node.steps.push({
+          index,
+          description: li.textContent.replace(/^[✅⏳❌]\s*/, '').trim(),
+          completed: li.dataset.completed === 'true',
+          agent: li.dataset.agent || null
+        });
+      });
+    }
+
+    return node;
+  }
+
+  /**
+   * Load multiple HTML files from a directory (requires server support)
+   * @param {string} baseUrl - Base URL of the directory
+   * @param {Array<string>} filenames - Array of HTML filenames
+   * @returns {Promise<void>}
+   */
+  async loadFromDirectory(baseUrl, filenames) {
+    const promises = filenames.map(filename =>
+      this.loadHtmlFile(`${baseUrl}/${filename}`)
+    );
+    const nodes = await Promise.all(promises);
+    this.load(nodes);
+  }
+
+  /**
+   * CSS selector query on loaded nodes
+   * @param {string} selector - CSS selector (limited to data attributes)
+   * @returns {Array} Matching nodes
    */
   query(selector) {
-    // In browser context, this would query the DOM
-    // For node.js, this would need a DOM parser
-    console.warn('CSS selector queries require DOM context');
-    return [];
+    // Parse simple CSS selectors for data attributes
+    // Example: [data-status="done"][data-priority="high"]
+    const attrRegex = /\[data-([^=]+)="([^"]+)"\]/g;
+    const conditions = [];
+    let match;
+
+    while ((match = attrRegex.exec(selector)) !== null) {
+      conditions.push({ attr: match[1], value: match[2] });
+    }
+
+    if (conditions.length === 0) {
+      console.warn('CSS selector queries currently support [data-attr="value"] format');
+      return [];
+    }
+
+    const results = [];
+    for (const node of this._nodes.values()) {
+      let matches = true;
+      for (const cond of conditions) {
+        if (node[cond.attr] !== cond.value && node.properties?.[cond.attr] !== cond.value) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) results.push(node);
+    }
+
+    return results;
   }
 
   /**

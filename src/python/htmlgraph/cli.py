@@ -1052,6 +1052,118 @@ def cmd_mcp_serve(args):
 
 
 # =============================================================================
+# Work Management Commands (Smart Routing)
+# =============================================================================
+
+def cmd_work_next(args):
+    """Get next best task using smart routing."""
+    from htmlgraph.sdk import SDK
+    from htmlgraph.converter import node_to_dict
+    import json
+
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+
+    try:
+        task = sdk.work_next(
+            agent_id=args.agent,
+            auto_claim=args.auto_claim,
+            min_score=args.min_score
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        if task:
+            print(json.dumps(node_to_dict(task), indent=2, default=str))
+        else:
+            print(json.dumps({"task": None, "message": "No suitable tasks found"}, indent=2))
+    else:
+        if task:
+            print(f"Next task: {task.id}")
+            print(f"  Title: {task.title}")
+            print(f"  Priority: {task.priority}")
+            print(f"  Status: {task.status}")
+            if task.required_capabilities:
+                print(f"  Required capabilities: {', '.join(task.required_capabilities)}")
+            if task.complexity:
+                print(f"  Complexity: {task.complexity}")
+            if task.estimated_effort:
+                print(f"  Estimated effort: {task.estimated_effort}h")
+            if args.auto_claim:
+                print(f"  ✓ Task claimed by {args.agent}")
+        else:
+            print("No suitable tasks found.")
+            print("Try lowering --min-score or check available tasks with 'htmlgraph feature list --status todo'")
+
+
+def cmd_work_queue(args):
+    """Get prioritized work queue for an agent."""
+    from htmlgraph.sdk import SDK
+    import json
+
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+
+    try:
+        queue = sdk.get_work_queue(
+            agent_id=args.agent,
+            limit=args.limit,
+            min_score=args.min_score
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps({"queue": queue, "count": len(queue)}, indent=2))
+    else:
+        if not queue:
+            print(f"No tasks found for agent '{args.agent}'.")
+            print("Try lowering --min-score or check available tasks with 'htmlgraph feature list --status todo'")
+            return
+
+        print(f"Work queue for {args.agent} ({len(queue)} tasks):")
+        print("=" * 90)
+        print(f"{'Score':<8} {'Priority':<10} {'Complexity':<12} {'ID':<25} {'Title'}")
+        print("=" * 90)
+
+        for item in queue:
+            complexity = item.get('complexity', 'N/A') or 'N/A'
+            title = item['title'][:30] + "..." if len(item['title']) > 33 else item['title']
+            print(f"{item['score']:<8.1f} {item['priority']:<10} {complexity:<12} {item['task_id']:<25} {title}")
+
+
+def cmd_agent_list(args):
+    """List all registered agents."""
+    from htmlgraph.sdk import SDK
+    import json
+
+    sdk = SDK(directory=args.graph_dir)
+    agents = sdk.list_agents(active_only=args.active_only)
+
+    if args.format == "json":
+        print(json.dumps(
+            {"agents": [agent.to_dict() for agent in agents], "count": len(agents)},
+            indent=2
+        ))
+    else:
+        if not agents:
+            print("No agents registered.")
+            print("Agents are automatically registered in .htmlgraph/agents.json")
+            return
+
+        print(f"Registered agents ({len(agents)}):")
+        print("=" * 90)
+
+        for agent in agents:
+            status = "✓ active" if agent.active else "✗ inactive"
+            print(f"\n{agent.id} ({agent.name}) - {status}")
+            print(f"  Capabilities: {', '.join(agent.capabilities)}")
+            print(f"  Max parallel tasks: {agent.max_parallel_tasks}")
+            print(f"  Preferred complexity: {', '.join(agent.preferred_complexity)}")
+
+
+# =============================================================================
 # Feature Management Commands
 # =============================================================================
 
@@ -1791,6 +1903,48 @@ curl Examples:
     activity_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # =========================================================================
+    # Work Management (Smart Routing)
+    # =========================================================================
+
+    # work (with subcommands)
+    work_parser = subparsers.add_parser("work", help="Work management with smart routing")
+    work_subparsers = work_parser.add_subparsers(dest="work_command", help="Work command")
+
+    # work next
+    work_next = work_subparsers.add_parser("next", help="Get next best task using smart routing")
+    work_next.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "claude",
+        help="Agent ID (default: $HTMLGRAPH_AGENT or 'claude')",
+    )
+    work_next.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    work_next.add_argument("--auto-claim", action="store_true", help="Automatically claim the task")
+    work_next.add_argument("--min-score", type=float, default=20.0, help="Minimum routing score (default: 20.0)")
+    work_next.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # work queue
+    work_queue = work_subparsers.add_parser("queue", help="Get prioritized work queue")
+    work_queue.add_argument(
+        "--agent",
+        default=os.environ.get("HTMLGRAPH_AGENT") or "claude",
+        help="Agent ID (default: $HTMLGRAPH_AGENT or 'claude')",
+    )
+    work_queue.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    work_queue.add_argument("--limit", "-l", type=int, default=10, help="Maximum tasks to show (default: 10)")
+    work_queue.add_argument("--min-score", type=float, default=20.0, help="Minimum routing score (default: 20.0)")
+    work_queue.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # agent (with subcommands)
+    agent_parser = subparsers.add_parser("agent", help="Agent management")
+    agent_subparsers = agent_parser.add_subparsers(dest="agent_command", help="Agent command")
+
+    # agent list
+    agent_list = agent_subparsers.add_parser("list", help="List all registered agents")
+    agent_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    agent_list.add_argument("--active-only", action="store_true", help="Only show active agents")
+    agent_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # =========================================================================
     # Feature Management
     # =========================================================================
 
@@ -2036,6 +2190,24 @@ curl Examples:
     sync_docs_parser.add_argument("--project-root", type=str, help="Project root directory (default: current directory)")
     sync_docs_parser.add_argument("--force", action="store_true", help="Overwrite existing files when generating")
 
+    # deploy
+    deploy_parser = subparsers.add_parser("deploy", help="Flexible deployment system for packaging and publishing")
+    deploy_subparsers = deploy_parser.add_subparsers(dest="deploy_command", help="Deploy command")
+
+    # deploy init
+    deploy_init = deploy_subparsers.add_parser("init", help="Initialize deployment configuration")
+    deploy_init.add_argument("--output", "-o", help="Output file path (default: htmlgraph-deploy.toml)")
+    deploy_init.add_argument("--force", action="store_true", help="Overwrite existing configuration")
+
+    # deploy run
+    deploy_run = deploy_subparsers.add_parser("run", help="Run deployment process")
+    deploy_run.add_argument("--config", "-c", help="Configuration file (default: htmlgraph-deploy.toml)")
+    deploy_run.add_argument("--dry-run", action="store_true", help="Show what would happen without executing")
+    deploy_run.add_argument("--docs-only", action="store_true", help="Only commit and push to git")
+    deploy_run.add_argument("--build-only", action="store_true", help="Only build package")
+    deploy_run.add_argument("--skip-pypi", action="store_true", help="Skip PyPI publishing")
+    deploy_run.add_argument("--skip-plugins", action="store_true", help="Skip plugin updates")
+
     # install-gemini-extension
     install_gemini_parser = subparsers.add_parser(
         "install-gemini-extension",
@@ -2087,6 +2259,22 @@ curl Examples:
             cmd_track_delete(args)
         else:
             track_parser.print_help()
+            sys.exit(1)
+    elif args.command == "work":
+        # Work management with smart routing
+        if args.work_command == "next":
+            cmd_work_next(args)
+        elif args.work_command == "queue":
+            cmd_work_queue(args)
+        else:
+            work_parser.print_help()
+            sys.exit(1)
+    elif args.command == "agent":
+        # Agent management
+        if args.agent_command == "list":
+            cmd_agent_list(args)
+        else:
+            agent_parser.print_help()
             sys.exit(1)
     elif args.command == "feature":
         if args.feature_command == "create":
@@ -2156,6 +2344,14 @@ curl Examples:
         cmd_publish(args)
     elif args.command == "sync-docs":
         cmd_sync_docs(args)
+    elif args.command == "deploy":
+        if args.deploy_command == "init":
+            cmd_deploy_init(args)
+        elif args.deploy_command == "run":
+            cmd_deploy_run(args)
+        else:
+            deploy_parser.print_help()
+            sys.exit(1)
     elif args.command == "install-gemini-extension":
         cmd_install_gemini_extension(args)
     else:
@@ -2163,8 +2359,65 @@ curl Examples:
         sys.exit(1)
 
 
-if __name__ == "__main__":
-    main()
+# =============================================================================
+# Deployment Commands
+# =============================================================================
+
+def cmd_deploy_init(args):
+    """Initialize deployment configuration."""
+    from htmlgraph.deploy import create_deployment_config_template
+
+    output_path = Path(args.output or "htmlgraph-deploy.toml")
+
+    if output_path.exists() and not args.force:
+        print(f"Error: {output_path} already exists. Use --force to overwrite.", file=sys.stderr)
+        sys.exit(1)
+
+    create_deployment_config_template(output_path)
+
+
+def cmd_deploy_run(args):
+    """Run deployment process."""
+    from htmlgraph.deploy import DeploymentConfig, Deployer
+
+    # Load configuration
+    config_path = Path(args.config or "htmlgraph-deploy.toml")
+
+    if not config_path.exists():
+        print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
+        print("Run 'htmlgraph deploy init' to create a template configuration.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        config = DeploymentConfig.from_toml(config_path)
+    except Exception as e:
+        print(f"Error loading configuration: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Handle shortcut flags
+    skip_steps = []
+    only_steps = None
+
+    if args.docs_only:
+        only_steps = ['git-push']
+    elif args.build_only:
+        only_steps = ['build']
+    elif args.skip_pypi:
+        skip_steps.append('pypi-publish')
+    elif args.skip_plugins:
+        skip_steps.append('update-plugins')
+
+    # Create deployer
+    deployer = Deployer(
+        config=config,
+        dry_run=args.dry_run,
+        skip_steps=skip_steps,
+        only_steps=only_steps
+    )
+
+    # Run deployment
+    deployer.deploy()
+
 
 # =============================================================================
 # Documentation Sync Command
@@ -2173,14 +2426,14 @@ if __name__ == "__main__":
 def cmd_sync_docs(args):
     """Synchronize AI agent memory files across platforms."""
     from htmlgraph.sync_docs import check_all_files, sync_all_files, generate_platform_file
-    
+
     project_root = Path(args.project_root or os.getcwd()).resolve()
-    
+
     if args.check:
         # Check mode
         print("🔍 Checking memory files...")
         results = check_all_files(project_root)
-        
+
         print("\nStatus:")
         all_good = True
         for filename, status in results.items():
@@ -2196,46 +2449,50 @@ def cmd_sync_docs(args):
                 else:
                     print(f"  ⚠️  {filename} missing reference")
                     all_good = False
-        
+
         if all_good:
             print("\n✅ All files are properly synchronized!")
             return 0
         else:
             print("\n⚠️  Some files need attention")
             return 1
-    
+
     elif args.generate:
         # Generate mode
         platform = args.generate.lower()
         print(f"📝 Generating {platform.upper()} memory file...")
-        
+
         try:
             content = generate_platform_file(platform, project_root)
             from htmlgraph.sync_docs import PLATFORM_TEMPLATES
             template = PLATFORM_TEMPLATES[platform]
             filepath = project_root / template["filename"]
-            
+
             if filepath.exists() and not args.force:
                 print(f"⚠️  {filepath.name} already exists. Use --force to overwrite.")
                 return 1
-            
+
             filepath.write_text(content)
             print(f"✅ Created: {filepath}")
             print(f"\nThe file references AGENTS.md for core documentation.")
             return 0
-        
+
         except ValueError as e:
             print(f"❌ Error: {e}")
             return 1
-    
+
     else:
         # Sync mode (default)
         print("🔄 Synchronizing memory files...")
         changes = sync_all_files(project_root)
-        
+
         print("\nResults:")
         for change in changes:
             print(f"  {change}")
-        
+
         return 1 if any("⚠️" in c or "❌" in c for c in changes) else 0
+
+
+if __name__ == "__main__":
+    main()
 

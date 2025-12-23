@@ -155,6 +155,11 @@ class Node(BaseModel):
     plan_task_id: str | None = None  # Which plan task this feature implements
     spec_requirements: list[str] = Field(default_factory=list)  # Which spec requirements this satisfies
 
+    # Agent capabilities and routing (Phase 3: Smart Routing)
+    required_capabilities: list[str] = Field(default_factory=list)  # Required skills/tools for this task
+    complexity: Literal["low", "medium", "high", "very-high"] | None = None  # Task complexity
+    estimated_effort: float | None = None  # Estimated hours to complete
+
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
         if not self.id or not str(self.id).strip():
@@ -291,6 +296,16 @@ class Node(BaseModel):
         # Track ID attribute
         track_attr = f' data-track-id="{self.track_id}"' if self.track_id else ""
 
+        # Capability attributes (Phase 3: Smart Routing)
+        capability_attrs = ""
+        if self.required_capabilities:
+            caps_str = ",".join(self.required_capabilities)
+            capability_attrs += f' data-required-capabilities="{caps_str}"'
+        if self.complexity:
+            capability_attrs += f' data-complexity="{self.complexity}"'
+        if self.estimated_effort is not None:
+            capability_attrs += f' data-estimated-effort="{self.estimated_effort}"'
+
         return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -306,7 +321,7 @@ class Node(BaseModel):
              data-status="{self.status}"
              data-priority="{self.priority}"
              data-created="{self.created.isoformat()}"
-             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}>
+             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}{capability_attrs}>
 
         <header>
             <h1>{self.title}</h1>
