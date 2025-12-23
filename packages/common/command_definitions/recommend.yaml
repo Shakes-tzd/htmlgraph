@@ -1,0 +1,69 @@
+name: recommend
+short_description: Get smart recommendations on what to work on next
+category: analytics
+
+parameters:
+  - name: --count
+    required: false
+    type: integer
+    default: 3
+    description: Number of recommendations to show
+
+  - name: --check-bottlenecks
+    required: false
+    type: boolean
+    default: true
+    description: Also show bottlenecks
+
+usage: |
+  /htmlgraph:recommend [--count N] [--check-bottlenecks]
+
+examples:
+  - command: /htmlgraph:recommend
+    description: Get top 3 recommendations with bottleneck check
+
+  - command: /htmlgraph:recommend --count 5
+    description: Get top 5 recommendations
+
+  - command: /htmlgraph:recommend --no-check-bottlenecks
+    description: Recommendations only, skip bottleneck analysis
+
+sdk_method: recommend_next_work
+sdk_parameters:
+  agent_count: "{count}"
+
+output_template: |
+  ## Work Recommendations
+
+  {bottlenecks_section}
+
+  ### Top {count} Recommendations
+
+  {recommendations}
+
+  ---
+  💡 Use `/htmlgraph:plan` to start planning any of these items.
+
+behavior:
+  claude_code: |
+    ```python
+    from htmlgraph import SDK
+
+    sdk = SDK(agent="claude")
+
+    # Get recommendations
+    recs = sdk.recommend_next_work(agent_count=args.count)
+
+    # Optionally check bottlenecks
+    bottlenecks = []
+    if args.check_bottlenecks:
+        bottlenecks = sdk.find_bottlenecks(top_n=3)
+
+    print(format_recommendations(recs, bottlenecks))
+    ```
+
+  codex: |
+    Same as claude_code but with agent="codex"
+
+  gemini: |
+    Same as claude_code but with agent="gemini"

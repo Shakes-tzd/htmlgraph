@@ -1,6 +1,6 @@
 # /htmlgraph:end
 
-End the current session gracefully.
+End the current session and record work summary
 
 ## Usage
 
@@ -8,19 +8,66 @@ End the current session gracefully.
 /htmlgraph:end
 ```
 
+## Parameters
+
+
+
+## Examples
+
+```bash
+/htmlgraph:end
+```
+Gracefully end the current session and show work summary
+
+
+
 ## Instructions for Claude
 
-### End the session:
-```bash
-# Get session summary before ending
-htmlgraph session list --limit 1
+This command uses the SDK's `None()` method.
 
-# End the session
-htmlgraph session end
+### Implementation:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Parse arguments
+**DO THIS:**
+
+1. **Run these commands to capture session info:**
+   ```bash
+   htmlgraph session list --limit 1
+   htmlgraph session end
+   ```
+
+2. **Parse the output** to extract:
+   - Session ID
+   - Session duration
+   - Event count
+   - Features worked on
+   - Activity summary
+
+3. **Present the session summary** using the output template above
+
+4. **Include the summary of accomplishments:**
+   - List features worked on during this session
+   - Show any steps marked as complete
+   - Acknowledge progress made
+
+5. **Provide next-session guidance:**
+   - Mention how to view dashboard: `htmlgraph serve`
+   - Suggest next steps for the next session
+   - Link to session record in `.htmlgraph/sessions/`
+
+6. **CRITICAL CONSTRAINT:**
+   - ONLY run `/htmlgraph:end` when the user explicitly requests it
+   - Do NOT automatically end sessions
+   - Wait for explicit user command
 ```
 
-### Present summary:
-```markdown
+### Output Format:
+
 ## Session Ended
 
 **Session ID:** {session_id}
@@ -28,16 +75,12 @@ htmlgraph session end
 **Events:** {event_count}
 
 ### Work Summary
-{List features worked on with activity counts}
+{features_worked_on_with_counts}
 
 ### Progress Made
-- {Summary of what was accomplished}
+- {accomplishment_summary}
 
 ---
 
 Session recorded in `.htmlgraph/sessions/`
 View dashboard: `htmlgraph serve`
-```
-
-### Important
-Do NOT automatically end sessions - only run this when the user explicitly requests it with `/htmlgraph:end`.

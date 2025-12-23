@@ -543,6 +543,162 @@ uv run htmlgraph feature complete <feature-id>
 - CLI: Quick one-off shell command
 - SDK: Everything else (faster, more powerful, better for scripts)
 
+---
+
+## Strategic Planning & Dependency Analytics
+
+**NEW:** HtmlGraph now provides intelligent analytics to help you make smart decisions about what to work on next.
+
+### Quick Start: Get Recommendations
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Get smart recommendations on what to work on
+recs = sdk.recommend_next_work(agent_count=1)
+if recs:
+    best = recs[0]
+    print(f"💡 Work on: {best['title']}")
+    print(f"   Score: {best['score']:.1f}")
+    print(f"   Why: {', '.join(best['reasons'])}")
+```
+
+### Available Strategic Planning Features
+
+#### 1. Find Bottlenecks 🚧
+
+Identify tasks blocking the most downstream work:
+
+```python
+bottlenecks = sdk.find_bottlenecks(top_n=5)
+
+for bn in bottlenecks:
+    print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
+    print(f"Impact score: {bn['impact_score']}")
+```
+
+**Returns**: List of dicts with `id`, `title`, `status`, `priority`, `blocks_count`, `impact_score`, `blocked_tasks`
+
+#### 2. Get Parallel Work ⚡
+
+Find tasks that can be worked on simultaneously:
+
+```python
+parallel = sdk.get_parallel_work(max_agents=5)
+
+print(f"Can work on {parallel['max_parallelism']} tasks at once")
+print(f"Ready now: {parallel['ready_now']}")
+```
+
+**Returns**: Dict with `max_parallelism`, `ready_now`, `total_ready`, `level_count`, `next_level`
+
+#### 3. Recommend Next Work 💡
+
+Get smart recommendations considering priority, dependencies, and impact:
+
+```python
+recs = sdk.recommend_next_work(agent_count=3)
+
+for rec in recs:
+    print(f"{rec['title']} (score: {rec['score']})")
+    print(f"Reasons: {rec['reasons']}")
+    print(f"Unlocks: {rec['unlocks_count']} tasks")
+```
+
+**Returns**: List of dicts with `id`, `title`, `priority`, `score`, `reasons`, `estimated_hours`, `unlocks_count`, `unlocks`
+
+#### 4. Assess Risks ⚠️
+
+Check for dependency-related risks:
+
+```python
+risks = sdk.assess_risks()
+
+if risks['high_risk_count'] > 0:
+    print(f"Warning: {risks['high_risk_count']} high-risk tasks")
+    for task in risks['high_risk_tasks']:
+        print(f"  {task['title']}: {task['risk_factors']}")
+
+if risks['circular_dependencies']:
+    print("Circular dependencies detected!")
+```
+
+**Returns**: Dict with `high_risk_count`, `high_risk_tasks`, `circular_dependencies`, `orphaned_count`, `recommendations`
+
+#### 5. Analyze Impact 📊
+
+See what completing a task will unlock:
+
+```python
+impact = sdk.analyze_impact("feature-001")
+
+print(f"Unlocks {impact['completion_impact']:.1f}% of remaining work")
+print(f"Affects {impact['total_impact']} downstream tasks")
+```
+
+**Returns**: Dict with `node_id`, `direct_dependents`, `total_impact`, `completion_impact`, `unlocks_count`, `affected_tasks`
+
+### Recommended Decision Flow
+
+At the start of each work session:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# 1. Check for bottlenecks
+bottlenecks = sdk.find_bottlenecks(top_n=3)
+if bottlenecks:
+    print(f"⚠️  {len(bottlenecks)} bottlenecks found")
+
+# 2. Get recommendations
+recs = sdk.recommend_next_work(agent_count=1)
+if recs:
+    best = recs[0]
+    print(f"\n💡 RECOMMENDED: {best['title']}")
+    print(f"   Score: {best['score']:.1f}")
+    print(f"   Reasons: {', '.join(best['reasons'][:2])}")
+
+    # 3. Analyze impact
+    impact = sdk.analyze_impact(best['id'])
+    print(f"   Impact: Unlocks {impact['unlocks_count']} tasks")
+
+# 4. Check for parallel work (if coordinating)
+parallel = sdk.get_parallel_work(max_agents=3)
+if parallel['total_ready'] > 1:
+    print(f"\n⚡ {parallel['total_ready']} tasks available in parallel")
+```
+
+### When to Use Each Feature
+
+- **find_bottlenecks()**: At session start, during sprint planning
+- **recommend_next_work()**: When deciding what task to pick up
+- **get_parallel_work()**: When coordinating multiple agents
+- **assess_risks()**: During project health checks, before milestones
+- **analyze_impact()**: When choosing between high-effort tasks
+
+### Advanced: Direct Analytics Access
+
+For advanced use cases, access the full analytics engine:
+
+```python
+# Access Pydantic models with all fields
+analytics = sdk.dep_analytics
+
+bottlenecks = analytics.find_bottlenecks(top_n=5, min_impact=1.0)
+parallel = analytics.find_parallelizable_work(status="todo")
+recs = analytics.recommend_next_tasks(agent_count=3, lookahead=5)
+risk = analytics.assess_dependency_risk(spof_threshold=2)
+impact = analytics.impact_analysis("feature-001")
+```
+
+**See also**: `docs/AGENT_STRATEGIC_PLANNING.md` for complete guide
+
+---
+
 ## Work Type Classification (Phase 1)
 
 **NEW: HtmlGraph now automatically categorizes all work by type to differentiate exploratory work from implementation.**

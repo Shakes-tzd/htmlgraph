@@ -1,0 +1,75 @@
+name: spike
+short_description: Create a research/planning spike
+category: planning
+
+parameters:
+  - name: title
+    required: true
+    type: string
+    description: Spike title (e.g., "Research authentication options")
+
+  - name: --context
+    required: false
+    type: string
+    default: ""
+    description: Background information for the spike
+
+  - name: --timebox
+    required: false
+    type: float
+    default: 4.0
+    description: Time limit in hours
+
+usage: |
+  /htmlgraph:spike <title> [--context TEXT] [--timebox HOURS]
+
+examples:
+  - command: /htmlgraph:spike "Research OAuth providers"
+    description: Create a 4-hour research spike
+
+  - command: /htmlgraph:spike "Investigate caching strategies" --timebox 2
+    description: Create a 2-hour spike
+
+  - command: /htmlgraph:spike "Plan data migration" --context "Moving from SQL to NoSQL"
+    description: Spike with background context
+
+sdk_method: start_planning_spike
+sdk_parameters:
+  title: "{title}"
+  context: "{context}"
+  timebox_hours: "{timebox}"
+  auto_start: true
+
+output_template: |
+  ## Spike Created
+
+  **ID:** {id}
+  **Title:** {title}
+  **Status:** {status}
+  **Timebox:** {timebox_hours} hours
+
+  ### Steps
+  {steps}
+
+  Spike is now active. Complete the steps to finish planning.
+
+behavior:
+  claude_code: |
+    ```python
+    from htmlgraph import SDK
+
+    sdk = SDK(agent="claude")
+    spike = sdk.start_planning_spike(
+        title=args.title,
+        context=args.context or "",
+        timebox_hours=args.timebox
+    )
+
+    print(format_spike_output(spike))
+    ```
+
+  codex: |
+    Same as claude_code but with agent="codex"
+
+  gemini: |
+    Same as claude_code but with agent="gemini"

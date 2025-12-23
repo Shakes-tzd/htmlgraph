@@ -400,6 +400,59 @@ uv run htmlgraph feature list --status in-progress
 
 ---
 
+## Strategic Planning & Dependency Analytics
+
+**NEW:** HtmlGraph provides intelligent analytics to help you make smart decisions about what to work on next.
+
+### Quick Start
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="gemini")
+
+# Get smart recommendations
+recs = sdk.recommend_next_work(agent_count=1)
+if recs:
+    best = recs[0]
+    print(f"💡 Work on: {best['title']}")
+    print(f"   Why: {', '.join(best['reasons'])}")
+```
+
+### Available Features
+
+1. **find_bottlenecks()** - Identify tasks blocking the most work
+2. **get_parallel_work()** - Find tasks that can run simultaneously
+3. **recommend_next_work()** - Get smart recommendations with scores
+4. **assess_risks()** - Check for dependency issues (SPOFs, cycles)
+5. **analyze_impact()** - See what completing a task unlocks
+
+### Example: Decision Flow
+
+```python
+sdk = SDK(agent="gemini")
+
+# Check bottlenecks
+bottlenecks = sdk.find_bottlenecks(top_n=3)
+if bottlenecks:
+    print(f"⚠️  {len(bottlenecks)} bottlenecks")
+
+# Get recommendations
+recs = sdk.recommend_next_work(agent_count=1)
+if recs:
+    best = recs[0]
+    print(f"💡 RECOMMENDED: {best['title']}")
+    print(f"   Score: {best['score']:.1f}")
+
+    # Analyze impact
+    impact = sdk.analyze_impact(best['id'])
+    print(f"   Unlocks: {impact['unlocks_count']} tasks")
+```
+
+**See**: `docs/AGENT_STRATEGIC_PLANNING.md` for complete guide
+
+---
+
 ## Work Type Classification (Phase 1)
 
 **NEW: HtmlGraph now automatically categorizes all work by type to differentiate exploratory work from implementation.**

@@ -1,0 +1,58 @@
+name: feature-primary
+short_description: Set the primary feature for activity attribution
+category: feature-management
+
+parameters:
+  - name: feature-id
+    type: string
+    required: true
+    description: The feature ID to set as primary
+
+usage: |
+  /htmlgraph:feature-primary <feature-id>
+
+examples:
+  - command: /htmlgraph:feature-primary feature-001
+    description: Set feature-001 as the primary feature for activity attribution
+
+sdk_method: null  # Uses CLI commands directly
+cli_commands:
+  - htmlgraph feature primary <feature-id>
+
+output_template: |
+  ## Primary Feature Set
+
+  **ID:** {feature_id}
+  **Title:** {title}
+
+  All subsequent activity will be attributed to this feature unless it matches another feature's patterns better.
+
+  ### Other Active Features
+  {other_active_features}
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Run this command:**
+       ```bash
+       htmlgraph feature primary <feature-id>
+       ```
+
+    2. **Parse the output** to extract:
+       - The feature ID and title
+       - Confirmation that it was set as primary
+       - List of other in-progress features
+
+    3. **Present a summary** using the output template above
+
+    4. **Inform the user:**
+       - All new activity will be attributed to this feature by default
+       - The feature's patterns can override this for matching activity
+       - Other features remain in progress and can be worked on
+
+  codex: |
+    Same instructions as Claude Code
+
+  gemini: |
+    Same instructions as Claude Code

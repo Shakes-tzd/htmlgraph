@@ -1,0 +1,62 @@
+name: serve
+short_description: Start the dashboard server
+category: development
+
+parameters:
+  - name: port
+    type: integer
+    required: false
+    default: 8080
+    description: Port number for the dashboard server
+
+usage: |
+  /htmlgraph:serve [port]
+
+examples:
+  - command: /htmlgraph:serve
+    description: Start dashboard on default port 8080
+  - command: /htmlgraph:serve 3000
+    description: Start dashboard on port 3000
+
+sdk_method: null  # Uses CLI commands directly
+cli_commands:
+  - htmlgraph serve --port ${port:-8080}
+
+output_template: |
+  ## Dashboard Running
+
+  **URL:** http://localhost:{port}
+
+  The dashboard shows:
+  - Feature progress and kanban board
+  - Session history with activity logs
+  - Graph visualization of dependencies
+
+  Press Ctrl+C to stop the server.
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Start the server:**
+       ```bash
+       htmlgraph serve --port ${port:-8080}
+       ```
+
+    2. **Present the dashboard output** using the output template above
+
+    3. **Explain the dashboard features:**
+       - Real-time feature progress tracking
+       - Kanban board for task organization
+       - Session activity logs
+       - Dependency graph visualization
+
+    4. **Provide instructions** for stopping the server:
+       - Press Ctrl+C to stop
+       - Or use background mode: `htmlgraph serve --port {port} &`
+
+  codex: |
+    Same instructions as Claude Code
+
+  gemini: |
+    Same instructions as Claude Code

@@ -1,0 +1,69 @@
+name: track
+short_description: Manually track an activity or note
+category: session
+
+parameters:
+  - name: tool
+    type: string
+    required: true
+    description: The tool/action type (e.g., "Note", "Decision", "Research")
+  - name: summary
+    type: string
+    required: true
+    description: Description of the activity
+  - name: files
+    type: array
+    required: false
+    description: Related files
+
+usage: |
+  /htmlgraph:track <tool> <summary> [--files file1 file2]
+
+examples:
+  - command: /htmlgraph:track "Decision" "Chose React over Vue for frontend" --files src/components/App.tsx
+    description: Track a decision with related files
+  - command: /htmlgraph:track "Research" "Investigated auth options JWT vs sessions"
+    description: Track research activity
+  - command: /htmlgraph:track "Note" "User prefers dark mode as default"
+    description: Track a general note
+
+sdk_method: null  # Uses CLI commands directly
+cli_commands:
+  - htmlgraph track {tool} {summary} --files {files}
+
+output_template: |
+  ## Activity Tracked
+
+  **Type:** {tool}
+  **Summary:** {summary}
+  **Attributed to:** {feature_id or "No active feature"}
+
+  Activity recorded in current session.
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Call the track command** with the provided arguments:
+       ```bash
+       htmlgraph track "<tool>" "<summary>" --files <file1> <file2>
+       ```
+
+    2. **Parse the output** to extract:
+       - Activity type
+       - Summary text
+       - Feature attribution
+       - Confirmation message
+
+    3. **Present a summary** using the output template above
+
+    4. **Confirm the action:**
+       - Show what was tracked
+       - Link to active feature if applicable
+       - Suggest next steps if needed
+
+  codex: |
+    Same instructions as Claude Code
+
+  gemini: |
+    Same instructions as Claude Code

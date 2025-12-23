@@ -1,0 +1,85 @@
+name: init
+short_description: Initialize HtmlGraph in a project
+category: utilities
+
+parameters: []
+
+usage: |
+  /htmlgraph:init
+
+examples:
+  - command: /htmlgraph:init
+    description: Set up HtmlGraph directory structure in project
+
+sdk_method: null  # Uses CLI commands directly
+cli_commands:
+  - ls -la .htmlgraph
+  - htmlgraph init
+  - htmlgraph status
+
+output_template: |
+  ## HtmlGraph Initialized
+
+  Created `.htmlgraph/` directory with:
+  - `features/` - Feature HTML files
+  - `sessions/` - Session HTML files
+  - `bugs/` - Bug tracking (optional)
+
+  ### Next Steps
+  1. Add features: `htmlgraph feature add "Feature title"`
+  2. Start working: `htmlgraph feature start <id>`
+  3. View dashboard: `htmlgraph serve`
+
+  ### Dashboard
+  Open in a browser or run:
+  ```bash
+  htmlgraph serve
+  # Open http://localhost:8080
+  ```
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Check if already initialized:**
+       ```bash
+       ls -la .htmlgraph 2>/dev/null || echo "Not initialized"
+       ```
+
+    2. **Determine initialization status:**
+       - If `.htmlgraph/` exists → Already initialized, skip step 3
+       - If not found → Proceed to initialize
+
+    3. **If not initialized, run initialization:**
+       ```bash
+       htmlgraph init
+       ```
+
+    4. **Verify initialization completed:**
+       ```bash
+       ls -la .htmlgraph/
+       htmlgraph status
+       ```
+
+    5. **Parse the output** to confirm:
+       - `.htmlgraph/` directory created
+       - Subdirectories created: `features/`, `sessions/`, `bugs/`
+       - Status command succeeds
+
+    6. **Present the summary** using the output template above
+
+    7. **Guide next steps:**
+       - How to add features: `htmlgraph feature add "title"`
+       - How to start working: `htmlgraph feature start <id>`
+       - How to access dashboard: `htmlgraph serve`
+
+    8. **Highlight key point:**
+       - All subsequent work will be tracked automatically
+       - Use SDK for all operations (never edit `.htmlgraph/` files directly)
+       - Access dashboard to view progress visually
+
+  codex: |
+    Same instructions as Claude Code
+
+  gemini: |
+    Same instructions as Claude Code

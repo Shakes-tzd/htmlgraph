@@ -1,0 +1,77 @@
+name: plan
+short_description: Start planning a new track with spike or create directly
+category: planning
+
+parameters:
+  - name: description
+    required: true
+    type: string
+    description: What you want to plan (e.g., "User authentication system")
+
+  - name: --spike
+    required: false
+    type: boolean
+    default: true
+    description: Create a planning spike first (recommended for complex work)
+
+  - name: --timebox
+    required: false
+    type: float
+    default: 4.0
+    description: Time limit for spike in hours
+
+usage: |
+  /htmlgraph:plan <description> [--spike] [--timebox HOURS]
+
+examples:
+  - command: /htmlgraph:plan "User authentication system"
+    description: Create a planning spike for auth system (4h timebox)
+
+  - command: /htmlgraph:plan "Real-time notifications" --timebox 3
+    description: Create planning spike with 3-hour timebox
+
+  - command: /htmlgraph:plan "Simple bug fix dashboard" --no-spike
+    description: Create track directly without spike
+
+sdk_method: smart_plan
+sdk_parameters:
+  description: "{description}"
+  create_spike: "{spike}"
+  timebox_hours: "{timebox}"
+
+output_template: |
+  ## Planning Started
+
+  **Type:** {type}
+  **Title:** {title}
+  **Status:** {status}
+
+  ### Project Context
+  - Bottlenecks: {project_context.bottlenecks_count}
+  - High-risk items: {project_context.high_risk_count}
+  - Parallel capacity: {project_context.parallel_capacity}
+
+  ### Next Steps
+  {next_steps}
+
+behavior:
+  claude_code: |
+    ```python
+    from htmlgraph import SDK
+
+    sdk = SDK(agent="claude")
+    result = sdk.smart_plan(
+        description=args.description,
+        create_spike=args.spike,
+        timebox_hours=args.timebox
+    )
+
+    # Format and display result
+    print(format_output(result))
+    ```
+
+  codex: |
+    Same as claude_code but with agent="codex"
+
+  gemini: |
+    Same as claude_code but with agent="gemini"

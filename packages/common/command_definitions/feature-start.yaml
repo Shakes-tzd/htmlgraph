@@ -1,0 +1,81 @@
+name: feature-start
+short_description: Start working on a feature (moves it to in-progress)
+category: features
+
+parameters:
+  - name: feature-id
+    type: string
+    required: false
+    description: The feature ID to start working on. If not provided, lists available features.
+
+usage: |
+  /htmlgraph:feature-start [feature-id]
+
+examples:
+  - command: /htmlgraph:feature-start feature-001
+    description: Start working on feature-001
+  - command: /htmlgraph:feature-start
+    description: List available features and prompt for selection
+
+sdk_method: null  # Uses CLI commands directly
+
+cli_commands:
+  - htmlgraph feature list --status todo
+  - htmlgraph feature start <feature-id>
+
+output_template: |
+  ## Started: {feature_title}
+
+  **ID:** {feature_id}
+  **Status:** in-progress
+
+  ### Description
+  {feature_description}
+
+  ### Steps
+  {implementation_steps}
+
+  ---
+
+  All activity will now be attributed to this feature.
+  What would you like to work on first?
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Check if feature-id provided:**
+       - If YES → Go to step 3
+       - If NO → Go to step 2
+
+    2. **List available features and prompt:**
+       ```bash
+       htmlgraph feature list --status todo
+       ```
+       - Parse the output to show available features
+       - Ask the user which feature they want to start
+       - Wait for user response
+       - Use the selected feature-id for next step
+
+    3. **Start the feature:**
+       ```bash
+       htmlgraph feature start <feature-id>
+       ```
+
+    4. **Parse the output** to extract:
+       - Feature title and ID
+       - Current status (should be in-progress)
+       - Feature description
+       - Implementation steps (if any)
+
+    5. **Present the feature context** using the output template above
+
+    6. **Confirm readiness:**
+       - Show the feature details clearly
+       - Ask what the user would like to work on first
+
+  codex: |
+    Same instructions as Claude Code
+
+  gemini: |
+    Same instructions as Claude Code

@@ -1,0 +1,68 @@
+name: feature-add
+short_description: Add a new feature to the backlog
+category: feature-management
+
+parameters:
+  - name: title
+    type: string
+    required: false
+    description: The feature title. If not provided, ask the user.
+
+usage: |
+  /htmlgraph:feature-add [title]
+
+examples:
+  - command: /htmlgraph:feature-add User Authentication
+    description: Add a new feature with the title "User Authentication"
+  - command: /htmlgraph:feature-add
+    description: Prompt the user for a feature title
+
+sdk_method: null  # Uses CLI commands directly
+
+cli_commands:
+  - htmlgraph feature add
+  - htmlgraph feature list
+
+output_template: |
+  ## Feature Added
+
+  **ID:** {feature_id}
+  **Title:** {title}
+  **Status:** todo
+
+  Start working on it with:
+  ```bash
+  htmlgraph feature start {feature_id}
+  ```
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Check if title is provided:**
+       - If title argument provided → proceed to step 2
+       - If no title → ask the user: "What feature would you like to add?"
+
+    2. **Create the feature:**
+       ```bash
+       htmlgraph feature add "<title>"
+       ```
+
+    3. **List features to show the new one:**
+       ```bash
+       htmlgraph feature list
+       ```
+
+    4. **Present confirmation** using the output template above with:
+       - feature_id: The ID of the newly created feature
+       - title: The feature title provided or entered by user
+
+    5. **Suggest next steps:**
+       - Show command to start working: `htmlgraph feature start {feature_id}`
+       - Optionally suggest `/htmlgraph:plan` to plan the feature
+
+  codex: |
+    Same instructions as Claude Code
+
+  gemini: |
+    Same instructions as Claude Code

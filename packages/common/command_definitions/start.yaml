@@ -1,0 +1,137 @@
+name: start
+short_description: Start a new session with context continuity and status overview
+category: session_management
+
+parameters: []
+
+usage: |
+  /htmlgraph:start
+
+examples:
+  - command: /htmlgraph:start
+    description: Begin a new development session and choose what to work on
+
+sdk_method: null  # Uses CLI commands + SDK analytics
+cli_commands:
+  - htmlgraph status
+  - htmlgraph feature list
+  - htmlgraph session list
+  - git log --oneline -5
+sdk_analytics:
+  - recommend_next_work(agent_count=3)
+  - find_bottlenecks(top_n=3)
+  - get_parallel_work(max_agents=3)
+
+output_template: |
+  ## Session Status
+
+  **Project:** {project_name}
+  **Progress:** {completed}/{total} features ({percentage}%)
+  **Active Features (WIP):** {in_progress_count}
+
+  ---
+
+  ### Previous Session
+  {summarize_previous_work}
+
+  ---
+
+  ### Current Feature(s)
+  **Working On:** {feature_descriptions}
+  **Status:** in_progress
+
+  #### Step Progress
+  {step_checklist}
+
+  ---
+
+  ### Recent Commits
+  {last_5_commits}
+
+  ---
+
+  ### 🎯 Strategic Insights
+
+  #### Bottlenecks ({bottleneck_count})
+  {bottleneck_list}
+
+  #### Top Recommendations
+  {recommendation_list}
+
+  #### Parallel Work
+  **Can work on {max_parallelism} tasks simultaneously**
+  - {parallel_ready_count} tasks ready now
+
+  ---
+
+  ## What would you like to work on?
+
+  Based on strategic analysis, I recommend:
+  1. **{top_recommendation}** (score: {top_score})
+     - Why: {top_reasons}
+  2. Continue with current feature
+  3. Start a different feature
+  4. Create new work item (`/htmlgraph:plan`)
+  5. Something else
+
+behavior:
+  claude_code: |
+    **DO THIS:**
+
+    1. **Run CLI commands to get basic status:**
+       ```bash
+       htmlgraph status
+       htmlgraph feature list
+       htmlgraph session list
+       git log --oneline -5
+       ```
+
+    2. **Run SDK analytics to get strategic insights:**
+       ```python
+       from htmlgraph import SDK
+
+       sdk = SDK(agent="claude")
+
+       # Get strategic insights
+       recommendations = sdk.recommend_next_work(agent_count=3)
+       bottlenecks = sdk.find_bottlenecks(top_n=3)
+       parallel = sdk.get_parallel_work(max_agents=3)
+       ```
+
+    3. **Parse all outputs** to extract:
+       - Basic status: project name, completion %, active features
+       - Currently in-progress features with step progress
+       - Recent commit history
+       - Bottlenecks: count, titles, impact scores
+       - Recommendations: top 3 with scores and reasons
+       - Parallel capacity: max parallelism, ready tasks
+
+    4. **Present the comprehensive summary** using the output template above
+
+    5. **Recommend specific next action** based on analytics:
+       - If bottlenecks exist → Highlight them as priority
+       - If recommendations available → Show top recommendation with score
+       - If parallel capacity > 1 → Mention coordination opportunity
+       - Default → Continue current work or start new
+
+    6. **Ask the user what they want to work on** with data-driven options
+
+    7. **Wait for user direction** before taking any action
+
+    8. **Apply constraints:**
+       - Maximum 3 features can be in progress (WIP limit)
+       - Prioritize unblocking bottlenecks
+       - Prioritize finishing existing work over starting new
+       - Use SDK for all operations
+       - Mark steps complete immediately after finishing
+
+    9. **Remind the user:**
+       - All activity is automatically tracked to features
+       - View progress in browser: `htmlgraph serve` → http://localhost:8080
+       - Use `/htmlgraph:plan` to start new work with proper planning
+
+  codex: |
+    Same instructions as Claude Code but with agent="codex"
+
+  gemini: |
+    Same instructions as Claude Code but with agent="gemini"

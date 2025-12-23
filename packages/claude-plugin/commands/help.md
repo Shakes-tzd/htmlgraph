@@ -1,6 +1,6 @@
 # /htmlgraph:help
 
-Show available HtmlGraph commands.
+Display available HtmlGraph commands and usage
 
 ## Usage
 
@@ -8,11 +8,60 @@ Show available HtmlGraph commands.
 /htmlgraph:help
 ```
 
+## Parameters
+
+
+
+## Examples
+
+```bash
+/htmlgraph:help
+```
+Show all available commands and their descriptions
+
+
+
 ## Instructions for Claude
 
-Present the following help text:
+This command uses the SDK's `None()` method.
 
-```markdown
+### Implementation:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Parse arguments
+**DO THIS:**
+
+1. **Retrieve help text:**
+   ```bash
+   htmlgraph --help
+   ```
+
+2. **Present the complete help message** using the output template above
+
+3. **Organize by categories:**
+   - Session Management - user-facing workflow commands
+   - Feature Management - feature lifecycle commands
+   - Utilities - setup, dashboard, and tracking
+   - CLI Commands - direct CLI usage alternatives
+   - Dashboard - browser-based viewing instructions
+
+4. **Make it actionable:**
+   - Each command includes a description of what it does
+   - Include usage examples where applicable
+   - Provide CLI equivalents for power users
+
+5. **Highlight key information:**
+   - Dashboard access: `htmlgraph serve` → http://localhost:8080
+   - All commands start with `/htmlgraph:` for consistency
+   - CLI is available as alternative interface
+```
+
+### Output Format:
+
 ## HtmlGraph Commands
 
 ### Session Management
@@ -45,5 +94,4 @@ View progress in browser:
 ```bash
 htmlgraph serve
 # Open http://localhost:8080
-```
 ```

@@ -1,6 +1,6 @@
 # /htmlgraph:track
 
-Manually track an activity or note.
+Manually track an activity or note
 
 ## Usage
 
@@ -8,33 +8,67 @@ Manually track an activity or note.
 /htmlgraph:track <tool> <summary> [--files file1 file2]
 ```
 
-## Arguments
+## Parameters
 
 - `tool` (required): The tool/action type (e.g., "Note", "Decision", "Research")
 - `summary` (required): Description of the activity
-- `--files` (optional): Related files
+- `files` (optional): Related files
+
+
+## Examples
+
+```bash
+/htmlgraph:track "Decision" "Chose React over Vue for frontend" --files src/components/App.tsx
+```
+Track a decision with related files
+
+```bash
+/htmlgraph:track "Research" "Investigated auth options JWT vs sessions"
+```
+Track research activity
+
+```bash
+/htmlgraph:track "Note" "User prefers dark mode as default"
+```
+Track a general note
+
+
 
 ## Instructions for Claude
 
-### Track activity:
-```bash
-htmlgraph track "<tool>" "<summary>" --files <file1> <file2>
+This command uses the SDK's `None()` method.
+
+### Implementation:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Parse arguments
+**DO THIS:**
+
+1. **Call the track command** with the provided arguments:
+   ```bash
+   htmlgraph track "<tool>" "<summary>" --files <file1> <file2>
+   ```
+
+2. **Parse the output** to extract:
+   - Activity type
+   - Summary text
+   - Feature attribution
+   - Confirmation message
+
+3. **Present a summary** using the output template above
+
+4. **Confirm the action:**
+   - Show what was tracked
+   - Link to active feature if applicable
+   - Suggest next steps if needed
 ```
 
-### Examples:
-```bash
-# Track a decision
-htmlgraph track "Decision" "Chose React over Vue for frontend" --files src/components/App.tsx
+### Output Format:
 
-# Track research
-htmlgraph track "Research" "Investigated auth options: JWT vs sessions"
-
-# Track a note
-htmlgraph track "Note" "User prefers dark mode as default"
-```
-
-### After tracking:
-```markdown
 ## Activity Tracked
 
 **Type:** {tool}
@@ -42,4 +76,3 @@ htmlgraph track "Note" "User prefers dark mode as default"
 **Attributed to:** {feature_id or "No active feature"}
 
 Activity recorded in current session.
-```

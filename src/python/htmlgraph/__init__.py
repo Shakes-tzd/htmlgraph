@@ -27,6 +27,7 @@ from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.sdk import SDK
 from htmlgraph.analytics import Analytics
+from htmlgraph.dependency_analytics import DependencyAnalytics
 from htmlgraph.ids import generate_id, generate_hierarchical_id, parse_id, is_valid_id, is_legacy_id
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 
@@ -59,6 +60,7 @@ __all__ = [
     "SessionManager",
     "SDK",
     "Analytics",  # Phase 2: Work Type Analytics
+    "DependencyAnalytics",  # Advanced dependency-aware analytics
     "serve",
     # ID generation (collision-resistant, multi-agent safe)
     "generate_id",

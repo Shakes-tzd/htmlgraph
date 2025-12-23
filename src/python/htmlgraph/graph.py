@@ -147,8 +147,16 @@ class HtmlGraph:
         if node.id not in self._nodes:
             raise KeyError(f"Node not found: {node.id}")
 
-        # Remove old edges from index, then add new ones
-        self._edge_index.remove_node(node.id)
+        # Get current outgoing edges from the edge index (source of truth)
+        # This handles the case where node and self._nodes[node.id] are the same object
+        old_outgoing = self._edge_index.get_outgoing(node.id)
+
+        # Remove all old OUTGOING edges (where this node is source)
+        # DO NOT use remove_node() as it removes incoming edges too!
+        for edge_ref in old_outgoing:
+            self._edge_index.remove(edge_ref.source_id, edge_ref.target_id, edge_ref.relationship)
+
+        # Add new OUTGOING edges (where this node is source)
         for relationship, edges in node.edges.items():
             for edge in edges:
                 self._edge_index.add(node.id, edge.target_id, edge.relationship)

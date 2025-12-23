@@ -1,14 +1,6 @@
 # /htmlgraph:start
 
-Session start command - provides context continuity and asks what to work on.
-
-## What This Command Does
-
-Run this at the start of every session to:
-1. See project status and WIP
-2. View current feature(s) and progress
-3. See step progress (if any)
-4. Get asked what you'd like to work on next
+Start a new session with context continuity and status overview
 
 ## Usage
 
@@ -16,92 +8,135 @@ Run this at the start of every session to:
 /htmlgraph:start
 ```
 
-## Instructions for Claude
+## Parameters
 
-When the user runs `/htmlgraph:start`, you MUST follow the **HtmlGraph Development Process**.
 
----
 
-### MANDATORY FIRST ACTION: Check Status
-
-**YOU MUST RUN THESE COMMANDS FIRST - NO EXCEPTIONS:**
+## Examples
 
 ```bash
-# Get status
-htmlgraph status
+/htmlgraph:start
+```
+Begin a new development session and choose what to work on
 
-# List features
-htmlgraph feature list
 
-# List recent sessions
-htmlgraph session list
 
-# Get recent commits
-git log --oneline -5
+## Instructions for Claude
+
+This command uses the SDK's `None()` method.
+
+### Implementation:
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Parse arguments
+**DO THIS:**
+
+1. **Run CLI commands to get basic status:**
+   ```bash
+   htmlgraph status
+   htmlgraph feature list
+   htmlgraph session list
+   git log --oneline -5
+   ```
+
+2. **Run SDK analytics to get strategic insights:**
+   ```python
+   from htmlgraph import SDK
+
+   sdk = SDK(agent="claude")
+
+   # Get strategic insights
+   recommendations = sdk.recommend_next_work(agent_count=3)
+   bottlenecks = sdk.find_bottlenecks(top_n=3)
+   parallel = sdk.get_parallel_work(max_agents=3)
+   ```
+
+3. **Parse all outputs** to extract:
+   - Basic status: project name, completion %, active features
+   - Currently in-progress features with step progress
+   - Recent commit history
+   - Bottlenecks: count, titles, impact scores
+   - Recommendations: top 3 with scores and reasons
+   - Parallel capacity: max parallelism, ready tasks
+
+4. **Present the comprehensive summary** using the output template above
+
+5. **Recommend specific next action** based on analytics:
+   - If bottlenecks exist → Highlight them as priority
+   - If recommendations available → Show top recommendation with score
+   - If parallel capacity > 1 → Mention coordination opportunity
+   - Default → Continue current work or start new
+
+6. **Ask the user what they want to work on** with data-driven options
+
+7. **Wait for user direction** before taking any action
+
+8. **Apply constraints:**
+   - Maximum 3 features can be in progress (WIP limit)
+   - Prioritize unblocking bottlenecks
+   - Prioritize finishing existing work over starting new
+   - Use SDK for all operations
+   - Mark steps complete immediately after finishing
+
+9. **Remind the user:**
+   - All activity is automatically tracked to features
+   - View progress in browser: `htmlgraph serve` → http://localhost:8080
+   - Use `/htmlgraph:plan` to start new work with proper planning
 ```
 
----
+### Output Format:
 
-### Present Status Update
-
-Format your response as follows:
-
-```markdown
 ## Session Status
 
 **Project:** {project_name}
 **Progress:** {completed}/{total} features ({percentage}%)
-**Active Features (WIP):** {count of in_progress features}
+**Active Features (WIP):** {in_progress_count}
 
 ---
 
 ### Previous Session
-{Summarize what was done, or "First session"}
+{summarize_previous_work}
 
 ---
 
 ### Current Feature(s)
-**Working On:** {feature description(s)}
+**Working On:** {feature_descriptions}
 **Status:** in_progress
 
 #### Step Progress
-- [x] Completed step
-- [ ] Pending step
+{step_checklist}
 
 ---
 
 ### Recent Commits
-{List last 3-5 commits}
+{last_5_commits}
 
 ---
 
-### What's Next
-After completing current feature(s):
-1. {next feature}
-2. {next feature}
+### 🎯 Strategic Insights
+
+#### Bottlenecks ({bottleneck_count})
+{bottleneck_list}
+
+#### Top Recommendations
+{recommendation_list}
+
+#### Parallel Work
+**Can work on {max_parallelism} tasks simultaneously**
+- {parallel_ready_count} tasks ready now
 
 ---
 
 ## What would you like to work on?
 
-Options:
-1. Continue with current feature
-2. Start a different feature (`htmlgraph feature start <id>`)
-3. Create new work item
-4. Something else
-```
-
-### Wait for User Direction
-
-After presenting the status, wait for the user to indicate what they want to do.
-
----
-
-## Key Reminders
-
-1. **USE SDK FOR ALL OPERATIONS** - `from htmlgraph import SDK` - Never edit .htmlgraph/ files directly
-2. **Parallel development OK** - Up to 3 features can be in progress (WIP limit)
-3. **Finish over start** - Complete existing work before starting new
-4. **Mark steps complete IMMEDIATELY** - Use SDK after finishing each step
-5. **All activity tracked** - Hooks attribute work to features automatically
-6. **View in browser** - Run `htmlgraph serve` and open http://localhost:8080
+Based on strategic analysis, I recommend:
+1. **{top_recommendation}** (score: {top_score})
+   - Why: {top_reasons}
+2. Continue with current feature
+3. Start a different feature
+4. Create new work item (`/htmlgraph:plan`)
+5. Something else

@@ -441,6 +441,202 @@ class AgentInterface:
         return "\n".join(lines)
 
     # =========================================================================
+    # Strategic Planning & Analytics
+    # =========================================================================
+
+    def find_bottlenecks(
+        self,
+        top_n: int = 5,
+        status_filter: list[str] | None = None
+    ) -> list[dict[str, Any]]:
+        """
+        Identify tasks blocking the most downstream work.
+
+        Args:
+            top_n: Maximum number of bottlenecks to return
+            status_filter: Filter by status (default: ["in-progress", "todo", "blocked"])
+
+        Returns:
+            List of bottleneck tasks with impact metrics
+
+        Example:
+            >>> bottlenecks = agent.find_bottlenecks(top_n=3)
+            >>> for bn in bottlenecks:
+            ...     print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
+        """
+        from htmlgraph.dependency_analytics import DependencyAnalytics
+
+        analytics = DependencyAnalytics(self.graph)
+        bottlenecks = analytics.find_bottlenecks(
+            status_filter=status_filter,
+            top_n=top_n
+        )
+
+        # Convert to agent-friendly dict format
+        return [
+            {
+                "id": bn.id,
+                "title": bn.title,
+                "status": bn.status,
+                "priority": bn.priority,
+                "blocks_count": bn.transitive_blocking,
+                "impact_score": bn.weighted_impact,
+                "blocked_tasks": bn.blocked_nodes[:5]  # Limit for readability
+            }
+            for bn in bottlenecks
+        ]
+
+    def get_parallel_work(
+        self,
+        status: str = "todo",
+        max_agents: int = 5
+    ) -> dict[str, Any]:
+        """
+        Find tasks that can be worked on simultaneously.
+
+        Args:
+            status: Filter by status (default: "todo")
+            max_agents: Maximum number of parallel agents to plan for
+
+        Returns:
+            Dict with parallelization opportunities
+
+        Example:
+            >>> parallel = agent.get_parallel_work(max_agents=3)
+            >>> print(f"Can work on {parallel['max_parallelism']} tasks at once")
+            >>> print(f"Ready now: {parallel['ready_now']}")
+        """
+        from htmlgraph.dependency_analytics import DependencyAnalytics
+
+        analytics = DependencyAnalytics(self.graph)
+        report = analytics.find_parallelizable_work(status=status)
+
+        ready_now = report.dependency_levels[0].nodes if report.dependency_levels else []
+
+        return {
+            "max_parallelism": report.max_parallelism,
+            "ready_now": ready_now[:max_agents],
+            "total_ready": len(ready_now),
+            "level_count": len(report.dependency_levels),
+            "next_level": report.dependency_levels[1].nodes if len(report.dependency_levels) > 1 else []
+        }
+
+    def recommend_next_work(
+        self,
+        agent_count: int = 1,
+        lookahead: int = 5
+    ) -> list[dict[str, Any]]:
+        """
+        Get smart recommendations for what to work on next.
+
+        Considers priority, dependencies, and transitive impact.
+
+        Args:
+            agent_count: Number of agents/tasks to recommend
+            lookahead: How many levels ahead to consider
+
+        Returns:
+            List of recommended tasks with reasoning
+
+        Example:
+            >>> recs = agent.recommend_next_work(agent_count=3)
+            >>> for rec in recs:
+            ...     print(f"{rec['title']} (score: {rec['score']})")
+            ...     print(f"  Reasons: {rec['reasons']}")
+        """
+        from htmlgraph.dependency_analytics import DependencyAnalytics
+
+        analytics = DependencyAnalytics(self.graph)
+        recommendations = analytics.recommend_next_tasks(
+            agent_count=agent_count,
+            lookahead=lookahead
+        )
+
+        return [
+            {
+                "id": rec.id,
+                "title": rec.title,
+                "priority": rec.priority,
+                "score": rec.score,
+                "reasons": rec.reasons,
+                "estimated_hours": rec.estimated_effort,
+                "unlocks_count": len(rec.unlocks),
+                "unlocks": rec.unlocks[:3]  # Show first 3
+            }
+            for rec in recommendations.recommendations
+        ]
+
+    def assess_risks(self) -> dict[str, Any]:
+        """
+        Assess dependency-related risks in the project.
+
+        Identifies single points of failure, circular dependencies,
+        and orphaned tasks.
+
+        Returns:
+            Dict with risk assessment results
+
+        Example:
+            >>> risks = agent.assess_risks()
+            >>> if risks['high_risk_count'] > 0:
+            ...     print(f"Warning: {risks['high_risk_count']} high-risk tasks")
+            >>> if risks['circular_dependencies']:
+            ...     print(f"Found {len(risks['circular_dependencies'])} cycles")
+        """
+        from htmlgraph.dependency_analytics import DependencyAnalytics
+
+        analytics = DependencyAnalytics(self.graph)
+        risk = analytics.assess_dependency_risk()
+
+        return {
+            "high_risk_count": len(risk.high_risk),
+            "high_risk_tasks": [
+                {
+                    "id": node.id,
+                    "title": node.title,
+                    "risk_score": node.risk_score,
+                    "risk_factors": [f.description for f in node.risk_factors]
+                }
+                for node in risk.high_risk
+            ],
+            "circular_dependencies": risk.circular_dependencies,
+            "orphaned_count": len(risk.orphaned_nodes),
+            "orphaned_tasks": risk.orphaned_nodes[:5],  # First 5
+            "recommendations": risk.recommendations
+        }
+
+    def analyze_impact(self, node_id: str) -> dict[str, Any]:
+        """
+        Analyze the impact of completing a specific task.
+
+        Shows what downstream work will be unblocked.
+
+        Args:
+            node_id: Task to analyze
+
+        Returns:
+            Dict with impact analysis
+
+        Example:
+            >>> impact = agent.analyze_impact("feature-001")
+            >>> print(f"Completing this unlocks {impact['unlocks_count']} tasks")
+            >>> print(f"Impact: {impact['completion_impact']}% of remaining work")
+        """
+        from htmlgraph.dependency_analytics import DependencyAnalytics
+
+        analytics = DependencyAnalytics(self.graph)
+        impact = analytics.impact_analysis(node_id)
+
+        return {
+            "node_id": node_id,
+            "direct_dependents": impact.direct_dependents,
+            "total_impact": impact.transitive_dependents,
+            "completion_impact": impact.completion_impact,
+            "unlocks_count": len(impact.affected_nodes),
+            "affected_tasks": impact.affected_nodes[:10]  # First 10
+        }
+
+    # =========================================================================
     # Utility
     # =========================================================================
 
