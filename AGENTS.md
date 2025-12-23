@@ -573,9 +573,92 @@ sdk._graph.update(feature)  # Manual save
 
 ---
 
+## Deployment & Release
+
+### Using the Deployment Script
+
+HtmlGraph includes `scripts/deploy-all.sh` to automate the entire release process:
+
+```bash
+# Run with version number
+./scripts/deploy-all.sh 0.7.1
+
+# Or auto-detect from pyproject.toml
+./scripts/deploy-all.sh
+```
+
+**What it does (7 steps):**
+1. **Git Push** - Pushes commits and tags to origin/main
+2. **Build Package** - Creates wheel and source distributions with `uv build`
+3. **Publish to PyPI** - Uploads to PyPI using token from .env
+4. **Local Install** - Installs latest version locally with pip
+5. **Update Claude Plugin** - Runs `claude plugin update htmlgraph`
+6. **Update Gemini Extension** - Updates version in gemini-extension.json
+7. **Update Codex Skill** - Checks for Codex and updates if present
+
+**Prerequisites:**
+
+Set your PyPI token in `.env` file:
+```bash
+PyPI_API_TOKEN=pypi-YOUR_TOKEN_HERE
+```
+
+**Complete Release Workflow:**
+
+```bash
+# 1. Update version numbers
+# Edit: pyproject.toml, __init__.py, plugin.json, gemini-extension.json
+
+# 2. Commit version bump
+git add pyproject.toml src/python/htmlgraph/__init__.py \
+  packages/claude-plugin/.claude-plugin/plugin.json \
+  packages/gemini-extension/gemini-extension.json
+git commit -m "chore: bump version to 0.7.1"
+
+# 3. Create git tag
+git tag v0.7.1
+git push origin main --tags
+
+# 4. Run deployment script
+./scripts/deploy-all.sh 0.7.1
+```
+
+**Manual Steps (if script fails):**
+
+```bash
+# Build
+uv build
+
+# Publish to PyPI
+source .env
+uv publish dist/htmlgraph-0.7.1* --token "$PyPI_API_TOKEN"
+
+# Install locally
+pip install --upgrade htmlgraph==0.7.1
+
+# Update plugins manually
+claude plugin update htmlgraph
+```
+
+**Verify Deployment:**
+
+```bash
+# Check PyPI
+open https://pypi.org/project/htmlgraph/
+
+# Verify local install
+python -c "import htmlgraph; print(htmlgraph.__version__)"
+
+# Test Claude plugin
+claude plugin list | grep htmlgraph
+```
+
+---
+
 ## Related Files
 
 - `src/python/htmlgraph/sdk.py` - SDK implementation
 - `src/python/htmlgraph/graph.py` - Low-level graph operations
 - `src/python/htmlgraph/agents.py` - Agent interface (wrapped by SDK)
 - `examples/sdk_demo.py` - Complete examples
+- `scripts/deploy-all.sh` - Deployment automation script

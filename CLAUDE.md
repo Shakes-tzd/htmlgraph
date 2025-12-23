@@ -1,5 +1,19 @@
 # HtmlGraph - "HTML is All You Need"
 
+---
+
+## 🤖 For AI Agents
+
+**→ See [AGENTS.md](./AGENTS.md) for complete AI agent documentation**
+
+This file (CLAUDE.md) contains project vision, architecture, and roadmap.
+
+For SDK usage, deployment instructions, and agent workflows, see:
+- **[AGENTS.md](./AGENTS.md)** - Python SDK, API, CLI, deployment, best practices
+- **[GEMINI.md](./GEMINI.md)** - Gemini-specific integration notes
+
+---
+
 ## Project Vision
 
 HtmlGraph is a lightweight graph database framework built entirely on web standards (HTML, CSS, JavaScript) for AI agent coordination and human observability. It eliminates the need for external graph databases (Neo4j, Memgraph) by using HTML files as nodes, hyperlinks as edges, and CSS selectors as the query language.
