@@ -8,16 +8,36 @@ Utility scripts for development, deployment, and maintenance.
 
 ### deploy-all.sh
 
-**Complete deployment automation for HtmlGraph releases.**
+**Flexible deployment automation with multiple modes.**
 
 **Usage:**
 ```bash
-# Deploy specific version
+# Full release
 ./scripts/deploy-all.sh 0.7.1
 
-# Auto-detect version from pyproject.toml
-./scripts/deploy-all.sh
+# Documentation only (commit + push)
+./scripts/deploy-all.sh --docs-only
+
+# Build only (no publish)
+./scripts/deploy-all.sh --build-only
+
+# Skip PyPI publish
+./scripts/deploy-all.sh 0.7.1 --skip-pypi
+
+# Preview what would happen
+./scripts/deploy-all.sh --dry-run
+
+# Show help
+./scripts/deploy-all.sh --help
 ```
+
+**Available Flags:**
+- `--docs-only` - Only commit and push to git (skip build/publish)
+- `--build-only` - Only build package (skip git/publish/install)
+- `--skip-pypi` - Skip PyPI publishing step
+- `--skip-plugins` - Skip plugin update steps
+- `--dry-run` - Show what would happen without executing
+- `--help` - Show help message
 
 **What it does (7 steps):**
 1. **Git Push** - Pushes commits and tags to origin/main
