@@ -746,10 +746,10 @@ Use `htmlgraph feature list --status todo` to see backlog.
 
 def cmd_session_dedupe(args):
     """Move low-signal session files out of the main sessions directory."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph import SDK
 
-    manager = SessionManager(args.graph_dir)
-    result = manager.dedupe_orphan_sessions(
+    sdk = SDK(directory=args.graph_dir)
+    result = sdk.dedupe_sessions(
         max_events=args.max_events,
         move_dir_name=args.move_dir,
         dry_run=args.dry_run,
@@ -969,28 +969,23 @@ def cmd_session_validate_attribution(args):
 
 def cmd_track(args):
     """Track an activity in the current session."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    agent = os.environ.get("HTMLGRAPH_AGENT")
+    sdk = SDK(directory=args.graph_dir, agent=agent)
 
-    # Find active session or use specified one
-    session_id = args.session
-    if not session_id:
-        agent = os.environ.get("HTMLGRAPH_AGENT")
-        active = manager.get_active_session(agent=agent)
-        if not active:
-            print("Error: No active session. Start one with 'htmlgraph session start'.", file=sys.stderr)
-            sys.exit(1)
-        session_id = active.id
-
-    entry = manager.track_activity(
-        session_id=session_id,
-        tool=args.tool,
-        summary=args.summary,
-        file_paths=args.files,
-        success=not args.failed
-    )
+    try:
+        entry = sdk.track_activity(
+            tool=args.tool,
+            summary=args.summary,
+            file_paths=args.files,
+            success=not args.failed,
+            session_id=args.session  # None if not specified, SDK will find active session
+        )
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     if args.format == "json":
         data = {

@@ -302,6 +302,92 @@ class SDK:
         """
         return self.session_manager.get_status()
 
+    def dedupe_sessions(
+        self,
+        max_events: int = 1,
+        move_dir_name: str = "_orphans",
+        dry_run: bool = False,
+        stale_extra_active: bool = True,
+    ) -> dict[str, int]:
+        """
+        Move low-signal sessions (e.g. SessionStart-only) out of the main sessions dir.
+
+        Args:
+            max_events: Maximum events threshold (sessions with <= this many events are moved)
+            move_dir_name: Directory name to move orphaned sessions to
+            dry_run: If True, only report what would be done without actually moving files
+            stale_extra_active: If True, also mark extra active sessions as stale
+
+        Returns:
+            Dict with counts: {"scanned": int, "moved": int, "missing": int, "staled_active": int, "kept_active": int}
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> result = sdk.dedupe_sessions(max_events=1, dry_run=False)
+            >>> print(f"Scanned: {result['scanned']}, Moved: {result['moved']}")
+        """
+        return self.session_manager.dedupe_orphan_sessions(
+            max_events=max_events,
+            move_dir_name=move_dir_name,
+            dry_run=dry_run,
+            stale_extra_active=stale_extra_active,
+        )
+
+    def track_activity(
+        self,
+        tool: str,
+        summary: str,
+        file_paths: list[str] | None = None,
+        success: bool = True,
+        feature_id: str | None = None,
+        session_id: str | None = None,
+        parent_activity_id: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> Any:
+        """
+        Track an activity in the current or specified session.
+
+        Args:
+            tool: Tool name (Edit, Bash, Read, etc.)
+            summary: Human-readable summary of the activity
+            file_paths: Files involved in this activity
+            success: Whether the tool call succeeded
+            feature_id: Explicit feature ID (skips attribution if provided)
+            session_id: Session ID (defaults to active session for current agent)
+            parent_activity_id: ID of parent activity (e.g., Skill/Task invocation)
+            payload: Optional rich payload data
+
+        Returns:
+            Created ActivityEntry with attribution
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> entry = sdk.track_activity(
+            ...     tool="CustomTool",
+            ...     summary="Performed custom analysis",
+            ...     file_paths=["src/main.py"],
+            ...     success=True
+            ... )
+            >>> print(f"Tracked: [{entry.tool}] {entry.summary}")
+        """
+        # Find active session if not specified
+        if not session_id:
+            active = self.session_manager.get_active_session(agent=self._agent_id)
+            if not active:
+                raise ValueError("No active session. Start one with sdk.start_session()")
+            session_id = active.id
+
+        return self.session_manager.track_activity(
+            session_id=session_id,
+            tool=tool,
+            summary=summary,
+            file_paths=file_paths,
+            success=success,
+            feature_id=feature_id,
+            parent_activity_id=parent_activity_id,
+            payload=payload,
+        )
+
     # =========================================================================
     # Strategic Planning & Analytics (Agent-Friendly Interface)
     # =========================================================================
