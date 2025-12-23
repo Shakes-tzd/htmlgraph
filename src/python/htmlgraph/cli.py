@@ -2359,9 +2359,6 @@ curl Examples:
         sys.exit(1)
 
 
-if __name__ == "__main__":
-    main()
-
 # =============================================================================
 # Deployment Commands
 # =============================================================================
@@ -2429,14 +2426,14 @@ def cmd_deploy_run(args):
 def cmd_sync_docs(args):
     """Synchronize AI agent memory files across platforms."""
     from htmlgraph.sync_docs import check_all_files, sync_all_files, generate_platform_file
-    
+
     project_root = Path(args.project_root or os.getcwd()).resolve()
-    
+
     if args.check:
         # Check mode
         print("🔍 Checking memory files...")
         results = check_all_files(project_root)
-        
+
         print("\nStatus:")
         all_good = True
         for filename, status in results.items():
@@ -2452,46 +2449,50 @@ def cmd_sync_docs(args):
                 else:
                     print(f"  ⚠️  {filename} missing reference")
                     all_good = False
-        
+
         if all_good:
             print("\n✅ All files are properly synchronized!")
             return 0
         else:
             print("\n⚠️  Some files need attention")
             return 1
-    
+
     elif args.generate:
         # Generate mode
         platform = args.generate.lower()
         print(f"📝 Generating {platform.upper()} memory file...")
-        
+
         try:
             content = generate_platform_file(platform, project_root)
             from htmlgraph.sync_docs import PLATFORM_TEMPLATES
             template = PLATFORM_TEMPLATES[platform]
             filepath = project_root / template["filename"]
-            
+
             if filepath.exists() and not args.force:
                 print(f"⚠️  {filepath.name} already exists. Use --force to overwrite.")
                 return 1
-            
+
             filepath.write_text(content)
             print(f"✅ Created: {filepath}")
             print(f"\nThe file references AGENTS.md for core documentation.")
             return 0
-        
+
         except ValueError as e:
             print(f"❌ Error: {e}")
             return 1
-    
+
     else:
         # Sync mode (default)
         print("🔄 Synchronizing memory files...")
         changes = sync_all_files(project_root)
-        
+
         print("\nResults:")
         for change in changes:
             print(f"  {change}")
-        
+
         return 1 if any("⚠️" in c or "❌" in c for c in changes) else 0
+
+
+if __name__ == "__main__":
+    main()
 
