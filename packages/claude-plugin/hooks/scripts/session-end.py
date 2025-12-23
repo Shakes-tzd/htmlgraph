@@ -110,6 +110,29 @@ def main():
                 )
             except Exception:
                 pass
+
+        # Optional handoff context capture (non-interactive)
+        handoff_notes = hook_input.get("handoff_notes") or os.environ.get("HTMLGRAPH_HANDOFF_NOTES")
+        recommended_next = hook_input.get("recommended_next") or os.environ.get("HTMLGRAPH_HANDOFF_RECOMMEND")
+        blockers_raw = hook_input.get("blockers") or os.environ.get("HTMLGRAPH_HANDOFF_BLOCKERS")
+        blockers = None
+        if isinstance(blockers_raw, str):
+            blockers = [b.strip() for b in blockers_raw.split(",") if b.strip()]
+        elif isinstance(blockers_raw, list):
+            blockers = [str(b).strip() for b in blockers_raw if str(b).strip()]
+
+        if active and (handoff_notes or recommended_next or blockers):
+            try:
+                manager.set_session_handoff(
+                    session_id=active.id,
+                    handoff_notes=handoff_notes,
+                    recommended_next=recommended_next,
+                    blockers=blockers,
+                )
+            except Exception:
+                pass
+        elif sys.stderr.isatty():
+            print("HtmlGraph: add handoff notes with 'uv run htmlgraph session handoff --notes ...'", file=sys.stderr)
     except Exception as e:
         print(f"Warning: Could not end session: {e}", file=sys.stderr)
 

@@ -268,6 +268,24 @@ class SessionManager:
             return self._active_session
         return self.session_converter.load(session_id)
 
+    def get_last_ended_session(self, agent: str | None = None) -> Session | None:
+        """Get the most recently ended session (optionally filtered by agent)."""
+        sessions = [s for s in self.session_converter.load_all() if s.status == "ended"]
+        if agent:
+            sessions = [s for s in sessions if s.agent == agent]
+        if not sessions:
+            return None
+
+        def sort_key(session: Session):
+            if session.ended_at:
+                return session.ended_at
+            if session.last_activity:
+                return session.last_activity
+            return session.started_at
+
+        sessions.sort(key=sort_key, reverse=True)
+        return sessions[0]
+
     def get_active_session(self, agent: str | None = None) -> Session | None:
         """
         Get the currently active session (if any).
@@ -373,12 +391,21 @@ class SessionManager:
             "staled_active": normalized.get("staled", 0),
         }
 
-    def end_session(self, session_id: str) -> Session | None:
+    def end_session(
+        self,
+        session_id: str,
+        handoff_notes: str | None = None,
+        recommended_next: str | None = None,
+        blockers: list[str] | None = None,
+    ) -> Session | None:
         """
         End a session.
 
         Args:
             session_id: Session to end
+            handoff_notes: Optional handoff notes for next session
+            recommended_next: Optional recommended next steps
+            blockers: Optional list of blockers
 
         Returns:
             Updated Session or None if not found
@@ -386,6 +413,13 @@ class SessionManager:
         session = self.get_session(session_id)
         if not session:
             return None
+
+        if handoff_notes is not None:
+            session.handoff_notes = handoff_notes
+        if recommended_next is not None:
+            session.recommended_next = recommended_next
+        if blockers is not None:
+            session.blockers = blockers
 
         session.end()
         session.add_activity(ActivityEntry(
@@ -401,6 +435,39 @@ class SessionManager:
 
         if self._active_session and self._active_session.id == session_id:
             self._active_session = None
+
+        return session
+
+    def set_session_handoff(
+        self,
+        session_id: str,
+        handoff_notes: str | None = None,
+        recommended_next: str | None = None,
+        blockers: list[str] | None = None,
+    ) -> Session | None:
+        """Set handoff context on a session without ending it."""
+        session = self.get_session(session_id)
+        if not session:
+            return None
+
+        updated = False
+        if handoff_notes is not None:
+            session.handoff_notes = handoff_notes
+            updated = True
+        if recommended_next is not None:
+            session.recommended_next = recommended_next
+            updated = True
+        if blockers is not None:
+            session.blockers = blockers
+            updated = True
+
+        if updated:
+            session.add_activity(ActivityEntry(
+                tool="SessionHandoff",
+                summary="Session handoff updated",
+                timestamp=datetime.now(),
+            ))
+            self.session_converter.save(session)
 
         return session
 

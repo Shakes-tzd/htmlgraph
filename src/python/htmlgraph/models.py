@@ -559,6 +559,11 @@ class Session(BaseModel):
     worked_on: list[str] = Field(default_factory=list)  # Feature IDs
     continued_from: str | None = None  # Previous session ID
 
+    # Handoff context
+    handoff_notes: str | None = None
+    recommended_next: str | None = None
+    blockers: list[str] = Field(default_factory=list)
+
     # High-frequency activity log
     activity_log: list[ActivityEntry] = Field(default_factory=list)
 
@@ -755,6 +760,34 @@ class Session(BaseModel):
         <nav data-graph-edges>{"".join(edge_sections)}
         </nav>'''
 
+        # Build handoff HTML
+        handoff_html = ""
+        if self.handoff_notes or self.recommended_next or self.blockers:
+            handoff_section = '''
+        <section data-handoff>
+            <h3>Handoff Context</h3>'''
+
+            if self.handoff_notes:
+                handoff_section += f'\n            <p data-handoff-notes><strong>Notes:</strong> {self.handoff_notes}</p>'
+
+            if self.recommended_next:
+                handoff_section += f'\n            <p data-recommended-next><strong>Recommended Next:</strong> {self.recommended_next}</p>'
+
+            if self.blockers:
+                blockers_items = "\n                ".join(
+                    f"<li>{blocker}</li>" for blocker in self.blockers
+                )
+                handoff_section += f'''
+            <div data-blockers>
+                <strong>Blockers:</strong>
+                <ul>
+                    {blockers_items}
+                </ul>
+            </div>'''
+
+            handoff_section += '\n        </section>'
+            handoff_html = handoff_section
+
         # Build activity log HTML
         activity_html = ""
         if self.activity_log:
@@ -811,7 +844,7 @@ class Session(BaseModel):
                 <span class="badge">{self.event_count} events</span>
             </div>
         </header>
-{edges_html}{activity_html}
+{edges_html}{handoff_html}{activity_html}
     </article>
 </body>
 </html>
@@ -826,6 +859,15 @@ class Session(BaseModel):
 
         if self.worked_on:
             lines.append(f"Worked on: {', '.join(self.worked_on)}")
+
+        if self.handoff_notes or self.recommended_next or self.blockers:
+            lines.append("\nHandoff:")
+            if self.handoff_notes:
+                lines.append(f"  Notes: {self.handoff_notes}")
+            if self.recommended_next:
+                lines.append(f"  Recommended next: {self.recommended_next}")
+            if self.blockers:
+                lines.append(f"  Blockers: {', '.join(self.blockers)}")
 
         # Last 5 activities
         if self.activity_log:

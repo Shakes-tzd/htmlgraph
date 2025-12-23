@@ -1,190 +1,107 @@
-# HtmlGraph Tracker Skill for Codex CLI
+# HtmlGraph Skill for Codex
 
-This skill enables HtmlGraph tracking in OpenAI Codex CLI, ensuring proper activity attribution and continuous work tracking.
-
-## Prerequisites
-
-1. **Codex CLI** installed:
-   ```bash
-   npm install -g @openai/codex
-   ```
-
-2. **HtmlGraph** installed:
-   ```bash
-   uv pip install htmlgraph
-   ```
-
-3. **Skills enabled** in Codex:
-   ```bash
-   codex --enable skills
-   ```
+This skill enables HtmlGraph session tracking and work continuity in OpenAI Codex.
 
 ## Installation
 
-### Option 1: Clone and Link (Recommended for Development)
+### 1. Install Codex
 
 ```bash
-# Clone the HtmlGraph repository
-git clone https://github.com/Shakes-tzd/htmlgraph.git
-cd htmlgraph
-
-# Link the skill to Codex
-codex skills link packages/codex-skill
+npm install -g @openai/codex
 ```
 
-### Option 2: Copy to Codex Skills Directory
+### 2. Install HtmlGraph
 
 ```bash
-# Create skills directory if it doesn't exist
-mkdir -p ~/.codex/skills
-
-# Copy the skill
-cp -r packages/codex-skill ~/.codex/skills/htmlgraph-tracker
+pip install htmlgraph>=0.8.0
 ```
 
-### Option 3: Install from GitHub
+### 3. Install This Skill
 
 ```bash
-codex skills install https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/codex-skill
+# Copy skill to Codex skills directory
+mkdir -p ~/.codex/skills/
+cp -r packages/codex-skill ~/.codex/skills/htmlgraph
+```
+
+### 4. Verify Installation
+
+```bash
+codex
+# Inside Codex:
+$htmlgraph-status
 ```
 
 ## Usage
 
-Once installed, Codex will automatically use this skill when working on HtmlGraph-tracked projects.
-
-### Initialize HtmlGraph in Your Project
-
+### Check Status
 ```bash
-cd your-project
-uv run htmlgraph init --install-hooks
+$htmlgraph-status
 ```
 
-### Start a Codex Session
+Shows:
+- Current session information
+- Active features
+- Project progress
+- Previous session summary
 
+### Work with Features
 ```bash
-codex
+# List features
+$htmlgraph-feature list
+
+# Start a feature
+$htmlgraph-feature start feat-abc123
+
+# Complete a feature
+$htmlgraph-feature complete feat-abc123
 ```
 
-Codex will:
-1. Detect the `.htmlgraph` directory
-2. Load the htmlgraph-tracker skill
-3. Remind you to check status and start features
-4. Track your work continuously
-
-### Manual Skill Invocation
-
-You can also invoke the skill manually:
-
+### View Sessions
 ```bash
-codex --skill htmlgraph-tracker
+# List all sessions
+$htmlgraph-session list
+
+# View current session
+$htmlgraph-session current
 ```
 
-## What This Skill Does
+## Work Continuity Testing
 
-The htmlgraph-tracker skill ensures Codex:
+This skill is designed to test HtmlGraph's work continuity across different AI assistants:
 
-- ✅ Uses the **Python SDK** for all HtmlGraph operations (never direct file edits)
-- ✅ **Checks status** at session start
-- ✅ **Tracks all work** continuously, not just at the end
-- ✅ **Marks steps complete** immediately after finishing them
-- ✅ **Creates features** for non-trivial work using the decision framework
-- ✅ **Verifies completion** before marking features done
+1. **Start work in Claude Code**:
+   ```bash
+   # Claude Code automatically tracks via htmlgraph-tracker skill
+   ```
 
-## Key Features
+2. **Switch to Codex**:
+   ```bash
+   codex
+   $htmlgraph-status  # See previous session context
+   ```
 
-### 1. SDK-First Approach
-All operations use the HtmlGraph SDK via Bash:
+3. **Continue work in Codex**:
+   - All activity is tracked to `.htmlgraph/sessions/`
+   - Feature attribution continues
+   - Drift detection works across tools
 
-```python
-uv run python -c "
-from htmlgraph import SDK
-sdk = SDK(agent='codex')
-with sdk.features.edit('feat-123') as f:
-    f.steps[0].completed = True
-"
-```
+4. **Switch back to Claude Code**:
+   - Session continuity maintained
+   - Full context preserved
 
-### 2. Feature Creation Decision Framework
-Automatic guidance on when to create features:
-- >30 minutes? → Create feature
-- 3+ files? → Create feature
-- Needs tests? → Create feature
-- Simple fix? → Direct commit OK
+## How It Works
 
-### 3. Continuous Tracking
-Reminds you to:
-- Start features before coding
-- Mark steps complete as you finish them
-- Update progress in real-time
-- Complete features only when all steps are done
+HtmlGraph uses git hooks to track activity:
 
-## Configuration
+- **Pre-commit**: Captures file changes and commit context
+- **Post-commit**: Records commit completion
+- **Session tracking**: Automatic via `.htmlgraph/sessions/`
 
-The skill works out of the box, but you can customize behavior by modifying `SKILL.md`:
+All tracking is tool-agnostic, so switching between Claude Code, Codex, and Gemini preserves full context.
 
-```bash
-# Edit the skill
-code ~/.codex/skills/htmlgraph-tracker/SKILL.md
-```
+## See Also
 
-## Troubleshooting
-
-### Skill Not Loading
-
-Check if skills are enabled:
-```bash
-codex --enable skills
-codex skills list
-```
-
-### HtmlGraph Not Found
-
-Ensure HtmlGraph is installed in your environment:
-```bash
-uv pip install htmlgraph
-uv run htmlgraph --version
-```
-
-### Skill Not Activating
-
-Verify the skill is in the correct location:
-```bash
-ls ~/.codex/skills/htmlgraph-tracker/SKILL.md
-```
-
-## Differences from Claude Code Plugin
-
-The Codex skill is similar to the Claude Code plugin but:
-- Uses `agent='codex'` instead of `agent='claude'`
-- No plugin hooks (uses manual skill invocation)
-- Relies on Codex's skill system instead of Claude's hooks
-- Same SDK, same workflow, same benefits!
-
-## Documentation
-
-- **HtmlGraph SDK Guide**: https://github.com/Shakes-tzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
-- **HtmlGraph Project**: https://github.com/Shakes-tzd/htmlgraph
-- **Codex CLI Docs**: https://developers.openai.com/codex/cli
-- **Codex Skills**: https://developers.openai.com/codex/skills/
-
-## Support
-
-For issues or questions:
-- **HtmlGraph Issues**: https://github.com/Shakes-tzd/htmlgraph/issues
-- **Codex Issues**: https://github.com/openai/codex/issues
-
-## License
-
-MIT - Same as HtmlGraph
-
-## Contributing
-
-Contributions welcome! Please ensure any changes:
-1. Follow the SDK-first principle
-2. Maintain the decision framework
-3. Keep skill focused on tracking (not implementation)
-4. Test with actual Codex CLI
-
----
-
-**Note**: This skill follows the dogfooding principle - we use HtmlGraph to track HtmlGraph development, so this skill represents our actual workflow.
+- [HtmlGraph Documentation](../../docs/)
+- [SDK for AI Agents](../../docs/SDK_FOR_AI_AGENTS.md)
+- [Workflow Guide](../../docs/WORKFLOW.md)

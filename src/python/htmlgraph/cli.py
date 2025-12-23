@@ -10,8 +10,9 @@ Usage:
 
 Session Management:
     htmlgraph session start [--id ID] [--agent AGENT]
-    htmlgraph session end ID
+    htmlgraph session end ID [--notes NOTES] [--recommend NEXT] [--blocker BLOCKER]
     htmlgraph session list
+    htmlgraph session handoff [--session-id ID] [--notes NOTES] [--recommend NEXT] [--blocker BLOCKER] [--show]
     htmlgraph activity TOOL SUMMARY [--session ID] [--files FILE...]
 
 Feature Management:
@@ -555,7 +556,13 @@ def cmd_session_end(args):
     import json
 
     manager = SessionManager(args.graph_dir)
-    session = manager.end_session(args.id)
+    blockers = args.blocker if args.blocker else None
+    session = manager.end_session(
+        args.id,
+        handoff_notes=args.notes,
+        recommended_next=args.recommend,
+        blockers=blockers,
+    )
 
     if session is None:
         print(f"Error: Session '{args.id}' not found.", file=sys.stderr)
@@ -571,6 +578,69 @@ def cmd_session_end(args):
         if session.worked_on:
             print(f"  Worked on: {', '.join(session.worked_on)}")
 
+
+def cmd_session_handoff(args):
+    """Set or show session handoff context."""
+    from htmlgraph.session_manager import SessionManager
+    import json
+
+    manager = SessionManager(args.graph_dir)
+
+    if args.show:
+        if args.session_id:
+            session = manager.get_session(args.session_id)
+        else:
+            session = manager.get_last_ended_session(agent=args.agent)
+
+        if not session:
+            if args.format == "json":
+                print(json.dumps({}))
+            else:
+                print("No handoff context found.")
+            return
+
+        if args.format == "json":
+            from htmlgraph.converter import session_to_dict
+            print(json.dumps(session_to_dict(session), indent=2))
+        else:
+            print(f"Session: {session.id}")
+            if session.handoff_notes:
+                print(f"Notes: {session.handoff_notes}")
+            if session.recommended_next:
+                print(f"Recommended next: {session.recommended_next}")
+            if session.blockers:
+                print(f"Blockers: {', '.join(session.blockers)}")
+        return
+
+    if not args.session_id:
+        active = manager.get_active_session(agent=args.agent)
+        if not active:
+            print("Error: No active session found. Provide --session-id.", file=sys.stderr)
+            sys.exit(1)
+        session_id = active.id
+    else:
+        session_id = args.session_id
+
+    if not (args.notes or args.recommend or args.blocker):
+        print("Error: Provide --notes, --recommend, or --blocker (or use --show).", file=sys.stderr)
+        sys.exit(1)
+
+    session = manager.set_session_handoff(
+        session_id=session_id,
+        handoff_notes=args.notes,
+        recommended_next=args.recommend,
+        blockers=args.blocker if args.blocker else None,
+    )
+
+    if session is None:
+        print(f"Error: Session '{session_id}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        from htmlgraph.converter import session_to_dict
+        print(json.dumps(session_to_dict(session), indent=2))
+    else:
+        print(f"Session handoff updated: {session.id}")
 
 def cmd_session_list(args):
     """List all sessions."""
@@ -1525,6 +1595,59 @@ def cmd_feature_step_complete(args):
 
 
 
+def cmd_feature_delete(args):
+    """Delete a feature."""
+    from htmlgraph import SDK
+    import json
+    import sys
+
+    sdk = SDK(agent=getattr(args, "agent", "cli"), directory=args.graph_dir)
+
+    # Get the feature first to show confirmation
+    collection = getattr(sdk, args.collection, None)
+    if not collection:
+        print(f"Error: Collection '{args.collection}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    feature = collection.get(args.id)
+    if not feature:
+        print(f"Error: {args.collection.rstrip('s').capitalize()} '{args.id}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Confirmation prompt (unless --yes flag)
+    if not args.yes:
+        print(f"Delete {args.collection.rstrip('s')} '{args.id}'?")
+        print(f"  Title: {feature.title}")
+        print(f"  Status: {feature.status}")
+        print(f"\nThis cannot be undone. Continue? [y/N] ", end="")
+
+        response = input().strip().lower()
+        if response not in ('y', 'yes'):
+            print("Cancelled")
+            sys.exit(0)
+
+    # Delete
+    try:
+        success = collection.delete(args.id)
+        if success:
+            if args.format == "json":
+                data = {
+                    "id": args.id,
+                    "title": feature.title,
+                    "deleted": True
+                }
+                print(json.dumps(data, indent=2))
+            else:
+                print(f"Deleted {args.collection.rstrip('s')}: {args.id}")
+                print(f"  Title: {feature.title}")
+        else:
+            print(f"Error: Failed to delete {args.collection.rstrip('s')} '{args.id}'", file=sys.stderr)
+            sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_track_new(args):
     """Create a new track."""
     from htmlgraph.track_manager import TrackManager
@@ -1844,8 +1967,22 @@ curl Examples:
     # session end
     session_end = session_subparsers.add_parser("end", help="End a session")
     session_end.add_argument("id", help="Session ID to end")
+    session_end.add_argument("--notes", help="Handoff notes for the next session")
+    session_end.add_argument("--recommend", help="Recommended next steps")
+    session_end.add_argument("--blocker", action="append", default=[], help="Blocker to record (repeatable)")
     session_end.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     session_end.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # session handoff
+    session_handoff = session_subparsers.add_parser("handoff", help="Set or show session handoff context")
+    session_handoff.add_argument("--session-id", help="Session ID (defaults to active session)")
+    session_handoff.add_argument("--agent", help="Agent filter (used for --show when no session provided)")
+    session_handoff.add_argument("--notes", help="Handoff notes for the next session")
+    session_handoff.add_argument("--recommend", help="Recommended next steps")
+    session_handoff.add_argument("--blocker", action="append", default=[], help="Blocker to record (repeatable)")
+    session_handoff.add_argument("--show", action="store_true", help="Show handoff context instead of setting it")
+    session_handoff.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    session_handoff.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # session list
     session_list = session_subparsers.add_parser("list", help="List all sessions")
@@ -2059,6 +2196,14 @@ curl Examples:
     feature_step_complete.add_argument("--host", default="localhost", help="API host (default: localhost)")
     feature_step_complete.add_argument("--port", type=int, default=8080, help="API port (default: 8080)")
 
+    # feature delete
+    feature_delete = feature_subparsers.add_parser("delete", help="Delete a feature")
+    feature_delete.add_argument("id", help="Feature ID to delete")
+    feature_delete.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_delete.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+    feature_delete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    feature_delete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
     # =========================================================================
     # Track Management (Conductor-Style Planning)
     # =========================================================================
@@ -2239,6 +2384,8 @@ curl Examples:
             cmd_session_link(args)
         elif args.session_command == "validate-attribution":
             cmd_session_validate_attribution(args)
+        elif args.session_command == "handoff":
+            cmd_session_handoff(args)
         else:
             session_parser.print_help()
             sys.exit(1)
@@ -2295,9 +2442,8 @@ curl Examples:
             cmd_feature_list(args)
         elif args.feature_command == "step-complete":
             cmd_feature_step_complete(args)
-        elif args.feature_command == "step-complete":
-            cmd_feature_step_complete(args)
-            cmd_feature_list(args)
+        elif args.feature_command == "delete":
+            cmd_feature_delete(args)
         else:
             feature_parser.print_help()
             sys.exit(1)
@@ -2495,4 +2641,3 @@ def cmd_sync_docs(args):
 
 if __name__ == "__main__":
     main()
-

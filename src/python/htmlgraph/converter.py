@@ -432,6 +432,31 @@ def html_to_session(filepath: Path | str) -> Session:
         href = continued_link.attrs.get("href") or ""
         data["continued_from"] = href.replace(".html", "")
 
+    # Parse handoff context
+    handoff_section = parser.query_one("section[data-handoff]")
+    if handoff_section:
+        notes_el = parser.query_one("section[data-handoff] [data-handoff-notes]")
+        if notes_el:
+            notes_text = notes_el.to_text().strip()
+            if notes_text.lower().startswith("notes:"):
+                notes_text = notes_text.split(":", 1)[1].strip()
+            data["handoff_notes"] = notes_text
+
+        next_el = parser.query_one("section[data-handoff] [data-recommended-next]")
+        if next_el:
+            next_text = next_el.to_text().strip()
+            if next_text.lower().startswith("recommended next:"):
+                next_text = next_text.split(":", 1)[1].strip()
+            data["recommended_next"] = next_text
+
+        blockers = []
+        for li in parser.query("section[data-handoff] div[data-blockers] li"):
+            blocker_text = li.to_text().strip()
+            if blocker_text:
+                blockers.append(blocker_text)
+        if blockers:
+            data["blockers"] = blockers
+
     # Parse activity log
     activity_log = []
     for li in parser.query("section[data-activity-log] ol li"):

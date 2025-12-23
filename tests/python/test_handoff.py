@@ -10,9 +10,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 
-from htmlgraph.models import Node, Edge
+from htmlgraph.models import Node, Edge, Session
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.sdk import SDK
+from htmlgraph.converter import session_to_html, html_to_session
 
 
 class TestHandoffFields:
@@ -115,6 +116,28 @@ class TestHandoffHTML:
         assert "data-timestamp=" in html
         assert "Waiting for database migration" in html
         assert now.isoformat() in html
+
+
+class TestSessionHandoffHTML:
+    """Test Session handoff HTML serialization."""
+
+    def test_session_handoff_roundtrip(self):
+        """Verify session handoff fields persist through HTML serialization."""
+        with TemporaryDirectory() as tmpdir:
+            session = Session(
+                id="session-001",
+                agent="tester",
+                handoff_notes="Wrap up payment refactor",
+                recommended_next="Add migration tests",
+                blockers=["Waiting on API keys", "Need QA signoff"],
+            )
+            path = Path(tmpdir) / "session-001.html"
+            session_to_html(session, path)
+
+            loaded = html_to_session(path)
+            assert loaded.handoff_notes == "Wrap up payment refactor"
+            assert loaded.recommended_next == "Add migration tests"
+            assert loaded.blockers == ["Waiting on API keys", "Need QA signoff"]
 
 
 class TestHandoffContext:
@@ -298,6 +321,49 @@ class TestSessionManagerHandoff:
             assert result is not None
             assert result.handoff_required is True
             assert result.previous_agent == "alice"
+
+
+class TestSessionHandoffManager:
+    """Test session handoff updates via SessionManager and SDK."""
+
+    def test_session_manager_set_handoff(self):
+        """Verify SessionManager.set_session_handoff updates session fields."""
+        with TemporaryDirectory() as tmpdir:
+            manager = SessionManager(tmpdir)
+            session = manager.start_session("session-001", agent="alice")
+
+            updated = manager.set_session_handoff(
+                session_id=session.id,
+                handoff_notes="Investigate flaky tests",
+                recommended_next="Run test suite with verbose logs",
+                blockers=["CI is down"],
+            )
+
+            assert updated is not None
+            assert updated.handoff_notes == "Investigate flaky tests"
+            assert updated.recommended_next == "Run test suite with verbose logs"
+            assert updated.blockers == ["CI is down"]
+
+    def test_sdk_set_session_handoff(self):
+        """Verify SDK.set_session_handoff proxies to SessionManager."""
+        with TemporaryDirectory() as tmpdir:
+            graph_dir = Path(tmpdir) / ".htmlgraph"
+            graph_dir.mkdir(parents=True, exist_ok=True)
+            manager = SessionManager(graph_dir)
+            session = manager.start_session("session-002", agent="bob")
+
+            sdk = SDK(directory=graph_dir, agent="bob")
+            updated = sdk.set_session_handoff(
+                session_id=session.id,
+                handoff_notes="Refactor parser",
+                recommended_next="Add tests for edge cases",
+                blockers=["Waiting on spec"],
+            )
+
+            assert updated is not None
+            assert updated.handoff_notes == "Refactor parser"
+            assert updated.recommended_next == "Add tests for edge cases"
+            assert updated.blockers == ["Waiting on spec"]
 
 
 class TestSDKHandoff:

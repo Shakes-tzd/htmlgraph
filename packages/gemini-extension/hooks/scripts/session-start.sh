@@ -39,6 +39,21 @@ fi
 # Get current status
 STATUS_OUTPUT=$($HTMLGRAPH_CMD status 2>/dev/null)
 
+# Get latest handoff context (if any)
+HANDOFF_CONTEXT=$($HTMLGRAPH_CMD session handoff --show 2>/dev/null)
+HANDOFF_SECTION=""
+if [ -n "$HANDOFF_CONTEXT" ] && [[ "$HANDOFF_CONTEXT" != "No handoff context found."* ]]; then
+  HANDOFF_SECTION=$(cat <<EOF
+
+## Handoff Context
+
+$HANDOFF_CONTEXT
+
+---
+EOF
+)
+fi
+
 # Build context message for Gemini
 cat <<EOF
 
@@ -99,6 +114,7 @@ uv run htmlgraph serve
 $STATUS_OUTPUT
 
 ---
+$HANDOFF_SECTION
 
 ## Session Continuity
 

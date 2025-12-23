@@ -442,11 +442,25 @@ Or create features manually in `.htmlgraph/features/`
     # Previous session summary
     prev_session = get_session_summary(graph_dir)
     if prev_session:
+        handoff_lines = []
+        if prev_session.get("handoff_notes"):
+            handoff_lines.append(f"**Notes:** {prev_session.get('handoff_notes')}")
+        if prev_session.get("recommended_next"):
+            handoff_lines.append(f"**Recommended Next:** {prev_session.get('recommended_next')}")
+        blockers = prev_session.get("blockers") or []
+        if blockers:
+            handoff_lines.append(f"**Blockers:** {', '.join(blockers)}")
+
+        handoff_text = ""
+        if handoff_lines:
+            handoff_text = "\n\n**Handoff Context:**\n" + "\n".join(handoff_lines)
+
         context_parts.append(f"""## Previous Session
 
 **Session:** {prev_session.get('id', 'unknown')}
 **Events:** {prev_session.get('event_count', 0)}
 **Worked On:** {', '.join(prev_session.get('worked_on', [])) or 'N/A'}
+{handoff_text}
 """)
 
     # Current status

@@ -205,6 +205,44 @@ class SDK:
             auto_claim=auto_claim
         )
 
+    def set_session_handoff(
+        self,
+        handoff_notes: str | None = None,
+        recommended_next: str | None = None,
+        blockers: list[str] | None = None,
+        session_id: str | None = None,
+    ):
+        """
+        Set handoff context on a session.
+
+        Args:
+            handoff_notes: Notes for next session/agent
+            recommended_next: Suggested next steps
+            blockers: List of blockers
+            session_id: Specific session ID (defaults to active session)
+
+        Returns:
+            Updated Session or None if not found
+        """
+        from htmlgraph.session_manager import SessionManager
+
+        manager = SessionManager(self._directory)
+        if not session_id:
+            if self._agent_id:
+                active = manager.get_active_session_for_agent(self._agent_id)
+            else:
+                active = manager.get_active_session()
+            if not active:
+                return None
+            session_id = active.id
+
+        return manager.set_session_handoff(
+            session_id=session_id,
+            handoff_notes=handoff_notes,
+            recommended_next=recommended_next,
+            blockers=blockers,
+        )
+
     # =========================================================================
     # Strategic Planning & Analytics (Agent-Friendly Interface)
     # =========================================================================

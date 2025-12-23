@@ -138,6 +138,95 @@ print(f"In progress: {workload['in_progress']}")
 print(f"Completed: {workload['completed']}")
 ```
 
+### SDK Method Discovery (Runtime Introspection)
+
+AI agents can't memorize all available methods. Use Python's introspection to explore the SDK at runtime:
+
+```python
+from htmlgraph import SDK
+import inspect
+
+sdk = SDK(agent="claude")
+
+# 1. Discover available collections
+collections = [attr for attr in dir(sdk) if not attr.startswith('_')]
+print(f"Collections: {collections}")
+# → ['bugs', 'chores', 'dep_analytics', 'epics', 'features', 'phases', 'spikes', 'tracks']
+
+# 2. List methods on a collection
+methods = [m for m in dir(sdk.features) if not m.startswith('_') and callable(getattr(sdk.features, m))]
+print(f"Feature methods: {methods}")
+# → ['all', 'assign', 'batch_delete', 'batch_update', 'claim', 'create', 'delete',
+#    'edit', 'get', 'mark_done', 'release', 'update', 'where']
+
+# 3. Get method signature
+sig = inspect.signature(sdk.features.create)
+print(f"create signature: {sig}")
+# → (title: str, **kwargs) -> FeatureBuilder
+
+# 4. Get method docstring
+print(sdk.features.delete.__doc__)
+# → Delete a node.
+#   Args: node_id (str) - Node ID to delete
+#   Returns: bool - True if deleted, False if not found
+
+# 5. Explore a collection class
+from htmlgraph.collections import BaseCollection
+available_methods = [m for m in dir(BaseCollection) if not m.startswith('_')]
+print(f"BaseCollection methods: {available_methods}")
+```
+
+**Common SDK Operations:**
+
+```python
+# Collection CRUD operations (all collections support these)
+sdk.features.get(id)           # Get by ID
+sdk.features.all()              # Get all
+sdk.features.where(**filters)   # Query with filters
+sdk.features.create(title)      # Create new (returns builder)
+sdk.features.edit(id)           # Edit (context manager, auto-saves)
+sdk.features.update(node)       # Update (manual)
+sdk.features.delete(id)         # Delete by ID
+
+# Batch operations
+sdk.features.batch_update(ids, updates)  # Update multiple
+sdk.features.batch_delete(ids)           # Delete multiple
+sdk.features.mark_done(ids)              # Mark multiple as done
+sdk.features.assign(ids, agent)          # Assign multiple to agent
+
+# Agent workflow
+sdk.features.claim(id, agent)    # Claim for agent
+sdk.features.release(id)         # Release claim
+```
+
+**All collections have the same interface:**
+- `sdk.features` - Features with builder support
+- `sdk.bugs` - Bug reports
+- `sdk.chores` - Maintenance tasks
+- `sdk.spikes` - Investigation spikes
+- `sdk.epics` - Large bodies of work
+- `sdk.phases` - Project phases
+
+```python
+# Same methods work across all collections
+sdk.bugs.delete("bug-001")
+sdk.chores.mark_done(["chore-1", "chore-2"])
+sdk.spikes.where(status="in-progress")
+sdk.epics.assign(["epic-1"], agent="claude")
+```
+
+**CLI Help as Reference:**
+
+```bash
+# See all feature commands
+uv run htmlgraph feature --help
+# Shows: create, start, complete, delete, claim, release, list, etc.
+
+# Most CLI commands have SDK equivalents:
+# CLI: uv run htmlgraph feature delete feat-001
+# SDK: sdk.features.delete("feat-001")
+```
+
 ### Create Features
 
 ```python

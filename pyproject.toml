@@ -1,6 +1,6 @@
 [project]
 name = "htmlgraph"
-version = "0.8.0"
+version = "0.8.1"
 description = "HTML is All You Need - Graph database on web standards"
 authors = [{name = "Shakes", email = "shakestzd@gmail.com"}]
 readme = "README.md"
@@ -83,11 +83,11 @@ target-version = ["py310"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "0.8.1"
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "0.8.1"
 warn_return_any = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
