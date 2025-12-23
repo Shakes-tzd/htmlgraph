@@ -155,10 +155,16 @@ class Node(BaseModel):
     plan_task_id: str | None = None  # Which plan task this feature implements
     spec_requirements: list[str] = Field(default_factory=list)  # Which spec requirements this satisfies
 
-    # Agent capabilities and routing (Phase 3: Smart Routing)
-    required_capabilities: list[str] = Field(default_factory=list)  # Required skills/tools for this task
-    complexity: Literal["low", "medium", "high", "very-high"] | None = None  # Task complexity
-    estimated_effort: float | None = None  # Estimated hours to complete
+    # Handoff context fields for agent-to-agent transitions
+    handoff_required: bool = False  # Whether this node needs to be handed off
+    previous_agent: str | None = None  # Agent who previously worked on this
+    handoff_reason: str | None = None  # Reason for handoff (e.g., blocked, requires different expertise)
+    handoff_notes: str | None = None  # Detailed handoff context/decisions
+    handoff_timestamp: datetime | None = None  # When the handoff was created
+
+    # Capability-based routing (Phase 3: Agent Routing & Capabilities)
+    required_capabilities: list[str] = Field(default_factory=list)  # Capabilities needed for this task
+    capability_tags: list[str] = Field(default_factory=list)  # Flexible tags for advanced matching
 
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
@@ -277,6 +283,34 @@ class Node(BaseModel):
             </dl>
         </section>'''
 
+        # Build handoff HTML
+        handoff_html = ""
+        if self.handoff_required or self.previous_agent:
+            handoff_attrs = []
+            if self.previous_agent:
+                handoff_attrs.append(f'data-previous-agent="{self.previous_agent}"')
+            if self.handoff_reason:
+                handoff_attrs.append(f'data-reason="{self.handoff_reason}"')
+            if self.handoff_timestamp:
+                handoff_attrs.append(f'data-timestamp="{self.handoff_timestamp.isoformat()}"')
+
+            attrs_str = " ".join(handoff_attrs)
+            handoff_section = f'''
+        <section data-handoff{f" {attrs_str}" if attrs_str else ""}>
+            <h3>Handoff Context</h3>'''
+
+            if self.previous_agent:
+                handoff_section += f'\n            <p><strong>From:</strong> {self.previous_agent}</p>'
+
+            if self.handoff_reason:
+                handoff_section += f'\n            <p><strong>Reason:</strong> {self.handoff_reason}</p>'
+
+            if self.handoff_notes:
+                handoff_section += f'\n            <p><strong>Notes:</strong> {self.handoff_notes}</p>'
+
+            handoff_section += '\n        </section>'
+            handoff_html = handoff_section
+
         # Build content HTML
         content_html = ""
         if self.content:
@@ -284,6 +318,25 @@ class Node(BaseModel):
         <section data-content>
             <h3>Description</h3>
             {self.content}
+        </section>'''
+
+        # Build required capabilities HTML
+        capabilities_html = ""
+        if self.required_capabilities or self.capability_tags:
+            cap_items = []
+            if self.required_capabilities:
+                for cap in self.required_capabilities:
+                    cap_items.append(f'<li data-capability="{cap}">{cap}</li>')
+            if self.capability_tags:
+                for tag in self.capability_tags:
+                    cap_items.append(f'<li data-tag="{tag}" class="tag">{tag}</li>')
+            if cap_items:
+                capabilities_html = f'''
+        <section data-required-capabilities>
+            <h3>Required Capabilities</h3>
+            <ul>
+                {chr(10).join(cap_items)}
+            </ul>
         </section>'''
 
         # Agent attribute
@@ -295,16 +348,6 @@ class Node(BaseModel):
 
         # Track ID attribute
         track_attr = f' data-track-id="{self.track_id}"' if self.track_id else ""
-
-        # Capability attributes (Phase 3: Smart Routing)
-        capability_attrs = ""
-        if self.required_capabilities:
-            caps_str = ",".join(self.required_capabilities)
-            capability_attrs += f' data-required-capabilities="{caps_str}"'
-        if self.complexity:
-            capability_attrs += f' data-complexity="{self.complexity}"'
-        if self.estimated_effort is not None:
-            capability_attrs += f' data-estimated-effort="{self.estimated_effort}"'
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -321,7 +364,7 @@ class Node(BaseModel):
              data-status="{self.status}"
              data-priority="{self.priority}"
              data-created="{self.created.isoformat()}"
-             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}{capability_attrs}>
+             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}>
 
         <header>
             <h1>{self.title}</h1>
@@ -330,7 +373,11 @@ class Node(BaseModel):
                 <span class="badge priority-{self.priority}">{self.priority.title()} Priority</span>
             </div>
         </header>
-{edges_html}{props_html}{steps_html}{content_html}
+<<<<<<< HEAD
+{edges_html}{props_html}{capabilities_html}{steps_html}{content_html}
+=======
+{edges_html}{handoff_html}{props_html}{steps_html}{content_html}
+>>>>>>> origin/dev
     </article>
 </body>
 </html>
@@ -352,6 +399,17 @@ class Node(BaseModel):
 
         if self.agent_assigned:
             lines.append(f"Assigned: {self.agent_assigned}")
+
+        # Handoff context
+        if self.handoff_required or self.previous_agent:
+            handoff_info = "🔄 Handoff:"
+            if self.previous_agent:
+                handoff_info += f" from {self.previous_agent}"
+            if self.handoff_reason:
+                handoff_info += f" ({self.handoff_reason})"
+            lines.append(handoff_info)
+            if self.handoff_notes:
+                lines.append(f"   Notes: {self.handoff_notes}")
 
         if self.steps:
             completed = sum(1 for s in self.steps if s.completed)

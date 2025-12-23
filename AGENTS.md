@@ -555,6 +555,168 @@ uv run python examples/sdk_demo.py
 
 ---
 
+## Agent Handoff Context
+
+Handoff enables smooth context transfer between agents when a task requires different expertise.
+
+### Marking a Task for Handoff
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Complete work and hand off
+with sdk.features.edit("feature-001") as feature:
+    feature.steps[0].completed = True
+
+# Trigger handoff with context
+manager = sdk._session_manager
+manager.create_handoff(
+    feature_id="feature-001",
+    reason="blocked_on_testing",
+    notes="Implementation complete. Needs comprehensive test coverage.",
+    agent="claude"
+)
+
+# Feature now shows handoff context for next agent
+feature = sdk.features.get("feature-001")
+print(feature.previous_agent)  # "claude"
+print(feature.handoff_reason)  # "blocked_on_testing"
+print(feature.handoff_notes)   # Full context
+```
+
+### Receiving a Handoff
+
+When claiming a handoff task, the previous agent's context is available:
+
+```python
+sdk = SDK(agent="bob")
+
+# Get handoff task
+feature = sdk.features.get("feature-001")
+
+# View handoff context
+context = feature.to_context()
+# Output:
+# # feature-001: Implement API
+# Status: in-progress | Priority: high
+# ⚠️  Handoff from: claude
+# Reason: blocked_on_testing
+# Notes: Implementation complete. Needs comprehensive test coverage.
+# Progress: 1/3 steps
+
+# Mark as received and continue
+with sdk.features.edit("feature-001") as f:
+    f.agent_assigned = "bob"
+    f.steps[1].completed = True
+```
+
+### Handoff Best Practices
+
+1. **Provide context**: Always include `notes` with relevant decisions/blockers
+2. **Mark progress**: Complete steps before handoff so next agent knows what's done
+3. **Set clear reason**: Use structured reasons: `blocked_on_*`, `needs_*`, `ready_for_*`
+4. **Preserve history**: Handoff chain shows full development history
+
+---
+
+## Agent Routing & Capabilities
+
+Capability-based routing automatically assigns tasks to agents with matching skills.
+
+### Register Agent Capabilities
+
+```python
+from htmlgraph.routing import AgentCapabilityRegistry
+
+registry = AgentCapabilityRegistry()
+
+# Register agents with their capabilities
+registry.register_agent("alice", ["python", "backend", "databases"])
+registry.register_agent("bob", ["python", "frontend", "ui"])
+registry.register_agent("charlie", ["testing", "quality-assurance"])
+```
+
+### Define Task Requirements
+
+```python
+from htmlgraph.models import Node
+
+task = Node(
+    id="api-task",
+    title="Build User API",
+    required_capabilities=["python", "backend", "databases"]
+)
+```
+
+### Route Task to Best Agent
+
+```python
+from htmlgraph.routing import CapabilityMatcher
+
+# Find best agent for task
+agents = registry.get_all_agents()
+best_agent = CapabilityMatcher.find_best_agent(agents, task)
+
+print(f"Best agent: {best_agent.agent_id}")  # "alice"
+print(f"Match score: {best_agent.capabilities}")
+```
+
+### Routing with Workload Balancing
+
+```python
+# Set current workload
+registry.set_wip("alice", 4)  # Alice has 4 tasks in progress
+registry.set_wip("bob", 1)    # Bob has 1 task
+
+# Routing considers workload (alice is busier)
+best_agent = CapabilityMatcher.find_best_agent(agents, task)
+# Might choose bob if bob has matching skills (workload penalty applied)
+```
+
+### Multi-Agent Workflow
+
+```python
+from htmlgraph import SDK
+from htmlgraph.routing import AgentCapabilityRegistry, route_task_to_agent
+
+sdk = SDK(agent="coordinator")
+registry = AgentCapabilityRegistry()
+
+# Register team
+registry.register_agent("architect", ["architecture", "design"])
+registry.register_agent("backend", ["python", "backend"])
+registry.register_agent("qa", ["testing", "quality"])
+
+# Get tasks needing assignment
+tasks = sdk.features.where(status="todo")
+
+# Route each task
+for task in tasks:
+    best_agent, score = route_task_to_agent(task, registry)
+    if best_agent:
+        # Assign to best agent
+        print(f"Assigning {task.id} to {best_agent.agent_id} (score: {score})")
+```
+
+### Capability Scoring Algorithm
+
+Scoring is 0-based (higher = better fit):
+
+- **Exact match**: +100 per matching capability
+- **No match**: -50 per missing capability
+- **Extra capabilities**: +10 per bonus capability
+- **Workload penalty**: -5 per task in progress
+- **At capacity**: -100 (hard penalty for full WIP)
+
+Example:
+- Task needs: `["python", "testing"]`
+- Agent has: `["python", "testing", "documentation"]`
+- Score: (2 × 100) + (1 × 10) = 210 (excellent match)
+
+---
+
 ## Troubleshooting
 
 ### SDK not finding .htmlgraph directory

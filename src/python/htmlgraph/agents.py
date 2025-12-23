@@ -157,6 +157,87 @@ class AgentInterface:
 
         return tasks
 
+    def get_tasks_by_capability(
+        self,
+        agent_capabilities: list[str],
+        status: str = "todo",
+        limit: int = 10
+    ) -> list[Node]:
+        """
+        Get tasks that match agent capabilities.
+
+        Filters tasks to those where agent has at least one required capability.
+
+        Args:
+            agent_capabilities: List of agent's capabilities
+            status: Filter by task status (default: todo)
+            limit: Maximum tasks to return
+
+        Returns:
+            List of matching nodes, prioritized by exact matches first
+        """
+        def matches(node: Node) -> bool:
+            if node.status != status:
+                return False
+            # Exclude already assigned tasks
+            if node.agent_assigned and node.agent_assigned != self.agent_id:
+                return False
+            # Tasks with no required capabilities are available to all
+            if not node.required_capabilities:
+                return True
+            # Check if agent has at least one required capability
+            return any(cap in agent_capabilities for cap in node.required_capabilities)
+
+        tasks = self.graph.filter(matches)
+
+        # Sort by capability match quality
+        agent_caps = set(agent_capabilities)
+
+        def capability_score(node: Node) -> tuple[int, str]:
+            """Return (negative_exact_matches, priority) for sorting."""
+            if not node.required_capabilities:
+                return (0, node.priority)
+            exact_matches = len(set(node.required_capabilities) & agent_caps)
+            # Sort by exact matches (descending), then by priority
+            priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+            return (-exact_matches, priority_order.get(node.priority, 99))
+
+        tasks.sort(key=capability_score)
+
+        return tasks[:limit]
+
+    def get_next_task_by_capability(
+        self,
+        agent_capabilities: list[str],
+        agent_id: str | None = None,
+        auto_claim: bool = False
+    ) -> Node | None:
+        """
+        Get next task matching agent capabilities.
+
+        Args:
+            agent_capabilities: List of agent's capabilities
+            agent_id: Agent requesting task (uses default if not specified)
+            auto_claim: Whether to automatically claim the task
+
+        Returns:
+            Next matching Node or None
+        """
+        agent_id = agent_id or self.agent_id
+        tasks = self.get_tasks_by_capability(agent_capabilities, limit=1)
+
+        if not tasks:
+            return None
+
+        task = tasks[0]
+
+        if auto_claim and agent_id:
+            self.claim_task(task.id, agent_id)
+            # Reload to get updated state
+            task = self.graph.get(task.id)
+
+        return task
+
     # =========================================================================
     # Task Operations
     # =========================================================================

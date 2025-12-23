@@ -122,6 +122,80 @@ class FeatureBuilder:
         )
         return self
 
+    def set_required_capabilities(self, capabilities: list[str]) -> FeatureBuilder:
+        """
+        Set required capabilities for this feature.
+
+        Args:
+            capabilities: List of capability strings (e.g., ['python', 'testing'])
+
+        Returns:
+            Self for method chaining
+        """
+        self._data["required_capabilities"] = capabilities
+        return self
+
+    def add_capability_tag(self, tag: str) -> FeatureBuilder:
+        """
+        Add a capability tag for flexible matching.
+
+        Args:
+            tag: Tag string (e.g., 'frontend', 'backend')
+
+        Returns:
+            Self for method chaining
+        """
+        if "capability_tags" not in self._data:
+            self._data["capability_tags"] = []
+        self._data["capability_tags"].append(tag)
+        return self
+
+    def add_capability_tags(self, tags: list[str]) -> FeatureBuilder:
+        """
+        Add multiple capability tags.
+
+        Args:
+            tags: List of tag strings
+
+        Returns:
+            Self for method chaining
+        """
+        if "capability_tags" not in self._data:
+            self._data["capability_tags"] = []
+        self._data["capability_tags"].extend(tags)
+        return self
+
+    def complete_and_handoff(
+        self,
+        reason: str,
+        notes: str | None = None,
+        next_agent: str | None = None,
+    ) -> FeatureBuilder:
+        """
+        Mark feature as complete and create a handoff for the next agent.
+
+        Sets handoff metadata and releases the feature for another agent to claim.
+
+        Args:
+            reason: Reason for handoff
+            notes: Detailed handoff context/decisions
+            next_agent: Next agent to claim (optional)
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            feature = sdk.features.create("Review PR").complete_and_handoff(
+                reason="awaiting code review",
+                notes="All tests passing, ready for review"
+            ).save()
+        """
+        self._data["handoff_required"] = True
+        self._data["handoff_reason"] = reason
+        self._data["handoff_notes"] = notes
+        self._data["handoff_timestamp"] = datetime.now()
+        return self
+
     def save(self) -> Node:
         """Save the feature and return the Node."""
         # Generate collision-resistant ID if not provided
@@ -715,29 +789,32 @@ class SDK:
             ...     timebox_hours=3.0
             ... )
         """
-        from htmlgraph.models import SpikeType
+        from htmlgraph.models import Spike, SpikeType
+        from htmlgraph.ids import generate_id
 
-        spike = self.spikes.create(title) \
-            .set_spike_type(SpikeType.ARCHITECTURAL) \
-            .set_timebox_hours(timebox_hours) \
-            .add_steps([
-                "Research existing solutions and patterns",
-                "Define requirements and constraints",
-                "Design high-level architecture",
-                "Identify dependencies and risks",
-                "Create implementation plan"
-            ]) \
-            .save()
+        # Create spike directly (SpikeBuilder doesn't exist yet)
+        spike_id = generate_id(node_type="spike", title=title)
+        spike = Spike(
+            id=spike_id,
+            title=title,
+            type="spike",
+            status="in-progress" if auto_start and self._agent_id else "todo",
+            spike_type=SpikeType.ARCHITECTURAL,
+            timebox_hours=int(timebox_hours),
+            agent_assigned=self._agent_id if auto_start and self._agent_id else None,
+            steps=[
+                Step(description="Research existing solutions and patterns"),
+                Step(description="Define requirements and constraints"),
+                Step(description="Design high-level architecture"),
+                Step(description="Identify dependencies and risks"),
+                Step(description="Create implementation plan")
+            ],
+            content=f"<p>{context}</p>" if context else "",
+            edges={},
+            properties={}
+        )
 
-        if context:
-            with self.spikes.edit(spike.id) as s:
-                s.content = f"<p>{context}</p>"
-
-        if auto_start and self._agent_id:
-            with self.spikes.edit(spike.id) as s:
-                s.status = "in-progress"
-                s.agent_assigned = self._agent_id
-
+        self._graph.add(spike)
         return spike
 
     def create_track_from_plan(

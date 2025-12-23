@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 class FindAPI:
-    """
+    r"""
     BeautifulSoup-style find interface for HtmlGraph.
 
     Provides find() and find_all() methods with keyword argument filtering.

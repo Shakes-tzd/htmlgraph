@@ -156,6 +156,9 @@ HtmlGraph nodes are standard HTML files:
 - **Human readable** - open in any browser
 - **AI agent optimized** - lightweight context generation
 - **Graph algorithms** - BFS, shortest path, cycle detection, topological sort
+- **Agent Handoff** - Context-preserving task transfers between agents
+- **Capability Routing** - Automatic task assignment based on agent skills
+- **Deployment Automation** - One-command releases with version management
 
 ## Comparison
 
