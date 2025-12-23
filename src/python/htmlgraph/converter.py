@@ -398,6 +398,19 @@ def html_to_session(filepath: Path | str) -> Session:
     if start_commit:
         data["start_commit"] = start_commit
 
+    # Parse work type classification fields
+    primary_work_type = article.attrs.get("data-primary-work-type")
+    if primary_work_type:
+        data["primary_work_type"] = primary_work_type
+
+    work_breakdown_json = article.attrs.get("data-work-breakdown")
+    if work_breakdown_json:
+        import json
+        try:
+            data["work_breakdown"] = json.loads(work_breakdown_json)
+        except (json.JSONDecodeError, ValueError):
+            pass  # Skip if invalid JSON
+
     # Parse title
     title_el = parser.query_one("h1")
     if title_el:

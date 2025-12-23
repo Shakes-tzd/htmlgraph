@@ -701,6 +701,14 @@ class Session(BaseModel):
         subagent_attr = f' data-is-subagent="{str(self.is_subagent).lower()}"'
         commit_attr = f' data-start-commit="{self.start_commit}"' if self.start_commit else ""
         ended_attr = f' data-ended-at="{self.ended_at.isoformat()}"' if self.ended_at else ""
+        primary_work_type_attr = f' data-primary-work-type="{self.primary_work_type}"' if self.primary_work_type else ""
+
+        # Serialize work_breakdown as JSON if present
+        import json
+        work_breakdown_attr = ""
+        if self.work_breakdown:
+            work_breakdown_json = json.dumps(self.work_breakdown)
+            work_breakdown_attr = f' data-work-breakdown=\'{work_breakdown_json}\''
 
         title = self.title or f"Session {self.id}"
 
@@ -720,7 +728,7 @@ class Session(BaseModel):
              data-agent="{self.agent}"
              data-started-at="{self.started_at.isoformat()}"
              data-last-activity="{self.last_activity.isoformat()}"
-             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}>
+             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}>
 
         <header>
             <h1>{title}</h1>
