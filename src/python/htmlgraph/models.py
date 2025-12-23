@@ -166,6 +166,13 @@ class Node(BaseModel):
     required_capabilities: list[str] = Field(default_factory=list)  # Capabilities needed for this task
     capability_tags: list[str] = Field(default_factory=list)  # Flexible tags for advanced matching
 
+    # Context tracking (aggregated from sessions)
+    # These are updated when sessions report context usage for this feature
+    context_tokens_used: int = 0  # Total context tokens attributed to this feature
+    context_peak_tokens: int = 0  # Highest context usage in any session
+    context_cost_usd: float = 0.0  # Total cost attributed to this feature
+    context_sessions: list[str] = Field(default_factory=list)  # Session IDs that reported context
+
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
         if not self.id or not str(self.id).strip():
@@ -214,6 +221,47 @@ class Node(BaseModel):
             self.updated = datetime.now()
             return True
         return False
+
+    def record_context_usage(
+        self,
+        session_id: str,
+        tokens_used: int,
+        peak_tokens: int = 0,
+        cost_usd: float = 0.0
+    ) -> None:
+        """
+        Record context usage from a session working on this feature.
+
+        Args:
+            session_id: Session that used context
+            tokens_used: Total tokens attributed to this feature
+            peak_tokens: Peak context usage during this work
+            cost_usd: Cost attributed to this feature
+        """
+        # Track session if not already recorded
+        if session_id not in self.context_sessions:
+            self.context_sessions.append(session_id)
+
+        # Update aggregates
+        self.context_tokens_used += tokens_used
+        self.context_peak_tokens = max(self.context_peak_tokens, peak_tokens)
+        self.context_cost_usd += cost_usd
+        self.updated = datetime.now()
+
+    def context_stats(self) -> dict:
+        """
+        Get context usage statistics for this feature.
+
+        Returns:
+            Dictionary with context usage metrics
+        """
+        return {
+            "tokens_used": self.context_tokens_used,
+            "peak_tokens": self.context_peak_tokens,
+            "cost_usd": self.context_cost_usd,
+            "sessions": len(self.context_sessions),
+            "session_ids": self.context_sessions,
+        }
 
     def to_html(self, stylesheet_path: str = "../styles.css") -> str:
         """
@@ -349,6 +397,33 @@ class Node(BaseModel):
         # Track ID attribute
         track_attr = f' data-track-id="{self.track_id}"' if self.track_id else ""
 
+        # Context tracking attributes
+        context_attr = ""
+        if self.context_tokens_used > 0:
+            context_attr += f' data-context-tokens="{self.context_tokens_used}"'
+        if self.context_peak_tokens > 0:
+            context_attr += f' data-context-peak="{self.context_peak_tokens}"'
+        if self.context_cost_usd > 0:
+            context_attr += f' data-context-cost="{self.context_cost_usd:.4f}"'
+
+        # Build context usage section
+        context_html = ""
+        if self.context_tokens_used > 0 or self.context_sessions:
+            context_html = f'''
+        <section data-context-tracking>
+            <h3>Context Usage</h3>
+            <dl>
+                <dt>Total Tokens</dt>
+                <dd>{self.context_tokens_used:,}</dd>
+                <dt>Peak Tokens</dt>
+                <dd>{self.context_peak_tokens:,}</dd>
+                <dt>Total Cost</dt>
+                <dd>${self.context_cost_usd:.4f}</dd>
+                <dt>Sessions</dt>
+                <dd>{len(self.context_sessions)}</dd>
+            </dl>
+        </section>'''
+
         return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -364,7 +439,7 @@ class Node(BaseModel):
              data-status="{self.status}"
              data-priority="{self.priority}"
              data-created="{self.created.isoformat()}"
-             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}>
+             data-updated="{self.updated.isoformat()}"{agent_attr}{track_attr}{context_attr}>
 
         <header>
             <h1>{self.title}</h1>
@@ -373,11 +448,7 @@ class Node(BaseModel):
                 <span class="badge priority-{self.priority}">{self.priority.title()} Priority</span>
             </div>
         </header>
-<<<<<<< HEAD
-{edges_html}{props_html}{capabilities_html}{steps_html}{content_html}
-=======
-{edges_html}{handoff_html}{props_html}{steps_html}{content_html}
->>>>>>> origin/dev
+{edges_html}{handoff_html}{props_html}{capabilities_html}{context_html}{steps_html}{content_html}
     </article>
 </body>
 </html>
@@ -490,6 +561,114 @@ class Chore(Node):
         super().__init__(**data)
 
 
+class ContextSnapshot(BaseModel):
+    """
+    A snapshot of context window usage at a point in time.
+
+    Used to track how context is consumed across sessions, features,
+    and activities. Enables analytics for context efficiency.
+
+    The snapshot captures data from Claude Code's status line JSON input.
+    """
+
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+    # Token usage in current context window
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_creation_tokens: int = 0
+    cache_read_tokens: int = 0
+
+    # Context window capacity
+    context_window_size: int = 200000
+
+    # Cumulative totals for the session
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+
+    # Cost tracking
+    cost_usd: float = 0.0
+
+    # Optional context for what triggered this snapshot
+    trigger: str | None = None  # "activity", "feature_switch", "session_start", etc.
+    feature_id: str | None = None  # Feature being worked on at this moment
+
+    @property
+    def current_tokens(self) -> int:
+        """Total tokens in current context window."""
+        return self.input_tokens + self.cache_creation_tokens + self.cache_read_tokens
+
+    @property
+    def usage_percent(self) -> float:
+        """Context window usage as a percentage."""
+        if self.context_window_size == 0:
+            return 0.0
+        return (self.current_tokens / self.context_window_size) * 100
+
+    @classmethod
+    def from_claude_input(cls, data: dict, trigger: str | None = None, feature_id: str | None = None) -> "ContextSnapshot":
+        """
+        Create a ContextSnapshot from Claude Code status line JSON input.
+
+        Args:
+            data: JSON input from Claude Code (contains context_window, cost, etc.)
+            trigger: What triggered this snapshot
+            feature_id: Current feature being worked on
+
+        Returns:
+            ContextSnapshot instance
+        """
+        context = data.get("context_window", {})
+        usage = context.get("current_usage") or {}
+        cost = data.get("cost", {})
+
+        return cls(
+            input_tokens=usage.get("input_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+            cache_creation_tokens=usage.get("cache_creation_input_tokens", 0),
+            cache_read_tokens=usage.get("cache_read_input_tokens", 0),
+            context_window_size=context.get("context_window_size", 200000),
+            total_input_tokens=context.get("total_input_tokens", 0),
+            total_output_tokens=context.get("total_output_tokens", 0),
+            cost_usd=cost.get("total_cost_usd", 0.0),
+            trigger=trigger,
+            feature_id=feature_id,
+        )
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for serialization."""
+        return {
+            "ts": self.timestamp.isoformat(),
+            "in": self.input_tokens,
+            "out": self.output_tokens,
+            "cache_create": self.cache_creation_tokens,
+            "cache_read": self.cache_read_tokens,
+            "window": self.context_window_size,
+            "total_in": self.total_input_tokens,
+            "total_out": self.total_output_tokens,
+            "cost": self.cost_usd,
+            "trigger": self.trigger,
+            "feature": self.feature_id,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ContextSnapshot":
+        """Create from dictionary."""
+        return cls(
+            timestamp=datetime.fromisoformat(data["ts"]) if "ts" in data else datetime.now(),
+            input_tokens=data.get("in", 0),
+            output_tokens=data.get("out", 0),
+            cache_creation_tokens=data.get("cache_create", 0),
+            cache_read_tokens=data.get("cache_read", 0),
+            context_window_size=data.get("window", 200000),
+            total_input_tokens=data.get("total_in", 0),
+            total_output_tokens=data.get("total_out", 0),
+            cost_usd=data.get("cost", 0.0),
+            trigger=data.get("trigger"),
+            feature_id=data.get("feature"),
+        )
+
+
 class ActivityEntry(BaseModel):
     """
     A lightweight activity log entry for high-frequency events.
@@ -507,6 +686,9 @@ class ActivityEntry(BaseModel):
     parent_activity_id: str | None = None  # Link to parent activity (e.g., Skill invocation)
     payload: dict[str, Any] | None = None  # Optional rich payload for significant events
 
+    # Context tracking (optional, captured when available)
+    context_tokens: int | None = None  # Tokens in context when this activity occurred
+
     def to_html(self) -> str:
         """Convert activity to HTML list item."""
         attrs = [
@@ -522,6 +704,8 @@ class ActivityEntry(BaseModel):
             attrs.append(f'data-drift="{self.drift_score:.2f}"')
         if self.parent_activity_id:
             attrs.append(f'data-parent="{self.parent_activity_id}"')
+        if self.context_tokens is not None:
+            attrs.append(f'data-context-tokens="{self.context_tokens}"')
 
         return f'<li {" ".join(attrs)}>{self.summary}</li>'
 
@@ -571,6 +755,13 @@ class Session(BaseModel):
     primary_work_type: str | None = None  # WorkType enum value
     work_breakdown: dict[str, int] | None = None  # {work_type: event_count}
 
+    # Context tracking (Phase N: Context Analytics)
+    context_snapshots: list[ContextSnapshot] = Field(default_factory=list)
+    peak_context_tokens: int = 0  # High water mark for context usage
+    total_tokens_generated: int = 0  # Cumulative output tokens
+    total_cost_usd: float = 0.0  # Cumulative cost for session
+    context_by_feature: dict[str, int] = Field(default_factory=dict)  # {feature_id: tokens}
+
     def add_activity(self, entry: ActivityEntry) -> None:
         """Add an activity entry to the log."""
         self.activity_log.append(entry)
@@ -585,6 +776,81 @@ class Session(BaseModel):
         """Mark session as ended."""
         self.status = "ended"
         self.ended_at = datetime.now()
+
+    def record_context(
+        self,
+        snapshot: ContextSnapshot,
+        sample_interval: int = 10
+    ) -> None:
+        """
+        Record a context snapshot for analytics.
+
+        Args:
+            snapshot: ContextSnapshot to record
+            sample_interval: Only store every Nth snapshot to avoid bloat
+
+        Updates:
+            - peak_context_tokens if current exceeds previous peak
+            - total_tokens_generated from cumulative output
+            - total_cost_usd from snapshot
+            - context_by_feature if feature_id is set
+            - context_snapshots (sampled)
+        """
+        # Update peak context
+        current_tokens = snapshot.current_tokens
+        if current_tokens > self.peak_context_tokens:
+            self.peak_context_tokens = current_tokens
+
+        # Update totals
+        self.total_tokens_generated = snapshot.total_output_tokens
+        self.total_cost_usd = snapshot.cost_usd
+
+        # Track context by feature
+        if snapshot.feature_id:
+            prev = self.context_by_feature.get(snapshot.feature_id, 0)
+            # Use delta from last snapshot with same feature
+            self.context_by_feature[snapshot.feature_id] = max(prev, current_tokens)
+
+        # Sample snapshots to avoid bloat (every Nth or on significant events)
+        should_sample = (
+            len(self.context_snapshots) == 0 or
+            len(self.context_snapshots) % sample_interval == 0 or
+            snapshot.trigger in ("session_start", "session_end", "feature_switch") or
+            current_tokens > self.peak_context_tokens * 0.9  # Near peak
+        )
+
+        if should_sample:
+            self.context_snapshots.append(snapshot)
+
+    def context_stats(self) -> dict:
+        """
+        Get context usage statistics for this session.
+
+        Returns:
+            Dictionary with context usage metrics
+        """
+        if not self.context_snapshots:
+            return {
+                "peak_tokens": self.peak_context_tokens,
+                "total_output": self.total_tokens_generated,
+                "total_cost": self.total_cost_usd,
+                "by_feature": self.context_by_feature,
+                "snapshots": 0,
+            }
+
+        # Calculate averages and trends
+        tokens_over_time = [s.current_tokens for s in self.context_snapshots]
+        avg_tokens = sum(tokens_over_time) / len(tokens_over_time) if tokens_over_time else 0
+
+        return {
+            "peak_tokens": self.peak_context_tokens,
+            "avg_tokens": int(avg_tokens),
+            "total_output": self.total_tokens_generated,
+            "total_cost": self.total_cost_usd,
+            "by_feature": self.context_by_feature,
+            "snapshots": len(self.context_snapshots),
+            "peak_percent": (self.peak_context_tokens / 200000) * 100 if self.context_snapshots else 0,
+        }
 
     def get_events(
         self,
@@ -816,6 +1082,36 @@ class Session(BaseModel):
             work_breakdown_json = json.dumps(self.work_breakdown)
             work_breakdown_attr = f' data-work-breakdown=\'{work_breakdown_json}\''
 
+        # Context tracking attributes
+        context_attrs = ""
+        if self.peak_context_tokens > 0:
+            context_attrs += f' data-peak-context="{self.peak_context_tokens}"'
+        if self.total_tokens_generated > 0:
+            context_attrs += f' data-total-output="{self.total_tokens_generated}"'
+        if self.total_cost_usd > 0:
+            context_attrs += f' data-total-cost="{self.total_cost_usd:.4f}"'
+        if self.context_by_feature:
+            context_by_feature_json = json.dumps(self.context_by_feature)
+            context_attrs += f" data-context-by-feature='{context_by_feature_json}'"
+
+        # Build context summary section
+        context_html = ""
+        if self.peak_context_tokens > 0 or self.context_snapshots:
+            context_html = f'''
+        <section data-context-tracking>
+            <h3>Context Usage</h3>
+            <dl>
+                <dt>Peak Context</dt>
+                <dd>{self.peak_context_tokens:,} tokens ({self.peak_context_tokens * 100 // 200000}%)</dd>
+                <dt>Total Output</dt>
+                <dd>{self.total_tokens_generated:,} tokens</dd>
+                <dt>Total Cost</dt>
+                <dd>${self.total_cost_usd:.4f}</dd>
+                <dt>Snapshots</dt>
+                <dd>{len(self.context_snapshots)}</dd>
+            </dl>
+        </section>'''
+
         title = self.title or f"Session {self.id}"
 
         return f'''<!DOCTYPE html>
@@ -834,7 +1130,7 @@ class Session(BaseModel):
              data-agent="{self.agent}"
              data-started-at="{self.started_at.isoformat()}"
              data-last-activity="{self.last_activity.isoformat()}"
-             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}>
+             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}{context_attrs}>
 
         <header>
             <h1>{title}</h1>
@@ -844,7 +1140,7 @@ class Session(BaseModel):
                 <span class="badge">{self.event_count} events</span>
             </div>
         </header>
-{edges_html}{handoff_html}{activity_html}
+{edges_html}{handoff_html}{context_html}{activity_html}
     </article>
 </body>
 </html>
@@ -884,6 +1180,11 @@ class Session(BaseModel):
             data["activity_log"] = [
                 ActivityEntry(**e) if isinstance(e, dict) else e
                 for e in data["activity_log"]
+            ]
+        if "context_snapshots" in data:
+            data["context_snapshots"] = [
+                ContextSnapshot.from_dict(s) if isinstance(s, dict) else s
+                for s in data["context_snapshots"]
             ]
         return cls(**data)
 

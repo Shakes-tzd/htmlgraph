@@ -49,6 +49,7 @@ from htmlgraph.track_builder import TrackCollection
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.session_manager import SessionManager
+from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
 
 
 class SDK:
@@ -134,6 +135,9 @@ class SDK:
 
         # Dependency analytics interface (Advanced graph analytics)
         self.dep_analytics = DependencyAnalytics(self._graph)
+
+        # Context analytics interface (Context usage tracking)
+        self.context = ContextAnalytics(self)
 
     @staticmethod
     def _discover_htmlgraph() -> Path:
