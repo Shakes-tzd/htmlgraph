@@ -294,9 +294,90 @@ class BaseCollection(Generic[CollectionT]):
         }
         return self.batch_update(node_ids, updates)
 
+    def start(self, node_id: str, agent: str | None = None) -> Node | None:
+        """
+        Start working on a node (feature/bug/etc).
+
+        Delegates to SessionManager to:
+        1. Check WIP limits
+        2. Ensure not claimed by others
+        3. Auto-claim for agent
+        4. Link to active session
+        5. Log 'FeatureStart' event
+
+        Args:
+            node_id: Node ID to start
+            agent: Agent ID (defaults to SDK agent)
+
+        Returns:
+            Updated Node
+        """
+        agent = agent or self._sdk.agent
+        
+        # Use SessionManager if available (smart tracking)
+        if hasattr(self._sdk, 'session_manager'):
+            return self._sdk.session_manager.start_feature(
+                feature_id=node_id,
+                collection=self._collection_name,
+                agent=agent,
+                log_activity=True
+            )
+            
+        # Fallback to simple update (no session/events)
+        node = self.get(node_id)
+        if not node:
+            raise ValueError(f"Node {node_id} not found")
+            
+        node.status = "in-progress"
+        node.updated = datetime.now()
+        self._ensure_graph().update(node)
+        return node
+
+    def complete(self, node_id: str, agent: str | None = None) -> Node | None:
+        """
+        Complete a node.
+
+        Delegates to SessionManager to:
+        1. Update status
+        2. Log 'FeatureComplete' event
+        3. Release claim (optional behavior)
+
+        Args:
+            node_id: Node ID to complete
+            agent: Agent ID (defaults to SDK agent)
+
+        Returns:
+            Updated Node
+        """
+        agent = agent or self._sdk.agent
+
+        # Use SessionManager if available
+        if hasattr(self._sdk, 'session_manager'):
+            return self._sdk.session_manager.complete_feature(
+                feature_id=node_id,
+                collection=self._collection_name,
+                agent=agent,
+                log_activity=True
+            )
+
+        # Fallback
+        node = self.get(node_id)
+        if not node:
+            raise ValueError(f"Node {node_id} not found")
+
+        node.status = "done"
+        node.updated = datetime.now()
+        self._ensure_graph().update(node)
+        return node
+
     def claim(self, node_id: str, agent: str | None = None) -> Node:
         """
         Claim a node for an agent.
+
+        Delegates to SessionManager to:
+        1. Check ownership rules
+        2. Update assignment
+        3. Log 'FeatureClaim' event
 
         Args:
             node_id: Node ID to claim
@@ -309,15 +390,20 @@ class BaseCollection(Generic[CollectionT]):
             ValueError: If agent not provided and SDK has no agent
             ValueError: If node not found
             ValueError: If node already claimed by different agent
-
-        Example:
-            >>> feature = sdk.features.claim("feat-001")
-            >>> feature = sdk.features.claim("feat-002", agent="gemini")
         """
         agent = agent or self._sdk.agent
         if not agent:
             raise ValueError("Agent ID required for claiming")
 
+        # Use SessionManager if available
+        if hasattr(self._sdk, 'session_manager'):
+            return self._sdk.session_manager.claim_feature(
+                feature_id=node_id,
+                collection=self._collection_name,
+                agent=agent
+            )
+
+        # Fallback logic
         graph = self._ensure_graph()
         node = graph.get(node_id)
         if not node:
@@ -333,22 +419,37 @@ class BaseCollection(Generic[CollectionT]):
         graph.update(node)
         return node
 
-    def release(self, node_id: str) -> Node:
+    def release(self, node_id: str, agent: str | None = None) -> Node:
         """
         Release a claimed node.
 
+        Delegates to SessionManager to:
+        1. Verify ownership
+        2. Clear assignment
+        3. Log 'FeatureRelease' event
+
         Args:
             node_id: Node ID to release
+            agent: Agent ID (defaults to SDK agent)
 
         Returns:
             The released Node
 
         Raises:
             ValueError: If node not found
-
-        Example:
-            >>> feature = sdk.features.release("feat-001")
         """
+        # SessionManager.release_feature requires an agent to verify ownership
+        agent = agent or self._sdk.agent
+        
+        # Use SessionManager if available
+        if hasattr(self._sdk, 'session_manager') and agent:
+            return self._sdk.session_manager.release_feature(
+                feature_id=node_id,
+                collection=self._collection_name,
+                agent=agent
+            )
+
+        # Fallback logic
         graph = self._ensure_graph()
         node = graph.get(node_id)
         if not node:

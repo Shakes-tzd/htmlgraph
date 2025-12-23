@@ -529,14 +529,14 @@ def cmd_query(args):
 
 def cmd_session_start(args):
     """Start a new session."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
-    session = manager.start_session(
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    session = sdk.start_session(
         session_id=args.id,
-        agent=args.agent,
-        title=args.title
+        title=args.title,
+        agent=args.agent
     )
 
     if args.format == "json":
@@ -552,12 +552,12 @@ def cmd_session_start(args):
 
 def cmd_session_end(args):
     """End a session."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    sdk = SDK(directory=args.graph_dir)
     blockers = args.blocker if args.blocker else None
-    session = manager.end_session(
+    session = sdk.end_session(
         args.id,
         handoff_notes=args.notes,
         recommended_next=args.recommend,
@@ -581,16 +581,23 @@ def cmd_session_end(args):
 
 def cmd_session_handoff(args):
     """Set or show session handoff context."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
     if args.show:
+        # For showing, we might still need direct manager access or add more methods to SDK
+        # But for now, let's keep using SessionManager logic via SDK property if needed
+        # or implement show logic here using SDK collections
+        
+        # If args.session_id, use SDK.sessions.get()
         if args.session_id:
-            session = manager.get_session(args.session_id)
+            session = sdk.sessions.get(args.session_id)
         else:
-            session = manager.get_last_ended_session(agent=args.agent)
+            # Need "last ended session" - SDK doesn't expose this yet.
+            # Fallback to session_manager logic exposed on SDK
+            session = sdk.session_manager.get_last_ended_session(agent=args.agent)
 
         if not session:
             if args.format == "json":
@@ -612,28 +619,23 @@ def cmd_session_handoff(args):
                 print(f"Blockers: {', '.join(session.blockers)}")
         return
 
-    if not args.session_id:
-        active = manager.get_active_session(agent=args.agent)
-        if not active:
-            print("Error: No active session found. Provide --session-id.", file=sys.stderr)
-            sys.exit(1)
-        session_id = active.id
-    else:
-        session_id = args.session_id
-
+    # Setting handoff
     if not (args.notes or args.recommend or args.blocker):
         print("Error: Provide --notes, --recommend, or --blocker (or use --show).", file=sys.stderr)
         sys.exit(1)
 
-    session = manager.set_session_handoff(
-        session_id=session_id,
+    session = sdk.set_session_handoff(
+        session_id=args.session_id, # Optional, defaults to active
         handoff_notes=args.notes,
         recommended_next=args.recommend,
         blockers=args.blocker if args.blocker else None,
     )
 
     if session is None:
-        print(f"Error: Session '{session_id}' not found.", file=sys.stderr)
+        if args.session_id:
+            print(f"Error: Session '{args.session_id}' not found.", file=sys.stderr)
+        else:
+            print(f"Error: No active session found. Provide --session-id.", file=sys.stderr)
         sys.exit(1)
 
     if args.format == "json":
@@ -681,11 +683,11 @@ def cmd_session_list(args):
 
 def cmd_session_status_report(args):
     """Print a comprehensive status report (Markdown)."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import subprocess
 
-    manager = SessionManager(args.graph_dir)
-    status = manager.get_status()
+    sdk = SDK(directory=args.graph_dir)
+    status = sdk.get_status()
 
     # Git log
     try:
@@ -702,7 +704,8 @@ def cmd_session_status_report(args):
     if status['active_features']:
         active_features_text = "\n### Current Feature(s)\n"
         for fid in status['active_features']:
-            node = manager.features_graph.get(fid) or manager.bugs_graph.get(fid)
+            # Use SDK to get nodes
+            node = sdk.features.get(fid) or sdk.bugs.get(fid)
             if node:
                 active_features_text += f"**Working On:** {node.title} ({node.id})\n"
                 active_features_text += f"**Status:** {node.status}\n"
@@ -1239,20 +1242,45 @@ def cmd_agent_list(args):
 
 def cmd_feature_create(args):
     """Create a new feature."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    # Use SDK for feature creation (which now handles logging)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
     try:
-        node = manager.create_feature(
-            title=args.title,
-            collection=args.collection,
-            description=args.description or "",
-            priority=args.priority,
-            steps=args.steps,
-            agent=args.agent
-        )
+        # Determine collection (features -> create builder, others -> manual create?)
+        # For now, only 'features' has a builder in SDK.features.create()
+        # But BaseCollection doesn't have create().
+        
+        # If collection is 'features', use builder
+        if args.collection == "features":
+            builder = sdk.features.create(
+                title=args.title,
+                description=args.description or "",
+                priority=args.priority
+            )
+            if args.steps:
+                builder.add_steps(args.steps)
+            node = builder.save()
+        else:
+            # Fallback to SessionManager directly for non-feature collections 
+            # (or extend SDK to support create on all collections)
+            # For consistency with old CLI, we use SessionManager here if not features.
+            # But wait, SDK initializes SessionManager.
+            
+            # Creating bugs/chores via SDK isn't fully fluent yet.
+            # Let's use the low-level SessionManager.create_feature logic for now via SDK's session_manager
+            # IF we want to strictly use SDK. But SDK.session_manager IS exposed now.
+            node = sdk.session_manager.create_feature(
+                title=args.title,
+                collection=args.collection,
+                description=args.description or "",
+                priority=args.priority,
+                steps=args.steps,
+                agent=args.agent
+            )
+
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1269,13 +1297,18 @@ def cmd_feature_create(args):
 
 def cmd_feature_start(args):
     """Start working on a feature."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    collection = getattr(sdk, args.collection, None)
+    
+    if not collection:
+        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        sys.exit(1)
 
     try:
-        node = manager.start_feature(args.id, collection=args.collection, agent=args.agent)
+        node = collection.start(args.id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1293,19 +1326,24 @@ def cmd_feature_start(args):
         print(f"  Status: {node.status}")
 
         # Show WIP status
-        status = manager.get_status()
+        status = sdk.session_manager.get_status()
         print(f"  WIP: {status['wip_count']}/{status['wip_limit']}")
 
 
 def cmd_feature_complete(args):
     """Mark a feature as complete."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    collection = getattr(sdk, args.collection, None)
+
+    if not collection:
+        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        sys.exit(1)
 
     try:
-        node = manager.complete_feature(args.id, collection=args.collection, agent=args.agent)
+        node = collection.complete(args.id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1324,16 +1362,17 @@ def cmd_feature_complete(args):
 
 def cmd_feature_primary(args):
     """Set the primary feature for attribution."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
-
-    try:
-        node = manager.set_primary_feature(args.id, collection=args.collection, agent=args.agent)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    
+    # Only FeatureCollection has set_primary currently
+    if args.collection == "features":
+        node = sdk.features.set_primary(args.id)
+    else:
+        # Fallback to direct session manager for other collections
+        node = sdk.session_manager.set_primary_feature(args.id, collection=args.collection, agent=args.agent)
 
     if node is None:
         print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
@@ -1349,13 +1388,18 @@ def cmd_feature_primary(args):
 
 def cmd_feature_claim(args):
     """Claim a feature."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    collection = getattr(sdk, args.collection, None)
+
+    if not collection:
+        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        sys.exit(1)
 
     try:
-        node = manager.claim_feature(args.id, collection=args.collection, agent=args.agent)
+        node = collection.claim(args.id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1375,13 +1419,18 @@ def cmd_feature_claim(args):
 
 def cmd_feature_release(args):
     """Release a feature."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    collection = getattr(sdk, args.collection, None)
+
+    if not collection:
+        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        sys.exit(1)
 
     try:
-        node = manager.release_feature(args.id, collection=args.collection, agent=args.agent)
+        node = collection.release(args.id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -1399,11 +1448,12 @@ def cmd_feature_release(args):
 
 def cmd_feature_auto_release(args):
     """Release all features claimed by an agent."""
-    from htmlgraph.session_manager import SessionManager
+    from htmlgraph.sdk import SDK
     import json
 
-    manager = SessionManager(args.graph_dir)
-    released = manager.auto_release_features(agent=args.agent)
+    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    # auto_release_features is on SessionManager, exposed via SDK
+    released = sdk.session_manager.auto_release_features(agent=args.agent)
 
     if args.format == "json":
         print(json.dumps({"released": released}, indent=2))

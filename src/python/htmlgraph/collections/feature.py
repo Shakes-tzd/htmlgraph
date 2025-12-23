@@ -5,11 +5,12 @@ Extends BaseCollection with feature-specific builder support.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
     from htmlgraph.builders import FeatureBuilder
+    from htmlgraph.models import Node
 
 from htmlgraph.collections.base import BaseCollection
 
@@ -65,3 +66,24 @@ class FeatureCollection(BaseCollection['FeatureCollection']):
         """
         from htmlgraph.builders import FeatureBuilder
         return FeatureBuilder(self._sdk, title, **kwargs)
+
+    def set_primary(self, node_id: str) -> Node | None:
+        """
+        Set a feature as the primary focus.
+
+        Delegates to SessionManager.
+
+        Args:
+            node_id: Node ID to set as primary
+
+        Returns:
+            Updated Node
+        """
+        if hasattr(self._sdk, 'session_manager'):
+            return self._sdk.session_manager.set_primary_feature(
+                feature_id=node_id,
+                collection=self._collection_name,
+                agent=self._sdk.agent,
+                log_activity=True
+            )
+        return None

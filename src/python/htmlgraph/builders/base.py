@@ -161,4 +161,18 @@ class BaseBuilder(Generic[BuilderT]):
         graph = HtmlGraph(graph_path, auto_load=False)
         graph.add(node)
 
+        # Log creation event if SessionManager is available and agent is set
+        if hasattr(self._sdk, 'session_manager') and self._sdk.agent:
+            try:
+                self._sdk.session_manager._maybe_log_work_item_action(
+                    agent=self._sdk.agent,
+                    tool="FeatureCreate",
+                    summary=f"Created: {collection_name}/{node.id}",
+                    feature_id=node.id,
+                    payload={"collection": collection_name, "action": "create", "title": node.title},
+                )
+            except Exception:
+                # Never break save because of logging
+                pass
+
         return node

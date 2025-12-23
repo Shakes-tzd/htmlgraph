@@ -48,6 +48,7 @@ from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.analytics import Analytics
+from htmlgraph.session_manager import SessionManager
 
 
 class SDK:
@@ -104,6 +105,9 @@ class SDK:
 
         self._directory = Path(directory)
         self._agent_id = agent
+
+        # Initialize SessionManager for smart tracking and attribution
+        self.session_manager = SessionManager(self._directory)
 
         # Initialize underlying components (for backward compatibility)
         self._graph = HtmlGraph(self._directory / "features")
@@ -162,6 +166,7 @@ class SDK:
         """Reload all data from disk."""
         self._graph.reload()
         self._agent_interface.reload()
+        # SessionManager reloads implicitly on access via its converters/graphs
 
     def summary(self, max_items: int = 10) -> str:
         """
@@ -224,24 +229,79 @@ class SDK:
         Returns:
             Updated Session or None if not found
         """
-        from htmlgraph.session_manager import SessionManager
-
-        manager = SessionManager(self._directory)
         if not session_id:
             if self._agent_id:
-                active = manager.get_active_session_for_agent(self._agent_id)
+                active = self.session_manager.get_active_session_for_agent(self._agent_id)
             else:
-                active = manager.get_active_session()
+                active = self.session_manager.get_active_session()
             if not active:
                 return None
             session_id = active.id
 
-        return manager.set_session_handoff(
+        return self.session_manager.set_session_handoff(
             session_id=session_id,
             handoff_notes=handoff_notes,
             recommended_next=recommended_next,
             blockers=blockers,
         )
+
+    def start_session(
+        self,
+        session_id: str | None = None,
+        title: str | None = None,
+        agent: str | None = None
+    ) -> Any:
+        """
+        Start a new session.
+
+        Args:
+            session_id: Optional session ID
+            title: Optional session title
+            agent: Optional agent override (defaults to SDK agent)
+
+        Returns:
+            New Session instance
+        """
+        return self.session_manager.start_session(
+            session_id=session_id,
+            agent=agent or self._agent_id or "cli",
+            title=title
+        )
+
+    def end_session(
+        self,
+        session_id: str,
+        handoff_notes: str | None = None,
+        recommended_next: str | None = None,
+        blockers: list[str] | None = None,
+    ) -> Any:
+        """
+        End a session.
+
+        Args:
+            session_id: Session ID to end
+            handoff_notes: Optional handoff notes
+            recommended_next: Optional recommendations
+            blockers: Optional blockers
+
+        Returns:
+            Ended Session instance
+        """
+        return self.session_manager.end_session(
+            session_id=session_id,
+            handoff_notes=handoff_notes,
+            recommended_next=recommended_next,
+            blockers=blockers
+        )
+
+    def get_status(self) -> dict[str, Any]:
+        """
+        Get project status.
+
+        Returns:
+            Dict with status metrics (WIP, counts, etc.)
+        """
+        return self.session_manager.get_status()
 
     # =========================================================================
     # Strategic Planning & Analytics (Agent-Friendly Interface)
