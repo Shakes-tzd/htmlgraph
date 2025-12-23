@@ -31,7 +31,7 @@ from htmlgraph.dependency_analytics import DependencyAnalytics
 from htmlgraph.ids import generate_id, generate_hierarchical_id, parse_id, is_valid_id, is_legacy_id
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 __all__ = [
     # Core models
     "Node",
