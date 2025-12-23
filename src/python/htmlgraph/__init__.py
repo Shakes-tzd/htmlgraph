@@ -30,6 +30,8 @@ from htmlgraph.analytics import Analytics
 from htmlgraph.dependency_analytics import DependencyAnalytics
 from htmlgraph.ids import generate_id, generate_hierarchical_id, parse_id, is_valid_id, is_legacy_id
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
+from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
+from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 
 __version__ = "0.7.5"
 __all__ = [
@@ -71,4 +73,12 @@ __all__ = [
     # Work type utilities
     "infer_work_type",
     "infer_work_type_from_id",
+    # Builders (modular SDK components)
+    "BaseBuilder",
+    "FeatureBuilder",
+    "SpikeBuilder",
+    # Collections (modular SDK components)
+    "BaseCollection",
+    "FeatureCollection",
+    "SpikeCollection",
 ]
