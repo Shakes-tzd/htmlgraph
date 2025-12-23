@@ -50,6 +50,7 @@ from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.ids import generate_id
 from htmlgraph.analytics import Analytics
+from htmlgraph.agent_registry import AgentRegistry, AgentProfile
 
 
 @dataclass
@@ -191,6 +192,8 @@ class Collection:
         priority: str | None = None,
         track: str | None = None,
         assigned_to: str | None = None,
+        required_capabilities: list[str] | None = None,
+        complexity: str | None = None,
         **extra_filters
     ) -> list[Node]:
         """
@@ -198,6 +201,7 @@ class Collection:
 
         Example:
             high_bugs = sdk.bugs.where(status="todo", priority="high")
+            python_tasks = sdk.features.where(required_capabilities=["python"], complexity="low")
         """
         def matches(node: Node) -> bool:
             if node.type != self._node_type:
@@ -209,6 +213,16 @@ class Collection:
             if track and getattr(node, "track_id", None) != track:
                 return False
             if assigned_to and getattr(node, 'agent_assigned', None) != assigned_to:
+                return False
+
+            # Capability filtering (Phase 3: Smart Routing)
+            if required_capabilities:
+                node_caps = getattr(node, 'required_capabilities', [])
+                # Match if node has ANY of the specified capabilities
+                if not any(cap in node_caps for cap in required_capabilities):
+                    return False
+
+            if complexity and getattr(node, 'complexity', None) != complexity:
                 return False
 
             # Check extra filters
@@ -495,6 +509,9 @@ class SDK:
         # Dependency analytics interface (Advanced graph analytics)
         from htmlgraph.dependency_analytics import DependencyAnalytics
         self.dep_analytics = DependencyAnalytics(self._graph)
+
+        # Agent registry for capability-based routing (Phase 3: Smart Routing)
+        self.agent_registry = AgentRegistry(self._directory)
 
     @staticmethod
     def _discover_htmlgraph() -> Path:
@@ -885,3 +902,125 @@ class SDK:
                     "Start implementation"
                 ]
             }
+
+    # =========================================================================
+    # Agent Capabilities & Smart Routing (Phase 3)
+    # =========================================================================
+
+    def work_next(
+        self,
+        agent_id: str | None = None,
+        auto_claim: bool = True,
+        min_score: float = 20.0
+    ) -> Node | None:
+        """
+        Get next best task using smart routing based on agent capabilities.
+
+        Args:
+            agent_id: Agent to get work for (defaults to SDK agent)
+            auto_claim: Automatically claim the task
+            min_score: Minimum routing score to accept
+
+        Returns:
+            Next best task or None
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> task = sdk.work_next(auto_claim=True)
+            >>> print(f"Working on: {task.title}")
+        """
+        agent_id = agent_id or self._agent_id
+        if not agent_id:
+            raise ValueError("Agent ID required for work_next")
+
+        return self._agent_interface.get_next_task_smart(
+            agent_id=agent_id,
+            auto_claim=auto_claim,
+            min_score=min_score
+        )
+
+    def get_work_queue(
+        self,
+        agent_id: str | None = None,
+        limit: int = 10,
+        min_score: float = 20.0
+    ) -> list[dict[str, Any]]:
+        """
+        Get prioritized work queue for an agent using smart routing.
+
+        Args:
+            agent_id: Agent to get queue for (defaults to SDK agent)
+            limit: Maximum tasks to return
+            min_score: Minimum routing score to include
+
+        Returns:
+            List of tasks with routing scores, sorted by score
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> queue = sdk.get_work_queue(limit=5)
+            >>> for item in queue:
+            ...     print(f"{item['title']} (score: {item['score']})")
+        """
+        agent_id = agent_id or self._agent_id
+        if not agent_id:
+            raise ValueError("Agent ID required for work queue")
+
+        return self._agent_interface.get_work_queue(
+            agent_id=agent_id,
+            limit=limit,
+            min_score=min_score
+        )
+
+    def register_agent(
+        self,
+        agent_id: str,
+        name: str,
+        capabilities: list[str],
+        **kwargs: Any
+    ) -> AgentProfile:
+        """
+        Register or update an agent in the registry.
+
+        Args:
+            agent_id: Unique agent identifier
+            name: Human-readable name
+            capabilities: List of skills/tools the agent can use
+            **kwargs: Additional agent properties (max_parallel_tasks, preferred_complexity, etc.)
+
+        Returns:
+            Registered agent profile
+
+        Example:
+            >>> sdk = SDK()
+            >>> agent = sdk.register_agent(
+            ...     "claude",
+            ...     "Claude",
+            ...     ["python", "javascript", "code-review"],
+            ...     max_parallel_tasks=3
+            ... )
+        """
+        agent = AgentProfile(
+            id=agent_id,
+            name=name,
+            capabilities=capabilities,
+            **kwargs
+        )
+        self.agent_registry.register(agent)
+        return agent
+
+    def get_agent(self, agent_id: str) -> AgentProfile | None:
+        """Get agent profile by ID."""
+        return self.agent_registry.get(agent_id)
+
+    def list_agents(self, active_only: bool = False) -> list[AgentProfile]:
+        """
+        List all registered agents.
+
+        Args:
+            active_only: If True, only return active agents
+
+        Returns:
+            List of agent profiles
+        """
+        return self.agent_registry.list_agents(active_only=active_only)

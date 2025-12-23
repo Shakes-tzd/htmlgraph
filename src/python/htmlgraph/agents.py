@@ -13,6 +13,7 @@ from typing import Any
 
 from htmlgraph.models import Node, Step
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.agent_registry import AgentRegistry, AgentProfile
 
 
 class AgentInterface:
@@ -47,6 +48,11 @@ class AgentInterface:
         """
         self.graph = HtmlGraph(directory)
         self.agent_id = agent_id
+
+        # Initialize agent registry for capability-based routing
+        # Assumes .htmlgraph is parent of directory
+        htmlgraph_dir = Path(directory).parent if Path(directory).name == "features" else Path(directory)
+        self.registry = AgentRegistry(htmlgraph_dir)
 
     def reload(self) -> None:
         """Reload graph from disk."""
@@ -700,3 +706,216 @@ class AgentInterface:
             "completed": len(completed),
             "tasks": [t.id for t in in_progress]
         }
+
+    # =========================================================================
+    # Smart Routing & Capability Matching (Phase 3)
+    # =========================================================================
+
+    def calculate_task_score(
+        self,
+        task: Node,
+        agent: AgentProfile,
+        current_workload: int = 0
+    ) -> float:
+        """
+        Calculate routing score for a task-agent pair.
+
+        Higher score = better match.
+
+        Args:
+            task: Task to score
+            agent: Agent profile
+            current_workload: Current number of tasks assigned to agent
+
+        Returns:
+            Score (0-100)
+        """
+        score = 0.0
+
+        # Priority score (0-30 points)
+        priority_scores = {
+            "critical": 30,
+            "high": 20,
+            "medium": 10,
+            "low": 5
+        }
+        score += priority_scores.get(task.priority, 5)
+
+        # Capability match score (0-40 points)
+        if task.required_capabilities:
+            if agent.can_handle(task.required_capabilities):
+                # Perfect match gets 40 points
+                score += 40
+                # Bonus for exact capability match (no extra capabilities)
+                matching_caps = sum(1 for cap in task.required_capabilities if cap in agent.capabilities)
+                score += (matching_caps / len(task.required_capabilities)) * 5
+            else:
+                # No match = very low score
+                score = max(score - 30, 0)
+
+        # Complexity match score (0-20 points)
+        if task.complexity:
+            if agent.can_handle_complexity(task.complexity):
+                score += 20
+                # Bonus for preferred complexity
+                complexity_preference = {
+                    "low": 2,
+                    "medium": 5,
+                    "high": 3,
+                    "very-high": 1
+                }
+                score += complexity_preference.get(task.complexity, 0)
+            else:
+                score = max(score - 15, 0)
+
+        # Workload balancing (0-10 points)
+        if current_workload < agent.max_parallel_tasks:
+            workload_ratio = current_workload / agent.max_parallel_tasks
+            score += (1 - workload_ratio) * 10
+        else:
+            # Agent is at or over capacity
+            score = max(score - 20, 0)
+
+        return score
+
+    def get_agent_workload(self, agent_id: str) -> int:
+        """Get current workload (in-progress tasks) for an agent."""
+        in_progress = self.get_in_progress_tasks(agent_id)
+        return len(in_progress)
+
+    def find_best_match(
+        self,
+        task: Node,
+        candidate_agents: list[str] | None = None
+    ) -> tuple[str, float] | None:
+        """
+        Find the best agent for a task using smart routing.
+
+        Args:
+            task: Task to match
+            candidate_agents: Optional list of agent IDs to consider (defaults to all active)
+
+        Returns:
+            Tuple of (agent_id, score) or None if no match
+        """
+        # Get candidate agents
+        if candidate_agents:
+            agents = [self.registry.get(aid) for aid in candidate_agents]
+            agents = [a for a in agents if a and a.active]
+        else:
+            # Find capable agents based on requirements
+            if task.required_capabilities:
+                agents = self.registry.find_capable_agents(
+                    task.required_capabilities,
+                    task.complexity
+                )
+            else:
+                # No requirements, all active agents
+                agents = self.registry.list_agents(active_only=True)
+
+        if not agents:
+            return None
+
+        # Score each agent
+        best_agent = None
+        best_score = 0.0
+
+        for agent in agents:
+            workload = self.get_agent_workload(agent.id)
+            score = self.calculate_task_score(task, agent, workload)
+
+            if score > best_score:
+                best_score = score
+                best_agent = agent.id
+
+        if best_agent:
+            return (best_agent, best_score)
+        return None
+
+    def get_work_queue(
+        self,
+        agent_id: str | None = None,
+        limit: int = 10,
+        min_score: float = 20.0
+    ) -> list[dict[str, Any]]:
+        """
+        Get prioritized work queue for an agent using smart routing.
+
+        Args:
+            agent_id: Agent to get queue for (uses default if not specified)
+            limit: Maximum tasks to return
+            min_score: Minimum routing score to include
+
+        Returns:
+            List of tasks with routing scores, sorted by score (highest first)
+        """
+        agent_id = agent_id or self.agent_id
+        if not agent_id:
+            raise ValueError("agent_id required for work queue")
+
+        agent = self.registry.get(agent_id)
+        if not agent:
+            raise ValueError(f"Agent '{agent_id}' not found in registry")
+
+        # Get available tasks
+        available = self.get_available_tasks(status="todo", limit=100)
+
+        # Score each task
+        queue = []
+        workload = self.get_agent_workload(agent_id)
+
+        for task in available:
+            score = self.calculate_task_score(task, agent, workload)
+
+            if score >= min_score:
+                queue.append({
+                    "task_id": task.id,
+                    "title": task.title,
+                    "priority": task.priority,
+                    "status": task.status,
+                    "score": round(score, 2),
+                    "required_capabilities": task.required_capabilities,
+                    "complexity": task.complexity,
+                    "estimated_effort": task.estimated_effort
+                })
+
+        # Sort by score (highest first)
+        queue.sort(key=lambda x: x["score"], reverse=True)
+
+        return queue[:limit]
+
+    def get_next_task_smart(
+        self,
+        agent_id: str | None = None,
+        auto_claim: bool = False,
+        min_score: float = 20.0
+    ) -> Node | None:
+        """
+        Get next task using smart routing based on capabilities.
+
+        Args:
+            agent_id: Agent requesting task (uses default if not specified)
+            auto_claim: Whether to automatically claim the task
+            min_score: Minimum routing score to accept
+
+        Returns:
+            Next best task or None
+        """
+        agent_id = agent_id or self.agent_id
+        if not agent_id:
+            raise ValueError("agent_id required")
+
+        queue = self.get_work_queue(agent_id, limit=1, min_score=min_score)
+
+        if not queue:
+            return None
+
+        task_id = queue[0]["task_id"]
+        task = self.graph.get(task_id)
+
+        if task and auto_claim:
+            self.claim_task(task_id, agent_id)
+            # Reload to get updated state
+            task = self.graph.get(task_id)
+
+        return task

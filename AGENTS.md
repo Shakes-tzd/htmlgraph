@@ -692,6 +692,164 @@ claude plugin list | grep htmlgraph
 
 ---
 
+### Generalized Deployment System (NEW!)
+
+**For YOUR Projects** - HtmlGraph now includes a flexible deployment system that any project can use!
+
+#### Quick Start
+
+```bash
+# 1. Initialize deployment configuration
+htmlgraph deploy init
+
+# 2. Edit htmlgraph-deploy.toml to customize
+# 3. Run deployment
+htmlgraph deploy run
+
+# Or with flags
+htmlgraph deploy run --dry-run        # Preview
+htmlgraph deploy run --build-only     # Just build
+htmlgraph deploy run --docs-only      # Just git push
+```
+
+#### Configuration
+
+The `htmlgraph deploy init` command creates a template configuration file:
+
+```toml
+[project]
+name = "my-project"
+pypi_package = "my-package"
+
+[deployment]
+# Customize which steps to run and in what order
+steps = [
+    "git-push",
+    "build",
+    "pypi-publish",
+    "local-install",
+    "update-plugins"
+]
+
+[deployment.git]
+branch = "main"
+remote = "origin"
+push_tags = true
+
+[deployment.build]
+command = "uv build"  # Or "python -m build", "poetry build", etc.
+clean_dist = true
+
+[deployment.pypi]
+token_env_var = "PyPI_API_TOKEN"
+wait_after_publish = 10
+
+[deployment.plugins]
+# Update platform-specific plugins
+claude = "claude plugin update {package}"
+gemini = "gemini extensions update {package}"
+
+[deployment.hooks]
+# Custom commands to run at various stages
+pre_build = ["python scripts/update_version.py {version}"]
+post_build = []
+pre_publish = []
+post_publish = ["python scripts/notify_release.py {version}"]
+```
+
+#### Available Steps
+
+1. **git-push** - Push commits and tags to remote
+2. **build** - Build package distributions
+3. **pypi-publish** - Upload to PyPI
+4. **local-install** - Install package locally
+5. **update-plugins** - Update platform-specific plugins
+
+#### Custom Hooks
+
+Add custom commands at key points in the deployment process:
+
+- **pre_build** - Before building (e.g., update version files)
+- **post_build** - After building (e.g., validate artifacts)
+- **pre_publish** - Before PyPI publish (e.g., run tests)
+- **post_publish** - After publishing (e.g., notify Slack, create GitHub release)
+
+Hooks support placeholders:
+- `{version}` - Current package version
+- `{package}` - Package name
+
+#### Deployment Modes
+
+```bash
+# Full deployment (all steps)
+htmlgraph deploy run
+
+# Documentation only (git push)
+htmlgraph deploy run --docs-only
+
+# Build only (no git, no publish)
+htmlgraph deploy run --build-only
+
+# Skip specific steps
+htmlgraph deploy run --skip-pypi
+htmlgraph deploy run --skip-plugins
+
+# Preview mode (no changes)
+htmlgraph deploy run --dry-run
+```
+
+#### Example: Flask Project Deployment
+
+```toml
+[project]
+name = "my-flask-app"
+pypi_package = "my-flask-app"
+
+[deployment]
+steps = [
+    "git-push",
+    "build",
+    "pypi-publish",
+    "local-install"
+]
+
+[deployment.build]
+command = "python -m build"
+clean_dist = true
+
+[deployment.hooks]
+pre_build = [
+    "python -m pytest",  # Run tests first
+    "python scripts/bump_version.py {version}"
+]
+post_publish = [
+    "python scripts/deploy_docs.py",
+    "curl -X POST https://hooks.slack.com/... -d 'Released {version}'"
+]
+```
+
+#### Example: Multi-Platform Plugin
+
+```toml
+[deployment.plugins]
+# Update multiple platforms
+claude = "claude plugin update {package}"
+gemini = "gemini extensions update {package}"
+codex = "codex skills update {package}"
+vscode = "vsce publish"
+```
+
+#### Benefits Over Shell Scripts
+
+- ✅ **Portable** - Works across platforms (Windows, Mac, Linux)
+- ✅ **Configurable** - TOML config instead of editing bash
+- ✅ **Extensible** - Custom hooks for any workflow
+- ✅ **Safe** - Dry-run mode and step-by-step execution
+- ✅ **Integrated** - Works with htmlgraph tracking
+- ✅ **Reusable** - Share config across projects
+
+---
+
 ## Documentation Synchronization
 
 ### Memory File Sync Tool
