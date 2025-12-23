@@ -121,6 +121,49 @@ class FeatureBuilder:
         )
         return self
 
+    def set_required_capabilities(self, capabilities: list[str]) -> FeatureBuilder:
+        """
+        Set required capabilities for this feature.
+
+        Args:
+            capabilities: List of capability strings (e.g., ['python', 'testing'])
+
+        Returns:
+            Self for method chaining
+        """
+        self._data["required_capabilities"] = capabilities
+        return self
+
+    def add_capability_tag(self, tag: str) -> FeatureBuilder:
+        """
+        Add a capability tag for flexible matching.
+
+        Args:
+            tag: Tag string (e.g., 'frontend', 'backend')
+
+        Returns:
+            Self for method chaining
+        """
+        if "capability_tags" not in self._data:
+            self._data["capability_tags"] = []
+        self._data["capability_tags"].append(tag)
+        return self
+
+    def add_capability_tags(self, tags: list[str]) -> FeatureBuilder:
+        """
+        Add multiple capability tags.
+
+        Args:
+            tags: List of tag strings
+
+        Returns:
+            Self for method chaining
+        """
+        if "capability_tags" not in self._data:
+            self._data["capability_tags"] = []
+        self._data["capability_tags"].extend(tags)
+        return self
+
     def save(self) -> Node:
         """Save the feature and return the Node."""
         # Generate collision-resistant ID if not provided

@@ -155,6 +155,10 @@ class Node(BaseModel):
     plan_task_id: str | None = None  # Which plan task this feature implements
     spec_requirements: list[str] = Field(default_factory=list)  # Which spec requirements this satisfies
 
+    # Capability-based routing (Phase 3: Agent Routing & Capabilities)
+    required_capabilities: list[str] = Field(default_factory=list)  # Capabilities needed for this task
+    capability_tags: list[str] = Field(default_factory=list)  # Flexible tags for advanced matching
+
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
         if not self.id or not str(self.id).strip():
@@ -281,6 +285,25 @@ class Node(BaseModel):
             {self.content}
         </section>'''
 
+        # Build required capabilities HTML
+        capabilities_html = ""
+        if self.required_capabilities or self.capability_tags:
+            cap_items = []
+            if self.required_capabilities:
+                for cap in self.required_capabilities:
+                    cap_items.append(f'<li data-capability="{cap}">{cap}</li>')
+            if self.capability_tags:
+                for tag in self.capability_tags:
+                    cap_items.append(f'<li data-tag="{tag}" class="tag">{tag}</li>')
+            if cap_items:
+                capabilities_html = f'''
+        <section data-required-capabilities>
+            <h3>Required Capabilities</h3>
+            <ul>
+                {chr(10).join(cap_items)}
+            </ul>
+        </section>'''
+
         # Agent attribute
         agent_attr = f' data-agent-assigned="{self.agent_assigned}"' if self.agent_assigned else ""
         if self.claimed_at:
@@ -315,7 +338,7 @@ class Node(BaseModel):
                 <span class="badge priority-{self.priority}">{self.priority.title()} Priority</span>
             </div>
         </header>
-{edges_html}{props_html}{steps_html}{content_html}
+{edges_html}{props_html}{capabilities_html}{steps_html}{content_html}
     </article>
 </body>
 </html>
