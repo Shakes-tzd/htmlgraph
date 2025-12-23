@@ -644,6 +644,85 @@ tasks/
 
 ---
 
+## Deployment & Release
+
+### Using the Deployment Script (FLEXIBLE OPTIONS)
+
+**CRITICAL: Use `./scripts/deploy-all.sh` for all deployment operations.**
+
+**Quick Usage:**
+```bash
+# Documentation changes only (commit + push)
+./scripts/deploy-all.sh --docs-only
+
+# Full release (all 7 steps)
+./scripts/deploy-all.sh 0.7.1
+
+# Build package only (test builds)
+./scripts/deploy-all.sh --build-only
+
+# Skip PyPI publishing (build + install only)
+./scripts/deploy-all.sh 0.7.1 --skip-pypi
+
+# Preview what would happen (dry-run)
+./scripts/deploy-all.sh --dry-run
+
+# Show all options
+./scripts/deploy-all.sh --help
+```
+
+**Available Flags:**
+- `--docs-only` - Only commit and push to git (skip build/publish)
+- `--build-only` - Only build package (skip git/publish/install)
+- `--skip-pypi` - Skip PyPI publishing step
+- `--skip-plugins` - Skip plugin update steps
+- `--dry-run` - Show what would happen without executing
+
+**What the Script Does (7 Steps):**
+1. **Git Push** - Push commits and tags to origin/main
+2. **Build Package** - Create wheel and source distributions
+3. **Publish to PyPI** - Upload package to PyPI
+4. **Local Install** - Install latest version locally
+5. **Update Claude Plugin** - Run `claude plugin update htmlgraph`
+6. **Update Gemini Extension** - Update version in gemini-extension.json
+7. **Update Codex Skill** - Check for Codex and update if present
+
+**See:** `scripts/README.md` for complete documentation
+
+---
+
+## Memory File Synchronization
+
+**CRITICAL: Use `uv run htmlgraph sync-docs` to maintain documentation consistency.**
+
+HtmlGraph uses a centralized documentation pattern:
+- **AGENTS.md** - Single source of truth (SDK, API, CLI, workflows)
+- **CLAUDE.md** - Platform-specific notes + references AGENTS.md
+- **GEMINI.md** - Platform-specific notes + references AGENTS.md
+
+**Quick Usage:**
+```bash
+# Check if files are synchronized
+uv run htmlgraph sync-docs --check
+
+# Generate platform-specific file
+uv run htmlgraph sync-docs --generate gemini
+uv run htmlgraph sync-docs --generate claude
+
+# Synchronize all files (default)
+uv run htmlgraph sync-docs
+```
+
+**Why This Matters:**
+- ✅ Single source of truth in AGENTS.md
+- ✅ Platform-specific notes in separate files
+- ✅ Easy maintenance (update once, not 3+ times)
+- ✅ Consistency across all platforms
+
+**See:** `scripts/README.md` for complete documentation
+
+---
+
 ## Release & Publishing Workflow
 
 ### Version Numbering

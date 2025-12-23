@@ -2029,6 +2029,13 @@ curl Examples:
     publish_parser = subparsers.add_parser("publish", help="Build and publish package to PyPI")
     publish_parser.add_argument("--dry-run", action="store_true", help="Build only, do not publish")
 
+    # sync-docs
+    sync_docs_parser = subparsers.add_parser("sync-docs", help="Synchronize AI agent memory files across platforms")
+    sync_docs_parser.add_argument("--check", action="store_true", help="Check if files are synchronized (no changes)")
+    sync_docs_parser.add_argument("--generate", metavar="PLATFORM", help="Generate a platform-specific file (gemini, claude, codex)")
+    sync_docs_parser.add_argument("--project-root", type=str, help="Project root directory (default: current directory)")
+    sync_docs_parser.add_argument("--force", action="store_true", help="Overwrite existing files when generating")
+
     # install-gemini-extension
     install_gemini_parser = subparsers.add_parser(
         "install-gemini-extension",
@@ -2147,6 +2154,8 @@ curl Examples:
             sys.exit(1)
     elif args.command == "publish":
         cmd_publish(args)
+    elif args.command == "sync-docs":
+        cmd_sync_docs(args)
     elif args.command == "install-gemini-extension":
         cmd_install_gemini_extension(args)
     else:
@@ -2156,3 +2165,77 @@ curl Examples:
 
 if __name__ == "__main__":
     main()
+
+# =============================================================================
+# Documentation Sync Command
+# =============================================================================
+
+def cmd_sync_docs(args):
+    """Synchronize AI agent memory files across platforms."""
+    from htmlgraph.sync_docs import check_all_files, sync_all_files, generate_platform_file
+    
+    project_root = Path(args.project_root or os.getcwd()).resolve()
+    
+    if args.check:
+        # Check mode
+        print("🔍 Checking memory files...")
+        results = check_all_files(project_root)
+        
+        print("\nStatus:")
+        all_good = True
+        for filename, status in results.items():
+            if filename == "AGENTS.md":
+                if status:
+                    print(f"  ✅ {filename} exists")
+                else:
+                    print(f"  ❌ {filename} MISSING (required)")
+                    all_good = False
+            else:
+                if status:
+                    print(f"  ✅ {filename} references AGENTS.md")
+                else:
+                    print(f"  ⚠️  {filename} missing reference")
+                    all_good = False
+        
+        if all_good:
+            print("\n✅ All files are properly synchronized!")
+            return 0
+        else:
+            print("\n⚠️  Some files need attention")
+            return 1
+    
+    elif args.generate:
+        # Generate mode
+        platform = args.generate.lower()
+        print(f"📝 Generating {platform.upper()} memory file...")
+        
+        try:
+            content = generate_platform_file(platform, project_root)
+            from htmlgraph.sync_docs import PLATFORM_TEMPLATES
+            template = PLATFORM_TEMPLATES[platform]
+            filepath = project_root / template["filename"]
+            
+            if filepath.exists() and not args.force:
+                print(f"⚠️  {filepath.name} already exists. Use --force to overwrite.")
+                return 1
+            
+            filepath.write_text(content)
+            print(f"✅ Created: {filepath}")
+            print(f"\nThe file references AGENTS.md for core documentation.")
+            return 0
+        
+        except ValueError as e:
+            print(f"❌ Error: {e}")
+            return 1
+    
+    else:
+        # Sync mode (default)
+        print("🔄 Synchronizing memory files...")
+        changes = sync_all_files(project_root)
+        
+        print("\nResults:")
+        for change in changes:
+            print(f"  {change}")
+        
+        return 1 if any("⚠️" in c or "❌" in c for c in changes) else 0
+

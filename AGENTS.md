@@ -598,19 +598,33 @@ sdk._graph.update(feature)  # Manual save
 
 ## Deployment & Release
 
-### Using the Deployment Script
+### Using the Deployment Script (FLEXIBLE OPTIONS)
 
-HtmlGraph includes `scripts/deploy-all.sh` to automate the entire release process:
+HtmlGraph includes `scripts/deploy-all.sh` with multiple modes for different scenarios:
 
+**Quick Usage:**
 ```bash
-# Run with version number
+# Documentation changes only (commit + push)
+./scripts/deploy-all.sh --docs-only
+
+# Full release
 ./scripts/deploy-all.sh 0.7.1
 
-# Or auto-detect from pyproject.toml
-./scripts/deploy-all.sh
+# Preview what would happen
+./scripts/deploy-all.sh --dry-run
+
+# Show all options
+./scripts/deploy-all.sh --help
 ```
 
-**What it does (7 steps):**
+**Available Flags:**
+- `--docs-only` - Only commit and push to git (skip build/publish)
+- `--build-only` - Only build package (skip git/publish/install)
+- `--skip-pypi` - Skip PyPI publishing step
+- `--skip-plugins` - Skip plugin update steps
+- `--dry-run` - Show what would happen without executing
+
+**What full deployment does (7 steps):**
 1. **Git Push** - Pushes commits and tags to origin/main
 2. **Build Package** - Creates wheel and source distributions with `uv build`
 3. **Publish to PyPI** - Uploads to PyPI using token from .env
@@ -675,6 +689,51 @@ python -c "import htmlgraph; print(htmlgraph.__version__)"
 # Test Claude plugin
 claude plugin list | grep htmlgraph
 ```
+
+---
+
+## Documentation Synchronization
+
+### Memory File Sync Tool
+
+HtmlGraph includes `scripts/sync_memory_files.py` to maintain consistency across AI agent documentation files:
+
+**Usage:**
+```bash
+# Check if files are synchronized
+python scripts/sync_memory_files.py --check
+
+# Generate platform-specific file
+python scripts/sync_memory_files.py --generate gemini
+python scripts/sync_memory_files.py --generate claude
+python scripts/sync_memory_files.py --generate codex
+
+# Overwrite existing file
+python scripts/sync_memory_files.py --generate gemini --force
+```
+
+**What it checks:**
+- ✅ AGENTS.md exists (required central documentation)
+- ✅ Platform files reference AGENTS.md properly
+- ✅ Consistency across Claude, Gemini, Codex docs
+
+**File structure:**
+```
+project/
+├── AGENTS.md                    # Central documentation (SDK, deployment, workflows)
+├── CLAUDE.md                    # Project vision + references AGENTS.md
+├── GEMINI.md                    # Gemini-specific + references AGENTS.md
+└── packages/
+    ├── claude-plugin/skills/htmlgraph-tracker/SKILL.md
+    ├── gemini-extension/GEMINI.md
+    └── codex-skill/SKILL.md
+```
+
+**Why this matters:**
+- Single source of truth (AGENTS.md)
+- Platform files add platform-specific notes
+- Easy maintenance (update once, not 3+ times)
+- Automated validation
 
 ---
 
