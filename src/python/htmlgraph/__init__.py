@@ -33,6 +33,7 @@ from htmlgraph.ids import generate_id, generate_hierarchical_id, parse_id, is_va
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
+from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 
 __version__ = "0.9.5"
 __all__ = [
@@ -85,4 +86,7 @@ __all__ = [
     "BaseCollection",
     "FeatureCollection",
     "SpikeCollection",
+    # Agent detection
+    "detect_agent_name",
+    "get_agent_display_name",
 ]

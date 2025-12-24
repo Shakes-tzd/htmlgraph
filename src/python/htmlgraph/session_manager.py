@@ -21,6 +21,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.converter import session_to_html, html_to_session, SessionConverter, dict_to_node
 from htmlgraph.event_log import JsonlEventLog, EventRecord
 from htmlgraph.ids import generate_id
+from htmlgraph.agent_detection import detect_agent_name
 
 
 class SessionManager:
@@ -170,7 +171,7 @@ class SessionManager:
     def start_session(
         self,
         session_id: str | None = None,
-        agent: str = "claude-code",
+        agent: str | None = None,
         is_subagent: bool = False,
         continued_from: str | None = None,
         start_commit: str | None = None,
@@ -181,7 +182,7 @@ class SessionManager:
 
         Args:
             session_id: Unique session identifier (auto-generated if None)
-            agent: Agent name (e.g., "claude-code", "haiku")
+            agent: Agent name (auto-detected if None)
             is_subagent: True if this is a Task subagent
             continued_from: Previous session ID if continuing
             start_commit: Git commit hash at session start
@@ -190,6 +191,10 @@ class SessionManager:
         Returns:
             New Session instance
         """
+        # Auto-detect agent if not provided
+        if agent is None:
+            agent = detect_agent_name()
+
         now = datetime.now()
 
         # Auto-generate collision-resistant session ID if not provided

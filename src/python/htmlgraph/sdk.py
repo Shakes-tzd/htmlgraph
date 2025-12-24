@@ -50,6 +50,7 @@ from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollec
 from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
+from htmlgraph.agent_detection import detect_agent_name
 
 
 class SDK:
@@ -103,6 +104,9 @@ class SDK:
         """
         if directory is None:
             directory = self._discover_htmlgraph()
+
+        if agent is None:
+            agent = detect_agent_name()
 
         self._directory = Path(directory)
         self._agent_id = agent
