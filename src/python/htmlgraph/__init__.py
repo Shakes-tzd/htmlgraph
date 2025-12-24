@@ -32,7 +32,7 @@ from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 __all__ = [
     # Core models
     "Node",
