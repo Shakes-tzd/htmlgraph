@@ -136,6 +136,69 @@ run_command() {
     fi
 }
 
+# Function to update version numbers in all files
+update_version_numbers() {
+    local version=$1
+
+    log_info "Updating version numbers to $version..."
+
+    # Update pyproject.toml
+    if [ -f "pyproject.toml" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update pyproject.toml version to $version"
+        else
+            sed -i '' "s/^version = \".*\"/version = \"$version\"/" pyproject.toml
+            log_success "Updated pyproject.toml"
+        fi
+    fi
+
+    # Update __init__.py
+    if [ -f "src/python/htmlgraph/__init__.py" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update __init__.py version to $version"
+        else
+            sed -i '' "s/^__version__ = \".*\"/__version__ = \"$version\"/" src/python/htmlgraph/__init__.py
+            log_success "Updated __init__.py"
+        fi
+    fi
+
+    # Update Claude plugin JSON
+    if [ -f "packages/claude-plugin/.claude-plugin/plugin.json" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update plugin.json version to $version"
+        else
+            uv run python -c "
+import json
+with open('packages/claude-plugin/.claude-plugin/plugin.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$version'
+with open('packages/claude-plugin/.claude-plugin/plugin.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+            log_success "Updated plugin.json"
+        fi
+    fi
+
+    # Update Gemini extension JSON
+    if [ -f "packages/gemini-extension/gemini-extension.json" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update gemini-extension.json version to $version"
+        else
+            uv run python -c "
+import json
+with open('packages/gemini-extension/gemini-extension.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$version'
+with open('packages/gemini-extension/gemini-extension.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+            log_success "Updated gemini-extension.json"
+        fi
+    fi
+
+    echo ""
+}
+
 # Determine what to run
 if [ "$DOCS_ONLY" = true ]; then
     log_section "HtmlGraph Deployment - DOCS ONLY Mode"
@@ -164,6 +227,14 @@ fi
 if [ ! -f "pyproject.toml" ]; then
     log_error "Must be run from project root (where pyproject.toml is)"
     exit 1
+fi
+
+# ============================================================================
+# STEP 0: Update Version Numbers (if version provided)
+# ============================================================================
+if [ "$VERSION" != "unknown" ] && [ "$DOCS_ONLY" != true ]; then
+    log_section "Step 0: Updating Version Numbers"
+    update_version_numbers "$VERSION"
 fi
 
 # Load PyPI token from .env if it exists

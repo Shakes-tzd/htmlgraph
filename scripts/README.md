@@ -68,7 +68,8 @@ git push origin main
 
 **Purpose**: Automate the complete deployment workflow from git push to PyPI publish to plugin updates.
 
-**7 Automated Steps**:
+**8 Automated Steps**:
+0. **Update version numbers** in all files (NEW!)
 1. Push to git (with tags)
 2. Build Python package
 3. Publish to PyPI

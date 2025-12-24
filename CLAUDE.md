@@ -687,7 +687,7 @@ This script reduces 3 separate bash calls to 1:
 **IMPORTANT PRE-DEPLOYMENT CHECKLIST:**
 1. ✅ **MUST be in project root directory** - Script will fail if run from subdirectories like `dist/`
 2. ✅ **Commit all changes first** - Script checks for uncommitted changes and refuses to deploy
-3. ✅ **Verify version numbers** - Ensure all files have consistent version numbers
+3. ~~✅ **Verify version numbers**~~ - **AUTOMATED!** Script now updates all version numbers automatically
 4. ✅ **Run tests** - `uv run pytest` must pass before deployment
 
 **Quick Usage:**
