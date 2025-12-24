@@ -686,29 +686,53 @@ This script reduces 3 separate bash calls to 1:
 
 **IMPORTANT PRE-DEPLOYMENT CHECKLIST:**
 1. ✅ **MUST be in project root directory** - Script will fail if run from subdirectories like `dist/`
-2. ✅ **Commit all changes first** - Script checks for uncommitted changes and refuses to deploy
-3. ~~✅ **Verify version numbers**~~ - **AUTOMATED!** Script now updates all version numbers automatically
+2. ~~✅ **Commit all changes first**~~ - **AUTOMATED!** Script auto-commits version changes in Step 0
+3. ~~✅ **Verify version numbers**~~ - **AUTOMATED!** Script auto-updates all version numbers in Step 0
 4. ✅ **Run tests** - `uv run pytest` must pass before deployment
+
+**NEW STREAMLINED WORKFLOW (v0.9.4+):**
+```bash
+# 1. Run tests
+uv run pytest
+
+# 2. Deploy (one command, fully automated!)
+./scripts/deploy-all.sh 0.9.4 --no-confirm
+
+# That's it! The script now handles:
+# ✅ Version updates in all files (Step 0)
+# ✅ Auto-commit of version changes
+# ✅ Git push with tags
+# ✅ Build, publish, install
+# ✅ Plugin updates
+# ✅ No interactive prompts with --no-confirm
+```
+
+**Session Tracking Files Excluded:**
+```
+.gitignore now excludes regenerable session tracking:
+- .htmlgraph/sessions/*.jsonl
+- .htmlgraph/events/*.jsonl
+- .htmlgraph/parent-activity.json
+
+This eliminates the multi-commit cycle problem.
+```
 
 **Quick Usage:**
 ```bash
-# CRITICAL: Always run from project root
-cd /Users/shakes/DevProjects/htmlgraph
+# Full release (non-interactive, recommended)
+./scripts/deploy-all.sh 0.9.4 --no-confirm
 
-# Commit any uncommitted changes first
-git add . && git commit -m "chore: pre-deployment commit"
+# Full release (with confirmations)
+./scripts/deploy-all.sh 0.9.4
 
 # Documentation changes only (commit + push)
 ./scripts/deploy-all.sh --docs-only
-
-# Full release (all 7 steps)
-./scripts/deploy-all.sh 0.7.1
 
 # Build package only (test builds)
 ./scripts/deploy-all.sh --build-only
 
 # Skip PyPI publishing (build + install only)
-./scripts/deploy-all.sh 0.7.1 --skip-pypi
+./scripts/deploy-all.sh 0.9.4 --skip-pypi
 
 # Preview what would happen (dry-run)
 ./scripts/deploy-all.sh --dry-run
@@ -718,13 +742,15 @@ git add . && git commit -m "chore: pre-deployment commit"
 ```
 
 **Available Flags:**
+- `--no-confirm` - Skip all confirmation prompts (non-interactive mode) **[NEW]**
 - `--docs-only` - Only commit and push to git (skip build/publish)
 - `--build-only` - Only build package (skip git/publish/install)
 - `--skip-pypi` - Skip PyPI publishing step
 - `--skip-plugins` - Skip plugin update steps
 - `--dry-run` - Show what would happen without executing
 
-**What the Script Does (7 Steps):**
+**What the Script Does (8 Steps):**
+0. **Update & Commit Versions** - Auto-update version numbers in all files and commit **[NEW]**
 1. **Git Push** - Push commits and tags to origin/main
 2. **Build Package** - Create wheel and source distributions
 3. **Publish to PyPI** - Upload package to PyPI

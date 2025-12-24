@@ -47,6 +47,19 @@ Thumbs.db
 .htmlgraph/index.sqlite
 .htmlgraph/index.sqlite-wal
 .htmlgraph/index.sqlite-shm
+
+# HtmlGraph session tracking artifacts (regenerable observability data)
+.htmlgraph/sessions/*.jsonl
+.htmlgraph/events/*.jsonl
+.htmlgraph/parent-activity.json
+
+# Keep these (source of truth):
+# - .htmlgraph/features/
+# - .htmlgraph/bugs/
+# - .htmlgraph/chores/
+# - .htmlgraph/spikes/
+# - .htmlgraph/agents.json
+
 .env
 
 # MkDocs build output

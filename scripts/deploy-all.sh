@@ -37,6 +37,7 @@ BUILD_ONLY=false
 SKIP_PYPI=false
 SKIP_PLUGINS=false
 DRY_RUN=false
+NO_CONFIRM=false
 VERSION=""
 
 show_help() {
@@ -49,6 +50,7 @@ show_help() {
     echo "  --build-only    Only build package (skip git/publish/install)"
     echo "  --skip-pypi     Skip PyPI publishing step"
     echo "  --skip-plugins  Skip plugin update steps"
+    echo "  --no-confirm    Skip all confirmation prompts (non-interactive mode)"
     echo "  --dry-run       Show what would happen without executing"
     echo "  --help          Show this help message"
     echo ""
@@ -75,6 +77,9 @@ for arg in "$@"; do
             ;;
         --skip-plugins)
             SKIP_PLUGINS=true
+            ;;
+        --no-confirm)
+            NO_CONFIRM=true
             ;;
         --dry-run)
             DRY_RUN=true
@@ -235,6 +240,25 @@ fi
 if [ "$VERSION" != "unknown" ] && [ "$DOCS_ONLY" != true ]; then
     log_section "Step 0: Updating Version Numbers"
     update_version_numbers "$VERSION"
+
+    # Auto-commit version changes immediately
+    if [ "$DRY_RUN" != true ] && [ "$SKIP_GIT" != true ]; then
+        log_info "Committing version changes..."
+        git add pyproject.toml \
+                src/python/htmlgraph/__init__.py \
+                packages/claude-plugin/.claude-plugin/plugin.json \
+                packages/gemini-extension/gemini-extension.json
+
+        if git diff --cached --quiet; then
+            log_info "No version changes to commit (already up to date)"
+        else
+            if run_command git commit -m "chore: bump version to $VERSION" --no-verify; then
+                log_success "Version files committed"
+            else
+                log_warning "Version commit failed (files may already be committed)"
+            fi
+        fi
+    fi
 fi
 
 # Load PyPI token from .env if it exists
@@ -247,10 +271,14 @@ fi
 if [ -z "$PyPI_API_TOKEN" ] && [ -z "$UV_PUBLISH_TOKEN" ]; then
     log_warning "PyPI token not found in environment"
     log_info "Set PyPI_API_TOKEN in .env or UV_PUBLISH_TOKEN in environment"
-    read -p "Continue anyway? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
+    if [ "$NO_CONFIRM" != true ] && [ "$DRY_RUN" != true ]; then
+        read -p "Continue anyway? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        log_info "Continuing without PyPI token (--no-confirm mode)"
     fi
 fi
 
@@ -264,12 +292,14 @@ if [ "$SKIP_GIT" != true ]; then
     if ! git diff-index --quiet HEAD --; then
         log_warning "You have uncommitted changes"
         git status --short
-        if [ "$DRY_RUN" != true ]; then
+        if [ "$NO_CONFIRM" != true ] && [ "$DRY_RUN" != true ]; then
             read -p "Continue anyway? (y/n) " -n 1 -r
             echo
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                 exit 1
             fi
+        else
+            log_info "Continuing with uncommitted changes (--no-confirm mode)"
         fi
     fi
 

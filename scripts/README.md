@@ -84,6 +84,9 @@ git push origin main
 # Full release
 ./scripts/deploy-all.sh 0.9.1
 
+# Full release (non-interactive, no prompts)
+./scripts/deploy-all.sh 0.9.1 --no-confirm
+
 # Documentation changes only (skip build/publish)
 ./scripts/deploy-all.sh --docs-only
 
@@ -102,9 +105,31 @@ git push origin main
 **CRITICAL - Do these first:**
 
 1. ✅ **MUST be in project root directory** - Script fails from subdirectories
-2. ✅ **Commit all changes first** - Script checks for uncommitted changes
-3. ✅ **Verify version numbers** - Ensure consistency across all files
-4. ✅ **Run tests** - \`uv run pytest\` must pass before deployment
+2. ~~✅ **Commit all changes first**~~ - **AUTOMATED!** Script auto-commits version changes
+3. ~~✅ **Verify version numbers**~~ - **AUTOMATED!** Script auto-updates and commits versions
+4. ✅ **Run tests** - `uv run pytest` must pass before deployment
+
+**What's Automated Now (v0.9.4+):**
+- ✅ Version number updates (Step 0)
+- ✅ Auto-commit of version files
+- ✅ Session tracking files excluded from git (via .gitignore)
+- ✅ Non-interactive mode with `--no-confirm` flag
+
+**New Workflow:**
+```bash
+# 1. Run tests
+uv run pytest
+
+# 2. Deploy (one command, fully automated!)
+./scripts/deploy-all.sh 0.9.4 --no-confirm
+
+# That's it! Script handles:
+# - Version updates in all files
+# - Auto-commit version changes
+# - Git push with tags
+# - Build, publish, install
+# - Plugin updates
+```
 
 ---
 
