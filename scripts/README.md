@@ -1,257 +1,150 @@
-# Deployment Automation
+# HtmlGraph Scripts
 
-This directory contains deployment scripts and tools for HtmlGraph and can be adapted for any Python project.
+Collection of utility scripts for common development workflows.
 
-## Quick Start
-
-### Option 1: Shell Script (Default)
+## Quick Reference
 
 ```bash
-# Full deployment (all steps)
-./scripts/deploy-all.sh 0.8.0
+# Git workflow (3 commands → 1)
+./scripts/git-commit-push.sh "commit message"
 
-# Just commit and push
+# Deployment (7 steps automated)
+./scripts/deploy-all.sh 0.9.1
+
+# Both support --dry-run and --help
+```
+
+---
+
+## Git Commit and Push (`git-commit-push.sh`)
+
+**Purpose**: Systematize the common git workflow of staging, committing, and pushing.
+
+**Reduces**:
+```bash
+# From this (3 bash calls):
+git add -A
+git commit -m "message"
+git push origin main
+
+# To this (1 bash call):
+./scripts/git-commit-push.sh "message"
+```
+
+### Usage
+
+```bash
+# Basic usage
+./scripts/git-commit-push.sh "chore: update session tracking"
+
+# Skip confirmation prompt
+./scripts/git-commit-push.sh "fix: deployment issues" --no-confirm
+
+# Preview without executing
+./scripts/git-commit-push.sh "feat: new feature" --dry-run
+
+# Show help
+./scripts/git-commit-push.sh --help
+```
+
+### Features
+
+- ✅ Shows files to be committed before proceeding
+- ✅ Confirms action (unless \`--no-confirm\`)
+- ✅ Stages all changes (\`git add -A\`)
+- ✅ Commits with provided message
+- ✅ Pushes to origin/main
+- ✅ Supports \`--dry-run\` for preview
+
+### Flags
+
+- \`--dry-run\` - Show what would happen without executing
+- \`--no-confirm\` - Skip confirmation prompt
+- \`--help\` - Show help message
+
+---
+
+## Deployment Script (`deploy-all.sh`)
+
+**Purpose**: Automate the complete deployment workflow from git push to PyPI publish to plugin updates.
+
+**7 Automated Steps**:
+1. Push to git (with tags)
+2. Build Python package
+3. Publish to PyPI
+4. Install locally
+5. Update Claude plugin
+6. Update Gemini extension
+7. Update Codex skill (if present)
+
+### Usage
+
+```bash
+# Full release
+./scripts/deploy-all.sh 0.9.1
+
+# Documentation changes only (skip build/publish)
 ./scripts/deploy-all.sh --docs-only
 
-# Build package only
+# Build package only (skip git/publish/install)
 ./scripts/deploy-all.sh --build-only
 
-# Preview without changes (dry-run)
+# Skip PyPI publishing
+./scripts/deploy-all.sh 0.9.1 --skip-pypi
+
+# Preview what would happen
 ./scripts/deploy-all.sh --dry-run
 ```
 
-### Option 2: Python Entry Point (After Installation)
+### Pre-Deployment Checklist
+
+**CRITICAL - Do these first:**
+
+1. ✅ **MUST be in project root directory** - Script fails from subdirectories
+2. ✅ **Commit all changes first** - Script checks for uncommitted changes
+3. ✅ **Verify version numbers** - Ensure consistency across all files
+4. ✅ **Run tests** - \`uv run pytest\` must pass before deployment
+
+---
+
+## Common Workflows
+
+### Quick Commit and Push
 
 ```bash
-# Full deployment
-htmlgraph-deploy 0.8.0
-
-# Just commit and push
-htmlgraph-deploy --docs-only
-
-# Build package only
-htmlgraph-deploy --build-only
-
-# Preview without changes
-htmlgraph-deploy --dry-run
+./scripts/git-commit-push.sh "chore: update docs" --no-confirm
 ```
 
-### Option 3: Invoke Tasks (For Developers)
+### Full Release
 
 ```bash
-# Install dev dependencies first
-uv sync --group dev
+# 1. Pre-deployment checks
+cd /Users/shakes/DevProjects/htmlgraph
+uv run pytest
+git status
 
-# See available tasks
-uv run invoke --list
-
-# Deploy with Invoke
-uv run invoke deploy --version=0.8.0
-
-# Just build package
-uv run invoke build-package
-
-# Just publish
-uv run invoke publish-pypi --version=0.8.0
+# 2. Deploy
+./scripts/deploy-all.sh 0.9.1
 ```
 
-## Available Flags
+### Development Notes
 
-### `--docs-only`
+**CRITICAL**: All scripts use \`uv run python\` instead of bare \`python\` to comply with project standards.
 
-Only commit and push to git (skip build/publish/install).
-
-```bash
-./scripts/deploy-all.sh --docs-only
-```
-
-### `--build-only`
-
-Only build package distribution (skip git/publish/install).
-
-```bash
-./scripts/deploy-all.sh --build-only
-```
-
-### `--skip-pypi`
-
-Skip PyPI publishing step (still builds and installs locally).
-
-```bash
-./scripts/deploy-all.sh 0.8.0 --skip-pypi
-```
-
-### `--skip-plugins`
-
-Skip Claude, Gemini, and Codex plugin/extension updates.
-
-```bash
-./scripts/deploy-all.sh 0.8.0 --skip-plugins
-```
-
-### `--dry-run`
-
-Show what would happen without actually executing anything.
-
-```bash
-./scripts/deploy-all.sh --dry-run
-./scripts/deploy-all.sh 0.8.0 --dry-run --skip-pypi
-```
-
-### `--help`
-
-Show help message with all options and examples.
-
-```bash
-./scripts/deploy-all.sh --help
-```
-
-## Configuration
-
-The deployment script is configurable via the **CONFIGURATION SECTION** at the top of `deploy-all.sh`.
-
-## Environment Setup
-
-### PyPI Authentication
-
-Create a `.env` file in project root:
-
-```bash
-PyPI_API_TOKEN=pypi-YOUR_TOKEN_HERE
-```
-
-Or set environment variable:
-
-```bash
-export PyPI_API_TOKEN="pypi-YOUR_TOKEN_HERE"
-```
-
-## Deployment Steps
-
-The script performs up to 7 steps:
-
-1. **Git Push** - Push to remote
-2. **Build Package** - Create distributions
-3. **Publish to PyPI** - Upload to PyPI
-4. **Install Locally** - Install latest version
-5. **Update Claude Plugin** - Update Claude plugin
-6. **Update Gemini Extension** - Update Gemini extension
-7. **Update Codex Skill** - Update Codex skill
-
-## Workflow Examples
-
-### Release New Version
-
-```bash
-./scripts/deploy-all.sh 0.8.0
-```
-
-### Documentation Update
-
-```bash
-./scripts/deploy-all.sh --docs-only
-```
-
-### Test Build Process
-
-```bash
-./scripts/deploy-all.sh --build-only
-```
-
-### Pre-Release Testing
-
-```bash
-./scripts/deploy-all.sh 0.8.0 --dry-run
-```
-
-## Using Deploy Script in Your Project
-
-### Step 1: Copy the Template
-
-```bash
-cp scripts/templates/deploy-template.sh scripts/deploy.sh
-chmod +x scripts/deploy.sh
-```
-
-### Step 2: Customize Configuration
-
-Edit `scripts/deploy.sh` and customize the CONFIGURATION SECTION.
-
-### Step 3: Test It
-
-```bash
-./scripts/deploy.sh --dry-run
-```
-
-### Step 4: Use in Your Workflow
-
-```bash
-./scripts/deploy.sh 1.0.0
-```
-
-## Python Entry Point
-
-After installation, use the `htmlgraph-deploy` command:
-
-```bash
-htmlgraph-deploy 0.8.0
-htmlgraph-deploy --dry-run
-htmlgraph-deploy --help
-```
-
-## Invoke Tasks
-
-Use Python tasks for deployment:
-
-```bash
-# List tasks
-uv run invoke --list
-
-# Deploy
-uv run invoke deploy --version=0.8.0
-
-# Individual tasks
-uv run invoke push-git
-uv run invoke build-package
-uv run invoke publish-pypi --version=0.8.0
-```
+---
 
 ## Troubleshooting
 
-### PyPI Token Not Found
-
-Set environment variable:
-
+### "No such file or directory"
+**Solution**: Always run from project root
 ```bash
-export PyPI_API_TOKEN="pypi-YOUR_TOKEN_HERE"
+cd /Users/shakes/DevProjects/htmlgraph
+./scripts/git-commit-push.sh "message"
 ```
 
-### Build Fails
-
-Check dependencies:
-
+### "Uncommitted changes detected"
+**Solution**: Commit changes first
 ```bash
-uv sync
+./scripts/git-commit-push.sh "chore: commit" --no-confirm
+./scripts/deploy-all.sh 0.9.1
 ```
-
-### Git Push Fails
-
-Commit changes first:
-
-```bash
-git add -A
-git commit -m "..."
-```
-
-## Best Practices
-
-1. Always use `--dry-run` first
-2. Update version in pyproject.toml
-3. Commit before deploying
-4. Keep tokens secure
-5. Test locally first
-6. Use git tags for version tracking
-
-## License
-
-MIT - See LICENSE file for details
