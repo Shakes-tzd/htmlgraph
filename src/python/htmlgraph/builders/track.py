@@ -269,6 +269,15 @@ class TrackBuilder:
             {"".join(nav_items)}
         </nav>'''
 
+        # Map Track status to Node-compatible status for HTML parsing
+        status_mapping = {
+            "planned": "todo",      # Not started
+            "active": "in-progress", # In progress
+            "completed": "done",     # Done
+            "abandoned": "blocked"   # Blocked/stopped
+        }
+        node_status = status_mapping.get(track.status, "todo")
+
         created_date = datetime.now().strftime("%Y-%m-%d")
 
         return f'''<!DOCTYPE html>
@@ -510,11 +519,11 @@ class TrackBuilder:
 </head>
 <body>
     {nav_html}
-    <article id="{track.id}" data-type="track" data-status="{track.status}" data-priority="{track.priority}">
+    <article id="{track.id}" data-type="track" data-status="{node_status}" data-priority="{track.priority}">
         <header id="top">
             <h1>{self._title}</h1>
             <div class="metadata">
-                <span class="badge status-{track.status}">{track.status.title()}</span>
+                <span class="badge status-{node_status}">{track.status.title()}</span>
                 <span class="badge priority-{track.priority}">{track.priority.title()} Priority</span>
                 <span class="badge">Created: {created_date}</span>
             </div>

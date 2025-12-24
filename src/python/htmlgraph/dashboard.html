@@ -3233,11 +3233,28 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 }
             });
 
-            // Sort tracks by priority (critical > high > medium > low)
+            // Sort tracks by feature completion (incomplete first), then by priority
             const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
             const sortedTracks = Array.from(tracked.values())
                 .filter(t => t.track !== null)
-                .sort((a, b) => priorityOrder[a.track.priority] - priorityOrder[b.track.priority]);
+                .sort((a, b) => {
+                    // Calculate completion percentage for each track
+                    const aTotal = a.features.length;
+                    const aDone = a.features.filter(f => f.status === 'done').length;
+                    const aComplete = aTotal > 0 ? (aDone === aTotal) : false;
+
+                    const bTotal = b.features.length;
+                    const bDone = b.features.filter(f => f.status === 'done').length;
+                    const bComplete = bTotal > 0 ? (bDone === bTotal) : false;
+
+                    // Completed tracks go to bottom (1), incomplete stay at top (0)
+                    if (aComplete !== bComplete) {
+                        return aComplete ? 1 : -1;
+                    }
+
+                    // Within same completion status, sort by priority
+                    return priorityOrder[a.track.priority] - priorityOrder[b.track.priority];
+                });
 
             // Render
             renderTrackSections(sortedTracks);
