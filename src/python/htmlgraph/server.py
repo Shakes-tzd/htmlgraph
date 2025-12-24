@@ -916,6 +916,21 @@ def serve(
     graph_dir = Path(graph_dir)
     static_dir = Path(static_dir)
 
+    # Check if root index.html is in sync with packaged dashboard
+    root_index = static_dir / "index.html"
+    packaged_dashboard = Path(__file__).parent / "dashboard.html"
+
+    if root_index.exists() and packaged_dashboard.exists():
+        root_content = root_index.read_text(encoding="utf-8")
+        packaged_content = packaged_dashboard.read_text(encoding="utf-8")
+
+        if root_content != packaged_content:
+            print("⚠️  Warning: index.html is out of sync with dashboard.html")
+            print(f"   Root: {root_index}")
+            print(f"   Package: {packaged_dashboard}")
+            print("   Run: cp src/python/htmlgraph/dashboard.html index.html")
+            print()
+
     # Create graph directory structure
     graph_dir.mkdir(parents=True, exist_ok=True)
     for collection in HtmlGraphAPIHandler.COLLECTIONS:
