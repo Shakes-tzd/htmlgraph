@@ -175,7 +175,7 @@ class Node(BaseModel):
     context_sessions: list[str] = Field(default_factory=list)  # Session IDs that reported context
 
     # Auto-spike metadata (for transition spike generation)
-    spike_subtype: Literal["session-init", "transition", "planning", "investigation"] | None = None
+    spike_subtype: Literal["session-init", "transition", "conversation-init", "planning", "investigation"] | None = None
     auto_generated: bool = False  # True if auto-created by SessionManager
     session_id: str | None = None  # Session that created/owns this spike
     from_feature_id: str | None = None  # For transition spikes: feature we transitioned from
@@ -786,6 +786,9 @@ class Session(BaseModel):
     # Work type categorization (Phase 1: Work Type Classification)
     primary_work_type: str | None = None  # WorkType enum value
     work_breakdown: dict[str, int] | None = None  # {work_type: event_count}
+
+    # Conversation tracking (for conversation-level auto-spikes)
+    last_conversation_id: str | None = None  # Last external conversation ID
 
     # Context tracking (Phase N: Context Analytics)
     context_snapshots: list[ContextSnapshot] = Field(default_factory=list)

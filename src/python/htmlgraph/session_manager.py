@@ -383,7 +383,7 @@ class SessionManager:
             if not (
                 spike.type == "spike"
                 and spike.auto_generated
-                and spike.spike_subtype in ("session-init", "transition")
+                and spike.spike_subtype in ("session-init", "transition", "conversation-init")
                 and spike.status == "in-progress"
             ):
                 continue
@@ -836,7 +836,7 @@ class SessionManager:
 
     def _get_active_auto_spike(self, active_features: list[Node]) -> Node | None:
         """
-        Find an active auto-generated spike (session-init or transition).
+        Find an active auto-generated spike (session-init, conversation-init, or transition).
 
         Auto-spikes take precedence over regular features for attribution
         since they're specifically designed to catch transitional activities.
@@ -848,7 +848,7 @@ class SessionManager:
             if (
                 feature.type == "spike"
                 and feature.auto_generated
-                and feature.spike_subtype in ("session-init", "transition")
+                and feature.spike_subtype in ("session-init", "conversation-init", "transition")
                 and feature.status == "in-progress"
             ):
                 return feature

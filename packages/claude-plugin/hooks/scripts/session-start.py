@@ -492,6 +492,11 @@ def main():
     # - Agent attribution is tracked via data-agent attribute in activity logs
     # - This provides better continuity and easier debugging
     # - Alternative would be separate sessions per Task, but that fragments related work
+    #
+    # CONVERSATION-LEVEL AUTO-SPIKES:
+    # - Each new conversation gets a new auto-spike
+    # - Previous auto-spikes are closed when a new conversation starts
+    # - Tracked via last_conversation_id in session metadata
     try:
         manager = SessionManager(graph_dir)
         # Get or create session for THIS specific agent (claude-code)
@@ -504,16 +509,67 @@ def main():
                 title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             )
 
+        # Check if this is a new conversation
+        last_conversation_id = getattr(active, "last_conversation_id", None)
+        is_new_conversation = last_conversation_id != external_session_id
+
         # Record the external session id as a low-cost breadcrumb (for continuity debugging).
         try:
             manager.track_activity(
                 session_id=active.id,
                 tool="ClaudeSessionStart",
                 summary=f"Claude session started: {external_session_id}",
-                payload={"claude_session_id": external_session_id},
+                payload={
+                    "claude_session_id": external_session_id,
+                    "is_new_conversation": is_new_conversation,
+                },
             )
         except Exception:
             pass
+
+        # If new conversation, close open auto-spikes and create new one
+        if is_new_conversation:
+            try:
+                # Close any open auto-spikes from previous conversation
+                from htmlgraph.converter import NodeConverter
+                spike_converter = NodeConverter(graph_dir / "spikes")
+                all_spikes = spike_converter.load_all()
+
+                for spike in all_spikes:
+                    if (spike.type == "spike"
+                        and spike.auto_generated
+                        and spike.spike_subtype in ("session-init", "transition", "conversation-init")
+                        and spike.status == "in-progress"):
+                        spike.status = "done"
+                        spike.updated = datetime.now()
+                        spike_converter.save(spike)
+
+                # Create new conversation-init spike
+                spike_id = f"spk-{external_session_id[:8]}" if external_session_id != "unknown" else generate_id("spike", "conversation")
+
+                from htmlgraph.models import Node, generate_id
+                conversation_spike = Node(
+                    id=spike_id,
+                    title=f"Conversation {datetime.now().strftime('%H:%M')}",
+                    type="spike",
+                    status="in-progress",
+                    priority="low",
+                    spike_subtype="conversation-init",
+                    auto_generated=True,
+                    session_id=active.id,
+                    model_name=active.agent,
+                    content=f"Auto-generated spike for conversation startup.\n\nCaptures:\n- Context review\n- Planning\n- Exploration\n\nAuto-completes when feature is started or next conversation begins.",
+                )
+                spike_converter.save(conversation_spike)
+
+                # Update session metadata
+                active.last_conversation_id = external_session_id
+                if conversation_spike.id not in active.worked_on:
+                    active.worked_on.append(conversation_spike.id)
+                manager.session_converter.save(active)
+
+            except Exception as e:
+                print(f"Warning: Could not create conversation spike: {e}", file=sys.stderr)
     except Exception as e:
         print(f"Warning: Could not start session: {e}", file=sys.stderr)
 
