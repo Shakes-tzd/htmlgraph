@@ -248,6 +248,24 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
     return context
 
 
+def get_item_type_symbol(item_type: str | None) -> str:
+    """Get symbol for work item type (feature, bug, spike, etc)."""
+    if not item_type:
+        return "📋"
+
+    symbols = {
+        "feature": "✨",      # Sparkles - new capability
+        "bug": "🐛",          # Bug - fixing defects
+        "spike": "🔍",        # Magnifying glass - investigation/research
+        "chore": "🔧",        # Wrench - maintenance/tech debt
+        "epic": "🎯",         # Target - large initiative
+        "track": "🗺️",        # Map - multi-feature planning
+        "phase": "📊",        # Chart - project phase
+    }
+
+    return symbols.get(item_type.lower(), "📋")
+
+
 def format_work_type(work_type: str | None) -> str:
     """Format work type with emoji."""
     if not work_type:
@@ -301,18 +319,21 @@ def format_status_line(data: dict) -> str:
     if htmlgraph_dir:
         hg_context = get_htmlgraph_context(htmlgraph_dir, input_data=data)
 
-        # Session info
+        # Session info (compact: just event count)
         session = hg_context.get("session")
         if session:
-            agent = session.get("agent", "")
             event_count = session.get("event_count", 0)
-            parts.append(f"{BRIGHT_BLUE}[{agent}:{event_count}]{RESET}")
+            parts.append(f"{BRIGHT_BLUE}[{event_count}]{RESET}")
 
-        # Current feature
+        # Current feature (with item type symbol)
         feature_data = hg_context.get("feature_data")
         if feature_data:
             title = feature_data.get("title", "")
             status = feature_data.get("status", "")
+            item_type = feature_data.get("type", "")
+
+            # Get item type symbol
+            type_symbol = get_item_type_symbol(item_type)
 
             # Truncate long titles
             if len(title) > 35:
@@ -328,12 +349,8 @@ def format_status_line(data: dict) -> str:
             else:
                 color = BRIGHT_BLACK
 
-            parts.append(f"{color}{title}{RESET}")
-
-        # Work type
-        work_type = hg_context.get("work_type")
-        if work_type:
-            parts.append(f"{GREEN}{format_work_type(work_type)}{RESET}")
+            # Compact format: symbol + title
+            parts.append(f"{color}{type_symbol} {title}{RESET}")
 
         # Drift warning
         drift_count = hg_context.get("drift_count", 0)
