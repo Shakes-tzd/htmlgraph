@@ -35,7 +35,7 @@ from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 
-__version__ = "0.13.1"
+__version__ = "0.13.2"
 __all__ = [
     # Core models
     "Node",
