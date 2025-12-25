@@ -416,14 +416,13 @@ if [ "$SKIP_PLUGINS" != true ]; then
     log_section "Step 5: Updating Claude Plugin"
 
     if command -v claude &> /dev/null; then
-        log_info "Updating Claude plugin..."
-        if run_command claude plugin update htmlgraph; then
-            log_success "Claude plugin updated"
-        else
-            log_warning "Claude plugin update failed"
-            log_info "You may need to update manually with:"
-            log_info "  claude plugin update htmlgraph"
-        fi
+        log_info "Claude plugin is installed from GitHub repo"
+        log_info "After git push, users will automatically get the latest version"
+        log_info ""
+        log_info "Plugin update methods:"
+        log_info "  1. Automatic: Claude Code pulls from GitHub on restart"
+        log_info "  2. Manual: Users run 'claude plugin update htmlgraph'"
+        log_success "Claude plugin files pushed to GitHub"
     else
         log_warning "Claude CLI not found"
         log_info "Install with: npm install -g @anthropics/claude-cli"

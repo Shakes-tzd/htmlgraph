@@ -10,23 +10,9 @@
   },
 
   "always_allow": {
-    "description": "Tools that are always allowed without work items",
-    "tools": ["Read", "Glob", "Grep", "LSP"],
-    "bash_patterns": [
-      "^git status",
-      "^git diff",
-      "^git log",
-      "^ls",
-      "^pwd",
-      "^cat",
-      "^head",
-      "^tail",
-      "^find",
-      "^grep",
-      "^uv run htmlgraph status",
-      "^uv run htmlgraph feature list",
-      "^uv run htmlgraph session list"
-    ]
+    "description": "Only block file modification tools - everything else is allowed",
+    "tools": [],
+    "bash_patterns": []
   },
 
   "always_deny": {
@@ -81,18 +67,9 @@
   },
 
   "code_operations": {
-    "description": "Operations that modify code/files",
+    "description": "Only block direct file modification tools",
     "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
-    "bash_patterns": [
-      "^npm ",
-      "^pip ",
-      "^uv build",
-      "^uv publish",
-      "^git add",
-      "^git commit",
-      "^python (?!-m pytest)",
-      "^node "
-    ]
+    "bash_patterns": []
   },
 
   "permission_responses": {
@@ -116,18 +93,18 @@
       },
       "no_work_item_code_change": {
         "decision": "deny",
-        "reason": "No active work item found. Code changes require feature/bug/chore.",
-        "suggestion": "Create a work item first:\n  uv run htmlgraph feature create 'Feature title'\n  uv run htmlgraph feature start <id>"
+        "reason": "INSTRUCTION: Before this file operation, create and start a work item using the SDK. Execute:\n\nfrom htmlgraph import SDK\nsdk = SDK()\nfeature = sdk.features.create('Your feature description here')\nsdk.features.start(feature.id)\n\nThen retry the file operation.",
+        "suggestion": "Work item required for code changes"
       },
       "spike_code_change_denied": {
         "decision": "deny",
-        "reason": "Spike '{spike_id}' is for planning only. Code changes require feature/bug/chore.",
-        "suggestion": "Create implementation work item:\n  uv run htmlgraph feature create 'Implement X'\n  uv run htmlgraph feature start <id>"
+        "reason": "INSTRUCTION: Spike '{spike_id}' is for planning only. Before this file operation, create an implementation work item. Execute:\n\nfrom htmlgraph import SDK\nsdk = SDK()\nfeature = sdk.features.create('Implement [describe the change]')\nsdk.features.start(feature.id)\n\nThen retry the file operation.",
+        "suggestion": "Implementation work item required"
       },
       "direct_htmlgraph_write_denied": {
         "decision": "deny",
-        "reason": "Direct writes to .htmlgraph/ are forbidden. Use SDK only.",
-        "suggestion": "Use SDK commands:\n  uv run htmlgraph feature create 'Title'\n  uv run htmlgraph feature start <id>\n  uv run htmlgraph bug create 'Bug description'"
+        "reason": "INSTRUCTION: Never write directly to .htmlgraph/ files. Use the SDK instead. For tracking operations, use:\n\nfrom htmlgraph import SDK\nsdk = SDK()\n# Use SDK methods like sdk.features.create(), sdk.sessions.start(), etc.\n\nThe SDK is the only interface to .htmlgraph/ data.",
+        "suggestion": "Use SDK - never direct file writes to .htmlgraph/"
       }
     }
   },
