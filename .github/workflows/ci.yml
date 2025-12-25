@@ -38,7 +38,6 @@ jobs:
       - name: Check code formatting
         run: |
           uv run ruff check src/python/htmlgraph/
-        continue-on-error: true
 
   lint:
     name: Lint and Type Check
@@ -64,12 +63,10 @@ jobs:
       - name: Check formatting with ruff
         run: |
           uv run ruff format --check src/python/htmlgraph/
-        continue-on-error: true
 
       - name: Type check with mypy
         run: |
           uv run mypy src/python/htmlgraph/
-        continue-on-error: true
 
   build:
     name: Build Package

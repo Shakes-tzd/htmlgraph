@@ -172,6 +172,7 @@ nav:
     - Sessions: guide/sessions.md
     - Agents: guide/agents.md
     - Dashboard: guide/dashboard.md
+    - SQLite Index: guide/sqlite-index.md
   - API Reference:
     - Overview: api/index.md
     - SDK: api/sdk.md
