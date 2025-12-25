@@ -3,225 +3,131 @@
   "version": "1.0.0",
   "description": "Pre-Work Validation Hook Configuration - Enforces HtmlGraph workflow before code changes",
 
-  "decision_framework": {
-    "description": "Thresholds for determining when a work item is mandatory",
-    "mandatory_if_any": [
-      {
-        "criterion": "file_count",
-        "threshold": 3,
-        "description": "Changes affecting 3+ files require a work item"
-      },
-      {
-        "criterion": "estimated_time_minutes",
-        "threshold": 30,
-        "description": "Work estimated >30 minutes requires a work item"
-      },
-      {
-        "criterion": "new_tests_needed",
-        "value": true,
-        "description": "Changes requiring new automated tests need a work item"
-      },
-      {
-        "criterion": "multi_component_impact",
-        "value": true,
-        "description": "Changes affecting multiple components need a work item"
-      },
-      {
-        "criterion": "hard_to_revert",
-        "value": true,
-        "description": "Changes that are hard to revert (schema, API) need a work item"
-      },
-      {
-        "criterion": "needs_documentation",
-        "value": true,
-        "description": "Changes needing user/API documentation need a work item"
-      }
-    ],
-    "exempt_if_all": [
-      {
-        "criterion": "single_file",
-        "value": true,
-        "description": "Single file change"
-      },
-      {
-        "criterion": "estimated_time_minutes",
-        "threshold": 30,
-        "operator": "less_than",
-        "description": "Quick change (<30 minutes)"
-      },
-      {
-        "criterion": "trivial_change",
-        "value": true,
-        "description": "Obvious, trivial change"
-      },
-      {
-        "criterion": "easy_to_revert",
-        "value": true,
-        "description": "Easy to revert"
-      },
-      {
-        "criterion": "no_tests_needed",
-        "value": true,
-        "description": "No new tests required"
-      }
+  "core_principles": {
+    "sdk_only": "SDK is the ONLY interface to .htmlgraph/ - never direct Write/Edit",
+    "spike_planning": "Spikes are for planning and creating work items (via SDK only)",
+    "implementation_work": "Features/bugs/chores are for code implementation"
+  },
+
+  "always_allow": {
+    "description": "Tools that are always allowed without work items",
+    "tools": ["Read", "Glob", "Grep", "LSP"],
+    "bash_patterns": [
+      "^git status",
+      "^git diff",
+      "^git log",
+      "^ls",
+      "^pwd",
+      "^cat",
+      "^head",
+      "^tail",
+      "^find",
+      "^grep",
+      "^uv run htmlgraph status",
+      "^uv run htmlgraph feature list",
+      "^uv run htmlgraph session list"
     ]
   },
 
-  "auto_spike_detection": {
-    "description": "Rules for detecting and allowing auto-spike creation",
-    "enabled": true,
-    "allow_without_work_item": true,
-    "spike_patterns": [
-      {
-        "type": "transition",
-        "description": "Session transitions between features",
-        "detection": {
-          "method": "session_manager.create_transition_spike",
-          "context_change": "feature_id changed"
-        },
-        "bypass": true
-      },
-      {
-        "type": "session-init",
-        "description": "Initial spike when session starts without active feature",
-        "detection": {
-          "method": "session_manager.create_session_init_spike",
-          "context": "no active feature at session start"
-        },
-        "bypass": true
-      }
-    ],
-    "validation": {
-      "check_spike_fields": true,
-      "required_fields": ["spike_subtype", "auto_generated", "session_id"]
+  "always_deny": {
+    "description": "Operations that are NEVER allowed (even with active work)",
+    "direct_htmlgraph_writes": {
+      "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
+      "path_patterns": ["\\.htmlgraph/"],
+      "message": "Never write directly to .htmlgraph/. Use SDK: uv run htmlgraph feature create/start/complete",
+      "suggestion": "Use SDK commands:\n  uv run htmlgraph feature create 'Title'\n  uv run htmlgraph feature start <id>\n  uv run htmlgraph bug create 'Title'"
     }
   },
 
-  "tool_bypass_rules": {
-    "description": "Tools that are always allowed without work items",
-    "always_allow": [
-      {
-        "tool": "Read",
-        "reason": "Exploration and understanding - no changes"
-      },
-      {
-        "tool": "Glob",
-        "reason": "File search - no changes"
-      },
-      {
-        "tool": "Grep",
-        "reason": "Content search - no changes"
-      },
-      {
-        "tool": "LSP",
-        "reason": "Code navigation - no changes"
-      },
-      {
-        "tool": "Bash",
-        "patterns": [
-          "^git status",
-          "^git diff",
-          "^git log",
-          "^ls",
-          "^pwd",
-          "^cat",
-          "^head",
-          "^tail",
-          "^find",
-          "^grep",
-          "^uv run htmlgraph status",
-          "^uv run htmlgraph feature list",
-          "^uv run htmlgraph session",
-          "^uv run pytest",
-          "^uv run python -m pytest"
-        ],
-        "reason": "Read-only operations or HtmlGraph commands"
-      }
+  "sdk_commands": {
+    "description": "Bash commands that invoke HtmlGraph SDK",
+    "patterns": [
+      "^uv run htmlgraph ",
+      "^htmlgraph "
     ],
-    "conditional_allow": [
-      {
-        "tool": "Write",
-        "condition": "creating_work_item",
-        "reason": "Allow creating work item HTML files"
+    "allowed_during_spike": true,
+    "examples": [
+      "uv run htmlgraph feature create 'Add validation'",
+      "uv run htmlgraph bug create 'Fix drift issue'",
+      "uv run htmlgraph feature start feat-123"
+    ]
+  },
+
+  "work_type_rules": {
+    "spike": {
+      "description": "Spikes (auto or manual) are for planning and creating work items via SDK",
+      "allow": {
+        "read_operations": ["Read", "Glob", "Grep", "LSP"],
+        "sdk_commands": ["Bash matching sdk_commands.patterns"]
       },
-      {
-        "tool": "Edit",
-        "condition": "updating_work_item",
-        "reason": "Allow updating work item progress/status"
+      "deny": {
+        "direct_writes": ["Write", "Edit", "Delete", "NotebookEdit"],
+        "code_bash": ["Bash that modifies code (npm, git commit, uv build, etc.)"]
       },
-      {
-        "tool": "Bash",
-        "patterns": [
-          "^uv run htmlgraph feature start",
-          "^uv run htmlgraph feature complete",
-          "^uv run htmlgraph bug start",
-          "^uv run htmlgraph spike start"
-        ],
-        "reason": "Work item lifecycle commands"
+      "deny_message": "Spike '{spike_id}' is for planning only.\n\nAllowed:\n  - Read operations (Read, Grep, Glob)\n  - SDK commands (uv run htmlgraph feature create)\n\nFor code changes:\n  1. Create feature: uv run htmlgraph feature create 'Title'\n  2. Start feature: uv run htmlgraph feature start <id>\n  3. Then make code changes"
+    },
+    "implementation": {
+      "description": "Features, bugs, chores allow all code operations (except direct .htmlgraph/ writes)",
+      "types": ["feature", "bug", "chore"],
+      "allow": {
+        "code_operations": ["Write", "Edit", "Delete", "NotebookEdit (not .htmlgraph/)"],
+        "code_bash": ["All Bash commands"],
+        "sdk_commands": ["All SDK commands"]
+      },
+      "deny": {
+        "direct_htmlgraph_writes": ["Write/Edit/Delete to .htmlgraph/ paths"]
       }
-    ],
-    "require_work_item": [
-      {
-        "tool": "Write",
-        "condition": "NOT creating_work_item",
-        "description": "Writing non-work-item files requires active work item"
-      },
-      {
-        "tool": "Edit",
-        "condition": "NOT updating_work_item",
-        "description": "Editing non-work-item files requires active work item"
-      },
-      {
-        "tool": "Bash",
-        "patterns": [
-          "^git add",
-          "^git commit",
-          "^uv build",
-          "^uv publish",
-          "^npm",
-          "^pip",
-          "^python(?! -m pytest)"
-        ],
-        "description": "Code changes and deployments require active work item"
-      }
+    }
+  },
+
+  "code_operations": {
+    "description": "Operations that modify code/files",
+    "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
+    "bash_patterns": [
+      "^npm ",
+      "^pip ",
+      "^uv build",
+      "^uv publish",
+      "^git add",
+      "^git commit",
+      "^python (?!-m pytest)",
+      "^node "
     ]
   },
 
   "permission_responses": {
     "description": "Standard JSON responses for permission decisions",
-    "formats": {
-      "deny": {
-        "decision": "deny",
-        "reason": "Explanation of why the action was blocked",
-        "suggestion": "Recommended action (e.g., create work item first)"
-      },
-      "allow": {
-        "decision": "allow",
-        "reason": "Explanation of why the action was permitted"
-      },
-      "ask": {
-        "decision": "ask",
-        "question": "Question to ask the user",
-        "context": "Additional context for the decision"
-      }
-    },
     "templates": {
-      "no_active_work_item": {
-        "decision": "deny",
-        "reason": "No active work item found. Code changes require an active feature, bug, spike, or chore.",
-        "suggestion": "Create a work item first:\n  - Feature (>30 min, 3+ files): uv run htmlgraph feature create\n  - Bug (defect fix): uv run htmlgraph bug create\n  - Spike (investigation): uv run htmlgraph spike create\n  - Chore (maintenance): uv run htmlgraph chore create"
-      },
-      "auto_spike_allowed": {
-        "decision": "allow",
-        "reason": "Auto-spike creation is exempt from work item requirement"
-      },
       "read_only_allowed": {
         "decision": "allow",
-        "reason": "Read-only operation - no work item required"
+        "reason": "Read-only operation"
       },
-      "work_item_active": {
+      "sdk_command_with_spike": {
         "decision": "allow",
-        "reason": "Active work item: {work_item_id} - {work_item_title}"
+        "reason": "Planning with spike {spike_id}: creating work items via SDK"
+      },
+      "sdk_command_no_work": {
+        "decision": "allow",
+        "reason": "Creating work item via SDK"
+      },
+      "implementation_work_active": {
+        "decision": "allow",
+        "reason": "Active implementation work: {work_item_id}"
+      },
+      "no_work_item_code_change": {
+        "decision": "deny",
+        "reason": "No active work item found. Code changes require feature/bug/chore.",
+        "suggestion": "Create a work item first:\n  uv run htmlgraph feature create 'Feature title'\n  uv run htmlgraph feature start <id>"
+      },
+      "spike_code_change_denied": {
+        "decision": "deny",
+        "reason": "Spike '{spike_id}' is for planning only. Code changes require feature/bug/chore.",
+        "suggestion": "Create implementation work item:\n  uv run htmlgraph feature create 'Implement X'\n  uv run htmlgraph feature start <id>"
+      },
+      "direct_htmlgraph_write_denied": {
+        "decision": "deny",
+        "reason": "Direct writes to .htmlgraph/ are forbidden. Use SDK only.",
+        "suggestion": "Use SDK commands:\n  uv run htmlgraph feature create 'Title'\n  uv run htmlgraph feature start <id>\n  uv run htmlgraph bug create 'Bug description'"
       }
     }
   },
@@ -231,28 +137,33 @@
     "steps": [
       {
         "step": 1,
-        "action": "check_tool_bypass",
-        "description": "Check if tool is always allowed (Read, Glob, Grep, etc.)"
+        "action": "check_always_allow",
+        "description": "Check if tool is always allowed (Read, Glob, Grep, LSP, read-only Bash)"
       },
       {
         "step": 2,
-        "action": "check_auto_spike",
-        "description": "Detect if this is auto-spike creation (bypass work item requirement)"
+        "action": "check_always_deny",
+        "description": "Check if direct write to .htmlgraph/ (always denied)"
       },
       {
         "step": 3,
+        "action": "classify_operation",
+        "description": "Classify as: SDK command, code operation, or other"
+      },
+      {
+        "step": 4,
         "action": "get_active_work_item",
         "description": "Query for active work item (in-progress status)"
       },
       {
-        "step": 4,
-        "action": "apply_decision_framework",
-        "description": "Evaluate if work item is required based on decision framework"
+        "step": 5,
+        "action": "apply_work_type_rules",
+        "description": "Apply rules based on active work type (spike vs implementation)"
       },
       {
-        "step": 5,
+        "step": 6,
         "action": "return_permission",
-        "description": "Return JSON decision (deny/allow/ask)"
+        "description": "Return JSON decision (deny/allow)"
       }
     ]
   },
