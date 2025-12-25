@@ -13,15 +13,15 @@
              data-status="active"
              data-agent="claude"
              data-started-at="2025-12-23T17:10:29.715930"
-             data-last-activity="2025-12-25T08:09:16.675327"
-             data-event-count="648" data-is-subagent="false" data-start-commit="57d3169">
+             data-last-activity="2025-12-25T08:37:12.691266"
+             data-event-count="671" data-is-subagent="false" data-start-commit="57d3169" data-peak-context="109261" data-total-output="171788" data-total-cost="20.5617" data-context-by-feature='{"spike-tracking-investigation": 109261}'>
 
         <header>
             <h1>Auto session (claude)</h1>
             <div class="metadata">
                 <span class="badge status-active">Active</span>
                 <span class="badge">claude</span>
-                <span class="badge">648 events</span>
+                <span class="badge">671 events</span>
             </div>
         </header>
 
@@ -39,9 +39,48 @@
                 </ul>
             </section>
         </nav>
+        <section data-context-tracking>
+            <h3>Context Usage</h3>
+            <dl>
+                <dt>Peak Context</dt>
+                <dd>109,261 tokens (54%)</dd>
+                <dt>Total Output</dt>
+                <dd>171,788 tokens</dd>
+                <dt>Total Cost</dt>
+                <dd>$20.5617</dd>
+                <dt>Snapshots</dt>
+                <dd>1</dd>
+            </dl>
+        </section>
         <section data-activity-log>
-            <h3>Activity Log (648 events)</h3>
+            <h3>Activity Log (671 events)</h3>
             <ol reversed>
+                <li data-ts="2025-12-25T08:37:12.677698" data-tool="Bash" data-success="true" data-event-id="evt-b37d7ce1">Bash: Check git status to see what needs committing</li>
+                <li data-ts="2025-12-25T08:36:53.499283" data-tool="UserQuery" data-success="true" data-event-id="evt-8e300f42">"/ctx:git-commit "</li>
+                <li data-ts="2025-12-25T08:28:23.616663" data-tool="Stop" data-success="true" data-event-id="evt-046649a1">Agent stopped</li>
+                <li data-ts="2025-12-25T08:28:08.910284" data-tool="Bash" data-success="true" data-event-id="evt-1be8b3ee">Bash: Check current HtmlGraph status</li>
+                <li data-ts="2025-12-25T08:28:00.417454" data-tool="Bash" data-success="true" data-event-id="evt-8d892668">Bash: Commit enhanced statusline with symbols</li>
+                <li data-ts="2025-12-25T08:27:36.092686" data-tool="Bash" data-success="true" data-event-id="evt-ccf15331">Bash: Test enhanced statusline with symbols</li>
+                <li data-ts="2025-12-25T08:27:26.142103" data-tool="Edit" data-success="true" data-event-id="evt-160e0d94">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (            # Compact format: ...)</li>
+                <li data-ts="2025-12-25T08:27:26.112731" data-tool="Edit" data-success="true" data-event-id="evt-5b058f84">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (            # Compact format: ...)</li>
+                <li data-ts="2025-12-25T08:27:12.775456" data-tool="Edit" data-success="true" data-event-id="evt-6c75e638">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (        # Current feature
+    ...)</li>
+                <li data-ts="2025-12-25T08:27:02.456141" data-tool="Edit" data-success="true" data-event-id="evt-300d24da">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (        # Session info
+       ...)</li>
+                <li data-ts="2025-12-25T08:27:02.421263" data-tool="Edit" data-success="true" data-event-id="evt-512e1c84">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (        # Session info
+       ...)</li>
+                <li data-ts="2025-12-25T08:26:53.634403" data-tool="Edit" data-success="true" data-event-id="evt-05d4bcb9">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (def format_work_type(work_type...)</li>
+                <li data-ts="2025-12-25T08:26:22.416552" data-tool="UserQuery" data-success="true" data-event-id="evt-492dde6c">"implement the enhanced statusline with symbols. I like the compact view. given that the status line ..."</li>
+                <li data-ts="2025-12-25T08:21:33.543003" data-tool="Stop" data-success="true" data-event-id="evt-834e796f">Agent stopped</li>
+                <li data-ts="2025-12-25T08:21:05.875158" data-tool="Read" data-success="true" data-event-id="evt-55b752d9">Read: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py</li>
+                <li data-ts="2025-12-25T08:20:58.579389" data-tool="Read" data-success="true" data-event-id="evt-480c07bc">Read: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py</li>
+                <li data-ts="2025-12-25T08:20:30.971484" data-tool="UserQuery" data-success="true" data-event-id="evt-9532f842">"what kind of sympols can we use to present the different work types so that the status line can also..."</li>
+                <li data-ts="2025-12-25T08:20:30.889146" data-tool="UserQuery" data-success="true" data-event-id="evt-0bc71836">"what kind of sympols can we use to present the different work types so that the status line can also..."</li>
+                <li data-ts="2025-12-25T08:10:14.554123" data-tool="Stop" data-success="true" data-event-id="evt-a597c439">Agent stopped</li>
+                <li data-ts="2025-12-25T08:09:59.883992" data-tool="Bash" data-success="true" data-event-id="evt-45f4cf06">Bash: Verify stale references were cleaned from session</li>
+                <li data-ts="2025-12-25T08:09:49.170645" data-tool="Bash" data-success="true" data-event-id="evt-8444ba94">Bash: Verify bug status and steps</li>
+                <li data-ts="2025-12-25T08:09:39.697808" data-tool="Bash" data-success="true" data-event-id="evt-091b03b0">Bash: Commit session cleanup implementation</li>
+                <li data-ts="2025-12-25T08:09:25.370279" data-tool="Bash" data-success="true" data-event-id="evt-ed7c8d5e">Bash: Stage all changes for commit</li>
                 <li data-ts="2025-12-25T08:09:16.666232" data-tool="Bash" data-success="true" data-event-id="evt-7f9dccc7">Bash: Run all Python tests to verify no regressions</li>
                 <li data-ts="2025-12-25T08:09:01.617775" data-tool="Bash" data-success="true" data-event-id="evt-7cbd3a27">Bash: Check current status after bug fix</li>
                 <li data-ts="2025-12-25T08:08:54.344438" data-tool="Bash" data-success="true" data-event-id="evt-18f96331">Bash: Mark bug-session-stale-refs steps complete and done</li>
@@ -124,34 +163,6 @@ Pre-Work Validation Hook
 
 ...)</li>
                 <li data-ts="2025-12-25T06:31:33.471908" data-tool="Edit" data-success="true" data-event-id="evt-fab03072">Edit: /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/hooks/scripts/validate-work.py (    # Step 6: Active work is a...)</li>
-                <li data-ts="2025-12-25T06:30:57.689204" data-tool="UserQuery" data-success="true" data-event-id="evt-9a464eac">"this is not correct `- Auto-generated spikes: Allow all operations (Write, Edit, Delete, Bash)` Spik..."</li>
-                <li data-ts="2025-12-25T06:26:07.939820" data-tool="Stop" data-success="true" data-event-id="evt-8bc767d0">Agent stopped</li>
-                <li data-ts="2025-12-25T06:25:55.657199" data-tool="Bash" data-success="true" data-event-id="evt-1c76cdb5">Bash: Check track progress</li>
-                <li data-ts="2025-12-25T06:25:45.047174" data-tool="Bash" data-success="true" data-event-id="evt-8c5ec881">Bash: Commit tracking files and push to origin</li>
-                <li data-ts="2025-12-25T06:25:36.486045" data-tool="Bash" data-success="true" data-event-id="evt-d07de920">Bash: Commit auto-spike integration</li>
-                <li data-ts="2025-12-25T06:25:20.365792" data-tool="Bash" data-success="true" data-event-id="evt-8bc267be">Bash: Complete feat-e514d949</li>
-                <li data-ts="2025-12-25T06:25:12.280690" data-tool="Bash" data-success="true" data-event-id="evt-cc81fbea" data-feature="feat-e514d949" data-drift="0.74">Bash: Mark feat-e514d949 steps complete</li>
-                <li data-ts="2025-12-25T06:24:53.791776" data-tool="Bash" data-success="true" data-event-id="evt-26e5be2d" data-feature="feat-e514d949" data-drift="0.74">Bash: Run all validation hook tests</li>
-                <li data-ts="2025-12-25T06:24:45.911584" data-tool="Bash" data-success="true" data-event-id="evt-008e5e88" data-feature="feat-e514d949" data-drift="0.59">Bash: Run auto-spike validation tests</li>
-                <li data-ts="2025-12-25T06:24:38.915008" data-tool="Edit" data-success="true" data-event-id="evt-558f2c8d" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_validate_work_hook.py (class TestValidationLogicFeatu...)</li>
-                <li data-ts="2025-12-25T06:24:38.878486" data-tool="Edit" data-success="true" data-event-id="evt-15aadbb2" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_validate_work_hook.py (class TestValidationLogicFeatu...)</li>
-                <li data-ts="2025-12-25T06:24:22.395029" data-tool="Read" data-success="true" data-event-id="evt-ceb77d40" data-feature="feat-e514d949" data-drift="0.74">Read: /Users/shakes/DevProjects/htmlgraph/tests/python/test_validate_work_hook.py</li>
-                <li data-ts="2025-12-25T06:24:15.767558" data-tool="Edit" data-success="true" data-event-id="evt-189c1199" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/hooks/scripts/validate-work.py ("""
-Pre-Work Validation Hook
-
-...)</li>
-                <li data-ts="2025-12-25T06:24:00.408890" data-tool="Edit" data-success="true" data-event-id="evt-8ac83246" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/hooks/scripts/validate-work.py (    # Step 6: Active work is a...)</li>
-                <li data-ts="2025-12-25T06:23:48.529821" data-tool="Read" data-success="true" data-event-id="evt-3971a85e" data-feature="feat-e514d949" data-drift="0.74">Read: /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/hooks/scripts/validate-work.py</li>
-                <li data-ts="2025-12-25T06:23:41.322000" data-tool="Edit" data-success="true" data-event-id="evt-506ac7d8" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py (        Returns:
-            D...)</li>
-                <li data-ts="2025-12-25T06:23:41.297222" data-tool="Edit" data-success="true" data-event-id="evt-88a863e3" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py (        Returns:
-            D...)</li>
-                <li data-ts="2025-12-25T06:23:24.729489" data-tool="Edit" data-success="true" data-event-id="evt-f7e84e3b" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py (                active_items.a...)</li>
-                <li data-ts="2025-12-25T06:23:24.683950" data-tool="Edit" data-success="true" data-event-id="evt-5e82f8ab" data-feature="feat-e514d949" data-drift="0.74">Edit: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py (                active_items.a...)</li>
-                <li data-ts="2025-12-25T06:23:10.447797" data-tool="Read" data-success="true" data-event-id="evt-8f107514" data-feature="feat-e514d949" data-drift="0.74">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T06:23:10.426336" data-tool="Read" data-success="true" data-event-id="evt-6948e8bb" data-feature="feat-e514d949" data-drift="0.74">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T06:23:04.814343" data-tool="Read" data-success="true" data-event-id="evt-b6cb064c" data-feature="feat-e514d949" data-drift="0.74">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk.py</li>
-                <li data-ts="2025-12-25T06:22:59.286237" data-tool="Bash" data-success="true" data-event-id="evt-dcca1921" data-feature="feat-e514d949" data-drift="0.74">Bash: Find get_active_work_item method location</li>
             </ol>
         </section>
     </article>
