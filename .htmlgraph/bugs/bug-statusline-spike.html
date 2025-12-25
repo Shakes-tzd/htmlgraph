@@ -10,15 +10,15 @@
 <body>
     <article id="bug-statusline-spike"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2025-12-25T06:35:50.811706"
-             data-updated="2025-12-25T06:36:38.057826">
+             data-updated="2025-12-25T07:42:29.014709">
 
         <header>
             <h1>Statusline shows auto-spike instead of active feature</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
@@ -36,10 +36,10 @@
             <ol>
                 <li data-completed="true">✅ Reproduce: Start a feature, observe statusline shows spike not feature</li>
                 <li data-completed="true">✅ Investigate statusline logic in scripts/statusline.py</li>
-                <li data-completed="false">⏳ Check get_active_work_item() - may be returning spike instead of feature</li>
-                <li data-completed="false">⏳ Likely related to auto-spike session-init/transition creation</li>
-                <li data-completed="false">⏳ Fix logic to prioritize features/bugs/chores over auto-spikes</li>
-                <li data-completed="false">⏳ Test: Statusline should show feat-e514d949, not spk-ff88998c</li>
+                <li data-completed="true">✅ Check get_active_work_item() - may be returning spike instead of feature</li>
+                <li data-completed="true">✅ Likely related to auto-spike session-init/transition creation</li>
+                <li data-completed="true">✅ Fix logic to prioritize features/bugs/chores over auto-spikes</li>
+                <li data-completed="true">✅ Test: Statusline should show feat-e514d949, not spk-ff88998c</li>
             </ol>
         </section>
     </article>

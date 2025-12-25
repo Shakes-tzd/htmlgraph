@@ -185,37 +185,21 @@ def get_htmlgraph_context(htmlgraph_dir: Path, input_data: dict | None = None) -
             context["activity_count"] = active_session.event_count
             context["work_type"] = active_session.primary_work_type
 
-            # Get worked on features - find most recent IN-PROGRESS feature
-            if active_session.worked_on:
-                # Try to find an in-progress feature (iterate from most recent)
-                for feature_id in reversed(active_session.worked_on):
-                    try:
-                        # Try features first
-                        feature = sdk.features.get(feature_id)
-                        if feature and feature.status == "in-progress":
-                            context["feature"] = feature.id
-                            context["feature_data"] = {
-                                "id": feature.id,
-                                "title": feature.title,
-                                "status": feature.status,
-                            }
-                            break
-                    except Exception:
-                        pass
-
-                    try:
-                        # Try spikes
-                        spike = sdk.spikes.get(feature_id)
-                        if spike and spike.status == "in-progress":
-                            context["feature"] = spike.id
-                            context["feature_data"] = {
-                                "id": spike.id,
-                                "title": spike.title,
-                                "status": spike.status,
-                            }
-                            break
-                    except Exception:
-                        pass
+            # Get current active work item (uses SDK's get_active_work_item)
+            # This properly handles priority (features > bugs > spikes > chores > epics)
+            # and only returns items that actually exist and are in-progress
+            try:
+                active_work = sdk.get_active_work_item()
+                if active_work:
+                    context["feature"] = active_work["id"]
+                    context["feature_data"] = {
+                        "id": active_work["id"],
+                        "title": active_work["title"],
+                        "status": active_work["status"],
+                        "type": active_work["type"],
+                    }
+            except Exception:
+                pass
 
             # Record context snapshot if we have input data
             if input_data:

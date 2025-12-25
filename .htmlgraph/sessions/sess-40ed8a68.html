@@ -13,15 +13,15 @@
              data-status="active"
              data-agent="claude"
              data-started-at="2025-12-23T17:10:29.715930"
-             data-last-activity="2025-12-25T06:40:48.293630"
-             data-event-count="587" data-is-subagent="false" data-start-commit="57d3169" data-peak-context="130950" data-total-output="133888" data-total-cost="15.3315" data-context-by-feature='{"spk-ff88998c": 130950}'>
+             data-last-activity="2025-12-25T07:43:26.228342"
+             data-event-count="596" data-is-subagent="false" data-start-commit="57d3169" data-peak-context="140141" data-total-output="137557" data-total-cost="16.1987" data-context-by-feature='{"spike-tracking-investigation": 140141}'>
 
         <header>
             <h1>Auto session (claude)</h1>
             <div class="metadata">
                 <span class="badge status-active">Active</span>
                 <span class="badge">claude</span>
-                <span class="badge">587 events</span>
+                <span class="badge">596 events</span>
             </div>
         </header>
 
@@ -43,18 +43,27 @@
             <h3>Context Usage</h3>
             <dl>
                 <dt>Peak Context</dt>
-                <dd>130,950 tokens (65%)</dd>
+                <dd>140,141 tokens (70%)</dd>
                 <dt>Total Output</dt>
-                <dd>133,888 tokens</dd>
+                <dd>137,557 tokens</dd>
                 <dt>Total Cost</dt>
-                <dd>$15.3315</dd>
+                <dd>$16.1987</dd>
                 <dt>Snapshots</dt>
                 <dd>1</dd>
             </dl>
         </section>
         <section data-activity-log>
-            <h3>Activity Log (587 events)</h3>
+            <h3>Activity Log (596 events)</h3>
             <ol reversed>
+                <li data-ts="2025-12-25T07:43:26.219148" data-tool="Bash" data-success="true" data-event-id="evt-b9615995">Bash: Mark bug complete</li>
+                <li data-ts="2025-12-25T07:43:11.379147" data-tool="Bash" data-success="true" data-event-id="evt-433b8cf6" data-feature="bug-statusline-spike" data-drift="0.66">Bash: Test statusline with mock input</li>
+                <li data-ts="2025-12-25T07:42:58.139975" data-tool="Edit" data-success="true" data-event-id="evt-19b3470a" data-feature="bug-statusline-spike" data-drift="0.66">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (            context["activity_...)</li>
+                <li data-ts="2025-12-25T07:42:58.116635" data-tool="Edit" data-success="true" data-event-id="evt-51023196" data-feature="bug-statusline-spike" data-drift="0.66">Edit: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py (            context["activity_...)</li>
+                <li data-ts="2025-12-25T07:42:35.381576" data-tool="Read" data-success="true" data-event-id="evt-2efba29b" data-feature="bug-statusline-spike" data-drift="0.66">Read: /Users/shakes/DevProjects/htmlgraph/scripts/statusline.py</li>
+                <li data-ts="2025-12-25T07:42:29.667303" data-tool="Bash" data-success="true" data-event-id="evt-bc334d77" data-feature="bug-statusline-spike" data-drift="0.61">Bash: Start bug-statusline-spike</li>
+                <li data-ts="2025-12-25T07:41:59.467061" data-tool="UserQuery" data-success="true" data-event-id="evt-48fda9d1" data-feature="bug-statusline-spike" data-drift="0.66">"fix the statusline bug"</li>
+                <li data-ts="2025-12-25T06:41:16.932464" data-tool="Stop" data-success="true" data-event-id="evt-e1fb709a" data-feature="bug-statusline-spike" data-drift="0.70">Agent stopped</li>
+                <li data-ts="2025-12-25T06:41:04.310260" data-tool="Bash" data-success="true" data-event-id="evt-fe068eca" data-feature="bug-statusline-spike" data-drift="0.66">Bash: Commit feature update with correct goal</li>
                 <li data-ts="2025-12-25T06:40:48.277493" data-tool="Bash" data-success="true" data-event-id="evt-732b3724" data-feature="bug-statusline-spike" data-drift="0.70">Bash: Update feat-e514d949 with correct steps</li>
                 <li data-ts="2025-12-25T06:40:25.748648" data-tool="UserQuery" data-success="true" data-event-id="evt-a930158b" data-feature="bug-statusline-spike" data-drift="0.61">"Update the feature steps to reflect the correct goal (just tracking auto-spikes, not bypassing valid..."</li>
                 <li data-ts="2025-12-25T06:40:25.730077" data-tool="UserQuery" data-success="true" data-event-id="evt-12576957" data-feature="bug-statusline-spike" data-drift="0.61">"Update the feature steps to reflect the correct goal (just tracking auto-spikes, not bypassing valid..."</li>
@@ -157,15 +166,6 @@ Pre-Work Validation Hook
                 <li data-ts="2025-12-25T05:39:32.258508" data-tool="Bash" data-success="true" data-event-id="evt-7f39d1e3">Bash: Mark step 5 (tests) complete for feat-09ba429e</li>
                 <li data-ts="2025-12-25T05:39:22.561733" data-tool="Bash" data-success="true" data-event-id="evt-586847f6">Bash: Run get_active_work_item tests again</li>
                 <li data-ts="2025-12-25T05:39:16.049182" data-tool="Edit" data-success="true" data-event-id="evt-dc8a0534">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py (def test_get_active_work_item_...)</li>
-                <li data-ts="2025-12-25T05:39:16.020636" data-tool="Edit" data-success="true" data-event-id="evt-06d95b6e">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py (def test_get_active_work_item_...)</li>
-                <li data-ts="2025-12-25T05:38:58.557091" data-tool="Edit" data-success="true" data-event-id="evt-125084fc">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py (def test_get_active_work_item_...)</li>
-                <li data-ts="2025-12-25T05:38:43.222248" data-tool="Edit" data-success="true" data-event-id="evt-6d5ba4cd">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py (def test_get_active_work_item_...)</li>
-                <li data-ts="2025-12-25T05:38:43.198937" data-tool="Edit" data-success="true" data-event-id="evt-081e8b7c">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py (def test_get_active_work_item_...)</li>
-                <li data-ts="2025-12-25T05:38:30.832979" data-tool="Edit" data-success="true" data-event-id="evt-f59e8d2c">Edit: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py (def test_get_active_work_item_...)</li>
-                <li data-ts="2025-12-25T05:38:10.035523" data-tool="Write" data-success="true" data-event-id="evt-52d16957">Write: /Users/shakes/DevProjects/htmlgraph/tests/python/test_sdk_get_active_work_item.py</li>
-                <li data-ts="2025-12-25T05:37:42.177143" data-tool="Bash" data-success="true" data-event-id="evt-47291584">Bash: Find SDK test files</li>
-                <li data-ts="2025-12-25T05:37:36.141639" data-tool="Bash" data-success="true" data-event-id="evt-5a7139ce">Bash: Mark steps 0-4 complete for feat-09ba429e</li>
-                <li data-ts="2025-12-25T05:37:23.542892" data-tool="Bash" data-success="true" data-event-id="evt-759e9b66">Bash: Test get_active_work_item method (no agent filter)</li>
             </ol>
         </section>
     </article>
