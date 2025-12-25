@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "htmlgraph @ file:///Users/shakes/DevProjects/htmlgraph",
+#   "htmlgraph",
 # ]
 # ///
 """

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HTMLGRAPH_HOOK_TYPE=Stop python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
+            "command": "HTMLGRAPH_HOOK_TYPE=Stop uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.py\""
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end.py\""
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
+            "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-work.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-work.py\""
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HTMLGRAPH_HOOK_TYPE=PostToolUse python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
+            "command": "HTMLGRAPH_HOOK_TYPE=PostToolUse uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
           }
         ]
       }

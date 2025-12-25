@@ -1,4 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "htmlgraph",
+# ]
+# ///
 """
 HtmlGraph Session Start Hook
 
@@ -88,53 +94,14 @@ def check_htmlgraph_version() -> Tuple[Optional[str], Optional[str], bool]:
 
     return installed_version, latest_version, is_outdated
 
-def _resolve_project_dir(cwd: Optional[str] = None) -> str:
-    env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
-    if env_dir:
-        return env_dir
-    start_dir = cwd or os.getcwd()
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            cwd=start_dir,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return start_dir
-
-
-def _bootstrap_pythonpath(project_dir: str) -> None:
-    venv = Path(project_dir) / ".venv"
-    if venv.exists():
-        pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        candidates = [
-            venv / "lib" / pyver / "site-packages",
-            venv / "Lib" / "site-packages",
-        ]
-        for c in candidates:
-            if c.exists():
-                sys.path.insert(0, str(c))
-
-    repo_src = Path(project_dir) / "src" / "python"
-    if repo_src.exists():
-        sys.path.insert(0, str(repo_src))
-
-
-project_dir_for_import = _resolve_project_dir()
-_bootstrap_pythonpath(project_dir_for_import)
-
 try:
     from htmlgraph import SDK
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.session_manager import SessionManager
     from htmlgraph.converter import node_to_dict
+    from htmlgraph.models import Node, generate_id
 except Exception as e:
-    print(f"Warning: HtmlGraph not available ({e}). Install with: pip install htmlgraph", file=sys.stderr)
+    print(f"Warning: HtmlGraph not available ({e}). Install with: uv pip install htmlgraph", file=sys.stderr)
     print(json.dumps({}))
     sys.exit(0)
 
