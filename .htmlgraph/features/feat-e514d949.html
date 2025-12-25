@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="htmlgraph-version" content="1.0">
-    <title>Integrate with auto-spike detection</title>
+    <title>Add auto-spike tracking fields to SDK</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
              data-updated="2025-12-25T06:25:19.685083" data-track-id="trk-370f80f2">
 
         <header>
-            <h1>Integrate with auto-spike detection</h1>
+            <h1>Add auto-spike tracking fields to SDK</h1>
             <div class="metadata">
                 <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
@@ -34,12 +34,12 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="true">✅ Add auto-spike detection to validate-work.py</li>
-                <li data-completed="true">✅ Check file path (.htmlgraph/spikes/) AND content attributes</li>
-                <li data-completed="true">✅ Parse data-auto-generated and data-spike-subtype from content</li>
-                <li data-completed="true">✅ Bypass validation for session-init and transition spikes</li>
-                <li data-completed="true">✅ Write unit tests (session-init allowed, transition allowed, manual blocked)</li>
-                <li data-completed="false">⏳ Integration test: auto-spike creation in real session</li>
+                <li data-completed="true">✅ Add auto_generated and spike_subtype fields to get_active_work_item()</li>
+                <li data-completed="true">✅ Update SDK docstring to document new tracking fields</li>
+                <li data-completed="true">✅ Preserve fields for tracking/analytics (not validation)</li>
+                <li data-completed="true">✅ Verify ALL spikes (auto and manual) enforce planning-only rules</li>
+                <li data-completed="true">✅ Confirm spike validation: Allow Read/SDK, Deny Write/Edit/Delete</li>
+                <li data-completed="true">✅ Update validation hook comments to clarify ALL spikes enforce same rules</li>
             </ol>
         </section>
     </article>
