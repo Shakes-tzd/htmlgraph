@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Session worked_on contains references to deleted/missing work items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-session-stale-refs"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-25T07:51:55.390851"
+             data-updated="2025-12-25T07:51:55.390858">
+
+        <header>
+            <h1>Session worked_on contains references to deleted/missing work items</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Identified: 3 missing spikes in sess-7758b1a1.worked_on</li>
+                <li data-completed="false">⏳ Add validation in session load: check if worked_on items exist</li>
+                <li data-completed="false">⏳ Add cleanup method: remove_missing_work_items()</li>
+                <li data-completed="false">⏳ Run cleanup on session load or periodically</li>
+                <li data-completed="false">⏳ Add warning logging when stale refs are found</li>
+                <li data-completed="false">⏳ Test: Session with missing refs gets cleaned up automatically</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>
