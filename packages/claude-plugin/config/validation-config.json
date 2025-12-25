@@ -10,9 +10,23 @@
   },
 
   "always_allow": {
-    "description": "Only block file modification tools - everything else is allowed",
-    "tools": [],
-    "bash_patterns": []
+    "description": "Read-only tools are always allowed without work items",
+    "tools": ["Read", "Glob", "Grep", "LSP", "Skill", "Task", "TaskOutput", "AskUserQuestion"],
+    "bash_patterns": [
+      "^git status",
+      "^git diff",
+      "^git log",
+      "^uv run htmlgraph status",
+      "^uv run htmlgraph session",
+      "^uv run python.*-c",
+      "^ls",
+      "^pwd",
+      "^cat",
+      "^head",
+      "^tail",
+      "^find",
+      "^grep"
+    ]
   },
 
   "always_deny": {
