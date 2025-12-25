@@ -8,11 +8,14 @@ Provides:
 - Handles edge cases (missing fields, malformed HTML)
 """
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from htmlgraph.models import Node, Edge, Step, Session, ActivityEntry
 from htmlgraph.parser import HtmlParser
+
+logger = logging.getLogger(__name__)
 
 
 def html_to_node(filepath: Path | str) -> Node:
@@ -538,18 +541,50 @@ class SessionConverter:
         self.stylesheet_path = stylesheet_path
 
     def load(self, session_id: str) -> Session | None:
-        """Load a single session by ID."""
+        """
+        Load a single session by ID and cleanup stale work item references.
+
+        This automatically removes references to deleted/missing work items
+        from the session's worked_on list to maintain data integrity.
+        """
         filepath = self.directory / f"{session_id}.html"
-        if filepath.exists():
-            return html_to_session(filepath)
-        return None
+        if not filepath.exists():
+            return None
+
+        # Load session from HTML
+        session = html_to_session(filepath)
+
+        # Cleanup stale work item references
+        # (removes IDs from worked_on that no longer exist in .htmlgraph/)
+        graph_dir = self.directory.parent  # .htmlgraph directory
+        cleanup_result = session.cleanup_missing_references(graph_dir)
+
+        # Log warning if stale references were removed
+        if cleanup_result["removed_count"] > 0:
+            logger.warning(
+                f"Session {session_id}: Removed {cleanup_result['removed_count']} "
+                f"stale work item references: {cleanup_result['removed']}"
+            )
+            # Save cleaned session back to disk
+            self.save(session)
+
+        return session
 
     def load_all(self, pattern: str = "*.html") -> list[Session]:
-        """Load all sessions matching pattern."""
+        """
+        Load all sessions matching pattern and cleanup stale references.
+
+        Each session is loaded through self.load() which automatically cleans up
+        stale work item references.
+        """
         sessions = []
         for filepath in self.directory.glob(pattern):
             try:
-                sessions.append(html_to_session(filepath))
+                # Extract session_id from filename
+                session_id = filepath.stem  # e.g., "sess-abc123"
+                session = self.load(session_id)
+                if session:
+                    sessions.append(session)
             except (ValueError, KeyError):
                 continue
         return sessions

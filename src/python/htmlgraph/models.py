@@ -8,6 +8,7 @@ These models provide:
 """
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -1023,6 +1024,62 @@ class Session(BaseModel):
 
         # Return work type with most events
         return max(breakdown, key=breakdown.get)  # type: ignore
+
+    def cleanup_missing_references(self, graph_dir: str | Path) -> dict[str, Any]:
+        """
+        Remove references to deleted/missing work items from worked_on list.
+
+        This fixes session data integrity issues where worked_on contains IDs
+        that no longer exist (deleted spikes, removed features, etc.).
+
+        Args:
+            graph_dir: Path to .htmlgraph directory
+
+        Returns:
+            Dict with cleanup statistics: {
+                "removed": [...],  # List of removed IDs
+                "kept": [...],     # List of valid IDs that were kept
+                "removed_count": int,
+                "kept_count": int
+            }
+        """
+        graph_path = Path(graph_dir)
+        removed = []
+        kept = []
+
+        # Check each work item in worked_on
+        for item_id in self.worked_on:
+            # Determine work item type from ID prefix
+            if item_id.startswith("feat-") or item_id.startswith("feature-"):
+                file_path = graph_path / "features" / f"{item_id}.html"
+            elif item_id.startswith("bug-"):
+                file_path = graph_path / "bugs" / f"{item_id}.html"
+            elif item_id.startswith("spk-") or item_id.startswith("spike-"):
+                file_path = graph_path / "spikes" / f"{item_id}.html"
+            elif item_id.startswith("chore-"):
+                file_path = graph_path / "chores" / f"{item_id}.html"
+            elif item_id.startswith("epic-"):
+                file_path = graph_path / "epics" / f"{item_id}.html"
+            else:
+                # Unknown type, keep it
+                kept.append(item_id)
+                continue
+
+            # Check if file exists
+            if file_path.exists():
+                kept.append(item_id)
+            else:
+                removed.append(item_id)
+
+        # Update worked_on with only valid references
+        self.worked_on = kept
+
+        return {
+            "removed": removed,
+            "kept": kept,
+            "removed_count": len(removed),
+            "kept_count": len(kept),
+        }
 
     def to_html(self, stylesheet_path: str = "../styles.css") -> str:
         """Convert session to HTML document with inline activity log."""
