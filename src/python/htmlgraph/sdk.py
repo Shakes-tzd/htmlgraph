@@ -809,3 +809,80 @@ class SDK:
         }
 
         return result
+
+    def get_active_work_item(
+        self,
+        agent: str | None = None,
+        filter_by_agent: bool = False,
+        work_types: list[str] | None = None
+    ) -> dict[str, Any] | None:
+        """
+        Get the currently active work item (in-progress status).
+
+        This is used by the PreToolUse validation hook to check if code changes
+        have an active work item for attribution.
+
+        Args:
+            agent: Agent ID for filtering (optional)
+            filter_by_agent: If True, filter by agent. If False (default), return any active work item
+            work_types: Work item types to check (defaults to all: features, bugs, spikes, chores, epics)
+
+        Returns:
+            Dict with work item details or None if no active work item found:
+                - id: Work item ID
+                - title: Work item title
+                - type: Work item type (feature, bug, spike, chore, epic)
+                - status: Should be "in-progress"
+                - agent: Assigned agent
+                - steps_total: Total steps
+                - steps_completed: Completed steps
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> # Get any active work item
+            >>> active = sdk.get_active_work_item()
+            >>> if active:
+            ...     print(f"Working on: {active['title']}")
+            ...
+            >>> # Get only this agent's active work item
+            >>> active = sdk.get_active_work_item(filter_by_agent=True)
+        """
+        # Default to all work item types
+        if work_types is None:
+            work_types = ["features", "bugs", "spikes", "chores", "epics"]
+
+        # Search across all work item types
+        active_items = []
+
+        for work_type in work_types:
+            collection = getattr(self, work_type, None)
+            if collection is None:
+                continue
+
+            # Query for in-progress items
+            in_progress = collection.where(status="in-progress")
+
+            for item in in_progress:
+                # Filter by agent if requested
+                if filter_by_agent:
+                    agent_id = agent or self._agent_id
+                    if agent_id and hasattr(item, "agent_assigned"):
+                        if item.agent_assigned != agent_id:
+                            continue
+
+                active_items.append({
+                    "id": item.id,
+                    "title": item.title,
+                    "type": item.type,
+                    "status": item.status,
+                    "agent": getattr(item, "agent_assigned", None),
+                    "steps_total": len(item.steps) if hasattr(item, "steps") else 0,
+                    "steps_completed": sum(1 for s in item.steps if s.completed) if hasattr(item, "steps") else 0
+                })
+
+        # Return first active item (primary work item)
+        # TODO: In future, could support multiple active items or prioritization
+        if active_items:
+            return active_items[0]
+
+        return None

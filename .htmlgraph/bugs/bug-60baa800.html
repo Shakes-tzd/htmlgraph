@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Stale drift queue entries persist indefinitely</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-60baa800"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-25T05:01:28.022571"
+             data-updated="2025-12-25T05:01:28.022574">
+
+        <header>
+            <h1>Stale drift queue entries persist indefinitely</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Implement automatic cleanup in load_drift_queue()</li>
+                <li data-completed="true">✅ Add max_age_hours config parameter</li>
+                <li data-completed="true">✅ Update track-event.py with cleanup logic</li>
+                <li data-completed="true">✅ Update link-activities.py with cleanup logic</li>
+                <li data-completed="true">✅ Update statusline.py with cleanup logic</li>
+                <li data-completed="true">✅ Test automatic cleanup</li>
+                <li data-completed="true">✅ Commit changes</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>
