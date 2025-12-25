@@ -12,9 +12,11 @@ Enforces HtmlGraph workflow by requiring active work items for code changes.
 
 Core Principles:
 1. SDK is the ONLY interface to .htmlgraph/ - never direct Write/Edit
-2. Auto-generated spikes (session-init, transition) allow all operations
-3. Manual spikes are for planning and creating work items (via SDK only)
-4. Features/bugs/chores are for code implementation
+2. ALL spikes (auto-generated and manual) are for planning only:
+   - Allow: Read operations, SDK commands, running tests
+   - Deny: Write, Edit, Delete (code changes)
+   - File creation/editing only in .htmlgraph/ via SDK Bash commands
+3. Features/bugs/chores are for code implementation
 
 Hook Input (stdin): JSON with tool call details
 Hook Output (stdout): JSON permission decision {"decision": "allow|deny", "reason": "...", "suggestion": "..."}
@@ -178,20 +180,14 @@ def validate_tool_call(tool: str, params: dict, config: dict) -> dict:
             "reason": "Exploratory operation"
         }
 
-    # Step 6: Active work is a spike
+    # Step 6: Active work is a spike (planning only - ALL spikes)
+    # ALL spikes (auto-generated and manual) enforce planning-only rules:
+    # - Allow: Read operations, SDK commands, running tests
+    # - Deny: Write, Edit, Delete (code changes)
+    # - File creation/editing only in .htmlgraph/ via SDK Bash commands
     if active.get("type") == "spike":
         spike_id = active.get("id")
 
-        # Step 6a: Bypass validation for auto-generated spikes (session-init, transition)
-        # These are temporary attribution containers and should not block work
-        if active.get("auto_generated"):
-            spike_subtype = active.get("spike_subtype", "unknown")
-            return {
-                "decision": "allow",
-                "reason": f"Auto-generated {spike_subtype} spike: {spike_id} (allows all operations)"
-            }
-
-        # Step 6b: Manual spikes are for planning only
         if is_sdk_cmd:
             # Planning: creating work items via SDK is OK
             template = templates.get("sdk_command_with_spike", {})

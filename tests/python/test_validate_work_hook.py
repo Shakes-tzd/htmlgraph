@@ -264,68 +264,6 @@ class TestValidationLogicSpikeActive:
         assert "spike" in decision["reason"].lower()
 
 
-class TestAutoSpikeValidation:
-    """Test validation with auto-generated spikes (session-init, transition)."""
-
-    @pytest.fixture
-    def mock_auto_spike_session_init(self):
-        """Mock SDK to return active auto-generated session-init spike."""
-        with patch('validate_work.get_active_work_item', return_value={
-            "id": "spike-session-init-123",
-            "type": "spike",
-            "title": "Session Init Spike",
-            "status": "in-progress",
-            "auto_generated": True,
-            "spike_subtype": "session-init"
-        }):
-            yield
-
-    @pytest.fixture
-    def mock_auto_spike_transition(self):
-        """Mock SDK to return active auto-generated transition spike."""
-        with patch('validate_work.get_active_work_item', return_value={
-            "id": "spike-transition-456",
-            "type": "spike",
-            "title": "Transition Spike",
-            "status": "in-progress",
-            "auto_generated": True,
-            "spike_subtype": "transition"
-        }):
-            yield
-
-    def test_write_allowed_with_auto_spike_session_init(self, config, mock_auto_spike_session_init):
-        """Write should be allowed with auto-generated session-init spike."""
-        decision = validate_tool_call("Write", {"file_path": "src/test.py"}, config)
-        assert decision["decision"] == "allow"
-        assert "auto-generated" in decision["reason"].lower()
-        assert "session-init" in decision["reason"].lower()
-
-    def test_write_allowed_with_auto_spike_transition(self, config, mock_auto_spike_transition):
-        """Write should be allowed with auto-generated transition spike."""
-        decision = validate_tool_call("Write", {"file_path": "src/test.py"}, config)
-        assert decision["decision"] == "allow"
-        assert "auto-generated" in decision["reason"].lower()
-        assert "transition" in decision["reason"].lower()
-
-    def test_code_bash_allowed_with_auto_spike(self, config, mock_auto_spike_session_init):
-        """Code-modifying Bash should be allowed with auto-generated spike."""
-        decision = validate_tool_call("Bash", {"command": "npm install react"}, config)
-        assert decision["decision"] == "allow"
-        assert "auto-generated" in decision["reason"].lower()
-
-    def test_edit_allowed_with_auto_spike(self, config, mock_auto_spike_transition):
-        """Edit should be allowed with auto-generated spike."""
-        decision = validate_tool_call("Edit", {"file_path": "src/main.py"}, config)
-        assert decision["decision"] == "allow"
-
-    def test_sdk_command_allowed_with_auto_spike(self, config, mock_auto_spike_session_init):
-        """SDK commands should be allowed with auto-generated spike."""
-        decision = validate_tool_call("Bash", {
-            "command": "uv run htmlgraph feature create 'Test'"
-        }, config)
-        assert decision["decision"] == "allow"
-
-
 class TestValidationLogicFeatureActive:
     """Test validation with active feature (implementation work)."""
 
