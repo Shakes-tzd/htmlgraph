@@ -7,7 +7,7 @@
 - `/htmlgraph:start` - Begin a new development session and choose what to work on
 
 
-**SDK Method:** `sdk.None()`
+**SDK Method:** `sdk.get_session_start_info()`
 
 ```python
 from htmlgraph import SDK
