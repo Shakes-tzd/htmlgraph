@@ -187,6 +187,12 @@ nav:
     - Basic Usage: examples/basic.md
     - Agent Workflows: examples/agents.md
     - Track Creation: examples/tracks.md
+  - Cookbook:
+    - Overview: cookbook/index.md
+    - Project Setup: cookbook/setup.md
+    - Features: cookbook/features.md
+    - Tracks & Planning: cookbook/tracks.md
+    - Analytics: cookbook/analytics.md
   - Philosophy:
     - Why HTML: philosophy/why-html.md
     - Comparisons: philosophy/comparisons.md
