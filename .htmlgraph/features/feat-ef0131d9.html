@@ -26,49 +26,99 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">⏳ Create transcript reader module for JSONL files</li>
-                <li data-completed="false">⏳ Add transcript-to-session converter</li>
-                <li data-completed="false">⏳ Implement git branch/commit linking for feature association</li>
-                <li data-completed="false">⏳ Create CLI command: htmlgraph import-transcript</li>
-                <li data-completed="false">⏳ Add HTML export in claude-code-transcripts format</li>
-                <li data-completed="false">⏳ Implement transcript analytics (tokens, tool calls, duration)</li>
+                <li data-completed="false">⏳ Create TranscriptReader class for Claude Code JSONL files</li>
+                <li data-completed="false">⏳ Add TranscriptWatcher to monitor ~/.claude/projects/ for new sessions</li>
+                <li data-completed="false">⏳ Extend SessionManager to link transcript sessions to HtmlGraph sessions</li>
+                <li data-completed="false">⏳ Extract events from transcripts into EventRecord format</li>
+                <li data-completed="false">⏳ Implement git branch/commit matching for automatic feature association</li>
+                <li data-completed="false">⏳ Add transcript_id field to Session model for cross-referencing</li>
+                <li data-completed="false">⏳ Create CLI: htmlgraph transcript import/list/link</li>
+                <li data-completed="false">⏳ Add HTML export compatible with claude-code-transcripts format</li>
+                <li data-completed="false">⏳ Implement transcript analytics (tool calls, thinking traces, duration)</li>
+                <li data-completed="false">⏳ Add Track-level transcript aggregation</li>
                 <li data-completed="false">⏳ Create dashboard widget for session transcripts</li>
-                <li data-completed="false">⏳ Write tests for transcript import/export</li>
+                <li data-completed="false">⏳ Write tests for transcript integration</li>
                 <li data-completed="false">⏳ Add documentation to AGENTS.md</li>
             </ol>
         </section>
         <section data-content>
             <h3>Description</h3>
-            <p>Integrate Claude Code session transcripts into HtmlGraph for rich development history tracking.
+            <div>
+                <h4>Overview</h4>
+                <p>Integrate Claude Code session transcripts into HtmlGraph for rich development history tracking.</p>
 
-## Overview
-Claude Code stores conversation transcripts as JSONL files in ~/.claude/projects/. These contain:
-- User messages and assistant responses
-- Tool calls (Read, Write, Edit, Bash, etc.)
-- Timestamps and session metadata
-- Git branch context
+                <p>Claude Code stores conversation transcripts as JSONL files in ~/.claude/projects/. These contain:</p>
+                <ul>
+                    <li>User messages and assistant responses</li>
+                    <li>Tool calls (Read, Write, Edit, Bash, etc.)</li>
+                    <li>Thinking traces (usually hidden by default)</li>
+                    <li>Timestamps and session metadata</li>
+                    <li>Git branch context and working directory</li>
+                </ul>
 
-This feature integrates these transcripts into HtmlGraph to:
-1. Link development sessions to tracked features
-2. Provide rich context for handoffs between agents
-3. Enable analytics on AI coding sessions
-4. Create human-readable HTML archives of sessions
+                <h4>Why Transcripts Matter</h4>
+                <p>In the pre-LLM era, developers relied on issues and issue comments to record project context. Now those conversations happen in Claude Code. Transcripts capture:</p>
+                <ul>
+                    <li><strong>What was asked for</strong> - The original user prompts</li>
+                    <li><strong>What Claude suggested</strong> - AI recommendations and alternatives</li>
+                    <li><strong>Decisions made</strong> - Why certain approaches were chosen</li>
+                    <li><strong>Implementation justifications</strong> - Claude's reasoning during development</li>
+                </ul>
 
-## Integration Points
-- **Import**: Convert JSONL transcripts to HtmlGraph session nodes
-- **Linking**: Associate sessions with features via git branch/commit
-- **Export**: Generate HTML transcripts compatible with Simon Willison's claude-code-transcripts format
-- **Analytics**: Token usage, tool call patterns, session duration
+                <h4>Session Manager Integration</h4>
+                <p>Deep integration with HtmlGraph's SessionManager to actively track transcripts:</p>
+                <ul>
+                    <li><strong>TranscriptWatcher</strong> - Monitor ~/.claude/projects/ for new/updated transcripts</li>
+                    <li><strong>Session Linking</strong> - Match transcript sessionId to HtmlGraph session.id</li>
+                    <li><strong>Event Extraction</strong> - Convert transcript entries to EventRecord format</li>
+                    <li><strong>Feature Association</strong> - Link via gitBranch field to work items</li>
+                    <li><strong>Track Aggregation</strong> - Roll up transcript data across multi-session tracks</li>
+                </ul>
 
-## References
-- Simon Willison blog post: https://simonwillison.net/2025/Dec/25/claude-code-transcripts/
-- claude-code-transcripts tool: https://github.com/simonw/claude-code-transcripts
+                <h4>Data Model Extensions</h4>
+                <pre>
+# Session model additions
+class Session:
+    transcript_id: str | None  # Claude Code session UUID
+    transcript_path: Path | None  # Path to JSONL file
+    transcript_synced_at: datetime | None  # Last sync timestamp
 
-## Technical Notes
-- JSONL location: ~/.claude/projects/[encoded-path]/[session-uuid].jsonl
-- Path encoding: Forward slashes replaced with hyphens
-- Each line is a JSON object with type, message, uuid, timestamp, sessionId
-</p>
+# EventRecord from transcripts
+class TranscriptEvent(EventRecord):
+    message_uuid: str  # Original transcript entry UUID
+    message_type: str  # user, assistant, tool_use, tool_result
+    thinking_trace: str | None  # Claude's thinking (if captured)
+                </pre>
+
+                <h4>CLI Commands</h4>
+                <pre>
+# List available transcripts
+htmlgraph transcript list [--project PATH] [--limit N]
+
+# Import a transcript session
+htmlgraph transcript import SESSION_ID [--link-feature FEAT_ID]
+
+# Link transcript to existing session
+htmlgraph transcript link SESSION_ID --to HTMLGRAPH_SESSION
+
+# Export HtmlGraph session as HTML transcript
+htmlgraph transcript export SESSION_ID -o output/
+                </pre>
+
+                <h4>Technical Notes</h4>
+                <ul>
+                    <li>JSONL location: ~/.claude/projects/[encoded-path]/[session-uuid].jsonl</li>
+                    <li>Path encoding: Forward slashes replaced with hyphens</li>
+                    <li>Each line: JSON object with type, message, uuid, timestamp, sessionId, cwd, gitBranch</li>
+                    <li>Web sessions: Fetch via api.anthropic.com/v1/sessions with OAuth from Keychain</li>
+                </ul>
+
+                <h4>References</h4>
+                <ul>
+                    <li><a href="https://simonwillison.net/2025/Dec/25/claude-code-transcripts/">Simon Willison blog post</a></li>
+                    <li><a href="https://github.com/simonw/claude-code-transcripts">claude-code-transcripts tool</a></li>
+                </ul>
+            </div>
         </section>
     </article>
 </body>
