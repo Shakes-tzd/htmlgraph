@@ -1080,6 +1080,236 @@ def cmd_session_validate_attribution(args):
                 print(f"  - {event['timestamp']}: {event['tool']} (drift: {event['drift']:.2f})")
 
 
+# =========================================================================
+# Transcript Commands
+# =========================================================================
+
+
+def cmd_transcript_list(args):
+    """List available Claude Code transcripts."""
+    import json
+    from htmlgraph.transcript import TranscriptReader
+
+    reader = TranscriptReader()
+
+    # Use project path filter if provided
+    project_path = args.project if hasattr(args, 'project') and args.project else None
+
+    sessions = reader.list_sessions(
+        project_path=project_path,
+        limit=args.limit if hasattr(args, 'limit') else 20,
+    )
+
+    if not sessions:
+        if args.format == "json":
+            print(json.dumps({"sessions": [], "count": 0}))
+        else:
+            print("No Claude Code transcripts found.")
+            print(f"\nLooked in: {reader.claude_dir}")
+        return
+
+    if args.format == "json":
+        data = {
+            "sessions": [
+                {
+                    "session_id": s.session_id,
+                    "path": str(s.path),
+                    "cwd": s.cwd,
+                    "git_branch": s.git_branch,
+                    "started_at": s.started_at.isoformat() if s.started_at else None,
+                    "user_messages": s.user_message_count,
+                    "tool_calls": s.tool_call_count,
+                    "duration_seconds": s.duration_seconds,
+                }
+                for s in sessions
+            ],
+            "count": len(sessions),
+        }
+        print(json.dumps(data, indent=2))
+    else:
+        print(f"Found {len(sessions)} Claude Code transcript(s):\n")
+        for s in sessions:
+            started = s.started_at.strftime("%Y-%m-%d %H:%M") if s.started_at else "unknown"
+            duration = f"{int(s.duration_seconds / 60)}m" if s.duration_seconds else "?"
+            branch = s.git_branch or "no branch"
+            print(f"  {s.session_id[:12]}  {started}  {duration:>6}  {s.user_message_count:>3} msgs  [{branch}]")
+
+
+def cmd_transcript_import(args):
+    """Import a Claude Code transcript into HtmlGraph."""
+    import json
+    from htmlgraph.transcript import TranscriptReader
+    from htmlgraph.session_manager import SessionManager
+
+    reader = TranscriptReader()
+    manager = SessionManager(args.graph_dir)
+
+    # Find the transcript
+    transcript = reader.read_session(args.session_id)
+    if not transcript:
+        print(f"Error: Transcript not found: {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    # Find or create HtmlGraph session to import into
+    htmlgraph_session_id = args.to_session
+    if not htmlgraph_session_id:
+        # Check if already linked
+        existing = manager.find_session_by_transcript(args.session_id)
+        if existing:
+            htmlgraph_session_id = existing.id
+            print(f"Found existing linked session: {htmlgraph_session_id}")
+        else:
+            # Create a new session
+            agent = args.agent or "claude-code"
+            new_session = manager.start_session(
+                agent=agent,
+                title=f"Imported: {transcript.session_id[:12]}",
+            )
+            htmlgraph_session_id = new_session.id
+            print(f"Created new session: {htmlgraph_session_id}")
+
+    # Import events
+    result = manager.import_transcript_events(
+        session_id=htmlgraph_session_id,
+        transcript_session=transcript,
+        overwrite=args.overwrite if hasattr(args, 'overwrite') else False,
+    )
+
+    # Link to feature if specified
+    if args.link_feature:
+        session = manager.get_session(htmlgraph_session_id)
+        if session and args.link_feature not in session.worked_on:
+            session.worked_on.append(args.link_feature)
+            manager.session_converter.save(session)
+            result["linked_feature"] = args.link_feature
+
+    if args.format == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"✅ Imported transcript {args.session_id[:12]}:")
+        print(f"   → HtmlGraph session: {htmlgraph_session_id}")
+        print(f"   → Events imported: {result.get('imported', 0)}")
+        print(f"   → Events skipped: {result.get('skipped', 0)}")
+        if result.get("linked_feature"):
+            print(f"   → Linked to feature: {result['linked_feature']}")
+
+
+def cmd_transcript_link(args):
+    """Link a Claude Code transcript to an HtmlGraph session."""
+    import json
+    from htmlgraph.transcript import TranscriptReader
+    from htmlgraph.session_manager import SessionManager
+
+    reader = TranscriptReader()
+    manager = SessionManager(args.graph_dir)
+
+    # Find the transcript to get git branch
+    transcript = reader.read_session(args.session_id)
+    if not transcript:
+        print(f"Error: Transcript not found: {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    # Link to HtmlGraph session
+    session = manager.link_transcript(
+        session_id=args.to_session,
+        transcript_id=args.session_id,
+        transcript_path=str(transcript.path),
+        git_branch=transcript.git_branch,
+    )
+
+    if not session:
+        print(f"Error: HtmlGraph session not found: {args.to_session}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps({
+            "linked": True,
+            "session_id": session.id,
+            "transcript_id": args.session_id,
+            "git_branch": transcript.git_branch,
+        }, indent=2))
+    else:
+        print(f"✅ Linked transcript {args.session_id[:12]} to session {session.id}")
+        if transcript.git_branch:
+            print(f"   Git branch: {transcript.git_branch}")
+
+
+def cmd_transcript_stats(args):
+    """Show transcript statistics for a session."""
+    import json
+    from htmlgraph.session_manager import SessionManager
+
+    manager = SessionManager(args.graph_dir)
+    stats = manager.get_transcript_stats(args.session_id)
+
+    if not stats:
+        print(f"Error: No transcript linked to session: {args.session_id}", file=sys.stderr)
+        sys.exit(1)
+
+    if stats.get("error"):
+        print(f"Error: {stats['error']}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps(stats, indent=2))
+    else:
+        print(f"Transcript Stats for {args.session_id}:")
+        print(f"  Transcript ID: {stats['transcript_id']}")
+        print(f"  Git Branch: {stats.get('git_branch', 'N/A')}")
+        print(f"  User Messages: {stats['user_messages']}")
+        print(f"  Tool Calls: {stats['tool_calls']}")
+        if stats.get('duration_seconds'):
+            mins = int(stats['duration_seconds'] / 60)
+            print(f"  Duration: {mins} minutes")
+        print(f"  Has Thinking Traces: {stats['has_thinking_traces']}")
+        if stats.get('tool_breakdown'):
+            print(f"  Tool Breakdown:")
+            for tool, count in sorted(stats['tool_breakdown'].items(), key=lambda x: -x[1]):
+                print(f"    {tool}: {count}")
+
+
+def cmd_transcript_auto_link(args):
+    """Auto-link transcripts to sessions by git branch."""
+    import json
+    from htmlgraph.session_manager import SessionManager
+
+    manager = SessionManager(args.graph_dir)
+
+    # Get current git branch if not specified
+    branch = args.branch
+    if not branch:
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            branch = result.stdout.strip()
+        except Exception:
+            print("Error: Could not detect git branch. Specify with --branch", file=sys.stderr)
+            sys.exit(1)
+
+    linked = manager.auto_link_transcript_by_branch(
+        git_branch=branch,
+        agent=args.agent,
+    )
+
+    if args.format == "json":
+        print(json.dumps({
+            "branch": branch,
+            "linked": [{"session_id": s, "transcript_id": t} for s, t in linked],
+            "count": len(linked),
+        }, indent=2))
+    else:
+        if linked:
+            print(f"✅ Auto-linked {len(linked)} session(s) for branch '{branch}':")
+            for session_id, transcript_id in linked:
+                print(f"   {session_id} ← {transcript_id[:12]}")
+        else:
+            print(f"No sessions to link for branch '{branch}'")
+
+
 def cmd_track(args):
     """Track an activity in the current session."""
     from htmlgraph import SDK
@@ -2208,6 +2438,49 @@ curl Examples:
     activity_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
     # =========================================================================
+    # Transcript Management (Claude Code Integration)
+    # =========================================================================
+
+    transcript_parser = subparsers.add_parser("transcript", help="Claude Code transcript integration")
+    transcript_subparsers = transcript_parser.add_subparsers(dest="transcript_command", help="Transcript command")
+
+    # transcript list
+    transcript_list = transcript_subparsers.add_parser("list", help="List available Claude Code transcripts")
+    transcript_list.add_argument("--project", "-p", help="Project path to filter by")
+    transcript_list.add_argument("--limit", "-n", type=int, default=20, help="Maximum transcripts to show")
+    transcript_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript import
+    transcript_import = transcript_subparsers.add_parser("import", help="Import a Claude Code transcript")
+    transcript_import.add_argument("session_id", help="Claude Code session ID to import")
+    transcript_import.add_argument("--to-session", help="HtmlGraph session ID to import into (creates new if not specified)")
+    transcript_import.add_argument("--link-feature", help="Feature ID to link to")
+    transcript_import.add_argument("--agent", default="claude-code", help="Agent name for new session")
+    transcript_import.add_argument("--overwrite", action="store_true", help="Overwrite existing activities")
+    transcript_import.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_import.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript link
+    transcript_link = transcript_subparsers.add_parser("link", help="Link a transcript to an HtmlGraph session")
+    transcript_link.add_argument("session_id", help="Claude Code session ID")
+    transcript_link.add_argument("--to-session", required=True, help="HtmlGraph session ID to link to")
+    transcript_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript stats
+    transcript_stats = transcript_subparsers.add_parser("stats", help="Show transcript statistics for a session")
+    transcript_stats.add_argument("session_id", help="HtmlGraph session ID")
+    transcript_stats.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_stats.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript auto-link
+    transcript_auto_link = transcript_subparsers.add_parser("auto-link", help="Auto-link transcripts by git branch")
+    transcript_auto_link.add_argument("--branch", "-b", help="Git branch (uses current if not specified)")
+    transcript_auto_link.add_argument("--agent", help="Filter by agent")
+    transcript_auto_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_auto_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # =========================================================================
     # Work Management (Smart Routing)
     # =========================================================================
 
@@ -2562,6 +2835,21 @@ curl Examples:
     elif args.command == "activity":
         # Legacy activity tracking command
         cmd_track(args)
+    elif args.command == "transcript":
+        # Claude Code transcript integration
+        if args.transcript_command == "list":
+            cmd_transcript_list(args)
+        elif args.transcript_command == "import":
+            cmd_transcript_import(args)
+        elif args.transcript_command == "link":
+            cmd_transcript_link(args)
+        elif args.transcript_command == "stats":
+            cmd_transcript_stats(args)
+        elif args.transcript_command == "auto-link":
+            cmd_transcript_auto_link(args)
+        else:
+            transcript_parser.print_help()
+            sys.exit(1)
     elif args.command == "track":
         # New track management commands
         if args.track_command == "new":

@@ -414,6 +414,23 @@ def html_to_session(filepath: Path | str) -> Session:
         except (json.JSONDecodeError, ValueError):
             pass  # Skip if invalid JSON
 
+    # Parse transcript integration fields
+    transcript_id = article.attrs.get("data-transcript-id")
+    if transcript_id:
+        data["transcript_id"] = transcript_id
+
+    transcript_path = article.attrs.get("data-transcript-path")
+    if transcript_path:
+        data["transcript_path"] = transcript_path
+
+    transcript_synced = article.attrs.get("data-transcript-synced")
+    if transcript_synced:
+        data["transcript_synced_at"] = datetime.fromisoformat(transcript_synced.replace("Z", "+00:00"))
+
+    transcript_branch = article.attrs.get("data-transcript-branch")
+    if transcript_branch:
+        data["transcript_git_branch"] = transcript_branch
+
     # Parse title
     title_el = parser.query_one("h1")
     if title_el:

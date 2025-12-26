@@ -797,6 +797,12 @@ class Session(BaseModel):
     total_cost_usd: float = 0.0  # Cumulative cost for session
     context_by_feature: dict[str, int] = Field(default_factory=dict)  # {feature_id: tokens}
 
+    # Claude Code transcript integration
+    transcript_id: str | None = None  # Claude Code session UUID (from JSONL)
+    transcript_path: str | None = None  # Path to source JSONL file
+    transcript_synced_at: datetime | None = None  # Last sync timestamp
+    transcript_git_branch: str | None = None  # Git branch from transcript
+
     def add_activity(self, entry: ActivityEntry) -> None:
         """Add an activity entry to the log."""
         self.activity_log.append(entry)
@@ -1185,6 +1191,17 @@ class Session(BaseModel):
             context_by_feature_json = json.dumps(self.context_by_feature)
             context_attrs += f" data-context-by-feature='{context_by_feature_json}'"
 
+        # Transcript integration attributes
+        transcript_attrs = ""
+        if self.transcript_id:
+            transcript_attrs += f' data-transcript-id="{self.transcript_id}"'
+        if self.transcript_path:
+            transcript_attrs += f' data-transcript-path="{self.transcript_path}"'
+        if self.transcript_synced_at:
+            transcript_attrs += f' data-transcript-synced="{self.transcript_synced_at.isoformat()}"'
+        if self.transcript_git_branch:
+            transcript_attrs += f' data-transcript-branch="{self.transcript_git_branch}"'
+
         # Build context summary section
         context_html = ""
         if self.peak_context_tokens > 0 or self.context_snapshots:
@@ -1221,7 +1238,7 @@ class Session(BaseModel):
              data-agent="{self.agent}"
              data-started-at="{self.started_at.isoformat()}"
              data-last-activity="{self.last_activity.isoformat()}"
-             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}{context_attrs}>
+             data-event-count="{self.event_count}"{subagent_attr}{commit_attr}{ended_attr}{primary_work_type_attr}{work_breakdown_attr}{context_attrs}{transcript_attrs}>
 
         <header>
             <h1>{title}</h1>
