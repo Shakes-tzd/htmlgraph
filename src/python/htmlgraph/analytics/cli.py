@@ -81,6 +81,7 @@ def _display_session_analytics(console: Console, sdk: SDK, session_id: str, grap
     primary = sdk.analytics.calculate_session_primary_work_type(session_id)
     breakdown = sdk.analytics.calculate_session_work_breakdown(session_id)
     total_events = sum(breakdown.values()) if breakdown else session.event_count
+    transition_metrics = sdk.analytics.transition_time_metrics(session_id=session_id)
 
     # Header panel
     header = Panel(
@@ -137,6 +138,24 @@ def _display_session_analytics(console: Console, sdk: SDK, session_id: str, grap
         else:
             burden_label = "[green]Low[/green]"
         metrics.add_row("Maintenance Burden:", f"{burden_text} {burden_label}")
+
+    # Add transition time metrics
+    if transition_metrics.get("total_minutes", 0) > 0:
+        trans_pct = transition_metrics["transition_percent"]
+        trans_mins = transition_metrics["transition_minutes"]
+        feat_mins = transition_metrics["feature_minutes"]
+
+        # Format transition time
+        if trans_pct > 30:
+            trans_label = "[yellow]High - Lots of context switching[/yellow]"
+        elif trans_pct > 15:
+            trans_label = "[cyan]Moderate - Normal transitions[/cyan]"
+        else:
+            trans_label = "[green]Low - Focused work[/green]"
+
+        metrics.add_row("", "")
+        metrics.add_row("Transition Time:", f"{trans_pct:.1f}% ({trans_mins:.0f} min) - {trans_label}")
+        metrics.add_row("Feature Work Time:", f"{feat_mins:.0f} minutes")
 
     console.print(Panel(metrics, title="📈 Key Metrics", border_style="green"))
 
@@ -206,6 +225,7 @@ def _display_project_analytics(console: Console, sdk: SDK, session_files: list, 
     all_dist = sdk.analytics.work_type_distribution()
     all_ratio = sdk.analytics.spike_to_feature_ratio()
     all_burden = sdk.analytics.maintenance_burden()
+    all_transition = sdk.analytics.transition_time_metrics()
 
     # Work distribution table
     if all_dist:
@@ -253,6 +273,26 @@ def _display_project_analytics(console: Console, sdk: SDK, session_files: list, 
         burden_desc = "[green]Low - Mostly New Development[/green]"
 
     metrics.add_row("Maintenance Burden:", f"{burden_text} - {burden_desc}")
+    metrics.add_row("", "")
+
+    # Transition Time metrics
+    if all_transition.get("total_minutes", 0) > 0:
+        trans_pct = all_transition["transition_percent"]
+        trans_mins = all_transition["transition_minutes"]
+        feat_mins = all_transition["feature_minutes"]
+        total_mins = all_transition["total_minutes"]
+
+        if trans_pct > 30:
+            trans_desc = "[yellow]⚠️  High Context Switching Overhead[/yellow]"
+        elif trans_pct > 15:
+            trans_desc = "[cyan]Moderate Transition Time[/cyan]"
+        else:
+            trans_desc = "[green]Low - Focused Development[/green]"
+
+        metrics.add_row(
+            "Transition Time:",
+            f"{trans_pct:.1f}% ({trans_mins:.0f}m of {total_mins:.0f}m) - {trans_desc}"
+        )
 
     console.print(Panel(metrics, title="📈 Project Health Metrics", border_style="green"))
     console.print()

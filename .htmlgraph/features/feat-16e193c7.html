@@ -10,7 +10,7 @@
 <body>
     <article id="feat-16e193c7"
              data-type="feature"
-             data-status="todo"
+             data-status="done"
              data-priority="high"
              data-created="2025-12-25T03:16:02.168846"
              data-updated="2025-12-25T03:16:02.168847" data-track-id="trk-20d8c147">
@@ -18,7 +18,7 @@
         <header>
             <h1>Analytics & Documentation</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
@@ -26,11 +26,51 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">⏳ Add transition time metrics</li>
-                <li data-completed="false">⏳ Calculate % time in transitions</li>
-                <li data-completed="false">⏳ Add CLI command for analytics</li>
-                <li data-completed="false">⏳ Document usage patterns</li>
+                <li data-completed="true" data-agent="claude">✅ Add transition time metrics</li>
+                <li data-completed="true" data-agent="claude">✅ Calculate % time in transitions</li>
+                <li data-completed="true" data-agent="claude">✅ Add CLI command for analytics</li>
+                <li data-completed="true" data-agent="claude">✅ Document usage patterns</li>
             </ol>
+        </section>
+
+        <section data-content>
+            <h3>Implementation Summary</h3>
+            <p>Added transition time analytics to track time spent in transitional activities (session-init, transition, conversation-init spikes) versus regular feature work.</p>
+
+            <h4>New Analytics Method:</h4>
+            <pre>sdk.analytics.transition_time_metrics(session_id=None, start_date=None, end_date=None)</pre>
+            <p>Returns dictionary with:</p>
+            <ul>
+                <li><strong>transition_minutes</strong>: Time in transition spikes</li>
+                <li><strong>feature_minutes</strong>: Time in regular features</li>
+                <li><strong>total_minutes</strong>: Combined time</li>
+                <li><strong>transition_percent</strong>: % time in transitions (0-100)</li>
+            </ul>
+
+            <h4>Usage in CLI:</h4>
+            <pre>
+# Single session analysis
+htmlgraph analytics --session-id session-123
+
+# Project-wide analytics
+htmlgraph analytics
+
+# Recent sessions
+htmlgraph analytics --recent 5
+            </pre>
+
+            <h4>Interpretation:</h4>
+            <ul>
+                <li><strong>&lt;15%</strong>: Low transition time - Focused work</li>
+                <li><strong>15-30%</strong>: Moderate transition time - Normal</li>
+                <li><strong>&gt;30%</strong>: High transition time - Lots of context switching</li>
+            </ul>
+
+            <h4>Files Modified:</h4>
+            <ul>
+                <li><code>src/python/htmlgraph/analytics/work_type.py</code> - Added transition_time_metrics() method</li>
+                <li><code>src/python/htmlgraph/analytics/cli.py</code> - Integrated metrics into analytics display</li>
+            </ul>
         </section>
     </article>
 </body>

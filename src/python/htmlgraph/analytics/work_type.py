@@ -352,6 +352,137 @@ class Analytics:
         except Exception:
             return None
 
+    def transition_time_metrics(
+        self,
+        session_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict[str, float]:
+        """
+        Calculate time spent in transitions vs feature work.
+
+        Analyzes time spent in transition spikes (session-init, transition,
+        conversation-init) versus regular feature implementation.
+
+        Args:
+            session_id: Optional session ID to analyze (analyzes single session)
+            start_date: Optional start date for date range query
+            end_date: Optional end date for date range query
+
+        Returns:
+            Dictionary with transition metrics:
+            - transition_minutes: Total time in transition spikes
+            - feature_minutes: Total time in regular features
+            - total_minutes: Combined time
+            - transition_percent: % time spent in transitions (0-100)
+
+        Example:
+            >>> metrics = sdk.analytics.transition_time_metrics(session_id="session-123")
+            >>> print(f"Transition time: {metrics['transition_percent']:.1f}%")
+            Transition time: 15.3%
+        """
+        from pathlib import Path
+        from htmlgraph.converter import NodeConverter
+
+        transition_minutes = 0.0
+        feature_minutes = 0.0
+
+        # Get all spikes
+        spikes_dir = Path(self.sdk._directory) / "spikes"
+        if not spikes_dir.exists():
+            return {
+                "transition_minutes": 0.0,
+                "feature_minutes": 0.0,
+                "total_minutes": 0.0,
+                "transition_percent": 0.0,
+            }
+
+        spike_converter = NodeConverter(spikes_dir)
+        all_spikes = spike_converter.load_all()
+
+        # Filter spikes by session if specified
+        if session_id:
+            session = self._get_session(session_id)
+            if session:
+                # Only include spikes linked to this session
+                spike_ids = set(session.worked_on)
+                all_spikes = [s for s in all_spikes if s.id in spike_ids]
+
+        # Calculate time for each spike
+        for spike in all_spikes:
+            # Apply date filters
+            if start_date and spike.created < start_date:
+                continue
+            if end_date and spike.created > end_date:
+                continue
+
+            # Calculate duration
+            start_time = spike.created
+            if spike.status == "done" and spike.updated:
+                end_time = spike.updated
+            else:
+                # If still in progress, use last updated time
+                end_time = spike.updated if spike.updated else datetime.now()
+
+            duration = (end_time - start_time).total_seconds() / 60  # Convert to minutes
+
+            # Categorize as transition or feature work
+            is_transition = (
+                spike.type == "spike"
+                and spike.spike_subtype in ("session-init", "transition", "conversation-init")
+            )
+
+            if is_transition:
+                transition_minutes += duration
+            else:
+                feature_minutes += duration
+
+        # Also get regular features, bugs, etc.
+        for collection in ["features", "bugs"]:
+            collection_dir = Path(self.sdk._directory) / collection
+            if not collection_dir.exists():
+                continue
+
+            converter = NodeConverter(collection_dir)
+            nodes = converter.load_all()
+
+            # Filter by session if specified
+            if session_id:
+                session = self._get_session(session_id)
+                if session:
+                    node_ids = set(session.worked_on)
+                    nodes = [n for n in nodes if n.id in node_ids]
+
+            for node in nodes:
+                # Apply date filters
+                if start_date and node.created < start_date:
+                    continue
+                if end_date and node.created > end_date:
+                    continue
+
+                # Calculate duration
+                start_time = node.created
+                if node.status == "done" and node.updated:
+                    end_time = node.updated
+                else:
+                    end_time = node.updated if node.updated else datetime.now()
+
+                duration = (end_time - start_time).total_seconds() / 60
+                feature_minutes += duration
+
+        # Calculate metrics
+        total_minutes = transition_minutes + feature_minutes
+        transition_percent = (
+            (transition_minutes / total_minutes * 100) if total_minutes > 0 else 0.0
+        )
+
+        return {
+            "transition_minutes": round(transition_minutes, 2),
+            "feature_minutes": round(feature_minutes, 2),
+            "total_minutes": round(total_minutes, 2),
+            "transition_percent": round(transition_percent, 2),
+        }
+
     def _get_events(
         self,
         session_id: str | None = None,
