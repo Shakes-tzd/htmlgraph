@@ -11,9 +11,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from htmlgraph.models import Node, Step
+from htmlgraph.agent_registry import AgentProfile, AgentRegistry
 from htmlgraph.graph import HtmlGraph
-from htmlgraph.agent_registry import AgentRegistry, AgentProfile
+from htmlgraph.models import Node, Step
 
 
 class AgentInterface:
@@ -34,11 +34,7 @@ class AgentInterface:
         agent.complete_task(task.id, agent_id="claude")
     """
 
-    def __init__(
-        self,
-        directory: Path | str,
-        agent_id: str | None = None
-    ):
+    def __init__(self, directory: Path | str, agent_id: str | None = None):
         """
         Initialize agent interface.
 
@@ -51,7 +47,11 @@ class AgentInterface:
 
         # Initialize agent registry for capability-based routing
         # Assumes .htmlgraph is parent of directory
-        htmlgraph_dir = Path(directory).parent if Path(directory).name == "features" else Path(directory)
+        htmlgraph_dir = (
+            Path(directory).parent
+            if Path(directory).name == "features"
+            else Path(directory)
+        )
         self.registry = AgentRegistry(htmlgraph_dir)
 
     def reload(self) -> None:
@@ -67,7 +67,7 @@ class AgentInterface:
         status: str = "todo",
         priority: str | None = None,
         node_type: str | None = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> list[Node]:
         """
         Get available tasks matching criteria.
@@ -81,6 +81,7 @@ class AgentInterface:
         Returns:
             List of matching nodes, sorted by priority
         """
+
         def matches(node: Node) -> bool:
             if node.status != status:
                 return False
@@ -106,7 +107,7 @@ class AgentInterface:
         agent_id: str | None = None,
         priority: str | None = None,
         node_type: str | None = None,
-        auto_claim: bool = False
+        auto_claim: bool = False,
     ) -> Node | None:
         """
         Get the next available task.
@@ -122,9 +123,7 @@ class AgentInterface:
         """
         agent_id = agent_id or self.agent_id
         tasks = self.get_available_tasks(
-            priority=priority,
-            node_type=node_type,
-            limit=1
+            priority=priority, node_type=node_type, limit=1
         )
 
         if not tasks:
@@ -158,10 +157,7 @@ class AgentInterface:
         return tasks
 
     def get_tasks_by_capability(
-        self,
-        agent_capabilities: list[str],
-        status: str = "todo",
-        limit: int = 10
+        self, agent_capabilities: list[str], status: str = "todo", limit: int = 10
     ) -> list[Node]:
         """
         Get tasks that match agent capabilities.
@@ -176,6 +172,7 @@ class AgentInterface:
         Returns:
             List of matching nodes, prioritized by exact matches first
         """
+
         def matches(node: Node) -> bool:
             if node.status != status:
                 return False
@@ -210,7 +207,7 @@ class AgentInterface:
         self,
         agent_capabilities: list[str],
         agent_id: str | None = None,
-        auto_claim: bool = False
+        auto_claim: bool = False,
     ) -> Node | None:
         """
         Get next task matching agent capabilities.
@@ -332,10 +329,7 @@ class AgentInterface:
         return True
 
     def block_task(
-        self,
-        node_id: str,
-        blocked_by: str,
-        reason: str | None = None
+        self, node_id: str, blocked_by: str, reason: str | None = None
     ) -> bool:
         """
         Mark a task as blocked.
@@ -357,11 +351,12 @@ class AgentInterface:
 
         # Add blocking edge if not present
         from htmlgraph.models import Edge
+
         blocking_edge = Edge(
             target_id=blocked_by,
             relationship="blocked_by",
             since=datetime.now(),
-            properties={"reason": reason} if reason else {}
+            properties={"reason": reason} if reason else {},
         )
         node.add_edge(blocking_edge)
 
@@ -373,10 +368,7 @@ class AgentInterface:
     # =========================================================================
 
     def complete_step(
-        self,
-        node_id: str,
-        step_index: int,
-        agent_id: str | None = None
+        self, node_id: str, step_index: int, agent_id: str | None = None
     ) -> bool:
         """
         Mark a step as completed.
@@ -401,11 +393,7 @@ class AgentInterface:
 
         return False
 
-    def add_step(
-        self,
-        node_id: str,
-        description: str
-    ) -> bool:
+    def add_step(self, node_id: str, description: str) -> bool:
         """
         Add a new step to a task.
 
@@ -532,9 +520,7 @@ class AgentInterface:
     # =========================================================================
 
     def find_bottlenecks(
-        self,
-        top_n: int = 5,
-        status_filter: list[str] | None = None
+        self, top_n: int = 5, status_filter: list[str] | None = None
     ) -> list[dict[str, Any]]:
         """
         Identify tasks blocking the most downstream work.
@@ -555,8 +541,7 @@ class AgentInterface:
 
         analytics = DependencyAnalytics(self.graph)
         bottlenecks = analytics.find_bottlenecks(
-            status_filter=status_filter,
-            top_n=top_n
+            status_filter=status_filter, top_n=top_n
         )
 
         # Convert to agent-friendly dict format
@@ -568,15 +553,13 @@ class AgentInterface:
                 "priority": bn.priority,
                 "blocks_count": bn.transitive_blocking,
                 "impact_score": bn.weighted_impact,
-                "blocked_tasks": bn.blocked_nodes[:5]  # Limit for readability
+                "blocked_tasks": bn.blocked_nodes[:5],  # Limit for readability
             }
             for bn in bottlenecks
         ]
 
     def get_parallel_work(
-        self,
-        status: str = "todo",
-        max_agents: int = 5
+        self, status: str = "todo", max_agents: int = 5
     ) -> dict[str, Any]:
         """
         Find tasks that can be worked on simultaneously.
@@ -598,20 +581,22 @@ class AgentInterface:
         analytics = DependencyAnalytics(self.graph)
         report = analytics.find_parallelizable_work(status=status)
 
-        ready_now = report.dependency_levels[0].nodes if report.dependency_levels else []
+        ready_now = (
+            report.dependency_levels[0].nodes if report.dependency_levels else []
+        )
 
         return {
             "max_parallelism": report.max_parallelism,
             "ready_now": ready_now[:max_agents],
             "total_ready": len(ready_now),
             "level_count": len(report.dependency_levels),
-            "next_level": report.dependency_levels[1].nodes if len(report.dependency_levels) > 1 else []
+            "next_level": report.dependency_levels[1].nodes
+            if len(report.dependency_levels) > 1
+            else [],
         }
 
     def recommend_next_work(
-        self,
-        agent_count: int = 1,
-        lookahead: int = 5
+        self, agent_count: int = 1, lookahead: int = 5
     ) -> list[dict[str, Any]]:
         """
         Get smart recommendations for what to work on next.
@@ -635,8 +620,7 @@ class AgentInterface:
 
         analytics = DependencyAnalytics(self.graph)
         recommendations = analytics.recommend_next_tasks(
-            agent_count=agent_count,
-            lookahead=lookahead
+            agent_count=agent_count, lookahead=lookahead
         )
 
         return [
@@ -648,7 +632,7 @@ class AgentInterface:
                 "reasons": rec.reasons,
                 "estimated_hours": rec.estimated_effort,
                 "unlocks_count": len(rec.unlocks),
-                "unlocks": rec.unlocks[:3]  # Show first 3
+                "unlocks": rec.unlocks[:3],  # Show first 3
             }
             for rec in recommendations.recommendations
         ]
@@ -682,14 +666,14 @@ class AgentInterface:
                     "id": node.id,
                     "title": node.title,
                     "risk_score": node.risk_score,
-                    "risk_factors": [f.description for f in node.risk_factors]
+                    "risk_factors": [f.description for f in node.risk_factors],
                 }
                 for node in risk.high_risk
             ],
             "circular_dependencies": risk.circular_dependencies,
             "orphaned_count": len(risk.orphaned_nodes),
             "orphaned_tasks": risk.orphaned_nodes[:5],  # First 5
-            "recommendations": risk.recommendations
+            "recommendations": risk.recommendations,
         }
 
     def analyze_impact(self, node_id: str) -> dict[str, Any]:
@@ -720,7 +704,7 @@ class AgentInterface:
             "total_impact": impact.transitive_dependents,
             "completion_impact": impact.completion_impact,
             "unlocks_count": len(impact.affected_nodes),
-            "affected_tasks": impact.affected_nodes[:10]  # First 10
+            "affected_tasks": impact.affected_nodes[:10],  # First 10
         }
 
     # =========================================================================
@@ -734,7 +718,7 @@ class AgentInterface:
         description: str = "",
         priority: str = "medium",
         node_type: str = "task",
-        steps: list[str] | None = None
+        steps: list[str] | None = None,
     ) -> Node:
         """
         Create a new task.
@@ -756,7 +740,7 @@ class AgentInterface:
             type=node_type,
             priority=priority,
             content=f"<p>{description}</p>" if description else "",
-            steps=[Step(description=s) for s in (steps or [])]
+            steps=[Step(description=s) for s in (steps or [])],
         )
 
         self.graph.add(node)
@@ -785,7 +769,7 @@ class AgentInterface:
             "agent_id": agent_id,
             "in_progress": len(in_progress),
             "completed": len(completed),
-            "tasks": [t.id for t in in_progress]
+            "tasks": [t.id for t in in_progress],
         }
 
     # =========================================================================
@@ -793,10 +777,7 @@ class AgentInterface:
     # =========================================================================
 
     def calculate_task_score(
-        self,
-        task: Node,
-        agent: AgentProfile,
-        current_workload: int = 0
+        self, task: Node, agent: AgentProfile, current_workload: int = 0
     ) -> float:
         """
         Calculate routing score for a task-agent pair.
@@ -814,12 +795,7 @@ class AgentInterface:
         score = 0.0
 
         # Priority score (0-30 points)
-        priority_scores = {
-            "critical": 30,
-            "high": 20,
-            "medium": 10,
-            "low": 5
-        }
+        priority_scores = {"critical": 30, "high": 20, "medium": 10, "low": 5}
         score += priority_scores.get(task.priority, 5)
 
         # Capability match score (0-40 points)
@@ -828,7 +804,9 @@ class AgentInterface:
                 # Perfect match gets 40 points
                 score += 40
                 # Bonus for exact capability match (no extra capabilities)
-                matching_caps = sum(1 for cap in task.required_capabilities if cap in agent.capabilities)
+                matching_caps = sum(
+                    1 for cap in task.required_capabilities if cap in agent.capabilities
+                )
                 score += (matching_caps / len(task.required_capabilities)) * 5
             else:
                 # No match = very low score
@@ -843,7 +821,7 @@ class AgentInterface:
                     "low": 2,
                     "medium": 5,
                     "high": 3,
-                    "very-high": 1
+                    "very-high": 1,
                 }
                 score += complexity_preference.get(task.complexity, 0)
             else:
@@ -865,9 +843,7 @@ class AgentInterface:
         return len(in_progress)
 
     def find_best_match(
-        self,
-        task: Node,
-        candidate_agents: list[str] | None = None
+        self, task: Node, candidate_agents: list[str] | None = None
     ) -> tuple[str, float] | None:
         """
         Find the best agent for a task using smart routing.
@@ -887,8 +863,7 @@ class AgentInterface:
             # Find capable agents based on requirements
             if task.required_capabilities:
                 agents = self.registry.find_capable_agents(
-                    task.required_capabilities,
-                    task.complexity
+                    task.required_capabilities, task.complexity
                 )
             else:
                 # No requirements, all active agents
@@ -914,10 +889,7 @@ class AgentInterface:
         return None
 
     def get_work_queue(
-        self,
-        agent_id: str | None = None,
-        limit: int = 10,
-        min_score: float = 20.0
+        self, agent_id: str | None = None, limit: int = 10, min_score: float = 20.0
     ) -> list[dict[str, Any]]:
         """
         Get prioritized work queue for an agent using smart routing.
@@ -949,16 +921,18 @@ class AgentInterface:
             score = self.calculate_task_score(task, agent, workload)
 
             if score >= min_score:
-                queue.append({
-                    "task_id": task.id,
-                    "title": task.title,
-                    "priority": task.priority,
-                    "status": task.status,
-                    "score": round(score, 2),
-                    "required_capabilities": task.required_capabilities,
-                    "complexity": task.complexity,
-                    "estimated_effort": task.estimated_effort
-                })
+                queue.append(
+                    {
+                        "task_id": task.id,
+                        "title": task.title,
+                        "priority": task.priority,
+                        "status": task.status,
+                        "score": round(score, 2),
+                        "required_capabilities": task.required_capabilities,
+                        "complexity": task.complexity,
+                        "estimated_effort": task.estimated_effort,
+                    }
+                )
 
         # Sort by score (highest first)
         queue.sort(key=lambda x: x["score"], reverse=True)
@@ -969,7 +943,7 @@ class AgentInterface:
         self,
         agent_id: str | None = None,
         auto_claim: bool = False,
-        min_score: float = 20.0
+        min_score: float = 20.0,
     ) -> Node | None:
         """
         Get next task using smart routing based on capabilities.

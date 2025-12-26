@@ -15,8 +15,6 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List
-
 
 # Platform-specific file templates
 PLATFORM_TEMPLATES = {
@@ -97,9 +95,9 @@ def generate_platform_file(platform: str, project_root: Path) -> str:
             f"Unknown platform: {platform}. Available: {', '.join(PLATFORM_TEMPLATES.keys())}"
         )
 
-    content = f"""# {template['title']}
+    content = f"""# {template["title"]}
 
-**Platform-specific instructions for {template['platform_name']} AI agents.**
+**Platform-specific instructions for {template["platform_name"]} AI agents.**
 
 ---
 
@@ -117,13 +115,13 @@ The main AGENTS.md file contains:
 
 ---
 
-## {template['platform_name']}-Specific Notes
+## {template["platform_name"]}-Specific Notes
 
-{template['notes']}
+{template["notes"]}
 
 ---
 
-## Commands Available in {template['platform_name']}
+## Commands Available in {template["platform_name"]}
 
 All HtmlGraph commands are available through the extension/plugin:
 
@@ -160,7 +158,7 @@ def check_file_references_agents(filepath: Path) -> bool:
     return "AGENTS.md" in content
 
 
-def check_all_files(project_root: Path) -> Dict[str, bool]:
+def check_all_files(project_root: Path) -> dict[str, bool]:
     """Check all platform files for AGENTS.md references."""
     results = {}
 
@@ -177,7 +175,8 @@ def check_all_files(project_root: Path) -> Dict[str, bool]:
 
     # Check package-specific skill files (actual locations)
     skill_files = {
-        "claude-plugin": project_root / "packages/claude-plugin/skills/htmlgraph-tracker/SKILL.md",
+        "claude-plugin": project_root
+        / "packages/claude-plugin/skills/htmlgraph-tracker/SKILL.md",
         "gemini-extension": project_root / "packages/gemini-extension/GEMINI.md",
         "codex-skill": project_root / "packages/codex-skill/SKILL.md",
     }
@@ -190,7 +189,7 @@ def check_all_files(project_root: Path) -> Dict[str, bool]:
     return results
 
 
-def sync_all_files(project_root: Path, dry_run: bool = False) -> List[str]:
+def sync_all_files(project_root: Path, dry_run: bool = False) -> list[str]:
     """Synchronize all platform files to reference AGENTS.md."""
     changes = []
 
@@ -291,14 +290,12 @@ def main():
             filepath = project_root / template["filename"]
 
             if filepath.exists() and not args.force:
-                print(
-                    f"⚠️  {filepath.name} already exists. Use --force to overwrite."
-                )
+                print(f"⚠️  {filepath.name} already exists. Use --force to overwrite.")
                 return 1
 
             filepath.write_text(content)
             print(f"✅ Created: {filepath}")
-            print(f"\nThe file references AGENTS.md for core documentation.")
+            print("\nThe file references AGENTS.md for core documentation.")
             return 0
 
         except ValueError as e:

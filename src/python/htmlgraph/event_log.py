@@ -15,10 +15,10 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from htmlgraph.models import WorkType
+    pass
 
 
 @dataclass(frozen=True)
@@ -129,10 +129,7 @@ class JsonlEventLog:
                 continue
 
     def get_session_events(
-        self,
-        session_id: str,
-        limit: int | None = None,
-        offset: int = 0
+        self, session_id: str, limit: int | None = None, offset: int = 0
     ) -> list[dict[str, Any]]:
         """
         Get events for a specific session with pagination.
@@ -177,7 +174,7 @@ class JsonlEventLog:
         tool: str | None = None,
         feature_id: str | None = None,
         since: Any = None,  # datetime or ISO string
-        limit: int | None = None
+        limit: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Query events with filters.
@@ -198,7 +195,7 @@ class JsonlEventLog:
         since_dt = None
         if since:
             if isinstance(since, str):
-                since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
             else:
                 since_dt = since
 
@@ -213,19 +210,21 @@ class JsonlEventLog:
         filtered: list[dict[str, Any]] = []
         for evt in events:
             # Tool filter
-            if tool and evt.get('tool') != tool:
+            if tool and evt.get("tool") != tool:
                 continue
 
             # Feature filter
-            if feature_id and evt.get('feature_id') != feature_id:
+            if feature_id and evt.get("feature_id") != feature_id:
                 continue
 
             # Timestamp filter
             if since_dt:
-                evt_time_str = evt.get('timestamp')
+                evt_time_str = evt.get("timestamp")
                 if evt_time_str and isinstance(evt_time_str, str):
                     try:
-                        evt_time = datetime.fromisoformat(evt_time_str.replace('Z', '+00:00'))
+                        evt_time = datetime.fromisoformat(
+                            evt_time_str.replace("Z", "+00:00")
+                        )
                         if evt_time < since_dt:
                             continue
                     except (ValueError, AttributeError):

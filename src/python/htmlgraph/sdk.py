@@ -38,32 +38,32 @@ Example:
 """
 
 from __future__ import annotations
-from datetime import datetime
+
 from pathlib import Path
 from typing import Any
 
-from htmlgraph.models import Node, Step
-from htmlgraph.types import (
-    BottleneckDict,
-    SessionStartInfo,
-    ActiveWorkItem,
-)
-from htmlgraph.graph import HtmlGraph
+from htmlgraph.agent_detection import detect_agent_name
 from htmlgraph.agents import AgentInterface
-from htmlgraph.track_builder import TrackCollection
+from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.collections import (
     BaseCollection,
-    FeatureCollection,
-    SpikeCollection,
     BugCollection,
     ChoreCollection,
     EpicCollection,
+    FeatureCollection,
     PhaseCollection,
+    SpikeCollection,
 )
-from htmlgraph.analytics import Analytics, DependencyAnalytics
+from htmlgraph.context_analytics import ContextAnalytics
+from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
-from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
-from htmlgraph.agent_detection import detect_agent_name
+from htmlgraph.track_builder import TrackCollection
+from htmlgraph.types import (
+    ActiveWorkItem,
+    BottleneckDict,
+    SessionStartInfo,
+)
 
 
 class SDK:
@@ -103,11 +103,7 @@ class SDK:
         sdk.epics.assign(["epic-001"], agent="claude")
     """
 
-    def __init__(
-        self,
-        directory: Path | str | None = None,
-        agent: str | None = None
-    ):
+    def __init__(self, directory: Path | str | None = None, agent: str | None = None):
         """
         Initialize SDK.
 
@@ -130,8 +126,7 @@ class SDK:
         # Initialize underlying components (for backward compatibility)
         self._graph = HtmlGraph(self._directory / "features")
         self._agent_interface = AgentInterface(
-            self._directory / "features",
-            agent_id=agent
+            self._directory / "features", agent_id=agent
         )
 
         # Collection interfaces - all work item types (all with builder support)
@@ -144,7 +139,9 @@ class SDK:
 
         # Non-work collections
         self.sessions = BaseCollection(self, "sessions", "session")
-        self.tracks = TrackCollection(self)  # Use specialized collection with builder support
+        self.tracks = TrackCollection(
+            self
+        )  # Use specialized collection with builder support
         self.agents = BaseCollection(self, "agents", "agent")
 
         # Analytics interface (Phase 2: Work Type Analytics)
@@ -212,9 +209,7 @@ class SDK:
         return self._agent_interface.get_workload(self._agent_id)
 
     def next_task(
-        self,
-        priority: str | None = None,
-        auto_claim: bool = True
+        self, priority: str | None = None, auto_claim: bool = True
     ) -> Node | None:
         """
         Get next available task for this agent.
@@ -230,7 +225,7 @@ class SDK:
             agent_id=self._agent_id,
             priority=priority,
             node_type="feature",
-            auto_claim=auto_claim
+            auto_claim=auto_claim,
         )
 
     def set_session_handoff(
@@ -254,7 +249,9 @@ class SDK:
         """
         if not session_id:
             if self._agent_id:
-                active = self.session_manager.get_active_session_for_agent(self._agent_id)
+                active = self.session_manager.get_active_session_for_agent(
+                    self._agent_id
+                )
             else:
                 active = self.session_manager.get_active_session()
             if not active:
@@ -272,7 +269,7 @@ class SDK:
         self,
         session_id: str | None = None,
         title: str | None = None,
-        agent: str | None = None
+        agent: str | None = None,
     ) -> Any:
         """
         Start a new session.
@@ -286,9 +283,7 @@ class SDK:
             New Session instance
         """
         return self.session_manager.start_session(
-            session_id=session_id,
-            agent=agent or self._agent_id or "cli",
-            title=title
+            session_id=session_id, agent=agent or self._agent_id or "cli", title=title
         )
 
     def end_session(
@@ -314,7 +309,7 @@ class SDK:
             session_id=session_id,
             handoff_notes=handoff_notes,
             recommended_next=recommended_next,
-            blockers=blockers
+            blockers=blockers,
         )
 
     def get_status(self) -> dict[str, Any]:
@@ -398,7 +393,9 @@ class SDK:
         if not session_id:
             active = self.session_manager.get_active_session(agent=self._agent_id)
             if not active:
-                raise ValueError("No active session. Start one with sdk.start_session()")
+                raise ValueError(
+                    "No active session. Start one with sdk.start_session()"
+                )
             session_id = active.id
 
         return self.session_manager.track_activity(
@@ -449,7 +446,7 @@ class SDK:
                 "priority": bn.priority,
                 "blocks_count": bn.transitive_blocking,
                 "impact_score": bn.weighted_impact,
-                "blocked_tasks": bn.blocked_nodes[:5]
+                "blocked_tasks": bn.blocked_nodes[:5],
             }
             for bn in bottlenecks
         ]
@@ -478,14 +475,18 @@ class SDK:
         """
         report = self.dep_analytics.find_parallelizable_work(status="todo")
 
-        ready_now = report.dependency_levels[0].nodes if report.dependency_levels else []
+        ready_now = (
+            report.dependency_levels[0].nodes if report.dependency_levels else []
+        )
 
         return {
             "max_parallelism": report.max_parallelism,
             "ready_now": ready_now[:max_agents],
             "total_ready": len(ready_now),
             "level_count": len(report.dependency_levels),
-            "next_level": report.dependency_levels[1].nodes if len(report.dependency_levels) > 1 else []
+            "next_level": report.dependency_levels[1].nodes
+            if len(report.dependency_levels) > 1
+            else [],
         }
 
     def recommend_next_work(self, agent_count: int = 1) -> list[dict[str, Any]]:
@@ -514,8 +515,7 @@ class SDK:
             ...     print(f"  Reasons: {rec['reasons']}")
         """
         recommendations = self.dep_analytics.recommend_next_tasks(
-            agent_count=agent_count,
-            lookahead=5
+            agent_count=agent_count, lookahead=5
         )
 
         return [
@@ -527,7 +527,7 @@ class SDK:
                 "reasons": rec.reasons,
                 "estimated_hours": rec.estimated_effort,
                 "unlocks_count": len(rec.unlocks),
-                "unlocks": rec.unlocks[:3]
+                "unlocks": rec.unlocks[:3],
             }
             for rec in recommendations.recommendations
         ]
@@ -563,14 +563,14 @@ class SDK:
                     "id": node.id,
                     "title": node.title,
                     "risk_score": node.risk_score,
-                    "risk_factors": [f.description for f in node.risk_factors]
+                    "risk_factors": [f.description for f in node.risk_factors],
                 }
                 for node in risk.high_risk
             ],
             "circular_dependencies": risk.circular_dependencies,
             "orphaned_count": len(risk.orphaned_nodes),
             "orphaned_tasks": risk.orphaned_nodes[:5],
-            "recommendations": risk.recommendations
+            "recommendations": risk.recommendations,
         }
 
     def analyze_impact(self, node_id: str) -> dict[str, Any]:
@@ -602,14 +602,11 @@ class SDK:
             "total_impact": impact.transitive_dependents,
             "completion_impact": impact.completion_impact,
             "unlocks_count": len(impact.affected_nodes),
-            "affected_tasks": impact.affected_nodes[:10]
+            "affected_tasks": impact.affected_nodes[:10],
         }
 
     def get_work_queue(
-        self,
-        agent_id: str | None = None,
-        limit: int = 10,
-        min_score: float = 0.0
+        self, agent_id: str | None = None, limit: int = 10, min_score: float = 0.0
     ) -> list[dict[str, Any]]:
         """
         Get prioritized work queue showing recommended work, active work, and dependencies.
@@ -648,7 +645,6 @@ class SDK:
             ...         print(f"  ⚠️  Blocked by: {', '.join(item['blocked_by'])}")
         """
         from htmlgraph.routing import AgentCapabilityRegistry, CapabilityMatcher
-        from htmlgraph.converter import node_to_dict
 
         agent = agent_id or self._agent_id or "cli"
 
@@ -735,7 +731,7 @@ class SDK:
         self,
         agent_id: str | None = None,
         auto_claim: bool = False,
-        min_score: float = 0.0
+        min_score: float = 0.0,
     ) -> Node | None:
         """
         Get the next best task for an agent using smart routing.
@@ -802,7 +798,7 @@ class SDK:
         title: str,
         context: str = "",
         timebox_hours: float = 4.0,
-        auto_start: bool = True
+        auto_start: bool = True,
     ) -> Node:
         """
         Create a planning spike to research and design before implementation.
@@ -826,8 +822,8 @@ class SDK:
             ...     timebox_hours=3.0
             ... )
         """
-        from htmlgraph.models import Spike, SpikeType
         from htmlgraph.ids import generate_id
+        from htmlgraph.models import Spike, SpikeType
 
         # Create spike directly (SpikeBuilder doesn't exist yet)
         spike_id = generate_id(node_type="spike", title=title)
@@ -844,11 +840,11 @@ class SDK:
                 Step(description="Define requirements and constraints"),
                 Step(description="Design high-level architecture"),
                 Step(description="Identify dependencies and risks"),
-                Step(description="Create implementation plan")
+                Step(description="Create implementation plan"),
             ],
             content=f"<p>{context}</p>" if context else "",
             edges={},
-            properties={}
+            properties={},
         )
 
         self._graph.add(spike)
@@ -861,7 +857,7 @@ class SDK:
         spike_id: str | None = None,
         priority: str = "high",
         requirements: list[str | tuple[str, str]] | None = None,
-        phases: list[tuple[str, list[str]]] | None = None
+        phases: list[tuple[str, list[str]]] | None = None,
     ) -> dict[str, Any]:
         """
         Create a track with spec and plan from planning results.
@@ -893,12 +889,13 @@ class SDK:
             ...     ]
             ... )
         """
-        from htmlgraph.track_builder import TrackBuilder
 
-        builder = self.tracks.builder() \
-            .title(title) \
-            .description(description) \
+        builder = (
+            self.tracks.builder()
+            .title(title)
+            .description(description)
             .priority(priority)
+        )
 
         # Add reference to planning spike if provided
         if spike_id:
@@ -916,9 +913,11 @@ class SDK:
 
             builder.with_spec(
                 overview=description,
-                context=f"Track created from planning spike: {spike_id}" if spike_id else "",
+                context=f"Track created from planning spike: {spike_id}"
+                if spike_id
+                else "",
                 requirements=req_list,
-                acceptance_criteria=[]
+                acceptance_criteria=[],
             )
 
         # Add plan if phases provided
@@ -933,7 +932,7 @@ class SDK:
             "has_spec": bool(requirements),
             "has_plan": bool(phases),
             "spike_id": spike_id,
-            "priority": priority
+            "priority": priority,
         }
 
     def smart_plan(
@@ -942,7 +941,7 @@ class SDK:
         create_spike: bool = True,
         timebox_hours: float = 4.0,
         research_completed: bool = False,
-        research_findings: dict[str, Any] | None = None
+        research_findings: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Smart planning workflow: analyzes project context and creates spike or track.
@@ -1002,7 +1001,7 @@ class SDK:
             "bottlenecks_count": len(bottlenecks),
             "high_risk_count": risks["high_risk_count"],
             "parallel_capacity": parallel["max_parallelism"],
-            "description": description
+            "description": description,
         }
 
         # Build context string with research info
@@ -1010,21 +1009,25 @@ class SDK:
 
         if research_completed and research_findings:
             context_str += f"\n\nResearch completed:\n- Topic: {research_findings.get('topic', description)}"
-            if 'sources_count' in research_findings:
+            if "sources_count" in research_findings:
                 context_str += f"\n- Sources: {research_findings['sources_count']}"
-            if 'recommended_library' in research_findings:
-                context_str += f"\n- Recommended: {research_findings['recommended_library']}"
+            if "recommended_library" in research_findings:
+                context_str += (
+                    f"\n- Recommended: {research_findings['recommended_library']}"
+                )
 
         # Validation: warn if complex work planned without research
-        is_complex = any([
-            "auth" in description.lower(),
-            "security" in description.lower(),
-            "real-time" in description.lower(),
-            "websocket" in description.lower(),
-            "oauth" in description.lower(),
-            "performance" in description.lower(),
-            "integration" in description.lower(),
-        ])
+        is_complex = any(
+            [
+                "auth" in description.lower(),
+                "security" in description.lower(),
+                "real-time" in description.lower(),
+                "websocket" in description.lower(),
+                "oauth" in description.lower(),
+                "performance" in description.lower(),
+                "integration" in description.lower(),
+            ]
+        )
 
         warnings = []
         if is_complex and not research_completed:
@@ -1037,7 +1040,7 @@ class SDK:
             spike = self.start_planning_spike(
                 title=f"Plan: {description}",
                 context=context_str,
-                timebox_hours=timebox_hours
+                timebox_hours=timebox_hours,
             )
 
             # Store research metadata in spike properties if provided
@@ -1055,10 +1058,12 @@ class SDK:
                 "project_context": context,
                 "research_informed": research_completed,
                 "next_steps": [
-                    "Research and design the solution" if not research_completed else "Design solution using research findings",
+                    "Research and design the solution"
+                    if not research_completed
+                    else "Design solution using research findings",
                     "Complete spike steps",
-                    "Use SDK.create_track_from_plan() to create track"
-                ]
+                    "Use SDK.create_track_from_plan() to create track",
+                ],
             }
 
             if warnings:
@@ -1068,8 +1073,7 @@ class SDK:
         else:
             # Direct track creation (for when you already know what to do)
             track_info = self.create_track_from_plan(
-                title=description,
-                description=f"Planned with context: {context}"
+                title=description, description=f"Planned with context: {context}"
             )
 
             result = {
@@ -1080,8 +1084,8 @@ class SDK:
                 "next_steps": [
                     "Create features from track plan",
                     "Link features to track",
-                    "Start implementation"
-                ]
+                    "Start implementation",
+                ],
             }
 
             if warnings:
@@ -1248,6 +1252,7 @@ class SDK:
         """
         if self._orchestrator is None:
             from htmlgraph.orchestrator import SubagentOrchestrator
+
             self._orchestrator = SubagentOrchestrator(self)
         return self._orchestrator
 
@@ -1384,7 +1389,7 @@ class SDK:
         include_git_log: bool = True,
         git_log_count: int = 5,
         analytics_top_n: int = 3,
-        analytics_max_agents: int = 3
+        analytics_max_agents: int = 3,
     ) -> SessionStartInfo:
         """
         Get comprehensive session start information in a single call.
@@ -1430,37 +1435,43 @@ class SDK:
         # 3. Features list (simplified)
         features_list = []
         for feature in self.features.all():
-            features_list.append({
-                "id": feature.id,
-                "title": feature.title,
-                "status": feature.status,
-                "priority": feature.priority,
-                "steps_total": len(feature.steps),
-                "steps_completed": sum(1 for s in feature.steps if s.completed)
-            })
+            features_list.append(
+                {
+                    "id": feature.id,
+                    "title": feature.title,
+                    "status": feature.status,
+                    "priority": feature.priority,
+                    "steps_total": len(feature.steps),
+                    "steps_completed": sum(1 for s in feature.steps if s.completed),
+                }
+            )
         result["features"] = features_list
 
         # 4. Sessions list (recent 20)
         sessions_list = []
         for session in self.sessions.all()[:20]:
-            sessions_list.append({
-                "id": session.id,
-                "status": session.status,
-                "agent": session.properties.get("agent", "unknown"),
-                "event_count": session.properties.get("event_count", 0),
-                "started": session.created.isoformat() if hasattr(session, "created") else None
-            })
+            sessions_list.append(
+                {
+                    "id": session.id,
+                    "status": session.status,
+                    "agent": session.properties.get("agent", "unknown"),
+                    "event_count": session.properties.get("event_count", 0),
+                    "started": session.created.isoformat()
+                    if hasattr(session, "created")
+                    else None,
+                }
+            )
         result["sessions"] = sessions_list
 
         # 5. Git log (if requested)
         if include_git_log:
             try:
                 git_result = subprocess.run(
-                    ["git", "log", f"--oneline", f"-{git_log_count}"],
+                    ["git", "log", "--oneline", f"-{git_log_count}"],
                     capture_output=True,
                     text=True,
                     check=True,
-                    cwd=self._directory.parent
+                    cwd=self._directory.parent,
                 )
                 result["git_log"] = git_result.stdout.strip().split("\n")
             except (subprocess.CalledProcessError, FileNotFoundError):
@@ -1470,7 +1481,7 @@ class SDK:
         result["analytics"] = {
             "bottlenecks": self.find_bottlenecks(top_n=analytics_top_n),
             "recommendations": self.recommend_next_work(agent_count=analytics_top_n),
-            "parallel": self.get_parallel_work(max_agents=analytics_max_agents)
+            "parallel": self.get_parallel_work(max_agents=analytics_max_agents),
         }
 
         return result
@@ -1479,7 +1490,7 @@ class SDK:
         self,
         agent: str | None = None,
         filter_by_agent: bool = False,
-        work_types: list[str] | None = None
+        work_types: list[str] | None = None,
     ) -> ActiveWorkItem | None:
         """
         Get the currently active work item (in-progress status).
@@ -1544,7 +1555,9 @@ class SDK:
                     "status": item.status,
                     "agent": getattr(item, "agent_assigned", None),
                     "steps_total": len(item.steps) if hasattr(item, "steps") else 0,
-                    "steps_completed": sum(1 for s in item.steps if s.completed) if hasattr(item, "steps") else 0
+                    "steps_completed": sum(1 for s in item.steps if s.completed)
+                    if hasattr(item, "steps")
+                    else 0,
                 }
 
                 # Add spike-specific fields for auto-spike detection

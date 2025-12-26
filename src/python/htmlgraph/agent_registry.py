@@ -8,11 +8,12 @@ Provides:
 """
 
 from __future__ import annotations
+
 import json
-from pathlib import Path
-from typing import Any, Literal
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Literal
 
 
 @dataclass
@@ -29,6 +30,7 @@ class AgentProfile:
         active: Whether the agent is currently available
         metadata: Additional agent information
     """
+
     id: str
     name: str
     capabilities: list[str] = field(default_factory=list)
@@ -60,7 +62,7 @@ class AgentProfile:
             "max_parallel_tasks": self.max_parallel_tasks,
             "preferred_complexity": self.preferred_complexity,
             "active": self.active,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     @classmethod
@@ -71,9 +73,11 @@ class AgentProfile:
             name=data["name"],
             capabilities=data.get("capabilities", []),
             max_parallel_tasks=data.get("max_parallel_tasks", 3),
-            preferred_complexity=data.get("preferred_complexity", ["low", "medium", "high"]),
+            preferred_complexity=data.get(
+                "preferred_complexity", ["low", "medium", "high"]
+            ),
             active=data.get("active", True),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
 
@@ -104,7 +108,7 @@ class AgentRegistry:
             return
 
         try:
-            with open(self.registry_file, 'r') as f:
+            with open(self.registry_file) as f:
                 data = json.load(f)
 
             # Load agents from the registry
@@ -125,36 +129,53 @@ class AgentRegistry:
                 id="claude",
                 name="Claude",
                 capabilities=[
-                    "python", "javascript", "typescript", "html", "css",
-                    "code-review", "testing", "documentation", "debugging",
-                    "refactoring", "architecture", "api-design"
+                    "python",
+                    "javascript",
+                    "typescript",
+                    "html",
+                    "css",
+                    "code-review",
+                    "testing",
+                    "documentation",
+                    "debugging",
+                    "refactoring",
+                    "architecture",
+                    "api-design",
                 ],
                 max_parallel_tasks=3,
                 preferred_complexity=["low", "medium", "high", "very-high"],
-                active=True
+                active=True,
             ),
             "gemini": AgentProfile(
                 id="gemini",
                 name="Gemini",
                 capabilities=[
-                    "python", "data-analysis", "documentation", "testing",
-                    "code-review", "javascript"
+                    "python",
+                    "data-analysis",
+                    "documentation",
+                    "testing",
+                    "code-review",
+                    "javascript",
                 ],
                 max_parallel_tasks=2,
                 preferred_complexity=["low", "medium", "high"],
-                active=True
+                active=True,
             ),
             "codex": AgentProfile(
                 id="codex",
                 name="Codex",
                 capabilities=[
-                    "python", "javascript", "debugging", "testing",
-                    "code-generation", "documentation"
+                    "python",
+                    "javascript",
+                    "debugging",
+                    "testing",
+                    "code-generation",
+                    "documentation",
                 ],
                 max_parallel_tasks=2,
                 preferred_complexity=["low", "medium"],
-                active=True
-            )
+                active=True,
+            ),
         }
         self._save()
 
@@ -167,12 +188,11 @@ class AgentRegistry:
             "version": "1.0",
             "updated": datetime.now().isoformat(),
             "agents": {
-                agent_id: agent.to_dict()
-                for agent_id, agent in self._agents.items()
-            }
+                agent_id: agent.to_dict() for agent_id, agent in self._agents.items()
+            },
         }
 
-        with open(self.registry_file, 'w') as f:
+        with open(self.registry_file, "w") as f:
             json.dump(data, f, indent=2)
 
     def register(self, agent: AgentProfile) -> None:
@@ -200,9 +220,7 @@ class AgentRegistry:
         return agents
 
     def find_capable_agents(
-        self,
-        required_capabilities: list[str],
-        complexity: str | None = None
+        self, required_capabilities: list[str], complexity: str | None = None
     ) -> list[AgentProfile]:
         """
         Find agents that can handle the given requirements.
@@ -233,11 +251,7 @@ class AgentRegistry:
         capable.sort(key=match_score, reverse=True)
         return capable
 
-    def update_agent(
-        self,
-        agent_id: str,
-        **updates: Any
-    ) -> AgentProfile | None:
+    def update_agent(self, agent_id: str, **updates: Any) -> AgentProfile | None:
         """
         Update agent profile.
 

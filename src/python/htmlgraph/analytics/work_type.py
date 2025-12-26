@@ -26,15 +26,16 @@ Example:
 """
 
 from __future__ import annotations
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph import SDK
 
-from htmlgraph.models import WorkType, Session
-from htmlgraph.session_manager import SessionManager
 from htmlgraph.converter import html_to_session
+from htmlgraph.models import Session, WorkType
+from htmlgraph.session_manager import SessionManager
 
 
 class Analytics:
@@ -382,6 +383,7 @@ class Analytics:
             Transition time: 15.3%
         """
         from pathlib import Path
+
         from htmlgraph.converter import NodeConverter
 
         transition_minutes = 0.0
@@ -424,12 +426,15 @@ class Analytics:
                 # If still in progress, use last updated time
                 end_time = spike.updated if spike.updated else datetime.now()
 
-            duration = (end_time - start_time).total_seconds() / 60  # Convert to minutes
+            duration = (
+                end_time - start_time
+            ).total_seconds() / 60  # Convert to minutes
 
             # Categorize as transition or feature work
-            is_transition = (
-                spike.type == "spike"
-                and spike.spike_subtype in ("session-init", "transition", "conversation-init")
+            is_transition = spike.type == "spike" and spike.spike_subtype in (
+                "session-init",
+                "transition",
+                "conversation-init",
             )
 
             if is_transition:

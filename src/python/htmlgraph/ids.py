@@ -25,8 +25,18 @@ from typing import Literal
 
 # Type alias for valid node types
 NodeType = Literal[
-    "feature", "bug", "chore", "spike", "epic",
-    "session", "track", "phase", "agent", "spec", "plan", "event"
+    "feature",
+    "bug",
+    "chore",
+    "spike",
+    "epic",
+    "session",
+    "track",
+    "phase",
+    "agent",
+    "spec",
+    "plan",
+    "event",
 ]
 
 # Prefix mapping for human readability
@@ -50,8 +60,8 @@ PREFIXES: dict[str, str] = {
 PREFIX_TO_TYPE: dict[str, str] = {v: k for k, v in PREFIXES.items()}
 
 # Regex patterns for ID validation
-HASH_ID_PATTERN = re.compile(r'^([a-z]{3,4})-([a-f0-9]{8})(\.\d+)*$')
-LEGACY_ID_PATTERN = re.compile(r'^([a-z]+)-(\d{8}-\d{6})$')
+HASH_ID_PATTERN = re.compile(r"^([a-z]{3,4})-([a-f0-9]{8})(\.\d+)*$")
+LEGACY_ID_PATTERN = re.compile(r"^([a-z]+)-(\d{8}-\d{6})$")
 
 
 def generate_id(
@@ -166,15 +176,15 @@ def parse_id(node_id: str) -> dict[str, str | int | list[int] | None]:
         hierarchy = []
         base_id = f"{prefix}-{hash_part}"
         if len(node_id) > len(base_id):
-            hierarchy_str = node_id[len(base_id):]  # e.g., ".1.2"
-            hierarchy = [int(x) for x in hierarchy_str.split('.') if x]
+            hierarchy_str = node_id[len(base_id) :]  # e.g., ".1.2"
+            hierarchy = [int(x) for x in hierarchy_str.split(".") if x]
 
         return {
-            'prefix': prefix,
-            'node_type': PREFIX_TO_TYPE.get(prefix, prefix),
-            'hash': hash_part,
-            'hierarchy': hierarchy,
-            'is_legacy': False,
+            "prefix": prefix,
+            "node_type": PREFIX_TO_TYPE.get(prefix, prefix),
+            "hash": hash_part,
+            "hierarchy": hierarchy,
+            "is_legacy": False,
         }
 
     # Try legacy format (feature-20241222-143022)
@@ -184,20 +194,20 @@ def parse_id(node_id: str) -> dict[str, str | int | list[int] | None]:
         timestamp = legacy_match.group(2)
 
         return {
-            'prefix': prefix,
-            'node_type': prefix,  # Legacy uses full type as prefix
-            'hash': timestamp,
-            'hierarchy': [],
-            'is_legacy': True,
+            "prefix": prefix,
+            "node_type": prefix,  # Legacy uses full type as prefix
+            "hash": timestamp,
+            "hierarchy": [],
+            "is_legacy": True,
         }
 
     # Unknown format
     return {
-        'prefix': None,
-        'node_type': None,
-        'hash': None,
-        'hierarchy': [],
-        'is_legacy': None,
+        "prefix": None,
+        "node_type": None,
+        "hash": None,
+        "hierarchy": [],
+        "is_legacy": None,
     }
 
 
@@ -261,10 +271,10 @@ def get_parent_id(node_id: str) -> str | None:
         >>> get_parent_id("feat-a1b2c3d4")
         None
     """
-    if '.' not in node_id:
+    if "." not in node_id:
         return None
 
-    return node_id.rsplit('.', 1)[0]
+    return node_id.rsplit(".", 1)[0]
 
 
 def get_root_id(node_id: str) -> str:
@@ -284,9 +294,9 @@ def get_root_id(node_id: str) -> str:
         'feat-a1b2c3d4'
     """
     parsed = parse_id(node_id)
-    if parsed['prefix'] and parsed['hash']:
+    if parsed["prefix"] and parsed["hash"]:
         return f"{parsed['prefix']}-{parsed['hash']}"
-    return node_id.split('.')[0]
+    return node_id.split(".")[0]
 
 
 def get_depth(node_id: str) -> int:
@@ -308,4 +318,4 @@ def get_depth(node_id: str) -> int:
         2
     """
     parsed = parse_id(node_id)
-    return len(parsed.get('hierarchy', []))
+    return len(parsed.get("hierarchy", []))

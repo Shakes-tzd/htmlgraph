@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
-
+from typing import Any
 
 SCHEMA_VERSION = 2
 
@@ -165,7 +164,9 @@ class AnalyticsIndex:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_events_feature_ts ON events(feature_id, ts)"
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_events_tool_ts ON events(tool, ts)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_events_tool_ts ON events(tool, ts)"
+            )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_events_success_ts ON events(success, ts)"
             )
@@ -175,8 +176,12 @@ class AnalyticsIndex:
             conn.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_event_files_event_path ON event_files(event_id, path)"
             )
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_git_commits_ts ON git_commits(ts)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_git_commit_features_feature ON git_commit_features(feature_id)")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_git_commits_ts ON git_commits(ts)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_git_commit_features_feature ON git_commit_features(feature_id)"
+            )
 
     def upsert_session(self, session: dict[str, Any]) -> None:
         """
@@ -221,7 +226,9 @@ class AnalyticsIndex:
 
         payload = event.get("payload")
         payload_json = (
-            json.dumps(payload, ensure_ascii=False, default=str) if payload is not None else None
+            json.dumps(payload, ensure_ascii=False, default=str)
+            if payload is not None
+            else None
         )
 
         file_paths = event.get("file_paths") or []
@@ -291,20 +298,34 @@ class AnalyticsIndex:
                     if not ts:
                         return None
 
-                    features = event.get("features") if isinstance(event.get("features"), list) else []
+                    features = (
+                        event.get("features")
+                        if isinstance(event.get("features"), list)
+                        else []
+                    )
                     feature_id = features[0] if features else None
 
                     # Best-effort deterministic IDs for GitCommit (by hash), otherwise timestamp-based.
                     if legacy_type == "GitCommit" and event.get("commit_hash"):
                         base = f"git-commit-{event.get('commit_hash')}"
-                        event_id = base if feature_id is None else f"{base}-{feature_id}"
-                        msg = (event.get("commit_message") or "").strip().splitlines()[0] if event.get("commit_message") else ""
-                        summary = f"Commit {event.get('commit_hash_short','')}: {msg}".strip()
+                        event_id = (
+                            base if feature_id is None else f"{base}-{feature_id}"
+                        )
+                        msg = (
+                            (event.get("commit_message") or "").strip().splitlines()[0]
+                            if event.get("commit_message")
+                            else ""
+                        )
+                        summary = f"Commit {event.get('commit_hash_short', '')}: {msg}".strip()
                     else:
                         event_id = f"legacy-{legacy_type.lower()}-{ts}"
                         summary = legacy_type
 
-                    file_paths = event.get("files_changed") if isinstance(event.get("files_changed"), list) else []
+                    file_paths = (
+                        event.get("files_changed")
+                        if isinstance(event.get("files_changed"), list)
+                        else []
+                    )
 
                     return {
                         "event_id": event_id,
@@ -336,15 +357,18 @@ class AnalyticsIndex:
                     continue
 
                 # Track session metadata from events (best-effort)
-                meta = session_meta.setdefault(session_id, {
-                    "session_id": session_id,
-                    "agent": event.get("agent"),
-                    "start_commit": event.get("start_commit"),
-                    "continued_from": event.get("continued_from"),
-                    "status": event.get("session_status"),
-                    "started_at": None,
-                    "ended_at": None,
-                })
+                meta = session_meta.setdefault(
+                    session_id,
+                    {
+                        "session_id": session_id,
+                        "agent": event.get("agent"),
+                        "start_commit": event.get("start_commit"),
+                        "continued_from": event.get("continued_from"),
+                        "status": event.get("session_status"),
+                        "started_at": None,
+                        "ended_at": None,
+                    },
+                )
                 if meta.get("agent") is None and event.get("agent"):
                     meta["agent"] = event.get("agent")
                 if meta.get("start_commit") is None and event.get("start_commit"):
@@ -362,7 +386,9 @@ class AnalyticsIndex:
 
                 payload = event.get("payload")
                 payload_json = (
-                    json.dumps(payload, ensure_ascii=False, default=str) if payload is not None else None
+                    json.dumps(payload, ensure_ascii=False, default=str)
+                    if payload is not None
+                    else None
                 )
 
                 conn.execute(
@@ -477,7 +503,9 @@ class AnalyticsIndex:
     # Git continuity queries
     # ---------------------------------------------------------------------
 
-    def feature_commits(self, feature_id: str, limit: int = 200) -> list[dict[str, Any]]:
+    def feature_commits(
+        self, feature_id: str, limit: int = 200
+    ) -> list[dict[str, Any]]:
         """
         Return commit timeline for a feature based on GitCommit events.
         """
@@ -541,9 +569,28 @@ class AnalyticsIndex:
                 external.add(parent)
             edges.append({"from": parent, "to": r["commit_hash"]})
 
-        nodes = [{"id": c["commit_hash"], **{k: c.get(k) for k in ("commit_hash_short","ts","branch","subject","is_merge","insertions","deletions")}} for c in commits]
+        nodes = [
+            {
+                "id": c["commit_hash"],
+                **{
+                    k: c.get(k)
+                    for k in (
+                        "commit_hash_short",
+                        "ts",
+                        "branch",
+                        "subject",
+                        "is_merge",
+                        "insertions",
+                        "deletions",
+                    )
+                },
+            }
+            for c in commits
+        ]
         for parent in sorted(external):
-            nodes.append({"id": parent, "commit_hash_short": parent[:7], "external": True})
+            nodes.append(
+                {"id": parent, "commit_hash_short": parent[:7], "external": True}
+            )
 
         return {"nodes": nodes, "edges": edges}
 
@@ -551,7 +598,9 @@ class AnalyticsIndex:
     # Query helpers for API
     # ---------------------------------------------------------------------
 
-    def overview(self, since: str | None = None, until: str | None = None) -> dict[str, Any]:
+    def overview(
+        self, since: str | None = None, until: str | None = None
+    ) -> dict[str, Any]:
         """
         Return overview stats.
         since/until should be ISO8601 timestamps.
@@ -586,14 +635,14 @@ class AnalyticsIndex:
         return {
             "events": int(row["events"] or 0),
             "failures": int(row["failures"] or 0),
-            "failure_rate": (
-                float(row["failures"] or 0) / float(row["events"] or 1)
-            ),
+            "failure_rate": (float(row["failures"] or 0) / float(row["events"] or 1)),
             "avg_drift": row["avg_drift"],
             "top_tools": [dict(r) for r in by_tool],
         }
 
-    def top_features(self, since: str | None = None, until: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+    def top_features(
+        self, since: str | None = None, until: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         self.ensure_schema()
         clauses = []
         params: list[Any] = []
@@ -725,7 +774,9 @@ class AnalyticsIndex:
         return [dict(r) for r in rows]
 
 
-def _time_where_clause(column: str, since: str | None, until: str | None) -> tuple[str, tuple[Any, ...]]:
+def _time_where_clause(
+    column: str, since: str | None, until: str | None
+) -> tuple[str, tuple[Any, ...]]:
     clauses = []
     params: list[Any] = []
     if since:

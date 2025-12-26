@@ -9,24 +9,26 @@ Provides:
 - WIP limits enforcement
 """
 
-import logging
-import os
-import re
 import fnmatch
+import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-from htmlgraph.models import Node, Session, ActivityEntry
-from htmlgraph.graph import HtmlGraph
-from htmlgraph.converter import session_to_html, html_to_session, SessionConverter, dict_to_node
-from htmlgraph.event_log import JsonlEventLog, EventRecord
-from htmlgraph.ids import generate_id
 from htmlgraph.agent_detection import detect_agent_name
-from htmlgraph.services import ClaimingService
+from htmlgraph.converter import (
+    SessionConverter,
+    dict_to_node,
+)
+from htmlgraph.event_log import EventRecord, JsonlEventLog
 from htmlgraph.exceptions import SessionNotFoundError
+from htmlgraph.graph import HtmlGraph
+from htmlgraph.ids import generate_id
+from htmlgraph.models import ActivityEntry, Node, Session
+from htmlgraph.services import ClaimingService
 
 
 class SessionManager:
@@ -148,13 +150,14 @@ class SessionManager:
         """
         if self._sessions_cache_dirty or self._active_sessions_cache is None:
             self._active_sessions_cache = [
-                s for s in self.session_converter.load_all()
-                if s.status == "active"
+                s for s in self.session_converter.load_all() if s.status == "active"
             ]
             self._sessions_cache_dirty = False
         return self._active_sessions_cache
 
-    def _choose_canonical_active_session(self, sessions: list[Session]) -> Session | None:
+    def _choose_canonical_active_session(
+        self, sessions: list[Session]
+    ) -> Session | None:
         """Choose a stable 'canonical' session when multiple are active."""
         if not sessions:
             return None
@@ -262,7 +265,8 @@ class SessionManager:
         # The session will only end when the Stop hook is called (process terminates).
         if not is_subagent:
             active_sessions = [
-                s for s in self._list_active_sessions()
+                s
+                for s in self._list_active_sessions()
                 if (not s.is_subagent) and s.agent == agent
             ]
             canonical = self._choose_canonical_active_session(active_sessions)
@@ -293,11 +297,13 @@ class SessionManager:
         )
 
         # Add session start event
-        session.add_activity(ActivityEntry(
-            tool="SessionStart",
-            summary="Session started",
-            timestamp=now,
-        ))
+        session.add_activity(
+            ActivityEntry(
+                tool="SessionStart",
+                summary="Session started",
+                timestamp=now,
+            )
+        )
 
         # Save to disk
         self.session_converter.save(session)
@@ -344,7 +350,7 @@ class SessionManager:
             auto_generated=True,
             session_id=session.id,
             model_name=session.agent,  # Store agent name as model
-            content=f"Auto-generated spike for session startup activities.\n\nCaptures work before first feature is started:\n- Context review\n- Planning\n- Exploration\n\nAuto-completes when first feature is claimed.",
+            content="Auto-generated spike for session startup activities.\n\nCaptures work before first feature is started:\n- Context review\n- Planning\n- Exploration\n\nAuto-completes when first feature is claimed.",
         )
 
         # Save spike
@@ -360,7 +366,9 @@ class SessionManager:
 
         return spike
 
-    def _create_transition_spike(self, session: Session, from_feature_id: str) -> Node | None:
+    def _create_transition_spike(
+        self, session: Session, from_feature_id: str
+    ) -> Node | None:
         """
         Auto-create a transition spike after feature completion.
 
@@ -404,7 +412,9 @@ class SessionManager:
 
         return spike
 
-    def _complete_active_auto_spikes(self, agent: str, to_feature_id: str) -> list[Node]:
+    def _complete_active_auto_spikes(
+        self, agent: str, to_feature_id: str
+    ) -> list[Node]:
         """
         Auto-complete any active auto-generated spikes when a feature starts.
 
@@ -437,7 +447,8 @@ class SessionManager:
             if not (
                 spike.type == "spike"
                 and spike.auto_generated
-                and spike.spike_subtype in ("session-init", "transition", "conversation-init")
+                and spike.spike_subtype
+                in ("session-init", "transition", "conversation-init")
                 and spike.status == "in-progress"
             ):
                 # Spike is no longer active - remove from index
@@ -447,7 +458,9 @@ class SessionManager:
             # Complete the spike
             spike.status = "done"
             spike.updated = datetime.now()
-            spike.to_feature_id = to_feature_id  # Record what feature we transitioned to
+            spike.to_feature_id = (
+                to_feature_id  # Record what feature we transitioned to
+            )
 
             spike_converter.save(spike)
             completed_spikes.append(spike)
@@ -461,6 +474,7 @@ class SessionManager:
             if session and session.transcript_id:
                 try:
                     from htmlgraph.transcript import TranscriptReader
+
                     reader = TranscriptReader()
                     transcript = reader.read_session(session.transcript_id)
                     if transcript:
@@ -470,7 +484,9 @@ class SessionManager:
                             overwrite=True,
                         )
                 except Exception as e:
-                    logger.warning(f"Failed to import transcript events on auto-spike completion: {e}")
+                    logger.warning(
+                        f"Failed to import transcript events on auto-spike completion: {e}"
+                    )
 
         return completed_spikes
 
@@ -634,11 +650,13 @@ class SessionManager:
             session.blockers = blockers
 
         session.end()
-        session.add_activity(ActivityEntry(
-            tool="SessionEnd",
-            summary="Session ended",
-            timestamp=datetime.now(),
-        ))
+        session.add_activity(
+            ActivityEntry(
+                tool="SessionEnd",
+                summary="Session ended",
+                timestamp=datetime.now(),
+            )
+        )
 
         # Release all features claimed by this session
         self.release_session_features(session_id)
@@ -675,11 +693,13 @@ class SessionManager:
             updated = True
 
         if updated:
-            session.add_activity(ActivityEntry(
-                tool="SessionHandoff",
-                summary="Session handoff updated",
-                timestamp=datetime.now(),
-            ))
+            session.add_activity(
+                ActivityEntry(
+                    tool="SessionHandoff",
+                    summary="Session handoff updated",
+                    timestamp=datetime.now(),
+                )
+            )
             self.session_converter.save(session)
 
         return session
@@ -745,16 +765,24 @@ class SessionManager:
             # Inherit feature from parent if not explicitly set
             if not attributed_feature and active_features:
                 # Use primary feature or first active feature
-                primary = next((f for f in active_features if f.properties.get("is_primary")), None)
-                attributed_feature = (primary or active_features[0]).id if active_features else None
+                primary = next(
+                    (f for f in active_features if f.properties.get("is_primary")), None
+                )
+                attributed_feature = (
+                    (primary or active_features[0]).id if active_features else None
+                )
             drift_score = None  # No drift for child activities
             attribution_reason = "child_activity"
         # Skip drift calculation for system overhead activities
         elif self._is_system_overhead(tool, summary, file_paths or []):
             # Attribute to primary or first active feature, but no drift score
             if not attributed_feature and active_features:
-                primary = next((f for f in active_features if f.properties.get("is_primary")), None)
-                attributed_feature = (primary or active_features[0]).id if active_features else None
+                primary = next(
+                    (f for f in active_features if f.properties.get("is_primary")), None
+                )
+                attributed_feature = (
+                    (primary or active_features[0]).id if active_features else None
+                )
             drift_score = None  # No drift for system overhead
             attribution_reason = "system_overhead"
         elif not attributed_feature and active_features:
@@ -773,7 +801,7 @@ class SessionManager:
         # This ensures multi-agent safety - no race conditions even with parallel agents
         event_id = generate_id(
             node_type="event",
-            title=f"{tool}:{summary[:50]}"  # Include tool + summary for content-addressability
+            title=f"{tool}:{summary[:50]}",  # Include tool + summary for content-addressability
         )
 
         entry = ActivityEntry(
@@ -790,32 +818,39 @@ class SessionManager:
                 "file_paths": file_paths,
                 "attribution_reason": attribution_reason,
                 "session_id": session_id,  # Include session context in payload
-            } if file_paths or attribution_reason or session_id else payload,
+            }
+            if file_paths or attribution_reason or session_id
+            else payload,
         )
 
         # Append to JSONL event log (source of truth for analytics)
         try:
             # Auto-infer work type from feature_id (Phase 1: Work Type Classification)
             from htmlgraph.work_type_utils import infer_work_type_from_id
+
             work_type = infer_work_type_from_id(entry.feature_id)
 
-            self.event_log.append(EventRecord(
-                event_id=entry.id or "",
-                timestamp=entry.timestamp,
-                session_id=session_id,
-                agent=session.agent,
-                tool=entry.tool,
-                summary=entry.summary,
-                success=entry.success,
-                feature_id=entry.feature_id,
-                drift_score=entry.drift_score,
-                start_commit=session.start_commit,
-                continued_from=session.continued_from,
-                work_type=work_type,
-                session_status=session.status,
-                file_paths=file_paths,
-                payload=entry.payload if isinstance(entry.payload, dict) else payload,
-            ))
+            self.event_log.append(
+                EventRecord(
+                    event_id=entry.id or "",
+                    timestamp=entry.timestamp,
+                    session_id=session_id,
+                    agent=session.agent,
+                    tool=entry.tool,
+                    summary=entry.summary,
+                    success=entry.success,
+                    feature_id=entry.feature_id,
+                    drift_score=entry.drift_score,
+                    start_commit=session.start_commit,
+                    continued_from=session.continued_from,
+                    work_type=work_type,
+                    session_status=session.status,
+                    file_paths=file_paths,
+                    payload=entry.payload
+                    if isinstance(entry.payload, dict)
+                    else payload,
+                )
+            )
         except Exception as e:
             # Never break core tracking because of analytics logging.
             logger.warning(f"Failed to append to event log: {e}")
@@ -829,27 +864,35 @@ class SessionManager:
 
                 idx = AnalyticsIndex(index_path)
                 idx.ensure_schema()
-                idx.upsert_session({
-                    "session_id": session_id,
-                    "agent": session.agent,
-                    "start_commit": session.start_commit,
-                    "continued_from": session.continued_from,
-                    "status": session.status,
-                    "started_at": session.started_at.isoformat(),
-                    "ended_at": session.ended_at.isoformat() if session.ended_at else None,
-                })
-                idx.upsert_event({
-                    "event_id": entry.id,
-                    "timestamp": entry.timestamp.isoformat(),
-                    "session_id": session_id,
-                    "tool": entry.tool,
-                    "summary": entry.summary,
-                    "success": entry.success,
-                    "feature_id": entry.feature_id,
-                    "drift_score": entry.drift_score,
-                    "file_paths": file_paths or [],
-                    "payload": entry.payload if isinstance(entry.payload, dict) else payload,
-                })
+                idx.upsert_session(
+                    {
+                        "session_id": session_id,
+                        "agent": session.agent,
+                        "start_commit": session.start_commit,
+                        "continued_from": session.continued_from,
+                        "status": session.status,
+                        "started_at": session.started_at.isoformat(),
+                        "ended_at": session.ended_at.isoformat()
+                        if session.ended_at
+                        else None,
+                    }
+                )
+                idx.upsert_event(
+                    {
+                        "event_id": entry.id,
+                        "timestamp": entry.timestamp.isoformat(),
+                        "session_id": session_id,
+                        "tool": entry.tool,
+                        "summary": entry.summary,
+                        "success": entry.success,
+                        "feature_id": entry.feature_id,
+                        "drift_score": entry.drift_score,
+                        "file_paths": file_paths or [],
+                        "payload": entry.payload
+                        if isinstance(entry.payload, dict)
+                        else payload,
+                    }
+                )
         except Exception as e:
             logger.warning(f"Failed to update SQLite index: {e}")
 
@@ -914,7 +957,8 @@ class SessionManager:
             if (
                 feature.type == "spike"
                 and feature.auto_generated
-                and feature.spike_subtype in ("session-init", "conversation-init", "transition")
+                and feature.spike_subtype
+                in ("session-init", "conversation-init", "transition")
                 and feature.status == "in-progress"
             ):
                 return feature
@@ -1075,9 +1119,20 @@ class SessionManager:
     def _extract_keywords(self, text: str) -> set[str]:
         """Extract keywords from text."""
         # Simple keyword extraction - lowercase words > 3 chars
-        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+        words = re.findall(r"\b[a-zA-Z]{3,}\b", text.lower())
         # Filter common words
-        stop_words = {'the', 'and', 'for', 'with', 'this', 'that', 'from', 'are', 'was', 'were'}
+        stop_words = {
+            "the",
+            "and",
+            "for",
+            "with",
+            "this",
+            "that",
+            "from",
+            "are",
+            "was",
+            "were",
+        }
         return set(words) - stop_words
 
     def _score_keyword_overlap(self, text: str, keywords: set[str]) -> float:
@@ -1090,7 +1145,9 @@ class SessionManager:
 
         return len(overlap) / len(keywords) if keywords else 0.0
 
-    def _is_system_overhead(self, tool: str, summary: str, file_paths: list[str]) -> bool:
+    def _is_system_overhead(
+        self, tool: str, summary: str, file_paths: list[str]
+    ) -> bool:
         """
         Determine if an activity is system overhead that shouldn't count as drift.
 
@@ -1142,12 +1199,15 @@ class SessionManager:
 
         # Get recent activities for this feature
         feature_activities = [
-            a for a in session.activity_log[-20:]
-            if a.feature_id == feature_id
+            a for a in session.activity_log[-20:] if a.feature_id == feature_id
         ]
 
         if not feature_activities:
-            return {"is_drifting": False, "drift_score": 0, "reasons": ["no_recent_activity"]}
+            return {
+                "is_drifting": False,
+                "drift_score": 0,
+                "reasons": ["no_recent_activity"],
+            }
 
         # 1. Check time since last meaningful progress
         last_activity = feature_activities[-1]
@@ -1169,7 +1229,9 @@ class SessionManager:
                 reasons.append("repetitive_pattern")
 
         # 3. Check average drift scores
-        drift_scores = [a.drift_score for a in feature_activities if a.drift_score is not None]
+        drift_scores = [
+            a.drift_score for a in feature_activities if a.drift_score is not None
+        ]
         if drift_scores:
             avg_drift = sum(drift_scores) / len(drift_scores)
             if avg_drift > 0.6:
@@ -1390,7 +1452,9 @@ class SessionManager:
         # Check WIP limit
         active = self.get_active_features()
         if len(active) >= self.wip_limit and node not in active:
-            raise ValueError(f"WIP limit ({self.wip_limit}) reached. Complete existing work first.")
+            raise ValueError(
+                f"WIP limit ({self.wip_limit}) reached. Complete existing work first."
+            )
 
         # Auto-claim if starting and not already claimed
         if agent and not node.agent_assigned:
@@ -1413,7 +1477,11 @@ class SessionManager:
             self._complete_active_auto_spikes(agent, to_feature_id=feature_id)
 
         # Link feature to active session (bidirectional)
-        active_session = self.get_active_session_for_agent(agent) if agent else self.get_active_session()
+        active_session = (
+            self.get_active_session_for_agent(agent)
+            if agent
+            else self.get_active_session()
+        )
         if agent and not active_session:
             active_session = self._ensure_session_for_agent(agent)
         if active_session:
@@ -1490,6 +1558,7 @@ class SessionManager:
         if session and session.transcript_id:
             try:
                 from htmlgraph.transcript import TranscriptReader
+
                 reader = TranscriptReader()
                 transcript = reader.read_session(session.transcript_id)
                 if transcript:
@@ -1499,7 +1568,9 @@ class SessionManager:
                         overwrite=True,  # Replace hook data with high-fidelity transcript
                     )
             except Exception as e:
-                logger.warning(f"Failed to auto-import transcript on feature completion: {e}")
+                logger.warning(
+                    f"Failed to auto-import transcript on feature completion: {e}"
+                )
 
         # Auto-create transition spike for post-completion activities
         if session:
@@ -1750,7 +1821,9 @@ class SessionManager:
 
         # Verify agent owns the feature
         if node.agent_assigned and node.agent_assigned != agent:
-            raise ValueError(f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}")
+            raise ValueError(
+                f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}"
+            )
 
         # Set handoff fields
         node.handoff_required = True
@@ -1802,13 +1875,17 @@ class SessionManager:
         from htmlgraph.models import Edge
 
         # Find the feature in either collection
-        feature_node = self.features_graph.get(feature_id) or self.bugs_graph.get(feature_id)
+        feature_node = self.features_graph.get(feature_id) or self.bugs_graph.get(
+            feature_id
+        )
         if not feature_node:
             return
 
         # Check if feature → session edge already exists
         existing_sessions = feature_node.edges.get("implemented-in", [])
-        feature_already_linked = any(edge.target_id == session_id for edge in existing_sessions)
+        feature_already_linked = any(
+            edge.target_id == session_id for edge in existing_sessions
+        )
 
         if not feature_already_linked:
             # Add feature → session edge
@@ -1858,7 +1935,9 @@ class SessionManager:
 
         # Check if edge already exists
         existing_transcripts = node.edges.get("implemented-by", [])
-        already_linked = any(edge.target_id == transcript_id for edge in existing_transcripts)
+        already_linked = any(
+            edge.target_id == transcript_id for edge in existing_transcripts
+        )
 
         if already_linked:
             return
@@ -1870,6 +1949,7 @@ class SessionManager:
 
         try:
             from htmlgraph.transcript import TranscriptReader
+
             reader = TranscriptReader()
             transcript = reader.read_session(transcript_id)
             if transcript:
@@ -1877,7 +1957,9 @@ class SessionManager:
                 duration_seconds = int(transcript.duration_seconds or 0)
                 tool_breakdown = transcript.tool_breakdown
         except Exception as e:
-            logger.warning(f"Failed to get transcript analytics for {transcript_id}: {e}")
+            logger.warning(
+                f"Failed to get transcript analytics for {transcript_id}: {e}"
+            )
 
         # Add implemented-by edge with analytics
         edge = Edge(
@@ -1914,6 +1996,7 @@ class SessionManager:
         """Get current git commit hash."""
         try:
             import subprocess
+
             result = subprocess.run(
                 ["git", "rev-parse", "--short", "HEAD"],
                 capture_output=True,
@@ -2054,24 +2137,29 @@ class SessionManager:
             # Also append to JSONL event log
             try:
                 from htmlgraph.work_type_utils import infer_work_type_from_id
+
                 work_type = infer_work_type_from_id(activity.feature_id)
 
-                self.event_log.append(EventRecord(
-                    event_id=activity.id or "",
-                    timestamp=activity.timestamp,
-                    session_id=session_id,
-                    agent=session.agent,
-                    tool=activity.tool,
-                    summary=activity.summary,
-                    success=activity.success,
-                    feature_id=activity.feature_id,
-                    drift_score=None,
-                    start_commit=session.start_commit,
-                    continued_from=session.continued_from,
-                    work_type=work_type,
-                    session_status=session.status,
-                    payload=activity.payload if isinstance(activity.payload, dict) else None,
-                ))
+                self.event_log.append(
+                    EventRecord(
+                        event_id=activity.id or "",
+                        timestamp=activity.timestamp,
+                        session_id=session_id,
+                        agent=session.agent,
+                        tool=activity.tool,
+                        summary=activity.summary,
+                        success=activity.success,
+                        feature_id=activity.feature_id,
+                        drift_score=None,
+                        start_commit=session.start_commit,
+                        continued_from=session.continued_from,
+                        work_type=work_type,
+                        session_status=session.status,
+                        payload=activity.payload
+                        if isinstance(activity.payload, dict)
+                        else None,
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to append transcript event to event log: {e}")
 
@@ -2184,7 +2272,9 @@ class SessionManager:
         return {
             "transcript_id": session.transcript_id,
             "transcript_path": session.transcript_path,
-            "synced_at": session.transcript_synced_at.isoformat() if session.transcript_synced_at else None,
+            "synced_at": session.transcript_synced_at.isoformat()
+            if session.transcript_synced_at
+            else None,
             "git_branch": session.transcript_git_branch,
             "user_messages": transcript.user_message_count,
             "tool_calls": transcript.tool_call_count,

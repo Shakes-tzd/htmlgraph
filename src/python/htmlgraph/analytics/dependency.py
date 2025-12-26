@@ -10,24 +10,20 @@ Provides advanced graph analysis for project management:
 """
 
 from __future__ import annotations
+
+from collections import deque
 from typing import TYPE_CHECKING
-from collections import defaultdict, deque
 
 from htmlgraph.dependency_models import (
     BottleneckNode,
-    CriticalPathResult,
-    CriticalPathNode,
+    ImpactAnalysis,
     ParallelizationReport,
     ParallelLevel,
     RiskAssessment,
-    RiskNode,
     RiskFactor,
-    HealthReport,
-    HealthIndicator,
-    TaskRecommendations,
+    RiskNode,
     TaskRecommendation,
-    ImpactAnalysis,
-    WhatIfResult,
+    TaskRecommendations,
 )
 
 if TYPE_CHECKING:
@@ -88,7 +84,7 @@ class DependencyAnalytics:
         self,
         status_filter: list[str] | None = None,
         top_n: int = 10,
-        min_impact: int = 1
+        min_impact: int = 1,
     ) -> list[BottleneckNode]:
         """
         Identify nodes that are blocking the most work.
@@ -129,7 +125,12 @@ class DependencyAnalytics:
             transitive = self._count_transitive_dependents(node.id)
 
             # Calculate weighted impact
-            priority_weight = {"critical": 3.0, "high": 2.0, "medium": 1.0, "low": 0.5}.get(node.priority, 1.0)
+            priority_weight = {
+                "critical": 3.0,
+                "high": 2.0,
+                "medium": 1.0,
+                "low": 0.5,
+            }.get(node.priority, 1.0)
             completion_pct = self._calculate_completion(node)
             incompletion_factor = (100.0 - completion_pct) / 100.0
             weighted_impact = transitive * priority_weight * incompletion_factor
@@ -137,17 +138,19 @@ class DependencyAnalytics:
             # Get list of blocked nodes
             blocked_nodes = self._get_direct_dependents(node.id)
 
-            bottlenecks.append(BottleneckNode(
-                id=node.id,
-                title=node.title,
-                status=node.status,
-                priority=node.priority,
-                completion_pct=completion_pct,
-                direct_blocking=direct,
-                transitive_blocking=transitive,
-                weighted_impact=weighted_impact,
-                blocked_nodes=blocked_nodes
-            ))
+            bottlenecks.append(
+                BottleneckNode(
+                    id=node.id,
+                    title=node.title,
+                    status=node.status,
+                    priority=node.priority,
+                    completion_pct=completion_pct,
+                    direct_blocking=direct,
+                    transitive_blocking=transitive,
+                    weighted_impact=weighted_impact,
+                    blocked_nodes=blocked_nodes,
+                )
+            )
 
         # Sort by weighted impact descending
         bottlenecks.sort(key=lambda x: x.weighted_impact, reverse=True)
@@ -168,9 +171,11 @@ class DependencyAnalytics:
         if not node:
             return 0.0
 
-        direct = self._count_direct_dependents(node_id)
+        self._count_direct_dependents(node_id)
         transitive = self._count_transitive_dependents(node_id)
-        priority_weight = {"critical": 3.0, "high": 2.0, "medium": 1.0, "low": 0.5}.get(node.priority, 1.0)
+        priority_weight = {"critical": 3.0, "high": 2.0, "medium": 1.0, "low": 0.5}.get(
+            node.priority, 1.0
+        )
         completion_pct = self._calculate_completion(node)
         incompletion_factor = (100.0 - completion_pct) / 100.0
 
@@ -179,9 +184,7 @@ class DependencyAnalytics:
     # === Parallelization Analysis ===
 
     def find_parallelizable_work(
-        self,
-        status: str = "todo",
-        max_levels: int | None = None
+        self, status: str = "todo", max_levels: int | None = None
     ) -> ParallelizationReport:
         """
         Identify work that can be done in parallel.
@@ -219,27 +222,31 @@ class DependencyAnalytics:
             max_parallel = len(node_ids)
             max_parallelism = max(max_parallelism, max_parallel)
 
-            parallel_levels.append(ParallelLevel(
-                level=level_idx,
-                nodes=list(node_ids),
-                max_parallel=max_parallel,
-                independent_groups=independent_groups
-            ))
+            parallel_levels.append(
+                ParallelLevel(
+                    level=level_idx,
+                    nodes=list(node_ids),
+                    max_parallel=max_parallel,
+                    independent_groups=independent_groups,
+                )
+            )
 
         # Suggest assignments (round-robin for now)
         suggestions = []
         if parallel_levels and parallel_levels[0].nodes:
             for i, node_id in enumerate(parallel_levels[0].nodes[:3]):  # Top 3
-                agent_name = f"agent-{i+1}"
+                agent_name = f"agent-{i + 1}"
                 suggestions.append((agent_name, [node_id]))
 
         return ParallelizationReport(
             max_parallelism=max_parallelism,
             dependency_levels=parallel_levels,
-            suggested_assignments=suggestions
+            suggested_assignments=suggestions,
         )
 
-    def dependency_levels(self, status_filter: list[str] | None = None) -> list[set[str]]:
+    def dependency_levels(
+        self, status_filter: list[str] | None = None
+    ) -> list[set[str]]:
         """
         Group nodes by dependency level (topological layers).
 
@@ -256,7 +263,9 @@ class DependencyAnalytics:
         """
         # Get all nodes matching filter
         if status_filter:
-            nodes_to_process = [n for n in self.graph.nodes.values() if n.status in status_filter]
+            nodes_to_process = [
+                n for n in self.graph.nodes.values() if n.status in status_filter
+            ]
         else:
             nodes_to_process = list(self.graph.nodes.values())
 
@@ -296,7 +305,10 @@ class DependencyAnalytics:
             # Decrease in-degree for neighbors
             for node_id in current_level:
                 for edge_ref in self._edge_index.get_outgoing(node_id):
-                    if edge_ref.target_id in in_degree and edge_ref.target_id not in processed:
+                    if (
+                        edge_ref.target_id in in_degree
+                        and edge_ref.target_id not in processed
+                    ):
                         in_degree[edge_ref.target_id] -= 1
 
         return levels
@@ -318,10 +330,7 @@ class DependencyAnalytics:
 
     # === Risk Assessment ===
 
-    def assess_dependency_risk(
-        self,
-        spof_threshold: int = 3
-    ) -> RiskAssessment:
+    def assess_dependency_risk(self, spof_threshold: int = 3) -> RiskAssessment:
         """
         Assess risk based on dependency structure.
 
@@ -352,18 +361,20 @@ class DependencyAnalytics:
                     type="spof",
                     severity="high" if dependents_count > 10 else "medium",
                     description=f"Blocks {dependents_count} features with no alternative paths",
-                    mitigation="Consider breaking into smaller independent features"
+                    mitigation="Consider breaking into smaller independent features",
                 )
             ]
 
             risk_score = min(dependents_count / 20.0, 1.0)  # Cap at 1.0
 
-            high_risk.append(RiskNode(
-                id=node_id,
-                title=node.title,
-                risk_score=risk_score,
-                risk_factors=risk_factors
-            ))
+            high_risk.append(
+                RiskNode(
+                    id=node_id,
+                    title=node.title,
+                    risk_score=risk_score,
+                    risk_factors=risk_factors,
+                )
+            )
 
         # Find circular dependencies
         cycles = self.graph.find_cycles()
@@ -380,23 +391,26 @@ class DependencyAnalytics:
         # Generate recommendations
         recommendations = []
         for node in high_risk[:3]:
-            recommendations.append(f"Break {node.title} into smaller features to reduce SPOF risk")
+            recommendations.append(
+                f"Break {node.title} into smaller features to reduce SPOF risk"
+            )
         if cycles:
-            recommendations.append(f"Resolve {len(cycles)} circular dependencies detected")
+            recommendations.append(
+                f"Resolve {len(cycles)} circular dependencies detected"
+            )
         if orphaned:
-            recommendations.append(f"Review {len(orphaned)} orphaned nodes with no dependents")
+            recommendations.append(
+                f"Review {len(orphaned)} orphaned nodes with no dependents"
+            )
 
         return RiskAssessment(
             high_risk=high_risk,
             circular_dependencies=cycles,
             orphaned_nodes=orphaned,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
-    def single_points_of_failure(
-        self,
-        min_dependents: int = 3
-    ) -> list[str]:
+    def single_points_of_failure(self, min_dependents: int = 3) -> list[str]:
         """
         Identify nodes with high fan-in (many dependents).
 
@@ -420,10 +434,7 @@ class DependencyAnalytics:
     # === Work Prioritization ===
 
     def recommend_next_tasks(
-        self,
-        agent_count: int = 1,
-        status: str = "todo",
-        lookahead: int = 3
+        self, agent_count: int = 1, status: str = "todo", lookahead: int = 3
     ) -> TaskRecommendations:
         """
         Recommend which tasks to work on next.
@@ -479,21 +490,26 @@ class DependencyAnalytics:
             if not reasons:
                 reasons.append("Ready to start (all dependencies complete)")
 
-            scored.append((score, TaskRecommendation(
-                id=node.id,
-                title=node.title,
-                priority=node.priority,
-                score=score,
-                reasons=reasons,
-                estimated_effort=effort,
-                unlocks=unlocks
-            )))
+            scored.append(
+                (
+                    score,
+                    TaskRecommendation(
+                        id=node.id,
+                        title=node.title,
+                        priority=node.priority,
+                        score=score,
+                        reasons=reasons,
+                        estimated_effort=effort,
+                        unlocks=unlocks,
+                    ),
+                )
+            )
 
         # Sort by score descending
         scored.sort(key=lambda x: x[0], reverse=True)
 
         # Take top recommendations
-        recommendations = [rec for _, rec in scored[:lookahead * agent_count]]
+        recommendations = [rec for _, rec in scored[: lookahead * agent_count]]
 
         # Find parallel suggestions
         parallel_suggestions = []
@@ -501,17 +517,16 @@ class DependencyAnalytics:
             # Simple approach: suggest non-overlapping dependency chains
             for i in range(0, min(len(recommendations), agent_count * 2), 2):
                 if i + 1 < len(recommendations):
-                    parallel_suggestions.append([recommendations[i].id, recommendations[i+1].id])
+                    parallel_suggestions.append(
+                        [recommendations[i].id, recommendations[i + 1].id]
+                    )
 
         return TaskRecommendations(
-            recommendations=recommendations,
-            parallel_suggestions=parallel_suggestions
+            recommendations=recommendations, parallel_suggestions=parallel_suggestions
         )
 
     def prioritization_score(
-        self,
-        node_id: str,
-        weights: dict[str, float] | None = None
+        self, node_id: str, weights: dict[str, float] | None = None
     ) -> float:
         """
         Calculate priority score for a node.
@@ -534,7 +549,7 @@ class DependencyAnalytics:
                 "transitive_blocking": 2.0,
                 "priority": 1.5,
                 "dependency_penalty": -0.5,
-                "critical_path": 3.0
+                "critical_path": 3.0,
             }
 
         node = self.graph.get(node_id)
@@ -579,9 +594,7 @@ class DependencyAnalytics:
         return (fan_in, fan_out)
 
     def impact_analysis(
-        self,
-        node_id: str,
-        include_done: bool = False
+        self, node_id: str, include_done: bool = False
     ) -> ImpactAnalysis:
         """
         Analyze the downstream impact of a node.
@@ -594,19 +607,27 @@ class DependencyAnalytics:
             ImpactAnalysis with dependency impact
         """
         direct = self._count_direct_dependents(node_id)
-        transitive = self._count_transitive_dependents(node_id, include_done=include_done)
-        affected = self._get_all_transitive_dependents(node_id, include_done=include_done)
+        transitive = self._count_transitive_dependents(
+            node_id, include_done=include_done
+        )
+        affected = self._get_all_transitive_dependents(
+            node_id, include_done=include_done
+        )
 
         # Calculate what % of total work this represents
-        total_nodes = len([n for n in self.graph.nodes.values() if include_done or n.status != "done"])
-        completion_impact = (transitive / total_nodes * 100.0) if total_nodes > 0 else 0.0
+        total_nodes = len(
+            [n for n in self.graph.nodes.values() if include_done or n.status != "done"]
+        )
+        completion_impact = (
+            (transitive / total_nodes * 100.0) if total_nodes > 0 else 0.0
+        )
 
         return ImpactAnalysis(
             node_id=node_id,
             direct_dependents=direct,
             transitive_dependents=transitive,
             affected_nodes=affected,
-            completion_impact=completion_impact
+            completion_impact=completion_impact,
         )
 
     # === Private Helper Methods ===
@@ -617,9 +638,13 @@ class DependencyAnalytics:
 
     def _get_direct_dependents(self, node_id: str) -> list[str]:
         """Get list of node IDs that directly depend on this node."""
-        return [edge_ref.source_id for edge_ref in self._edge_index.get_incoming(node_id)]
+        return [
+            edge_ref.source_id for edge_ref in self._edge_index.get_incoming(node_id)
+        ]
 
-    def _count_transitive_dependents(self, node_id: str, include_done: bool = False) -> int:
+    def _count_transitive_dependents(
+        self, node_id: str, include_done: bool = False
+    ) -> int:
         """
         Count all downstream nodes that transitively depend on this node.
 
@@ -629,7 +654,9 @@ class DependencyAnalytics:
         transitive_set = self._get_or_compute_transitive(node_id, include_done)
         return len(transitive_set)
 
-    def _get_all_transitive_dependents(self, node_id: str, include_done: bool = False) -> list[str]:
+    def _get_all_transitive_dependents(
+        self, node_id: str, include_done: bool = False
+    ) -> list[str]:
         """Get all downstream nodes (BFS traversal of dependents)."""
         visited = set()
         queue = deque([node_id])
@@ -692,7 +719,9 @@ class DependencyAnalytics:
         # A more sophisticated version would use graph coloring
         return [[nid] for nid in node_ids]
 
-    def _get_or_compute_transitive(self, node_id: str, include_done: bool = False) -> set[str]:
+    def _get_or_compute_transitive(
+        self, node_id: str, include_done: bool = False
+    ) -> set[str]:
         """
         Get or compute transitive dependents with caching.
 
@@ -712,7 +741,9 @@ class DependencyAnalytics:
             return self._transitive_cache[cache_key]
 
         # Compute transitive dependents via BFS
-        dependents = self._get_all_transitive_dependents(node_id, include_done=include_done)
+        dependents = self._get_all_transitive_dependents(
+            node_id, include_done=include_done
+        )
         dependents_set = set(dependents)
 
         # Cache the result

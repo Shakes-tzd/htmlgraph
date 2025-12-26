@@ -4,10 +4,10 @@ HTML parser wrapper using justhtml.
 Provides CSS selector-based querying and data extraction from HTML files.
 """
 
+import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
-from datetime import datetime
-import re
 
 from justhtml import JustHTML
 
@@ -22,7 +22,9 @@ class HtmlParser:
     - Graph structure parsing (nodes, edges)
     """
 
-    def __init__(self, html_content: str | None = None, filepath: Path | str | None = None):
+    def __init__(
+        self, html_content: str | None = None, filepath: Path | str | None = None
+    ):
         """
         Initialize parser with HTML content or file.
 
@@ -123,8 +125,20 @@ class HtmlParser:
         }
 
         # Standard attributes
-        for attr in ["type", "status", "priority", "agent-assigned", "track-id", "plan-task-id", "claimed-by-session",
-                     "spike-subtype", "session-id", "from-feature-id", "to-feature-id", "model-name"]:
+        for attr in [
+            "type",
+            "status",
+            "priority",
+            "agent-assigned",
+            "track-id",
+            "plan-task-id",
+            "claimed-by-session",
+            "spike-subtype",
+            "session-id",
+            "from-feature-id",
+            "to-feature-id",
+            "model-name",
+        ]:
             value = self.get_data_attribute(article, attr)
             if value:
                 key = attr.replace("-", "_")
@@ -139,21 +153,31 @@ class HtmlParser:
         claimed_at = self.get_data_attribute(article, "claimed-at")
         if claimed_at:
             try:
-                metadata["claimed_at"] = datetime.fromisoformat(claimed_at.replace("Z", "+00:00"))
+                metadata["claimed_at"] = datetime.fromisoformat(
+                    claimed_at.replace("Z", "+00:00")
+                )
             except ValueError:
                 metadata["claimed_at"] = claimed_at
 
-        created_value = self.get_data_attribute(article, "created") or self.get_data_attribute(article, "started-at")
+        created_value = self.get_data_attribute(
+            article, "created"
+        ) or self.get_data_attribute(article, "started-at")
         if created_value:
             try:
-                metadata["created"] = datetime.fromisoformat(created_value.replace("Z", "+00:00"))
+                metadata["created"] = datetime.fromisoformat(
+                    created_value.replace("Z", "+00:00")
+                )
             except ValueError:
                 metadata["created"] = created_value
 
-        updated_value = self.get_data_attribute(article, "updated") or self.get_data_attribute(article, "last-activity")
+        updated_value = self.get_data_attribute(
+            article, "updated"
+        ) or self.get_data_attribute(article, "last-activity")
         if updated_value:
             try:
-                metadata["updated"] = datetime.fromisoformat(updated_value.replace("Z", "+00:00"))
+                metadata["updated"] = datetime.fromisoformat(
+                    updated_value.replace("Z", "+00:00")
+                )
             except ValueError:
                 metadata["updated"] = updated_value
 
@@ -217,13 +241,18 @@ class HtmlParser:
                 since = link.attrs.get("data-since")
                 if since:
                     try:
-                        edge_data["since"] = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                        edge_data["since"] = datetime.fromisoformat(
+                            since.replace("Z", "+00:00")
+                        )
                     except ValueError:
                         edge_data["since"] = since
 
                 # Any other data attributes as properties
                 for key, value in link.attrs.items():
-                    if key.startswith("data-") and key not in ["data-relationship", "data-since"]:
+                    if key.startswith("data-") and key not in [
+                        "data-relationship",
+                        "data-since",
+                    ]:
                         if "properties" not in edge_data:
                             edge_data["properties"] = {}
                         edge_data["properties"][key[5:]] = value
@@ -251,11 +280,13 @@ class HtmlParser:
             # Remove common status emojis
             text = re.sub(r"^[✅⏳❌🔄]\s*", "", text)
 
-            steps.append({
-                "description": text,
-                "completed": completed,
-                "agent": agent,
-            })
+            steps.append(
+                {
+                    "description": text,
+                    "completed": completed,
+                    "agent": agent,
+                }
+            )
 
         return steps
 
@@ -323,9 +354,9 @@ class HtmlParser:
         # Get text content excluding the h3 header
         text_parts = []
         for child in content_section.children:
-            if hasattr(child, 'name') and child.name == "h3":
+            if hasattr(child, "name") and child.name == "h3":
                 continue
-            if hasattr(child, 'to_text'):
+            if hasattr(child, "to_text"):
                 text = child.to_text().strip()
                 if text:
                     text_parts.append(text)
@@ -366,9 +397,7 @@ def parse_html_file(filepath: Path | str) -> dict[str, Any]:
 
 
 def query_html_files(
-    directory: Path | str,
-    selector: str,
-    pattern: str = "*.html"
+    directory: Path | str, selector: str, pattern: str = "*.html"
 ) -> list[tuple[Path, list[Any]]]:
     """
     Query multiple HTML files with CSS selector.

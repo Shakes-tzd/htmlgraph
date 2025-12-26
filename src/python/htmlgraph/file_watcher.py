@@ -4,12 +4,12 @@ File watcher for automatic graph reloading.
 Monitors .htmlgraph/**/*.html files and reloads collections when changes are detected.
 """
 
-import time
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 
 class GraphFileHandler(FileSystemEventHandler):
@@ -43,27 +43,38 @@ class GraphFileHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         """Handle file creation."""
-        if not event.is_directory and event.src_path.endswith('.html'):
-            print(f"[FileWatcher] {self.collection}: File created - {Path(event.src_path).name}")
+        if not event.is_directory and event.src_path.endswith(".html"):
+            print(
+                f"[FileWatcher] {self.collection}: File created - {Path(event.src_path).name}"
+            )
             self._debounced_reload()
 
     def on_modified(self, event: FileSystemEvent):
         """Handle file modification."""
-        if not event.is_directory and event.src_path.endswith('.html'):
-            print(f"[FileWatcher] {self.collection}: File modified - {Path(event.src_path).name}")
+        if not event.is_directory and event.src_path.endswith(".html"):
+            print(
+                f"[FileWatcher] {self.collection}: File modified - {Path(event.src_path).name}"
+            )
             self._debounced_reload()
 
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion."""
-        if not event.is_directory and event.src_path.endswith('.html'):
-            print(f"[FileWatcher] {self.collection}: File deleted - {Path(event.src_path).name}")
+        if not event.is_directory and event.src_path.endswith(".html"):
+            print(
+                f"[FileWatcher] {self.collection}: File deleted - {Path(event.src_path).name}"
+            )
             self._debounced_reload()
 
 
 class GraphWatcher:
     """Watches graph directories and triggers reloads on changes."""
 
-    def __init__(self, graph_dir: Path, collections: list[str], get_graph_callback: Callable[[str], any]):
+    def __init__(
+        self,
+        graph_dir: Path,
+        collections: list[str],
+        get_graph_callback: Callable[[str], any],
+    ):
         """
         Initialize watcher.
 
@@ -80,7 +91,9 @@ class GraphWatcher:
 
     def start(self):
         """Start watching for file changes."""
-        print(f"[FileWatcher] Starting file watcher for {len(self.collections)} collections...")
+        print(
+            f"[FileWatcher] Starting file watcher for {len(self.collections)} collections..."
+        )
 
         for collection in self.collections:
             collection_dir = self.graph_dir / collection
@@ -93,6 +106,7 @@ class GraphWatcher:
                     graph = self.get_graph_callback(coll)
                     count = graph.reload()
                     print(f"[FileWatcher] Reloaded {count} nodes in {coll}")
+
                 return reload
 
             handler = GraphFileHandler(collection, make_reload_callback(collection))
@@ -100,7 +114,7 @@ class GraphWatcher:
 
             # Watch the collection directory
             # Use recursive=True for tracks since they're stored in subdirectories
-            recursive = (collection == "tracks")
+            recursive = collection == "tracks"
             self.observer.schedule(handler, str(collection_dir), recursive=recursive)
 
         self.observer.start()

@@ -6,17 +6,19 @@ with lazy-loading, filtering, and batch operations.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, TypeVar, Generic, Any, Iterator, Callable
+
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from htmlgraph.exceptions import NodeNotFoundError, ClaimConflictError
+from htmlgraph.exceptions import ClaimConflictError, NodeNotFoundError
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
     from htmlgraph.models import Node
+    from htmlgraph.sdk import SDK
 
-CollectionT = TypeVar('CollectionT', bound='BaseCollection')
+CollectionT = TypeVar("CollectionT", bound="BaseCollection")
 
 
 class BaseCollection(Generic[CollectionT]):
@@ -42,9 +44,16 @@ class BaseCollection(Generic[CollectionT]):
 
     _collection_name: str = "nodes"  # Override in subclasses
     _node_type: str = "node"  # Override in subclasses
-    _builder_class: type | None = None  # Override in subclasses to enable builder pattern
+    _builder_class: type | None = (
+        None  # Override in subclasses to enable builder pattern
+    )
 
-    def __init__(self, sdk: 'SDK', collection_name: str | None = None, node_type: str | None = None):
+    def __init__(
+        self,
+        sdk: SDK,
+        collection_name: str | None = None,
+        node_type: str | None = None,
+    ):
         """
         Initialize a collection.
 
@@ -64,16 +73,13 @@ class BaseCollection(Generic[CollectionT]):
         """Lazy-load the graph for this collection."""
         if self._graph is None:
             from htmlgraph.graph import HtmlGraph
+
             collection_path = self._sdk._directory / self._collection_name
             self._graph = HtmlGraph(collection_path, auto_load=True)
         return self._graph
 
     def create(
-        self,
-        title: str,
-        priority: str = "medium",
-        status: str = "todo",
-        **kwargs
+        self, title: str, priority: str = "medium", status: str = "todo", **kwargs
     ):
         """
         Create a new node in this collection.
@@ -103,11 +109,7 @@ class BaseCollection(Generic[CollectionT]):
         if self._builder_class is not None:
             # Pass priority and status to builder via kwargs
             return self._builder_class(
-                self._sdk,
-                title,
-                priority=priority,
-                status=status,
-                **kwargs
+                self._sdk, title, priority=priority, status=status, **kwargs
             )
 
         # Fallback to simple node creation
@@ -124,7 +126,7 @@ class BaseCollection(Generic[CollectionT]):
             type=self._node_type,
             priority=priority,
             status=status,
-            **kwargs
+            **kwargs,
         )
 
         # Add to graph
@@ -184,7 +186,7 @@ class BaseCollection(Generic[CollectionT]):
         priority: str | None = None,
         track: str | None = None,
         assigned_to: str | None = None,
-        **extra_filters
+        **extra_filters,
     ) -> list[Node]:
         """
         Query nodes with filters.
@@ -203,16 +205,17 @@ class BaseCollection(Generic[CollectionT]):
             >>> high_priority = sdk.features.where(status="todo", priority="high")
             >>> assigned = sdk.features.where(assigned_to="claude")
         """
+
         def matches(node: Node) -> bool:
             if node.type != self._node_type:
                 return False
-            if status and getattr(node, 'status', None) != status:
+            if status and getattr(node, "status", None) != status:
                 return False
-            if priority and getattr(node, 'priority', None) != priority:
+            if priority and getattr(node, "priority", None) != priority:
                 return False
             if track and getattr(node, "track_id", None) != track:
                 return False
-            if assigned_to and getattr(node, 'agent_assigned', None) != assigned_to:
+            if assigned_to and getattr(node, "agent_assigned", None) != assigned_to:
                 return False
 
             # Check extra filters
@@ -249,6 +252,7 @@ class BaseCollection(Generic[CollectionT]):
             ...     lambda f: f.priority == "high" and f.status == "todo"
             ... )
         """
+
         def matches(node: Node) -> bool:
             # First filter by type, then apply user predicate
             if node.type != self._node_type:
@@ -320,11 +324,7 @@ class BaseCollection(Generic[CollectionT]):
         self._ensure_graph().update(node)
         return node
 
-    def batch_update(
-        self,
-        node_ids: list[str],
-        updates: dict[str, Any]
-    ) -> int:
+    def batch_update(self, node_ids: list[str], updates: dict[str, Any]) -> int:
         """
         Vectorized batch update operation.
 
@@ -389,10 +389,7 @@ class BaseCollection(Generic[CollectionT]):
         Example:
             >>> sdk.features.assign(["feat-001", "feat-002"], "claude")
         """
-        updates = {
-            "agent_assigned": agent,
-            "status": "in-progress"
-        }
+        updates = {"agent_assigned": agent, "status": "in-progress"}
         return self.batch_update(node_ids, updates)
 
     def start(self, node_id: str, agent: str | None = None) -> Node | None:
@@ -414,21 +411,21 @@ class BaseCollection(Generic[CollectionT]):
             Updated Node
         """
         agent = agent or self._sdk.agent
-        
+
         # Use SessionManager if available (smart tracking)
-        if hasattr(self._sdk, 'session_manager'):
+        if hasattr(self._sdk, "session_manager"):
             return self._sdk.session_manager.start_feature(
                 feature_id=node_id,
                 collection=self._collection_name,
                 agent=agent,
-                log_activity=True
+                log_activity=True,
             )
-            
+
         # Fallback to simple update (no session/events)
         node = self.get(node_id)
         if not node:
             raise ValueError(f"Node {node_id} not found")
-            
+
         node.status = "in-progress"
         node.updated = datetime.now()
         self._ensure_graph().update(node)
@@ -461,7 +458,7 @@ class BaseCollection(Generic[CollectionT]):
         agent = agent or self._sdk.agent
 
         # Use SessionManager if available
-        if hasattr(self._sdk, 'session_manager'):
+        if hasattr(self._sdk, "session_manager"):
             return self._sdk.session_manager.complete_feature(
                 feature_id=node_id,
                 collection=self._collection_name,
@@ -506,11 +503,9 @@ class BaseCollection(Generic[CollectionT]):
             raise ValueError("Agent ID required for claiming")
 
         # Use SessionManager if available
-        if hasattr(self._sdk, 'session_manager'):
+        if hasattr(self._sdk, "session_manager"):
             return self._sdk.session_manager.claim_feature(
-                feature_id=node_id,
-                collection=self._collection_name,
-                agent=agent
+                feature_id=node_id, collection=self._collection_name, agent=agent
             )
 
         # Fallback logic
@@ -550,13 +545,11 @@ class BaseCollection(Generic[CollectionT]):
         """
         # SessionManager.release_feature requires an agent to verify ownership
         agent = agent or self._sdk.agent
-        
+
         # Use SessionManager if available
-        if hasattr(self._sdk, 'session_manager') and agent:
+        if hasattr(self._sdk, "session_manager") and agent:
             return self._sdk.session_manager.release_feature(
-                feature_id=node_id,
-                collection=self._collection_name,
-                agent=agent
+                feature_id=node_id, collection=self._collection_name, agent=agent
             )
 
         # Fallback logic

@@ -8,9 +8,10 @@ These models provide:
 """
 
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
-from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
@@ -20,6 +21,7 @@ class WorkType(str, Enum):
 
     Used to differentiate exploratory work from implementation work in analytics.
     """
+
     FEATURE = "feature-implementation"
     SPIKE = "spike-investigation"
     BUG_FIX = "bug-fix"
@@ -39,6 +41,7 @@ class SpikeType(str, Enum):
     - RISK: Identify and assess project risks
     - GENERAL: Uncategorized investigation
     """
+
     TECHNICAL = "technical"
     ARCHITECTURAL = "architectural"
     RISK = "risk"
@@ -54,6 +57,7 @@ class MaintenanceType(str, Enum):
     - PERFECTIVE: Improve performance, usability, maintainability
     - PREVENTIVE: Prevent future problems (refactoring, tech debt)
     """
+
     CORRECTIVE = "corrective"
     ADAPTIVE = "adaptive"
     PERFECTIVE = "perfective"
@@ -73,7 +77,7 @@ class Step(BaseModel):
         status = "✅" if self.completed else "⏳"
         agent_attr = f' data-agent="{self.agent}"' if self.agent else ""
         completed_attr = f' data-completed="{str(self.completed).lower()}"'
-        return f'<li{completed_attr}{agent_attr}>{status} {self.description}</li>'
+        return f"<li{completed_attr}{agent_attr}>{status} {self.description}</li>"
 
     def to_context(self) -> str:
         """Lightweight context for AI agents."""
@@ -99,7 +103,11 @@ class Edge(BaseModel):
 
     def to_html(self, base_path: str = "") -> str:
         """Convert edge to HTML anchor element."""
-        href = f"{base_path}{self.target_id}.html" if not self.target_id.endswith('.html') else f"{base_path}{self.target_id}"
+        href = (
+            f"{base_path}{self.target_id}.html"
+            if not self.target_id.endswith(".html")
+            else f"{base_path}{self.target_id}"
+        )
         attrs = [f'href="{href}"', f'data-relationship="{self.relationship}"']
 
         if self.since:
@@ -109,7 +117,7 @@ class Edge(BaseModel):
             attrs.append(f'data-{key}="{value}"')
 
         title = self.title or self.target_id
-        return f'<a {" ".join(attrs)}>{title}</a>'
+        return f"<a {' '.join(attrs)}>{title}</a>"
 
     def to_context(self) -> str:
         """Lightweight context for AI agents."""
@@ -138,7 +146,9 @@ class Node(BaseModel):
     id: str
     title: str
     type: str = "node"
-    status: Literal["todo", "in-progress", "blocked", "done", "active", "ended", "stale"] = "todo"
+    status: Literal[
+        "todo", "in-progress", "blocked", "done", "active", "ended", "stale"
+    ] = "todo"
     priority: Literal["low", "medium", "high", "critical"] = "medium"
     created: datetime = Field(default_factory=datetime.now)
     updated: datetime = Field(default_factory=datetime.now)
@@ -154,33 +164,58 @@ class Node(BaseModel):
     # Vertical integration: Track/Spec/Plan relationships
     track_id: str | None = None  # Which track this feature belongs to
     plan_task_id: str | None = None  # Which plan task this feature implements
-    spec_requirements: list[str] = Field(default_factory=list)  # Which spec requirements this satisfies
+    spec_requirements: list[str] = Field(
+        default_factory=list
+    )  # Which spec requirements this satisfies
 
     # Handoff context fields for agent-to-agent transitions
     handoff_required: bool = False  # Whether this node needs to be handed off
     previous_agent: str | None = None  # Agent who previously worked on this
-    handoff_reason: str | None = None  # Reason for handoff (e.g., blocked, requires different expertise)
+    handoff_reason: str | None = (
+        None  # Reason for handoff (e.g., blocked, requires different expertise)
+    )
     handoff_notes: str | None = None  # Detailed handoff context/decisions
     handoff_timestamp: datetime | None = None  # When the handoff was created
 
     # Capability-based routing (Phase 3: Agent Routing & Capabilities)
-    required_capabilities: list[str] = Field(default_factory=list)  # Capabilities needed for this task
-    capability_tags: list[str] = Field(default_factory=list)  # Flexible tags for advanced matching
+    required_capabilities: list[str] = Field(
+        default_factory=list
+    )  # Capabilities needed for this task
+    capability_tags: list[str] = Field(
+        default_factory=list
+    )  # Flexible tags for advanced matching
 
     # Context tracking (aggregated from sessions)
     # These are updated when sessions report context usage for this feature
     context_tokens_used: int = 0  # Total context tokens attributed to this feature
     context_peak_tokens: int = 0  # Highest context usage in any session
     context_cost_usd: float = 0.0  # Total cost attributed to this feature
-    context_sessions: list[str] = Field(default_factory=list)  # Session IDs that reported context
+    context_sessions: list[str] = Field(
+        default_factory=list
+    )  # Session IDs that reported context
 
     # Auto-spike metadata (for transition spike generation)
-    spike_subtype: Literal["session-init", "transition", "conversation-init", "planning", "investigation"] | None = None
+    spike_subtype: (
+        Literal[
+            "session-init",
+            "transition",
+            "conversation-init",
+            "planning",
+            "investigation",
+        ]
+        | None
+    ) = None
     auto_generated: bool = False  # True if auto-created by SessionManager
     session_id: str | None = None  # Session that created/owns this spike
-    from_feature_id: str | None = None  # For transition spikes: feature we transitioned from
-    to_feature_id: str | None = None  # For transition spikes: feature we transitioned to
-    model_name: str | None = None  # Model that worked on this (e.g., "claude-sonnet-4-5")
+    from_feature_id: str | None = (
+        None  # For transition spikes: feature we transitioned from
+    )
+    to_feature_id: str | None = (
+        None  # For transition spikes: feature we transitioned to
+    )
+    model_name: str | None = (
+        None  # Model that worked on this (e.g., "claude-sonnet-4-5")
+    )
 
     def model_post_init(self, __context: Any) -> None:
         """Lightweight validation for required fields."""
@@ -191,7 +226,9 @@ class Node(BaseModel):
 
         # Validate auto-spike metadata
         if self.spike_subtype and self.type != "spike":
-            raise ValueError(f"spike_subtype can only be set on spike nodes, got type='{self.type}'")
+            raise ValueError(
+                f"spike_subtype can only be set on spike nodes, got type='{self.type}'"
+            )
         if self.auto_generated and not self.session_id:
             raise ValueError("auto_generated spikes must have session_id set")
         if self.spike_subtype == "transition" and not self.from_feature_id:
@@ -244,7 +281,7 @@ class Node(BaseModel):
         session_id: str,
         tokens_used: int,
         peak_tokens: int = 0,
-        cost_usd: float = 0.0
+        cost_usd: float = 0.0,
     ) -> None:
         """
         Record context usage from a session working on this feature.
@@ -307,21 +344,23 @@ class Node(BaseModel):
                 </ul>
             </section>''')
             if edge_sections:
-                edges_html = f'''
+                edges_html = f"""
         <nav data-graph-edges>{"".join(edge_sections)}
-        </nav>'''
+        </nav>"""
 
         # Build steps HTML
         steps_html = ""
         if self.steps:
-            step_items = "\n                ".join(step.to_html() for step in self.steps)
-            steps_html = f'''
+            step_items = "\n                ".join(
+                step.to_html() for step in self.steps
+            )
+            steps_html = f"""
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
                 {step_items}
             </ol>
-        </section>'''
+        </section>"""
 
         # Build properties HTML
         props_html = ""
@@ -330,23 +369,27 @@ class Node(BaseModel):
             for key, value in self.properties.items():
                 unit = ""
                 if isinstance(value, dict) and "value" in value:
-                    unit = f' data-unit="{value.get("unit", "")}"' if value.get("unit") else ""
-                    display = f'{value["value"]} {value.get("unit", "")}'.strip()
+                    unit = (
+                        f' data-unit="{value.get("unit", "")}"'
+                        if value.get("unit")
+                        else ""
+                    )
+                    display = f"{value['value']} {value.get('unit', '')}".strip()
                     val = value["value"]
                 else:
                     display = str(value)
                     val = value
                 prop_items.append(
-                    f'<dt>{key.replace("_", " ").title()}</dt>\n'
+                    f"<dt>{key.replace('_', ' ').title()}</dt>\n"
                     f'                <dd data-key="{key}" data-value="{val}"{unit}>{display}</dd>'
                 )
-            props_html = f'''
+            props_html = f"""
         <section data-properties>
             <h3>Properties</h3>
             <dl>
                 {chr(10).join(prop_items)}
             </dl>
-        </section>'''
+        </section>"""
 
         # Build handoff HTML
         handoff_html = ""
@@ -357,33 +400,39 @@ class Node(BaseModel):
             if self.handoff_reason:
                 handoff_attrs.append(f'data-reason="{self.handoff_reason}"')
             if self.handoff_timestamp:
-                handoff_attrs.append(f'data-timestamp="{self.handoff_timestamp.isoformat()}"')
+                handoff_attrs.append(
+                    f'data-timestamp="{self.handoff_timestamp.isoformat()}"'
+                )
 
             attrs_str = " ".join(handoff_attrs)
-            handoff_section = f'''
+            handoff_section = f"""
         <section data-handoff{f" {attrs_str}" if attrs_str else ""}>
-            <h3>Handoff Context</h3>'''
+            <h3>Handoff Context</h3>"""
 
             if self.previous_agent:
-                handoff_section += f'\n            <p><strong>From:</strong> {self.previous_agent}</p>'
+                handoff_section += (
+                    f"\n            <p><strong>From:</strong> {self.previous_agent}</p>"
+                )
 
             if self.handoff_reason:
-                handoff_section += f'\n            <p><strong>Reason:</strong> {self.handoff_reason}</p>'
+                handoff_section += f"\n            <p><strong>Reason:</strong> {self.handoff_reason}</p>"
 
             if self.handoff_notes:
-                handoff_section += f'\n            <p><strong>Notes:</strong> {self.handoff_notes}</p>'
+                handoff_section += (
+                    f"\n            <p><strong>Notes:</strong> {self.handoff_notes}</p>"
+                )
 
-            handoff_section += '\n        </section>'
+            handoff_section += "\n        </section>"
             handoff_html = handoff_section
 
         # Build content HTML
         content_html = ""
         if self.content:
-            content_html = f'''
+            content_html = f"""
         <section data-content>
             <h3>Description</h3>
             {self.content}
-        </section>'''
+        </section>"""
 
         # Build required capabilities HTML
         capabilities_html = ""
@@ -396,16 +445,20 @@ class Node(BaseModel):
                 for tag in self.capability_tags:
                     cap_items.append(f'<li data-tag="{tag}" class="tag">{tag}</li>')
             if cap_items:
-                capabilities_html = f'''
+                capabilities_html = f"""
         <section data-required-capabilities>
             <h3>Required Capabilities</h3>
             <ul>
                 {chr(10).join(cap_items)}
             </ul>
-        </section>'''
+        </section>"""
 
         # Agent attribute
-        agent_attr = f' data-agent-assigned="{self.agent_assigned}"' if self.agent_assigned else ""
+        agent_attr = (
+            f' data-agent-assigned="{self.agent_assigned}"'
+            if self.agent_assigned
+            else ""
+        )
         if self.claimed_at:
             agent_attr += f' data-claimed-at="{self.claimed_at.isoformat()}"'
         if self.claimed_by_session:
@@ -428,7 +481,9 @@ class Node(BaseModel):
         if self.spike_subtype:
             auto_spike_attr += f' data-spike-subtype="{self.spike_subtype}"'
         if self.auto_generated:
-            auto_spike_attr += f' data-auto-generated="{str(self.auto_generated).lower()}"'
+            auto_spike_attr += (
+                f' data-auto-generated="{str(self.auto_generated).lower()}"'
+            )
         if self.session_id:
             auto_spike_attr += f' data-session-id="{self.session_id}"'
         if self.from_feature_id:
@@ -441,7 +496,7 @@ class Node(BaseModel):
         # Build context usage section
         context_html = ""
         if self.context_tokens_used > 0 or self.context_sessions:
-            context_html = f'''
+            context_html = f"""
         <section data-context-tracking>
             <h3>Context Usage</h3>
             <dl>
@@ -454,7 +509,7 @@ class Node(BaseModel):
                 <dt>Sessions</dt>
                 <dd>{len(self.context_sessions)}</dd>
             </dl>
-        </section>'''
+        </section>"""
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -516,7 +571,9 @@ class Node(BaseModel):
 
         if self.steps:
             completed = sum(1 for s in self.steps if s.completed)
-            lines.append(f"Progress: {completed}/{len(self.steps)} steps ({self.completion_percentage}%)")
+            lines.append(
+                f"Progress: {completed}/{len(self.steps)} steps ({self.completion_percentage}%)"
+            )
 
         # Blocking dependencies
         blocked_by = self.edges.get("blocked_by", [])
@@ -538,16 +595,14 @@ class Node(BaseModel):
             edges = {}
             for rel_type, edge_list in data["edges"].items():
                 edges[rel_type] = [
-                    Edge(**e) if isinstance(e, dict) else e
-                    for e in edge_list
+                    Edge(**e) if isinstance(e, dict) else e for e in edge_list
                 ]
             data["edges"] = edges
 
         # Convert step dicts to Step objects
         if "steps" in data:
             data["steps"] = [
-                Step(**s) if isinstance(s, dict) else s
-                for s in data["steps"]
+                Step(**s) if isinstance(s, dict) else s for s in data["steps"]
             ]
 
         return cls(**data)
@@ -638,7 +693,9 @@ class ContextSnapshot(BaseModel):
         return (self.current_tokens / self.context_window_size) * 100
 
     @classmethod
-    def from_claude_input(cls, data: dict, trigger: str | None = None, feature_id: str | None = None) -> "ContextSnapshot":
+    def from_claude_input(
+        cls, data: dict, trigger: str | None = None, feature_id: str | None = None
+    ) -> "ContextSnapshot":
         """
         Create a ContextSnapshot from Claude Code status line JSON input.
 
@@ -687,7 +744,9 @@ class ContextSnapshot(BaseModel):
     def from_dict(cls, data: dict) -> "ContextSnapshot":
         """Create from dictionary."""
         return cls(
-            timestamp=datetime.fromisoformat(data["ts"]) if "ts" in data else datetime.now(),
+            timestamp=datetime.fromisoformat(data["ts"])
+            if "ts" in data
+            else datetime.now(),
             input_tokens=data.get("in", 0),
             output_tokens=data.get("out", 0),
             cache_creation_tokens=data.get("cache_create", 0),
@@ -715,8 +774,12 @@ class ActivityEntry(BaseModel):
     success: bool = True
     feature_id: str | None = None  # Link to feature this activity belongs to
     drift_score: float | None = None  # 0.0-1.0 alignment score
-    parent_activity_id: str | None = None  # Link to parent activity (e.g., Skill invocation)
-    payload: dict[str, Any] | None = None  # Optional rich payload for significant events
+    parent_activity_id: str | None = (
+        None  # Link to parent activity (e.g., Skill invocation)
+    )
+    payload: dict[str, Any] | None = (
+        None  # Optional rich payload for significant events
+    )
 
     # Context tracking (optional, captured when available)
     context_tokens: int | None = None  # Tokens in context when this activity occurred
@@ -739,7 +802,7 @@ class ActivityEntry(BaseModel):
         if self.context_tokens is not None:
             attrs.append(f'data-context-tokens="{self.context_tokens}"')
 
-        return f'<li {" ".join(attrs)}>{self.summary}</li>'
+        return f"<li {' '.join(attrs)}>{self.summary}</li>"
 
     def to_context(self) -> str:
         """Lightweight context for AI agents."""
@@ -795,7 +858,9 @@ class Session(BaseModel):
     peak_context_tokens: int = 0  # High water mark for context usage
     total_tokens_generated: int = 0  # Cumulative output tokens
     total_cost_usd: float = 0.0  # Cumulative cost for session
-    context_by_feature: dict[str, int] = Field(default_factory=dict)  # {feature_id: tokens}
+    context_by_feature: dict[str, int] = Field(
+        default_factory=dict
+    )  # {feature_id: tokens}
 
     # Claude Code transcript integration
     transcript_id: str | None = None  # Claude Code session UUID (from JSONL)
@@ -819,9 +884,7 @@ class Session(BaseModel):
         self.ended_at = datetime.now()
 
     def record_context(
-        self,
-        snapshot: ContextSnapshot,
-        sample_interval: int = 10
+        self, snapshot: ContextSnapshot, sample_interval: int = 10
     ) -> None:
         """
         Record a context snapshot for analytics.
@@ -854,10 +917,10 @@ class Session(BaseModel):
 
         # Sample snapshots to avoid bloat (every Nth or on significant events)
         should_sample = (
-            len(self.context_snapshots) == 0 or
-            len(self.context_snapshots) % sample_interval == 0 or
-            snapshot.trigger in ("session_start", "session_end", "feature_switch") or
-            current_tokens > self.peak_context_tokens * 0.9  # Near peak
+            len(self.context_snapshots) == 0
+            or len(self.context_snapshots) % sample_interval == 0
+            or snapshot.trigger in ("session_start", "session_end", "feature_switch")
+            or current_tokens > self.peak_context_tokens * 0.9  # Near peak
         )
 
         if should_sample:
@@ -881,7 +944,9 @@ class Session(BaseModel):
 
         # Calculate averages and trends
         tokens_over_time = [s.current_tokens for s in self.context_snapshots]
-        avg_tokens = sum(tokens_over_time) / len(tokens_over_time) if tokens_over_time else 0
+        avg_tokens = (
+            sum(tokens_over_time) / len(tokens_over_time) if tokens_over_time else 0
+        )
 
         return {
             "peak_tokens": self.peak_context_tokens,
@@ -890,14 +955,16 @@ class Session(BaseModel):
             "total_cost": self.total_cost_usd,
             "by_feature": self.context_by_feature,
             "snapshots": len(self.context_snapshots),
-            "peak_percent": (self.peak_context_tokens / 200000) * 100 if self.context_snapshots else 0,
+            "peak_percent": (self.peak_context_tokens / 200000) * 100
+            if self.context_snapshots
+            else 0,
         }
 
     def get_events(
         self,
         limit: int | None = 100,
         offset: int = 0,
-        events_dir: str = ".htmlgraph/events"
+        events_dir: str = ".htmlgraph/events",
     ) -> list[dict]:
         """
         Get events for this session from JSONL event log.
@@ -917,6 +984,7 @@ class Session(BaseModel):
             ...     print(f"{evt['event_id']}: {evt['tool']}")
         """
         from htmlgraph.event_log import JsonlEventLog
+
         event_log = JsonlEventLog(events_dir)
         return event_log.get_session_events(self.id, limit=limit, offset=offset)
 
@@ -926,7 +994,7 @@ class Session(BaseModel):
         feature_id: str | None = None,
         since: Any = None,
         limit: int | None = 100,
-        events_dir: str = ".htmlgraph/events"
+        events_dir: str = ".htmlgraph/events",
     ) -> list[dict]:
         """
         Query events for this session with filters.
@@ -947,13 +1015,14 @@ class Session(BaseModel):
             >>> feature_events = session.query_events(feature_id='feat-123')
         """
         from htmlgraph.event_log import JsonlEventLog
+
         event_log = JsonlEventLog(events_dir)
         return event_log.query_events(
             session_id=self.id,
             tool=tool,
             feature_id=feature_id,
             since=since,
-            limit=limit
+            limit=limit,
         )
 
     def event_stats(self, events_dir: str = ".htmlgraph/events") -> dict:
@@ -976,23 +1045,25 @@ class Session(BaseModel):
 
         for evt in events:
             # Count by tool
-            tool = evt.get('tool', 'Unknown')
+            tool = evt.get("tool", "Unknown")
             by_tool[tool] = by_tool.get(tool, 0) + 1
 
             # Count by feature
-            feature = evt.get('feature_id')
+            feature = evt.get("feature_id")
             if feature:
                 by_feature[feature] = by_feature.get(feature, 0) + 1
 
         return {
-            'total_events': len(events),
-            'by_tool': by_tool,
-            'by_feature': by_feature,
-            'tools_used': len(by_tool),
-            'features_worked': len(by_feature)
+            "total_events": len(events),
+            "by_tool": by_tool,
+            "by_feature": by_feature,
+            "tools_used": len(by_tool),
+            "features_worked": len(by_feature),
         }
 
-    def calculate_work_breakdown(self, events_dir: str = ".htmlgraph/events") -> dict[str, int]:
+    def calculate_work_breakdown(
+        self, events_dir: str = ".htmlgraph/events"
+    ) -> dict[str, int]:
         """
         Calculate distribution of work types from events.
 
@@ -1015,7 +1086,9 @@ class Session(BaseModel):
 
         return breakdown
 
-    def calculate_primary_work_type(self, events_dir: str = ".htmlgraph/events") -> str | None:
+    def calculate_primary_work_type(
+        self, events_dir: str = ".htmlgraph/events"
+    ) -> str | None:
         """
         Determine primary work type based on event distribution.
 
@@ -1102,13 +1175,13 @@ class Session(BaseModel):
                     f'<li><a href="../features/{fid}.html" data-relationship="worked-on">{fid}</a></li>'
                     for fid in self.worked_on
                 )
-                edge_sections.append(f'''
+                edge_sections.append(f"""
             <section data-edge-type="worked-on">
                 <h3>Worked On:</h3>
                 <ul>
                     {feature_links}
                 </ul>
-            </section>''')
+            </section>""")
 
             if self.continued_from:
                 edge_sections.append(f'''
@@ -1119,36 +1192,36 @@ class Session(BaseModel):
                 </ul>
             </section>''')
 
-            edges_html = f'''
+            edges_html = f"""
         <nav data-graph-edges>{"".join(edge_sections)}
-        </nav>'''
+        </nav>"""
 
         # Build handoff HTML
         handoff_html = ""
         if self.handoff_notes or self.recommended_next or self.blockers:
-            handoff_section = '''
+            handoff_section = """
         <section data-handoff>
-            <h3>Handoff Context</h3>'''
+            <h3>Handoff Context</h3>"""
 
             if self.handoff_notes:
-                handoff_section += f'\n            <p data-handoff-notes><strong>Notes:</strong> {self.handoff_notes}</p>'
+                handoff_section += f"\n            <p data-handoff-notes><strong>Notes:</strong> {self.handoff_notes}</p>"
 
             if self.recommended_next:
-                handoff_section += f'\n            <p data-recommended-next><strong>Recommended Next:</strong> {self.recommended_next}</p>'
+                handoff_section += f"\n            <p data-recommended-next><strong>Recommended Next:</strong> {self.recommended_next}</p>"
 
             if self.blockers:
                 blockers_items = "\n                ".join(
                     f"<li>{blocker}</li>" for blocker in self.blockers
                 )
-                handoff_section += f'''
+                handoff_section += f"""
             <div data-blockers>
                 <strong>Blockers:</strong>
                 <ul>
                     {blockers_items}
                 </ul>
-            </div>'''
+            </div>"""
 
-            handoff_section += '\n        </section>'
+            handoff_section += "\n        </section>"
             handoff_html = handoff_section
 
         # Build activity log HTML
@@ -1156,28 +1229,38 @@ class Session(BaseModel):
         if self.activity_log:
             # Show most recent first (reversed)
             log_items = "\n                ".join(
-                entry.to_html() for entry in reversed(self.activity_log[-100:])  # Last 100 entries
+                entry.to_html()
+                for entry in reversed(self.activity_log[-100:])  # Last 100 entries
             )
-            activity_html = f'''
+            activity_html = f"""
         <section data-activity-log>
             <h3>Activity Log ({self.event_count} events)</h3>
             <ol reversed>
                 {log_items}
             </ol>
-        </section>'''
+        </section>"""
 
         # Build attributes
         subagent_attr = f' data-is-subagent="{str(self.is_subagent).lower()}"'
-        commit_attr = f' data-start-commit="{self.start_commit}"' if self.start_commit else ""
-        ended_attr = f' data-ended-at="{self.ended_at.isoformat()}"' if self.ended_at else ""
-        primary_work_type_attr = f' data-primary-work-type="{self.primary_work_type}"' if self.primary_work_type else ""
+        commit_attr = (
+            f' data-start-commit="{self.start_commit}"' if self.start_commit else ""
+        )
+        ended_attr = (
+            f' data-ended-at="{self.ended_at.isoformat()}"' if self.ended_at else ""
+        )
+        primary_work_type_attr = (
+            f' data-primary-work-type="{self.primary_work_type}"'
+            if self.primary_work_type
+            else ""
+        )
 
         # Serialize work_breakdown as JSON if present
         import json
+
         work_breakdown_attr = ""
         if self.work_breakdown:
             work_breakdown_json = json.dumps(self.work_breakdown)
-            work_breakdown_attr = f' data-work-breakdown=\'{work_breakdown_json}\''
+            work_breakdown_attr = f" data-work-breakdown='{work_breakdown_json}'"
 
         # Context tracking attributes
         context_attrs = ""
@@ -1198,14 +1281,18 @@ class Session(BaseModel):
         if self.transcript_path:
             transcript_attrs += f' data-transcript-path="{self.transcript_path}"'
         if self.transcript_synced_at:
-            transcript_attrs += f' data-transcript-synced="{self.transcript_synced_at.isoformat()}"'
+            transcript_attrs += (
+                f' data-transcript-synced="{self.transcript_synced_at.isoformat()}"'
+            )
         if self.transcript_git_branch:
-            transcript_attrs += f' data-transcript-branch="{self.transcript_git_branch}"'
+            transcript_attrs += (
+                f' data-transcript-branch="{self.transcript_git_branch}"'
+            )
 
         # Build context summary section
         context_html = ""
         if self.peak_context_tokens > 0 or self.context_snapshots:
-            context_html = f'''
+            context_html = f"""
         <section data-context-tracking>
             <h3>Context Usage</h3>
             <dl>
@@ -1218,7 +1305,7 @@ class Session(BaseModel):
                 <dt>Snapshots</dt>
                 <dd>{len(self.context_snapshots)}</dd>
             </dl>
-        </section>'''
+        </section>"""
 
         title = self.title or f"Session {self.id}"
 

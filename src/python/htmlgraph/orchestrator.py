@@ -32,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 
 class SubagentType(Enum):
     """Types of specialized subagents."""
+
     EXPLORER = "explorer"
     CODER = "coder"
     REVIEWER = "reviewer"
@@ -122,7 +123,7 @@ class SubagentOrchestrator:
         ... )
     """
 
-    def __init__(self, sdk: "SDK"):
+    def __init__(self, sdk: SDK):
         """
         Initialize orchestrator.
 
@@ -197,7 +198,7 @@ Include tests: {include_tests}
 ## Efficient Exploration Strategy
 
 1. **Start with Glob** to find relevant files:
-   - Use Glob with patterns like "{patterns[0] if patterns else '**/*.py'}"
+   - Use Glob with patterns like "{patterns[0] if patterns else "**/*.py"}"
    - This is faster than recursive directory exploration
 
 2. **Use Grep for targeted search**:

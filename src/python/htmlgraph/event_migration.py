@@ -43,9 +43,15 @@ def export_sessions_to_jsonl(
         # Serialize as one JSON object per line, oldest -> newest.
         lines: list[str] = []
         for entry in session.activity_log:
-            payload: dict[str, Any] | None = entry.payload if isinstance(entry.payload, dict) else None
+            payload: dict[str, Any] | None = (
+                entry.payload if isinstance(entry.payload, dict) else None
+            )
             file_paths = None
-            if payload and "file_paths" in payload and isinstance(payload["file_paths"], list):
+            if (
+                payload
+                and "file_paths" in payload
+                and isinstance(payload["file_paths"], list)
+            ):
                 file_paths = payload["file_paths"]
 
             event = {
@@ -66,7 +72,9 @@ def export_sessions_to_jsonl(
             }
             lines.append(json.dumps(event, ensure_ascii=False, default=str))
 
-        out_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        out_path.write_text(
+            "\n".join(lines) + ("\n" if lines else ""), encoding="utf-8"
+        )
         written += 1
 
     return {"written": written, "skipped": skipped, "failed": failed}

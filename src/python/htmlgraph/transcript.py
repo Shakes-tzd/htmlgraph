@@ -24,12 +24,11 @@ References:
 from __future__ import annotations
 
 import json
-import os
-import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterator, Literal
+from typing import Any, Literal
 
 
 @dataclass
@@ -66,7 +65,7 @@ class TranscriptEntry:
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_jsonl_line(cls, data: dict[str, Any]) -> "TranscriptEntry":
+    def from_jsonl_line(cls, data: dict[str, Any]) -> TranscriptEntry:
         """Parse a JSONL line into a TranscriptEntry."""
         # Parse timestamp
         ts_str = data.get("timestamp", "")
@@ -272,17 +271,23 @@ class TranscriptSession:
             "    </style>",
             "</head>",
             "<body>",
-            f'    <h1>Session: {html_module.escape(self.session_id[:20])}...</h1>',
+            f"    <h1>Session: {html_module.escape(self.session_id[:20])}...</h1>",
             "",
             '    <dl class="metadata">',
         ]
 
         if self.cwd:
-            lines.append(f"        <dt>Directory:</dt><dd>{html_module.escape(self.cwd)}</dd>")
+            lines.append(
+                f"        <dt>Directory:</dt><dd>{html_module.escape(self.cwd)}</dd>"
+            )
         if self.git_branch:
-            lines.append(f"        <dt>Branch:</dt><dd>{html_module.escape(self.git_branch)}</dd>")
+            lines.append(
+                f"        <dt>Branch:</dt><dd>{html_module.escape(self.git_branch)}</dd>"
+            )
         if self.started_at:
-            lines.append(f"        <dt>Started:</dt><dd>{self.started_at.isoformat()}</dd>")
+            lines.append(
+                f"        <dt>Started:</dt><dd>{self.started_at.isoformat()}</dd>"
+            )
         if self.ended_at:
             lines.append(f"        <dt>Ended:</dt><dd>{self.ended_at.isoformat()}</dd>")
         if self.duration_seconds:
@@ -307,11 +312,17 @@ class TranscriptSession:
             lines.append('        <div class="entry-header">')
 
             if entry.entry_type == "tool_use" and entry.tool_name:
-                lines.append(f'            <span class="entry-type">Tool: <span class="tool-name">{html_module.escape(entry.tool_name)}</span></span>')
+                lines.append(
+                    f'            <span class="entry-type">Tool: <span class="tool-name">{html_module.escape(entry.tool_name)}</span></span>'
+                )
             else:
-                lines.append(f'            <span class="entry-type">{entry.entry_type}</span>')
+                lines.append(
+                    f'            <span class="entry-type">{entry.entry_type}</span>'
+                )
 
-            lines.append(f'            <span class="entry-time">{entry.timestamp.strftime("%H:%M:%S")}</span>')
+            lines.append(
+                f'            <span class="entry-time">{entry.timestamp.strftime("%H:%M:%S")}</span>'
+            )
             lines.append("        </div>")
 
             # Content
@@ -324,14 +335,18 @@ class TranscriptSession:
                 lines.append("        <details>")
                 lines.append("            <summary>Input</summary>")
                 input_str = json.dumps(entry.tool_input, indent=2)
-                lines.append(f'            <pre class="tool-input">{html_module.escape(input_str)}</pre>')
+                lines.append(
+                    f'            <pre class="tool-input">{html_module.escape(input_str)}</pre>'
+                )
                 lines.append("        </details>")
 
             # Thinking (if enabled)
             if include_thinking and entry.thinking:
                 lines.append("        <details>")
                 lines.append("            <summary>Thinking</summary>")
-                lines.append(f'            <div class="thinking">{html_module.escape(entry.thinking)}</div>')
+                lines.append(
+                    f'            <div class="thinking">{html_module.escape(entry.thinking)}</div>'
+                )
                 lines.append("        </details>")
 
             lines.append("    </div>")
@@ -438,8 +453,7 @@ class TranscriptReader:
                 yield item, decoded
 
     def list_transcript_files(
-        self,
-        project_path: str | Path | None = None
+        self, project_path: str | Path | None = None
     ) -> Iterator[Path]:
         """
         List all transcript JSONL files.
@@ -574,10 +588,7 @@ class TranscriptReader:
             sessions.append(session)
 
         # Sort by start time, newest first
-        sessions.sort(
-            key=lambda s: s.started_at or datetime.min,
-            reverse=True
-        )
+        sessions.sort(key=lambda s: s.started_at or datetime.min, reverse=True)
 
         if limit:
             sessions = sessions[:limit]

@@ -5,7 +5,6 @@ Git hooks installation and configuration management.
 import json
 import shutil
 from pathlib import Path
-from typing import Optional
 
 
 class HookConfig:
@@ -17,14 +16,14 @@ class HookConfig:
             "post-commit",
             "post-checkout",
             "post-merge",
-            "pre-push"
+            "pre-push",
         ],
         "use_symlinks": True,
         "backup_existing": True,
         "chain_existing": True,
     }
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         Initialize hook configuration.
 
@@ -43,7 +42,7 @@ class HookConfig:
             return
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 user_config = json.load(f)
                 self.config.update(user_config)
         except Exception as e:
@@ -55,7 +54,7 @@ class HookConfig:
             return
 
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.config_path, 'w', encoding='utf-8') as f:
+        with open(self.config_path, "w", encoding="utf-8") as f:
             json.dump(self.config, f, indent=2)
 
     def is_hook_enabled(self, hook_name: str) -> bool:
@@ -80,7 +79,7 @@ class HookConfig:
 class HookInstaller:
     """Handles installation of git hooks."""
 
-    def __init__(self, project_dir: Path, config: Optional[HookConfig] = None):
+    def __init__(self, project_dir: Path, config: HookConfig | None = None):
         """
         Initialize hook installer.
 
@@ -120,10 +119,7 @@ class HookInstaller:
         return True, ""
 
     def install_hook(
-        self,
-        hook_name: str,
-        force: bool = False,
-        dry_run: bool = False
+        self, hook_name: str, force: bool = False, dry_run: bool = False
     ) -> tuple[bool, str]:
         """
         Install a single git hook.
@@ -195,7 +191,10 @@ class HookInstaller:
                     git_hook_path.unlink()
 
                 git_hook_path.symlink_to(hook_dest.resolve())
-                return True, f"Installed {hook_name} (symlink): {git_hook_path} -> {hook_dest}"
+                return (
+                    True,
+                    f"Installed {hook_name} (symlink): {git_hook_path} -> {hook_dest}",
+                )
             else:
                 shutil.copy(hook_dest, git_hook_path)
                 git_hook_path.chmod(0o755)
@@ -204,11 +203,7 @@ class HookInstaller:
             return False, f"Failed to install {hook_name}: {e}"
 
     def _create_chained_hook(
-        self,
-        hook_name: str,
-        htmlgraph_hook: Path,
-        git_hook: Path,
-        backup_hook: Path
+        self, hook_name: str, htmlgraph_hook: Path, git_hook: Path, backup_hook: Path
     ) -> tuple[bool, str]:
         """Create a chained hook that runs both existing and HtmlGraph hooks."""
         chain_content = f'''#!/bin/bash
@@ -226,7 +221,7 @@ fi
 '''
 
         try:
-            git_hook.write_text(chain_content, encoding='utf-8')
+            git_hook.write_text(chain_content, encoding="utf-8")
             git_hook.chmod(0o755)
             return True, (
                 f"Installed {hook_name} (chained):\n"
@@ -237,9 +232,7 @@ fi
             return False, f"Failed to create chained hook: {e}"
 
     def install_all_hooks(
-        self,
-        force: bool = False,
-        dry_run: bool = False
+        self, force: bool = False, dry_run: bool = False
     ) -> dict[str, tuple[bool, str]]:
         """
         Install all enabled hooks.
@@ -254,7 +247,9 @@ fi
         results = {}
 
         for hook_name in self.config.config.get("enabled_hooks", []):
-            success, message = self.install_hook(hook_name, force=force, dry_run=dry_run)
+            success, message = self.install_hook(
+                hook_name, force=force, dry_run=dry_run
+            )
             results[hook_name] = (success, message)
 
         return results
@@ -319,7 +314,9 @@ fi
                 "enabled": self.config.is_hook_enabled(hook_name),
                 "installed": git_hook_path.exists(),
                 "versioned": versioned_hook.exists(),
-                "is_symlink": git_hook_path.is_symlink() if git_hook_path.exists() else False,
+                "is_symlink": git_hook_path.is_symlink()
+                if git_hook_path.exists()
+                else False,
             }
 
             if info["is_symlink"]:

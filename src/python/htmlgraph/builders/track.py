@@ -1,17 +1,27 @@
 """
 Track Builder for agent-friendly track creation.
 """
+
 from __future__ import annotations
+
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-import re
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
 
-from htmlgraph.planning import Track, Spec, Plan, Phase, Task, Requirement, AcceptanceCriterion
 from htmlgraph.ids import generate_id
+from htmlgraph.planning import (
+    AcceptanceCriterion,
+    Phase,
+    Plan,
+    Requirement,
+    Spec,
+    Task,
+    Track,
+)
 
 
 class TrackBuilder:
@@ -49,17 +59,17 @@ class TrackBuilder:
         self._plan_phases = []
         self._consolidated = True  # Default: single file
 
-    def title(self, title: str) -> 'TrackBuilder':
+    def title(self, title: str) -> TrackBuilder:
         """Set track title."""
         self._title = title
         return self
 
-    def description(self, desc: str) -> 'TrackBuilder':
+    def description(self, desc: str) -> TrackBuilder:
         """Set track description."""
         self._description = desc
         return self
 
-    def priority(self, priority: str) -> 'TrackBuilder':
+    def priority(self, priority: str) -> TrackBuilder:
         """Set track priority (low/medium/high/critical)."""
         self._priority = priority
         return self
@@ -69,8 +79,8 @@ class TrackBuilder:
         overview: str = "",
         context: str = "",
         requirements: list = None,
-        acceptance_criteria: list = None
-    ) -> 'TrackBuilder':
+        acceptance_criteria: list = None,
+    ) -> TrackBuilder:
         """
         Add spec content to track.
 
@@ -84,11 +94,11 @@ class TrackBuilder:
             "overview": overview,
             "context": context,
             "requirements": requirements or [],
-            "acceptance_criteria": acceptance_criteria or []
+            "acceptance_criteria": acceptance_criteria or [],
         }
         return self
 
-    def with_plan_phases(self, phases: list[tuple[str, list[str]]]) -> 'TrackBuilder':
+    def with_plan_phases(self, phases: list[tuple[str, list[str]]]) -> TrackBuilder:
         """
         Add plan phases with tasks.
 
@@ -99,20 +109,28 @@ class TrackBuilder:
         self._plan_phases = phases
         return self
 
-    def separate_files(self) -> 'TrackBuilder':
+    def separate_files(self) -> TrackBuilder:
         """Use legacy 3-file format (index.html, spec.html, plan.html)."""
         self._consolidated = False
         return self
 
-    def consolidated(self) -> 'TrackBuilder':
+    def consolidated(self) -> TrackBuilder:
         """Use single-file format (default). Everything in one index.html."""
         self._consolidated = True
         return self
 
     def _generate_track_html(self, track: Track, track_dir: Path) -> str:
         """Generate track index.html content (legacy 3-file format)."""
-        spec_link = '<li><a href="spec.html">📝 Specification</a></li>' if track.has_spec else ''
-        plan_link = '<li><a href="plan.html">📋 Implementation Plan</a></li>' if track.has_plan else ''
+        spec_link = (
+            '<li><a href="spec.html">📝 Specification</a></li>'
+            if track.has_spec
+            else ""
+        )
+        plan_link = (
+            '<li><a href="plan.html">📋 Implementation Plan</a></li>'
+            if track.has_plan
+            else ""
+        )
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -147,13 +165,9 @@ class TrackBuilder:
 </html>'''
 
     def _generate_consolidated_html(
-        self,
-        track: Track,
-        requirements: list[Requirement],
-        phases: list[Phase]
+        self, track: Track, requirements: list[Requirement], phases: list[Phase]
     ) -> str:
         """Generate single consolidated HTML containing track, spec, and plan."""
-        from datetime import datetime
 
         # Build requirements HTML
         req_html = ""
@@ -167,13 +181,13 @@ class TrackBuilder:
                     <h4>{status} {req.description}</h4>
                     <span class="badge">{req.priority}</span>
                 </article>''')
-            req_html = f'''
+            req_html = f"""
             <section data-section="requirements" id="requirements">
                 <h2>Requirements</h2>
                 <div class="requirements-list">
                     {"".join(req_items)}
                 </div>
-            </section>'''
+            </section>"""
 
         # Build acceptance criteria HTML
         ac_html = ""
@@ -182,34 +196,42 @@ class TrackBuilder:
             for crit in self._spec_data["acceptance_criteria"]:
                 if isinstance(crit, tuple):
                     desc, test_case = crit
-                    test_html = f' <code>{test_case}</code>' if test_case else ''
+                    test_html = f" <code>{test_case}</code>" if test_case else ""
                 else:
                     desc = crit
-                    test_html = ''
-                ac_items.append(f'<li>⏳ {desc}{test_html}</li>')
-            ac_html = f'''
+                    test_html = ""
+                ac_items.append(f"<li>⏳ {desc}{test_html}</li>")
+            ac_html = f"""
             <section data-section="acceptance-criteria" id="acceptance">
                 <h2>Acceptance Criteria</h2>
                 <ol class="criteria-list">
                     {"".join(ac_items)}
                 </ol>
-            </section>'''
+            </section>"""
 
         # Build phases/tasks HTML
         plan_html = ""
         if phases:
             total_tasks = sum(len(p.tasks) for p in phases)
-            completed_tasks = sum(sum(1 for t in p.tasks if t.completed) for p in phases)
-            completion = int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
+            completed_tasks = sum(
+                sum(1 for t in p.tasks if t.completed) for p in phases
+            )
+            completion = (
+                int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
+            )
 
             phase_items = []
             for i, phase in enumerate(phases):
                 task_items = []
                 for task in phase.tasks:
                     status_icon = "✅" if task.completed else "○"
-                    estimate_html = f' <span class="estimate">({task.estimate_hours}h)</span>' if task.estimate_hours else ''
+                    estimate_html = (
+                        f' <span class="estimate">({task.estimate_hours}h)</span>'
+                        if task.estimate_hours
+                        else ""
+                    )
                     task_items.append(f'''
-                    <div data-task="{task.id}" data-status="{'done' if task.completed else 'todo'}">
+                    <div data-task="{task.id}" data-status="{"done" if task.completed else "todo"}">
                         <input type="checkbox" {"checked" if task.completed else ""} disabled>
                         <div>
                             <strong>{status_icon} {task.description}</strong>
@@ -219,11 +241,11 @@ class TrackBuilder:
 
                 phase_items.append(f'''
                 <details {"open" if i == 0 else ""} data-phase="{phase.id}">
-                    <summary>Phase {i+1}: {phase.name} ({len([t for t in phase.tasks if t.completed])}/{len(phase.tasks)} tasks)</summary>
+                    <summary>Phase {i + 1}: {phase.name} ({len([t for t in phase.tasks if t.completed])}/{len(phase.tasks)} tasks)</summary>
                     {"".join(task_items)}
                 </details>''')
 
-            plan_html = f'''
+            plan_html = f"""
             <section data-section="plan" id="plan">
                 <h2>Implementation Plan</h2>
                 <div class="progress-container">
@@ -238,24 +260,24 @@ class TrackBuilder:
                 <div class="phases-container">
                     {"".join(phase_items)}
                 </div>
-            </section>'''
+            </section>"""
 
         # Build overview/context from spec
         overview_html = ""
         context_html = ""
         if self._spec_data:
             if self._spec_data.get("overview"):
-                overview_html = f'''
+                overview_html = f"""
             <section data-section="overview" id="overview">
                 <h2>Overview</h2>
                 <p>{self._spec_data["overview"]}</p>
-            </section>'''
+            </section>"""
             if self._spec_data.get("context"):
-                context_html = f'''
+                context_html = f"""
             <section data-section="context" id="context">
                 <h2>Context</h2>
                 <p>{self._spec_data["context"]}</p>
-            </section>'''
+            </section>"""
 
         # Navigation based on what's present
         nav_items = ['<a href="#top" class="nav-link">Track</a>']
@@ -264,17 +286,17 @@ class TrackBuilder:
         if phases:
             nav_items.append('<a href="#plan" class="nav-link">Plan</a>')
 
-        nav_html = f'''
+        nav_html = f"""
         <nav class="track-nav">
             {"".join(nav_items)}
-        </nav>'''
+        </nav>"""
 
         # Map Track status to Node-compatible status for HTML parsing
         status_mapping = {
-            "planned": "todo",      # Not started
-            "active": "in-progress", # In progress
-            "completed": "done",     # Done
-            "abandoned": "blocked"   # Blocked/stopped
+            "planned": "todo",  # Not started
+            "active": "in-progress",  # In progress
+            "completed": "done",  # Done
+            "abandoned": "blocked",  # Blocked/stopped
         }
         node_status = status_mapping.get(track.status, "todo")
 
@@ -552,7 +574,7 @@ class TrackBuilder:
             description=self._description,
             priority=self._priority,
             has_spec=bool(self._spec_data),
-            has_plan=bool(self._plan_phases)
+            has_plan=bool(self._plan_phases),
         )
 
         # Build requirements list
@@ -563,11 +585,9 @@ class TrackBuilder:
                     desc, priority = req
                 else:
                     desc, priority = req, "must-have"
-                requirements.append(Requirement(
-                    id=f"req-{i+1}",
-                    description=desc,
-                    priority=priority
-                ))
+                requirements.append(
+                    Requirement(id=f"req-{i + 1}", description=desc, priority=priority)
+                )
 
         # Build phases list
         phases = []
@@ -578,29 +598,33 @@ class TrackBuilder:
                     # Parse estimate from task description
                     estimate = None
                     if "(" in task_desc and "h)" in task_desc:
-                        match = re.search(r'\((\d+(?:\.\d+)?)\s*h\)', task_desc)
+                        match = re.search(r"\((\d+(?:\.\d+)?)\s*h\)", task_desc)
                         if match:
                             estimate = float(match.group(1))
-                            task_desc = re.sub(r'\s*\(\d+(?:\.\d+)?\s*h\)', '', task_desc).strip()
+                            task_desc = re.sub(
+                                r"\s*\(\d+(?:\.\d+)?\s*h\)", "", task_desc
+                            ).strip()
 
-                    phase_tasks.append(Task(
-                        id=f"task-{i+1}-{j+1}",
-                        description=task_desc,
-                        estimate_hours=estimate
-                    ))
+                    phase_tasks.append(
+                        Task(
+                            id=f"task-{i + 1}-{j + 1}",
+                            description=task_desc,
+                            estimate_hours=estimate,
+                        )
+                    )
 
-                phases.append(Phase(
-                    id=f"phase-{i+1}",
-                    name=phase_name,
-                    tasks=phase_tasks
-                ))
+                phases.append(
+                    Phase(id=f"phase-{i + 1}", name=phase_name, tasks=phase_tasks)
+                )
 
         if self._consolidated:
             # Single-file format: everything in one index.html
             track_file = Path(".htmlgraph") / "tracks" / f"{track_id}.html"
             track_file.parent.mkdir(parents=True, exist_ok=True)
 
-            consolidated_html = self._generate_consolidated_html(track, requirements, phases)
+            consolidated_html = self._generate_consolidated_html(
+                track, requirements, phases
+            )
             track_file.write_text(consolidated_html, encoding="utf-8")
 
             print(f"✓ Created track: {track_id} (single file)")
@@ -620,7 +644,9 @@ class TrackBuilder:
                 for crit in self._spec_data.get("acceptance_criteria", []):
                     if isinstance(crit, tuple):
                         desc, test_case = crit
-                        criteria.append(AcceptanceCriterion(description=desc, test_case=test_case))
+                        criteria.append(
+                            AcceptanceCriterion(description=desc, test_case=test_case)
+                        )
                     else:
                         criteria.append(AcceptanceCriterion(description=crit))
 
@@ -631,7 +657,7 @@ class TrackBuilder:
                     overview=self._spec_data.get("overview", ""),
                     context=self._spec_data.get("context", ""),
                     requirements=requirements,
-                    acceptance_criteria=criteria
+                    acceptance_criteria=criteria,
                 )
                 (track_dir / "spec.html").write_text(spec.to_html(), encoding="utf-8")
 
@@ -641,7 +667,7 @@ class TrackBuilder:
                     id=f"{track_id}-plan",
                     title=f"{self._title} Implementation Plan",
                     track_id=track_id,
-                    phases=phases
+                    phases=phases,
                 )
                 (track_dir / "plan.html").write_text(plan.to_html(), encoding="utf-8")
 

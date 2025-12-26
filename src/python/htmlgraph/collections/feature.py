@@ -5,17 +5,17 @@ Extends BaseCollection with feature-specific builder support.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
-    from htmlgraph.builders import FeatureBuilder
     from htmlgraph.models import Node
+    from htmlgraph.sdk import SDK
 
 from htmlgraph.collections.base import BaseCollection
 
 
-class FeatureCollection(BaseCollection['FeatureCollection']):
+class FeatureCollection(BaseCollection["FeatureCollection"]):
     """
     Collection interface for features with builder support.
 
@@ -37,7 +37,7 @@ class FeatureCollection(BaseCollection['FeatureCollection']):
     _collection_name = "features"
     _node_type = "feature"
 
-    def __init__(self, sdk: 'SDK'):
+    def __init__(self, sdk: SDK):
         """
         Initialize feature collection.
 
@@ -49,6 +49,7 @@ class FeatureCollection(BaseCollection['FeatureCollection']):
 
         # Set builder class for create() method
         from htmlgraph.builders import FeatureBuilder
+
         self._builder_class = FeatureBuilder
 
     def set_primary(self, node_id: str) -> Node | None:
@@ -63,11 +64,11 @@ class FeatureCollection(BaseCollection['FeatureCollection']):
         Returns:
             Updated Node
         """
-        if hasattr(self._sdk, 'session_manager'):
+        if hasattr(self._sdk, "session_manager"):
             return self._sdk.session_manager.set_primary_feature(
                 feature_id=node_id,
                 collection=self._collection_name,
                 agent=self._sdk.agent,
-                log_activity=True
+                log_activity=True,
             )
         return None

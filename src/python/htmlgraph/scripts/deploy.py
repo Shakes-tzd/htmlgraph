@@ -18,7 +18,6 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def get_project_root() -> Path:
@@ -50,7 +49,7 @@ def run_deploy_script(args: list[str]) -> int:
         return 1
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """
     Main entry point for htmlgraph-deploy command.
 

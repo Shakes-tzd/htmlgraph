@@ -59,6 +59,7 @@ def _is_claude_code() -> bool:
     # Check parent process name (heuristic)
     try:
         import psutil
+
         current = psutil.Process()
         parent = current.parent()
         if parent:

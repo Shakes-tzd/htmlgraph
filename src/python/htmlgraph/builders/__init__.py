@@ -6,13 +6,13 @@ common functionality inherited from BaseBuilder.
 """
 
 from htmlgraph.builders.base import BaseBuilder
-from htmlgraph.builders.feature import FeatureBuilder
-from htmlgraph.builders.spike import SpikeBuilder
-from htmlgraph.builders.track import TrackBuilder
 from htmlgraph.builders.bug import BugBuilder
 from htmlgraph.builders.chore import ChoreBuilder
 from htmlgraph.builders.epic import EpicBuilder
+from htmlgraph.builders.feature import FeatureBuilder
 from htmlgraph.builders.phase import PhaseBuilder
+from htmlgraph.builders.spike import SpikeBuilder
+from htmlgraph.builders.track import TrackBuilder
 
 __all__ = [
     "BaseBuilder",

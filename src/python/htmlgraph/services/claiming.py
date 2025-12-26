@@ -7,8 +7,8 @@ Extracted from SessionManager to reduce complexity and improve maintainability.
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from htmlgraph.models import Node
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Node
 
 if TYPE_CHECKING:
     from htmlgraph.session_manager import SessionManager
@@ -129,7 +129,9 @@ class ClaimingService:
             return None
 
         if node.agent_assigned and node.agent_assigned != agent:
-            raise ValueError(f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}")
+            raise ValueError(
+                f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}"
+            )
 
         node.agent_assigned = None
         node.claimed_at = None

@@ -6,16 +6,17 @@ phase ordering and dependencies.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
 from datetime import date
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
+    pass
 
 from htmlgraph.builders.base import BaseBuilder
 
 
-class PhaseBuilder(BaseBuilder['PhaseBuilder']):
+class PhaseBuilder(BaseBuilder["PhaseBuilder"]):
     """
     Fluent builder for creating phases.
 
@@ -36,7 +37,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
 
     node_type = "phase"
 
-    def set_phase_number(self, number: int) -> 'PhaseBuilder':
+    def set_phase_number(self, number: int) -> PhaseBuilder:
         """
         Set the phase number for ordering.
 
@@ -52,7 +53,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         self._data["phase_number"] = number
         return self
 
-    def set_start_date(self, start: date) -> 'PhaseBuilder':
+    def set_start_date(self, start: date) -> PhaseBuilder:
         """
         Set phase start date.
 
@@ -67,7 +68,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         """
         return self._set_date("start_date", start)  # type: ignore
 
-    def set_end_date(self, end: date) -> 'PhaseBuilder':
+    def set_end_date(self, end: date) -> PhaseBuilder:
         """
         Set phase end date.
 
@@ -82,7 +83,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         """
         return self._set_date("end_date", end)  # type: ignore
 
-    def set_deliverables(self, deliverables: list[str]) -> 'PhaseBuilder':
+    def set_deliverables(self, deliverables: list[str]) -> PhaseBuilder:
         """
         Set phase deliverables.
 
@@ -98,7 +99,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         self._data["deliverables"] = deliverables
         return self
 
-    def add_milestone(self, milestone: str) -> 'PhaseBuilder':
+    def add_milestone(self, milestone: str) -> PhaseBuilder:
         """
         Add a milestone to the phase.
 
@@ -113,7 +114,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         """
         return self._append_to_list("milestones", milestone)  # type: ignore
 
-    def follows(self, phase_id: str) -> 'PhaseBuilder':
+    def follows(self, phase_id: str) -> PhaseBuilder:
         """
         Set this phase to follow another phase.
 
@@ -128,7 +129,7 @@ class PhaseBuilder(BaseBuilder['PhaseBuilder']):
         """
         return self._add_edge("follows", phase_id)  # type: ignore
 
-    def set_exit_criteria(self, criteria: list[str]) -> 'PhaseBuilder':
+    def set_exit_criteria(self, criteria: list[str]) -> PhaseBuilder:
         """
         Set exit criteria for completing the phase.
 

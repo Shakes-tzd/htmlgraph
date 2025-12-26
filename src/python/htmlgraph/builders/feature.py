@@ -6,15 +6,16 @@ capability management.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
+    pass
 
 from htmlgraph.builders.base import BaseBuilder
 
 
-class FeatureBuilder(BaseBuilder['FeatureBuilder']):
+class FeatureBuilder(BaseBuilder["FeatureBuilder"]):
     """
     Fluent builder for creating features.
 
@@ -33,7 +34,7 @@ class FeatureBuilder(BaseBuilder['FeatureBuilder']):
 
     node_type = "feature"
 
-    def set_required_capabilities(self, capabilities: list[str]) -> 'FeatureBuilder':
+    def set_required_capabilities(self, capabilities: list[str]) -> FeatureBuilder:
         """
         Set required capabilities for this feature.
 
@@ -52,7 +53,7 @@ class FeatureBuilder(BaseBuilder['FeatureBuilder']):
         self._data["required_capabilities"] = capabilities
         return self
 
-    def add_capability_tag(self, tag: str) -> 'FeatureBuilder':
+    def add_capability_tag(self, tag: str) -> FeatureBuilder:
         """
         Add a capability tag for flexible matching.
 
@@ -73,7 +74,7 @@ class FeatureBuilder(BaseBuilder['FeatureBuilder']):
         self._data["capability_tags"].append(tag)
         return self
 
-    def add_capability_tags(self, tags: list[str]) -> 'FeatureBuilder':
+    def add_capability_tags(self, tags: list[str]) -> FeatureBuilder:
         """
         Add multiple capability tags.
 

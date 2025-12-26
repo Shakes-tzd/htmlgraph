@@ -46,10 +46,7 @@ class AgentCapabilityRegistry:
         self.agents: dict[str, AgentProfile] = {}
 
     def register_agent(
-        self,
-        agent_id: str,
-        capabilities: list[str],
-        wip_limit: int = 5
+        self, agent_id: str, capabilities: list[str], wip_limit: int = 5
     ) -> None:
         """
         Register an agent with capabilities.
@@ -63,7 +60,7 @@ class AgentCapabilityRegistry:
             agent_id=agent_id,
             capabilities=capabilities,
             wip_limit=wip_limit,
-            current_wip=0
+            current_wip=0,
         )
 
     def unregister_agent(self, agent_id: str) -> bool:
@@ -158,9 +155,7 @@ class CapabilityMatcher:
 
     @staticmethod
     def score_agent_task_fit(
-        agent_profile: AgentProfile,
-        task: Node,
-        include_workload: bool = True
+        agent_profile: AgentProfile, task: Node, include_workload: bool = True
     ) -> float:
         """
         Calculate fit score for agent-task pair.
@@ -211,9 +206,7 @@ class CapabilityMatcher:
 
     @staticmethod
     def find_best_agent(
-        agents: list[AgentProfile],
-        task: Node,
-        min_score: float = 0.0
+        agents: list[AgentProfile], task: Node, min_score: float = 0.0
     ) -> AgentProfile | None:
         """
         Find the best agent for a task.
@@ -242,9 +235,7 @@ class CapabilityMatcher:
 
 
 def route_task_to_agent(
-    task: Node,
-    registry: AgentCapabilityRegistry,
-    allow_unmatched: bool = False
+    task: Node, registry: AgentCapabilityRegistry, allow_unmatched: bool = False
 ) -> tuple[AgentProfile | None, float]:
     """
     Route a single task to the best capable agent.
@@ -276,7 +267,7 @@ def route_task_to_agent(
     best_agent = CapabilityMatcher.find_best_agent(
         agents_to_consider,
         task,
-        min_score=0.0 if not allow_unmatched else -float("inf")
+        min_score=0.0 if not allow_unmatched else -float("inf"),
     )
 
     if best_agent:
@@ -287,9 +278,7 @@ def route_task_to_agent(
 
 
 def route_tasks_to_agents(
-    tasks: list[Node],
-    registry: AgentCapabilityRegistry,
-    allow_unmatched: bool = False
+    tasks: list[Node], registry: AgentCapabilityRegistry, allow_unmatched: bool = False
 ) -> dict[str, tuple[AgentProfile | None, float]]:
     """
     Route multiple tasks to best agents.

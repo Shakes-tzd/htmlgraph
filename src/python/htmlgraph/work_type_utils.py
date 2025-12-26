@@ -5,10 +5,10 @@ Provides automatic work type detection based on active work items.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.models import WorkType
     from htmlgraph import SDK
 
 

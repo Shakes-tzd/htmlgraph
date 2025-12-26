@@ -8,13 +8,9 @@ Automates setup of HtmlGraph for different AI CLI platforms:
 - Gemini CLI (extension installation)
 """
 
-import json
-import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
-from typing import Optional
 
 
 def check_command_exists(command: str) -> bool:
@@ -22,7 +18,9 @@ def check_command_exists(command: str) -> bool:
     return shutil.which(command) is not None
 
 
-def run_command(cmd: list[str], capture=False, check=True) -> subprocess.CompletedProcess:
+def run_command(
+    cmd: list[str], capture=False, check=True
+) -> subprocess.CompletedProcess:
     """Run a shell command."""
     try:
         if capture:
@@ -74,7 +72,9 @@ def setup_claude(args):
 
             # Try to get version
             if "@" in result.stdout:
-                version_line = [line for line in result.stdout.split("\n") if "htmlgraph" in line]
+                version_line = [
+                    line for line in result.stdout.split("\n") if "htmlgraph" in line
+                ]
                 if version_line:
                     print(f"   {version_line[0].strip()}")
         else:
@@ -142,7 +142,7 @@ def setup_codex(args):
         else:
             print("⚠️  SKILL.md not found - skill may be incomplete")
     else:
-        print(f"\n⚠️  HtmlGraph skill not installed")
+        print("\n⚠️  HtmlGraph skill not installed")
         print("\n📥 Installation options:")
 
         # Check if we're in the HtmlGraph repo
@@ -167,7 +167,9 @@ def setup_codex(args):
         print(f"   cp -r htmlgraph/packages/codex-skill {htmlgraph_skill_dir}")
 
         print("\n   Option 3: Download manually:")
-        print("   https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/codex-skill")
+        print(
+            "   https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/codex-skill"
+        )
 
     # Check MCP configuration
     print("\n🔌 Checking MCP configuration...")
@@ -207,7 +209,9 @@ def setup_gemini(args):
     print("\n🎯 Checking for HtmlGraph extension...")
 
     try:
-        result = run_command(["gemini", "extensions", "list"], capture=True, check=False)
+        result = run_command(
+            ["gemini", "extensions", "list"], capture=True, check=False
+        )
         if result.returncode == 0 and "htmlgraph" in result.stdout.lower():
             print("✅ HtmlGraph extension already installed")
         else:
@@ -217,19 +221,28 @@ def setup_gemini(args):
             # Check if we're in the HtmlGraph repo
             repo_extension = Path.cwd() / "packages" / "gemini-extension"
             if repo_extension.exists():
-                print(f"\n   Option 1: Install from this repo:")
+                print("\n   Option 1: Install from this repo:")
                 print(f"   gemini extensions install {repo_extension.absolute()}")
 
                 if args.auto_install:
                     print("\n   Auto-installing...")
                     try:
-                        run_command(["gemini", "extensions", "install", str(repo_extension.absolute())])
+                        run_command(
+                            [
+                                "gemini",
+                                "extensions",
+                                "install",
+                                str(repo_extension.absolute()),
+                            ]
+                        )
                         print("   ✅ Extension installed")
                     except Exception as e:
                         print(f"   ❌ Failed to install extension: {e}")
 
             print("\n   Option 2: Install from GitHub:")
-            print("   gemini extensions install https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/gemini-extension")
+            print(
+                "   gemini extensions install https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/gemini-extension"
+            )
 
             print("\n   Option 3: Create manually:")
             print("   gemini extensions create htmlgraph-tracker")
@@ -287,7 +300,9 @@ def setup_all(args):
     print("=" * 60)
     for platform, success in results.items():
         status = "✅" if success else "⚠️ "
-        print(f"{status} {platform.upper()}: {'Ready' if success else 'Needs attention'}")
+        print(
+            f"{status} {platform.upper()}: {'Ready' if success else 'Needs attention'}"
+        )
     print()
 
     return all(results.values())

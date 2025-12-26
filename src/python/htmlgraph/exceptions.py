@@ -3,6 +3,7 @@
 
 class HtmlGraphError(Exception):
     """Base exception for all HtmlGraph errors."""
+
     pass
 
 
@@ -34,4 +35,5 @@ class ClaimConflictError(HtmlGraphError):
 
 class ValidationError(HtmlGraphError):
     """Raised when validation fails."""
+
     pass

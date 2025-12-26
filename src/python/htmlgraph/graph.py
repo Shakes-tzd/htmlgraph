@@ -10,16 +10,17 @@ Provides:
 
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
-from htmlgraph.models import Node, Edge
-from htmlgraph.converter import html_to_node, node_to_html, NodeConverter
-from htmlgraph.parser import HtmlParser
+from htmlgraph.converter import NodeConverter
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
-from htmlgraph.query_builder import QueryBuilder
-from htmlgraph.find_api import FindAPI
 from htmlgraph.exceptions import NodeNotFoundError
+from htmlgraph.find_api import FindAPI
+from htmlgraph.models import Node
+from htmlgraph.parser import HtmlParser
+from htmlgraph.query_builder import QueryBuilder
 
 
 class HtmlGraph:
@@ -41,7 +42,7 @@ class HtmlGraph:
         directory: Path | str,
         stylesheet_path: str = "../styles.css",
         auto_load: bool = True,
-        pattern: str | list[str] = "*.html"
+        pattern: str | list[str] = "*.html",
     ):
         """
         Initialize graph from a directory.
@@ -156,7 +157,9 @@ class HtmlGraph:
         # Remove all old OUTGOING edges (where this node is source)
         # DO NOT use remove_node() as it removes incoming edges too!
         for edge_ref in old_outgoing:
-            self._edge_index.remove(edge_ref.source_id, edge_ref.target_id, edge_ref.relationship)
+            self._edge_index.remove(
+                edge_ref.source_id, edge_ref.target_id, edge_ref.relationship
+            )
 
         # Add new OUTGOING edges (where this node is source)
         for relationship, edges in node.edges.items():
@@ -376,7 +379,9 @@ class HtmlGraph:
         """
         return FindAPI(self).find(type=type, **kwargs)
 
-    def find_all(self, type: str | None = None, limit: int | None = None, **kwargs) -> list[Node]:
+    def find_all(
+        self, type: str | None = None, limit: int | None = None, **kwargs
+    ) -> list[Node]:
         """
         Find all nodes matching the given criteria.
 
@@ -407,10 +412,7 @@ class HtmlGraph:
         return FindAPI(self).find_all(type=type, limit=limit, **kwargs)
 
     def find_related(
-        self,
-        node_id: str,
-        relationship: str | None = None,
-        direction: str = "outgoing"
+        self, node_id: str, relationship: str | None = None, direction: str = "outgoing"
     ) -> list[Node]:
         """
         Find nodes related to a given node.
@@ -430,9 +432,7 @@ class HtmlGraph:
     # =========================================================================
 
     def get_incoming_edges(
-        self,
-        node_id: str,
-        relationship: str | None = None
+        self, node_id: str, relationship: str | None = None
     ) -> list[EdgeRef]:
         """
         Get all edges pointing TO a node (O(1) lookup).
@@ -457,9 +457,7 @@ class HtmlGraph:
         return self._edge_index.get_incoming(node_id, relationship)
 
     def get_outgoing_edges(
-        self,
-        node_id: str,
-        relationship: str | None = None
+        self, node_id: str, relationship: str | None = None
     ) -> list[EdgeRef]:
         """
         Get all edges pointing FROM a node (O(1) lookup).
@@ -474,10 +472,7 @@ class HtmlGraph:
         return self._edge_index.get_outgoing(node_id, relationship)
 
     def get_neighbors(
-        self,
-        node_id: str,
-        relationship: str | None = None,
-        direction: str = "both"
+        self, node_id: str, relationship: str | None = None, direction: str = "both"
     ) -> set[str]:
         """
         Get all neighboring node IDs connected to a node (O(1) lookup).
@@ -523,10 +518,7 @@ class HtmlGraph:
         return adj
 
     def shortest_path(
-        self,
-        from_id: str,
-        to_id: str,
-        relationship: str | None = None
+        self, from_id: str, to_id: str, relationship: str | None = None
     ) -> list[str] | None:
         """
         Find shortest path between two nodes using BFS.
@@ -565,9 +557,7 @@ class HtmlGraph:
         return None
 
     def transitive_deps(
-        self,
-        node_id: str,
-        relationship: str = "blocked_by"
+        self, node_id: str, relationship: str = "blocked_by"
     ) -> set[str]:
         """
         Get all transitive dependencies of a node.
@@ -602,11 +592,7 @@ class HtmlGraph:
 
         return deps
 
-    def dependents(
-        self,
-        node_id: str,
-        relationship: str = "blocked_by"
-    ) -> set[str]:
+    def dependents(self, node_id: str, relationship: str = "blocked_by") -> set[str]:
         """
         Find all nodes that depend on this node (O(1) lookup).
 
@@ -623,7 +609,9 @@ class HtmlGraph:
         incoming = self._edge_index.get_incoming(node_id, relationship)
         return {ref.source_id for ref in incoming}
 
-    def find_bottlenecks(self, relationship: str = "blocked_by", top_n: int = 5) -> list[tuple[str, int]]:
+    def find_bottlenecks(
+        self, relationship: str = "blocked_by", top_n: int = 5
+    ) -> list[tuple[str, int]]:
         """
         Find nodes that block the most other nodes.
 
@@ -641,9 +629,7 @@ class HtmlGraph:
                 blocked_count[edge.target_id] += 1
 
         sorted_bottlenecks = sorted(
-            blocked_count.items(),
-            key=lambda x: x[1],
-            reverse=True
+            blocked_count.items(), key=lambda x: x[1], reverse=True
         )
 
         return sorted_bottlenecks[:top_n]
@@ -727,7 +713,7 @@ class HtmlGraph:
         self,
         node_id: str,
         relationship: str = "blocked_by",
-        max_depth: int | None = None
+        max_depth: int | None = None,
     ) -> list[str]:
         """
         Get all ancestor nodes (nodes that this node depends on).
@@ -775,7 +761,7 @@ class HtmlGraph:
         self,
         node_id: str,
         relationship: str = "blocked_by",
-        max_depth: int | None = None
+        max_depth: int | None = None,
     ) -> list[str]:
         """
         Get all descendant nodes (nodes that depend on this node).
@@ -816,10 +802,8 @@ class HtmlGraph:
         return descendants
 
     def subgraph(
-        self,
-        node_ids: list[str] | set[str],
-        include_edges: bool = True
-    ) -> 'HtmlGraph':
+        self, node_ids: list[str] | set[str], include_edges: bool = True
+    ) -> "HtmlGraph":
         """
         Extract a subgraph containing only the specified nodes.
 
@@ -837,7 +821,6 @@ class HtmlGraph:
             sub = graph.subgraph(deps)
         """
         import tempfile
-        from htmlgraph.models import Edge
 
         # Create new graph in temp directory
         temp_dir = tempfile.mkdtemp(prefix="htmlgraph_subgraph_")
@@ -867,9 +850,7 @@ class HtmlGraph:
         return subgraph
 
     def connected_component(
-        self,
-        node_id: str,
-        relationship: str | None = None
+        self, node_id: str, relationship: str | None = None
     ) -> set[str]:
         """
         Get all nodes in the same connected component as the given node.
@@ -911,7 +892,7 @@ class HtmlGraph:
         relationship: str | None = None,
         max_length: int | None = None,
         max_paths: int = 100,
-        timeout_seconds: float = 5.0
+        timeout_seconds: float = 5.0,
     ) -> list[list[str]]:
         """
         Find all paths between two nodes.
@@ -1011,8 +992,7 @@ class HtmlGraph:
                 done_count += 1
 
         stats["completion_rate"] = (
-            round(done_count / len(self._nodes) * 100, 1)
-            if self._nodes else 0
+            round(done_count / len(self._nodes) * 100, 1) if self._nodes else 0
         )
 
         # Convert defaultdicts to regular dicts
@@ -1034,7 +1014,9 @@ class HtmlGraph:
         """
         lines = ["# Graph Summary"]
         stats = self.stats()
-        lines.append(f"Total: {stats['total']} nodes | Done: {stats['completion_rate']}%")
+        lines.append(
+            f"Total: {stats['total']} nodes | Done: {stats['completion_rate']}%"
+        )
 
         # Status breakdown
         status_parts = [f"{s}: {c}" for s, c in stats["by_status"].items()]
@@ -1061,6 +1043,7 @@ class HtmlGraph:
     def to_json(self) -> list[dict[str, Any]]:
         """Export all nodes as JSON-serializable list."""
         from htmlgraph.converter import node_to_dict
+
         return [node_to_dict(node) for node in self._nodes.values()]
 
     def to_mermaid(self, relationship: str | None = None) -> str:

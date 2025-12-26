@@ -4,13 +4,23 @@ Track manager for creating and managing tracks, specs, and plans.
 Provides high-level operations for the Conductor-style planning workflow.
 """
 
-from pathlib import Path
 from datetime import datetime
-from typing import Literal
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
-from htmlgraph.planning import Track, Spec, Plan, Phase, Task, Requirement, AcceptanceCriterion
+if TYPE_CHECKING:
+    from htmlgraph.models import Node
+
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.ids import generate_id
+from htmlgraph.planning import (
+    Phase,
+    Plan,
+    Requirement,
+    Spec,
+    Task,
+    Track,
+)
 
 
 class TrackManager:
@@ -461,8 +471,8 @@ class TrackManager:
         <nav data-track-components>
             <h2>Components</h2>
             <ul>
-                <li><a href="spec.html">📝 Specification</a>{' (not created)' if not track.has_spec else ''}</li>
-                <li><a href="plan.html">📋 Implementation Plan</a>{' (not created)' if not track.has_plan else ''}</li>
+                <li><a href="spec.html">📝 Specification</a>{" (not created)" if not track.has_spec else ""}</li>
+                <li><a href="plan.html">📋 Implementation Plan</a>{" (not created)" if not track.has_plan else ""}</li>
             </ul>
         </nav>
 
@@ -471,12 +481,12 @@ class TrackManager:
             <nav>
                 <h3>Features:</h3>
                 <ul>
-                    {'<li>No features linked yet</li>' if not track.features else ''.join(f'<li><a href="../../features/{fid}.html">{fid}</a></li>' for fid in track.features)}
+                    {"<li>No features linked yet</li>" if not track.features else "".join(f'<li><a href="../../features/{fid}.html">{fid}</a></li>' for fid in track.features)}
                 </ul>
 
                 <h3>Sessions:</h3>
                 <ul>
-                    {'<li>No sessions yet</li>' if not track.sessions else ''.join(f'<li><a href="../../sessions/{sid}.html">{sid}</a></li>' for sid in track.sessions)}
+                    {"<li>No sessions yet</li>" if not track.sessions else "".join(f'<li><a href="../../sessions/{sid}.html">{sid}</a></li>' for sid in track.sessions)}
                 </ul>
             </nav>
         </section>
@@ -496,7 +506,7 @@ class TrackManager:
         self,
         track_id: str,
         plan: Plan | None = None,
-        features_dir: Path | str = ".htmlgraph/features"
+        features_dir: Path | str = ".htmlgraph/features",
     ) -> list["Node"]:
         """
         Generate feature nodes from plan tasks.
@@ -541,11 +551,12 @@ class TrackManager:
                         "estimate_hours": task.estimate_hours,
                         "phase_id": phase.id,
                         "phase_name": phase.name,
-                    }
+                    },
                 )
 
                 # Save feature HTML
                 from htmlgraph.converter import NodeConverter
+
                 converter = NodeConverter(features_dir)
                 converter.save(feature)
 
@@ -562,10 +573,7 @@ class TrackManager:
         return created_features
 
     def link_feature_to_task(
-        self,
-        feature_id: str,
-        track_id: str,
-        task_id: str
+        self, feature_id: str, track_id: str, task_id: str
     ) -> None:
         """
         Link an existing feature to a plan task.
@@ -601,9 +609,7 @@ class TrackManager:
         plan_path.write_text(plan.to_html(), encoding="utf-8")
 
     def sync_task_completion(
-        self,
-        track_id: str,
-        graph: "HtmlGraph | None" = None
+        self, track_id: str, graph: "HtmlGraph | None" = None
     ) -> Plan:
         """
         Sync task completion status based on linked features.
@@ -621,6 +627,7 @@ class TrackManager:
 
         if graph is None:
             from htmlgraph.graph import HtmlGraph
+
             graph = HtmlGraph(".htmlgraph/features")
 
         for phase in plan.phases:
@@ -659,9 +666,7 @@ class TrackManager:
         return plan
 
     def check_spec_satisfaction(
-        self,
-        track_id: str,
-        graph: "HtmlGraph | None" = None
+        self, track_id: str, graph: "HtmlGraph | None" = None
     ) -> Spec:
         """
         Check if spec requirements are satisfied by completed features.
@@ -680,6 +685,7 @@ class TrackManager:
 
         if graph is None:
             from htmlgraph.graph import HtmlGraph
+
             graph = HtmlGraph(".htmlgraph/features")
 
         # Check acceptance criteria
@@ -689,7 +695,9 @@ class TrackManager:
 
             # Check if all linked features are completed
             all_done = all(
-                fid in graph and (feature := graph.get(fid)) is not None and feature.status == "done"
+                fid in graph
+                and (feature := graph.get(fid)) is not None
+                and feature.status == "done"
                 for fid in criterion.feature_ids
             )
 
@@ -702,7 +710,9 @@ class TrackManager:
 
             # Check if all linked features are completed
             all_done = all(
-                fid in graph and (feature := graph.get(fid)) is not None and feature.status == "done"
+                fid in graph
+                and (feature := graph.get(fid)) is not None
+                and feature.status == "done"
                 for fid in requirement.feature_ids
             )
 

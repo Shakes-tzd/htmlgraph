@@ -7,22 +7,22 @@ Projects can customize deployment via htmlgraph-deploy.toml configuration file.
 """
 
 import os
-import sys
-import subprocess
-import time
 import shutil
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
+import subprocess
+import sys
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 # ANSI color codes
 class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    NC = '\033[0m'  # No Color
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    NC = "\033[0m"  # No Color
 
 
 @dataclass
@@ -31,16 +31,18 @@ class DeploymentConfig:
 
     # Project info
     project_name: str = "my-project"
-    pypi_package: Optional[str] = None
+    pypi_package: str | None = None
 
     # Deployment steps
-    steps: List[str] = field(default_factory=lambda: [
-        "git-push",
-        "build",
-        "pypi-publish",
-        "local-install",
-        "update-plugins"
-    ])
+    steps: list[str] = field(
+        default_factory=lambda: [
+            "git-push",
+            "build",
+            "pypi-publish",
+            "local-install",
+            "update-plugins",
+        ]
+    )
 
     # Git config
     git_branch: str = "main"
@@ -56,28 +58,28 @@ class DeploymentConfig:
     pypi_wait_after_publish: int = 10  # seconds
 
     # Plugin config
-    plugins: Dict[str, str] = field(default_factory=dict)
+    plugins: dict[str, str] = field(default_factory=dict)
 
     # Custom hooks
-    pre_build_hooks: List[str] = field(default_factory=list)
-    post_build_hooks: List[str] = field(default_factory=list)
-    pre_publish_hooks: List[str] = field(default_factory=list)
-    post_publish_hooks: List[str] = field(default_factory=list)
+    pre_build_hooks: list[str] = field(default_factory=list)
+    post_build_hooks: list[str] = field(default_factory=list)
+    pre_publish_hooks: list[str] = field(default_factory=list)
+    post_publish_hooks: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_toml(cls, config_path: Path) -> 'DeploymentConfig':
+    def from_toml(cls, config_path: Path) -> "DeploymentConfig":
         """Load configuration from TOML file."""
         try:
             import tomllib
         except ImportError:
             import tomli as tomllib  # fallback for Python < 3.11
 
-        with open(config_path, 'rb') as f:
+        with open(config_path, "rb") as f:
             data = tomllib.load(f)
 
         # Extract config sections
-        project = data.get('project', {})
-        deployment = data.get('deployment', {})
+        project = data.get("project", {})
+        deployment = data.get("deployment", {})
 
         # Default steps
         default_steps = [
@@ -85,25 +87,29 @@ class DeploymentConfig:
             "build",
             "pypi-publish",
             "local-install",
-            "update-plugins"
+            "update-plugins",
         ]
 
         return cls(
-            project_name=project.get('name', 'my-project'),
-            pypi_package=project.get('pypi_package'),
-            steps=deployment.get('steps', default_steps),
-            git_branch=deployment.get('git', {}).get('branch', 'main'),
-            git_remote=deployment.get('git', {}).get('remote', 'origin'),
-            git_push_tags=deployment.get('git', {}).get('push_tags', True),
-            build_command=deployment.get('build', {}).get('command', 'uv build'),
-            clean_dist=deployment.get('build', {}).get('clean_dist', True),
-            pypi_token_env_var=deployment.get('pypi', {}).get('token_env_var', 'PyPI_API_TOKEN'),
-            pypi_wait_after_publish=deployment.get('pypi', {}).get('wait_after_publish', 10),
-            plugins=deployment.get('plugins', {}),
-            pre_build_hooks=deployment.get('hooks', {}).get('pre_build', []),
-            post_build_hooks=deployment.get('hooks', {}).get('post_build', []),
-            pre_publish_hooks=deployment.get('hooks', {}).get('pre_publish', []),
-            post_publish_hooks=deployment.get('hooks', {}).get('post_publish', []),
+            project_name=project.get("name", "my-project"),
+            pypi_package=project.get("pypi_package"),
+            steps=deployment.get("steps", default_steps),
+            git_branch=deployment.get("git", {}).get("branch", "main"),
+            git_remote=deployment.get("git", {}).get("remote", "origin"),
+            git_push_tags=deployment.get("git", {}).get("push_tags", True),
+            build_command=deployment.get("build", {}).get("command", "uv build"),
+            clean_dist=deployment.get("build", {}).get("clean_dist", True),
+            pypi_token_env_var=deployment.get("pypi", {}).get(
+                "token_env_var", "PyPI_API_TOKEN"
+            ),
+            pypi_wait_after_publish=deployment.get("pypi", {}).get(
+                "wait_after_publish", 10
+            ),
+            plugins=deployment.get("plugins", {}),
+            pre_build_hooks=deployment.get("hooks", {}).get("pre_build", []),
+            post_build_hooks=deployment.get("hooks", {}).get("post_build", []),
+            pre_publish_hooks=deployment.get("hooks", {}).get("pre_publish", []),
+            post_publish_hooks=deployment.get("hooks", {}).get("post_publish", []),
         )
 
 
@@ -114,8 +120,8 @@ class Deployer:
         self,
         config: DeploymentConfig,
         dry_run: bool = False,
-        skip_steps: Optional[List[str]] = None,
-        only_steps: Optional[List[str]] = None,
+        skip_steps: list[str] | None = None,
+        only_steps: list[str] | None = None,
     ):
         self.config = config
         self.dry_run = dry_run
@@ -124,12 +130,12 @@ class Deployer:
         self.version = self._detect_version()
 
         # Step handlers
-        self.step_handlers: Dict[str, Callable] = {
-            'git-push': self._step_git_push,
-            'build': self._step_build,
-            'pypi-publish': self._step_pypi_publish,
-            'local-install': self._step_local_install,
-            'update-plugins': self._step_update_plugins,
+        self.step_handlers: dict[str, Callable] = {
+            "git-push": self._step_git_push,
+            "build": self._step_build,
+            "pypi-publish": self._step_pypi_publish,
+            "local-install": self._step_local_install,
+            "update-plugins": self._step_update_plugins,
         }
 
     def _detect_version(self) -> str:
@@ -143,10 +149,10 @@ class Deployer:
         except ImportError:
             import tomli as tomllib
 
-        with open(pyproject, 'rb') as f:
+        with open(pyproject, "rb") as f:
             data = tomllib.load(f)
 
-        return data.get('project', {}).get('version', 'unknown')
+        return data.get("project", {}).get("version", "unknown")
 
     def log_section(self, message: str):
         """Log a section header."""
@@ -174,10 +180,10 @@ class Deployer:
 
     def run_command(
         self,
-        cmd: List[str],
+        cmd: list[str],
         description: str,
-        env: Optional[Dict[str, str]] = None,
-        check: bool = True
+        env: dict[str, str] | None = None,
+        check: bool = True,
     ) -> subprocess.CompletedProcess:
         """Run a command with optional dry-run mode."""
         if self.dry_run:
@@ -192,7 +198,7 @@ class Deployer:
                 env=env or os.environ.copy(),
                 check=check,
                 capture_output=True,
-                text=True
+                text=True,
             )
             return result
         except subprocess.CalledProcessError as e:
@@ -201,7 +207,7 @@ class Deployer:
                 print(e.stderr, file=sys.stderr)
             raise
 
-    def run_hook(self, hook_commands: List[str], hook_name: str):
+    def run_hook(self, hook_commands: list[str], hook_name: str):
         """Run custom hook commands."""
         if not hook_commands:
             return
@@ -211,13 +217,9 @@ class Deployer:
             # Replace placeholders
             cmd = cmd.format(
                 version=self.version,
-                package=self.config.pypi_package or self.config.project_name
+                package=self.config.pypi_package or self.config.project_name,
             )
-            self.run_command(
-                cmd.split(),
-                f"Hook: {cmd}",
-                check=False
-            )
+            self.run_command(cmd.split(), f"Hook: {cmd}", check=False)
 
     def should_run_step(self, step: str) -> bool:
         """Check if a step should be run based on filters."""
@@ -233,23 +235,24 @@ class Deployer:
 
         # Check for uncommitted changes
         result = subprocess.run(
-            ['git', 'diff-index', '--quiet', 'HEAD', '--'],
-            capture_output=True
+            ["git", "diff-index", "--quiet", "HEAD", "--"], capture_output=True
         )
 
         if result.returncode != 0:
             self.log_warning("You have uncommitted changes")
             if not self.dry_run:
                 response = input("Continue anyway? (y/n) ")
-                if response.lower() != 'y':
+                if response.lower() != "y":
                     sys.exit(1)
 
         # Push to remote
-        cmd = ['git', 'push', self.config.git_remote, self.config.git_branch]
+        cmd = ["git", "push", self.config.git_remote, self.config.git_branch]
         if self.config.git_push_tags:
-            cmd.append('--tags')
+            cmd.append("--tags")
 
-        self.run_command(cmd, f"Pushing to {self.config.git_remote}/{self.config.git_branch}...")
+        self.run_command(
+            cmd, f"Pushing to {self.config.git_remote}/{self.config.git_branch}..."
+        )
         self.log_success("Git push complete")
 
     def _step_build(self):
@@ -303,12 +306,12 @@ class Deployer:
                 with open(env_file) as f:
                     for line in f:
                         line = line.strip()
-                        if line and not line.startswith('#') and '=' in line:
-                            key, val = line.split('=', 1)
+                        if line and not line.startswith("#") and "=" in line:
+                            key, val = line.split("=", 1)
                             key = key.strip()
                             val = val.strip().strip('"').strip("'")
                             if key == token_var:
-                                env['UV_PUBLISH_TOKEN'] = val
+                                env["UV_PUBLISH_TOKEN"] = val
                                 break
 
         # Check for token
@@ -316,30 +319,36 @@ class Deployer:
             env["UV_PUBLISH_TOKEN"] = env[token_var]
 
         if "UV_PUBLISH_TOKEN" not in env:
-            self.log_warning(f"PyPI token not found (looking for {token_var} or UV_PUBLISH_TOKEN)")
+            self.log_warning(
+                f"PyPI token not found (looking for {token_var} or UV_PUBLISH_TOKEN)"
+            )
             if not self.dry_run:
                 response = input("Continue anyway? (y/n) ")
-                if response.lower() != 'y':
+                if response.lower() != "y":
                     sys.exit(1)
 
         # Publish
         package_name = self.config.pypi_package or self.config.project_name
         self.run_command(
-            ['uv', 'publish'],
+            ["uv", "publish"],
             f"Publishing {package_name} {self.version} to PyPI...",
-            env=env
+            env=env,
         )
 
         # Wait for PyPI to process
         if not self.dry_run and self.config.pypi_wait_after_publish > 0:
-            self.log_info(f"Waiting {self.config.pypi_wait_after_publish}s for PyPI to process...")
+            self.log_info(
+                f"Waiting {self.config.pypi_wait_after_publish}s for PyPI to process..."
+            )
             time.sleep(self.config.pypi_wait_after_publish)
 
         # Run post-publish hooks
         self.run_hook(self.config.post_publish_hooks, "post-publish")
 
         self.log_success("Published to PyPI")
-        self.log_info(f"View at: https://pypi.org/project/{package_name}/{self.version}/")
+        self.log_info(
+            f"View at: https://pypi.org/project/{package_name}/{self.version}/"
+        )
 
     def _step_local_install(self):
         """Install package locally."""
@@ -350,30 +359,43 @@ class Deployer:
         # Try install
         try:
             self.run_command(
-                ['pip', 'install', '--upgrade', f'{package_name}=={self.version}'],
-                f"Installing {package_name}=={self.version}..."
+                ["pip", "install", "--upgrade", f"{package_name}=={self.version}"],
+                f"Installing {package_name}=={self.version}...",
             )
         except subprocess.CalledProcessError:
             self.log_warning("Install failed, trying with --force-reinstall...")
             self.run_command(
-                ['pip', 'install', '--force-reinstall', f'{package_name}=={self.version}'],
-                "Force reinstalling..."
+                [
+                    "pip",
+                    "install",
+                    "--force-reinstall",
+                    f"{package_name}=={self.version}",
+                ],
+                "Force reinstalling...",
             )
 
         # Verify installation
         if not self.dry_run:
             try:
                 result = subprocess.run(
-                    ['python', '-c', f'import {package_name.replace("-", "_")}; print({package_name.replace("-", "_")}.__version__)'],
+                    [
+                        "python",
+                        "-c",
+                        f"import {package_name.replace('-', '_')}; print({package_name.replace('-', '_')}.__version__)",
+                    ],
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=True,
                 )
                 installed_version = result.stdout.strip()
                 if installed_version == self.version:
-                    self.log_success(f"Verified: {package_name} {installed_version} is installed")
+                    self.log_success(
+                        f"Verified: {package_name} {installed_version} is installed"
+                    )
                 else:
-                    self.log_warning(f"Installed version ({installed_version}) doesn't match expected ({self.version})")
+                    self.log_warning(
+                        f"Installed version ({installed_version}) doesn't match expected ({self.version})"
+                    )
             except Exception as e:
                 self.log_warning(f"Could not verify installation: {e}")
 
@@ -389,10 +411,7 @@ class Deployer:
 
         for plugin_name, plugin_cmd in self.config.plugins.items():
             # Replace placeholders
-            cmd = plugin_cmd.format(
-                package=package_name,
-                version=self.version
-            )
+            cmd = plugin_cmd.format(package=package_name, version=self.version)
 
             # Check if command exists
             cmd_parts = cmd.split()
@@ -403,9 +422,7 @@ class Deployer:
             # Run update command
             try:
                 self.run_command(
-                    cmd_parts,
-                    f"Updating {plugin_name} plugin...",
-                    check=False
+                    cmd_parts, f"Updating {plugin_name} plugin...", check=False
                 )
                 self.log_success(f"{plugin_name} plugin updated")
             except Exception as e:

@@ -28,8 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -127,7 +126,7 @@ class ParallelWorkflow:
     MIN_TASK_DURATION_MINUTES = 2.0
     TOKEN_COST_MULTIPLIER = 15  # Parallel uses ~15x tokens
 
-    def __init__(self, sdk: "SDK"):
+    def __init__(self, sdk: SDK):
         self.sdk = sdk
         self._graph_dir = sdk._directory
 
@@ -165,9 +164,7 @@ class ParallelWorkflow:
 
         # Determine if parallelization is worthwhile
         can_parallelize = (
-            max_parallelism >= 2
-            and len(ready_tasks) >= 2
-            and len(risks) == 0
+            max_parallelism >= 2 and len(ready_tasks) >= 2 and len(risks) == 0
         )
 
         # Generate recommendation
@@ -189,7 +186,9 @@ class ParallelWorkflow:
         if len(bottlenecks) > 0:
             warnings.append(f"{len(bottlenecks)} bottlenecks blocking downstream work")
         if self.TOKEN_COST_MULTIPLIER * len(ready_tasks) > 50:
-            warnings.append(f"High token cost: ~{self.TOKEN_COST_MULTIPLIER}x per agent")
+            warnings.append(
+                f"High token cost: ~{self.TOKEN_COST_MULTIPLIER}x per agent"
+            )
 
         return ParallelAnalysis(
             can_parallelize=can_parallelize,
@@ -249,18 +248,20 @@ class ParallelWorkflow:
             # Generate instructions
             instructions = self._generate_instructions(feature)
 
-            prepared.append(PreparedTask(
-                task_id=task_id,
-                title=feature.title,
-                priority=getattr(feature, "priority", "medium"),
-                assigned_agent=getattr(feature, "agent_assigned", None),
-                instructions=instructions,
-                cached_context=cached_context,
-                files_to_read=likely_files,
-                files_to_avoid=files_to_avoid,
-                estimated_duration=5.0,
-                capabilities_required=getattr(feature, "required_capabilities", []),
-            ))
+            prepared.append(
+                PreparedTask(
+                    task_id=task_id,
+                    title=feature.title,
+                    priority=getattr(feature, "priority", "medium"),
+                    assigned_agent=getattr(feature, "agent_assigned", None),
+                    instructions=instructions,
+                    cached_context=cached_context,
+                    files_to_read=likely_files,
+                    files_to_avoid=files_to_avoid,
+                    estimated_duration=5.0,
+                    capabilities_required=getattr(feature, "required_capabilities", []),
+                )
+            )
 
         return prepared
 
@@ -315,11 +316,13 @@ Return a summary including:
 4. Whether the feature is complete
 """
 
-            prompts.append({
-                "prompt": prompt,
-                "description": f"{task.task_id}: {task.title[:30]}",
-                "subagent_type": "general-purpose",
-            })
+            prompts.append(
+                {
+                    "prompt": prompt,
+                    "description": f"{task.task_id}: {task.title[:30]}",
+                    "subagent_type": "general-purpose",
+                }
+            )
 
         return prompts
 
@@ -366,8 +369,7 @@ Return a summary including:
         # Calculate aggregate metrics
         total_duration = sum(r.duration_seconds for r in results)
         avg_health = (
-            sum(r.health_score for r in results) / len(results)
-            if results else 0.0
+            sum(r.health_score for r in results) / len(results) if results else 0.0
         )
         total_anti = sum(r.anti_patterns for r in results)
 
@@ -473,29 +475,39 @@ Return a summary including:
             try:
                 feature = self.sdk.features.get(feature_id)
                 if not feature:
-                    failed.append({
-                        "feature_id": feature_id,
-                        "transcript_id": transcript_id,
-                        "error": "Feature not found",
-                    })
+                    failed.append(
+                        {
+                            "feature_id": feature_id,
+                            "transcript_id": transcript_id,
+                            "error": "Feature not found",
+                        }
+                    )
                     continue
 
                 graph = manager.features_graph
                 manager._link_transcript_to_feature(feature, transcript_id, graph)
                 graph.update(feature)
 
-                linked.append({
-                    "feature_id": feature_id,
-                    "transcript_id": transcript_id,
-                    "tool_count": feature.properties.get("transcript_tool_count", 0),
-                    "duration_seconds": feature.properties.get("transcript_duration_seconds", 0),
-                })
+                linked.append(
+                    {
+                        "feature_id": feature_id,
+                        "transcript_id": transcript_id,
+                        "tool_count": feature.properties.get(
+                            "transcript_tool_count", 0
+                        ),
+                        "duration_seconds": feature.properties.get(
+                            "transcript_duration_seconds", 0
+                        ),
+                    }
+                )
             except Exception as e:
-                failed.append({
-                    "feature_id": feature_id,
-                    "transcript_id": transcript_id,
-                    "error": str(e),
-                })
+                failed.append(
+                    {
+                        "feature_id": feature_id,
+                        "transcript_id": transcript_id,
+                        "error": str(e),
+                    }
+                )
 
         return {
             "linked_count": len(linked),
@@ -522,8 +534,9 @@ Return a summary including:
         Returns:
             Summary with linked features and their transcripts
         """
-        from htmlgraph.transcript import TranscriptReader
         from datetime import timedelta
+
+        from htmlgraph.transcript import TranscriptReader
 
         reader = TranscriptReader()
         pairs = []
@@ -556,7 +569,9 @@ Return a summary including:
                 if session.session_id.startswith("agent-"):
                     # Check if within time window
                     if session.ended_at:
-                        time_diff = abs((session.ended_at - completion_time).total_seconds())
+                        time_diff = abs(
+                            (session.ended_at - completion_time).total_seconds()
+                        )
                         if time_diff <= time_window_minutes * 60:
                             pairs.append((feature_id, session.session_id))
                             break
