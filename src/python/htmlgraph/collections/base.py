@@ -6,7 +6,7 @@ with lazy-loading, filtering, and batch operations.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, TypeVar, Generic, Any, Iterator
+from typing import TYPE_CHECKING, TypeVar, Generic, Any, Iterator, Callable
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -198,6 +198,39 @@ class BaseCollection(Generic[CollectionT]):
                     return False
 
             return True
+
+        return self._ensure_graph().filter(matches)
+
+    def filter(self, predicate: Callable[[Node], bool]) -> list[Node]:
+        """
+        Filter nodes using a custom predicate function.
+
+        Args:
+            predicate: A callable that takes a Node and returns True if it matches
+
+        Returns:
+            List of nodes that match the predicate
+
+        Example:
+            >>> # Find features with "High" in title
+            >>> high_priority = sdk.features.filter(lambda f: "High" in f.title)
+            >>>
+            >>> # Find features created in the last week
+            >>> from datetime import datetime, timedelta
+            >>> recent = sdk.features.filter(
+            ...     lambda f: f.created > datetime.now() - timedelta(days=7)
+            ... )
+            >>>
+            >>> # Complex multi-condition filter
+            >>> urgent = sdk.features.filter(
+            ...     lambda f: f.priority == "high" and f.status == "todo"
+            ... )
+        """
+        def matches(node: Node) -> bool:
+            # First filter by type, then apply user predicate
+            if node.type != self._node_type:
+                return False
+            return predicate(node)
 
         return self._ensure_graph().filter(matches)
 
