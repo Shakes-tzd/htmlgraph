@@ -639,7 +639,9 @@ class SDK:
         self,
         description: str,
         create_spike: bool = True,
-        timebox_hours: float = 4.0
+        timebox_hours: float = 4.0,
+        research_completed: bool = False,
+        research_findings: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
         Smart planning workflow: analyzes project context and creates spike or track.
@@ -649,22 +651,46 @@ class SDK:
         2. Provides context from strategic analytics
         3. Creates a planning spike or track as appropriate
 
+        **IMPORTANT: Research Phase Required**
+        For complex features, you should complete research BEFORE planning:
+        1. Use /htmlgraph:research or WebSearch to gather best practices
+        2. Document findings (libraries, patterns, anti-patterns)
+        3. Pass research_completed=True and research_findings to this method
+        4. This ensures planning is informed by industry best practices
+
+        Research-first workflow:
+            1. /htmlgraph:research "{topic}" → Gather external knowledge
+            2. sdk.smart_plan(..., research_completed=True) → Plan with context
+            3. Complete spike steps → Design solution
+            4. Create track from plan → Structure implementation
+
         Args:
             description: What you want to plan (e.g., "User authentication system")
             create_spike: Create a spike for research (default: True)
             timebox_hours: If creating spike, time limit (default: 4 hours)
+            research_completed: Whether research was performed (default: False)
+            research_findings: Structured research findings (optional)
 
         Returns:
             Dict with planning context and created spike/track info
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # WITH research (recommended for complex work)
+            >>> research = {
+            ...     "topic": "OAuth 2.0 best practices",
+            ...     "sources_count": 5,
+            ...     "recommended_library": "authlib",
+            ...     "key_insights": ["Use PKCE", "Implement token rotation"]
+            ... }
             >>> plan = sdk.smart_plan(
-            ...     "Real-time notifications system",
-            ...     create_spike=True
+            ...     "User authentication system",
+            ...     create_spike=True,
+            ...     research_completed=True,
+            ...     research_findings=research
             ... )
             >>> print(f"Created: {plan['spike_id']}")
-            >>> print(f"Context: {plan['project_context']}")
+            >>> print(f"Research informed: {plan['research_informed']}")
         """
         # Get project context from strategic analytics
         bottlenecks = self.find_bottlenecks(top_n=3)
@@ -678,26 +704,66 @@ class SDK:
             "description": description
         }
 
+        # Build context string with research info
+        context_str = f"Project context:\n- {len(bottlenecks)} bottlenecks\n- {risks['high_risk_count']} high-risk items\n- {parallel['max_parallelism']} parallel capacity"
+
+        if research_completed and research_findings:
+            context_str += f"\n\nResearch completed:\n- Topic: {research_findings.get('topic', description)}"
+            if 'sources_count' in research_findings:
+                context_str += f"\n- Sources: {research_findings['sources_count']}"
+            if 'recommended_library' in research_findings:
+                context_str += f"\n- Recommended: {research_findings['recommended_library']}"
+
+        # Validation: warn if complex work planned without research
+        is_complex = any([
+            "auth" in description.lower(),
+            "security" in description.lower(),
+            "real-time" in description.lower(),
+            "websocket" in description.lower(),
+            "oauth" in description.lower(),
+            "performance" in description.lower(),
+            "integration" in description.lower(),
+        ])
+
+        warnings = []
+        if is_complex and not research_completed:
+            warnings.append(
+                "⚠️  Complex feature detected without research. "
+                "Consider using /htmlgraph:research first to gather best practices."
+            )
+
         if create_spike:
             spike = self.start_planning_spike(
                 title=f"Plan: {description}",
-                context=f"Project context:\n- {len(bottlenecks)} bottlenecks\n- {risks['high_risk_count']} high-risk items\n- {parallel['max_parallelism']} parallel capacity",
+                context=context_str,
                 timebox_hours=timebox_hours
             )
 
-            return {
+            # Store research metadata in spike properties if provided
+            if research_completed and research_findings:
+                spike.properties["research_completed"] = True
+                spike.properties["research_findings"] = research_findings
+                self._graph.update(spike)
+
+            result = {
                 "type": "spike",
                 "spike_id": spike.id,
                 "title": spike.title,
                 "status": spike.status,
                 "timebox_hours": timebox_hours,
                 "project_context": context,
+                "research_informed": research_completed,
                 "next_steps": [
-                    "Research and design the solution",
+                    "Research and design the solution" if not research_completed else "Design solution using research findings",
                     "Complete spike steps",
                     "Use SDK.create_track_from_plan() to create track"
                 ]
             }
+
+            if warnings:
+                result["warnings"] = warnings
+
+            return result
         else:
             # Direct track creation (for when you already know what to do)
             track_info = self.create_track_from_plan(
@@ -705,16 +771,22 @@ class SDK:
                 description=f"Planned with context: {context}"
             )
 
-            return {
+            result = {
                 "type": "track",
                 **track_info,
                 "project_context": context,
+                "research_informed": research_completed,
                 "next_steps": [
                     "Create features from track plan",
                     "Link features to track",
                     "Start implementation"
                 ]
             }
+
+            if warnings:
+                result["warnings"] = warnings
+
+            return result
 
     def plan_parallel_work(
         self,

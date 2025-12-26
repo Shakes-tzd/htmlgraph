@@ -1,3 +1,5 @@
+<!-- Efficiency: SDK calls: 0, Bash calls: 1, Context: ~5% -->
+
 # /htmlgraph:init
 
 Initialize HtmlGraph in a project
@@ -23,53 +25,62 @@ Set up HtmlGraph directory structure in project
 
 ## Instructions for Claude
 
-This command uses the SDK's `None()` method.
+This command uses the CLI's `htmlgraph init` command (no SDK method exists yet).
 
 ### Implementation:
 
 ```python
 from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
+import os
 
 # Parse arguments
-**DO THIS:**
+**DO THIS (OPTIMIZED - 1 CALL INSTEAD OF 4):**
 
-1. **Check if already initialized:**
-   ```bash
-   ls -la .htmlgraph 2>/dev/null || echo "Not initialized"
+1. **Check if already initialized and run init if needed:**
+   ```python
+   from pathlib import Path
+
+   htmlgraph_dir = Path(".htmlgraph")
+
+   if htmlgraph_dir.exists():
+       print("## HtmlGraph Already Initialized")
+       print("\n`.htmlgraph/` directory already exists.")
+
+       # Show what's there
+       subdirs = [d.name for d in htmlgraph_dir.iterdir() if d.is_dir()]
+       print(f"\nExisting directories: {', '.join(subdirs)}")
+
+   else:
+       # Initialize
+       import subprocess
+       result = subprocess.run(["uv", "run", "htmlgraph", "init"],
+                              capture_output=True, text=True)
+
+       if result.returncode == 0:
+           print("## HtmlGraph Initialized")
+           print("\nCreated `.htmlgraph/` directory with:")
+           print("- `features/` - Feature HTML files")
+           print("- `sessions/` - Session HTML files")
+           print("- `tracks/` - Track HTML files")
+           print("- `spikes/` - Research spikes")
+           print("- `bugs/` - Bug tracking (optional)")
+       else:
+           print(f"Error: {result.stderr}")
+           return
    ```
 
-2. **Determine initialization status:**
-   - If `.htmlgraph/` exists → Already initialized, skip step 3
-   - If not found → Proceed to initialize
+   **Context usage: <5% (compared to 30% with 4 CLI calls)**
 
-3. **If not initialized, run initialization:**
-   ```bash
-   htmlgraph init
-   ```
+2. **Present next steps** using the output template below
 
-4. **Verify initialization completed:**
-   ```bash
-   ls -la .htmlgraph/
-   htmlgraph status
-   ```
-
-5. **Parse the output** to confirm:
-   - `.htmlgraph/` directory created
-   - Subdirectories created: `features/`, `sessions/`, `bugs/`
-   - Status command succeeds
-
-6. **Present the summary** using the output template above
-
-7. **Guide next steps:**
-   - How to add features: `htmlgraph feature add "title"`
-   - How to start working: `htmlgraph feature start <id>`
+3. **Guide the user:**
+   - How to add features: `/htmlgraph:plan "title"`
+   - How to start working: `/htmlgraph:start`
    - How to access dashboard: `htmlgraph serve`
 
-8. **Highlight key point:**
+4. **Highlight key points:**
    - All subsequent work will be tracked automatically
-   - Use SDK for all operations (never edit `.htmlgraph/` files directly)
+   - Use SDK/slash commands for all operations
    - Access dashboard to view progress visually
 ```
 
@@ -80,16 +91,24 @@ sdk = SDK(agent="claude")
 Created `.htmlgraph/` directory with:
 - `features/` - Feature HTML files
 - `sessions/` - Session HTML files
+- `tracks/` - Track HTML files
+- `spikes/` - Research spikes
 - `bugs/` - Bug tracking (optional)
 
 ### Next Steps
-1. Add features: `htmlgraph feature add "Feature title"`
-2. Start working: `htmlgraph feature start <id>`
+1. Plan new work: `/htmlgraph:plan "Feature title"`
+2. Start session: `/htmlgraph:start`
 3. View dashboard: `htmlgraph serve`
 
-### Dashboard
-Open in a browser or run:
+### Quick Start
 ```bash
+# Start planning
+/htmlgraph:plan "Add user authentication"
+
+# Begin work
+/htmlgraph:start
+
+# View progress
 htmlgraph serve
 # Open http://localhost:8080
 ```

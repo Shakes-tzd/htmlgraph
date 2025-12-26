@@ -2,6 +2,20 @@
 
 Start planning a new track with spike or create directly. Uses strategic analytics to provide project context and creates structured tracks with specs and implementation plans.
 
+**⚠️ IMPORTANT: Research First for Complex Features**
+
+For complex features (auth, security, real-time, integrations), you should **complete research BEFORE planning**:
+
+1. Use `/htmlgraph:research "{topic}"` to gather best practices
+2. Document findings (libraries, patterns, anti-patterns)
+3. Then use `/htmlgraph:plan` with research-informed context
+
+This research-first approach:
+- ✅ Avoids reinventing wheels
+- ✅ Learns from others' mistakes
+- ✅ Chooses right tools upfront
+- ✅ Reduces context usage (targeted vs exploratory)
+
 ## Usage
 
 ```
@@ -18,9 +32,11 @@ Start planning a new track with spike or create directly. Uses strategic analyti
 ## Examples
 
 ```bash
+# RECOMMENDED: Research first for complex features
+/htmlgraph:research "OAuth 2.0 implementation patterns"
 /htmlgraph:plan "User authentication system"
 ```
-Create a planning spike for auth system (4h timebox)
+Research best practices, then create planning spike
 
 ```bash
 /htmlgraph:plan "Real-time notifications" --timebox 3
@@ -40,6 +56,13 @@ This command uses the SDK's `smart_plan()` method which:
 2. Provides strategic context from analytics
 3. Creates a planning spike (default) or track directly
 
+**⚠️ CRITICAL: Check for Research Before Planning**
+
+Before creating the plan, check if research was completed:
+1. Check if `/htmlgraph:research` was used previously in the conversation
+2. If complex feature WITHOUT research → Warn and suggest research first
+3. If research completed → Pass research_completed=True and findings
+
 ### Implementation:
 
 ```python
@@ -47,15 +70,52 @@ from htmlgraph import SDK
 
 sdk = SDK(agent="claude")
 
-# Parse arguments from user input
+# STEP 1: Check if research was completed
+# Look for research findings in conversation context
+research_completed = False
+research_findings = None
+
+# If you previously ran /htmlgraph:research, extract findings
+if has_previous_research():
+    research_completed = True
+    research_findings = {
+        "topic": "<topic from research>",
+        "sources_count": <number of sources>,
+        "recommended_library": "<library name if specified>",
+        "key_insights": ["<insight 1>", "<insight 2>", ...]
+    }
+
+# STEP 2: Validate complex features have research
+is_complex = any([
+    "auth" in args.description.lower(),
+    "security" in args.description.lower(),
+    "real-time" in args.description.lower(),
+    "websocket" in args.description.lower(),
+    "oauth" in args.description.lower(),
+])
+
+if is_complex and not research_completed:
+    print("⚠️  Warning: Complex feature detected without research.")
+    print("RECOMMENDED: Run /htmlgraph:research first to gather best practices.")
+    print(f"Example: /htmlgraph:research \"{args.description}\"")
+    print()
+    # Still proceed, but flag the warning
+
+# STEP 3: Create plan with research context
 result = sdk.smart_plan(
     description=args.description,
     create_spike=args.spike,  # Default: True
-    timebox_hours=args.timebox  # Default: 4.0
+    timebox_hours=args.timebox,  # Default: 4.0
+    research_completed=research_completed,
+    research_findings=research_findings
 )
 
-# Format and display result
+# STEP 4: Display result with warnings if any
 print(format_output(result))
+
+if "warnings" in result:
+    for warning in result["warnings"]:
+        print(f"\n{warning}")
 ```
 
 ### SDK API Reference
@@ -65,7 +125,9 @@ print(format_output(result))
 sdk.smart_plan(
     description: str,        # What you want to plan
     create_spike: bool = True,   # Create spike for research
-    timebox_hours: float = 4.0   # Time limit for spike
+    timebox_hours: float = 4.0,  # Time limit for spike
+    research_completed: bool = False,  # Whether research was done
+    research_findings: dict[str, Any] | None = None  # Research results
 ) -> dict[str, Any]
 ```
 
@@ -76,13 +138,15 @@ sdk.smart_plan(
     "spike_id": "spike-abc123",  # If spike created
     "title": "Plan: User authentication system",
     "status": "todo",
+    "research_informed": True,  # Whether research was provided
     "project_context": {
         "bottlenecks_count": 3,
         "high_risk_count": 5,
         "parallel_capacity": 4,
         "description": "User authentication system"
     },
-    "next_steps": "..."
+    "next_steps": [...],
+    "warnings": [...]  # Present if issues detected (e.g., no research)
 }
 ```
 

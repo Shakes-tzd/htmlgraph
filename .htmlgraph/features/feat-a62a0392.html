@@ -10,15 +10,15 @@
 <body>
     <article id="feat-a62a0392"
              data-type="feature"
-             data-status="todo"
+             data-status="done"
              data-priority="critical"
              data-created="2025-12-25T03:32:06.265387"
-             data-updated="2025-12-25T03:32:06.265388" data-track-id="trk-42a6bc49">
+             data-updated="2025-12-26T12:00:00.000000" data-track-id="trk-42a6bc49">
 
         <header>
             <h1>Add Mandatory Research Phase to Planning</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-critical">Critical Priority</span>
             </div>
         </header>
@@ -26,11 +26,21 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">⏳ Create research subagent template</li>
-                <li data-completed="false">⏳ Add web search integration</li>
-                <li data-completed="false">⏳ Document research findings in plan</li>
-                <li data-completed="false">⏳ Validate research quality</li>
+                <li data-completed="true">✅ Create research subagent template</li>
+                <li data-completed="true">✅ Add web search integration</li>
+                <li data-completed="true">✅ Document research findings in plan</li>
+                <li data-completed="true">✅ Validate research quality</li>
             </ol>
+        </section>
+
+        <section data-implementation>
+            <h3>Implementation Summary</h3>
+            <ul>
+                <li><strong>research.md</strong> - New command at packages/claude-plugin/commands/research.md</li>
+                <li><strong>sdk.py</strong> - smart_plan() now validates research completion</li>
+                <li><strong>plan.md</strong> - Updated to reference research-first workflow</li>
+                <li><strong>PLANNING_WORKFLOW.md</strong> - Extended with research phase documentation</li>
+            </ul>
         </section>
     </article>
 </body>
