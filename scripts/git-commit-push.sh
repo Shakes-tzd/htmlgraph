@@ -139,11 +139,12 @@ fi
 echo ""
 
 # Step 5: Push
-echo -e "${BLUE}Pushing to origin/main...${NC}"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+echo -e "${BLUE}Pushing to origin/${CURRENT_BRANCH}...${NC}"
 if [ "$DRY_RUN" = true ]; then
-    echo -e "${YELLOW}[DRY-RUN]${NC} Would run: git push origin main"
+    echo -e "${YELLOW}[DRY-RUN]${NC} Would run: git push -u origin ${CURRENT_BRANCH}"
 else
-    git push origin main
+    git push -u origin "$CURRENT_BRANCH"
     echo -e "${GREEN}✅ Changes pushed${NC}"
 fi
 echo ""
@@ -156,5 +157,5 @@ echo ""
 echo "Summary:"
 echo "  Files changed: ${CHANGED_FILES}"
 echo "  Commit: \"${COMMIT_MSG}\""
-echo "  Branch: main"
+echo "  Branch: ${CURRENT_BRANCH}"
 echo ""
