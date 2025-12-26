@@ -46,7 +46,15 @@ from htmlgraph.models import Node, Step
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
-from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
+from htmlgraph.collections import (
+    BaseCollection,
+    FeatureCollection,
+    SpikeCollection,
+    BugCollection,
+    ChoreCollection,
+    EpicCollection,
+    PhaseCollection,
+)
 from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
@@ -121,13 +129,13 @@ class SDK:
             agent_id=agent
         )
 
-        # Collection interfaces - all work item types
+        # Collection interfaces - all work item types (all with builder support)
         self.features = FeatureCollection(self)
-        self.bugs = BaseCollection(self, "bugs", "bug")
-        self.chores = BaseCollection(self, "chores", "chore")
+        self.bugs = BugCollection(self)
+        self.chores = ChoreCollection(self)
         self.spikes = SpikeCollection(self)
-        self.epics = BaseCollection(self, "epics", "epic")
-        self.phases = BaseCollection(self, "phases", "phase")
+        self.epics = EpicCollection(self)
+        self.phases = PhaseCollection(self)
 
         # Non-work collections
         self.sessions = BaseCollection(self, "sessions", "session")

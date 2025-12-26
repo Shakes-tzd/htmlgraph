@@ -1,0 +1,156 @@
+"""
+Phase builder for creating project phase nodes.
+
+Extends BaseBuilder with phase-specific methods like
+phase ordering and dependencies.
+"""
+
+from __future__ import annotations
+from typing import TYPE_CHECKING
+from datetime import date
+
+if TYPE_CHECKING:
+    from htmlgraph.sdk import SDK
+
+from htmlgraph.builders.base import BaseBuilder
+from htmlgraph.models import Edge
+
+
+class PhaseBuilder(BaseBuilder['PhaseBuilder']):
+    """
+    Fluent builder for creating phases.
+
+    Inherits common builder methods from BaseBuilder and adds
+    phase-specific methods for project planning:
+    - phase_number: Ordering within project
+    - start_date/end_date: Phase timeline
+    - deliverables: What the phase produces
+
+    Example:
+        >>> sdk = SDK(agent="claude")
+        >>> phase = sdk.phases.create("Phase 1: Core Library") \\
+        ...     .set_priority("high") \\
+        ...     .set_phase_number(1) \\
+        ...     .set_deliverables(["Core API", "Unit tests", "Documentation"]) \\
+        ...     .save()
+    """
+
+    node_type = "phase"
+
+    def set_phase_number(self, number: int) -> 'PhaseBuilder':
+        """
+        Set the phase number for ordering.
+
+        Args:
+            number: Phase sequence number
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.set_phase_number(1)
+        """
+        self._data["phase_number"] = number
+        return self
+
+    def set_start_date(self, start: date) -> 'PhaseBuilder':
+        """
+        Set phase start date.
+
+        Args:
+            start: Start date
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.set_start_date(date(2025, 1, 1))
+        """
+        self._data["start_date"] = start.isoformat()
+        return self
+
+    def set_end_date(self, end: date) -> 'PhaseBuilder':
+        """
+        Set phase end date.
+
+        Args:
+            end: End date
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.set_end_date(date(2025, 3, 31))
+        """
+        self._data["end_date"] = end.isoformat()
+        return self
+
+    def set_deliverables(self, deliverables: list[str]) -> 'PhaseBuilder':
+        """
+        Set phase deliverables.
+
+        Args:
+            deliverables: List of deliverable items
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.set_deliverables(["API docs", "SDK release", "Examples"])
+        """
+        self._data["deliverables"] = deliverables
+        return self
+
+    def add_milestone(self, milestone: str) -> 'PhaseBuilder':
+        """
+        Add a milestone to the phase.
+
+        Args:
+            milestone: Milestone description
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.add_milestone("Alpha release")
+        """
+        if "milestones" not in self._data:
+            self._data["milestones"] = []
+        self._data["milestones"].append(milestone)
+        return self
+
+    def follows(self, phase_id: str) -> 'PhaseBuilder':
+        """
+        Set this phase to follow another phase.
+
+        Args:
+            phase_id: ID of the preceding phase
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.follows("phase-core-library")
+        """
+        if "follows" not in self._data["edges"]:
+            self._data["edges"]["follows"] = []
+        self._data["edges"]["follows"].append(
+            Edge(target_id=phase_id, relationship="follows")
+        )
+        return self
+
+    def set_exit_criteria(self, criteria: list[str]) -> 'PhaseBuilder':
+        """
+        Set exit criteria for completing the phase.
+
+        Args:
+            criteria: List of exit criteria
+
+        Returns:
+            Self for method chaining
+
+        Example:
+            >>> phase.set_exit_criteria(["All tests passing", "Code review complete"])
+        """
+        self._data["exit_criteria"] = criteria
+        return self

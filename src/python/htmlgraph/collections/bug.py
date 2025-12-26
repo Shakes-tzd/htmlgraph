@@ -1,0 +1,67 @@
+"""
+Bug collection for managing bug report work items.
+
+Extends BaseCollection with bug-specific builder support.
+"""
+
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from htmlgraph.sdk import SDK
+    from htmlgraph.builders.bug import BugBuilder
+
+from htmlgraph.collections.base import BaseCollection
+
+
+class BugCollection(BaseCollection['BugCollection']):
+    """
+    Collection interface for bugs with builder support.
+
+    Provides all base collection methods plus a fluent builder
+    interface for creating new bugs.
+
+    Example:
+        >>> sdk = SDK(agent="claude")
+        >>> bug = sdk.bugs.create("Login button broken") \\
+        ...     .set_priority("critical") \\
+        ...     .set_severity("high") \\
+        ...     .set_repro_steps(["Go to login", "Click button"]) \\
+        ...     .save()
+        >>>
+        >>> # Query bugs
+        >>> critical_bugs = sdk.bugs.where(priority="critical")
+    """
+
+    _collection_name = "bugs"
+    _node_type = "bug"
+
+    def __init__(self, sdk: 'SDK'):
+        """
+        Initialize bug collection.
+
+        Args:
+            sdk: Parent SDK instance
+        """
+        super().__init__(sdk, "bugs", "bug")
+        self._sdk = sdk
+
+    def create(self, title: str, **kwargs) -> 'BugBuilder':
+        """
+        Create a new bug with fluent interface.
+
+        Args:
+            title: Bug title/summary
+            **kwargs: Additional bug properties
+
+        Returns:
+            BugBuilder for method chaining
+
+        Example:
+            >>> bug = sdk.bugs.create("Login fails") \\
+            ...     .set_severity("high") \\
+            ...     .set_repro_steps(["Click login", "Enter creds"]) \\
+            ...     .save()
+        """
+        from htmlgraph.builders.bug import BugBuilder
+        return BugBuilder(self._sdk, title, **kwargs)
