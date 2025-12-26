@@ -27,6 +27,7 @@ def test_log_git_commit_writes_event_record(tmp_path: Path, monkeypatch):
     _run(["git", "init"], cwd=repo)
     _run(["git", "config", "user.name", "Test User"], cwd=repo)
     _run(["git", "config", "user.email", "test@example.com"], cwd=repo)
+    _run(["git", "config", "commit.gpgsign", "false"], cwd=repo)
 
     # Start an HtmlGraph session so git events attach to a real session_id.
     graph_dir = repo / ".htmlgraph"

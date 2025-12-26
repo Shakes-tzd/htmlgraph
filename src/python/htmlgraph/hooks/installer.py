@@ -12,7 +12,6 @@ class HookConfig:
 
     DEFAULT_CONFIG = {
         "enabled_hooks": [
-            "pre-commit",
             "post-commit",
             "post-checkout",
             "post-merge",
@@ -31,7 +30,13 @@ class HookConfig:
             config_path: Path to hooks-config.json (defaults to .htmlgraph/hooks-config.json)
         """
         self.config_path = config_path
-        self.config = self.DEFAULT_CONFIG.copy()
+        # Deep copy to avoid mutating DEFAULT_CONFIG
+        self.config = {
+            "enabled_hooks": self.DEFAULT_CONFIG["enabled_hooks"].copy(),
+            "use_symlinks": self.DEFAULT_CONFIG["use_symlinks"],
+            "backup_existing": self.DEFAULT_CONFIG["backup_existing"],
+            "chain_existing": self.DEFAULT_CONFIG["chain_existing"],
+        }
 
         if config_path and config_path.exists():
             self.load()

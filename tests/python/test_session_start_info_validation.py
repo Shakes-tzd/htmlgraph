@@ -282,7 +282,12 @@ class TestActiveWorkItemIntegration:
     def test_multiple_work_items_returns_first(self, temp_graph_dir):
         """Test that get_active_work_item returns first when multiple exist."""
         from htmlgraph import HtmlGraph
-        graph = HtmlGraph(temp_graph_dir)
+
+        # Features are stored in features/ subdirectory
+        features_dir = temp_graph_dir / "features"
+        features_dir.mkdir(parents=True, exist_ok=True)
+
+        graph = HtmlGraph(features_dir)
         sdk = SDK(directory=temp_graph_dir, agent="claude")
 
         # Create multiple in-progress features
@@ -320,7 +325,12 @@ class TestActiveWorkWithNodeTypes:
     def test_identify_feature_as_active(self, temp_graph_dir):
         """Test that feature nodes are identified as active work."""
         from htmlgraph import HtmlGraph
-        graph = HtmlGraph(temp_graph_dir)
+
+        # Features are stored in features/ subdirectory
+        features_dir = temp_graph_dir / "features"
+        features_dir.mkdir(parents=True, exist_ok=True)
+
+        graph = HtmlGraph(features_dir)
         sdk = SDK(directory=temp_graph_dir, agent="claude")
 
         feature = Node(
