@@ -100,22 +100,31 @@ def main():
     project_dir = _resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
-    # Do not end the internal HtmlGraph session on every external Claude session end.
-    # External sessions can be frequent; ending would create lots of tiny session files.
-    # Instead, record an event and let HtmlGraph roll sessions based on commit/time policies.
+    # Transcript-first architecture: Import Claude Code transcript as source of truth
+    # This replaces any hook-captured events with the complete transcript data
     try:
         manager = SessionManager(graph_dir)
         active = manager.get_active_session()
+
+        # Auto-import transcript from Claude Code
+        # Transcripts contain full prompts, responses, tool I/O, and thinking traces
         if active and external_session_id:
             try:
-                manager.track_activity(
-                    session_id=active.id,
-                    tool="ClaudeSessionEnd",
-                    summary=f"Claude session ended: {external_session_id}",
-                    payload={"claude_session_id": external_session_id},
-                )
-            except Exception:
-                pass
+                from htmlgraph.transcript import TranscriptReader
+                reader = TranscriptReader()
+                transcript = reader.read_session(external_session_id)
+                if transcript:
+                    # Import transcript events (overwrite hook-captured events)
+                    result = manager.import_transcript_events(
+                        session_id=active.id,
+                        transcript_session=transcript,
+                        overwrite=True,  # Replace hook data with high-fidelity transcript
+                    )
+                    imported = result.get('imported', 0)
+                    if imported > 0:
+                        print(f"HtmlGraph: Imported {imported} events from transcript", file=sys.stderr)
+            except Exception as e:
+                print(f"HtmlGraph: Could not import transcript: {e}", file=sys.stderr)
 
         # Optional handoff context capture (non-interactive)
         handoff_notes = hook_input.get("handoff_notes") or os.environ.get("HTMLGRAPH_HANDOFF_NOTES")
