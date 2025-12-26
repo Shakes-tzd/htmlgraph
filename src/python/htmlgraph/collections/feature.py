@@ -47,25 +47,9 @@ class FeatureCollection(BaseCollection['FeatureCollection']):
         super().__init__(sdk, "features", "feature")
         self._sdk = sdk
 
-    def create(self, title: str, **kwargs) -> FeatureBuilder:
-        """
-        Create a new feature with fluent interface.
-
-        Args:
-            title: Feature title
-            **kwargs: Additional feature properties
-
-        Returns:
-            FeatureBuilder for method chaining
-
-        Example:
-            >>> feature = sdk.features.create("User Auth") \\
-            ...     .set_priority("high") \\
-            ...     .add_steps(["Login", "Logout"]) \\
-            ...     .save()
-        """
+        # Set builder class for create() method
         from htmlgraph.builders import FeatureBuilder
-        return FeatureBuilder(self._sdk, title, **kwargs)
+        self._builder_class = FeatureBuilder
 
     def set_primary(self, node_id: str) -> Node | None:
         """

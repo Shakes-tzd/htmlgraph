@@ -47,23 +47,6 @@ class SpikeCollection(BaseCollection['SpikeCollection']):
         super().__init__(sdk, "spikes", "spike")
         self._sdk = sdk
 
-    def create(self, title: str, **kwargs) -> SpikeBuilder:
-        """
-        Create a new spike with fluent interface.
-
-        Args:
-            title: Spike title
-            **kwargs: Additional spike properties
-
-        Returns:
-            SpikeBuilder for method chaining
-
-        Example:
-            >>> spike = sdk.spikes.create("Investigate Database Options") \\
-            ...     .set_spike_type(SpikeType.TECHNICAL) \\
-            ...     .set_timebox_hours(2) \\
-            ...     .add_steps(["Research PostgreSQL", "Research MongoDB"]) \\
-            ...     .save()
-        """
+        # Set builder class for create() method
         from htmlgraph.builders import SpikeBuilder
-        return SpikeBuilder(self._sdk, title, **kwargs)
+        self._builder_class = SpikeBuilder

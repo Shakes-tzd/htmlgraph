@@ -129,13 +129,18 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
                 title=self._data.get("title", ""),
             )
 
-        from htmlgraph.graph import HtmlGraph
-
         spike = Spike(**self._data)
 
-        # Save to spikes directory, not features directory
-        graph_path = self._sdk._directory / "spikes"
-        graph = HtmlGraph(graph_path, auto_load=False)
-        graph.add(spike)
+        # Save to the collection's shared graph
+        # This ensures the spike is visible via sdk.spikes.get() immediately
+        if hasattr(self._sdk, 'spikes') and self._sdk.spikes is not None:
+            graph = self._sdk.spikes._ensure_graph()
+            graph.add(spike)
+        else:
+            # Fallback: create new graph
+            from htmlgraph.graph import HtmlGraph
+            graph_path = self._sdk._directory / "spikes"
+            graph = HtmlGraph(graph_path, auto_load=False)
+            graph.add(spike)
 
         return spike

@@ -9,6 +9,7 @@ Provides:
 - WIP limits enforcement
 """
 
+import logging
 import os
 import re
 import fnmatch
@@ -16,12 +17,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+logger = logging.getLogger(__name__)
+
 from htmlgraph.models import Node, Session, ActivityEntry
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.converter import session_to_html, html_to_session, SessionConverter, dict_to_node
 from htmlgraph.event_log import JsonlEventLog, EventRecord
 from htmlgraph.ids import generate_id
 from htmlgraph.agent_detection import detect_agent_name
+from htmlgraph.services import ClaimingService
+from htmlgraph.exceptions import SessionNotFoundError
 
 
 class SessionManager:
@@ -104,8 +109,27 @@ class SessionManager:
         self.features_graph = HtmlGraph(self.features_dir, auto_load=True)
         self.bugs_graph = HtmlGraph(self.bugs_dir, auto_load=True)
 
+        # Claiming service (handles feature claims/releases)
+        self.claiming_service = ClaimingService(
+            features_graph=self.features_graph,
+            bugs_graph=self.bugs_graph,
+            session_manager=self,
+        )
+
         # Cache for active session
         self._active_session: Session | None = None
+
+        # Cache for active sessions list (invalidated on session lifecycle changes)
+        self._active_sessions_cache: list[Session] | None = None
+        self._sessions_cache_dirty: bool = True
+
+        # Cache for active features (invalidated on start/complete/release)
+        self._active_features_cache: list[Node] | None = None
+        self._features_cache_dirty: bool = True
+
+        # Index of active auto-generated spike IDs (session-init, transition, conversation-init)
+        # This avoids loading all spikes from disk just to find the active ones
+        self._active_auto_spikes: set[str] = set()
 
         # Append-only event log (Git-friendly source of truth for activities)
         self.events_dir = self.graph_dir / "events"
@@ -116,8 +140,19 @@ class SessionManager:
     # =========================================================================
 
     def _list_active_sessions(self) -> list[Session]:
-        """Return all active sessions found on disk."""
-        return [s for s in self.session_converter.load_all() if s.status == "active"]
+        """
+        Return all active sessions found on disk.
+
+        Uses caching to avoid repeated file I/O. The cache is invalidated
+        automatically when sessions are created, ended, or marked as stale.
+        """
+        if self._sessions_cache_dirty or self._active_sessions_cache is None:
+            self._active_sessions_cache = [
+                s for s in self.session_converter.load_all()
+                if s.status == "active"
+            ]
+            self._sessions_cache_dirty = False
+        return self._active_sessions_cache
 
     def _choose_canonical_active_session(self, sessions: list[Session]) -> Session | None:
         """Choose a stable 'canonical' session when multiple are active."""
@@ -138,6 +173,7 @@ class SessionManager:
         session.ended_at = now
         session.last_activity = now
         self.session_converter.save(session)
+        self._sessions_cache_dirty = True
 
     def normalize_active_sessions(self) -> dict[str, int]:
         """
@@ -214,6 +250,7 @@ class SessionManager:
             if title and not existing.title:
                 existing.title = title
             self.session_converter.save(existing)
+            self._sessions_cache_dirty = True
             self._active_session = existing
             return existing
 
@@ -236,6 +273,7 @@ class SessionManager:
                 self._active_session = canonical
                 canonical.last_activity = now  # Update activity timestamp
                 self.session_converter.save(canonical)
+                self._sessions_cache_dirty = True
                 return canonical
 
             # If we're truly starting a new session (different commit), mark old sessions as stale.
@@ -263,6 +301,7 @@ class SessionManager:
 
         # Save to disk
         self.session_converter.save(session)
+        self._sessions_cache_dirty = True
         self._active_session = session
 
         # Auto-create session-init spike for transitional activities
@@ -289,6 +328,9 @@ class SessionManager:
         spike_converter = NodeConverter(self.graph_dir / "spikes")
         existing = spike_converter.load(spike_id)
         if existing:
+            # Add to index if it's still active
+            if existing.status == "in-progress":
+                self._active_auto_spikes.add(existing.id)
             return existing
 
         # Create session-init spike
@@ -307,6 +349,9 @@ class SessionManager:
 
         # Save spike
         spike_converter.save(spike)
+
+        # Add to active auto-spikes index
+        self._active_auto_spikes.add(spike.id)
 
         # Link session to spike
         if spike.id not in session.worked_on:
@@ -349,6 +394,9 @@ class SessionManager:
         spike_converter = NodeConverter(self.graph_dir / "spikes")
         spike_converter.save(spike)
 
+        # Add to active auto-spikes index
+        self._active_auto_spikes.add(spike.id)
+
         # Link session to spike
         if spike.id not in session.worked_on:
             session.worked_on.append(spike.id)
@@ -375,17 +423,25 @@ class SessionManager:
         spike_converter = NodeConverter(self.graph_dir / "spikes")
         completed_spikes = []
 
-        # Get all spikes
-        all_spikes = spike_converter.load_all()
+        # Only load spikes we know are active from the index
+        # This avoids the expensive load_all() operation
+        for spike_id in list(self._active_auto_spikes):
+            spike = spike_converter.load(spike_id)
 
-        for spike in all_spikes:
-            # Only complete active auto-spikes
+            # Safety check: verify it's actually an active auto-spike
+            if not spike:
+                # Spike was deleted or doesn't exist - remove from index
+                self._active_auto_spikes.discard(spike_id)
+                continue
+
             if not (
                 spike.type == "spike"
                 and spike.auto_generated
                 and spike.spike_subtype in ("session-init", "transition", "conversation-init")
                 and spike.status == "in-progress"
             ):
+                # Spike is no longer active - remove from index
+                self._active_auto_spikes.discard(spike_id)
                 continue
 
             # Complete the spike
@@ -395,6 +451,9 @@ class SessionManager:
 
             spike_converter.save(spike)
             completed_spikes.append(spike)
+
+            # Remove from active index since it's now completed
+            self._active_auto_spikes.discard(spike_id)
 
         # Import transcript when auto-spikes complete (work boundary)
         if completed_spikes:
@@ -410,8 +469,8 @@ class SessionManager:
                             transcript_session=transcript,
                             overwrite=True,
                         )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to import transcript events on auto-spike completion: {e}")
 
         return completed_spikes
 
@@ -585,6 +644,7 @@ class SessionManager:
         self.release_session_features(session_id)
 
         self.session_converter.save(session)
+        self._sessions_cache_dirty = True
 
         if self._active_session and self._active_session.id == session_id:
             self._active_session = None
@@ -634,18 +694,7 @@ class SessionManager:
         Returns:
             List of released feature IDs
         """
-        released = []
-        for collection in ["features", "bugs"]:
-            graph = self._get_graph(collection)
-            for node in graph:
-                if node.claimed_by_session == session_id:
-                    node.agent_assigned = None
-                    node.claimed_at = None
-                    node.claimed_by_session = None
-                    node.updated = datetime.now()
-                    graph.update(node)
-                    released.append(node.id)
-        return released
+        return self.claiming_service.release_session_features(session_id)
 
     # =========================================================================
     # Activity Tracking
@@ -680,7 +729,7 @@ class SessionManager:
         """
         session = self.get_session(session_id)
         if not session:
-            raise ValueError(f"Session not found: {session_id}")
+            raise SessionNotFoundError(session_id)
 
         # Get active features for attribution
         active_features = self.get_active_features()
@@ -767,9 +816,9 @@ class SessionManager:
                 file_paths=file_paths,
                 payload=entry.payload if isinstance(entry.payload, dict) else payload,
             ))
-        except Exception:
+        except Exception as e:
             # Never break core tracking because of analytics logging.
-            pass
+            logger.warning(f"Failed to append to event log: {e}")
 
         # Optional: keep SQLite index up to date if it already exists.
         # This keeps the dashboard fast while keeping Git as the source of truth.
@@ -801,8 +850,8 @@ class SessionManager:
                     "file_paths": file_paths or [],
                     "payload": entry.payload if isinstance(entry.payload, dict) else payload,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to update SQLite index: {e}")
 
         # Add to session
         session.add_activity(entry)
@@ -1186,12 +1235,29 @@ class SessionManager:
                 feature_id=feature_id,
                 payload=payload,
             )
-        except Exception:
+        except Exception as e:
             # Never break feature ops because of tracking.
+            logger.warning(f"Failed to log work item action ({tool}): {e}")
             return
 
     def get_active_features(self) -> list[Node]:
-        """Get all features with status 'in-progress'."""
+        """
+        Get all features with status 'in-progress'.
+
+        Uses a cache to avoid O(n) disk reads on every tool use.
+        Cache is invalidated when features are started, completed, or released.
+        """
+        if self._features_cache_dirty or self._active_features_cache is None:
+            self._active_features_cache = self._compute_active_features()
+            self._features_cache_dirty = False
+        return self._active_features_cache
+
+    def _compute_active_features(self) -> list[Node]:
+        """
+        Compute active features by iterating all features from disk.
+
+        This is the slow path - only called when cache is dirty.
+        """
         features = []
 
         # From features collection
@@ -1338,6 +1404,9 @@ class SessionManager:
         node.updated = datetime.now()
         graph.update(node)
 
+        # Invalidate active features cache
+        self._features_cache_dirty = True
+
         # Auto-complete any active auto-spikes (session-init or transition)
         # When a regular feature starts, transitional period is over
         if agent:
@@ -1399,6 +1468,9 @@ class SessionManager:
 
         graph.update(node)
 
+        # Invalidate active features cache
+        self._features_cache_dirty = True
+
         if log_activity and agent:
             # Include transcript_id in payload for traceability
             payload = {"collection": collection, "action": "complete"}
@@ -1426,8 +1498,8 @@ class SessionManager:
                         transcript_session=transcript,
                         overwrite=True,  # Replace hook data with high-fidelity transcript
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to auto-import transcript on feature completion: {e}")
 
         # Auto-create transition spike for post-completion activities
         if session:
@@ -1600,39 +1672,11 @@ class SessionManager:
         Returns:
             Updated Node or None
         """
-        graph = self._get_graph(collection)
-        node = graph.get(feature_id)
-        if not node:
-            return None
-
-        # Check if already claimed by someone else
-        if node.agent_assigned and node.agent_assigned != agent:
-            # Check if session that claimed it is still active
-            if node.claimed_by_session:
-                session = self.get_session(node.claimed_by_session)
-                if session and session.status == "active":
-                    raise ValueError(
-                        f"Feature '{feature_id}' is already claimed by {node.agent_assigned} "
-                        f"(session {node.claimed_by_session})"
-                    )
-
-        session = self._ensure_session_for_agent(agent)
-
-        node.agent_assigned = agent
-        node.claimed_at = datetime.now()
-        node.claimed_by_session = session.id
-        node.updated = datetime.now()
-        graph.update(node)
-
-        self._maybe_log_work_item_action(
-            agent=agent,
-            tool="FeatureClaim",
-            summary=f"Claimed: {collection}/{feature_id}",
+        return self.claiming_service.claim_feature(
             feature_id=feature_id,
-            payload={"collection": collection, "action": "claim"},
+            collection=collection,
+            agent=agent,
         )
-
-        return node
 
     def release_feature(
         self,
@@ -1652,29 +1696,11 @@ class SessionManager:
         Returns:
             Updated Node or None
         """
-        graph = self._get_graph(collection)
-        node = graph.get(feature_id)
-        if not node:
-            return None
-
-        if node.agent_assigned and node.agent_assigned != agent:
-            raise ValueError(f"Feature '{feature_id}' is claimed by {node.agent_assigned}, not {agent}")
-
-        node.agent_assigned = None
-        node.claimed_at = None
-        node.claimed_by_session = None
-        node.updated = datetime.now()
-        graph.update(node)
-
-        self._maybe_log_work_item_action(
-            agent=agent,
-            tool="FeatureRelease",
-            summary=f"Released: {collection}/{feature_id}",
+        return self.claiming_service.release_feature(
             feature_id=feature_id,
-            payload={"collection": collection, "action": "release"},
+            collection=collection,
+            agent=agent,
         )
-
-        return node
 
     def auto_release_features(self, agent: str) -> list[str]:
         """
@@ -1686,18 +1712,7 @@ class SessionManager:
         Returns:
             List of released feature IDs
         """
-        released = []
-        for collection in ["features", "bugs"]:
-            graph = self._get_graph(collection)
-            for node in graph:
-                if node.agent_assigned == agent:
-                    node.agent_assigned = None
-                    node.claimed_at = None
-                    node.claimed_by_session = None
-                    node.updated = datetime.now()
-                    graph.update(node)
-                    released.append(node.id)
-        return released
+        return self.claiming_service.auto_release_features(agent)
 
     def create_handoff(
         self,
@@ -1861,8 +1876,8 @@ class SessionManager:
                 tool_count = transcript.tool_call_count
                 duration_seconds = int(transcript.duration_seconds or 0)
                 tool_breakdown = transcript.tool_breakdown
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to get transcript analytics for {transcript_id}: {e}")
 
         # Add implemented-by edge with analytics
         edge = Edge(
@@ -1907,8 +1922,8 @@ class SessionManager:
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to get current git commit: {e}")
         return None
 
     # =========================================================================
@@ -2057,8 +2072,8 @@ class SessionManager:
                     session_status=session.status,
                     payload=activity.payload if isinstance(activity.payload, dict) else None,
                 ))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to append transcript event to event log: {e}")
 
         # Update transcript link
         session.transcript_id = transcript_session.session_id

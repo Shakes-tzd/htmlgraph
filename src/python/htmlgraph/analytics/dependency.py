@@ -46,21 +46,29 @@ class DependencyAnalytics:
     - What should we prioritize next?
     - What are the high-risk dependencies?
 
+    Performance: Uses internal caching to optimize transitive dependency calculations.
+    Multiple calls to bottleneck detection or task recommendations reuse cached results.
+    Call invalidate_cache() after graph structure changes to refresh the cache.
+
     Example:
         from htmlgraph import SDK
 
         sdk = SDK(agent="claude")
         dep = sdk.dep_analytics
 
-        # Find bottlenecks
+        # Find bottlenecks (cached internally for performance)
         bottlenecks = dep.find_bottlenecks(top_n=5)
         for bn in bottlenecks:
             print(f"{bn.title} blocks {bn.transitive_blocking} features")
 
-        # Get work recommendations
+        # Get work recommendations (reuses cached data)
         recs = dep.recommend_next_tasks(agent_count=3)
         for rec in recs.recommendations:
             print(f"Work on: {rec.title} (unlocks {len(rec.unlocks)} features)")
+
+        # After making graph changes, invalidate cache
+        sdk.features.update(feature_id, status="done")
+        dep.invalidate_cache()  # Refresh for accurate results
     """
 
     def __init__(self, graph: HtmlGraph):
@@ -72,6 +80,7 @@ class DependencyAnalytics:
         """
         self.graph = graph
         self._edge_index = graph.edge_index
+        self._transitive_cache: dict[str, set[str]] = {}
 
     # === Bottleneck Detection ===
 
@@ -611,8 +620,14 @@ class DependencyAnalytics:
         return [edge_ref.source_id for edge_ref in self._edge_index.get_incoming(node_id)]
 
     def _count_transitive_dependents(self, node_id: str, include_done: bool = False) -> int:
-        """Count all downstream nodes that transitively depend on this node."""
-        return len(self._get_all_transitive_dependents(node_id, include_done=include_done))
+        """
+        Count all downstream nodes that transitively depend on this node.
+
+        Uses cached results when available to improve performance from O(V²+VE) to O(V+E)
+        for repeated calls.
+        """
+        transitive_set = self._get_or_compute_transitive(node_id, include_done)
+        return len(transitive_set)
 
     def _get_all_transitive_dependents(self, node_id: str, include_done: bool = False) -> list[str]:
         """Get all downstream nodes (BFS traversal of dependents)."""
@@ -676,3 +691,45 @@ class DependencyAnalytics:
         # Simple implementation: return individual nodes for now
         # A more sophisticated version would use graph coloring
         return [[nid] for nid in node_ids]
+
+    def _get_or_compute_transitive(self, node_id: str, include_done: bool = False) -> set[str]:
+        """
+        Get or compute transitive dependents with caching.
+
+        Uses a cache to avoid redundant BFS traversals. The cache key combines
+        node_id and include_done flag to ensure correct results for both cases.
+
+        Args:
+            node_id: Node to analyze
+            include_done: Whether to include completed nodes
+
+        Returns:
+            Set of node IDs that transitively depend on this node
+        """
+        cache_key = f"{node_id}:{include_done}"
+
+        if cache_key in self._transitive_cache:
+            return self._transitive_cache[cache_key]
+
+        # Compute transitive dependents via BFS
+        dependents = self._get_all_transitive_dependents(node_id, include_done=include_done)
+        dependents_set = set(dependents)
+
+        # Cache the result
+        self._transitive_cache[cache_key] = dependents_set
+
+        return dependents_set
+
+    def invalidate_cache(self):
+        """
+        Clear the transitive dependency cache.
+
+        Call this method after making structural changes to the graph
+        (adding/removing nodes or edges) to ensure cached results remain accurate.
+
+        Example:
+            analytics = sdk.dep_analytics
+            analytics.invalidate_cache()  # After graph updates
+            bottlenecks = analytics.find_bottlenecks()  # Fresh calculation
+        """
+        self._transitive_cache.clear()

@@ -8,6 +8,7 @@ Provides:
 - Bottleneck detection
 """
 
+import time
 from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any, Callable, Iterator
@@ -18,6 +19,7 @@ from htmlgraph.parser import HtmlParser
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
 from htmlgraph.query_builder import QueryBuilder
 from htmlgraph.find_api import FindAPI
+from htmlgraph.exceptions import NodeNotFoundError
 
 
 class HtmlGraph:
@@ -142,10 +144,10 @@ class HtmlGraph:
             Path to updated HTML file
 
         Raises:
-            KeyError: If node doesn't exist
+            NodeNotFoundError: If node doesn't exist
         """
         if node.id not in self._nodes:
-            raise KeyError(f"Node not found: {node.id}")
+            raise NodeNotFoundError(node.type, node.id)
 
         # Get current outgoing edges from the edge index (source of truth)
         # This handles the case where node and self._nodes[node.id] are the same object
@@ -907,19 +909,30 @@ class HtmlGraph:
         from_id: str,
         to_id: str,
         relationship: str | None = None,
-        max_length: int | None = None
+        max_length: int | None = None,
+        max_paths: int = 100,
+        timeout_seconds: float = 5.0
     ) -> list[list[str]]:
         """
         Find all paths between two nodes.
 
+        WARNING: This method has O(V!) worst-case complexity in dense graphs.
+        Use max_paths and timeout_seconds parameters to limit execution.
+        For most use cases, prefer shortest_path() instead.
+
         Args:
-            from_id: Starting node ID
+            from_id: Source node ID
             to_id: Target node ID
-            relationship: Optional filter to specific edge type
-            max_length: Maximum path length (None = unlimited, but recommended)
+            relationship: Optional edge type filter
+            max_length: Maximum path length
+            max_paths: Maximum number of paths to return (default 100)
+            timeout_seconds: Maximum execution time (default 5.0)
 
         Returns:
-            List of paths, each path is a list of node IDs
+            List of paths (each path is list of node IDs)
+
+        Raises:
+            TimeoutError: If execution exceeds timeout_seconds
         """
         if from_id not in self._nodes or to_id not in self._nodes:
             return []
@@ -929,8 +942,20 @@ class HtmlGraph:
 
         paths: list[list[str]] = []
         adj = self._build_adjacency(relationship)
+        start_time = time.time()
 
         def dfs(current: str, target: str, path: list[str], visited: set[str]):
+            # Check timeout periodically (every recursive call)
+            if time.time() - start_time > timeout_seconds:
+                raise TimeoutError(
+                    f"all_paths() exceeded timeout of {timeout_seconds}s "
+                    f"(found {len(paths)} paths so far)"
+                )
+
+            # Check if we've hit the max_paths limit
+            if len(paths) >= max_paths:
+                return
+
             if max_length and len(path) > max_length:
                 return
 

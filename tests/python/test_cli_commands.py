@@ -276,6 +276,7 @@ def test_cli_init_bootstraps_events_index_and_hooks(temp_graph_dir):
         no_index=False,
         no_update_gitignore=False,
         no_events_keep=False,
+        interactive=False,
     )
 
     cmd_init(args)

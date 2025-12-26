@@ -43,10 +43,23 @@ from pathlib import Path
 from typing import Any
 
 from htmlgraph.models import Node, Step
+from htmlgraph.types import (
+    BottleneckDict,
+    SessionStartInfo,
+    ActiveWorkItem,
+)
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.agents import AgentInterface
 from htmlgraph.track_builder import TrackCollection
-from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
+from htmlgraph.collections import (
+    BaseCollection,
+    FeatureCollection,
+    SpikeCollection,
+    BugCollection,
+    ChoreCollection,
+    EpicCollection,
+    PhaseCollection,
+)
 from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
@@ -121,13 +134,13 @@ class SDK:
             agent_id=agent
         )
 
-        # Collection interfaces - all work item types
+        # Collection interfaces - all work item types (all with builder support)
         self.features = FeatureCollection(self)
-        self.bugs = BaseCollection(self, "bugs", "bug")
-        self.chores = BaseCollection(self, "chores", "chore")
+        self.bugs = BugCollection(self)
+        self.chores = ChoreCollection(self)
         self.spikes = SpikeCollection(self)
-        self.epics = BaseCollection(self, "epics", "epic")
-        self.phases = BaseCollection(self, "phases", "phase")
+        self.epics = EpicCollection(self)
+        self.phases = PhaseCollection(self)
 
         # Non-work collections
         self.sessions = BaseCollection(self, "sessions", "session")
@@ -142,6 +155,9 @@ class SDK:
 
         # Context analytics interface (Context usage tracking)
         self.context = ContextAnalytics(self)
+
+        # Lazy-loaded orchestrator for subagent management
+        self._orchestrator = None
 
     @staticmethod
     def _discover_htmlgraph() -> Path:
@@ -400,9 +416,12 @@ class SDK:
     # Strategic Planning & Analytics (Agent-Friendly Interface)
     # =========================================================================
 
-    def find_bottlenecks(self, top_n: int = 5) -> list[dict[str, Any]]:
+    def find_bottlenecks(self, top_n: int = 5) -> list[BottleneckDict]:
         """
         Identify tasks blocking the most downstream work.
+
+        Note: Prefer using sdk.dep_analytics.find_bottlenecks() directly.
+        This method exists for backward compatibility.
 
         Args:
             top_n: Maximum number of bottlenecks to return
@@ -412,15 +431,35 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> bottlenecks = sdk.dep_analytics.find_bottlenecks(top_n=3)
+            >>> # Or via SDK (backward compatibility)
             >>> bottlenecks = sdk.find_bottlenecks(top_n=3)
             >>> for bn in bottlenecks:
             ...     print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
         """
-        return self._agent_interface.find_bottlenecks(top_n=top_n)
+        bottlenecks = self.dep_analytics.find_bottlenecks(top_n=top_n)
+
+        # Convert to agent-friendly dict format for backward compatibility
+        return [
+            {
+                "id": bn.id,
+                "title": bn.title,
+                "status": bn.status,
+                "priority": bn.priority,
+                "blocks_count": bn.transitive_blocking,
+                "impact_score": bn.weighted_impact,
+                "blocked_tasks": bn.blocked_nodes[:5]
+            }
+            for bn in bottlenecks
+        ]
 
     def get_parallel_work(self, max_agents: int = 5) -> dict[str, Any]:
         """
         Find tasks that can be worked on simultaneously.
+
+        Note: Prefer using sdk.dep_analytics.find_parallelizable_work() directly.
+        This method exists for backward compatibility.
 
         Args:
             max_agents: Maximum number of parallel agents to plan for
@@ -430,15 +469,31 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> report = sdk.dep_analytics.find_parallelizable_work(status="todo")
+            >>> # Or via SDK (backward compatibility)
             >>> parallel = sdk.get_parallel_work(max_agents=3)
             >>> print(f"Can work on {parallel['max_parallelism']} tasks at once")
             >>> print(f"Ready now: {parallel['ready_now']}")
         """
-        return self._agent_interface.get_parallel_work(max_agents=max_agents)
+        report = self.dep_analytics.find_parallelizable_work(status="todo")
+
+        ready_now = report.dependency_levels[0].nodes if report.dependency_levels else []
+
+        return {
+            "max_parallelism": report.max_parallelism,
+            "ready_now": ready_now[:max_agents],
+            "total_ready": len(ready_now),
+            "level_count": len(report.dependency_levels),
+            "next_level": report.dependency_levels[1].nodes if len(report.dependency_levels) > 1 else []
+        }
 
     def recommend_next_work(self, agent_count: int = 1) -> list[dict[str, Any]]:
         """
         Get smart recommendations for what to work on next.
+
+        Note: Prefer using sdk.dep_analytics.recommend_next_tasks() directly.
+        This method exists for backward compatibility.
 
         Considers priority, dependencies, and transitive impact.
 
@@ -450,16 +505,39 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> recs = sdk.dep_analytics.recommend_next_tasks(agent_count=3)
+            >>> # Or via SDK (backward compatibility)
             >>> recs = sdk.recommend_next_work(agent_count=3)
             >>> for rec in recs:
             ...     print(f"{rec['title']} (score: {rec['score']})")
             ...     print(f"  Reasons: {rec['reasons']}")
         """
-        return self._agent_interface.recommend_next_work(agent_count=agent_count)
+        recommendations = self.dep_analytics.recommend_next_tasks(
+            agent_count=agent_count,
+            lookahead=5
+        )
+
+        return [
+            {
+                "id": rec.id,
+                "title": rec.title,
+                "priority": rec.priority,
+                "score": rec.score,
+                "reasons": rec.reasons,
+                "estimated_hours": rec.estimated_effort,
+                "unlocks_count": len(rec.unlocks),
+                "unlocks": rec.unlocks[:3]
+            }
+            for rec in recommendations.recommendations
+        ]
 
     def assess_risks(self) -> dict[str, Any]:
         """
         Assess dependency-related risks in the project.
+
+        Note: Prefer using sdk.dep_analytics.assess_dependency_risk() directly.
+        This method exists for backward compatibility.
 
         Identifies single points of failure, circular dependencies,
         and orphaned tasks.
@@ -469,15 +547,38 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> risk = sdk.dep_analytics.assess_dependency_risk()
+            >>> # Or via SDK (backward compatibility)
             >>> risks = sdk.assess_risks()
             >>> if risks['high_risk_count'] > 0:
             ...     print(f"Warning: {risks['high_risk_count']} high-risk tasks")
         """
-        return self._agent_interface.assess_risks()
+        risk = self.dep_analytics.assess_dependency_risk()
+
+        return {
+            "high_risk_count": len(risk.high_risk),
+            "high_risk_tasks": [
+                {
+                    "id": node.id,
+                    "title": node.title,
+                    "risk_score": node.risk_score,
+                    "risk_factors": [f.description for f in node.risk_factors]
+                }
+                for node in risk.high_risk
+            ],
+            "circular_dependencies": risk.circular_dependencies,
+            "orphaned_count": len(risk.orphaned_nodes),
+            "orphaned_tasks": risk.orphaned_nodes[:5],
+            "recommendations": risk.recommendations
+        }
 
     def analyze_impact(self, node_id: str) -> dict[str, Any]:
         """
         Analyze the impact of completing a specific task.
+
+        Note: Prefer using sdk.dep_analytics.impact_analysis() directly.
+        This method exists for backward compatibility.
 
         Args:
             node_id: Task to analyze
@@ -487,10 +588,22 @@ class SDK:
 
         Example:
             >>> sdk = SDK(agent="claude")
+            >>> # Preferred approach
+            >>> impact = sdk.dep_analytics.impact_analysis("feature-001")
+            >>> # Or via SDK (backward compatibility)
             >>> impact = sdk.analyze_impact("feature-001")
             >>> print(f"Completing this unlocks {impact['unlocks_count']} tasks")
         """
-        return self._agent_interface.analyze_impact(node_id)
+        impact = self.dep_analytics.impact_analysis(node_id)
+
+        return {
+            "node_id": node_id,
+            "direct_dependents": impact.direct_dependents,
+            "total_impact": impact.transitive_dependents,
+            "completion_impact": impact.completion_impact,
+            "unlocks_count": len(impact.affected_nodes),
+            "affected_tasks": impact.affected_nodes[:10]
+        }
 
     def get_work_queue(
         self,
@@ -1113,6 +1226,156 @@ class SDK:
         }
 
     # =========================================================================
+    # Subagent Orchestration
+    # =========================================================================
+
+    @property
+    def orchestrator(self):
+        """
+        Get the subagent orchestrator for spawning explorer/coder agents.
+
+        Lazy-loaded on first access.
+
+        Returns:
+            SubagentOrchestrator instance
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> explorer = sdk.orchestrator.spawn_explorer(
+            ...     task="Find all API endpoints",
+            ...     scope="src/"
+            ... )
+        """
+        if self._orchestrator is None:
+            from htmlgraph.orchestrator import SubagentOrchestrator
+            self._orchestrator = SubagentOrchestrator(self)
+        return self._orchestrator
+
+    def spawn_explorer(
+        self,
+        task: str,
+        scope: str | None = None,
+        patterns: list[str] | None = None,
+        questions: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Spawn an explorer subagent for codebase discovery.
+
+        Explorer agents are optimized for finding files, searching patterns,
+        and mapping code without modifying anything.
+
+        Args:
+            task: What to explore/discover
+            scope: Directory scope (e.g., "src/")
+            patterns: Glob patterns to focus on
+            questions: Specific questions to answer
+
+        Returns:
+            Dict with prompt ready for Task tool
+
+        Example:
+            >>> prompt = sdk.spawn_explorer(
+            ...     task="Find all database models",
+            ...     scope="src/models/",
+            ...     questions=["What ORM is used?"]
+            ... )
+            >>> # Execute with Task tool
+            >>> Task(prompt=prompt["prompt"], description=prompt["description"])
+        """
+        subagent_prompt = self.orchestrator.spawn_explorer(
+            task=task,
+            scope=scope,
+            patterns=patterns,
+            questions=questions,
+        )
+        return subagent_prompt.to_task_kwargs()
+
+    def spawn_coder(
+        self,
+        feature_id: str,
+        context: str | None = None,
+        files_to_modify: list[str] | None = None,
+        test_command: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Spawn a coder subagent for implementing changes.
+
+        Coder agents are optimized for reading, modifying, and testing code.
+
+        Args:
+            feature_id: Feature being implemented
+            context: Results from explorer (string summary)
+            files_to_modify: Specific files to change
+            test_command: Command to verify changes
+
+        Returns:
+            Dict with prompt ready for Task tool
+
+        Example:
+            >>> prompt = sdk.spawn_coder(
+            ...     feature_id="feat-add-auth",
+            ...     context=explorer_results,
+            ...     test_command="uv run pytest tests/auth/"
+            ... )
+            >>> Task(prompt=prompt["prompt"], description=prompt["description"])
+        """
+        subagent_prompt = self.orchestrator.spawn_coder(
+            feature_id=feature_id,
+            context=context,
+            files_to_modify=files_to_modify,
+            test_command=test_command,
+        )
+        return subagent_prompt.to_task_kwargs()
+
+    def orchestrate(
+        self,
+        feature_id: str,
+        exploration_scope: str | None = None,
+        test_command: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Orchestrate full feature implementation with explorer and coder.
+
+        Generates prompts for a two-phase workflow:
+        1. Explorer discovers relevant code and patterns
+        2. Coder implements the feature based on explorer findings
+
+        Args:
+            feature_id: Feature to implement
+            exploration_scope: Directory to explore
+            test_command: Test command for verification
+
+        Returns:
+            Dict with explorer and coder prompts
+
+        Example:
+            >>> prompts = sdk.orchestrate(
+            ...     "feat-add-caching",
+            ...     exploration_scope="src/cache/",
+            ...     test_command="uv run pytest tests/cache/"
+            ... )
+            >>> # Phase 1: Run explorer
+            >>> Task(prompt=prompts["explorer"]["prompt"], ...)
+            >>> # Phase 2: Run coder with explorer results
+            >>> Task(prompt=prompts["coder"]["prompt"], ...)
+        """
+        prompts = self.orchestrator.orchestrate_feature(
+            feature_id=feature_id,
+            exploration_scope=exploration_scope,
+            test_command=test_command,
+        )
+        return {
+            "explorer": prompts["explorer"].to_task_kwargs(),
+            "coder": prompts["coder"].to_task_kwargs(),
+            "workflow": [
+                "1. Execute explorer Task and collect results",
+                "2. Parse explorer results for files and patterns",
+                "3. Execute coder Task with explorer context",
+                "4. Verify coder results and update feature status",
+            ],
+        }
+
+    # =========================================================================
     # Session Management Optimization
     # =========================================================================
 
@@ -1122,7 +1385,7 @@ class SDK:
         git_log_count: int = 5,
         analytics_top_n: int = 3,
         analytics_max_agents: int = 3
-    ) -> dict[str, Any]:
+    ) -> SessionStartInfo:
         """
         Get comprehensive session start information in a single call.
 
@@ -1149,7 +1412,7 @@ class SDK:
             >>> info = sdk.get_session_start_info()
             >>> print(f"Project: {info['status']['total_nodes']} nodes")
             >>> print(f"WIP: {info['status']['in_progress_count']}")
-            >>> if info['active_work']:
+            >>> if info.get('active_work'):
             ...     print(f"Active: {info['active_work']['title']}")
             >>> for bn in info['analytics']['bottlenecks']:
             ...     print(f"Bottleneck: {bn['title']}")
@@ -1217,7 +1480,7 @@ class SDK:
         agent: str | None = None,
         filter_by_agent: bool = False,
         work_types: list[str] | None = None
-    ) -> dict[str, Any] | None:
+    ) -> ActiveWorkItem | None:
         """
         Get the currently active work item (in-progress status).
 

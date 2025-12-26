@@ -5,6 +5,13 @@ A lightweight graph database framework using HTML files as nodes,
 hyperlinks as edges, and CSS selectors as the query language.
 """
 
+from htmlgraph.exceptions import (
+    HtmlGraphError,
+    NodeNotFoundError,
+    SessionNotFoundError,
+    ClaimConflictError,
+    ValidationError,
+)
 from htmlgraph.models import (
     Node,
     Edge,
@@ -35,9 +42,39 @@ from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 from htmlgraph.parallel import ParallelWorkflow, ParallelAnalysis, AggregateResult
+from htmlgraph.types import (
+    BottleneckDict,
+    WorkRecommendation,
+    ParallelWorkInfo,
+    RiskAssessmentDict,
+    HighRiskTask,
+    ImpactAnalysisDict,
+    SessionStartInfo,
+    ProjectStatus,
+    ActiveWorkItem,
+    FeatureSummary,
+    SessionSummary,
+    SessionAnalytics,
+    WorkQueueItem,
+    SmartPlanResult,
+    PlanningContext,
+    TrackCreationResult,
+    SubagentPrompt,
+    OrchestrationResult,
+    ParallelPlanResult,
+    TaskPrompt,
+    ParallelGuidelines,
+    AggregateResultsDict,
+)
 
 __version__ = "0.13.3"
 __all__ = [
+    # Exceptions
+    "HtmlGraphError",
+    "NodeNotFoundError",
+    "SessionNotFoundError",
+    "ClaimConflictError",
+    "ValidationError",
     # Core models
     "Node",
     "Edge",
@@ -94,4 +131,27 @@ __all__ = [
     "ParallelWorkflow",
     "ParallelAnalysis",
     "AggregateResult",
+    # Type definitions (TypedDict for SDK return types)
+    "BottleneckDict",
+    "WorkRecommendation",
+    "ParallelWorkInfo",
+    "RiskAssessmentDict",
+    "HighRiskTask",
+    "ImpactAnalysisDict",
+    "SessionStartInfo",
+    "ProjectStatus",
+    "ActiveWorkItem",
+    "FeatureSummary",
+    "SessionSummary",
+    "SessionAnalytics",
+    "WorkQueueItem",
+    "SmartPlanResult",
+    "PlanningContext",
+    "TrackCreationResult",
+    "SubagentPrompt",
+    "OrchestrationResult",
+    "ParallelPlanResult",
+    "TaskPrompt",
+    "ParallelGuidelines",
+    "AggregateResultsDict",
 ]
