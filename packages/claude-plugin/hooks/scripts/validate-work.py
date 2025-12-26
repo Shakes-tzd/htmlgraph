@@ -276,13 +276,17 @@ def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict
             result["guidance"] = " | ".join(guidance_parts)
         return result
 
-    # Step 2: Direct writes to .htmlgraph/ - provide SDK guidance
+    # Step 2: Direct writes to .htmlgraph/ - BLOCK (not guidance)
+    # This is the ONLY blocking rule - all other rules are guidance only
     is_htmlgraph_write, file_path = is_direct_htmlgraph_write(tool, params)
     if is_htmlgraph_write:
-        guidance_parts.append("Direct writes to .htmlgraph/ bypass the SDK. Consider using SDK commands.")
-        result["guidance"] = " | ".join(guidance_parts)
-        result["suggestion"] = "Use SDK: uv run htmlgraph feature create"
-        return result
+        # Return blocking response - this will be handled specially
+        return {
+            "decision": "block",
+            "reason": f"BLOCKED: Direct edits to .htmlgraph/ files are not allowed. File: {file_path}",
+            "suggestion": "Use SDK instead: `from htmlgraph import SDK; sdk = SDK(); sdk.features.complete('id')`",
+            "documentation": "See AGENTS.md line 3: 'AI agents must NEVER edit .htmlgraph/ HTML files directly'"
+        }
 
     # Step 3: Classify operation
     is_sdk_cmd = is_sdk_command(tool, params, config)
@@ -353,11 +357,14 @@ def main():
         history = record_tool(tool, history)
         save_tool_history(history)
 
-        # Output JSON with guidance
+        # Output JSON with guidance/block message
         print(json.dumps(result))
 
-        # ALWAYS exit 0 - guidance mode never blocks
-        sys.exit(0)
+        # Exit 1 to BLOCK if decision is "block", otherwise allow
+        if result.get("decision") == "block":
+            sys.exit(1)
+        else:
+            sys.exit(0)
 
     except Exception as e:
         # Graceful degradation - allow on error
