@@ -1310,6 +1310,177 @@ def cmd_transcript_auto_link(args):
             print(f"No sessions to link for branch '{branch}'")
 
 
+def cmd_transcript_health(args):
+    """Show session health metrics from transcript."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    health = analytics.calculate_session_health(args.transcript_id)
+
+    if not health:
+        print(f"Error: Could not analyze transcript {args.transcript_id}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.format == "json":
+        print(json.dumps({
+            "session_id": health.session_id,
+            "overall_score": round(health.overall_score(), 2),
+            "efficiency_score": round(health.efficiency_score, 2),
+            "retry_rate": round(health.retry_rate, 2),
+            "context_rebuild_count": health.context_rebuild_count,
+            "tool_diversity": round(health.tool_diversity, 2),
+            "prompt_clarity_score": round(health.prompt_clarity_score, 2),
+            "error_recovery_rate": round(health.error_recovery_rate, 2),
+            "duration_seconds": round(health.duration_seconds, 1),
+            "tools_per_minute": round(health.tools_per_minute, 1),
+        }, indent=2))
+    else:
+        score = health.overall_score()
+        grade = "🟢 Excellent" if score > 0.8 else "🟡 Good" if score > 0.6 else "🟠 Fair" if score > 0.4 else "🔴 Needs Work"
+
+        print(f"Session Health: {args.transcript_id[:12]}...")
+        print(f"{'='*50}")
+        print(f"Overall Score: {score:.0%} {grade}")
+        print()
+        print(f"📊 Efficiency:      {health.efficiency_score:.0%}")
+        print(f"🔄 Retry Rate:      {health.retry_rate:.0%} {'⚠️' if health.retry_rate > 0.3 else '✓'}")
+        print(f"📚 Context Rebuilds: {health.context_rebuild_count} {'⚠️' if health.context_rebuild_count > 5 else '✓'}")
+        print(f"🔧 Tool Diversity:  {health.tool_diversity:.0%}")
+        print(f"💬 Prompt Clarity:  {health.prompt_clarity_score:.0%}")
+        print(f"🔧 Error Recovery:  {health.error_recovery_rate:.0%}")
+        print()
+        dur_mins = int(health.duration_seconds // 60)
+        dur_secs = int(health.duration_seconds % 60)
+        print(f"⏱️  Duration: {dur_mins}m {dur_secs}s | Tools/min: {health.tools_per_minute:.1f}")
+
+
+def cmd_transcript_patterns(args):
+    """Detect workflow patterns in transcripts."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    patterns = analytics.detect_patterns(
+        transcript_id=args.transcript_id,
+        min_length=args.min_length,
+        max_length=args.max_length,
+    )
+
+    if args.format == "json":
+        print(json.dumps([{
+            "sequence": p.sequence,
+            "count": p.count,
+            "category": p.category,
+        } for p in patterns], indent=2))
+    else:
+        print("Workflow Patterns Detected")
+        print("=" * 50)
+
+        optimal = [p for p in patterns if p.category == "optimal"]
+        anti = [p for p in patterns if p.category == "anti-pattern"]
+        neutral = [p for p in patterns if p.category == "neutral"][:10]
+
+        if optimal:
+            print("\n✅ Optimal Patterns:")
+            for p in optimal:
+                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+
+        if anti:
+            print("\n⚠️ Anti-Patterns:")
+            for p in anti:
+                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+
+        if neutral:
+            print("\n📊 Common Patterns:")
+            for p in neutral:
+                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+
+
+def cmd_transcript_transitions(args):
+    """Show tool transition matrix."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    transitions = analytics.get_tool_transitions(transcript_id=args.transcript_id)
+
+    if args.format == "json":
+        print(json.dumps(transitions, indent=2))
+    else:
+        print("Tool Transition Matrix")
+        print("=" * 50)
+        print("(from_tool → to_tool: count)")
+        print()
+
+        # Flatten and sort
+        flat = []
+        for from_tool, tos in transitions.items():
+            for to_tool, count in tos.items():
+                flat.append((from_tool, to_tool, count))
+
+        flat.sort(key=lambda x: -x[2])
+
+        for from_t, to_t, count in flat[:20]:
+            bar = "█" * min(count, 20)
+            print(f"  {from_t:12} → {to_t:12} {count:4} {bar}")
+
+
+def cmd_transcript_recommendations(args):
+    """Get workflow improvement recommendations."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    recommendations = analytics.generate_recommendations(transcript_id=args.transcript_id)
+
+    if args.format == "json":
+        print(json.dumps({"recommendations": recommendations}, indent=2))
+    else:
+        print("Workflow Recommendations")
+        print("=" * 50)
+        for rec in recommendations:
+            print(f"  {rec}")
+
+
+def cmd_transcript_insights(args):
+    """Get comprehensive transcript insights."""
+    import json
+    from htmlgraph.transcript_analytics import TranscriptAnalytics
+
+    analytics = TranscriptAnalytics(args.graph_dir)
+    insights = analytics.get_insights()
+
+    if args.format == "json":
+        print(json.dumps({
+            "total_sessions": insights.total_sessions,
+            "total_user_messages": insights.total_user_messages,
+            "total_tool_calls": insights.total_tool_calls,
+            "tool_frequency": insights.tool_frequency,
+            "avg_session_health": round(insights.avg_session_health, 2),
+            "recommendations": insights.recommendations,
+        }, indent=2))
+    else:
+        print("📊 Transcript Insights")
+        print("=" * 50)
+        print(f"Sessions Analyzed: {insights.total_sessions}")
+        print(f"Total User Messages: {insights.total_user_messages}")
+        print(f"Total Tool Calls: {insights.total_tool_calls}")
+        print(f"Avg Session Health: {insights.avg_session_health:.0%}")
+        print()
+
+        if insights.tool_frequency:
+            print("🔧 Top Tools:")
+            for tool, count in list(insights.tool_frequency.items())[:8]:
+                bar = "█" * min(count // 5, 15)
+                print(f"   {tool:15} {count:4} {bar}")
+
+        print()
+        print("💡 Recommendations:")
+        for rec in insights.recommendations[:5]:
+            print(f"   {rec}")
+
+
 def cmd_track(args):
     """Track an activity in the current session."""
     from htmlgraph import SDK
@@ -2480,6 +2651,37 @@ curl Examples:
     transcript_auto_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
     transcript_auto_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
 
+    # transcript health (analytics)
+    transcript_health = transcript_subparsers.add_parser("health", help="Show session health metrics from transcript")
+    transcript_health.add_argument("transcript_id", help="Transcript/session ID to analyze")
+    transcript_health.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_health.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript patterns (analytics)
+    transcript_patterns = transcript_subparsers.add_parser("patterns", help="Detect workflow patterns in transcripts")
+    transcript_patterns.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
+    transcript_patterns.add_argument("--min-length", type=int, default=3, help="Minimum pattern length (default: 3)")
+    transcript_patterns.add_argument("--max-length", type=int, default=5, help="Maximum pattern length (default: 5)")
+    transcript_patterns.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_patterns.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript transitions (analytics)
+    transcript_transitions = transcript_subparsers.add_parser("transitions", help="Show tool transition matrix")
+    transcript_transitions.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
+    transcript_transitions.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_transitions.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript recommendations (analytics)
+    transcript_recs = transcript_subparsers.add_parser("recommendations", help="Get workflow improvement recommendations")
+    transcript_recs.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
+    transcript_recs.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_recs.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
+    # transcript insights (analytics)
+    transcript_insights = transcript_subparsers.add_parser("insights", help="Get comprehensive transcript insights")
+    transcript_insights.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    transcript_insights.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+
     # =========================================================================
     # Work Management (Smart Routing)
     # =========================================================================
@@ -2847,6 +3049,16 @@ curl Examples:
             cmd_transcript_stats(args)
         elif args.transcript_command == "auto-link":
             cmd_transcript_auto_link(args)
+        elif args.transcript_command == "health":
+            cmd_transcript_health(args)
+        elif args.transcript_command == "patterns":
+            cmd_transcript_patterns(args)
+        elif args.transcript_command == "transitions":
+            cmd_transcript_transitions(args)
+        elif args.transcript_command == "recommendations":
+            cmd_transcript_recommendations(args)
+        elif args.transcript_command == "insights":
+            cmd_transcript_insights(args)
         else:
             transcript_parser.print_help()
             sys.exit(1)
