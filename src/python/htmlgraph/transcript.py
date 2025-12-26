@@ -122,6 +122,16 @@ class TranscriptEntry:
                         tool_name = block.get("name")
                         tool_input = block.get("input")
                         break
+        elif entry_type == "assistant":
+            # Web sessions embed tool_use blocks inside assistant entries
+            if isinstance(message, dict) and isinstance(message.get("content"), list):
+                for block in message["content"]:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
+                        tool_name = block.get("name")
+                        tool_input = block.get("input")
+                        # Mark this as a tool_use entry for counting
+                        entry_type = "tool_use"
+                        break
         elif entry_type == "tool_result":
             tool_result = message_content
 
