@@ -240,11 +240,11 @@
         <nav class="track-nav">
             <a href="#top" class="nav-link">Track</a><a href="#overview" class="nav-link">Spec</a><a href="#plan" class="nav-link">Plan</a>
         </nav>
-    <article id="trk-94e3a767" data-type="track" data-status="todo" data-priority="high">
+    <article id="trk-94e3a767" data-type="track" data-status="in-progress" data-priority="high">
         <header id="top">
             <h1>Technical Debt Resolution: Performance & API Quality</h1>
             <div class="metadata">
-                <span class="badge status-todo">Planned</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-high">High Priority</span>
                 <span class="badge">Created: 2025-12-27</span>
             </div>
@@ -296,77 +296,77 @@
                 <h2>Implementation Plan</h2>
                 <div class="progress-container">
                     <div class="progress-info">
-                        <span class="progress-label">0% Complete</span>
-                        <span class="progress-count">(0/16 tasks)</span>
+                        <span class="progress-label">50% Complete</span>
+                        <span class="progress-count">(8/16 tasks)</span>
                     </div>
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: 0%"></div>
+                        <div class="progress-fill" style="width: 50%"></div>
                     </div>
                 </div>
                 <div class="phases-container">
                     
-                <details open data-phase="phase-1">
-                    <summary>Phase 1: Phase 1: Immediate Wins (2-3 hours) (0/4 tasks)</summary>
-                    
-                    <div data-task="task-1-1" data-status="todo">
-                        <input type="checkbox"  disabled>
+                <details data-phase="phase-1">
+                    <summary>Phase 1: Phase 1: Immediate Wins (2-3 hours) (4/4 tasks) ✅</summary>
+
+                    <div data-task="task-1-1" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Lazy load by default - change auto_load=False in HtmlGraph.__init__</strong>
+                            <strong>✓ Lazy load by default - change auto_load=False in HtmlGraph.__init__</strong>
                         </div>
-                        
+
                     </div>
-                    <div data-task="task-1-2" data-status="todo">
-                        <input type="checkbox"  disabled>
+                    <div data-task="task-1-2" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Skip unrelated files in file watcher - add collection-aware filtering</strong>
+                            <strong>✓ Skip unrelated files in file watcher - add collection-aware filtering</strong>
                         </div>
-                        
+
                     </div>
-                    <div data-task="task-1-3" data-status="todo">
-                        <input type="checkbox"  disabled>
+                    <div data-task="task-1-3" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Use cached nodes for queries - eliminate disk I/O in query()</strong>
+                            <strong>✓ Use cached nodes for queries - eliminate disk I/O in query()</strong>
                         </div>
-                        
+
                     </div>
-                    <div data-task="task-1-4" data-status="todo">
-                        <input type="checkbox"  disabled>
+                    <div data-task="task-1-4" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Add result caching - lru_cache for repeated queries with invalidation</strong>
+                            <strong>✓ Add result caching - lru_cache for repeated queries with invalidation</strong>
                         </div>
-                        
+
                     </div>
                 </details>
-                <details  data-phase="phase-2">
-                    <summary>Phase 2: Phase 2: Low-Risk Improvements (3-5 hours) (0/4 tasks)</summary>
-                    
-                    <div data-task="task-2-1" data-status="todo">
-                        <input type="checkbox"  disabled>
+                <details data-phase="phase-2">
+                    <summary>Phase 2: Phase 2: Low-Risk Improvements (3-5 hours) (4/4 tasks) ✅</summary>
+
+                    <div data-task="task-2-1" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Single node reload - add reload_node(id) method to HtmlGraph</strong>
+                            <strong>✓ Single node reload - add reload_node(id) method to HtmlGraph</strong>
                         </div>
-                        
+
                     </div>
-                    <div data-task="task-2-2" data-status="todo">
-                        <input type="checkbox"  disabled>
+                    <div data-task="task-2-2" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Incremental edge index - add/remove_node instead of full rebuild</strong>
+                            <strong>✓ Incremental edge index - add/remove_node instead of full rebuild</strong>
                         </div>
-                        
+
                     </div>
-                    <div data-task="task-2-3" data-status="todo">
-                        <input type="checkbox"  disabled>
+                    <div data-task="task-2-3" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Document error handling patterns - update SDK docstring with patterns</strong>
+                            <strong>✓ Document error handling patterns - update SDK docstring with patterns</strong>
                         </div>
-                        
+
                     </div>
-                    <div data-task="task-2-4" data-status="todo">
-                        <input type="checkbox"  disabled>
+                    <div data-task="task-2-4" data-status="done">
+                        <input type="checkbox" checked disabled>
                         <div>
-                            <strong>○ Add performance metrics - track query times, cache hits, reload counts</strong>
+                            <strong>✓ Add performance metrics - track query times, cache hits, reload counts</strong>
                         </div>
-                        
+
                     </div>
                 </details>
                 <details  data-phase="phase-3">
