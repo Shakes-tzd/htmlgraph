@@ -996,7 +996,9 @@ class AgentInterface:
                         "priority": task.priority,
                         "status": task.status,
                         "score": round(score, 2),
-                        "required_capabilities": getattr(task, "required_capabilities", None),
+                        "required_capabilities": getattr(
+                            task, "required_capabilities", None
+                        ),
                         "complexity": getattr(task, "complexity", None),
                         "estimated_effort": getattr(task, "estimated_effort", None),
                     }
