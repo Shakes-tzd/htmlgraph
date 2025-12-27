@@ -4,6 +4,7 @@ Active Learning Persistence Module.
 Bridges TranscriptAnalytics to the HtmlGraph for persistent learning.
 Analyzes sessions and persists patterns, insights, and metrics to the graph.
 """
+
 from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -43,16 +44,18 @@ class LearningPersistence:
         health = self._calculate_health(session)
 
         # Create insight
-        insight = self.sdk.insights.create(f"Session Analysis: {session_id}") \
-            .for_session(session_id) \
+        insight = (
+            self.sdk.insights.create(f"Session Analysis: {session_id}")
+            .for_session(session_id)
             .set_health_scores(
                 efficiency=health.get("efficiency", 0.0),
                 retry_rate=health.get("retry_rate", 0.0),
                 context_rebuilds=health.get("context_rebuilds", 0),
                 tool_diversity=health.get("tool_diversity", 0.0),
                 error_recovery=health.get("error_recovery", 0.0),
-            ) \
+            )
             .save()
+        )
 
         # Add issues
         for issue in health.get("issues", []):
@@ -80,7 +83,7 @@ class LearningPersistence:
             "recommendations": [],
         }
 
-        if not hasattr(session, 'activity_log') or not session.activity_log:
+        if not hasattr(session, "activity_log") or not session.activity_log:
             return health
 
         activities = session.activity_log
@@ -90,7 +93,9 @@ class LearningPersistence:
             return health
 
         # Count tool usage
-        tools = [a.tool if hasattr(a, 'tool') else a.get('tool', '') for a in activities]
+        tools = [
+            a.tool if hasattr(a, "tool") else a.get("tool", "") for a in activities
+        ]
         tool_counts = Counter(tools)
         unique_tools = len(tool_counts)
 
@@ -98,13 +103,25 @@ class LearningPersistence:
         health["tool_diversity"] = min(unique_tools / 10.0, 1.0)
 
         # Detect retries (same tool twice in a row)
-        retries = sum(1 for i in range(1, len(tools)) if tools[i] == tools[i-1])
+        retries = sum(1 for i in range(1, len(tools)) if tools[i] == tools[i - 1])
         health["retry_rate"] = retries / total if total > 0 else 0.0
 
         # Detect context rebuilds (Read same file multiple times)
-        reads = [a for a in activities if (hasattr(a, 'tool') and a.tool == 'Read') or (isinstance(a, dict) and a.get('tool') == 'Read')]
+        reads = [
+            a
+            for a in activities
+            if (hasattr(a, "tool") and a.tool == "Read")
+            or (isinstance(a, dict) and a.get("tool") == "Read")
+        ]
         if reads:
-            read_targets = [str(getattr(r, 'summary', '') if hasattr(r, 'summary') else r.get('summary', '')) for r in reads]
+            read_targets = [
+                str(
+                    getattr(r, "summary", "")
+                    if hasattr(r, "summary")
+                    else r.get("summary", "")
+                )
+                for r in reads
+            ]
             rebuild_count = len(read_targets) - len(set(read_targets))
             health["context_rebuilds"] = rebuild_count
 
@@ -115,10 +132,14 @@ class LearningPersistence:
         # Generate issues
         if health["retry_rate"] > 0.2:
             health["issues"].append(f"High retry rate: {health['retry_rate']:.0%}")
-            health["recommendations"].append("Consider reading more context before acting")
+            health["recommendations"].append(
+                "Consider reading more context before acting"
+            )
 
         if health["context_rebuilds"] > 2:
-            health["issues"].append(f"Excessive context rebuilds: {health['context_rebuilds']}")
+            health["issues"].append(
+                f"Excessive context rebuilds: {health['context_rebuilds']}"
+            )
             health["recommendations"].append("Cache file contents or take notes")
 
         if health["tool_diversity"] < 0.3:
@@ -139,14 +160,14 @@ class LearningPersistence:
         # Collect tool sequences from all sessions
         sequences = []
         for session in self.sdk.sessions.all():
-            if hasattr(session, 'activity_log') and session.activity_log:
+            if hasattr(session, "activity_log") and session.activity_log:
                 tools = [
-                    a.tool if hasattr(a, 'tool') else a.get('tool', '')
+                    a.tool if hasattr(a, "tool") else a.get("tool", "")
                     for a in session.activity_log
                 ]
                 # Extract 3-tool sequences
                 for i in range(len(tools) - 2):
-                    seq = tools[i:i+3]
+                    seq = tools[i : i + 3]
                     if all(seq):  # No empty tools
                         sequences.append(tuple(seq))
 
@@ -169,10 +190,12 @@ class LearningPersistence:
                 else:
                     # Create new pattern
                     pattern_type = self._classify_pattern(list(seq))
-                    pattern = self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}") \
-                        .set_sequence(list(seq)) \
-                        .set_pattern_type(pattern_type) \
+                    pattern = (
+                        self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}")
+                        .set_sequence(list(seq))
+                        .set_pattern_type(pattern_type)
                         .save()
+                    )
                     pattern.detection_count = count
                     pattern.first_detected = datetime.now()
                     pattern.last_detected = datetime.now()
@@ -237,8 +260,10 @@ class LearningPersistence:
         # Collect insights for this period
         insights = list(self.sdk.insights.all())
         period_insights = [
-            i for i in insights
-            if hasattr(i, 'analyzed_at') and i.analyzed_at
+            i
+            for i in insights
+            if hasattr(i, "analyzed_at")
+            and i.analyzed_at
             and start <= i.analyzed_at <= end
         ]
 
@@ -251,29 +276,40 @@ class LearningPersistence:
 
         # Calculate aggregate metrics
         efficiency_scores = [
-            getattr(i, 'efficiency_score', 0.0)
+            getattr(i, "efficiency_score", 0.0)
             for i in period_insights
-            if getattr(i, 'efficiency_score', None)
+            if getattr(i, "efficiency_score", None)
         ]
-        avg_efficiency = sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.0
+        avg_efficiency = (
+            sum(efficiency_scores) / len(efficiency_scores)
+            if efficiency_scores
+            else 0.0
+        )
 
         # Create metric
-        metric = self.sdk.metrics.create(f"Efficiency Metric: {period} ending {end.strftime('%Y-%m-%d')}") \
-            .set_scope("session") \
-            .set_period(period, start, end) \
-            .set_metrics({
-                "avg_efficiency": avg_efficiency,
-                "sessions_analyzed": len(period_insights),
-            }) \
+        metric = (
+            self.sdk.metrics.create(
+                f"Efficiency Metric: {period} ending {end.strftime('%Y-%m-%d')}"
+            )
+            .set_scope("session")
+            .set_period(period, start, end)
+            .set_metrics(
+                {
+                    "avg_efficiency": avg_efficiency,
+                    "sessions_analyzed": len(period_insights),
+                }
+            )
             .save()
+        )
 
         # Note: After save(), metric is a Node object
         # The sessions_in_period is tracked in metric_values
         metric.properties = metric.properties or {}
         metric.properties["data_points_count"] = len(period_insights)
         metric.properties["sessions_in_period"] = [
-            getattr(i, 'session_id', i.id) for i in period_insights
-            if hasattr(i, 'session_id') or hasattr(i, 'id')
+            getattr(i, "session_id", i.id)
+            for i in period_insights
+            if hasattr(i, "session_id") or hasattr(i, "id")
         ]
         self.sdk.metrics.update(metric)
 

@@ -82,21 +82,32 @@ class BaseCollection(Generic[CollectionT]):
         """Return attributes with most useful ones first for discoverability."""
         priority = [
             # Creation and retrieval
-            'create', 'get', 'all', 'where', 'filter',
+            "create",
+            "get",
+            "all",
+            "where",
+            "filter",
             # Work management
-            'start', 'complete', 'claim', 'release',
+            "start",
+            "complete",
+            "claim",
+            "release",
             # Editing
-            'edit', 'update',
+            "edit",
+            "update",
             # Batch operations
-            'mark_done', 'assign', 'batch_update',
+            "mark_done",
+            "assign",
+            "batch_update",
             # Deletion
-            'delete', 'batch_delete',
+            "delete",
+            "batch_delete",
         ]
         # Get all attributes
         all_attrs = object.__dir__(self)
         # Separate into priority, regular, and dunder attributes
-        regular = [a for a in all_attrs if not a.startswith('_') and a not in priority]
-        dunder = [a for a in all_attrs if a.startswith('_')]
+        regular = [a for a in all_attrs if not a.startswith("_") and a not in priority]
+        dunder = [a for a in all_attrs if a.startswith("_")]
         # Return priority items first, then regular, then dunder
         return priority + regular + dunder
 

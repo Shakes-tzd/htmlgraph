@@ -112,7 +112,9 @@ class GraphSnapshot:
             directory: Graph directory (for context)
         """
         # Deep copy to prevent external mutations
-        self._nodes = {node_id: node.model_copy(deep=True) for node_id, node in nodes.items()}
+        self._nodes = {
+            node_id: node.model_copy(deep=True) for node_id, node in nodes.items()
+        }
         self._directory = directory
 
     def get(self, node_id: str) -> Node | None:
@@ -191,8 +193,7 @@ class GraphSnapshot:
     def nodes(self) -> dict[str, Node]:
         """Get all nodes as a dict (returns copies)."""
         return {
-            node_id: node.model_copy(deep=True)
-            for node_id, node in self._nodes.items()
+            node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()
         }
 
 
@@ -453,7 +454,6 @@ class HtmlGraph:
         self._ensure_loaded()
         return iter(self._nodes.values())
 
-
     # =========================================================================
     # Memory-Efficient Loading (for large graphs 10K+ nodes)
     # =========================================================================
@@ -483,7 +483,7 @@ class HtmlGraph:
         # Yield nodes in chunks
         for i in range(0, len(files), chunk_size):
             chunk = []
-            for filepath in files[i:i+chunk_size]:
+            for filepath in files[i : i + chunk_size]:
                 try:
                     node_id = self._filepath_to_node_id(filepath)
                     node = self._converter.load(node_id)
@@ -537,7 +537,6 @@ class HtmlGraph:
             Graph has 42 nodes
         """
         return len(self._get_node_files())
-
 
     # =========================================================================
 
@@ -602,7 +601,9 @@ class HtmlGraph:
                 pass  # No changes persisted
         """
         # Create snapshot before transaction
-        snapshot_nodes = {node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()}
+        snapshot_nodes = {
+            node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()
+        }
         snapshot_file_hashes = self._file_hashes.copy()
 
         # Transaction context for collecting operations
@@ -613,7 +614,9 @@ class HtmlGraph:
 
             def add(self, node: Node, overwrite: bool = False) -> "TransactionContext":
                 """Queue an add operation."""
-                self._operations.append(lambda: self._graph.add(node, overwrite=overwrite))
+                self._operations.append(
+                    lambda: self._graph.add(node, overwrite=overwrite)
+                )
                 return self
 
             def update(self, node: Node) -> "TransactionContext":

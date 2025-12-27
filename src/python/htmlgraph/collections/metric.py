@@ -66,9 +66,7 @@ class MetricCollection(BaseCollection["MetricCollection"]):
         if not results:
             return None
         # Sort by period_end descending (most recent first)
-        results.sort(
-            key=lambda m: getattr(m, "period_end", "") or "", reverse=True
-        )
+        results.sort(key=lambda m: getattr(m, "period_end", "") or "", reverse=True)
         return results[0]
 
     def get_trend(self, scope: str = "session") -> list[Node]:

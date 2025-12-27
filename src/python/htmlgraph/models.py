@@ -1429,6 +1429,7 @@ class Pattern(Node):
     Stores detected tool sequences that are either optimal patterns
     to encourage or anti-patterns to avoid.
     """
+
     pattern_type: Literal["optimal", "anti-pattern", "neutral"] = "neutral"
     sequence: list[str] = Field(default_factory=list)  # ["Bash", "Edit", "Read"]
 
@@ -1460,6 +1461,7 @@ class SessionInsight(Node):
     Stores efficiency scores, detected issues, and recommendations
     for a specific session.
     """
+
     session_id: str = ""
     insight_type: Literal["health", "recommendation", "anomaly"] = "health"
 
@@ -1493,7 +1495,10 @@ class AggregatedMetric(Node):
 
     Stores weekly/monthly aggregated metrics for trend analysis.
     """
-    metric_type: Literal["efficiency", "context_usage", "tool_distribution"] = "efficiency"
+
+    metric_type: Literal["efficiency", "context_usage", "tool_distribution"] = (
+        "efficiency"
+    )
     scope: Literal["session", "feature", "track", "agent"] = "session"
     scope_id: str | None = None
 
@@ -1504,7 +1509,9 @@ class AggregatedMetric(Node):
 
     # Metrics
     metric_values: dict[str, float] = Field(default_factory=dict)
-    percentiles: dict[str, float] = Field(default_factory=dict)  # {"p50": 0.8, "p90": 0.9}
+    percentiles: dict[str, float] = Field(
+        default_factory=dict
+    )  # {"p50": 0.8, "p90": 0.9}
 
     # Trend
     trend_direction: Literal["improving", "stable", "declining"] = "stable"

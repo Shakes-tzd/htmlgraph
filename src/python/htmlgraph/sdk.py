@@ -1788,27 +1788,43 @@ For detailed help on a topic:
         """Return attributes with most useful ones first for discoverability."""
         priority = [
             # Work item managers
-            'features', 'bugs', 'spikes', 'chores', 'epics', 'phases',
+            "features",
+            "bugs",
+            "spikes",
+            "chores",
+            "epics",
+            "phases",
             # Non-work collections
-            'tracks', 'sessions', 'agents',
+            "tracks",
+            "sessions",
+            "agents",
             # Learning collections
-            'patterns', 'insights', 'metrics',
+            "patterns",
+            "insights",
+            "metrics",
             # Orchestration
-            'spawn_explorer', 'spawn_coder', 'orchestrate',
+            "spawn_explorer",
+            "spawn_coder",
+            "orchestrate",
             # Session management
-            'get_session_start_info', 'start_session', 'end_session',
+            "get_session_start_info",
+            "start_session",
+            "end_session",
             # Strategic analytics
-            'find_bottlenecks', 'recommend_next_work', 'get_parallel_work',
+            "find_bottlenecks",
+            "recommend_next_work",
+            "get_parallel_work",
             # Work queue
-            'get_work_queue', 'work_next',
+            "get_work_queue",
+            "work_next",
             # Help
-            'help',
+            "help",
         ]
         # Get all attributes
         all_attrs = object.__dir__(self)
         # Separate into priority, regular, and dunder attributes
-        regular = [a for a in all_attrs if not a.startswith('_') and a not in priority]
-        dunder = [a for a in all_attrs if a.startswith('_')]
+        regular = [a for a in all_attrs if not a.startswith("_") and a not in priority]
+        dunder = [a for a in all_attrs if a.startswith("_")]
         # Return priority items first, then regular, then dunder
         return priority + regular + dunder
 

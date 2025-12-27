@@ -281,7 +281,9 @@ class EdgeIndex:
                     removed += 1
         return removed
 
-    def update_node(self, node_id: str, old_node: Node, new_node: Node) -> tuple[int, int]:
+    def update_node(
+        self, node_id: str, old_node: Node, new_node: Node
+    ) -> tuple[int, int]:
         """
         Update a node's edges atomically (remove old, add new).
 
