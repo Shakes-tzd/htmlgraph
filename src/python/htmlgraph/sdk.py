@@ -83,6 +83,16 @@ class SDK:
         - tracks: Work tracks
         - agents: Agent information
 
+    Error Handling:
+        SDK methods return None or empty results on errors rather than raising.
+        Check return values before using:
+
+        >>> feature = sdk.features.get("nonexistent")
+        >>> if feature:
+        ...     print(feature.title)
+        ... else:
+        ...     print("Feature not found")
+
     Example:
         sdk = SDK(agent="claude")
 
@@ -1278,6 +1288,10 @@ class SDK:
         Returns:
             Dict with prompt ready for Task tool
 
+        Note:
+            Returns dict with 'prompt', 'description', 'subagent_type' keys.
+            Returns empty dict if spawning fails.
+
         Example:
             >>> prompt = sdk.spawn_explorer(
             ...     task="Find all database models",
@@ -1286,6 +1300,10 @@ class SDK:
             ... )
             >>> # Execute with Task tool
             >>> Task(prompt=prompt["prompt"], description=prompt["description"])
+
+        See also:
+            spawn_coder: Spawn implementation agent with feature context
+            orchestrate: Full exploration + implementation workflow
         """
         subagent_prompt = self.orchestrator.spawn_explorer(
             task=task,
@@ -1316,6 +1334,10 @@ class SDK:
         Returns:
             Dict with prompt ready for Task tool
 
+        Note:
+            Returns dict with 'prompt', 'description', 'subagent_type' keys.
+            Requires valid feature_id. Returns empty dict if feature not found.
+
         Example:
             >>> prompt = sdk.spawn_coder(
             ...     feature_id="feat-add-auth",
@@ -1323,6 +1345,10 @@ class SDK:
             ...     test_command="uv run pytest tests/auth/"
             ... )
             >>> Task(prompt=prompt["prompt"], description=prompt["description"])
+
+        See also:
+            spawn_explorer: Explore codebase before implementation
+            orchestrate: Full exploration + implementation workflow
         """
         subagent_prompt = self.orchestrator.spawn_coder(
             feature_id=feature_id,
@@ -1363,6 +1389,10 @@ class SDK:
             >>> Task(prompt=prompts["explorer"]["prompt"], ...)
             >>> # Phase 2: Run coder with explorer results
             >>> Task(prompt=prompts["coder"]["prompt"], ...)
+
+        See also:
+            spawn_explorer: Just the exploration phase
+            spawn_coder: Just the implementation phase
         """
         prompts = self.orchestrator.orchestrate_feature(
             feature_id=feature_id,
@@ -1411,6 +1441,10 @@ class SDK:
                 - sessions: Recent sessions
                 - git_log: Recent commits (if include_git_log=True)
                 - analytics: Strategic insights (bottlenecks, recommendations, parallel)
+
+        Note:
+            Returns empty dict {} if session context unavailable.
+            Always check for expected keys before accessing.
 
         Example:
             >>> sdk = SDK(agent="claude")
@@ -1593,6 +1627,10 @@ class SDK:
             >>> print(sdk.help())  # List all topics
             >>> print(sdk.help('features'))  # Feature collection help
             >>> print(sdk.help('analytics'))  # Analytics help
+
+        See also:
+            Python's built-in help(sdk) for full API documentation
+            sdk.features, sdk.bugs, sdk.spikes for work item managers
         """
         if topic is None:
             return self._help_index()
@@ -1667,6 +1705,32 @@ For detailed help on a topic:
   sdk.help('orchestration') - Subagent orchestration
   sdk.help('planning')      - Planning workflow
 """
+
+    def __dir__(self) -> list[str]:
+        """Return attributes with most useful ones first for discoverability."""
+        priority = [
+            # Work item managers
+            'features', 'bugs', 'spikes', 'chores', 'epics', 'phases',
+            # Non-work collections
+            'tracks', 'sessions', 'agents',
+            # Orchestration
+            'spawn_explorer', 'spawn_coder', 'orchestrate',
+            # Session management
+            'get_session_start_info', 'start_session', 'end_session',
+            # Strategic analytics
+            'find_bottlenecks', 'recommend_next_work', 'get_parallel_work',
+            # Work queue
+            'get_work_queue', 'work_next',
+            # Help
+            'help',
+        ]
+        # Get all attributes
+        all_attrs = object.__dir__(self)
+        # Separate into priority, regular, and dunder attributes
+        regular = [a for a in all_attrs if not a.startswith('_') and a not in priority]
+        dunder = [a for a in all_attrs if a.startswith('_')]
+        # Return priority items first, then regular, then dunder
+        return priority + regular + dunder
 
     def _help_topic(self, topic: str) -> str:
         """Return specific help for topic."""
