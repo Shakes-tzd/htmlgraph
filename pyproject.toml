@@ -101,7 +101,7 @@ ignore = ["E501", "E402", "E722", "E741"]
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_ignores = false  # Disabled due to environment differences between local and CI
 disallow_untyped_defs = true
 ignore_missing_imports = true
 

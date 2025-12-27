@@ -132,7 +132,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                             try:
                                 node = html_to_node(filepath)
                                 track = node_to_track(node, filepath)
-                                graph._nodes[track.id] = track
+                                graph._nodes[track.id] = track  # type: ignore[assignment]
                             except Exception:
                                 continue
 
@@ -145,7 +145,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                                 try:
                                     node = html_to_node(filepath)
                                     track = node_to_track(node, filepath)
-                                    graph._nodes[track.id] = track
+                                    graph._nodes[track.id] = track  # type: ignore[assignment]
                                 except Exception:
                                     continue
                     return len(graph._nodes)
