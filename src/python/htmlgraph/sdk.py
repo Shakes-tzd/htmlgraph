@@ -311,7 +311,7 @@ class SDK:
         recommended_next: str | None = None,
         blockers: list[str] | None = None,
         session_id: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> Any:
         """
         Set handoff context on a session.
 

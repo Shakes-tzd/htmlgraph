@@ -75,7 +75,7 @@ AgentRegistry: Capability-based agent routing
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from htmlgraph.agent_registry import AgentProfile, AgentRegistry
 from htmlgraph.graph import HtmlGraph
@@ -809,7 +809,7 @@ class AgentInterface:
             id=task_id,
             title=title,
             type=node_type,
-            priority=priority,
+            priority=cast(Literal["low", "medium", "high", "critical"], priority),
             content=f"<p>{description}</p>" if description else "",
             steps=[Step(description=s) for s in (steps or [])],
         )

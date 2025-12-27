@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -572,7 +572,7 @@ class TrackBuilder:
             id=track_id,
             title=f"Track: {self._title}",
             description=self._description,
-            priority=self._priority,
+            priority=cast(Literal["low", "medium", "high", "critical"], self._priority),
             has_spec=bool(self._spec_data),
             has_plan=bool(self._plan_phases),
         )

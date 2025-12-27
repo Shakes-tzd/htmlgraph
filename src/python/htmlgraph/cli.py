@@ -862,9 +862,9 @@ def cmd_session_handoff(args: argparse.Namespace) -> None:
         # But for now, let's keep using SessionManager logic via SDK property if needed
         # or implement show logic here using SDK collections
 
-        # If args.session_id, use SDK.sessions.get()
+        # Use session_manager.get_session() to get Session objects (not Node)
         if args.session_id:
-            session = sdk.sessions.get(args.session_id)
+            session = sdk.session_manager.get_session(args.session_id)
         else:
             # Need "last ended session" - SDK doesn't expose this yet.
             # Fallback to session_manager logic exposed on SDK
@@ -2240,10 +2240,11 @@ def cmd_agent_list(args: argparse.Namespace) -> None:
     """List all registered agents."""
     import json
 
-    from htmlgraph.sdk import SDK
+    from htmlgraph.agent_registry import AgentRegistry
 
-    sdk = SDK(directory=args.graph_dir)
-    agents = sdk.agents.all()
+    # Use AgentRegistry to get AgentProfile objects (not Node objects)
+    registry = AgentRegistry(args.graph_dir)
+    agents = list(registry.list_agents())
 
     if args.format == "json":
         print(

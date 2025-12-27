@@ -84,11 +84,11 @@ class GraphFileHandler(FileSystemEventHandler):
             return
 
         # Skip if not relevant to our collection
-        if not self._is_relevant_file(event.src_path):
+        if not self._is_relevant_file(str(event.src_path)):
             return
 
         print(
-            f"[FileWatcher] {self.collection}: File created - {Path(event.src_path).name}"
+            f"[FileWatcher] {self.collection}: File created - {Path(str(event.src_path)).name}"
         )
         self._debounced_reload()
 
@@ -98,11 +98,11 @@ class GraphFileHandler(FileSystemEventHandler):
             return
 
         # Skip if not relevant to our collection
-        if not self._is_relevant_file(event.src_path):
+        if not self._is_relevant_file(str(event.src_path)):
             return
 
         print(
-            f"[FileWatcher] {self.collection}: File modified - {Path(event.src_path).name}"
+            f"[FileWatcher] {self.collection}: File modified - {Path(str(event.src_path)).name}"
         )
         self._debounced_reload()
 
@@ -112,11 +112,11 @@ class GraphFileHandler(FileSystemEventHandler):
             return
 
         # Skip if not relevant to our collection
-        if not self._is_relevant_file(event.src_path):
+        if not self._is_relevant_file(str(event.src_path)):
             return
 
         print(
-            f"[FileWatcher] {self.collection}: File deleted - {Path(event.src_path).name}"
+            f"[FileWatcher] {self.collection}: File deleted - {Path(str(event.src_path)).name}"
         )
         self._debounced_reload()
 

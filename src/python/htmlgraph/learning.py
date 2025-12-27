@@ -95,7 +95,7 @@ class LearningPersistence:
 
         # Count tool usage
         tools = [
-            a.tool if hasattr(a, "tool") else a.get("tool", "") for a in activities
+            a.tool if not isinstance(a, dict) else a.get("tool", "") for a in activities
         ]
         tool_counts = Counter(tools)
         unique_tools = len(tool_counts)
@@ -164,7 +164,7 @@ class LearningPersistence:
         for session in self.sdk.session_manager.session_converter.load_all():
             if session.activity_log:
                 tools = [
-                    a.tool if hasattr(a, "tool") else a.get("tool", "")
+                    a.tool if not isinstance(a, dict) else a.get("tool", "")
                     for a in session.activity_log
                 ]
                 # Extract 3-tool sequences
@@ -357,20 +357,10 @@ class LearningPersistence:
         # Count errors (success=False)
         errors = []
         for a in activities:
-            success = (
-                getattr(a, "success", True)
-                if hasattr(a, "success")
-                else a.get("success", True)
-            )
+            success = a.success if not isinstance(a, dict) else a.get("success", True)
             if not success:
-                tool = (
-                    getattr(a, "tool", "") if hasattr(a, "tool") else a.get("tool", "")
-                )
-                summary = (
-                    getattr(a, "summary", "")
-                    if hasattr(a, "summary")
-                    else a.get("summary", "")
-                )
+                tool = a.tool if not isinstance(a, dict) else a.get("tool", "")
+                summary = a.summary if not isinstance(a, dict) else a.get("summary", "")
                 errors.append({"tool": tool, "summary": summary[:100]})
 
         result["errors"] = errors[:10]  # Limit to 10 most recent
@@ -378,7 +368,7 @@ class LearningPersistence:
 
         # Detect anti-patterns in this session
         tools = [
-            a.tool if hasattr(a, "tool") else a.get("tool", "") for a in activities
+            a.tool if not isinstance(a, dict) else a.get("tool", "") for a in activities
         ]
 
         # Known anti-patterns

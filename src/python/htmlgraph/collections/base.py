@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
 
 from htmlgraph.exceptions import ClaimConflictError, NodeNotFoundError
 
@@ -162,8 +162,10 @@ class BaseCollection(Generic[CollectionT]):
             id=node_id,
             title=title,
             type=self._node_type,
-            priority=priority,
-            status=status,
+            priority=cast(Literal["low", "medium", "high", "critical"], priority),
+            status=cast(
+                Literal["todo", "in-progress", "blocked", "done", "archived"], status
+            ),
             **kwargs,
         )
 

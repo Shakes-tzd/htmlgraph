@@ -17,7 +17,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from htmlgraph.analytics_index import AnalyticsIndex
 from htmlgraph.converter import dict_to_node, node_to_dict
@@ -96,14 +96,21 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                             (track_dir / "plan.html").exists() if track_dir else False
                         )
 
+                    # Map Node status to Track status
+                    track_status: Literal["planned", "active", "completed", "abandoned"]
+                    if node.status in ["planned", "active", "completed", "abandoned"]:
+                        track_status = cast(
+                            Literal["planned", "active", "completed", "abandoned"],
+                            node.status,
+                        )
+                    else:
+                        track_status = "planned"
+
                     return Track(
                         id=node.id,
                         title=node.title,
                         description=node.content or "",
-                        status=node.status
-                        if node.status
-                        in ["planned", "active", "completed", "abandoned"]
-                        else "planned",
+                        status=track_status,
                         priority=node.priority,
                         created=node.created,
                         updated=node.updated,
