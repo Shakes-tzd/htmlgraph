@@ -879,8 +879,9 @@ class AgentInterface:
                 score = max(score - 30, 0)
 
         # Complexity match score (0-20 points)
-        if task.complexity:
-            if agent.can_handle_complexity(task.complexity):
+        task_complexity = getattr(task, "complexity", None)
+        if task_complexity:
+            if agent.can_handle_complexity(task_complexity):
                 score += 20
                 # Bonus for preferred complexity
                 complexity_preference = {
@@ -889,7 +890,7 @@ class AgentInterface:
                     "high": 3,
                     "very-high": 1,
                 }
-                score += complexity_preference.get(task.complexity, 0)
+                score += complexity_preference.get(task_complexity, 0)
             else:
                 score = max(score - 15, 0)
 
@@ -927,9 +928,10 @@ class AgentInterface:
             agents = [a for a in agents if a and a.active]
         else:
             # Find capable agents based on requirements
-            if task.required_capabilities:
+            required_caps = getattr(task, "required_capabilities", None)
+            if required_caps:
                 agents = self.registry.find_capable_agents(
-                    task.required_capabilities, task.complexity
+                    required_caps, getattr(task, "complexity", None)
                 )
             else:
                 # No requirements, all active agents
@@ -994,9 +996,9 @@ class AgentInterface:
                         "priority": task.priority,
                         "status": task.status,
                         "score": round(score, 2),
-                        "required_capabilities": task.required_capabilities,
-                        "complexity": task.complexity,
-                        "estimated_effort": task.estimated_effort,
+                        "required_capabilities": getattr(task, "required_capabilities", None),
+                        "complexity": getattr(task, "complexity", None),
+                        "estimated_effort": getattr(task, "estimated_effort", None),
                     }
                 )
 
