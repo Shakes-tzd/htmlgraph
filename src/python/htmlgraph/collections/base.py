@@ -118,6 +118,10 @@ class BaseCollection(Generic[CollectionT]):
         Returns:
             Builder instance if `_builder_class` is set, else created Node instance
 
+        Raises:
+            ValueError: If node with same ID already exists (when using simple creation)
+            ValidationError: If invalid node properties provided
+
         Example:
             >>> # With builder (FeatureCollection, BugCollection, etc.)
             >>> feature = sdk.features.create("User Auth") \\
@@ -337,6 +341,9 @@ class BaseCollection(Generic[CollectionT]):
 
         Returns:
             Updated node
+
+        Raises:
+            NodeNotFoundError: If node doesn't exist in the graph
 
         Example:
             >>> feature.status = "done"
@@ -569,7 +576,7 @@ class BaseCollection(Generic[CollectionT]):
             The released Node
 
         Raises:
-            ValueError: If node not found
+            NodeNotFoundError: If node not found
         """
         # SessionManager.release_feature requires an agent to verify ownership
         agent = agent or self._sdk.agent
@@ -584,7 +591,7 @@ class BaseCollection(Generic[CollectionT]):
         graph = self._ensure_graph()
         node = graph.get(node_id)
         if not node:
-            raise ValueError(f"Node {node_id} not found")
+            raise NodeNotFoundError(self._node_type, node_id)
 
         node.agent_assigned = None
         node.claimed_at = None
