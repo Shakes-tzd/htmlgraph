@@ -64,4 +64,10 @@ Thumbs.db
 
 # MkDocs build output
 site/
+
+# pdoc generated documentation
+docs/api-pdoc/
+docs/api/*.html
+docs/api/*.js
+
 .contextune/
