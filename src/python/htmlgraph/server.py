@@ -927,7 +927,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             self._send_error_json(f"Feature not found: {feature_id}", 404)
             return
 
-        context = {
+        context: dict[str, str | list[str] | bool | None] = {
             "feature_id": feature_id,
             "feature_title": feature.title,
             "track_id": feature.track_id if hasattr(feature, "track_id") else None,
@@ -937,15 +937,20 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             "spec_requirements": feature.spec_requirements
             if hasattr(feature, "spec_requirements")
             else [],
+            "track_exists": False,
+            "has_spec": False,
+            "has_plan": False,
+            "is_consolidated": False,
         }
 
         # Load track info if linked
-        if context["track_id"]:
+        track_id = context["track_id"]
+        if track_id and isinstance(track_id, str):
             from htmlgraph.track_manager import TrackManager
 
             manager = TrackManager(self.graph_dir)
-            track_dir = manager.tracks_dir / context["track_id"]
-            track_file = manager.tracks_dir / f"{context['track_id']}.html"
+            track_dir = manager.tracks_dir / track_id
+            track_file = manager.tracks_dir / f"{track_id}.html"
 
             # Support both consolidated (single file) and directory-based tracks
             if track_file.exists():
@@ -971,7 +976,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         self._send_json(context)
 
-    def _handle_session_transcript(self, session_id: str):
+    def _handle_session_transcript(self, session_id: str) -> None:
         """Get transcript stats for a session."""
         try:
             from htmlgraph.session_manager import SessionManager
@@ -995,7 +1000,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(f"Error getting transcript stats: {e}", 500)
 
-    def _handle_generate_features(self, track_id: str):
+    def _handle_generate_features(self, track_id: str) -> None:
         """Generate features from plan tasks."""
         from htmlgraph.track_manager import TrackManager
 
@@ -1027,7 +1032,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(f"Failed to generate features: {str(e)}", 500)
 
-    def _handle_sync_track(self, track_id: str):
+    def _handle_sync_track(self, track_id: str) -> None:
         """Sync task and spec completion based on features."""
         from htmlgraph.track_manager import TrackManager
 
@@ -1056,7 +1061,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(f"Failed to sync track: {str(e)}", 500)
 
-    def log_message(self, format: str, *args):
+    def log_message(self, format: str, *args: str) -> None:
         """Custom log format."""
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}")
 
@@ -1067,7 +1072,7 @@ def serve(
     static_dir: str | Path = ".",
     host: str = "localhost",
     watch: bool = True,
-):
+) -> None:
     """
     Start the HtmlGraph server.
 
