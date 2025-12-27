@@ -67,6 +67,19 @@ class HtmlGraph:
         self._cache_enabled: bool = True
         self._explicitly_loaded: bool = False
 
+        # Performance metrics
+        self._metrics = {
+            "query_count": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "reload_count": 0,
+            "single_reload_count": 0,
+            "total_query_time_ms": 0.0,
+            "slowest_query_ms": 0.0,
+            "slowest_query_selector": "",
+            "last_reload_time_ms": 0.0,
+        }
+
         # Check for env override (backwards compatibility)
         if os.environ.get("HTMLGRAPH_EAGER_LOAD") == "1":
             auto_load = True
@@ -85,6 +98,7 @@ class HtmlGraph:
         Returns:
             Number of nodes loaded
         """
+        start = time.perf_counter()
         self._cache_enabled = False  # Disable during reload
         try:
             self._nodes.clear()
@@ -95,6 +109,12 @@ class HtmlGraph:
             self._edge_index.rebuild(self._nodes)
 
             self._explicitly_loaded = True
+
+            # Track metrics
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            self._metrics["reload_count"] += 1
+            self._metrics["last_reload_time_ms"] = elapsed_ms
+
             return len(self._nodes)
         finally:
             self._cache_enabled = True
@@ -272,7 +292,91 @@ class HtmlGraph:
         node = self._converter.load(node_id)
         if node:
             self._nodes[node_id] = node
+            self._metrics["single_reload_count"] += 1
         return node
+
+    def reload_node(self, node_id: str) -> Node | None:
+        """
+        Reload a single node from disk without full graph reload.
+
+        Much faster than full reload() when only one node changed.
+        Updates the node in cache and refreshes its edges in the index.
+
+        Args:
+            node_id: ID of the node to reload
+
+        Returns:
+            Updated node if found and loaded, None if not found
+
+        Example:
+            >>> graph.reload_node("feat-001")  # Reload just this node
+        """
+        # Verify the node file exists
+        filepath = self._find_node_file(node_id)
+        if not filepath:
+            return None
+
+        try:
+            # Remove old node's edges from index if exists
+            if node_id in self._nodes:
+                old_node = self._nodes[node_id]
+                self._edge_index.remove_node_edges(node_id, old_node)
+
+            # Load updated node from disk (converter.load expects node_id)
+            updated_node = self._converter.load(node_id)
+            if not updated_node:
+                return None
+
+            # Update cache
+            self._nodes[node_id] = updated_node
+
+            # Add new edges to index
+            self._edge_index.add_node_edges(node_id, updated_node)
+
+            # Invalidate query cache
+            self._invalidate_cache()
+
+            # Track metric
+            self._metrics["single_reload_count"] += 1
+
+            return updated_node
+        except Exception:
+            return None
+
+    def _find_node_file(self, node_id: str) -> Path | None:
+        """
+        Find the file path for a node by ID.
+
+        Checks common naming patterns for node files.
+
+        Args:
+            node_id: Node ID to find
+
+        Returns:
+            Path to node file, or None if not found
+        """
+        # Try direct match patterns
+        patterns = [
+            f"{node_id}.html",
+            f"{node_id}/index.html",
+        ]
+
+        for pattern in patterns:
+            filepath = self.directory / pattern
+            if filepath.exists():
+                return filepath
+
+        # Fall back to scanning (slower but thorough)
+        for filepath in self.directory.glob("*.html"):
+            try:
+                # Quick check of file content for ID
+                content = filepath.read_text()
+                if f'id="{node_id}"' in content or f"id='{node_id}'" in content:
+                    return filepath
+            except Exception:
+                continue
+
+        return None
 
     def remove(self, node_id: str) -> bool:
         """
@@ -333,7 +437,7 @@ class HtmlGraph:
 
     def query(self, selector: str) -> list[Node]:
         """
-        Query nodes using CSS selector with caching.
+        Query nodes using CSS selector with caching and metrics.
 
         Selector is applied to article element of each node.
         Uses cached nodes instead of re-parsing from disk for better performance.
@@ -349,9 +453,17 @@ class HtmlGraph:
             graph.query("[data-priority='high'][data-type='feature']")
         """
         self._ensure_loaded()
+        self._metrics["query_count"] += 1
+
         # Check cache first
         if self._cache_enabled and selector in self._query_cache:
+            self._metrics["cache_hits"] += 1
             return self._query_cache[selector].copy()  # Return copy to prevent mutation
+
+        self._metrics["cache_misses"] += 1
+
+        # Time the query
+        start = time.perf_counter()
 
         # Perform query using cached nodes instead of disk I/O
         matching = []
@@ -370,6 +482,14 @@ class HtmlGraph:
             except Exception:
                 # Skip nodes that fail to parse
                 continue
+
+        # Track timing
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        self._metrics["total_query_time_ms"] += elapsed_ms
+
+        if elapsed_ms > self._metrics["slowest_query_ms"]:
+            self._metrics["slowest_query_ms"] = elapsed_ms
+            self._metrics["slowest_query_selector"] = selector
 
         # Cache result
         if self._cache_enabled:
@@ -592,6 +712,48 @@ class HtmlGraph:
             "cached_queries": len(self._query_cache),
             "cache_enabled": self._cache_enabled,
         }
+
+    @property
+    def metrics(self) -> dict:
+        """
+        Get performance metrics.
+
+        Returns:
+            Dict with query counts, cache stats, timing info
+
+        Example:
+            >>> graph.metrics
+            {
+                'query_count': 42,
+                'cache_hits': 38,
+                'cache_hit_rate': '90.5%',
+                'avg_query_time_ms': 12.3,
+                ...
+            }
+        """
+        m = self._metrics.copy()
+
+        # Calculate derived metrics
+        if m["query_count"] > 0:
+            m["cache_hit_rate"] = f"{m['cache_hits'] / m['query_count'] * 100:.1f}%"
+            m["avg_query_time_ms"] = m["total_query_time_ms"] / m["query_count"]
+        else:
+            m["cache_hit_rate"] = "N/A"
+            m["avg_query_time_ms"] = 0.0
+
+        # Add current state
+        m["nodes_loaded"] = len(self._nodes)
+        m["cached_queries"] = len(self._query_cache)
+
+        return m
+
+    def reset_metrics(self) -> None:
+        """Reset all performance metrics to zero."""
+        for key in self._metrics:
+            if isinstance(self._metrics[key], (int, float)):
+                self._metrics[key] = 0 if isinstance(self._metrics[key], int) else 0.0
+            else:
+                self._metrics[key] = ""
 
     # =========================================================================
     # Graph Algorithms

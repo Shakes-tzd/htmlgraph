@@ -230,6 +230,84 @@ class EdgeIndex:
         self._edge_count -= removed
         return removed
 
+    def add_node_edges(self, node_id: str, node: Node) -> int:
+        """
+        Add a single node's outgoing edges to the index.
+
+        Args:
+            node_id: Node ID
+            node: Node object with edges to add
+
+        Returns:
+            Number of edges added
+        """
+        added = 0
+        for rel_type, edges in node.edges.items():
+            for edge in edges:
+                self.add(node_id, edge.target_id, rel_type)
+                added += 1
+        return added
+
+    def add_node(self, node_id: str, node: Node) -> int:
+        """
+        Add all edges from a single node to the index.
+
+        Alias for add_node_edges() to match requested API.
+
+        Args:
+            node_id: The node's ID
+            node: The node object with edges attribute
+
+        Returns:
+            Number of edges added
+        """
+        return self.add_node_edges(node_id, node)
+
+    def remove_node_edges(self, node_id: str, node: Node) -> int:
+        """
+        Remove a single node's outgoing edges from the index.
+
+        Args:
+            node_id: Node ID
+            node: Node object with edges to remove
+
+        Returns:
+            Number of edges removed
+        """
+        removed = 0
+        for rel_type, edges in node.edges.items():
+            for edge in edges:
+                if self.remove(node_id, edge.target_id, rel_type):
+                    removed += 1
+        return removed
+
+    def update_node(self, node_id: str, old_node: Node, new_node: Node) -> tuple[int, int]:
+        """
+        Update a node's edges atomically (remove old, add new).
+
+        This is an atomic operation that removes all edges from the old node
+        and adds all edges from the new node. Useful for updating a node
+        without leaving orphaned edges.
+
+        Args:
+            node_id: The node's ID
+            old_node: The previous node object
+            new_node: The updated node object
+
+        Returns:
+            Tuple of (removed_count, added_count)
+
+        Example:
+            >>> old = Node(id="feat-001", edges={"blocks": [Edge(target_id="feat-002")]})
+            >>> new = Node(id="feat-001", edges={"blocks": [Edge(target_id="feat-003")]})
+            >>> removed, added = index.update_node("feat-001", old, new)
+            >>> print(f"Removed {removed}, added {added}")
+            Removed 1, added 1
+        """
+        removed = self.remove_node_edges(node_id, old_node)
+        added = self.add_node_edges(node_id, new_node)
+        return (removed, added)
+
     def get_incoming(
         self, target_id: str, relationship: str | None = None
     ) -> list[EdgeRef]:
@@ -326,6 +404,8 @@ class EdgeIndex:
         """
         Rebuild the entire index from a node dictionary.
 
+        Optimized to use add_node_edges() for cleaner code.
+
         Args:
             nodes: Dictionary mapping node_id to Node objects
 
@@ -335,9 +415,7 @@ class EdgeIndex:
         self.clear()
 
         for node_id, node in nodes.items():
-            for relationship, edges in node.edges.items():
-                for edge in edges:
-                    self.add(node_id, edge.target_id, edge.relationship)
+            self.add_node_edges(node_id, node)
 
         return self._edge_count
 

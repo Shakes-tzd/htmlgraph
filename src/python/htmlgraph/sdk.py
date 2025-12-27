@@ -86,15 +86,69 @@ class SDK:
         - tracks: Work tracks
         - agents: Agent information
 
-    Error Handling:
-        SDK methods return None or empty results on errors rather than raising.
-        Check return values before using:
+    Error Handling Patterns
+    =======================
+
+    SDK methods follow consistent error handling patterns by operation type:
+
+    LOOKUP OPERATIONS (Return None):
+        Single-item lookups return None when not found.
+        Always check the result before using.
 
         >>> feature = sdk.features.get("nonexistent")
         >>> if feature:
         ...     print(feature.title)
         ... else:
+        ...     print("Not found")
+
+    QUERY OPERATIONS (Return Empty List):
+        Queries return empty list when no matches or on error.
+        Safe to iterate without checking.
+
+        >>> results = sdk.features.where(status="impossible")
+        >>> for r in results:  # Empty iteration is safe
+        ...     print(r.title)
+
+    EDIT OPERATIONS (Raise Exception):
+        Edit operations raise NodeNotFoundError when target missing.
+        Use try/except to handle gracefully.
+
+        >>> from htmlgraph.exceptions import NodeNotFoundError
+        >>> try:
+        ...     with sdk.features.edit("nonexistent") as f:
+        ...         f.status = "done"
+        ... except NodeNotFoundError:
         ...     print("Feature not found")
+
+    CREATE OPERATIONS (Raise on Validation):
+        Create operations raise ValidationError on invalid input.
+
+        >>> try:
+        ...     sdk.features.create("")  # Empty title
+        ... except ValidationError:
+        ...     print("Title required")
+
+    BATCH OPERATIONS (Return Count):
+        Batch operations return count of successful items.
+        Silently skip items that fail.
+
+        >>> count = sdk.features.mark_done(["feat-1", "missing", "feat-2"])
+        >>> print(f"Completed {count} of 3")  # Outputs: Completed 2 of 3
+
+    Pattern Summary:
+        | Operation Type | Error Behavior      | Example Method        |
+        |----------------|--------------------|-----------------------|
+        | Lookup         | Return None        | .get(id)              |
+        | Query          | Return []          | .where(), .all()      |
+        | Edit           | Raise Exception    | .edit(id)             |
+        | Create         | Raise on Invalid   | .create(title)        |
+        | Batch          | Return Count       | .mark_done([ids])     |
+        | Delete         | Return Bool        | .delete(id)           |
+
+    Available Exceptions:
+        - NodeNotFoundError: Node with ID not found
+        - ValidationError: Invalid input parameters
+        - ClaimConflictError: Node already claimed by another agent
 
     Example:
         sdk = SDK(agent="claude")
@@ -1715,6 +1769,12 @@ ANALYTICS INTERFACES:
   sdk.analytics        - Work type analytics
   sdk.dep_analytics    - Dependency analytics
   sdk.context          - Context analytics
+
+ERROR HANDLING:
+  Lookup (.get)      - Returns None if not found
+  Query (.where)     - Returns empty list on no matches
+  Edit (.edit)       - Raises NodeNotFoundError if missing
+  Batch (.mark_done) - Returns count of successful operations
 
 For detailed help on a topic:
   sdk.help('features')      - Feature collection methods
