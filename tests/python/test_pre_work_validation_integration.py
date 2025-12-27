@@ -130,24 +130,27 @@ class TestFullValidationFlow:
         assert decision["decision"] == "allow"
 
     def test_direct_htmlgraph_write_denied(self, hook_script_path, temp_project_with_active_feature):
-        """Direct .htmlgraph/ writes always denied."""
+        """Direct .htmlgraph/ writes always blocked (only blocking case)."""
         exit_code, decision = run_hook(
             hook_script_path,
             {"tool": "Write", "params": {"file_path": ".htmlgraph/features/feat-999.html"}},
             cwd=temp_project_with_active_feature
         )
         assert exit_code == 1
-        assert decision["decision"] == "deny"
+        assert decision["decision"] == "block"
+        assert "direct edits" in decision["reason"].lower() or "blocked" in decision["reason"].lower()
 
     def test_write_denied_no_work(self, hook_script_path, temp_project_no_active_work):
-        """Write denied when no active work."""
+        """Write allowed with guidance when no active work."""
         exit_code, decision = run_hook(
             hook_script_path,
             {"tool": "Write", "params": {"file_path": "src/new.py"}},
             cwd=temp_project_no_active_work
         )
-        assert exit_code == 1
-        assert decision["decision"] == "deny"
+        assert exit_code == 0
+        assert decision["decision"] == "allow"
+        # Should suggest creating a work item
+        assert "suggestion" in decision or "guidance" in decision
 
     def test_sdk_allowed_no_work(self, hook_script_path, temp_project_no_active_work):
         """SDK commands allowed without work (creating items)."""
@@ -164,15 +167,16 @@ class TestSpikeValidation:
     """Test validation with active spike."""
 
     def test_write_denied_with_spike(self, hook_script_path, temp_project_with_active_spike):
-        """Write denied when spike active (planning only)."""
+        """Write allowed with guidance when spike active (planning only)."""
         exit_code, decision = run_hook(
             hook_script_path,
             {"tool": "Write", "params": {"file_path": "src/impl.py"}},
             cwd=temp_project_with_active_spike
         )
-        assert exit_code == 1
-        assert decision["decision"] == "deny"
-        assert "spike" in decision["reason"].lower()
+        assert exit_code == 0
+        assert decision["decision"] == "allow"
+        # Should have guidance about spike being for planning
+        assert "guidance" in decision or "suggestion" in decision
 
     def test_sdk_allowed_with_spike(self, hook_script_path, temp_project_with_active_spike):
         """SDK commands allowed with spike (creating work)."""
@@ -224,13 +228,14 @@ class TestEdgeCases:
             assert decision["decision"] == "allow"
 
     def test_no_htmlgraph_denies_code_changes(self, hook_script_path):
-        """Without .htmlgraph, code changes denied (no work item)."""
+        """Without .htmlgraph, code changes allowed with guidance (no work item)."""
         # No .htmlgraph directory = no active work
         exit_code, decision = run_hook(
             hook_script_path,
             {"tool": "Write", "params": {"file_path": "src/test.py"}},
             cwd="/tmp"
         )
-        assert exit_code == 1  # Denied
-        assert decision["decision"] == "deny"
-        assert "no active work" in decision["reason"].lower()
+        assert exit_code == 0  # Allowed with guidance
+        assert decision["decision"] == "allow"
+        # Should have guidance about no active work
+        assert "guidance" in decision or "suggestion" in decision

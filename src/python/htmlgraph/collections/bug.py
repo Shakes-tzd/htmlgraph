@@ -5,16 +5,16 @@ Extends BaseCollection with bug-specific builder support.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
-    from htmlgraph.builders.bug import BugBuilder
 
 from htmlgraph.collections.base import BaseCollection
 
 
-class BugCollection(BaseCollection['BugCollection']):
+class BugCollection(BaseCollection["BugCollection"]):
     """
     Collection interface for bugs with builder support.
 
@@ -36,7 +36,7 @@ class BugCollection(BaseCollection['BugCollection']):
     _collection_name = "bugs"
     _node_type = "bug"
 
-    def __init__(self, sdk: 'SDK'):
+    def __init__(self, sdk: SDK):
         """
         Initialize bug collection.
 
@@ -48,4 +48,5 @@ class BugCollection(BaseCollection['BugCollection']):
 
         # Set builder class for create() method
         from htmlgraph.builders.bug import BugBuilder
+
         self._builder_class = BugBuilder

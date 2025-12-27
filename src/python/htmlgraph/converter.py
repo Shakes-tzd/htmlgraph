@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from htmlgraph.models import Node, Edge, Step, Session, ActivityEntry
+from htmlgraph.models import ActivityEntry, Edge, Node, Session, Step
 from htmlgraph.parser import HtmlParser
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ def node_to_html(
     node: Node,
     filepath: Path | str,
     stylesheet_path: str = "../styles.css",
-    create_dirs: bool = True
+    create_dirs: bool = True,
 ) -> Path:
     """
     Write a Node model to an HTML file.
@@ -104,7 +104,7 @@ def node_to_html(
 def update_node_html(
     filepath: Path | str,
     updates: dict[str, Any],
-    stylesheet_path: str = "../styles.css"
+    stylesheet_path: str = "../styles.css",
 ) -> Node:
     """
     Update specific fields in an existing HTML node file.
@@ -218,12 +218,16 @@ def dict_to_node(data: dict[str, Any]) -> Node:
     for edges in data.get("edges", {}).values():
         for edge in edges:
             if isinstance(edge.get("since"), str):
-                edge["since"] = datetime.fromisoformat(edge["since"].replace("Z", "+00:00"))
+                edge["since"] = datetime.fromisoformat(
+                    edge["since"].replace("Z", "+00:00")
+                )
 
     # Parse step datetimes
     for step in data.get("steps", []):
         if isinstance(step.get("timestamp"), str):
-            step["timestamp"] = datetime.fromisoformat(step["timestamp"].replace("Z", "+00:00"))
+            step["timestamp"] = datetime.fromisoformat(
+                step["timestamp"].replace("Z", "+00:00")
+            )
 
     return Node.from_dict(data)
 
@@ -302,6 +306,7 @@ class NodeConverter:
 # Session Converters
 # =============================================================================
 
+
 def session_to_dict(session: Session) -> dict[str, Any]:
     """
     Convert Session to a plain dictionary (JSON-serializable).
@@ -339,7 +344,9 @@ def dict_to_session(data: dict[str, Any]) -> Session:
     # Parse activity log timestamps
     for entry in data.get("activity_log", []):
         if isinstance(entry.get("timestamp"), str):
-            entry["timestamp"] = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+            entry["timestamp"] = datetime.fromisoformat(
+                entry["timestamp"].replace("Z", "+00:00")
+            )
 
     return Session.from_dict(data)
 
@@ -395,7 +402,9 @@ def html_to_session(filepath: Path | str) -> Session:
 
     last_activity = article.attrs.get("data-last-activity")
     if last_activity:
-        data["last_activity"] = datetime.fromisoformat(last_activity.replace("Z", "+00:00"))
+        data["last_activity"] = datetime.fromisoformat(
+            last_activity.replace("Z", "+00:00")
+        )
 
     start_commit = article.attrs.get("data-start-commit")
     if start_commit:
@@ -409,6 +418,7 @@ def html_to_session(filepath: Path | str) -> Session:
     work_breakdown_json = article.attrs.get("data-work-breakdown")
     if work_breakdown_json:
         import json
+
         try:
             data["work_breakdown"] = json.loads(work_breakdown_json)
         except (json.JSONDecodeError, ValueError):
@@ -425,7 +435,9 @@ def html_to_session(filepath: Path | str) -> Session:
 
     transcript_synced = article.attrs.get("data-transcript-synced")
     if transcript_synced:
-        data["transcript_synced_at"] = datetime.fromisoformat(transcript_synced.replace("Z", "+00:00"))
+        data["transcript_synced_at"] = datetime.fromisoformat(
+            transcript_synced.replace("Z", "+00:00")
+        )
 
     transcript_branch = article.attrs.get("data-transcript-branch")
     if transcript_branch:
@@ -438,7 +450,9 @@ def html_to_session(filepath: Path | str) -> Session:
 
     # Parse worked_on edges
     worked_on = []
-    for link in parser.query("nav[data-graph-edges] section[data-edge-type='worked-on'] a"):
+    for link in parser.query(
+        "nav[data-graph-edges] section[data-edge-type='worked-on'] a"
+    ):
         href = link.attrs.get("href") or ""
         # Extract feature ID from href
         feature_id = href.replace("../features/", "").replace(".html", "")
@@ -447,7 +461,9 @@ def html_to_session(filepath: Path | str) -> Session:
     data["worked_on"] = worked_on
 
     # Parse continued_from edge
-    continued_link = parser.query_one("nav[data-graph-edges] section[data-edge-type='continued-from'] a")
+    continued_link = parser.query_one(
+        "nav[data-graph-edges] section[data-edge-type='continued-from'] a"
+    )
     if continued_link:
         href = continued_link.attrs.get("href") or ""
         data["continued_from"] = href.replace(".html", "")
@@ -518,7 +534,7 @@ def session_to_html(
     session: Session,
     filepath: Path | str,
     stylesheet_path: str = "../styles.css",
-    create_dirs: bool = True
+    create_dirs: bool = True,
 ) -> Path:
     """
     Write a Session model to an HTML file.

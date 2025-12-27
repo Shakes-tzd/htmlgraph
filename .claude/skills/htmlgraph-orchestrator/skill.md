@@ -198,6 +198,168 @@ sdk.end_session(
 )
 ```
 
+---
+
+## SDK METHODS REFERENCE (IMPERATIVE)
+
+### MUST USE at Session Start:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude")
+info = sdk.get_session_start_info()
+
+# Check for active work FIRST
+if info.get("active_work"):
+    print(f"Resume: {info['active_work']['title']}")
+    # Continue existing work before starting new
+```
+
+### MUST USE for Work Item Creation:
+```python
+# ALWAYS create work item BEFORE writing code
+feature = sdk.features.create("Add authentication") \
+    .set_priority("high") \
+    .add_steps(["Create routes", "Add middleware", "Write tests"]) \
+    .save()
+
+# For bugs
+bug = sdk.bugs.create("Login fails on timeout") \
+    .set_severity("high") \
+    .save()
+
+# For research
+spike = sdk.spikes.create("Evaluate caching options") \
+    .set_timebox_hours(2) \
+    .save()
+```
+
+### MUST USE for Subagent Spawning:
+```python
+# 1. Spawn explorer FIRST for unknown codebases
+explorer = sdk.spawn_explorer(
+    task="Find all authentication code",
+    scope="src/"
+)
+# Use with: Task(prompt=explorer["prompt"], subagent_type=explorer["subagent_type"])
+
+# 2. Spawn coder AFTER exploration
+coder = sdk.spawn_coder(
+    feature_id=feature.id,
+    context="Explorer found auth in src/auth/...",
+    test_command="uv run pytest tests/"
+)
+# Use with: Task(prompt=coder["prompt"], subagent_type=coder["subagent_type"])
+```
+
+### MUST USE for Analytics:
+```python
+# Find blocked work
+bottlenecks = sdk.find_bottlenecks()
+
+# Get recommendations
+recs = sdk.recommend_next_work()
+
+# Check for parallelizable work
+parallel = sdk.get_parallel_work(max_agents=3)
+if parallel["can_parallelize"]:
+    for p in parallel["prompts"]:
+        # Spawn in same message for true parallelism
+        Task(prompt=p["prompt"], subagent_type=p["subagent_type"])
+```
+
+### MUST USE for Session End:
+```python
+sdk.end_session(
+    session_id=session.id,
+    handoff_notes="Completed auth feature, tests passing",
+    recommended_next="Implement rate limiting"
+)
+```
+
+## Decision Matrix
+
+| Situation | SDK Method |
+|-----------|------------|
+| New feature needed | `sdk.features.create().save()` |
+| Bug found | `sdk.bugs.create().save()` |
+| Need to explore code | `sdk.spawn_explorer()` |
+| Ready to implement | `sdk.spawn_coder()` |
+| Work is blocked | `sdk.features.edit().status = "blocked"` |
+| Work is complete | `sdk.features.complete()` |
+| What should I work on? | `sdk.recommend_next_work()` |
+| Can work be parallelized? | `sdk.get_parallel_work()` |
+| Session ending | `sdk.end_session()` |
+
+---
+
+## LEARNING & IMPROVEMENT (IMPERATIVE)
+
+The HtmlGraph SDK includes an Active Learning system that learns from your sessions. Use it to improve over time.
+
+### AT SESSION START - Check Insights:
+```python
+from htmlgraph import SDK, LearningPersistence
+
+sdk = SDK(agent="claude")
+
+# Check for anti-patterns from previous sessions
+anti_patterns = list(sdk.patterns.get_anti_patterns())
+if anti_patterns:
+    print("⚠️ Avoid these patterns:")
+    for p in anti_patterns[:3]:
+        print(f"  - {p.sequence}: {p.recommendation}")
+
+# Check for low efficiency sessions
+low_eff = sdk.insights.get_low_efficiency(threshold=0.7)
+if low_eff:
+    print("💡 Previous session issues:")
+    for i in low_eff[:3]:
+        for issue in i.issues_detected:
+            print(f"  - {issue}")
+```
+
+### AT SESSION END - Persist Learning:
+```python
+from htmlgraph import LearningPersistence
+
+learning = LearningPersistence(sdk)
+
+# Analyze this session
+learning.persist_session_insight(session_id)
+
+# Detect new patterns
+learning.persist_patterns()
+
+# Update weekly metrics
+learning.persist_metrics(period="weekly")
+```
+
+### LEARN FROM PATTERNS:
+
+| Pattern Type | What It Means | Action |
+|--------------|---------------|--------|
+| `optimal` | Efficient workflow | Keep doing this |
+| `anti-pattern` | Wasteful workflow | Avoid this sequence |
+| `neutral` | Neither good nor bad | Monitor for trends |
+
+### COMMON ANTI-PATTERNS TO AVOID:
+- `["Edit", "Edit", "Edit"]` - Too many edits without testing
+- `["Bash", "Bash", "Bash"]` - Command spam without checking results
+- `["Read", "Read", "Read"]` - Excessive reading without action
+
+### OPTIMAL PATTERNS TO FOLLOW:
+- `["Read", "Edit", "Bash"]` - Understand, modify, test
+- `["Grep", "Read", "Edit"]` - Search, understand, modify
+- `["Glob", "Read", "Edit"]` - Find files, understand, modify
+
+### CONTINUOUS IMPROVEMENT:
+1. Check `sdk.insights.all()` for session health trends
+2. Monitor `sdk.metrics.get_latest()` for weekly efficiency
+3. Query `sdk.patterns.get_optimal_patterns()` for best practices
+4. Use insights to guide subagent prompts
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Don't fill context with exploration**: Delegate to explorer subagent

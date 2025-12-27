@@ -6,15 +6,16 @@ severity and reproduction steps.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
+    pass
 
 from htmlgraph.builders.base import BaseBuilder
 
 
-class BugBuilder(BaseBuilder['BugBuilder']):
+class BugBuilder(BaseBuilder["BugBuilder"]):
     """
     Fluent builder for creating bugs.
 
@@ -36,7 +37,7 @@ class BugBuilder(BaseBuilder['BugBuilder']):
 
     node_type = "bug"
 
-    def set_severity(self, severity: str) -> 'BugBuilder':
+    def set_severity(self, severity: str) -> BugBuilder:
         """
         Set bug severity level.
 
@@ -52,7 +53,7 @@ class BugBuilder(BaseBuilder['BugBuilder']):
         self._data["severity"] = severity
         return self
 
-    def set_repro_steps(self, steps: list[str]) -> 'BugBuilder':
+    def set_repro_steps(self, steps: list[str]) -> BugBuilder:
         """
         Set steps to reproduce the bug.
 
@@ -68,7 +69,7 @@ class BugBuilder(BaseBuilder['BugBuilder']):
         self._data["repro_steps"] = steps
         return self
 
-    def set_expected_behavior(self, expected: str) -> 'BugBuilder':
+    def set_expected_behavior(self, expected: str) -> BugBuilder:
         """
         Set expected behavior.
 
@@ -84,7 +85,7 @@ class BugBuilder(BaseBuilder['BugBuilder']):
         self._data["expected_behavior"] = expected
         return self
 
-    def set_actual_behavior(self, actual: str) -> 'BugBuilder':
+    def set_actual_behavior(self, actual: str) -> BugBuilder:
         """
         Set actual (buggy) behavior.
 
@@ -100,7 +101,7 @@ class BugBuilder(BaseBuilder['BugBuilder']):
         self._data["actual_behavior"] = actual
         return self
 
-    def set_affected_version(self, version: str) -> 'BugBuilder':
+    def set_affected_version(self, version: str) -> BugBuilder:
         """
         Set the affected version.
 
@@ -116,7 +117,7 @@ class BugBuilder(BaseBuilder['BugBuilder']):
         self._data["affected_version"] = version
         return self
 
-    def set_environment(self, environment: str) -> 'BugBuilder':
+    def set_environment(self, environment: str) -> BugBuilder:
         """
         Set the environment where bug occurs.
 

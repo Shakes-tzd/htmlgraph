@@ -5,16 +5,16 @@ Extends BaseCollection with epic-specific builder support.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
-    from htmlgraph.builders.epic import EpicBuilder
 
 from htmlgraph.collections.base import BaseCollection
 
 
-class EpicCollection(BaseCollection['EpicCollection']):
+class EpicCollection(BaseCollection["EpicCollection"]):
     """
     Collection interface for epics with builder support.
 
@@ -36,7 +36,7 @@ class EpicCollection(BaseCollection['EpicCollection']):
     _collection_name = "epics"
     _node_type = "epic"
 
-    def __init__(self, sdk: 'SDK'):
+    def __init__(self, sdk: SDK):
         """
         Initialize epic collection.
 
@@ -48,4 +48,5 @@ class EpicCollection(BaseCollection['EpicCollection']):
 
         # Set builder class for create() method
         from htmlgraph.builders.epic import EpicBuilder
+
         self._builder_class = EpicBuilder

@@ -11,12 +11,14 @@ in the graph - O(V×E) complexity.
 """
 
 from __future__ import annotations
+
 from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.models import Node, Edge
+    from htmlgraph.models import Edge, Node
 
 
 @dataclass
@@ -27,14 +29,50 @@ class EdgeRef:
     Stores the essential information needed to identify and traverse
     an edge without holding a reference to the full Edge object.
     """
+
     source_id: str
     target_id: str
     relationship: str
 
     def __hash__(self) -> int:
+        """
+        Compute hash for EdgeRef.
+
+        Enables using EdgeRef in sets and as dict keys.
+
+        Returns:
+            int: Hash value based on source_id, target_id, and relationship
+
+        Example:
+            >>> ref1 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> ref2 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> refs = {ref1, ref2}  # Set deduplication works
+            >>> len(refs)
+            1
+        """
         return hash((self.source_id, self.target_id, self.relationship))
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check equality with another EdgeRef.
+
+        Enables using == operator and set membership checks.
+
+        Args:
+            other: Object to compare with
+
+        Returns:
+            bool: True if both EdgeRefs have same source, target, and relationship
+
+        Example:
+            >>> ref1 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> ref2 = EdgeRef("feat-001", "feat-002", "blocked_by")
+            >>> ref1 == ref2
+            True
+            >>> ref3 = EdgeRef("feat-001", "feat-003", "blocked_by")
+            >>> ref1 == ref3
+            False
+        """
         if not isinstance(other, EdgeRef):
             return False
         return (
@@ -67,8 +105,12 @@ class EdgeIndex:
         blocked = index.get_outgoing("feature-001", relationship="blocks")
     """
 
-    _incoming: dict[str, list[EdgeRef]] = field(default_factory=lambda: defaultdict(list))
-    _outgoing: dict[str, list[EdgeRef]] = field(default_factory=lambda: defaultdict(list))
+    _incoming: dict[str, list[EdgeRef]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+    _outgoing: dict[str, list[EdgeRef]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
     _edge_count: int = 0
 
     def add(self, source_id: str, target_id: str, relationship: str) -> EdgeRef:
@@ -83,7 +125,9 @@ class EdgeIndex:
         Returns:
             EdgeRef for the added edge
         """
-        ref = EdgeRef(source_id=source_id, target_id=target_id, relationship=relationship)
+        ref = EdgeRef(
+            source_id=source_id, target_id=target_id, relationship=relationship
+        )
 
         # Avoid duplicates
         if ref not in self._incoming[target_id]:
@@ -93,7 +137,7 @@ class EdgeIndex:
 
         return ref
 
-    def add_edge(self, source_id: str, edge: 'Edge') -> EdgeRef:
+    def add_edge(self, source_id: str, edge: Edge) -> EdgeRef:
         """
         Add an edge object to the index.
 
@@ -118,7 +162,9 @@ class EdgeIndex:
         Returns:
             True if edge was removed, False if not found
         """
-        ref = EdgeRef(source_id=source_id, target_id=target_id, relationship=relationship)
+        ref = EdgeRef(
+            source_id=source_id, target_id=target_id, relationship=relationship
+        )
 
         removed = False
         if target_id in self._incoming and ref in self._incoming[target_id]:
@@ -134,7 +180,7 @@ class EdgeIndex:
 
         return removed
 
-    def remove_edge(self, source_id: str, edge: 'Edge') -> bool:
+    def remove_edge(self, source_id: str, edge: Edge) -> bool:
         """
         Remove an edge object from the index.
 
@@ -184,10 +230,86 @@ class EdgeIndex:
         self._edge_count -= removed
         return removed
 
+    def add_node_edges(self, node_id: str, node: Node) -> int:
+        """
+        Add a single node's outgoing edges to the index.
+
+        Args:
+            node_id: Node ID
+            node: Node object with edges to add
+
+        Returns:
+            Number of edges added
+        """
+        added = 0
+        for rel_type, edges in node.edges.items():
+            for edge in edges:
+                self.add(node_id, edge.target_id, rel_type)
+                added += 1
+        return added
+
+    def add_node(self, node_id: str, node: Node) -> int:
+        """
+        Add all edges from a single node to the index.
+
+        Alias for add_node_edges() to match requested API.
+
+        Args:
+            node_id: The node's ID
+            node: The node object with edges attribute
+
+        Returns:
+            Number of edges added
+        """
+        return self.add_node_edges(node_id, node)
+
+    def remove_node_edges(self, node_id: str, node: Node) -> int:
+        """
+        Remove a single node's outgoing edges from the index.
+
+        Args:
+            node_id: Node ID
+            node: Node object with edges to remove
+
+        Returns:
+            Number of edges removed
+        """
+        removed = 0
+        for rel_type, edges in node.edges.items():
+            for edge in edges:
+                if self.remove(node_id, edge.target_id, rel_type):
+                    removed += 1
+        return removed
+
+    def update_node(self, node_id: str, old_node: Node, new_node: Node) -> tuple[int, int]:
+        """
+        Update a node's edges atomically (remove old, add new).
+
+        This is an atomic operation that removes all edges from the old node
+        and adds all edges from the new node. Useful for updating a node
+        without leaving orphaned edges.
+
+        Args:
+            node_id: The node's ID
+            old_node: The previous node object
+            new_node: The updated node object
+
+        Returns:
+            Tuple of (removed_count, added_count)
+
+        Example:
+            >>> old = Node(id="feat-001", edges={"blocks": [Edge(target_id="feat-002")]})
+            >>> new = Node(id="feat-001", edges={"blocks": [Edge(target_id="feat-003")]})
+            >>> removed, added = index.update_node("feat-001", old, new)
+            >>> print(f"Removed {removed}, added {added}")
+            Removed 1, added 1
+        """
+        removed = self.remove_node_edges(node_id, old_node)
+        added = self.add_node_edges(node_id, new_node)
+        return (removed, added)
+
     def get_incoming(
-        self,
-        target_id: str,
-        relationship: str | None = None
+        self, target_id: str, relationship: str | None = None
     ) -> list[EdgeRef]:
         """
         Get all edges pointing TO a node (O(1) lookup).
@@ -213,9 +335,7 @@ class EdgeIndex:
         return list(edges)
 
     def get_outgoing(
-        self,
-        source_id: str,
-        relationship: str | None = None
+        self, source_id: str, relationship: str | None = None
     ) -> list[EdgeRef]:
         """
         Get all edges pointing FROM a node (O(1) lookup).
@@ -235,10 +355,7 @@ class EdgeIndex:
         return list(edges)
 
     def get_neighbors(
-        self,
-        node_id: str,
-        relationship: str | None = None,
-        direction: str = "both"
+        self, node_id: str, relationship: str | None = None, direction: str = "both"
     ) -> set[str]:
         """
         Get all neighboring node IDs connected to a node.
@@ -263,7 +380,9 @@ class EdgeIndex:
 
         return neighbors
 
-    def has_edge(self, source_id: str, target_id: str, relationship: str | None = None) -> bool:
+    def has_edge(
+        self, source_id: str, target_id: str, relationship: str | None = None
+    ) -> bool:
         """
         Check if an edge exists between two nodes.
 
@@ -281,9 +400,11 @@ class EdgeIndex:
                     return True
         return False
 
-    def rebuild(self, nodes: dict[str, 'Node']) -> int:
+    def rebuild(self, nodes: dict[str, Node]) -> int:
         """
         Rebuild the entire index from a node dictionary.
+
+        Optimized to use add_node_edges() for cleaner code.
 
         Args:
             nodes: Dictionary mapping node_id to Node objects
@@ -294,9 +415,7 @@ class EdgeIndex:
         self.clear()
 
         for node_id, node in nodes.items():
-            for relationship, edges in node.edges.items():
-                for edge in edges:
-                    self.add(node_id, edge.target_id, edge.relationship)
+            self.add_node_edges(node_id, node)
 
         return self._edge_count
 
@@ -307,11 +426,44 @@ class EdgeIndex:
         self._edge_count = 0
 
     def __len__(self) -> int:
-        """Return number of edges in the index."""
+        """
+        Get the total number of edges in the index.
+
+        Enables using len() on EdgeIndex instances.
+
+        Returns:
+            int: Total number of edges indexed
+
+        Example:
+            >>> index = EdgeIndex()
+            >>> index.rebuild(graph.nodes)
+            >>> print(f"Index contains {len(index)} edges")
+            Index contains 156 edges
+        """
         return self._edge_count
 
     def __iter__(self) -> Iterator[EdgeRef]:
-        """Iterate over all edges in the index."""
+        """
+        Iterate over all unique edges in the index.
+
+        Enables using EdgeIndex in for loops and other iteration contexts.
+        Deduplicates edges to avoid returning the same edge twice.
+
+        Yields:
+            EdgeRef: Each unique edge in the index
+
+        Example:
+            >>> index = EdgeIndex()
+            >>> index.rebuild(graph.nodes)
+            >>> for edge in index:
+            ...     print(f"{edge.source_id} --{edge.relationship}--> {edge.target_id}")
+            feat-001 --blocked_by--> feat-002
+            feat-003 --related--> feat-001
+
+            >>> # Works with comprehensions
+            >>> blocked_by = [e for e in index if e.relationship == "blocked_by"]
+            >>> blocking_count = len([e for e in index if e.relationship == "blocks"])
+        """
         seen: set[EdgeRef] = set()
         for refs in self._outgoing.values():
             for ref in refs:
@@ -330,5 +482,5 @@ class EdgeIndex:
             "edge_count": self._edge_count,
             "nodes_with_incoming": len(self._incoming),
             "nodes_with_outgoing": len(self._outgoing),
-            "relationships": list(set(ref.relationship for ref in self))
+            "relationships": list(set(ref.relationship for ref in self)),
         }

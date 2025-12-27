@@ -5,13 +5,11 @@ This module provides the `htmlgraph analytics` command for analyzing work patter
 """
 
 from pathlib import Path
-from datetime import datetime, timedelta
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
-from rich.layout import Layout
+
 from rich import box
-from rich.text import Text
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from htmlgraph import SDK, WorkType
 from htmlgraph.converter import html_to_session
@@ -31,13 +29,13 @@ def cmd_analytics(args):
     sessions_dir = Path(args.graph_dir) / "sessions"
 
     if not sessions_dir.exists():
-        console.print("[yellow]No sessions found. Run some work to generate analytics![/yellow]")
+        console.print(
+            "[yellow]No sessions found. Run some work to generate analytics![/yellow]"
+        )
         return 0
 
     session_files = sorted(
-        sessions_dir.glob("*.html"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True
+        sessions_dir.glob("*.html"), key=lambda p: p.stat().st_mtime, reverse=True
     )
 
     if not session_files:
@@ -50,7 +48,9 @@ def cmd_analytics(args):
         _display_session_analytics(console, sdk, args.session_id, args.graph_dir)
     elif args.recent:
         # Recent sessions
-        _display_recent_sessions(console, sdk, session_files[:args.recent], args.graph_dir)
+        _display_recent_sessions(
+            console, sdk, session_files[: args.recent], args.graph_dir
+        )
     else:
         # Project-wide overview
         _display_project_analytics(console, sdk, session_files, args.graph_dir)
@@ -58,7 +58,9 @@ def cmd_analytics(args):
     return 0
 
 
-def _display_session_analytics(console: Console, sdk: SDK, session_id: str, graph_dir: str):
+def _display_session_analytics(
+    console: Console, sdk: SDK, session_id: str, graph_dir: str
+):
     """Display analytics for a single session."""
     from htmlgraph.converter import html_to_session
 
@@ -89,7 +91,7 @@ def _display_session_analytics(console: Console, sdk: SDK, session_id: str, grap
         f"Agent: {session.agent} | Status: {session.status}\n"
         f"Started: {session.started_at.strftime('%Y-%m-%d %H:%M')} | Events: {total_events}",
         title="📊 Session Analytics",
-        border_style="cyan"
+        border_style="cyan",
     )
     console.print(header)
     console.print()
@@ -154,19 +156,26 @@ def _display_session_analytics(console: Console, sdk: SDK, session_id: str, grap
             trans_label = "[green]Low - Focused work[/green]"
 
         metrics.add_row("", "")
-        metrics.add_row("Transition Time:", f"{trans_pct:.1f}% ({trans_mins:.0f} min) - {trans_label}")
+        metrics.add_row(
+            "Transition Time:",
+            f"{trans_pct:.1f}% ({trans_mins:.0f} min) - {trans_label}",
+        )
         metrics.add_row("Feature Work Time:", f"{feat_mins:.0f} minutes")
 
     console.print(Panel(metrics, title="📈 Key Metrics", border_style="green"))
 
 
-def _display_recent_sessions(console: Console, sdk: SDK, session_files: list, graph_dir: str):
+def _display_recent_sessions(
+    console: Console, sdk: SDK, session_files: list, graph_dir: str
+):
     """Display analytics for recent sessions."""
-    console.print(Panel(
-        f"[bold cyan]Analyzing {len(session_files)} Recent Sessions[/bold cyan]",
-        title="📊 Recent Sessions Analytics",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel(
+            f"[bold cyan]Analyzing {len(session_files)} Recent Sessions[/bold cyan]",
+            title="📊 Recent Sessions Analytics",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     # Sessions table
@@ -184,14 +193,18 @@ def _display_recent_sessions(console: Console, sdk: SDK, session_files: list, gr
             session_id = session.id
 
             # Get metrics
-            primary = sdk.analytics.calculate_session_primary_work_type(session_id) or "-"
+            primary = (
+                sdk.analytics.calculate_session_primary_work_type(session_id) or "-"
+            )
             ratio = sdk.analytics.spike_to_feature_ratio(session_id=session_id)
             breakdown = sdk.analytics.calculate_session_work_breakdown(session_id)
             total_events = sum(breakdown.values()) if breakdown else session.event_count
 
             # Format primary type
             if primary and len(primary) > 20:
-                primary = primary.replace("-implementation", "").replace("-investigation", "")
+                primary = primary.replace("-implementation", "").replace(
+                    "-investigation", ""
+                )
 
             # Format ratio
             ratio_str = f"{ratio:.2f}" if ratio > 0 else "-"
@@ -199,10 +212,10 @@ def _display_recent_sessions(console: Console, sdk: SDK, session_files: list, gr
             table.add_row(
                 session_id[:30] + "..." if len(session_id) > 30 else session_id,
                 session.agent,
-                session.started_at.strftime('%m-%d %H:%M'),
+                session.started_at.strftime("%m-%d %H:%M"),
                 str(total_events),
                 primary,
-                ratio_str
+                ratio_str,
             )
         except Exception as e:
             console.print(f"[dim red]Error loading {session_path.name}: {e}[/dim red]")
@@ -211,14 +224,18 @@ def _display_recent_sessions(console: Console, sdk: SDK, session_files: list, gr
     console.print(table)
 
 
-def _display_project_analytics(console: Console, sdk: SDK, session_files: list, graph_dir: str):
+def _display_project_analytics(
+    console: Console, sdk: SDK, session_files: list, graph_dir: str
+):
     """Display project-wide analytics."""
-    console.print(Panel(
-        f"[bold cyan]Project-Wide Analytics[/bold cyan]\n"
-        f"Analyzing {len(session_files)} total sessions",
-        title="📊 HtmlGraph Project Analytics",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel(
+            f"[bold cyan]Project-Wide Analytics[/bold cyan]\n"
+            f"Analyzing {len(session_files)} total sessions",
+            title="📊 HtmlGraph Project Analytics",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     # Get project-wide metrics
@@ -234,7 +251,9 @@ def _display_project_analytics(console: Console, sdk: SDK, session_files: list, 
         table.add_column("Percentage", justify="right", style="green")
         table.add_column("Bar", style="magenta", min_width=50)
 
-        for work_type, pct in sorted(all_dist.items(), key=lambda x: x[1], reverse=True):
+        for work_type, pct in sorted(
+            all_dist.items(), key=lambda x: x[1], reverse=True
+        ):
             bar_length = int(pct / 2)  # Scale to 50 chars max
             bar = "█" * bar_length
             table.add_row(work_type, f"{pct:.1f}%", bar)
@@ -279,7 +298,7 @@ def _display_project_analytics(console: Console, sdk: SDK, session_files: list, 
     if all_transition.get("total_minutes", 0) > 0:
         trans_pct = all_transition["transition_percent"]
         trans_mins = all_transition["transition_minutes"]
-        feat_mins = all_transition["feature_minutes"]
+        all_transition["feature_minutes"]
         total_mins = all_transition["total_minutes"]
 
         if trans_pct > 30:
@@ -291,16 +310,20 @@ def _display_project_analytics(console: Console, sdk: SDK, session_files: list, 
 
         metrics.add_row(
             "Transition Time:",
-            f"{trans_pct:.1f}% ({trans_mins:.0f}m of {total_mins:.0f}m) - {trans_desc}"
+            f"{trans_pct:.1f}% ({trans_mins:.0f}m of {total_mins:.0f}m) - {trans_desc}",
         )
 
-    console.print(Panel(metrics, title="📈 Project Health Metrics", border_style="green"))
+    console.print(
+        Panel(metrics, title="📈 Project Health Metrics", border_style="green")
+    )
     console.print()
 
     # Session type breakdown
     spike_sessions = sdk.analytics.get_sessions_by_work_type(WorkType.SPIKE.value)
     feature_sessions = sdk.analytics.get_sessions_by_work_type(WorkType.FEATURE.value)
-    maintenance_sessions = sdk.analytics.get_sessions_by_work_type(WorkType.MAINTENANCE.value)
+    maintenance_sessions = sdk.analytics.get_sessions_by_work_type(
+        WorkType.MAINTENANCE.value
+    )
 
     session_table = Table(title="Session Types", box=box.SIMPLE)
     session_table.add_column("Session Type", style="cyan")
@@ -320,15 +343,24 @@ def _display_project_analytics(console: Console, sdk: SDK, session_files: list, 
     for session_path in recent_files:
         try:
             session = html_to_session(session_path)
-            primary = sdk.analytics.calculate_session_primary_work_type(session.id) or "unknown"
+            primary = (
+                sdk.analytics.calculate_session_primary_work_type(session.id)
+                or "unknown"
+            )
 
             # Shorten work type
             if primary != "unknown":
-                primary = primary.replace("-implementation", "").replace("-investigation", "")
+                primary = primary.replace("-implementation", "").replace(
+                    "-investigation", ""
+                )
 
-            console.print(f"  • [cyan]{session.id[:40]}[/cyan] - {session.agent} - [yellow]{primary}[/yellow]")
+            console.print(
+                f"  • [cyan]{session.id[:40]}[/cyan] - {session.agent} - [yellow]{primary}[/yellow]"
+            )
         except Exception:
             continue
 
     console.print()
-    console.print("[dim]Run 'htmlgraph analytics --recent 10' for detailed recent session analysis[/dim]")
+    console.print(
+        "[dim]Run 'htmlgraph analytics --recent 10' for detailed recent session analysis[/dim]"
+    )

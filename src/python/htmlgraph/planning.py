@@ -1,19 +1,94 @@
 """
-Pydantic models for HtmlGraph planning features (Conductor-style).
+Planning utilities for HtmlGraph (Conductor-style workflow).
 
-This module provides models for:
-- Track: A collection of related work with spec + plan
-- Spec: Requirements document with acceptance criteria
-- Plan: Implementation plan with phases, tasks, and multiple views
-- Task: Individual work item within a plan
-- Phase: Logical grouping of tasks
+This module provides Pydantic models for comprehensive project planning and tracking.
+It implements a Conductor-style planning workflow where complex work is organized
+into Tracks, each containing a Spec (requirements) and Plan (implementation strategy).
+
+Available Classes:
+    - Track: Top-level container for a work stream with spec and plan
+    - Spec: Requirements document with priorities and acceptance criteria
+    - Plan: Implementation plan with phases, tasks, and multiple views (list/kanban/timeline/graph)
+    - Phase: Logical grouping of related tasks within a plan
+    - Task: Individual work item with estimates, blocking, and assignment
+    - Requirement: A requirement within a spec with verification status
+    - AcceptanceCriterion: An acceptance criterion for validating a spec
+
+Conductor Workflow:
+    1. Create Track: Define the work stream and its scope
+    2. Write Spec: Document requirements and acceptance criteria
+    3. Build Plan: Break work into phases and tasks
+    4. Execute: Work through tasks, track progress
+    5. Validate: Verify against acceptance criteria
+
+Key Features:
+    - Multi-view rendering: List, Kanban, Timeline, and Graph views
+    - Dependency tracking: Tasks can be blocked by other tasks or features
+    - Progress tracking: Automatic completion percentage calculation
+    - HTML output: Rich, styled HTML documents with dashboard design system
+    - Linking: Tracks link to features and sessions for traceability
+
+Usage:
+    from htmlgraph.planning import Track, Spec, Plan, Phase, Task
+    from htmlgraph.sdk import SDK
+
+    sdk = SDK(agent="claude")
+
+    # Create a track
+    track = Track(
+        id="track-001",
+        title="User Authentication System",
+        description="Complete auth system with OAuth",
+        status="active"
+    )
+
+    # Build a spec with requirements
+    spec = Spec(
+        id="spec-001",
+        title="Auth System Requirements",
+        track_id="track-001",
+        overview="OAuth-based authentication with JWT sessions",
+        requirements=[
+            Requirement(
+                id="req-001",
+                description="Support Google and GitHub OAuth",
+                priority="must-have"
+            )
+        ]
+    )
+
+    # Build a plan with phases and tasks
+    plan = Plan(
+        id="plan-001",
+        title="Auth Implementation Plan",
+        track_id="track-001",
+        phases=[
+            Phase(
+                id="1",
+                name="Foundation",
+                tasks=[
+                    Task(
+                        id="task-001",
+                        description="Set up OAuth providers",
+                        estimate_hours=4.0,
+                        priority="high"
+                    )
+                ]
+            )
+        ]
+    )
+
+    # Generate HTML outputs
+    spec_html = spec.to_html()
+    plan_html = plan.to_html()
 """
 
 from datetime import datetime
 from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
-from htmlgraph.models import Step, Edge
+from htmlgraph.models import Step
 
 
 class Requirement(BaseModel):
@@ -25,7 +100,9 @@ class Requirement(BaseModel):
     verified: bool = False
     notes: str = ""
     related_tech: list[str] = Field(default_factory=list)  # Links to tech stack
-    feature_ids: list[str] = Field(default_factory=list)  # Features satisfying this requirement
+    feature_ids: list[str] = Field(
+        default_factory=list
+    )  # Features satisfying this requirement
 
     def to_html(self) -> str:
         """Convert requirement to HTML article element."""
@@ -40,11 +117,11 @@ class Requirement(BaseModel):
                 f'<li><a href="../../project/tech-stack.html#{tech}">{tech}</a></li>'
                 for tech in self.related_tech
             )
-            tech_links = f'''
+            tech_links = f"""
                 <nav data-related>
                     <h4>Related Tech:</h4>
                     <ul>{tech_items}</ul>
-                </nav>'''
+                </nav>"""
 
         notes_html = f"<p>{self.notes}</p>" if self.notes else ""
 
@@ -62,7 +139,9 @@ class AcceptanceCriterion(BaseModel):
     description: str
     completed: bool = False
     test_case: str | None = None
-    feature_ids: list[str] = Field(default_factory=list)  # Features satisfying this criterion
+    feature_ids: list[str] = Field(
+        default_factory=list
+    )  # Features satisfying this criterion
 
     def to_html(self) -> str:
         """Convert criterion to HTML list item."""
@@ -71,9 +150,9 @@ class AcceptanceCriterion(BaseModel):
 
         test_html = ""
         if self.test_case:
-            test_html = f'<code>{self.test_case}</code>'
+            test_html = f"<code>{self.test_case}</code>"
 
-        return f'<li{completed_attr}>{status} {self.description} {test_html}</li>'
+        return f"<li{completed_attr}>{status} {self.description} {test_html}</li>"
 
 
 class Spec(BaseModel):
@@ -111,35 +190,45 @@ class Spec(BaseModel):
         req_html = ""
         if self.requirements:
             req_items = "\n".join(req.to_html() for req in self.requirements)
-            req_html = f'''
+            req_html = f"""
         <section data-section="requirements">
             <h2>Requirements</h2>
             <div class="requirements-list">
                 {req_items}
             </div>
-        </section>'''
+        </section>"""
 
         # Build acceptance criteria HTML
         ac_html = ""
         if self.acceptance_criteria:
-            ac_items = "\n                ".join(ac.to_html() for ac in self.acceptance_criteria)
-            ac_html = f'''
+            ac_items = "\n                ".join(
+                ac.to_html() for ac in self.acceptance_criteria
+            )
+            ac_html = f"""
         <section data-section="acceptance-criteria">
             <h2>Acceptance Criteria</h2>
             <ol class="criteria-list">
                 {ac_items}
             </ol>
-        </section>'''
+        </section>"""
 
         # Build links HTML with back navigation
-        nav_html = f'''
+        nav_html = """
         <div class="spec-nav">
             <a href="index.html" class="nav-link">← Track</a>
             <a href="plan.html" class="nav-link">Plan →</a>
-        </div>'''
+        </div>"""
 
-        overview_html = f"<p>{self.overview}</p>" if self.overview else "<p class=\"muted\">No overview provided</p>"
-        context_html = f"<p>{self.context}</p>" if self.context else "<p class=\"muted\">No context provided</p>"
+        overview_html = (
+            f"<p>{self.overview}</p>"
+            if self.overview
+            else '<p class="muted">No overview provided</p>'
+        )
+        context_html = (
+            f"<p>{self.context}</p>"
+            if self.context
+            else '<p class="muted">No context provided</p>'
+        )
 
         return f'''<!DOCTYPE html>
 <html lang="en">
@@ -379,7 +468,9 @@ class Task(BaseModel):
     # Relationships
     blocked_by: list[str] = Field(default_factory=list)  # Task IDs or feature IDs
     subtasks: list[Step] = Field(default_factory=list)
-    feature_ids: list[str] = Field(default_factory=list)  # Features implementing this task
+    feature_ids: list[str] = Field(
+        default_factory=list
+    )  # Features implementing this task
 
     # Tracking
     started_at: datetime | None = None
@@ -390,7 +481,9 @@ class Task(BaseModel):
         completed_attr = f' data-completed="{str(self.completed).lower()}"'
         priority_attr = f' data-priority="{self.priority}"'
         assigned_attr = f' data-assigned="{self.assigned}"' if self.assigned else ""
-        blocked_attr = f' data-blocked-by="{",".join(self.blocked_by)}"' if self.blocked_by else ""
+        blocked_attr = (
+            f' data-blocked-by="{",".join(self.blocked_by)}"' if self.blocked_by else ""
+        )
 
         status_icon = "✅" if self.completed else ("⏳" if self.started_at else "○")
 
@@ -399,23 +492,25 @@ class Task(BaseModel):
         if self.blocked_by:
             block_items = "".join(
                 f'<li><a href="../../features/{bid}.html">Depends on: {bid}</a></li>'
-                if bid.startswith("feature-") else
-                f'<li>Depends on: {bid}</li>'
+                if bid.startswith("feature-")
+                else f"<li>Depends on: {bid}</li>"
                 for bid in self.blocked_by
             )
-            blocking_html = f'''
+            blocking_html = f"""
                 <nav data-task-links>
                     <ul>{block_items}</ul>
-                </nav>'''
+                </nav>"""
 
         # Build subtasks
         subtasks_html = ""
         if self.subtasks:
-            subtask_items = "\n                    ".join(st.to_html() for st in self.subtasks)
-            subtasks_html = f'''
+            subtask_items = "\n                    ".join(
+                st.to_html() for st in self.subtasks
+            )
+            subtasks_html = f"""
                 <ul data-subtasks>
                     {subtask_items}
-                </ul>'''
+                </ul>"""
 
         estimate_html = ""
         if self.estimate_hours:
@@ -525,7 +620,7 @@ class Plan(BaseModel):
 
         # Progress bar with dashboard styling
         completion = self.completion_percentage
-        progress_html = f'''
+        progress_html = f"""
         <div class="progress-container">
             <div class="progress-info">
                 <span class="progress-label">{completion}% Complete</span>
@@ -534,19 +629,19 @@ class Plan(BaseModel):
             <div class="progress-bar">
                 <div class="progress-fill" style="width: {completion}%"></div>
             </div>
-        </div>'''
+        </div>"""
 
         # Navigation for different views - matching dashboard view buttons exactly
-        view_nav = '''
+        view_nav = """
         <div class="view-toggle">
             <button onclick="showView('list')" class="view-btn active" data-view="list">List</button>
             <button onclick="showView('kanban')" class="view-btn" data-view="kanban">Kanban</button>
             <button onclick="showView('timeline')" class="view-btn" data-view="timeline">Timeline</button>
             <button onclick="showView('graph')" class="view-btn" data-view="graph">Graph</button>
-        </div>'''
+        </div>"""
 
         # JavaScript for view switching - updated for dashboard-style buttons
-        js_code = '''
+        js_code = """
         <script>
         function showView(view) {
             // Hide all view containers
@@ -610,10 +705,10 @@ class Plan(BaseModel):
             // TODO: Implement graph visualization of dependencies
             console.log('Graph view');
         }
-        </script>'''
+        </script>"""
 
         # Search and filter controls with dashboard styling
-        controls_html = '''
+        controls_html = """
         <div class="controls">
             <input type="search" class="search-input" placeholder="Search tasks..." oninput="filterTasks(this.value)">
             <select class="agent-filter" onchange="filterByAgent(this.value)">
@@ -621,27 +716,27 @@ class Plan(BaseModel):
                 <option value="claude">Claude</option>
                 <option value="copilot">Copilot</option>
             </select>
-        </div>'''
+        </div>"""
 
         # Navigation links to connect with existing features
-        nav_links = '''
+        nav_links = """
         <div class="plan-nav">
             <a href="../../index.html" class="nav-link">← Dashboard</a>
             <a href="index.html" class="nav-link">Track</a>
             <a href="spec.html" class="nav-link">Spec</a>
-        </div>'''
+        </div>"""
 
         # List view (default)
-        list_view = f'''
+        list_view = f"""
         <div class="view-container" data-view="list">
             {controls_html}
             <div class="phases-container">
                 {phases_html}
             </div>
-        </div>'''
+        </div>"""
 
         # Kanban view - matching dashboard kanban styling
-        kanban_view = '''
+        kanban_view = """
         <div class="view-container kanban-view" data-view="kanban" style="display: none;">
             <div class="kanban-board">
                 <div class="kanban-column" data-status="todo">
@@ -657,26 +752,26 @@ class Plan(BaseModel):
                     <div id="kanban-done" class="column-content"></div>
                 </div>
             </div>
-        </div>'''
+        </div>"""
 
         # Timeline view placeholder
-        timeline_view = '''
+        timeline_view = """
         <div class="view-container" data-view="timeline" style="display: none;">
             <div class="timeline-placeholder">
                 <p class="muted">Timeline view - Coming soon</p>
                 <p class="muted">Will visualize tasks on a timeline with milestones</p>
             </div>
-        </div>'''
+        </div>"""
 
         # Graph view placeholder
-        graph_view = '''
+        graph_view = """
         <div class="view-container" data-view="graph" style="display: none;">
             <div class="graph-placeholder">
                 <p class="muted">Dependency graph - Coming soon</p>
                 <p class="muted">Will visualize task dependencies and blocking relationships</p>
             </div>
             <svg id="dependency-graph" width="100%" height="600"></svg>
-        </div>'''
+        </div>"""
 
         return f'''<!DOCTYPE html>
 <html lang="en">

@@ -5,16 +5,16 @@ Extends BaseCollection with chore-specific builder support.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
-    from htmlgraph.builders.chore import ChoreBuilder
 
 from htmlgraph.collections.base import BaseCollection
 
 
-class ChoreCollection(BaseCollection['ChoreCollection']):
+class ChoreCollection(BaseCollection["ChoreCollection"]):
     """
     Collection interface for chores with builder support.
 
@@ -36,7 +36,7 @@ class ChoreCollection(BaseCollection['ChoreCollection']):
     _collection_name = "chores"
     _node_type = "chore"
 
-    def __init__(self, sdk: 'SDK'):
+    def __init__(self, sdk: SDK):
         """
         Initialize chore collection.
 
@@ -48,4 +48,5 @@ class ChoreCollection(BaseCollection['ChoreCollection']):
 
         # Set builder class for create() method
         from htmlgraph.builders.chore import ChoreBuilder
+
         self._builder_class = ChoreBuilder

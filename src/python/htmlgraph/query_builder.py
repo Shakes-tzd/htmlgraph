@@ -25,10 +25,12 @@ Example:
 """
 
 from __future__ import annotations
+
 import re
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.graph import HtmlGraph
@@ -37,25 +39,27 @@ if TYPE_CHECKING:
 
 class Operator(Enum):
     """Query operators for comparisons."""
-    EQ = "eq"           # Equal
-    NE = "ne"           # Not equal
-    GT = "gt"           # Greater than
-    GTE = "gte"         # Greater than or equal
-    LT = "lt"           # Less than
-    LTE = "lte"         # Less than or equal
-    IN = "in"           # In list
-    NOT_IN = "not_in"   # Not in list
-    BETWEEN = "between" # Between two values (inclusive)
-    CONTAINS = "contains"     # String contains
+
+    EQ = "eq"  # Equal
+    NE = "ne"  # Not equal
+    GT = "gt"  # Greater than
+    GTE = "gte"  # Greater than or equal
+    LT = "lt"  # Less than
+    LTE = "lte"  # Less than or equal
+    IN = "in"  # In list
+    NOT_IN = "not_in"  # Not in list
+    BETWEEN = "between"  # Between two values (inclusive)
+    CONTAINS = "contains"  # String contains
     STARTS_WITH = "starts_with"
     ENDS_WITH = "ends_with"
-    MATCHES = "matches"       # Regex match
+    MATCHES = "matches"  # Regex match
     IS_NULL = "is_null"
     IS_NOT_NULL = "is_not_null"
 
 
 class LogicalOp(Enum):
     """Logical operators for combining conditions."""
+
     AND = "and"
     OR = "or"
     NOT = "not"
@@ -64,12 +68,13 @@ class LogicalOp(Enum):
 @dataclass
 class Condition:
     """A single query condition."""
+
     attribute: str
     operator: Operator
     value: Any = None
     logical_op: LogicalOp = LogicalOp.AND
 
-    def evaluate(self, node: 'Node') -> bool:
+    def evaluate(self, node: Node) -> bool:
         """Evaluate this condition against a node."""
         # Get attribute value with nested access support
         actual = _get_nested_attr(node, self.attribute)
@@ -103,8 +108,9 @@ class Condition:
             return actual not in self.value
         elif self.operator == Operator.BETWEEN:
             low, high = self.value
-            return _compare_numeric(actual, low, lambda a, b: a >= b) and \
-                   _compare_numeric(actual, high, lambda a, b: a <= b)
+            return _compare_numeric(
+                actual, low, lambda a, b: a >= b
+            ) and _compare_numeric(actual, high, lambda a, b: a <= b)
         elif self.operator == Operator.CONTAINS:
             return self.value.lower() in str(actual).lower()
         elif self.operator == Operator.STARTS_WITH:
@@ -112,7 +118,11 @@ class Condition:
         elif self.operator == Operator.ENDS_WITH:
             return str(actual).lower().endswith(self.value.lower())
         elif self.operator == Operator.MATCHES:
-            pattern = self.value if isinstance(self.value, re.Pattern) else re.compile(self.value)
+            pattern = (
+                self.value
+                if isinstance(self.value, re.Pattern)
+                else re.compile(self.value)
+            )
             return bool(pattern.search(str(actual)))
 
         return False
@@ -168,7 +178,9 @@ def _compare_numeric(actual: Any, expected: Any, comparator: Callable) -> bool:
     try:
         # Convert to float for numeric comparison
         actual_num = float(actual) if not isinstance(actual, (int, float)) else actual
-        expected_num = float(expected) if not isinstance(expected, (int, float)) else expected
+        expected_num = (
+            float(expected) if not isinstance(expected, (int, float)) else expected
+        )
         return comparator(actual_num, expected_num)
     except (ValueError, TypeError):
         # Fall back to string comparison
@@ -187,77 +199,77 @@ class ConditionBuilder:
         query.where("completion").gt(50)
     """
 
-    _query_builder: 'QueryBuilder'
+    _query_builder: QueryBuilder
     _attribute: str
     _logical_op: LogicalOp = LogicalOp.AND
 
-    def eq(self, value: Any) -> 'QueryBuilder':
+    def eq(self, value: Any) -> QueryBuilder:
         """Equal to value."""
         return self._add_condition(Operator.EQ, value)
 
-    def ne(self, value: Any) -> 'QueryBuilder':
+    def ne(self, value: Any) -> QueryBuilder:
         """Not equal to value."""
         return self._add_condition(Operator.NE, value)
 
-    def gt(self, value: Any) -> 'QueryBuilder':
+    def gt(self, value: Any) -> QueryBuilder:
         """Greater than value."""
         return self._add_condition(Operator.GT, value)
 
-    def gte(self, value: Any) -> 'QueryBuilder':
+    def gte(self, value: Any) -> QueryBuilder:
         """Greater than or equal to value."""
         return self._add_condition(Operator.GTE, value)
 
-    def lt(self, value: Any) -> 'QueryBuilder':
+    def lt(self, value: Any) -> QueryBuilder:
         """Less than value."""
         return self._add_condition(Operator.LT, value)
 
-    def lte(self, value: Any) -> 'QueryBuilder':
+    def lte(self, value: Any) -> QueryBuilder:
         """Less than or equal to value."""
         return self._add_condition(Operator.LTE, value)
 
-    def in_(self, values: list) -> 'QueryBuilder':
+    def in_(self, values: list) -> QueryBuilder:
         """Value is in list."""
         return self._add_condition(Operator.IN, values)
 
-    def not_in(self, values: list) -> 'QueryBuilder':
+    def not_in(self, values: list) -> QueryBuilder:
         """Value is not in list."""
         return self._add_condition(Operator.NOT_IN, values)
 
-    def between(self, low: Any, high: Any) -> 'QueryBuilder':
+    def between(self, low: Any, high: Any) -> QueryBuilder:
         """Value is between low and high (inclusive)."""
         return self._add_condition(Operator.BETWEEN, (low, high))
 
-    def contains(self, substring: str) -> 'QueryBuilder':
+    def contains(self, substring: str) -> QueryBuilder:
         """String contains substring (case-insensitive)."""
         return self._add_condition(Operator.CONTAINS, substring)
 
-    def starts_with(self, prefix: str) -> 'QueryBuilder':
+    def starts_with(self, prefix: str) -> QueryBuilder:
         """String starts with prefix (case-insensitive)."""
         return self._add_condition(Operator.STARTS_WITH, prefix)
 
-    def ends_with(self, suffix: str) -> 'QueryBuilder':
+    def ends_with(self, suffix: str) -> QueryBuilder:
         """String ends with suffix (case-insensitive)."""
         return self._add_condition(Operator.ENDS_WITH, suffix)
 
-    def matches(self, pattern: str | re.Pattern) -> 'QueryBuilder':
+    def matches(self, pattern: str | re.Pattern) -> QueryBuilder:
         """String matches regex pattern."""
         return self._add_condition(Operator.MATCHES, pattern)
 
-    def is_null(self) -> 'QueryBuilder':
+    def is_null(self) -> QueryBuilder:
         """Attribute is None/null."""
         return self._add_condition(Operator.IS_NULL, None)
 
-    def is_not_null(self) -> 'QueryBuilder':
+    def is_not_null(self) -> QueryBuilder:
         """Attribute is not None/null."""
         return self._add_condition(Operator.IS_NOT_NULL, None)
 
-    def _add_condition(self, operator: Operator, value: Any) -> 'QueryBuilder':
+    def _add_condition(self, operator: Operator, value: Any) -> QueryBuilder:
         """Add condition and return query builder for chaining."""
         condition = Condition(
             attribute=self._attribute,
             operator=operator,
             value=value,
-            logical_op=self._logical_op
+            logical_op=self._logical_op,
         )
         self._query_builder._conditions.append(condition)
         return self._query_builder
@@ -282,13 +294,15 @@ class QueryBuilder:
             .execute()
     """
 
-    _graph: 'HtmlGraph'
+    _graph: HtmlGraph
     _conditions: list[Condition] = field(default_factory=list)
     _type_filter: str | None = None
     _limit: int | None = None
     _offset: int = 0
 
-    def where(self, attribute: str, value: Any = None) -> 'QueryBuilder | ConditionBuilder':
+    def where(
+        self, attribute: str, value: Any = None
+    ) -> QueryBuilder | ConditionBuilder:
         """
         Start a query condition.
 
@@ -309,19 +323,19 @@ class QueryBuilder:
                 attribute=attribute,
                 operator=Operator.EQ,
                 value=value,
-                logical_op=LogicalOp.AND
+                logical_op=LogicalOp.AND,
             )
             self._conditions.append(condition)
             return self
         else:
             # Return condition builder for fluent operator
             return ConditionBuilder(
-                _query_builder=self,
-                _attribute=attribute,
-                _logical_op=LogicalOp.AND
+                _query_builder=self, _attribute=attribute, _logical_op=LogicalOp.AND
             )
 
-    def and_(self, attribute: str, value: Any = None) -> 'QueryBuilder | ConditionBuilder':
+    def and_(
+        self, attribute: str, value: Any = None
+    ) -> QueryBuilder | ConditionBuilder:
         """
         Add an AND condition.
 
@@ -337,18 +351,16 @@ class QueryBuilder:
                 attribute=attribute,
                 operator=Operator.EQ,
                 value=value,
-                logical_op=LogicalOp.AND
+                logical_op=LogicalOp.AND,
             )
             self._conditions.append(condition)
             return self
         else:
             return ConditionBuilder(
-                _query_builder=self,
-                _attribute=attribute,
-                _logical_op=LogicalOp.AND
+                _query_builder=self, _attribute=attribute, _logical_op=LogicalOp.AND
             )
 
-    def or_(self, attribute: str, value: Any = None) -> 'QueryBuilder | ConditionBuilder':
+    def or_(self, attribute: str, value: Any = None) -> QueryBuilder | ConditionBuilder:
         """
         Add an OR condition.
 
@@ -364,18 +376,16 @@ class QueryBuilder:
                 attribute=attribute,
                 operator=Operator.EQ,
                 value=value,
-                logical_op=LogicalOp.OR
+                logical_op=LogicalOp.OR,
             )
             self._conditions.append(condition)
             return self
         else:
             return ConditionBuilder(
-                _query_builder=self,
-                _attribute=attribute,
-                _logical_op=LogicalOp.OR
+                _query_builder=self, _attribute=attribute, _logical_op=LogicalOp.OR
             )
 
-    def not_(self, attribute: str) -> 'ConditionBuilder':
+    def not_(self, attribute: str) -> ConditionBuilder:
         """
         Add a NOT condition.
 
@@ -389,12 +399,10 @@ class QueryBuilder:
             ConditionBuilder for specifying the condition
         """
         return ConditionBuilder(
-            _query_builder=self,
-            _attribute=attribute,
-            _logical_op=LogicalOp.NOT
+            _query_builder=self, _attribute=attribute, _logical_op=LogicalOp.NOT
         )
 
-    def of_type(self, node_type: str) -> 'QueryBuilder':
+    def of_type(self, node_type: str) -> QueryBuilder:
         """
         Filter by node type.
 
@@ -407,7 +415,7 @@ class QueryBuilder:
         self._type_filter = node_type
         return self
 
-    def limit(self, count: int) -> 'QueryBuilder':
+    def limit(self, count: int) -> QueryBuilder:
         """
         Limit number of results.
 
@@ -420,7 +428,7 @@ class QueryBuilder:
         self._limit = count
         return self
 
-    def offset(self, skip: int) -> 'QueryBuilder':
+    def offset(self, skip: int) -> QueryBuilder:
         """
         Skip first N results.
 
@@ -433,7 +441,7 @@ class QueryBuilder:
         self._offset = skip
         return self
 
-    def execute(self) -> list['Node']:
+    def execute(self) -> list[Node]:
         """
         Execute the query and return matching nodes.
 
@@ -453,13 +461,13 @@ class QueryBuilder:
 
         # Apply offset and limit
         if self._offset:
-            results = results[self._offset:]
+            results = results[self._offset :]
         if self._limit:
-            results = results[:self._limit]
+            results = results[: self._limit]
 
         return results
 
-    def first(self) -> 'Node | None':
+    def first(self) -> Node | None:
         """
         Execute query and return first matching node.
 
@@ -493,7 +501,7 @@ class QueryBuilder:
         """
         return self.first() is not None
 
-    def _evaluate_conditions(self, node: 'Node') -> bool:
+    def _evaluate_conditions(self, node: Node) -> bool:
         """
         Evaluate all conditions against a node.
 
@@ -533,11 +541,34 @@ class QueryBuilder:
 
         return result if result is not None else True
 
-    def __iter__(self) -> Iterator['Node']:
-        """Iterate over query results."""
+    def __iter__(self) -> Iterator[Node]:
+        """
+        Iterate over query results.
+
+        Enables using QueryBuilder directly in for loops without calling execute().
+        This provides a more Pythonic interface similar to Django ORM or SQLAlchemy.
+
+        Yields:
+            Node: Each node matching the query
+
+        Example:
+            >>> # Instead of: for node in graph.query_builder().execute()
+            >>> # You can do:
+            >>> query = graph.query_builder().where("status", "todo").and_("priority", "high")
+            >>> for node in query:
+            ...     print(f"{node.id}: {node.title}")
+            feat-001: User Authentication
+            feat-002: Database Migration
+
+            >>> # Works with comprehensions
+            >>> titles = [n.title for n in query]
+            >>>
+            >>> # Works with any iterable operation
+            >>> first = next(iter(query), None)
+        """
         return iter(self.execute())
 
-    def to_predicate(self) -> Callable[['Node'], bool]:
+    def to_predicate(self) -> Callable[[Node], bool]:
         """
         Convert query to a predicate function.
 
@@ -546,7 +577,8 @@ class QueryBuilder:
         Returns:
             Function that takes a Node and returns bool
         """
-        def predicate(node: 'Node') -> bool:
+
+        def predicate(node: Node) -> bool:
             if self._type_filter and node.type != self._type_filter:
                 return False
             return self._evaluate_conditions(node)

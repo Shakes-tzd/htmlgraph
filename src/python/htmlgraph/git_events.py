@@ -17,9 +17,12 @@ import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from htmlgraph.event_log import EventRecord, JsonlEventLog
+
+if TYPE_CHECKING:
+    from htmlgraph.session_manager import SessionManager
 
 
 def get_git_info() -> dict:
@@ -33,85 +36,81 @@ def get_git_info() -> dict:
     try:
         # Get commit hash
         commit_hash = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'],
-            stderr=subprocess.DEVNULL,
-            text=True
+            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, text=True
         ).strip()
 
         commit_hash_short = subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'],
+            ["git", "rev-parse", "--short", "HEAD"],
             stderr=subprocess.DEVNULL,
-            text=True
+            text=True,
         ).strip()
 
         # Get branch name
         branch = subprocess.check_output(
-            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stderr=subprocess.DEVNULL,
-            text=True
+            text=True,
         ).strip()
 
         # Get author info
         author_name = subprocess.check_output(
-            ['git', 'log', '-1', '--format=%an'],
-            stderr=subprocess.DEVNULL,
-            text=True
+            ["git", "log", "-1", "--format=%an"], stderr=subprocess.DEVNULL, text=True
         ).strip()
 
         author_email = subprocess.check_output(
-            ['git', 'log', '-1', '--format=%ae'],
-            stderr=subprocess.DEVNULL,
-            text=True
+            ["git", "log", "-1", "--format=%ae"], stderr=subprocess.DEVNULL, text=True
         ).strip()
 
         # Get commit message
         commit_message = subprocess.check_output(
-            ['git', 'log', '-1', '--format=%B'],
-            stderr=subprocess.DEVNULL,
-            text=True
+            ["git", "log", "-1", "--format=%B"], stderr=subprocess.DEVNULL, text=True
         ).strip()
 
         # Get changed files
-        files_changed = subprocess.check_output(
-            ['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD'],
-            stderr=subprocess.DEVNULL,
-            text=True
-        ).strip().split('\n')
+        files_changed = (
+            subprocess.check_output(
+                ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            .strip()
+            .split("\n")
+        )
         files_changed = [f for f in files_changed if f]  # Remove empty strings
 
         # Get stats (insertions/deletions)
         stats = subprocess.check_output(
-            ['git', 'diff-tree', '--no-commit-id', '--numstat', '-r', 'HEAD'],
+            ["git", "diff-tree", "--no-commit-id", "--numstat", "-r", "HEAD"],
             stderr=subprocess.DEVNULL,
-            text=True
+            text=True,
         ).strip()
 
         insertions = 0
         deletions = 0
-        for line in stats.split('\n'):
+        for line in stats.split("\n"):
             if line:
-                parts = line.split('\t')
-                if len(parts) >= 2 and parts[0] != '-' and parts[1] != '-':
+                parts = line.split("\t")
+                if len(parts) >= 2 and parts[0] != "-" and parts[1] != "-":
                     insertions += int(parts[0])
                     deletions += int(parts[1])
 
         return {
-            'commit_hash': commit_hash,
-            'commit_hash_short': commit_hash_short,
-            'branch': branch,
-            'author_name': author_name,
-            'author_email': author_email,
-            'commit_message': commit_message,
-            'files_changed': files_changed,
-            'insertions': insertions,
-            'deletions': deletions,
+            "commit_hash": commit_hash,
+            "commit_hash_short": commit_hash_short,
+            "branch": branch,
+            "author_name": author_name,
+            "author_email": author_email,
+            "commit_message": commit_message,
+            "files_changed": files_changed,
+            "insertions": insertions,
+            "deletions": deletions,
         }
 
     except subprocess.CalledProcessError:
         return {}
 
 
-def _get_session_manager(graph_dir: str | Path) -> "SessionManager | None":
+def _get_session_manager(graph_dir: str | Path) -> SessionManager | None:
     try:
         from htmlgraph.session_manager import SessionManager
 
@@ -182,11 +181,11 @@ def parse_feature_refs(message: str) -> list[str]:
     features = []
 
     # Pattern: Implements: feature-xyz
-    pattern1 = r'(?:Implements|Fixes|Closes|Refs):\s*(feature-[\w-]+|bug-[\w-]+)'
+    pattern1 = r"(?:Implements|Fixes|Closes|Refs):\s*(feature-[\w-]+|bug-[\w-]+)"
     features.extend(re.findall(pattern1, message, re.IGNORECASE))
 
     # Pattern: feature-xyz (anywhere in message)
-    pattern2 = r'\b(feature-[\w-]+|bug-[\w-]+)\b'
+    pattern2 = r"\b(feature-[\w-]+|bug-[\w-]+)\b"
     features.extend(re.findall(pattern2, message, re.IGNORECASE))
 
     # Remove duplicates while preserving order
@@ -200,7 +199,9 @@ def parse_feature_refs(message: str) -> list[str]:
     return unique_features
 
 
-def _parse_checkout_from_reflog(reflog_action: str | None) -> tuple[str | None, str | None]:
+def _parse_checkout_from_reflog(
+    reflog_action: str | None,
+) -> tuple[str | None, str | None]:
     if not reflog_action:
         return None, None
     # Example: "checkout: moving from main to feature/foo"
@@ -228,6 +229,7 @@ def _append_event(
 ) -> None:
     # Auto-infer work type from feature_id (Phase 1: Work Type Classification)
     from htmlgraph.work_type_utils import infer_work_type_from_id
+
     work_type = infer_work_type_from_id(feature_id)
 
     record = EventRecord(
@@ -257,7 +259,9 @@ def _append_event(
         p = Path(override_path)
         p.parent.mkdir(parents=True, exist_ok=True)
         with p.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record.to_json(), ensure_ascii=False, default=str) + "\n")
+            f.write(
+                json.dumps(record.to_json(), ensure_ascii=False, default=str) + "\n"
+            )
         return
 
     log = JsonlEventLog(graph_dir / "events")
@@ -275,10 +279,12 @@ def _determine_context(graph_dir: Path, commit_message: str | None = None) -> di
     """
     active_features = get_active_features(graph_dir)
     primary_feature_id = get_primary_feature_id(graph_dir)
-    message_features = parse_feature_refs(commit_message or "") if commit_message else []
+    message_features = (
+        parse_feature_refs(commit_message or "") if commit_message else []
+    )
 
     all_features: list[str] = []
-    for f in (active_features + message_features):
+    for f in active_features + message_features:
         if f and f not in all_features:
             all_features.append(f)
 
@@ -341,14 +347,20 @@ def log_git_commit(graph_dir: str | Path = ".htmlgraph") -> bool:
         except Exception:
             parents = []
 
-        ctx = _determine_context(graph_dir_path, commit_message=git_info.get("commit_message"))
+        ctx = _determine_context(
+            graph_dir_path, commit_message=git_info.get("commit_message")
+        )
         all_features: list[str] = ctx["all_features"]
 
         # Create one event per feature (to keep continuity queries simple).
         # If there are no features, write a single un-attributed event.
         feature_ids = all_features or [None]
 
-        subject = (git_info.get("commit_message") or "").strip().splitlines()[0] if git_info.get("commit_message") else ""
+        subject = (
+            (git_info.get("commit_message") or "").strip().splitlines()[0]
+            if git_info.get("commit_message")
+            else ""
+        )
         base_event_id = f"git-commit-{git_info['commit_hash']}"
 
         for fid in feature_ids:
@@ -394,8 +406,8 @@ def log_git_commit(graph_dir: str | Path = ".htmlgraph") -> bool:
     except Exception as e:
         # Never fail - just log error and continue
         try:
-            error_log = Path('.htmlgraph/git-hook-errors.log')
-            with open(error_log, 'a') as f:
+            error_log = Path(".htmlgraph/git-hook-errors.log")
+            with open(error_log, "a") as f:
                 f.write(f"{datetime.now().isoformat()} - Error logging commit: {e}\n")
         except:
             pass
@@ -429,7 +441,9 @@ def log_git_checkout(
 
         # Always record, but callers can filter later based on flag.
         ctx = _determine_context(graph_dir_path)
-        fid = ctx["primary_feature_id"] or (ctx["all_features"][0] if ctx["all_features"] else None)
+        fid = ctx["primary_feature_id"] or (
+            ctx["all_features"][0] if ctx["all_features"] else None
+        )
 
         event_id = f"git-checkout-{now.strftime('%Y%m%d%H%M%S')}-{(new_head or 'unknown')[:12]}"
         summary = "Checkout"
@@ -509,9 +523,13 @@ def log_git_merge(
         reflog_action = os.environ.get("GIT_REFLOG_ACTION")
 
         ctx = _determine_context(graph_dir_path)
-        fid = ctx["primary_feature_id"] or (ctx["all_features"][0] if ctx["all_features"] else None)
+        fid = ctx["primary_feature_id"] or (
+            ctx["all_features"][0] if ctx["all_features"] else None
+        )
 
-        event_id = f"git-merge-{now.strftime('%Y%m%d%H%M%S')}-{(new_head or 'unknown')[:12]}"
+        event_id = (
+            f"git-merge-{now.strftime('%Y%m%d%H%M%S')}-{(new_head or 'unknown')[:12]}"
+        )
         payload = {
             "type": "GitMerge",
             "squash": bool(squash_int),
@@ -574,7 +592,9 @@ def log_git_push(
             )
 
         ctx = _determine_context(graph_dir_path)
-        fid = ctx["primary_feature_id"] or (ctx["all_features"][0] if ctx["all_features"] else None)
+        fid = ctx["primary_feature_id"] or (
+            ctx["all_features"][0] if ctx["all_features"] else None
+        )
 
         event_id = f"git-push-{now.strftime('%Y%m%d%H%M%S')}-{os.getpid()}"
         payload = {
@@ -611,12 +631,14 @@ def main():
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python -m htmlgraph.git_events <commit|checkout|merge|push> [args...]")
+        print(
+            "Usage: python -m htmlgraph.git_events <commit|checkout|merge|push> [args...]"
+        )
         sys.exit(1)
 
     event_type = sys.argv[1]
 
-    if event_type == 'commit':
+    if event_type == "commit":
         sys.exit(0 if log_git_commit() else 1)
 
     if event_type == "checkout":
@@ -639,5 +661,5 @@ def main():
     sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

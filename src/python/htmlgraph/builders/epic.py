@@ -6,16 +6,17 @@ child features and milestones.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
 from datetime import date
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
+    pass
 
 from htmlgraph.builders.base import BaseBuilder
 
 
-class EpicBuilder(BaseBuilder['EpicBuilder']):
+class EpicBuilder(BaseBuilder["EpicBuilder"]):
     """
     Fluent builder for creating epics.
 
@@ -37,7 +38,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
 
     node_type = "epic"
 
-    def add_child_feature(self, feature_id: str) -> 'EpicBuilder':
+    def add_child_feature(self, feature_id: str) -> EpicBuilder:
         """
         Add a feature as a child of this epic.
 
@@ -52,7 +53,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
         """
         return self._add_edge("contains", feature_id)  # type: ignore
 
-    def add_child_features(self, feature_ids: list[str]) -> 'EpicBuilder':
+    def add_child_features(self, feature_ids: list[str]) -> EpicBuilder:
         """
         Add multiple features as children of this epic.
 
@@ -69,7 +70,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
             self.add_child_feature(fid)
         return self
 
-    def set_target_date(self, target: date) -> 'EpicBuilder':
+    def set_target_date(self, target: date) -> EpicBuilder:
         """
         Set target completion date.
 
@@ -84,7 +85,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
         """
         return self._set_date("target_date", target)  # type: ignore
 
-    def set_success_criteria(self, criteria: list[str]) -> 'EpicBuilder':
+    def set_success_criteria(self, criteria: list[str]) -> EpicBuilder:
         """
         Set success criteria for the epic.
 
@@ -100,7 +101,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
         self._data["success_criteria"] = criteria
         return self
 
-    def set_business_value(self, value: str) -> 'EpicBuilder':
+    def set_business_value(self, value: str) -> EpicBuilder:
         """
         Set the business value statement.
 
@@ -116,7 +117,7 @@ class EpicBuilder(BaseBuilder['EpicBuilder']):
         self._data["business_value"] = value
         return self
 
-    def set_stakeholder(self, stakeholder: str) -> 'EpicBuilder':
+    def set_stakeholder(self, stakeholder: str) -> EpicBuilder:
         """
         Set the primary stakeholder.
 

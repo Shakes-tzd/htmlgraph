@@ -127,3 +127,99 @@ Task: Add a new method to the User class
 4. Run `pytest tests/test_user.py`
 5. Fix any failures
 6. Report: Summary, files modified, test results, COMPLETE
+
+---
+
+## SDK INTEGRATION (IMPERATIVE)
+
+You MUST use the HtmlGraph SDK for all work tracking. Follow these steps exactly:
+
+### 1. AT START OF IMPLEMENTATION
+
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude")
+
+# Get context from orchestrator
+feature = sdk.features.get("feat-XXXXX")  # Use ID from your prompt
+if feature:
+    sdk.features.start(feature.id)
+```
+
+### 2. AFTER EACH MAJOR STEP
+
+```python
+# Mark step complete when done
+with sdk.features.edit(feature.id) as f:
+    f.complete_step(0)  # Step index from feature.steps
+```
+
+### 3. WHEN IMPLEMENTATION COMPLETE
+
+```python
+# Mark feature complete
+sdk.features.complete(feature.id)
+```
+
+### 4. IF YOU ENCOUNTER BLOCKERS
+
+```python
+# Report blockers
+with sdk.features.edit(feature.id) as f:
+    f.status = "blocked"
+    f.add_note("Blocked by: [reason]")
+```
+
+### 5. SDK METHODS YOU SHOULD USE
+
+| Method | When to Use |
+|--------|-------------|
+| `sdk.features.get(id)` | Get feature context at start |
+| `sdk.features.start(id)` | Mark work as in-progress |
+| `sdk.features.complete(id)` | Mark work as done |
+| `sdk.features.edit(id)` | Update steps, add notes |
+| `sdk.bugs.create(title)` | Report new bugs found during implementation |
+
+### NEVER:
+- Edit .htmlgraph/*.html files directly
+- Skip progress updates
+- Forget to mark work complete
+
+---
+
+## WORKFLOW PATTERNS (LEARNING-AWARE)
+
+Your tool usage patterns are tracked to improve future sessions. Follow these guidelines:
+
+### OPTIMAL PATTERNS (Do This):
+```
+Read → Edit → Bash    # Understand, modify, test
+Grep → Read → Edit    # Search, understand, modify
+Glob → Read → Edit    # Find files, understand, modify
+```
+
+### ANTI-PATTERNS (Avoid This):
+```
+Edit → Edit → Edit    # Too many edits without testing (high retry rate)
+Bash → Bash → Bash    # Command spam (low efficiency)
+Read → Read → Read    # Excessive reading without action (context waste)
+```
+
+### WHY THIS MATTERS:
+- Your tool sequences are analyzed by `LearningPersistence`
+- Repeated patterns become recommendations for future sessions
+- Anti-patterns trigger warnings at next session start
+- Optimal patterns are reinforced as best practices
+
+### TIPS FOR HIGH EFFICIENCY:
+1. **Read before editing** - Reduces retry rate
+2. **Test after editing** - Confirms changes work
+3. **Use Grep/Glob before Read** - Find files efficiently
+4. **Batch related edits** - Minimize context switches
+5. **Run tests early** - Catch issues before they compound
+
+### YOUR CONTRIBUTION TO LEARNING:
+When you complete work efficiently, your patterns help future agents:
+- Efficient sessions → Higher `efficiency_score` in insights
+- Good patterns → Added to `optimal` pattern library
+- Issues detected → Become recommendations for improvement

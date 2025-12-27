@@ -5,16 +5,16 @@ Extends BaseCollection with phase-specific builder support.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
-    from htmlgraph.builders.phase import PhaseBuilder
 
 from htmlgraph.collections.base import BaseCollection
 
 
-class PhaseCollection(BaseCollection['PhaseCollection']):
+class PhaseCollection(BaseCollection["PhaseCollection"]):
     """
     Collection interface for phases with builder support.
 
@@ -36,7 +36,7 @@ class PhaseCollection(BaseCollection['PhaseCollection']):
     _collection_name = "phases"
     _node_type = "phase"
 
-    def __init__(self, sdk: 'SDK'):
+    def __init__(self, sdk: SDK):
         """
         Initialize phase collection.
 
@@ -48,4 +48,5 @@ class PhaseCollection(BaseCollection['PhaseCollection']):
 
         # Set builder class for create() method
         from htmlgraph.builders.phase import PhaseBuilder
+
         self._builder_class = PhaseBuilder

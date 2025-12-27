@@ -16,7 +16,6 @@ from pathlib import Path
 
 from htmlgraph.session_manager import SessionManager
 
-
 DEFAULT_IGNORE_DIRS = {
     ".git",
     ".venv",
@@ -69,7 +68,9 @@ def watch_and_track(
     ignore = set(ignore_dirs or DEFAULT_IGNORE_DIRS)
 
     manager = SessionManager(graph_dir)
-    session = manager.start_session(session_id=session_id, agent=agent, title=f"Watch: {agent}")
+    session = manager.start_session(
+        session_id=session_id, agent=agent, title=f"Watch: {agent}"
+    )
 
     last_snapshot = _snapshot(root, ignore)
     pending: set[str] = set()
@@ -123,6 +124,7 @@ def watch_and_track(
             last_snapshot = current
     except KeyboardInterrupt:
         print("\nStopping watcher…")
-        manager.track_activity(session_id=session.id, tool="Stop", summary="Watcher stopped")
+        manager.track_activity(
+            session_id=session.id, tool="Stop", summary="Watcher stopped"
+        )
         manager.end_session(session.id)
-

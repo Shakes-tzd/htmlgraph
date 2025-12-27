@@ -6,18 +6,19 @@ spike_type and timebox_hours.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
     from htmlgraph.models import Node
+    from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
-from htmlgraph.models import SpikeType, Spike
 from htmlgraph.ids import generate_id
+from htmlgraph.models import Spike, SpikeType
 
 
-class SpikeBuilder(BaseBuilder['SpikeBuilder']):
+class SpikeBuilder(BaseBuilder["SpikeBuilder"]):
     """
     Fluent builder for creating spikes.
 
@@ -39,7 +40,7 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
 
     node_type = "spike"
 
-    def __init__(self, sdk: 'SDK', title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs):
         """Initialize spike builder with spike-specific defaults."""
         super().__init__(sdk, title, **kwargs)
         # Set spike-specific defaults
@@ -48,7 +49,7 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
         if "timebox_hours" not in self._data:
             self._data["timebox_hours"] = 4
 
-    def set_spike_type(self, spike_type: SpikeType) -> 'SpikeBuilder':
+    def set_spike_type(self, spike_type: SpikeType) -> SpikeBuilder:
         """
         Set the spike investigation type.
 
@@ -64,7 +65,7 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
         self._data["spike_type"] = spike_type
         return self
 
-    def set_timebox_hours(self, hours: float) -> 'SpikeBuilder':
+    def set_timebox_hours(self, hours: float) -> SpikeBuilder:
         """
         Set the time budget for this spike.
 
@@ -80,7 +81,7 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
         self._data["timebox_hours"] = int(hours)
         return self
 
-    def set_findings(self, findings: str) -> 'SpikeBuilder':
+    def set_findings(self, findings: str) -> SpikeBuilder:
         """
         Set the findings/learnings from spike investigation.
 
@@ -96,7 +97,7 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
         self._data["findings"] = findings
         return self
 
-    def set_decision(self, decision: str) -> 'SpikeBuilder':
+    def set_decision(self, decision: str) -> SpikeBuilder:
         """
         Set the final decision made based on spike results.
 
@@ -112,7 +113,7 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
         self._data["decision"] = decision
         return self
 
-    def save(self) -> 'Node':
+    def save(self) -> Node:
         """
         Save the spike and return the Spike instance.
 
@@ -133,12 +134,13 @@ class SpikeBuilder(BaseBuilder['SpikeBuilder']):
 
         # Save to the collection's shared graph
         # This ensures the spike is visible via sdk.spikes.get() immediately
-        if hasattr(self._sdk, 'spikes') and self._sdk.spikes is not None:
+        if hasattr(self._sdk, "spikes") and self._sdk.spikes is not None:
             graph = self._sdk.spikes._ensure_graph()
             graph.add(spike)
         else:
             # Fallback: create new graph
             from htmlgraph.graph import HtmlGraph
+
             graph_path = self._sdk._directory / "spikes"
             graph = HtmlGraph(graph_path, auto_load=False)
             graph.add(spike)

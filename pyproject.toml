@@ -34,6 +34,7 @@ dev = [
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "invoke>=2.2.0",
+    "pdoc>=14.0.0",
 ]
 sqlite = [
     "aiosqlite>=0.19.0",
@@ -86,14 +87,21 @@ target-version = ["py310"]
 
 [tool.ruff]
 line-length = 88
-target-version = "0.9.1"
+target-version = "py310"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501", "E402", "E722", "E741"]
 
 [tool.mypy]
-python_version = "0.9.1"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
+
+[tool.pdoc]
+output-directory = "docs/api-pdoc"
+docformat = "google"
 
 [dependency-groups]
 dev = [

@@ -4,12 +4,27 @@ File watcher for automatic graph reloading.
 Monitors .htmlgraph/**/*.html files and reloads collections when changes are detected.
 """
 
-import time
+import fnmatch
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
+
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
+
+
+# Collection-specific file patterns for smart filtering
+COLLECTION_PATTERNS = {
+    "features": ["feat-*.html", "feature-*.html"],
+    "bugs": ["bug-*.html"],
+    "spikes": ["spk-*.html", "spike-*.html"],
+    "sessions": ["sess-*.html", "session-*.html"],
+    "tracks": ["trk-*.html", "track-*.html"],
+    "chores": ["chore-*.html"],
+    "insights": ["insi-*.html", "insight-*.html"],
+    "patterns": ["patt-*.html", "pattern-*.html"],
+    "metrics": ["metr-*.html", "metric-*.html"],
+}
 
 
 class GraphFileHandler(FileSystemEventHandler):
@@ -28,6 +43,28 @@ class GraphFileHandler(FileSystemEventHandler):
         self.debounce_timer: threading.Timer | None = None
         self.debounce_delay = 0.5  # 500ms debounce
 
+    def _is_relevant_file(self, filepath: str) -> bool:
+        """
+        Check if changed file is relevant to this watcher's collection.
+
+        Args:
+            filepath: Path to the file that changed
+
+        Returns:
+            True if the file matches this collection's patterns
+        """
+        filename = Path(filepath).name
+
+        # Skip non-HTML files
+        if not filename.endswith(".html"):
+            return False
+
+        # Get patterns for this collection (default to all HTML if not found)
+        patterns = COLLECTION_PATTERNS.get(self.collection, ["*.html"])
+
+        # Check if filename matches any pattern
+        return any(fnmatch.fnmatch(filename, pattern) for pattern in patterns)
+
     def _trigger_reload(self):
         """Trigger a reload after debounce delay."""
         print(f"[FileWatcher] Reloading collection: {self.collection}")
@@ -43,27 +80,56 @@ class GraphFileHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         """Handle file creation."""
-        if not event.is_directory and event.src_path.endswith('.html'):
-            print(f"[FileWatcher] {self.collection}: File created - {Path(event.src_path).name}")
-            self._debounced_reload()
+        if event.is_directory:
+            return
+
+        # Skip if not relevant to our collection
+        if not self._is_relevant_file(event.src_path):
+            return
+
+        print(
+            f"[FileWatcher] {self.collection}: File created - {Path(event.src_path).name}"
+        )
+        self._debounced_reload()
 
     def on_modified(self, event: FileSystemEvent):
         """Handle file modification."""
-        if not event.is_directory and event.src_path.endswith('.html'):
-            print(f"[FileWatcher] {self.collection}: File modified - {Path(event.src_path).name}")
-            self._debounced_reload()
+        if event.is_directory:
+            return
+
+        # Skip if not relevant to our collection
+        if not self._is_relevant_file(event.src_path):
+            return
+
+        print(
+            f"[FileWatcher] {self.collection}: File modified - {Path(event.src_path).name}"
+        )
+        self._debounced_reload()
 
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion."""
-        if not event.is_directory and event.src_path.endswith('.html'):
-            print(f"[FileWatcher] {self.collection}: File deleted - {Path(event.src_path).name}")
-            self._debounced_reload()
+        if event.is_directory:
+            return
+
+        # Skip if not relevant to our collection
+        if not self._is_relevant_file(event.src_path):
+            return
+
+        print(
+            f"[FileWatcher] {self.collection}: File deleted - {Path(event.src_path).name}"
+        )
+        self._debounced_reload()
 
 
 class GraphWatcher:
     """Watches graph directories and triggers reloads on changes."""
 
-    def __init__(self, graph_dir: Path, collections: list[str], get_graph_callback: Callable[[str], any]):
+    def __init__(
+        self,
+        graph_dir: Path,
+        collections: list[str],
+        get_graph_callback: Callable[[str], any],
+    ):
         """
         Initialize watcher.
 
@@ -80,7 +146,9 @@ class GraphWatcher:
 
     def start(self):
         """Start watching for file changes."""
-        print(f"[FileWatcher] Starting file watcher for {len(self.collections)} collections...")
+        print(
+            f"[FileWatcher] Starting file watcher for {len(self.collections)} collections..."
+        )
 
         for collection in self.collections:
             collection_dir = self.graph_dir / collection
@@ -93,6 +161,7 @@ class GraphWatcher:
                     graph = self.get_graph_callback(coll)
                     count = graph.reload()
                     print(f"[FileWatcher] Reloaded {count} nodes in {coll}")
+
                 return reload
 
             handler = GraphFileHandler(collection, make_reload_callback(collection))
@@ -100,7 +169,7 @@ class GraphWatcher:
 
             # Watch the collection directory
             # Use recursive=True for tracks since they're stored in subdirectories
-            recursive = (collection == "tracks")
+            recursive = collection == "tracks"
             self.observer.schedule(handler, str(collection_dir), recursive=recursive)
 
         self.observer.start()

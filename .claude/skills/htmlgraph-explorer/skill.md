@@ -84,3 +84,62 @@ Task: "Find all database models"
 2. Grep: `class.*Model|class.*Base` in found files
 3. Read: Only files with model class definitions
 4. Report: List models, their fields, relationships
+
+---
+
+## SDK CONTEXT (IMPERATIVE)
+
+While explorers are READ-ONLY and don't modify code, you MUST understand SDK context:
+
+### 1. CONTEXT FROM ORCHESTRATOR
+
+Your prompt includes context from the orchestrator. Look for:
+- **Feature ID**: If exploring for a specific feature, note the ID for your report
+- **Scope**: The directories/files you should focus on
+- **Task**: What the orchestrator wants you to discover
+
+### 2. YOUR OUTPUT FEEDS SDK
+
+Your findings will be passed to `sdk.spawn_coder()`:
+```python
+# Orchestrator does this with YOUR output:
+coder = sdk.spawn_coder(
+    feature_id="feat-123",
+    context="Explorer found: [YOUR FINDINGS HERE]",
+    test_command="uv run pytest"
+)
+```
+
+### 3. STRUCTURE YOUR OUTPUT FOR SDK
+
+Make your output easy for orchestrator to use:
+
+```markdown
+## Summary
+[1-2 sentence overview]
+
+## Key Files
+- `src/auth/routes.py` - Main auth routes (modify here)
+- `src/auth/middleware.py` - Auth middleware (add new)
+
+## Architecture
+[How components connect]
+
+## Recommended Approach
+[Step-by-step implementation suggestion]
+```
+
+### 4. WHAT TO INCLUDE
+
+| Section | Purpose |
+|---------|---------|
+| Summary | Quick context for coder |
+| Key Files | What files coder needs to modify |
+| Architecture | How pieces fit together |
+| Recommended Approach | Implementation steps for coder |
+
+### REMEMBER:
+- Your output becomes coder's context
+- Be specific about file paths and line numbers
+- Include code snippets for key patterns
+- Suggest which files to modify vs create

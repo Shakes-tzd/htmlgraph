@@ -38,32 +38,35 @@ Example:
 """
 
 from __future__ import annotations
-from datetime import datetime
+
 from pathlib import Path
 from typing import Any
 
-from htmlgraph.models import Node, Step
-from htmlgraph.types import (
-    BottleneckDict,
-    SessionStartInfo,
-    ActiveWorkItem,
-)
-from htmlgraph.graph import HtmlGraph
+from htmlgraph.agent_detection import detect_agent_name
 from htmlgraph.agents import AgentInterface
-from htmlgraph.track_builder import TrackCollection
+from htmlgraph.analytics import Analytics, DependencyAnalytics
 from htmlgraph.collections import (
     BaseCollection,
-    FeatureCollection,
-    SpikeCollection,
     BugCollection,
     ChoreCollection,
     EpicCollection,
+    FeatureCollection,
     PhaseCollection,
+    SpikeCollection,
 )
-from htmlgraph.analytics import Analytics, DependencyAnalytics
+from htmlgraph.collections.insight import InsightCollection
+from htmlgraph.collections.metric import MetricCollection
+from htmlgraph.collections.pattern import PatternCollection
+from htmlgraph.context_analytics import ContextAnalytics
+from htmlgraph.graph import HtmlGraph
+from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
-from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
-from htmlgraph.agent_detection import detect_agent_name
+from htmlgraph.track_builder import TrackCollection
+from htmlgraph.types import (
+    ActiveWorkItem,
+    BottleneckDict,
+    SessionStartInfo,
+)
 
 
 class SDK:
@@ -82,6 +85,70 @@ class SDK:
         - sessions: Agent sessions
         - tracks: Work tracks
         - agents: Agent information
+
+    Error Handling Patterns
+    =======================
+
+    SDK methods follow consistent error handling patterns by operation type:
+
+    LOOKUP OPERATIONS (Return None):
+        Single-item lookups return None when not found.
+        Always check the result before using.
+
+        >>> feature = sdk.features.get("nonexistent")
+        >>> if feature:
+        ...     print(feature.title)
+        ... else:
+        ...     print("Not found")
+
+    QUERY OPERATIONS (Return Empty List):
+        Queries return empty list when no matches or on error.
+        Safe to iterate without checking.
+
+        >>> results = sdk.features.where(status="impossible")
+        >>> for r in results:  # Empty iteration is safe
+        ...     print(r.title)
+
+    EDIT OPERATIONS (Raise Exception):
+        Edit operations raise NodeNotFoundError when target missing.
+        Use try/except to handle gracefully.
+
+        >>> from htmlgraph.exceptions import NodeNotFoundError
+        >>> try:
+        ...     with sdk.features.edit("nonexistent") as f:
+        ...         f.status = "done"
+        ... except NodeNotFoundError:
+        ...     print("Feature not found")
+
+    CREATE OPERATIONS (Raise on Validation):
+        Create operations raise ValidationError on invalid input.
+
+        >>> try:
+        ...     sdk.features.create("")  # Empty title
+        ... except ValidationError:
+        ...     print("Title required")
+
+    BATCH OPERATIONS (Return Count):
+        Batch operations return count of successful items.
+        Silently skip items that fail.
+
+        >>> count = sdk.features.mark_done(["feat-1", "missing", "feat-2"])
+        >>> print(f"Completed {count} of 3")  # Outputs: Completed 2 of 3
+
+    Pattern Summary:
+        | Operation Type | Error Behavior      | Example Method        |
+        |----------------|--------------------|-----------------------|
+        | Lookup         | Return None        | .get(id)              |
+        | Query          | Return []          | .where(), .all()      |
+        | Edit           | Raise Exception    | .edit(id)             |
+        | Create         | Raise on Invalid   | .create(title)        |
+        | Batch          | Return Count       | .mark_done([ids])     |
+        | Delete         | Return Bool        | .delete(id)           |
+
+    Available Exceptions:
+        - NodeNotFoundError: Node with ID not found
+        - ValidationError: Invalid input parameters
+        - ClaimConflictError: Node already claimed by another agent
 
     Example:
         sdk = SDK(agent="claude")
@@ -103,11 +170,7 @@ class SDK:
         sdk.epics.assign(["epic-001"], agent="claude")
     """
 
-    def __init__(
-        self,
-        directory: Path | str | None = None,
-        agent: str | None = None
-    ):
+    def __init__(self, directory: Path | str | None = None, agent: str | None = None):
         """
         Initialize SDK.
 
@@ -130,8 +193,7 @@ class SDK:
         # Initialize underlying components (for backward compatibility)
         self._graph = HtmlGraph(self._directory / "features")
         self._agent_interface = AgentInterface(
-            self._directory / "features",
-            agent_id=agent
+            self._directory / "features", agent_id=agent
         )
 
         # Collection interfaces - all work item types (all with builder support)
@@ -144,8 +206,20 @@ class SDK:
 
         # Non-work collections
         self.sessions = BaseCollection(self, "sessions", "session")
-        self.tracks = TrackCollection(self)  # Use specialized collection with builder support
+        self.tracks = TrackCollection(
+            self
+        )  # Use specialized collection with builder support
         self.agents = BaseCollection(self, "agents", "agent")
+
+        # Learning collections (Active Learning Persistence)
+        self.patterns = PatternCollection(self)
+        self.insights = InsightCollection(self)
+        self.metrics = MetricCollection(self)
+
+        # Create learning directories if needed
+        (self._directory / "patterns").mkdir(exist_ok=True)
+        (self._directory / "insights").mkdir(exist_ok=True)
+        (self._directory / "metrics").mkdir(exist_ok=True)
 
         # Analytics interface (Phase 2: Work Type Analytics)
         self.analytics = Analytics(self)
@@ -212,9 +286,7 @@ class SDK:
         return self._agent_interface.get_workload(self._agent_id)
 
     def next_task(
-        self,
-        priority: str | None = None,
-        auto_claim: bool = True
+        self, priority: str | None = None, auto_claim: bool = True
     ) -> Node | None:
         """
         Get next available task for this agent.
@@ -230,7 +302,7 @@ class SDK:
             agent_id=self._agent_id,
             priority=priority,
             node_type="feature",
-            auto_claim=auto_claim
+            auto_claim=auto_claim,
         )
 
     def set_session_handoff(
@@ -254,7 +326,9 @@ class SDK:
         """
         if not session_id:
             if self._agent_id:
-                active = self.session_manager.get_active_session_for_agent(self._agent_id)
+                active = self.session_manager.get_active_session_for_agent(
+                    self._agent_id
+                )
             else:
                 active = self.session_manager.get_active_session()
             if not active:
@@ -272,7 +346,7 @@ class SDK:
         self,
         session_id: str | None = None,
         title: str | None = None,
-        agent: str | None = None
+        agent: str | None = None,
     ) -> Any:
         """
         Start a new session.
@@ -286,9 +360,7 @@ class SDK:
             New Session instance
         """
         return self.session_manager.start_session(
-            session_id=session_id,
-            agent=agent or self._agent_id or "cli",
-            title=title
+            session_id=session_id, agent=agent or self._agent_id or "cli", title=title
         )
 
     def end_session(
@@ -314,7 +386,7 @@ class SDK:
             session_id=session_id,
             handoff_notes=handoff_notes,
             recommended_next=recommended_next,
-            blockers=blockers
+            blockers=blockers,
         )
 
     def get_status(self) -> dict[str, Any]:
@@ -398,7 +470,9 @@ class SDK:
         if not session_id:
             active = self.session_manager.get_active_session(agent=self._agent_id)
             if not active:
-                raise ValueError("No active session. Start one with sdk.start_session()")
+                raise ValueError(
+                    "No active session. Start one with sdk.start_session()"
+                )
             session_id = active.id
 
         return self.session_manager.track_activity(
@@ -449,7 +523,7 @@ class SDK:
                 "priority": bn.priority,
                 "blocks_count": bn.transitive_blocking,
                 "impact_score": bn.weighted_impact,
-                "blocked_tasks": bn.blocked_nodes[:5]
+                "blocked_tasks": bn.blocked_nodes[:5],
             }
             for bn in bottlenecks
         ]
@@ -478,14 +552,18 @@ class SDK:
         """
         report = self.dep_analytics.find_parallelizable_work(status="todo")
 
-        ready_now = report.dependency_levels[0].nodes if report.dependency_levels else []
+        ready_now = (
+            report.dependency_levels[0].nodes if report.dependency_levels else []
+        )
 
         return {
             "max_parallelism": report.max_parallelism,
             "ready_now": ready_now[:max_agents],
             "total_ready": len(ready_now),
             "level_count": len(report.dependency_levels),
-            "next_level": report.dependency_levels[1].nodes if len(report.dependency_levels) > 1 else []
+            "next_level": report.dependency_levels[1].nodes
+            if len(report.dependency_levels) > 1
+            else [],
         }
 
     def recommend_next_work(self, agent_count: int = 1) -> list[dict[str, Any]]:
@@ -514,8 +592,7 @@ class SDK:
             ...     print(f"  Reasons: {rec['reasons']}")
         """
         recommendations = self.dep_analytics.recommend_next_tasks(
-            agent_count=agent_count,
-            lookahead=5
+            agent_count=agent_count, lookahead=5
         )
 
         return [
@@ -527,7 +604,7 @@ class SDK:
                 "reasons": rec.reasons,
                 "estimated_hours": rec.estimated_effort,
                 "unlocks_count": len(rec.unlocks),
-                "unlocks": rec.unlocks[:3]
+                "unlocks": rec.unlocks[:3],
             }
             for rec in recommendations.recommendations
         ]
@@ -563,14 +640,14 @@ class SDK:
                     "id": node.id,
                     "title": node.title,
                     "risk_score": node.risk_score,
-                    "risk_factors": [f.description for f in node.risk_factors]
+                    "risk_factors": [f.description for f in node.risk_factors],
                 }
                 for node in risk.high_risk
             ],
             "circular_dependencies": risk.circular_dependencies,
             "orphaned_count": len(risk.orphaned_nodes),
             "orphaned_tasks": risk.orphaned_nodes[:5],
-            "recommendations": risk.recommendations
+            "recommendations": risk.recommendations,
         }
 
     def analyze_impact(self, node_id: str) -> dict[str, Any]:
@@ -602,14 +679,11 @@ class SDK:
             "total_impact": impact.transitive_dependents,
             "completion_impact": impact.completion_impact,
             "unlocks_count": len(impact.affected_nodes),
-            "affected_tasks": impact.affected_nodes[:10]
+            "affected_tasks": impact.affected_nodes[:10],
         }
 
     def get_work_queue(
-        self,
-        agent_id: str | None = None,
-        limit: int = 10,
-        min_score: float = 0.0
+        self, agent_id: str | None = None, limit: int = 10, min_score: float = 0.0
     ) -> list[dict[str, Any]]:
         """
         Get prioritized work queue showing recommended work, active work, and dependencies.
@@ -648,7 +722,6 @@ class SDK:
             ...         print(f"  ⚠️  Blocked by: {', '.join(item['blocked_by'])}")
         """
         from htmlgraph.routing import AgentCapabilityRegistry, CapabilityMatcher
-        from htmlgraph.converter import node_to_dict
 
         agent = agent_id or self._agent_id or "cli"
 
@@ -735,7 +808,7 @@ class SDK:
         self,
         agent_id: str | None = None,
         auto_claim: bool = False,
-        min_score: float = 0.0
+        min_score: float = 0.0,
     ) -> Node | None:
         """
         Get the next best task for an agent using smart routing.
@@ -802,7 +875,7 @@ class SDK:
         title: str,
         context: str = "",
         timebox_hours: float = 4.0,
-        auto_start: bool = True
+        auto_start: bool = True,
     ) -> Node:
         """
         Create a planning spike to research and design before implementation.
@@ -826,8 +899,8 @@ class SDK:
             ...     timebox_hours=3.0
             ... )
         """
-        from htmlgraph.models import Spike, SpikeType
         from htmlgraph.ids import generate_id
+        from htmlgraph.models import Spike, SpikeType
 
         # Create spike directly (SpikeBuilder doesn't exist yet)
         spike_id = generate_id(node_type="spike", title=title)
@@ -844,11 +917,11 @@ class SDK:
                 Step(description="Define requirements and constraints"),
                 Step(description="Design high-level architecture"),
                 Step(description="Identify dependencies and risks"),
-                Step(description="Create implementation plan")
+                Step(description="Create implementation plan"),
             ],
             content=f"<p>{context}</p>" if context else "",
             edges={},
-            properties={}
+            properties={},
         )
 
         self._graph.add(spike)
@@ -861,7 +934,7 @@ class SDK:
         spike_id: str | None = None,
         priority: str = "high",
         requirements: list[str | tuple[str, str]] | None = None,
-        phases: list[tuple[str, list[str]]] | None = None
+        phases: list[tuple[str, list[str]]] | None = None,
     ) -> dict[str, Any]:
         """
         Create a track with spec and plan from planning results.
@@ -893,12 +966,13 @@ class SDK:
             ...     ]
             ... )
         """
-        from htmlgraph.track_builder import TrackBuilder
 
-        builder = self.tracks.builder() \
-            .title(title) \
-            .description(description) \
+        builder = (
+            self.tracks.builder()
+            .title(title)
+            .description(description)
             .priority(priority)
+        )
 
         # Add reference to planning spike if provided
         if spike_id:
@@ -916,9 +990,11 @@ class SDK:
 
             builder.with_spec(
                 overview=description,
-                context=f"Track created from planning spike: {spike_id}" if spike_id else "",
+                context=f"Track created from planning spike: {spike_id}"
+                if spike_id
+                else "",
                 requirements=req_list,
-                acceptance_criteria=[]
+                acceptance_criteria=[],
             )
 
         # Add plan if phases provided
@@ -933,7 +1009,7 @@ class SDK:
             "has_spec": bool(requirements),
             "has_plan": bool(phases),
             "spike_id": spike_id,
-            "priority": priority
+            "priority": priority,
         }
 
     def smart_plan(
@@ -942,7 +1018,7 @@ class SDK:
         create_spike: bool = True,
         timebox_hours: float = 4.0,
         research_completed: bool = False,
-        research_findings: dict[str, Any] | None = None
+        research_findings: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Smart planning workflow: analyzes project context and creates spike or track.
@@ -1002,7 +1078,7 @@ class SDK:
             "bottlenecks_count": len(bottlenecks),
             "high_risk_count": risks["high_risk_count"],
             "parallel_capacity": parallel["max_parallelism"],
-            "description": description
+            "description": description,
         }
 
         # Build context string with research info
@@ -1010,21 +1086,25 @@ class SDK:
 
         if research_completed and research_findings:
             context_str += f"\n\nResearch completed:\n- Topic: {research_findings.get('topic', description)}"
-            if 'sources_count' in research_findings:
+            if "sources_count" in research_findings:
                 context_str += f"\n- Sources: {research_findings['sources_count']}"
-            if 'recommended_library' in research_findings:
-                context_str += f"\n- Recommended: {research_findings['recommended_library']}"
+            if "recommended_library" in research_findings:
+                context_str += (
+                    f"\n- Recommended: {research_findings['recommended_library']}"
+                )
 
         # Validation: warn if complex work planned without research
-        is_complex = any([
-            "auth" in description.lower(),
-            "security" in description.lower(),
-            "real-time" in description.lower(),
-            "websocket" in description.lower(),
-            "oauth" in description.lower(),
-            "performance" in description.lower(),
-            "integration" in description.lower(),
-        ])
+        is_complex = any(
+            [
+                "auth" in description.lower(),
+                "security" in description.lower(),
+                "real-time" in description.lower(),
+                "websocket" in description.lower(),
+                "oauth" in description.lower(),
+                "performance" in description.lower(),
+                "integration" in description.lower(),
+            ]
+        )
 
         warnings = []
         if is_complex and not research_completed:
@@ -1037,7 +1117,7 @@ class SDK:
             spike = self.start_planning_spike(
                 title=f"Plan: {description}",
                 context=context_str,
-                timebox_hours=timebox_hours
+                timebox_hours=timebox_hours,
             )
 
             # Store research metadata in spike properties if provided
@@ -1055,10 +1135,12 @@ class SDK:
                 "project_context": context,
                 "research_informed": research_completed,
                 "next_steps": [
-                    "Research and design the solution" if not research_completed else "Design solution using research findings",
+                    "Research and design the solution"
+                    if not research_completed
+                    else "Design solution using research findings",
                     "Complete spike steps",
-                    "Use SDK.create_track_from_plan() to create track"
-                ]
+                    "Use SDK.create_track_from_plan() to create track",
+                ],
             }
 
             if warnings:
@@ -1068,8 +1150,7 @@ class SDK:
         else:
             # Direct track creation (for when you already know what to do)
             track_info = self.create_track_from_plan(
-                title=description,
-                description=f"Planned with context: {context}"
+                title=description, description=f"Planned with context: {context}"
             )
 
             result = {
@@ -1080,8 +1161,8 @@ class SDK:
                 "next_steps": [
                     "Create features from track plan",
                     "Link features to track",
-                    "Start implementation"
-                ]
+                    "Start implementation",
+                ],
             }
 
             if warnings:
@@ -1248,6 +1329,7 @@ class SDK:
         """
         if self._orchestrator is None:
             from htmlgraph.orchestrator import SubagentOrchestrator
+
             self._orchestrator = SubagentOrchestrator(self)
         return self._orchestrator
 
@@ -1273,6 +1355,10 @@ class SDK:
         Returns:
             Dict with prompt ready for Task tool
 
+        Note:
+            Returns dict with 'prompt', 'description', 'subagent_type' keys.
+            Returns empty dict if spawning fails.
+
         Example:
             >>> prompt = sdk.spawn_explorer(
             ...     task="Find all database models",
@@ -1281,6 +1367,10 @@ class SDK:
             ... )
             >>> # Execute with Task tool
             >>> Task(prompt=prompt["prompt"], description=prompt["description"])
+
+        See also:
+            spawn_coder: Spawn implementation agent with feature context
+            orchestrate: Full exploration + implementation workflow
         """
         subagent_prompt = self.orchestrator.spawn_explorer(
             task=task,
@@ -1311,6 +1401,10 @@ class SDK:
         Returns:
             Dict with prompt ready for Task tool
 
+        Note:
+            Returns dict with 'prompt', 'description', 'subagent_type' keys.
+            Requires valid feature_id. Returns empty dict if feature not found.
+
         Example:
             >>> prompt = sdk.spawn_coder(
             ...     feature_id="feat-add-auth",
@@ -1318,6 +1412,10 @@ class SDK:
             ...     test_command="uv run pytest tests/auth/"
             ... )
             >>> Task(prompt=prompt["prompt"], description=prompt["description"])
+
+        See also:
+            spawn_explorer: Explore codebase before implementation
+            orchestrate: Full exploration + implementation workflow
         """
         subagent_prompt = self.orchestrator.spawn_coder(
             feature_id=feature_id,
@@ -1358,6 +1456,10 @@ class SDK:
             >>> Task(prompt=prompts["explorer"]["prompt"], ...)
             >>> # Phase 2: Run coder with explorer results
             >>> Task(prompt=prompts["coder"]["prompt"], ...)
+
+        See also:
+            spawn_explorer: Just the exploration phase
+            spawn_coder: Just the implementation phase
         """
         prompts = self.orchestrator.orchestrate_feature(
             feature_id=feature_id,
@@ -1384,7 +1486,7 @@ class SDK:
         include_git_log: bool = True,
         git_log_count: int = 5,
         analytics_top_n: int = 3,
-        analytics_max_agents: int = 3
+        analytics_max_agents: int = 3,
     ) -> SessionStartInfo:
         """
         Get comprehensive session start information in a single call.
@@ -1406,6 +1508,10 @@ class SDK:
                 - sessions: Recent sessions
                 - git_log: Recent commits (if include_git_log=True)
                 - analytics: Strategic insights (bottlenecks, recommendations, parallel)
+
+        Note:
+            Returns empty dict {} if session context unavailable.
+            Always check for expected keys before accessing.
 
         Example:
             >>> sdk = SDK(agent="claude")
@@ -1430,37 +1536,43 @@ class SDK:
         # 3. Features list (simplified)
         features_list = []
         for feature in self.features.all():
-            features_list.append({
-                "id": feature.id,
-                "title": feature.title,
-                "status": feature.status,
-                "priority": feature.priority,
-                "steps_total": len(feature.steps),
-                "steps_completed": sum(1 for s in feature.steps if s.completed)
-            })
+            features_list.append(
+                {
+                    "id": feature.id,
+                    "title": feature.title,
+                    "status": feature.status,
+                    "priority": feature.priority,
+                    "steps_total": len(feature.steps),
+                    "steps_completed": sum(1 for s in feature.steps if s.completed),
+                }
+            )
         result["features"] = features_list
 
         # 4. Sessions list (recent 20)
         sessions_list = []
         for session in self.sessions.all()[:20]:
-            sessions_list.append({
-                "id": session.id,
-                "status": session.status,
-                "agent": session.properties.get("agent", "unknown"),
-                "event_count": session.properties.get("event_count", 0),
-                "started": session.created.isoformat() if hasattr(session, "created") else None
-            })
+            sessions_list.append(
+                {
+                    "id": session.id,
+                    "status": session.status,
+                    "agent": session.properties.get("agent", "unknown"),
+                    "event_count": session.properties.get("event_count", 0),
+                    "started": session.created.isoformat()
+                    if hasattr(session, "created")
+                    else None,
+                }
+            )
         result["sessions"] = sessions_list
 
         # 5. Git log (if requested)
         if include_git_log:
             try:
                 git_result = subprocess.run(
-                    ["git", "log", f"--oneline", f"-{git_log_count}"],
+                    ["git", "log", "--oneline", f"-{git_log_count}"],
                     capture_output=True,
                     text=True,
                     check=True,
-                    cwd=self._directory.parent
+                    cwd=self._directory.parent,
                 )
                 result["git_log"] = git_result.stdout.strip().split("\n")
             except (subprocess.CalledProcessError, FileNotFoundError):
@@ -1470,7 +1582,7 @@ class SDK:
         result["analytics"] = {
             "bottlenecks": self.find_bottlenecks(top_n=analytics_top_n),
             "recommendations": self.recommend_next_work(agent_count=analytics_top_n),
-            "parallel": self.get_parallel_work(max_agents=analytics_max_agents)
+            "parallel": self.get_parallel_work(max_agents=analytics_max_agents),
         }
 
         return result
@@ -1479,7 +1591,7 @@ class SDK:
         self,
         agent: str | None = None,
         filter_by_agent: bool = False,
-        work_types: list[str] | None = None
+        work_types: list[str] | None = None,
     ) -> ActiveWorkItem | None:
         """
         Get the currently active work item (in-progress status).
@@ -1544,7 +1656,9 @@ class SDK:
                     "status": item.status,
                     "agent": getattr(item, "agent_assigned", None),
                     "steps_total": len(item.steps) if hasattr(item, "steps") else 0,
-                    "steps_completed": sum(1 for s in item.steps if s.completed) if hasattr(item, "steps") else 0
+                    "steps_completed": sum(1 for s in item.steps if s.completed)
+                    if hasattr(item, "steps")
+                    else 0,
                 }
 
                 # Add spike-specific fields for auto-spike detection
@@ -1560,3 +1674,573 @@ class SDK:
             return active_items[0]
 
         return None
+
+    # =========================================================================
+    # Help & Documentation
+    # =========================================================================
+
+    def help(self, topic: str | None = None) -> str:
+        """
+        Get help on SDK usage.
+
+        Args:
+            topic: Optional topic (e.g., 'features', 'sessions', 'analytics', 'orchestration')
+
+        Returns:
+            Formatted help text
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> print(sdk.help())  # List all topics
+            >>> print(sdk.help('features'))  # Feature collection help
+            >>> print(sdk.help('analytics'))  # Analytics help
+
+        See also:
+            Python's built-in help(sdk) for full API documentation
+            sdk.features, sdk.bugs, sdk.spikes for work item managers
+        """
+        if topic is None:
+            return self._help_index()
+        return self._help_topic(topic)
+
+    def _help_index(self) -> str:
+        """Return overview of all available methods/collections."""
+        return """HtmlGraph SDK - Quick Reference
+
+COLLECTIONS (Work Items):
+  sdk.features     - Feature work items with builder support
+  sdk.bugs         - Bug reports
+  sdk.spikes       - Investigation and research spikes
+  sdk.chores       - Maintenance and chore tasks
+  sdk.epics        - Large bodies of work
+  sdk.phases       - Project phases
+
+COLLECTIONS (Non-Work):
+  sdk.sessions     - Agent sessions
+  sdk.tracks       - Work tracks with builder support
+  sdk.agents       - Agent information
+
+LEARNING (Active Learning):
+  sdk.patterns     - Workflow patterns (optimal/anti-pattern)
+  sdk.insights     - Session health insights
+  sdk.metrics      - Aggregated time-series metrics
+
+CORE METHODS:
+  sdk.summary()           - Get project summary
+  sdk.my_work()           - Get current agent's workload
+  sdk.next_task()         - Get next available task
+  sdk.reload()            - Reload all data from disk
+
+SESSION MANAGEMENT:
+  sdk.start_session()     - Start a new session
+  sdk.end_session()       - End a session
+  sdk.track_activity()    - Track activity in session
+  sdk.dedupe_sessions()   - Clean up low-signal sessions
+  sdk.get_status()        - Get project status
+
+STRATEGIC ANALYTICS:
+  sdk.find_bottlenecks()     - Identify blocking tasks
+  sdk.recommend_next_work()  - Get smart recommendations
+  sdk.get_parallel_work()    - Find parallelizable work
+  sdk.assess_risks()         - Assess dependency risks
+  sdk.analyze_impact()       - Analyze task impact
+
+WORK QUEUE:
+  sdk.get_work_queue()    - Get prioritized work queue
+  sdk.work_next()         - Get next best task (smart routing)
+
+PLANNING WORKFLOW:
+  sdk.smart_plan()              - Smart planning with research
+  sdk.start_planning_spike()    - Create planning spike
+  sdk.create_track_from_plan()  - Create track from plan
+  sdk.plan_parallel_work()      - Plan parallel execution
+  sdk.aggregate_parallel_results() - Aggregate parallel results
+
+ORCHESTRATION:
+  sdk.spawn_explorer()    - Spawn explorer subagent
+  sdk.spawn_coder()       - Spawn coder subagent
+  sdk.orchestrate()       - Orchestrate feature implementation
+
+SESSION OPTIMIZATION:
+  sdk.get_session_start_info() - Get comprehensive session start info
+  sdk.get_active_work_item()   - Get currently active work item
+
+ANALYTICS INTERFACES:
+  sdk.analytics        - Work type analytics
+  sdk.dep_analytics    - Dependency analytics
+  sdk.context          - Context analytics
+
+ERROR HANDLING:
+  Lookup (.get)      - Returns None if not found
+  Query (.where)     - Returns empty list on no matches
+  Edit (.edit)       - Raises NodeNotFoundError if missing
+  Batch (.mark_done) - Returns count of successful operations
+
+For detailed help on a topic:
+  sdk.help('features')      - Feature collection methods
+  sdk.help('analytics')     - Analytics methods
+  sdk.help('sessions')      - Session management
+  sdk.help('orchestration') - Subagent orchestration
+  sdk.help('planning')      - Planning workflow
+"""
+
+    def __dir__(self) -> list[str]:
+        """Return attributes with most useful ones first for discoverability."""
+        priority = [
+            # Work item managers
+            'features', 'bugs', 'spikes', 'chores', 'epics', 'phases',
+            # Non-work collections
+            'tracks', 'sessions', 'agents',
+            # Learning collections
+            'patterns', 'insights', 'metrics',
+            # Orchestration
+            'spawn_explorer', 'spawn_coder', 'orchestrate',
+            # Session management
+            'get_session_start_info', 'start_session', 'end_session',
+            # Strategic analytics
+            'find_bottlenecks', 'recommend_next_work', 'get_parallel_work',
+            # Work queue
+            'get_work_queue', 'work_next',
+            # Help
+            'help',
+        ]
+        # Get all attributes
+        all_attrs = object.__dir__(self)
+        # Separate into priority, regular, and dunder attributes
+        regular = [a for a in all_attrs if not a.startswith('_') and a not in priority]
+        dunder = [a for a in all_attrs if a.startswith('_')]
+        # Return priority items first, then regular, then dunder
+        return priority + regular + dunder
+
+    def _help_topic(self, topic: str) -> str:
+        """Return specific help for topic."""
+        topic = topic.lower()
+
+        if topic in ["feature", "features"]:
+            return """FEATURES COLLECTION
+
+Create and manage feature work items with builder support.
+
+COMMON METHODS:
+  sdk.features.create(title)     - Create new feature (returns builder)
+  sdk.features.get(id)           - Get feature by ID
+  sdk.features.all()             - Get all features
+  sdk.features.where(**filters)  - Query features
+  sdk.features.edit(id)          - Edit feature (context manager)
+  sdk.features.mark_done(ids)    - Mark features as done
+  sdk.features.assign(ids, agent) - Assign features to agent
+
+BUILDER PATTERN:
+  feature = (sdk.features.create("User Auth")
+    .set_priority("high")
+    .add_steps(["Login", "Logout", "Reset password"])
+    .add_edge("blocked_by", "feat-database")
+    .save())
+
+QUERIES:
+  high_priority = sdk.features.where(status="todo", priority="high")
+  my_features = sdk.features.where(agent_assigned="claude")
+  blocked = sdk.features.where(status="blocked")
+
+CONTEXT MANAGER:
+  with sdk.features.edit("feat-001") as f:
+      f.status = "in-progress"
+      f.complete_step(0)
+      # Auto-saves on exit
+
+See also: sdk.help('bugs'), sdk.help('spikes'), sdk.help('chores')
+"""
+
+        elif topic in ["bug", "bugs"]:
+            return """BUGS COLLECTION
+
+Create and manage bug reports.
+
+COMMON METHODS:
+  sdk.bugs.create(title)         - Create new bug (returns builder)
+  sdk.bugs.get(id)               - Get bug by ID
+  sdk.bugs.all()                 - Get all bugs
+  sdk.bugs.where(**filters)      - Query bugs
+  sdk.bugs.edit(id)              - Edit bug (context manager)
+
+BUILDER PATTERN:
+  bug = (sdk.bugs.create("Login fails on Safari")
+    .set_priority("critical")
+    .add_steps(["Reproduce", "Fix", "Test"])
+    .save())
+
+QUERIES:
+  critical = sdk.bugs.where(priority="critical", status="todo")
+  my_bugs = sdk.bugs.where(agent_assigned="claude")
+
+See also: sdk.help('features'), sdk.help('spikes')
+"""
+
+        elif topic in ["spike", "spikes"]:
+            return """SPIKES COLLECTION
+
+Create and manage investigation/research spikes.
+
+COMMON METHODS:
+  sdk.spikes.create(title)       - Create new spike (returns builder)
+  sdk.spikes.get(id)             - Get spike by ID
+  sdk.spikes.all()               - Get all spikes
+  sdk.spikes.where(**filters)    - Query spikes
+
+BUILDER PATTERN:
+  spike = (sdk.spikes.create("Research OAuth providers")
+    .set_priority("high")
+    .add_steps(["Research", "Document findings"])
+    .save())
+
+PLANNING SPIKES:
+  spike = sdk.start_planning_spike(
+      "Plan User Auth",
+      context="Users need login",
+      timebox_hours=4.0
+  )
+
+See also: sdk.help('planning'), sdk.help('features')
+"""
+
+        elif topic in ["chore", "chores"]:
+            return """CHORES COLLECTION
+
+Create and manage maintenance and chore tasks.
+
+COMMON METHODS:
+  sdk.chores.create(title)       - Create new chore (returns builder)
+  sdk.chores.get(id)             - Get chore by ID
+  sdk.chores.all()               - Get all chores
+  sdk.chores.where(**filters)    - Query chores
+
+BUILDER PATTERN:
+  chore = (sdk.chores.create("Update dependencies")
+    .set_priority("medium")
+    .add_steps(["Run uv update", "Test", "Commit"])
+    .save())
+
+See also: sdk.help('features'), sdk.help('bugs')
+"""
+
+        elif topic in ["epic", "epics"]:
+            return """EPICS COLLECTION
+
+Create and manage large bodies of work.
+
+COMMON METHODS:
+  sdk.epics.create(title)        - Create new epic (returns builder)
+  sdk.epics.get(id)              - Get epic by ID
+  sdk.epics.all()                - Get all epics
+  sdk.epics.where(**filters)     - Query epics
+
+BUILDER PATTERN:
+  epic = (sdk.epics.create("Authentication System")
+    .set_priority("critical")
+    .add_steps(["Design", "Implement", "Test", "Deploy"])
+    .save())
+
+See also: sdk.help('features'), sdk.help('tracks')
+"""
+
+        elif topic in ["track", "tracks"]:
+            return """TRACKS COLLECTION
+
+Create and manage work tracks with builder support.
+
+COMMON METHODS:
+  sdk.tracks.create(title)       - Create new track (returns builder)
+  sdk.tracks.builder()           - Get track builder
+  sdk.tracks.get(id)             - Get track by ID
+  sdk.tracks.all()               - Get all tracks
+  sdk.tracks.where(**filters)    - Query tracks
+
+BUILDER PATTERN:
+  track = (sdk.tracks.builder()
+    .title("User Authentication")
+    .description("OAuth 2.0 system")
+    .priority("high")
+    .with_spec(
+        overview="OAuth integration",
+        requirements=[("OAuth 2.0", "must-have")],
+        acceptance_criteria=["Login works"]
+    )
+    .with_plan_phases([
+        ("Phase 1", ["Setup (2h)", "Config (1h)"]),
+        ("Phase 2", ["Testing (2h)"])
+    ])
+    .create())
+
+FROM PLANNING:
+  track_info = sdk.create_track_from_plan(
+      title="User Auth",
+      description="OAuth system",
+      requirements=[("OAuth", "must-have")],
+      phases=[("Phase 1", ["Setup", "Config"])]
+  )
+
+See also: sdk.help('planning'), sdk.help('features')
+"""
+
+        elif topic in ["session", "sessions"]:
+            return """SESSION MANAGEMENT
+
+Create and manage agent sessions.
+
+SESSION METHODS:
+  sdk.start_session(title=...)   - Start new session
+  sdk.end_session(id)            - End session
+  sdk.track_activity(...)        - Track activity in session
+  sdk.dedupe_sessions(...)       - Clean up low-signal sessions
+  sdk.get_status()               - Get project status
+
+SESSION COLLECTION:
+  sdk.sessions.get(id)           - Get session by ID
+  sdk.sessions.all()             - Get all sessions
+  sdk.sessions.where(**filters)  - Query sessions
+
+TYPICAL WORKFLOW:
+  # Session start hook handles this automatically
+  session = sdk.start_session(title="Fix login bug")
+
+  # Track activities (handled by hooks)
+  sdk.track_activity(
+      tool="Edit",
+      summary="Fixed auth logic",
+      file_paths=["src/auth.py"],
+      success=True
+  )
+
+  # End session
+  sdk.end_session(
+      session.id,
+      handoff_notes="Login bug fixed, needs testing"
+  )
+
+CLEANUP:
+  # Remove orphaned sessions (<=1 event)
+  result = sdk.dedupe_sessions(max_events=1, dry_run=False)
+
+See also: sdk.help('analytics')
+"""
+
+        elif topic in ["analytic", "analytics", "strategic"]:
+            return """STRATEGIC ANALYTICS
+
+Find bottlenecks, recommend work, and assess risks.
+
+DEPENDENCY ANALYTICS:
+  bottlenecks = sdk.find_bottlenecks(top_n=5)
+  # Returns tasks blocking the most work
+
+  parallel = sdk.get_parallel_work(max_agents=5)
+  # Returns tasks that can run simultaneously
+
+  recs = sdk.recommend_next_work(agent_count=3)
+  # Returns smart recommendations with scoring
+
+  risks = sdk.assess_risks()
+  # Returns high-risk tasks and circular deps
+
+  impact = sdk.analyze_impact("feat-001")
+  # Returns what unlocks if you complete this task
+
+DIRECT ACCESS (preferred):
+  sdk.dep_analytics.find_bottlenecks(top_n=5)
+  sdk.dep_analytics.recommend_next_tasks(agent_count=3)
+  sdk.dep_analytics.find_parallelizable_work(status="todo")
+  sdk.dep_analytics.assess_dependency_risk()
+  sdk.dep_analytics.impact_analysis("feat-001")
+
+WORK TYPE ANALYTICS:
+  sdk.analytics.get_wip_by_type()
+  sdk.analytics.get_completion_rates()
+  sdk.analytics.get_agent_workload()
+
+CONTEXT ANALYTICS:
+  sdk.context.track_usage(...)
+  sdk.context.get_usage_report()
+
+See also: sdk.help('planning'), sdk.help('work_queue')
+"""
+
+        elif topic in ["queue", "work_queue", "routing"]:
+            return """WORK QUEUE & ROUTING
+
+Get prioritized work using smart routing.
+
+WORK QUEUE:
+  queue = sdk.get_work_queue(limit=10, min_score=0.0)
+  # Returns prioritized list with scores
+
+  for item in queue:
+      print(f"{item['score']:.1f} - {item['title']}")
+      if item.get('blocked_by'):
+          print(f"  Blocked by: {item['blocked_by']}")
+
+SMART ROUTING:
+  task = sdk.work_next(auto_claim=True, min_score=0.5)
+  # Returns next best task using analytics + capabilities
+
+  if task:
+      print(f"Working on: {task.title}")
+      # Task is auto-claimed and assigned
+
+SIMPLE NEXT TASK:
+  task = sdk.next_task(priority="high", auto_claim=True)
+  # Simpler version without smart routing
+
+See also: sdk.help('analytics')
+"""
+
+        elif topic in ["plan", "planning", "workflow"]:
+            return """PLANNING WORKFLOW
+
+Research, plan, and create tracks for new work.
+
+SMART PLANNING:
+  plan = sdk.smart_plan(
+      "User authentication system",
+      create_spike=True,
+      timebox_hours=4.0,
+      research_completed=True,  # IMPORTANT: Do research first!
+      research_findings={
+          "topic": "OAuth 2.0 best practices",
+          "recommended_library": "authlib",
+          "key_insights": ["Use PKCE", "Token rotation"]
+      }
+  )
+
+PLANNING SPIKE:
+  spike = sdk.start_planning_spike(
+      "Plan Real-time Notifications",
+      context="Users need live updates",
+      timebox_hours=3.0
+  )
+
+CREATE TRACK FROM PLAN:
+  track_info = sdk.create_track_from_plan(
+      title="User Authentication",
+      description="OAuth 2.0 with JWT",
+      requirements=[
+          ("OAuth 2.0 integration", "must-have"),
+          ("JWT token management", "must-have")
+      ],
+      phases=[
+          ("Phase 1: OAuth", ["Setup (2h)", "Callback (2h)"]),
+          ("Phase 2: JWT", ["Token signing (2h)"])
+      ]
+  )
+
+PARALLEL PLANNING:
+  plan = sdk.plan_parallel_work(max_agents=3)
+  if plan["can_parallelize"]:
+      for p in plan["prompts"]:
+          Task(prompt=p["prompt"])
+
+  # After parallel work completes
+  results = sdk.aggregate_parallel_results([
+      "agent-1", "agent-2", "agent-3"
+  ])
+
+See also: sdk.help('tracks'), sdk.help('spikes')
+"""
+
+        elif topic in ["orchestration", "orchestrate", "subagent", "subagents"]:
+            return """SUBAGENT ORCHESTRATION
+
+Spawn explorer and coder subagents for complex work.
+
+EXPLORER (Discovery):
+  prompt = sdk.spawn_explorer(
+      task="Find all API endpoints",
+      scope="src/api/",
+      patterns=["*.py"],
+      questions=["What framework is used?"]
+  )
+  # Execute with Task tool
+  Task(prompt=prompt["prompt"], description=prompt["description"])
+
+CODER (Implementation):
+  prompt = sdk.spawn_coder(
+      feature_id="feat-add-auth",
+      context=explorer_results,
+      files_to_modify=["src/auth.py"],
+      test_command="uv run pytest tests/auth/"
+  )
+  Task(prompt=prompt["prompt"], description=prompt["description"])
+
+FULL ORCHESTRATION:
+  prompts = sdk.orchestrate(
+      "feat-add-caching",
+      exploration_scope="src/cache/",
+      test_command="uv run pytest tests/cache/"
+  )
+
+  # Phase 1: Explorer
+  Task(prompt=prompts["explorer"]["prompt"])
+
+  # Phase 2: Coder (with explorer results)
+  Task(prompt=prompts["coder"]["prompt"])
+
+WORKFLOW:
+  1. Explorer discovers code patterns and files
+  2. Coder implements changes using explorer findings
+  3. Both agents auto-track in sessions
+  4. Feature gets updated with progress
+
+See also: sdk.help('planning')
+"""
+
+        elif topic in ["optimization", "session_start", "active_work"]:
+            return """SESSION OPTIMIZATION
+
+Reduce context usage with optimized methods.
+
+SESSION START INFO:
+  info = sdk.get_session_start_info(
+      include_git_log=True,
+      git_log_count=5,
+      analytics_top_n=3
+  )
+
+  # Single call returns:
+  # - status: Project status
+  # - active_work: Current work item
+  # - features: All features
+  # - sessions: Recent sessions
+  # - git_log: Recent commits
+  # - analytics: Bottlenecks, recommendations, parallel
+
+ACTIVE WORK ITEM:
+  active = sdk.get_active_work_item()
+  if active:
+      print(f"Working on: {active['title']}")
+      print(f"Progress: {active['steps_completed']}/{active['steps_total']}")
+
+  # Filter by agent
+  active = sdk.get_active_work_item(filter_by_agent=True)
+
+BENEFITS:
+  - 6+ tool calls → 1 method call
+  - Reduced token usage
+  - Faster session initialization
+  - All context in one place
+
+See also: sdk.help('sessions')
+"""
+
+        else:
+            return f"""Unknown topic: '{topic}'
+
+Available topics:
+  - features, bugs, spikes, chores, epics (work collections)
+  - tracks, sessions, agents (non-work collections)
+  - analytics, strategic (dependency and work analytics)
+  - work_queue, routing (smart task routing)
+  - planning, workflow (planning and track creation)
+  - orchestration, subagents (explorer/coder spawning)
+  - optimization, session_start (context optimization)
+
+Try: sdk.help() for full overview
+"""

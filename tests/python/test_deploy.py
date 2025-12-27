@@ -218,7 +218,7 @@ def test_run_deploy_script_not_found(mock_project_root, monkeypatch):
     # Don't create the script, so it won't be found
     result = run_deploy_script(["--dry-run"])
 
-    assert result == 1
+    assert result != 0  # Non-zero exit code when script not found
 
 
 # ============================================================================

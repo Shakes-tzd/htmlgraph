@@ -8,10 +8,9 @@ Enables drill-down analysis of where context was consumed.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -36,7 +35,7 @@ class ContextUsage:
     entity_id: str = ""
     entity_title: str = ""
 
-    def add_child(self, child_id: str, child_usage: "ContextUsage") -> None:
+    def add_child(self, child_id: str, child_usage: ContextUsage) -> None:
         """Add a child's usage to this aggregate."""
         self.tokens_used += child_usage.tokens_used
         self.peak_tokens = max(self.peak_tokens, child_usage.peak_tokens)
@@ -92,7 +91,7 @@ class ContextAnalytics:
         >>> print(f"Peak: {feat_usage.peak_tokens:,}")
     """
 
-    def __init__(self, sdk: "SDK"):
+    def __init__(self, sdk: SDK):
         """Initialize with SDK reference."""
         self._sdk = sdk
 
@@ -125,14 +124,13 @@ class ContextAnalytics:
             usage.tokens_used = max(usage.tokens_used, snapshot.current_tokens)
             if snapshot.feature_id:
                 prev = usage.by_feature.get(snapshot.feature_id, 0)
-                usage.by_feature[snapshot.feature_id] = max(prev, snapshot.current_tokens)
+                usage.by_feature[snapshot.feature_id] = max(
+                    prev, snapshot.current_tokens
+                )
 
         # Also use context_by_feature from session
         for feat_id, tokens in session.context_by_feature.items():
-            usage.by_feature[feat_id] = max(
-                usage.by_feature.get(feat_id, 0),
-                tokens
-            )
+            usage.by_feature[feat_id] = max(usage.by_feature.get(feat_id, 0), tokens)
 
         # Get tool breakdown from activity log
         for activity in session.activity_log:
@@ -301,12 +299,16 @@ class ContextAnalytics:
         cost_efficiency = []
         for fid, title, usage in feature_usages:
             if usage.cost_usd > 0:
-                cost_efficiency.append({
-                    "id": fid,
-                    "title": title,
-                    "cost": usage.cost_usd,
-                    "percent_of_total": (usage.cost_usd / total_cost * 100) if total_cost > 0 else 0,
-                })
+                cost_efficiency.append(
+                    {
+                        "id": fid,
+                        "title": title,
+                        "cost": usage.cost_usd,
+                        "percent_of_total": (usage.cost_usd / total_cost * 100)
+                        if total_cost > 0
+                        else 0,
+                    }
+                )
 
         return {
             "total_tokens": total.tokens_used,

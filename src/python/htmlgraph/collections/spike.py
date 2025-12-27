@@ -5,16 +5,16 @@ Extends BaseCollection with spike-specific builder support.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
-    from htmlgraph.builders import SpikeBuilder
 
 from htmlgraph.collections.base import BaseCollection
 
 
-class SpikeCollection(BaseCollection['SpikeCollection']):
+class SpikeCollection(BaseCollection["SpikeCollection"]):
     """
     Collection interface for spikes with builder support.
 
@@ -37,7 +37,7 @@ class SpikeCollection(BaseCollection['SpikeCollection']):
     _collection_name = "spikes"
     _node_type = "spike"
 
-    def __init__(self, sdk: 'SDK'):
+    def __init__(self, sdk: SDK):
         """
         Initialize spike collection.
 
@@ -49,4 +49,5 @@ class SpikeCollection(BaseCollection['SpikeCollection']):
 
         # Set builder class for create() method
         from htmlgraph.builders import SpikeBuilder
+
         self._builder_class = SpikeBuilder

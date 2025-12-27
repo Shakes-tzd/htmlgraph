@@ -29,7 +29,7 @@ def temp_sdk(tmp_path):
     feat3 = sdk.features.create("Low priority feature", priority="low").save()
 
     # Create a bug
-    bug1 = sdk.bugs.create("Critical bug", priority="high")
+    bug1 = sdk.bugs.create("Critical bug", priority="high").save()
 
     # Create a blocked feature directly
     from htmlgraph.models import Node

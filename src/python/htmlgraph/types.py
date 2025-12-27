@@ -8,8 +8,7 @@ These complement the Pydantic models in dependency_models.py by providing
 type hints for dict-based return values used in the SDK for backward compatibility.
 """
 
-from typing import TypedDict, NotRequired, Literal
-
+from typing import Literal, NotRequired, TypedDict
 
 # ============================================================================
 # Analytics Return Types
@@ -18,6 +17,7 @@ from typing import TypedDict, NotRequired, Literal
 
 class BottleneckDict(TypedDict):
     """Bottleneck task information from find_bottlenecks()."""
+
     id: str
     title: str
     status: str
@@ -29,6 +29,7 @@ class BottleneckDict(TypedDict):
 
 class WorkRecommendation(TypedDict):
     """Work recommendation from recommend_next_work()."""
+
     id: str
     title: str
     priority: str
@@ -41,6 +42,7 @@ class WorkRecommendation(TypedDict):
 
 class ParallelWorkInfo(TypedDict):
     """Parallel work opportunities from get_parallel_work()."""
+
     max_parallelism: int  # Maximum number of parallel tasks
     ready_now: list[str]  # Tasks ready to start immediately
     total_ready: int  # Total count of ready tasks
@@ -50,6 +52,7 @@ class ParallelWorkInfo(TypedDict):
 
 class RiskAssessmentDict(TypedDict):
     """Risk assessment from assess_risks()."""
+
     high_risk_count: int
     high_risk_tasks: list["HighRiskTask"]
     circular_dependencies: list[list[str]]
@@ -60,6 +63,7 @@ class RiskAssessmentDict(TypedDict):
 
 class HighRiskTask(TypedDict):
     """Individual high-risk task information."""
+
     id: str
     title: str
     risk_score: float
@@ -68,6 +72,7 @@ class HighRiskTask(TypedDict):
 
 class ImpactAnalysisDict(TypedDict):
     """Impact analysis from analyze_impact()."""
+
     node_id: str
     direct_dependents: int
     total_impact: int  # Transitive dependents
@@ -83,6 +88,7 @@ class ImpactAnalysisDict(TypedDict):
 
 class SessionStartInfo(TypedDict):
     """Comprehensive session start information from get_session_start_info()."""
+
     status: "ProjectStatus"
     active_work: NotRequired["ActiveWorkItem"]  # None if no active work
     features: list["FeatureSummary"]
@@ -93,6 +99,7 @@ class SessionStartInfo(TypedDict):
 
 class ProjectStatus(TypedDict):
     """Project status metrics."""
+
     total_nodes: int
     in_progress_count: int
     todo_count: int
@@ -102,6 +109,7 @@ class ProjectStatus(TypedDict):
 
 class ActiveWorkItem(TypedDict):
     """Currently active work item details."""
+
     id: str
     title: str
     type: Literal["feature", "bug", "spike", "chore", "epic"]
@@ -115,6 +123,7 @@ class ActiveWorkItem(TypedDict):
 
 class FeatureSummary(TypedDict):
     """Feature summary for session start."""
+
     id: str
     title: str
     status: str
@@ -125,6 +134,7 @@ class FeatureSummary(TypedDict):
 
 class SessionSummary(TypedDict):
     """Session summary information."""
+
     id: str
     status: str
     agent: str
@@ -134,6 +144,7 @@ class SessionSummary(TypedDict):
 
 class SessionAnalytics(TypedDict):
     """Strategic analytics for session start."""
+
     bottlenecks: list[BottleneckDict]
     recommendations: list[WorkRecommendation]
     parallel: ParallelWorkInfo
@@ -146,6 +157,7 @@ class SessionAnalytics(TypedDict):
 
 class WorkQueueItem(TypedDict):
     """Work queue item from get_work_queue()."""
+
     task_id: str
     title: str
     status: str
@@ -166,6 +178,7 @@ class WorkQueueItem(TypedDict):
 
 class SmartPlanResult(TypedDict):
     """Result from smart_plan()."""
+
     type: Literal["spike", "track"]
     spike_id: NotRequired[str]  # Present if type="spike"
     track_id: NotRequired[str]  # Present if type="track"
@@ -183,6 +196,7 @@ class SmartPlanResult(TypedDict):
 
 class PlanningContext(TypedDict):
     """Project context for planning."""
+
     bottlenecks_count: int
     high_risk_count: int
     parallel_capacity: int
@@ -191,6 +205,7 @@ class PlanningContext(TypedDict):
 
 class TrackCreationResult(TypedDict):
     """Result from create_track_from_plan()."""
+
     track_id: str
     title: str
     has_spec: bool
@@ -205,16 +220,46 @@ class TrackCreationResult(TypedDict):
 
 
 class SubagentPrompt(TypedDict):
-    """Subagent prompt from spawn_explorer() or spawn_coder()."""
+    """Subagent prompt from spawn_explorer() or spawn_coder().
+
+    This TypedDict represents the return value from SDK methods that spawn
+    subagents for specialized tasks like code exploration or implementation.
+
+    Fields:
+        prompt: The full prompt text for the subagent
+        description: Short description of the subagent's task
+        subagent_type: Type of subagent ("Explore", "Code", etc.)
+    """
+
     prompt: str
     description: str
+    subagent_type: str
 
 
 class OrchestrationResult(TypedDict):
-    """Result from orchestrate()."""
+    """Result from orchestrate() method.
+
+    Contains prompts for a two-phase feature implementation workflow:
+    1. Explorer discovers relevant code and patterns
+    2. Coder implements the feature based on explorer findings
+
+    Fields:
+        explorer: Prompt for the explorer subagent
+        coder: Prompt for the coder subagent
+        workflow: Step-by-step workflow instructions
+    """
+
     explorer: SubagentPrompt
     coder: SubagentPrompt
     workflow: list[str]  # Step-by-step workflow
+
+
+# Type aliases for specific spawning methods
+SpawnExplorerResult = SubagentPrompt
+"""Return type for spawn_explorer() - same structure as SubagentPrompt."""
+
+SpawnCoderResult = SubagentPrompt
+"""Return type for spawn_coder() - same structure as SubagentPrompt."""
 
 
 # ============================================================================
@@ -224,6 +269,7 @@ class OrchestrationResult(TypedDict):
 
 class ParallelPlanResult(TypedDict):
     """Result from plan_parallel_work()."""
+
     can_parallelize: bool
     max_parallelism: int
     ready_tasks: list[str]
@@ -239,6 +285,7 @@ class ParallelPlanResult(TypedDict):
 
 class TaskPrompt(TypedDict):
     """Individual task prompt for parallel execution."""
+
     prompt: str
     description: str
     task_id: str
@@ -246,6 +293,7 @@ class TaskPrompt(TypedDict):
 
 class ParallelGuidelines(TypedDict):
     """Guidelines for parallel execution."""
+
     dispatch: str
     patterns: list[str]
     avoid: list[str]
@@ -253,6 +301,7 @@ class ParallelGuidelines(TypedDict):
 
 class AggregateResultsDict(TypedDict):
     """Result from aggregate_parallel_results()."""
+
     total_agents: int
     successful: int
     failed: int

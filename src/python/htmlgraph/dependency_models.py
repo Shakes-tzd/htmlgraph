@@ -10,12 +10,15 @@ Provides Pydantic models for dependency-aware analytics results including:
 """
 
 from __future__ import annotations
-from pydantic import BaseModel, Field
+
 from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class CriticalPathNode(BaseModel):
     """Node on critical path with timing information."""
+
     id: str
     title: str
     est: int = 0  # Earliest start time
@@ -27,6 +30,7 @@ class CriticalPathNode(BaseModel):
 
 class CriticalPathResult(BaseModel):
     """Result of critical path analysis."""
+
     path: list[str] = Field(default_factory=list)  # Node IDs on critical path
     length: int = 0  # Number of nodes
     total_effort: float = 0.0  # Sum of effort estimates
@@ -36,6 +40,7 @@ class CriticalPathResult(BaseModel):
 
 class BottleneckNode(BaseModel):
     """Node identified as a bottleneck."""
+
     id: str
     title: str
     status: str
@@ -49,6 +54,7 @@ class BottleneckNode(BaseModel):
 
 class ParallelLevel(BaseModel):
     """Group of nodes at same dependency level."""
+
     level: int
     nodes: list[str] = Field(default_factory=list)
     max_parallel: int = 0
@@ -57,6 +63,7 @@ class ParallelLevel(BaseModel):
 
 class ParallelizationReport(BaseModel):
     """Analysis of parallelization opportunities."""
+
     max_parallelism: int = 0
     dependency_levels: list[ParallelLevel] = Field(default_factory=list)
     suggested_assignments: list[tuple[str, list[str]]] = Field(default_factory=list)
@@ -64,6 +71,7 @@ class ParallelizationReport(BaseModel):
 
 class RiskFactor(BaseModel):
     """Individual risk factor for a node."""
+
     type: Literal["spof", "deep_chain", "circular", "orphan"]
     severity: Literal["low", "medium", "high", "critical"]
     description: str
@@ -72,6 +80,7 @@ class RiskFactor(BaseModel):
 
 class RiskNode(BaseModel):
     """Node with identified risks."""
+
     id: str
     title: str
     risk_score: float = 0.0  # 0.0-1.0
@@ -80,6 +89,7 @@ class RiskNode(BaseModel):
 
 class RiskAssessment(BaseModel):
     """Overall risk assessment."""
+
     high_risk: list[RiskNode] = Field(default_factory=list)
     circular_dependencies: list[list[str]] = Field(default_factory=list)
     orphaned_nodes: list[str] = Field(default_factory=list)
@@ -88,6 +98,7 @@ class RiskAssessment(BaseModel):
 
 class HealthIndicator(BaseModel):
     """Individual health metric indicator."""
+
     metric: str
     value: float
     status: Literal["healthy", "warning", "critical"]
@@ -97,6 +108,7 @@ class HealthIndicator(BaseModel):
 
 class HealthReport(BaseModel):
     """Overall dependency health."""
+
     score: float = 0.0  # 0.0-1.0
     metrics: dict[str, float] = Field(default_factory=dict)
     health_indicators: list[HealthIndicator] = Field(default_factory=list)
@@ -104,6 +116,7 @@ class HealthReport(BaseModel):
 
 class TaskRecommendation(BaseModel):
     """Recommended task to work on."""
+
     id: str
     title: str
     priority: str
@@ -115,12 +128,14 @@ class TaskRecommendation(BaseModel):
 
 class TaskRecommendations(BaseModel):
     """Set of task recommendations."""
+
     recommendations: list[TaskRecommendation] = Field(default_factory=list)
     parallel_suggestions: list[list[str]] = Field(default_factory=list)
 
 
 class ImpactAnalysis(BaseModel):
     """Downstream impact analysis for a node."""
+
     node_id: str
     direct_dependents: int = 0
     transitive_dependents: int = 0
@@ -130,6 +145,7 @@ class ImpactAnalysis(BaseModel):
 
 class WhatIfResult(BaseModel):
     """Result of what-if completion simulation."""
+
     completed_nodes: list[str] = Field(default_factory=list)
     newly_available: list[str] = Field(default_factory=list)
     total_unlocked: int = 0

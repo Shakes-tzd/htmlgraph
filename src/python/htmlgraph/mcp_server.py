@@ -39,7 +39,9 @@ from htmlgraph.session_manager import SessionManager
 
 
 def _resolve_project_dir(cwd: str | None = None) -> Path:
-    env_dir = os.environ.get("HTMLGRAPH_PROJECT_DIR") or os.environ.get("CLAUDE_PROJECT_DIR")
+    env_dir = os.environ.get("HTMLGRAPH_PROJECT_DIR") or os.environ.get(
+        "CLAUDE_PROJECT_DIR"
+    )
     if env_dir:
         return Path(env_dir)
 
@@ -115,7 +117,9 @@ class StdioTransport:
                 return self._read_content_length_message(first_line=line)
 
             # Otherwise treat as newline-delimited JSON.
-            self.use_content_length = False if self.use_content_length is None else self.use_content_length
+            self.use_content_length = (
+                False if self.use_content_length is None else self.use_content_length
+            )
             try:
                 return json.loads(line.decode("utf-8").strip())
             except Exception:
@@ -123,7 +127,9 @@ class StdioTransport:
                 self._log(f"mcp: skipped non-json line: {line[:120]!r}")
                 continue
 
-    def _read_content_length_message(self, first_line: bytes | None = None) -> dict[str, Any] | None:
+    def _read_content_length_message(
+        self, first_line: bytes | None = None
+    ) -> dict[str, Any] | None:
         headers: dict[str, str] = {}
 
         def add_header(h: bytes) -> None:
@@ -210,13 +216,35 @@ def _tools() -> list[Tool]:
             input_schema={
                 "type": "object",
                 "properties": {
-                    "tool": {"type": "string", "description": "Event tool name (e.g. Bash, Edit, Deploy)."},
-                    "summary": {"type": "string", "description": "Human-readable summary."},
-                    "files": {"type": "array", "items": {"type": "string"}, "description": "Optional file paths."},
-                    "success": {"type": "boolean", "description": "Optional success flag (default true)."},
-                    "feature_id": {"type": "string", "description": "Optional explicit feature id (skips attribution)."},
-                    "payload": {"type": "object", "description": "Optional structured payload."},
-                    "agent": {"type": "string", "description": "Optional agent name for the session (default mcp)."},
+                    "tool": {
+                        "type": "string",
+                        "description": "Event tool name (e.g. Bash, Edit, Deploy).",
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "Human-readable summary.",
+                    },
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional file paths.",
+                    },
+                    "success": {
+                        "type": "boolean",
+                        "description": "Optional success flag (default true).",
+                    },
+                    "feature_id": {
+                        "type": "string",
+                        "description": "Optional explicit feature id (skips attribution).",
+                    },
+                    "payload": {
+                        "type": "object",
+                        "description": "Optional structured payload.",
+                    },
+                    "agent": {
+                        "type": "string",
+                        "description": "Optional agent name for the session (default mcp).",
+                    },
                 },
                 "required": ["tool", "summary"],
                 "additionalProperties": True,
@@ -228,7 +256,10 @@ def _tools() -> list[Tool]:
             input_schema={
                 "type": "object",
                 "properties": {
-                    "agent": {"type": "string", "description": "Optional agent override for auto-logging/session scoping."},
+                    "agent": {
+                        "type": "string",
+                        "description": "Optional agent override for auto-logging/session scoping.",
+                    },
                 },
                 "additionalProperties": False,
             },
@@ -240,8 +271,14 @@ def _tools() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "feature_id": {"type": "string"},
-                    "collection": {"type": "string", "description": "Optional: features or bugs."},
-                    "agent": {"type": "string", "description": "Optional agent override for session attribution."},
+                    "collection": {
+                        "type": "string",
+                        "description": "Optional: features or bugs.",
+                    },
+                    "agent": {
+                        "type": "string",
+                        "description": "Optional agent override for session attribution.",
+                    },
                 },
                 "required": ["feature_id"],
                 "additionalProperties": False,
@@ -330,7 +367,11 @@ class McpServer:
         self.graph_dir = graph_dir
         self.default_agent = default_agent
         self._initialized = False
-        self.autolog = autolog if autolog is not None else (os.environ.get("HTMLGRAPH_MCP_AUTOLOG", "1") != "0")
+        self.autolog = (
+            autolog
+            if autolog is not None
+            else (os.environ.get("HTMLGRAPH_MCP_AUTOLOG", "1") != "0")
+        )
         self.autolog_min_seconds = (
             autolog_min_seconds
             if autolog_min_seconds is not None
@@ -441,7 +482,9 @@ class McpServer:
             "drift_score": entry.drift_score,
         }
 
-    def _handle_get_active_feature(self, args: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _handle_get_active_feature(
+        self, args: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         args = args or {}
         manager = self._manager()
         primary = manager.get_primary_feature()
@@ -593,7 +636,9 @@ class McpServer:
                         agent = str(arguments.get("agent")).strip() or agent
                     primary_id = None
                     try:
-                        primary = result.get("primary") if isinstance(result, dict) else None
+                        primary = (
+                            result.get("primary") if isinstance(result, dict) else None
+                        )
                         if isinstance(primary, dict):
                             primary_id = primary.get("id")
                     except Exception:

@@ -13,7 +13,6 @@ Key capabilities:
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +22,7 @@ from htmlgraph.transcript import TranscriptReader, TranscriptSession
 @dataclass
 class ToolTransition:
     """Represents a transition between two tools."""
+
     from_tool: str
     to_tool: str
     count: int = 1
@@ -32,6 +32,7 @@ class ToolTransition:
 @dataclass
 class WorkflowPattern:
     """A detected workflow pattern."""
+
     sequence: list[str]
     count: int
     success_rate: float  # 0.0 to 1.0
@@ -42,6 +43,7 @@ class WorkflowPattern:
 @dataclass
 class SessionHealth:
     """Health metrics for a session."""
+
     session_id: str
     efficiency_score: float  # 0.0 to 1.0
     retry_rate: float  # proportion of retried operations
@@ -55,30 +57,31 @@ class SessionHealth:
     def overall_score(self) -> float:
         """Calculate overall health score."""
         weights = {
-            'efficiency': 0.3,
-            'low_retry': 0.2,
-            'low_rebuilds': 0.15,
-            'diversity': 0.1,
-            'clarity': 0.15,
-            'recovery': 0.1,
+            "efficiency": 0.3,
+            "low_retry": 0.2,
+            "low_rebuilds": 0.15,
+            "diversity": 0.1,
+            "clarity": 0.15,
+            "recovery": 0.1,
         }
 
         # Normalize rebuild count (lower is better, cap at 10)
         rebuild_score = max(0, 1 - (self.context_rebuild_count / 10))
 
         return (
-            weights['efficiency'] * self.efficiency_score +
-            weights['low_retry'] * (1 - self.retry_rate) +
-            weights['low_rebuilds'] * rebuild_score +
-            weights['diversity'] * self.tool_diversity +
-            weights['clarity'] * self.prompt_clarity_score +
-            weights['recovery'] * self.error_recovery_rate
+            weights["efficiency"] * self.efficiency_score
+            + weights["low_retry"] * (1 - self.retry_rate)
+            + weights["low_rebuilds"] * rebuild_score
+            + weights["diversity"] * self.tool_diversity
+            + weights["clarity"] * self.prompt_clarity_score
+            + weights["recovery"] * self.error_recovery_rate
         )
 
 
 @dataclass
 class TranscriptInsights:
     """Aggregated insights from transcript analysis."""
+
     total_sessions: int
     total_user_messages: int
     total_tool_calls: int
@@ -102,6 +105,7 @@ class TranscriptInsights:
 @dataclass
 class TrackTranscriptStats:
     """Aggregated transcript stats for a track (multi-session)."""
+
     track_id: str
     session_count: int
     total_user_messages: int
@@ -132,7 +136,9 @@ class TrackTranscriptStats:
             "total_user_messages": self.total_user_messages,
             "total_tool_calls": self.total_tool_calls,
             "total_duration_seconds": self.total_duration_seconds,
-            "total_duration_formatted": self._format_duration(self.total_duration_seconds),
+            "total_duration_formatted": self._format_duration(
+                self.total_duration_seconds
+            ),
             "session_ids": self.session_ids,
             "tool_frequency": self.tool_frequency,
             "avg_session_health": round(self.avg_session_health, 2),
@@ -250,7 +256,7 @@ class TranscriptAnalytics:
         # Calculate metrics
         tools = [e.tool_name for e in entries if e.tool_name]
         user_messages = [e for e in entries if e.entry_type == "user"]
-        tool_results = [e for e in entries if e.entry_type == "tool_result"]
+        [e for e in entries if e.entry_type == "tool_result"]
 
         # Duration
         if entries[0].timestamp and entries[-1].timestamp:
@@ -262,7 +268,7 @@ class TranscriptAnalytics:
         efficiency = min(1.0, len(tools) / max(1, len(user_messages) * 5))
 
         # Retry rate: consecutive same tools / total tools
-        retries = sum(1 for i in range(1, len(tools)) if tools[i] == tools[i-1])
+        retries = sum(1 for i in range(1, len(tools)) if tools[i] == tools[i - 1])
         retry_rate = retries / max(1, len(tools))
 
         # Context rebuilds: count of repeated Read on same file
@@ -319,20 +325,22 @@ class TranscriptAnalytics:
             # Extract subsequences
             for length in range(min_length, min(max_length + 1, len(tools) + 1)):
                 for i in range(len(tools) - length + 1):
-                    seq = tuple(tools[i:i + length])
+                    seq = tuple(tools[i : i + length])
                     patterns[seq] += 1
 
         # Convert to WorkflowPattern objects
         result = []
         for seq, count in patterns.most_common(20):
             category = self._categorize_pattern(list(seq))
-            result.append(WorkflowPattern(
-                sequence=list(seq),
-                count=count,
-                success_rate=0.8 if category == "optimal" else 0.5,
-                avg_duration=0.0,
-                category=category,
-            ))
+            result.append(
+                WorkflowPattern(
+                    sequence=list(seq),
+                    count=count,
+                    success_rate=0.8 if category == "optimal" else 0.5,
+                    avg_duration=0.0,
+                    category=category,
+                )
+            )
 
         return result
 
@@ -353,16 +361,18 @@ class TranscriptAnalytics:
                 count = tools_str.count(pattern_str)
 
                 if count > 0:
-                    results.append((
-                        WorkflowPattern(
-                            sequence=pattern,
-                            count=count,
-                            success_rate=0.3,
-                            avg_duration=0.0,
-                            category="anti-pattern",
-                        ),
-                        explanation,
-                    ))
+                    results.append(
+                        (
+                            WorkflowPattern(
+                                sequence=pattern,
+                                count=count,
+                                success_rate=0.3,
+                                avg_duration=0.0,
+                                category="anti-pattern",
+                            ),
+                            explanation,
+                        )
+                    )
 
         return results
 
@@ -440,7 +450,9 @@ class TranscriptAnalytics:
                 )
 
         if not recommendations:
-            recommendations.append("✅ No major issues detected. Workflow looks healthy!")
+            recommendations.append(
+                "✅ No major issues detected. Workflow looks healthy!"
+            )
 
         return recommendations
 
@@ -464,12 +476,10 @@ class TranscriptAnalytics:
 
         # Aggregate stats
         total_user = sum(
-            len([e for e in t.entries if e.entry_type == "user"])
-            for t in transcripts
+            len([e for e in t.entries if e.entry_type == "user"]) for t in transcripts
         )
         total_tools = sum(
-            len([e for e in t.entries if e.tool_name])
-            for t in transcripts
+            len([e for e in t.entries if e.tool_name]) for t in transcripts
         )
 
         # Get patterns and anti-patterns
@@ -539,7 +549,9 @@ class TranscriptAnalytics:
             return None
 
         try:
-            graph = HtmlGraph(tracks_dir, auto_load=True, pattern=["*.html", "*/index.html"])
+            graph = HtmlGraph(
+                tracks_dir, auto_load=True, pattern=["*.html", "*/index.html"]
+            )
             track = graph.get(track_id)
         except Exception:
             return None
@@ -548,9 +560,9 @@ class TranscriptAnalytics:
             return None
 
         # Get session IDs from track (stored in edges or properties)
-        session_ids = track.edges.get("sessions", []) if hasattr(track, 'edges') else []
+        session_ids = track.edges.get("sessions", []) if hasattr(track, "edges") else []
         # Also check properties for sessions
-        if not session_ids and hasattr(track, 'properties'):
+        if not session_ids and hasattr(track, "properties"):
             session_ids = track.properties.get("sessions", [])
         if not session_ids:
             # Return empty stats
@@ -622,7 +634,9 @@ class TranscriptAnalytics:
             anti_pattern_count += sum(p[0].count for p in anti_patterns)
 
         # Calculate averages and trends
-        avg_health = sum(session_healths) / len(session_healths) if session_healths else 0.0
+        avg_health = (
+            sum(session_healths) / len(session_healths) if session_healths else 0.0
+        )
 
         # Calculate health trend (compare first half to second half)
         health_trend = "stable"

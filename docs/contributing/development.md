@@ -97,6 +97,8 @@ mypy src/python/htmlgraph tests/python
 
 ### Documentation
 
+#### MkDocs (Main Documentation)
+
 ```bash
 # Serve docs locally (with live reload)
 mkdocs serve
@@ -107,6 +109,37 @@ mkdocs build
 # Deploy docs to GitHub Pages
 mkdocs gh-deploy
 ```
+
+#### pdoc (API Documentation)
+
+```bash
+# Generate API docs locally
+uv run pdoc htmlgraph --docformat google
+
+# Save to file (uses config from pyproject.toml)
+uv run pdoc htmlgraph -o docs/api-pdoc --docformat google
+
+# Open in browser
+uv run pdoc htmlgraph --docformat google
+
+# Generate for specific module
+uv run pdoc htmlgraph.sdk --docformat google
+```
+
+The pdoc configuration is in `pyproject.toml`:
+
+```toml
+[tool.pdoc]
+output-directory = "docs/api-pdoc"
+docformat = "google"
+```
+
+#### Documentation Workflow
+
+1. **Docstrings**: Use Google-style docstrings in Python code
+2. **MkDocs**: Write narrative documentation in `docs/`
+3. **pdoc**: Auto-generates API reference from docstrings
+4. **CI**: Both are verified on every push/PR
 
 ## Project Structure
 

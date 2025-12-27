@@ -23,8 +23,10 @@ Example:
 """
 
 from __future__ import annotations
+
 import re
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.graph import HtmlGraph
@@ -56,14 +58,10 @@ class FindAPI:
         nodes = graph.find_all(title__contains="auth")
     """
 
-    def __init__(self, graph: 'HtmlGraph'):
+    def __init__(self, graph: HtmlGraph):
         self._graph = graph
 
-    def find(
-        self,
-        type: str | None = None,
-        **kwargs
-    ) -> 'Node | None':
+    def find(self, type: str | None = None, **kwargs) -> Node | None:
         """
         Find the first node matching the given criteria.
 
@@ -80,7 +78,7 @@ class FindAPI:
             node = graph.find(properties__effort__gt=8)
         """
         if type is not None:
-            kwargs['type'] = type
+            kwargs["type"] = type
 
         for node in self._graph:
             if self._matches(node, kwargs):
@@ -88,11 +86,8 @@ class FindAPI:
         return None
 
     def find_all(
-        self,
-        type: str | None = None,
-        limit: int | None = None,
-        **kwargs
-    ) -> list['Node']:
+        self, type: str | None = None, limit: int | None = None, **kwargs
+    ) -> list[Node]:
         """
         Find all nodes matching the given criteria.
 
@@ -109,7 +104,7 @@ class FindAPI:
             nodes = graph.find_all(status__in=["todo", "blocked"], limit=10)
         """
         if type is not None:
-            kwargs['type'] = type
+            kwargs["type"] = type
 
         results = []
         for node in self._graph:
@@ -119,7 +114,7 @@ class FindAPI:
                     break
         return results
 
-    def find_by_id(self, node_id: str) -> 'Node | None':
+    def find_by_id(self, node_id: str) -> Node | None:
         """
         Find node by exact ID.
 
@@ -131,7 +126,7 @@ class FindAPI:
         """
         return self._graph.get(node_id)
 
-    def find_by_title(self, title: str, exact: bool = False) -> list['Node']:
+    def find_by_title(self, title: str, exact: bool = False) -> list[Node]:
         """
         Find nodes by title.
 
@@ -148,11 +143,8 @@ class FindAPI:
             return self.find_all(title__icontains=title)
 
     def find_related(
-        self,
-        node_id: str,
-        relationship: str | None = None,
-        direction: str = "outgoing"
-    ) -> list['Node']:
+        self, node_id: str, relationship: str | None = None, direction: str = "outgoing"
+    ) -> list[Node]:
         """
         Find nodes related to a given node.
 
@@ -167,7 +159,7 @@ class FindAPI:
         neighbor_ids = self._graph.get_neighbors(node_id, relationship, direction)
         return [self._graph.get(nid) for nid in neighbor_ids if self._graph.get(nid)]
 
-    def find_blocking(self, node_id: str) -> list['Node']:
+    def find_blocking(self, node_id: str) -> list[Node]:
         """
         Find nodes that are blocking the given node.
 
@@ -177,9 +169,11 @@ class FindAPI:
         Returns:
             List of blocking nodes
         """
-        return self.find_related(node_id, relationship="blocked_by", direction="outgoing")
+        return self.find_related(
+            node_id, relationship="blocked_by", direction="outgoing"
+        )
 
-    def find_blocked_by(self, node_id: str) -> list['Node']:
+    def find_blocked_by(self, node_id: str) -> list[Node]:
         """
         Find nodes that are blocked by the given node.
 
@@ -191,9 +185,13 @@ class FindAPI:
         """
         # Nodes that have blocked_by pointing to this node
         incoming = self._graph.get_incoming_edges(node_id, "blocked_by")
-        return [self._graph.get(ref.source_id) for ref in incoming if self._graph.get(ref.source_id)]
+        return [
+            self._graph.get(ref.source_id)
+            for ref in incoming
+            if self._graph.get(ref.source_id)
+        ]
 
-    def _matches(self, node: 'Node', filters: dict[str, Any]) -> bool:
+    def _matches(self, node: Node, filters: dict[str, Any]) -> bool:
         """
         Check if a node matches all filters.
 
@@ -209,7 +207,7 @@ class FindAPI:
                 return False
         return True
 
-    def _check_filter(self, node: 'Node', key: str, expected: Any) -> bool:
+    def _check_filter(self, node: Node, key: str, expected: Any) -> bool:
         """
         Check a single filter against a node.
 
@@ -223,20 +221,20 @@ class FindAPI:
         """
         # Parse lookup type from key
         # Check if the last part is a lookup keyword
-        parts = key.split('__')
+        parts = key.split("__")
 
         if len(parts) == 1:
             # Simple attribute
             attr_path = parts[0]
-            lookup = 'exact'
+            lookup = "exact"
         elif parts[-1] in self._lookups:
             # Last part is a lookup
-            attr_path = '__'.join(parts[:-1])
+            attr_path = "__".join(parts[:-1])
             lookup = parts[-1]
         else:
             # All parts are attribute path, use exact match
             attr_path = key
-            lookup = 'exact'
+            lookup = "exact"
 
         # Get actual value
         actual = self._get_attr(node, attr_path)
@@ -245,11 +243,11 @@ class FindAPI:
         lookup_fn = self._lookups.get(lookup, self._exact)
         return lookup_fn(actual, expected)
 
-    def _get_attr(self, node: 'Node', path: str) -> Any:
+    def _get_attr(self, node: Node, path: str) -> Any:
         """Get attribute value supporting nested access with double underscore."""
         # Convert double underscore to dot notation for nested access
-        path = path.replace('__', '.')
-        parts = path.split('.')
+        path = path.replace("__", ".")
+        parts = path.split(".")
         current = node
 
         for part in parts:
@@ -312,7 +310,11 @@ class FindAPI:
     def _iregex(self, actual: Any, expected: Any) -> bool:
         if actual is None:
             return False
-        pattern = expected if isinstance(expected, re.Pattern) else re.compile(expected, re.IGNORECASE)
+        pattern = (
+            expected
+            if isinstance(expected, re.Pattern)
+            else re.compile(expected, re.IGNORECASE)
+        )
         return bool(pattern.search(str(actual)))
 
     def _gt(self, actual: Any, expected: Any) -> bool:
@@ -342,8 +344,12 @@ class FindAPI:
         if actual is None:
             return False
         try:
-            actual_num = float(actual) if not isinstance(actual, (int, float)) else actual
-            expected_num = float(expected) if not isinstance(expected, (int, float)) else expected
+            actual_num = (
+                float(actual) if not isinstance(actual, (int, float)) else actual
+            )
+            expected_num = (
+                float(expected) if not isinstance(expected, (int, float)) else expected
+            )
             return op(actual_num, expected_num)
         except (ValueError, TypeError):
             return op(str(actual), str(expected))
@@ -352,28 +358,28 @@ class FindAPI:
     def _lookups(self) -> dict[str, Callable]:
         """Available lookup functions."""
         return {
-            'exact': self._exact,
-            'iexact': self._iexact,
-            'contains': self._contains,
-            'icontains': self._icontains,
-            'startswith': self._startswith,
-            'istartswith': self._istartswith,
-            'endswith': self._endswith,
-            'iendswith': self._iendswith,
-            'regex': self._regex,
-            'iregex': self._iregex,
-            'gt': self._gt,
-            'gte': self._gte,
-            'lt': self._lt,
-            'lte': self._lte,
-            'in': self._in,
-            'not_in': self._not_in,
-            'isnull': self._isnull,
+            "exact": self._exact,
+            "iexact": self._iexact,
+            "contains": self._contains,
+            "icontains": self._icontains,
+            "startswith": self._startswith,
+            "istartswith": self._istartswith,
+            "endswith": self._endswith,
+            "iendswith": self._iendswith,
+            "regex": self._regex,
+            "iregex": self._iregex,
+            "gt": self._gt,
+            "gte": self._gte,
+            "lt": self._lt,
+            "lte": self._lte,
+            "in": self._in,
+            "not_in": self._not_in,
+            "isnull": self._isnull,
         }
 
 
 # Convenience functions for direct import
-def find(graph: 'HtmlGraph', type: str | None = None, **kwargs) -> 'Node | None':
+def find(graph: HtmlGraph, type: str | None = None, **kwargs) -> Node | None:
     """
     Find first node matching criteria.
 
@@ -388,7 +394,9 @@ def find(graph: 'HtmlGraph', type: str | None = None, **kwargs) -> 'Node | None'
     return FindAPI(graph).find(type=type, **kwargs)
 
 
-def find_all(graph: 'HtmlGraph', type: str | None = None, limit: int | None = None, **kwargs) -> list['Node']:
+def find_all(
+    graph: HtmlGraph, type: str | None = None, limit: int | None = None, **kwargs
+) -> list[Node]:
     """
     Find all nodes matching criteria.
 

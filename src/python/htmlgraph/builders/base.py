@@ -5,18 +5,19 @@ Provides common builder patterns shared across all node types.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, TypeVar, Generic
+
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
     from htmlgraph.models import Node
+    from htmlgraph.sdk import SDK
 
-from htmlgraph.models import Step, Edge
 from htmlgraph.ids import generate_id
+from htmlgraph.models import Edge, Step
 
 # Generic type for the builder subclass
-BuilderT = TypeVar('BuilderT', bound='BaseBuilder')
+BuilderT = TypeVar("BuilderT", bound="BaseBuilder")
 
 # For type hints in helper methods
 from typing_extensions import Self
@@ -41,7 +42,7 @@ class BaseBuilder(Generic[BuilderT]):
 
     node_type: str = "node"  # Override in subclasses
 
-    def __init__(self, sdk: 'SDK', title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs):
         """
         Initialize builder.
 
@@ -59,11 +60,13 @@ class BaseBuilder(Generic[BuilderT]):
             "steps": [],
             "edges": {},
             "properties": {},
-            **kwargs
+            **kwargs,
         }
 
     # Helper methods for common patterns
-    def _add_edge(self, edge_type: str, target_id: str, relationship: str | None = None) -> Self:
+    def _add_edge(
+        self, edge_type: str, target_id: str, relationship: str | None = None
+    ) -> Self:
         """Add an edge to the node being built."""
         if edge_type not in self._data["edges"]:
             self._data["edges"][edge_type] = []
@@ -74,7 +77,9 @@ class BaseBuilder(Generic[BuilderT]):
 
     def _set_date(self, field_name: str, date_value) -> Self:
         """Set a date field in properties, converting to ISO format if needed."""
-        iso_date = date_value.isoformat() if hasattr(date_value, 'isoformat') else date_value
+        iso_date = (
+            date_value.isoformat() if hasattr(date_value, "isoformat") else date_value
+        )
         self._data["properties"][field_name] = iso_date
         return self  # type: ignore
 
@@ -147,7 +152,7 @@ class BaseBuilder(Generic[BuilderT]):
         self._data["handoff_timestamp"] = datetime.now()
         return self  # type: ignore
 
-    def save(self) -> 'Node':
+    def save(self) -> Node:
         """
         Save the node and return the Node instance.
 
@@ -181,19 +186,24 @@ class BaseBuilder(Generic[BuilderT]):
         else:
             # Fallback: create new graph (for collections not yet on SDK)
             from htmlgraph.graph import HtmlGraph
+
             graph_path = self._sdk._directory / collection_name
             graph = HtmlGraph(graph_path, auto_load=False)
             graph.add(node)
 
         # Log creation event if SessionManager is available and agent is set
-        if hasattr(self._sdk, 'session_manager') and self._sdk.agent:
+        if hasattr(self._sdk, "session_manager") and self._sdk.agent:
             try:
                 self._sdk.session_manager._maybe_log_work_item_action(
                     agent=self._sdk.agent,
                     tool="FeatureCreate",
                     summary=f"Created: {collection_name}/{node.id}",
                     feature_id=node.id,
-                    payload={"collection": collection_name, "action": "create", "title": node.title},
+                    payload={
+                        "collection": collection_name,
+                        "action": "create",
+                        "title": node.title,
+                    },
                 )
             except Exception:
                 # Never break save because of logging

@@ -2,6 +2,15 @@
 
 Complete API documentation for HtmlGraph.
 
+## Documentation Formats
+
+HtmlGraph provides API documentation in two formats:
+
+- **This site** - Integrated MkDocs documentation with examples and guides
+- **[Standalone API Docs](/htmlgraph/api-pdoc/htmlgraph.html)** - Auto-generated pdoc documentation (alternative view)
+
+Choose whichever format you prefer!
+
 ## Core Modules
 
 - **[SDK](sdk.md)** - Main SDK interface for agents

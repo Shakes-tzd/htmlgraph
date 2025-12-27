@@ -39,8 +39,8 @@ Analytics:
 
 import argparse
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -54,7 +54,10 @@ def cmd_install_gemini_extension(args):
 
     if not extension_dir.exists():
         print(f"Error: Gemini extension not found at {extension_dir}", file=sys.stderr)
-        print("The extension may not be bundled with this version of htmlgraph.", file=sys.stderr)
+        print(
+            "The extension may not be bundled with this version of htmlgraph.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print(f"Installing Gemini extension from: {extension_dir}")
@@ -65,7 +68,7 @@ def cmd_install_gemini_extension(args):
             ["gemini", "extensions", "install", str(extension_dir), "--consent"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
         print(result.stdout)
         print("\n✅ Gemini extension installed successfully!")
@@ -84,20 +87,22 @@ def cmd_install_gemini_extension(args):
 def cmd_serve(args):
     """Start the HtmlGraph server."""
     from htmlgraph.server import serve
+
     serve(
         port=args.port,
         graph_dir=args.graph_dir,
         static_dir=args.static_dir,
         host=args.host,
-        watch=not args.no_watch
+        watch=not args.no_watch,
     )
 
 
 def cmd_init(args):
     """Initialize a new .htmlgraph directory."""
-    from htmlgraph.server import HtmlGraphAPIHandler
-    from htmlgraph.analytics_index import AnalyticsIndex
     import shutil
+
+    from htmlgraph.analytics_index import AnalyticsIndex
+    from htmlgraph.server import HtmlGraphAPIHandler
 
     # Interactive setup wizard
     if args.interactive:
@@ -111,12 +116,16 @@ def cmd_init(args):
         agent_name = input("Your agent name [claude]: ").strip() or "claude"
 
         # Ask about git hooks
-        install_hooks_response = input("Install git hooks for automatic tracking? [Y/n]: ").strip().lower()
-        args.install_hooks = install_hooks_response != 'n'
+        install_hooks_response = (
+            input("Install git hooks for automatic tracking? [Y/n]: ").strip().lower()
+        )
+        args.install_hooks = install_hooks_response != "n"
 
         # Ask about documentation generation
-        gen_docs_response = input("Generate AGENTS.md, CLAUDE.md, GEMINI.md? [Y/n]: ").strip().lower()
-        generate_docs = gen_docs_response != 'n'
+        gen_docs_response = (
+            input("Generate AGENTS.md, CLAUDE.md, GEMINI.md? [Y/n]: ").strip().lower()
+        )
+        generate_docs = gen_docs_response != "n"
 
         print()
     else:
@@ -428,6 +437,7 @@ exit 0
 
     # Generate documentation files from templates
     if generate_docs:
+
         def render_template(template_path: Path, replacements: dict[str, str]) -> str:
             """Render a template file with variable replacements."""
             if not template_path.exists():
@@ -443,6 +453,7 @@ exit 0
         # Get version
         try:
             from htmlgraph import __version__
+
             version = __version__
         except:
             version = "unknown"
@@ -482,27 +493,36 @@ exit 0
 
     print(f"\nInitialized HtmlGraph in {graph_dir}")
     print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
-    print(f"\nStart server with: htmlgraph serve")
+    print("\nStart server with: htmlgraph serve")
     if not args.no_index:
-        print(f"Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)")
+        print(
+            f"Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)"
+        )
     print(f"Events: {events_dir}/ (append-only JSONL)")
 
     # Install Git hooks if requested
     if args.install_hooks:
         git_dir = Path(args.dir) / ".git"
         if not git_dir.exists():
-            print(f"\n⚠️  Warning: No .git directory found. Git hooks not installed.")
-            print(f"   Initialize git first: git init")
+            print("\n⚠️  Warning: No .git directory found. Git hooks not installed.")
+            print("   Initialize git first: git init")
             return
 
-        def install_hook(hook_name: str, hook_dest: Path, hook_content: str | None) -> None:
+        def install_hook(
+            hook_name: str, hook_dest: Path, hook_content: str | None
+        ) -> None:
             """
             Install one Git hook:
               - Ensure `.htmlgraph/hooks/<hook>.sh` exists (copy template if present; else inline)
               - Install to `.git/hooks/<hook>` (symlink or chained wrapper if existing)
             """
             # Try to copy a template from this repo layout (dev), otherwise inline.
-            hook_src = Path(__file__).parent.parent.parent.parent / ".htmlgraph" / "hooks" / f"{hook_name}.sh"
+            hook_src = (
+                Path(__file__).parent.parent.parent.parent
+                / ".htmlgraph"
+                / "hooks"
+                / f"{hook_name}.sh"
+            )
             if hook_src.exists() and hook_src.resolve() != hook_dest.resolve():
                 shutil.copy(hook_src, hook_dest)
             elif not hook_dest.exists():
@@ -542,12 +562,12 @@ fi
 
             try:
                 git_hook_path.symlink_to(hook_dest.resolve())
-                print(f"\n✓ Git hooks installed")
+                print("\n✓ Git hooks installed")
                 print(f"  {hook_name}: {git_hook_path} -> {hook_dest}")
             except OSError:
                 shutil.copy(hook_dest, git_hook_path)
                 git_hook_path.chmod(0o755)
-                print(f"\n✓ Git hooks installed")
+                print("\n✓ Git hooks installed")
                 print(f"  {hook_name}: {git_hook_path}")
 
         install_hook("pre-commit", hook_files["pre-commit"], pre_commit)
@@ -561,9 +581,10 @@ fi
 
 def cmd_install_hooks(args):
     """Install Git hooks for automatic tracking."""
-    from htmlgraph.hooks.installer import HookInstaller, HookConfig
-    from htmlgraph.hooks import AVAILABLE_HOOKS
     from pathlib import Path
+
+    from htmlgraph.hooks import AVAILABLE_HOOKS
+    from htmlgraph.hooks.installer import HookConfig, HookInstaller
 
     project_dir = Path(args.project_dir).resolve()
 
@@ -625,12 +646,12 @@ def cmd_install_hooks(args):
                 print(f"  Type: Symlink ({our_hook} ours)")
                 print(f"  Target: {info.get('symlink_target', 'unknown')}")
             elif info["installed"]:
-                print(f"  Type: Copied file")
+                print("  Type: Copied file")
 
         print("\n" + "=" * 60)
         print(f"\nConfiguration: {config_path}")
-        print(f"Use 'htmlgraph install-hooks --enable <hook>' to enable")
-        print(f"Use 'htmlgraph install-hooks --disable <hook>' to disable")
+        print("Use 'htmlgraph install-hooks --enable <hook>' to enable")
+        print("Use 'htmlgraph install-hooks --disable <hook>' to disable")
         return
 
     # Uninstall a hook
@@ -684,8 +705,9 @@ def cmd_install_hooks(args):
 
 def cmd_status(args):
     """Show status of the graph."""
-    from htmlgraph.sdk import SDK
     from collections import Counter
+
+    from htmlgraph.sdk import SDK
 
     # Use SDK to query all collections
     sdk = SDK(directory=args.graph_dir)
@@ -695,7 +717,17 @@ def cmd_status(args):
     by_collection = {}
 
     # All available collections
-    collections = ['features', 'bugs', 'chores', 'spikes', 'epics', 'phases', 'sessions', 'tracks', 'agents']
+    collections = [
+        "features",
+        "bugs",
+        "chores",
+        "spikes",
+        "epics",
+        "phases",
+        "sessions",
+        "tracks",
+        "agents",
+    ]
 
     for coll_name in collections:
         coll = getattr(sdk, coll_name)
@@ -708,7 +740,7 @@ def cmd_status(args):
 
                 # Count by status
                 for node in nodes:
-                    status = getattr(node, 'status', 'unknown')
+                    status = getattr(node, "status", "unknown")
                     by_status[status] += 1
         except Exception:
             # Collection might not exist yet
@@ -717,19 +749,20 @@ def cmd_status(args):
     print(f"HtmlGraph Status: {args.graph_dir}")
     print(f"{'=' * 40}")
     print(f"Total nodes: {total}")
-    print(f"\nBy Collection:")
+    print("\nBy Collection:")
     for coll, count in sorted(by_collection.items()):
         print(f"  {coll}: {count}")
-    print(f"\nBy Status:")
+    print("\nBy Status:")
     for status, count in sorted(by_status.items()):
         print(f"  {status}: {count}")
 
 
 def cmd_query(args):
     """Query nodes with CSS selector."""
-    from htmlgraph.graph import HtmlGraph
-    from htmlgraph.converter import node_to_dict
     import json
+
+    from htmlgraph.converter import node_to_dict
+    from htmlgraph.graph import HtmlGraph
 
     graph_dir = Path(args.graph_dir)
     if not graph_dir.exists():
@@ -751,27 +784,28 @@ def cmd_query(args):
         for node in results:
             status = node.get("status", "?")
             priority = node.get("priority", "?")
-            print(f"[{node['_collection']}] {node['id']}: {node['title']} ({status}, {priority})")
+            print(
+                f"[{node['_collection']}] {node['id']}: {node['title']} ({status}, {priority})"
+            )
 
 
 # =============================================================================
 # Session Management Commands
 # =============================================================================
 
+
 def cmd_session_start(args):
     """Start a new session."""
-    from htmlgraph.sdk import SDK
     import json
 
+    from htmlgraph.sdk import SDK
+
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    session = sdk.start_session(
-        session_id=args.id,
-        title=args.title,
-        agent=args.agent
-    )
+    session = sdk.start_session(session_id=args.id, title=args.title, agent=args.agent)
 
     if args.format == "json":
         from htmlgraph.converter import session_to_dict
+
         print(json.dumps(session_to_dict(session), indent=2))
     else:
         print(f"Session started: {session.id}")
@@ -783,8 +817,9 @@ def cmd_session_start(args):
 
 def cmd_session_end(args):
     """End a session."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir)
     blockers = args.blocker if args.blocker else None
@@ -801,6 +836,7 @@ def cmd_session_end(args):
 
     if args.format == "json":
         from htmlgraph.converter import session_to_dict
+
         print(json.dumps(session_to_dict(session), indent=2))
     else:
         print(f"Session ended: {session.id}")
@@ -812,8 +848,9 @@ def cmd_session_end(args):
 
 def cmd_session_handoff(args):
     """Set or show session handoff context."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
@@ -821,7 +858,7 @@ def cmd_session_handoff(args):
         # For showing, we might still need direct manager access or add more methods to SDK
         # But for now, let's keep using SessionManager logic via SDK property if needed
         # or implement show logic here using SDK collections
-        
+
         # If args.session_id, use SDK.sessions.get()
         if args.session_id:
             session = sdk.sessions.get(args.session_id)
@@ -839,6 +876,7 @@ def cmd_session_handoff(args):
 
         if args.format == "json":
             from htmlgraph.converter import session_to_dict
+
             print(json.dumps(session_to_dict(session), indent=2))
         else:
             print(f"Session: {session.id}")
@@ -852,11 +890,14 @@ def cmd_session_handoff(args):
 
     # Setting handoff
     if not (args.notes or args.recommend or args.blocker):
-        print("Error: Provide --notes, --recommend, or --blocker (or use --show).", file=sys.stderr)
+        print(
+            "Error: Provide --notes, --recommend, or --blocker (or use --show).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     session = sdk.set_session_handoff(
-        session_id=args.session_id, # Optional, defaults to active
+        session_id=args.session_id,  # Optional, defaults to active
         handoff_notes=args.notes,
         recommended_next=args.recommend,
         blockers=args.blocker if args.blocker else None,
@@ -866,19 +907,25 @@ def cmd_session_handoff(args):
         if args.session_id:
             print(f"Error: Session '{args.session_id}' not found.", file=sys.stderr)
         else:
-            print(f"Error: No active session found. Provide --session-id.", file=sys.stderr)
+            print(
+                "Error: No active session found. Provide --session-id.",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
     if args.format == "json":
         from htmlgraph.converter import session_to_dict
+
         print(json.dumps(session_to_dict(session), indent=2))
     else:
         print(f"Session handoff updated: {session.id}")
 
+
 def cmd_session_list(args):
     """List all sessions."""
-    from htmlgraph.converter import SessionConverter
     import json
+
+    from htmlgraph.converter import SessionConverter
 
     sessions_dir = Path(args.graph_dir) / "sessions"
     if not sessions_dir.exists():
@@ -895,10 +942,12 @@ def cmd_session_list(args):
         if ts.tzinfo is None:
             return ts.replace(tzinfo=None)
         return ts.replace(tzinfo=None)  # Compare as naive for sorting
+
     sessions.sort(key=sort_key, reverse=True)
 
     if args.format == "json":
         from htmlgraph.converter import session_to_dict
+
         print(json.dumps([session_to_dict(s) for s in sessions], indent=2))
     else:
         if not sessions:
@@ -909,13 +958,16 @@ def cmd_session_list(args):
         print("=" * 90)
         for session in sessions:
             started = session.started_at.strftime("%Y-%m-%d %H:%M")
-            print(f"{session.id:<30} {session.status:<10} {session.agent:<15} {session.event_count:<8} {started}")
+            print(
+                f"{session.id:<30} {session.status:<10} {session.agent:<15} {session.event_count:<8} {started}"
+            )
 
 
 def cmd_session_start_info(args):
     """Get comprehensive session start information (optimized for AI agents)."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
@@ -923,7 +975,7 @@ def cmd_session_start_info(args):
         include_git_log=not args.no_git,
         git_log_count=args.git_count,
         analytics_top_n=args.top_n,
-        analytics_max_agents=args.max_agents
+        analytics_max_agents=args.max_agents,
     )
 
     if args.format == "json":
@@ -951,13 +1003,15 @@ def cmd_session_start_info(args):
                 "bug": "🐛",
                 "spike": "🔍",
                 "chore": "🔧",
-                "epic": "🎯"
+                "epic": "🎯",
             }.get(active_work.get("type"), "📝")
 
             # Build progress info
             steps_total = active_work.get("steps_total", 0)
             steps_completed = active_work.get("steps_completed", 0)
-            progress_str = f"({steps_completed}/{steps_total} steps)" if steps_total > 0 else ""
+            progress_str = (
+                f"({steps_completed}/{steps_total} steps)" if steps_total > 0 else ""
+            )
 
             # Check if auto-spike
             auto_spike_info = ""
@@ -965,18 +1019,24 @@ def cmd_session_start_info(args):
                 spike_subtype = active_work.get("spike_subtype", "unknown")
                 auto_spike_info = f" [AUTO-{spike_subtype.upper()}]"
 
-            print(f"  {type_symbol} {active_work['id']}: {active_work['title']} {progress_str}{auto_spike_info}")
+            print(
+                f"  {type_symbol} {active_work['id']}: {active_work['title']} {progress_str}{auto_spike_info}"
+            )
         else:
             print("  ⚠️  No active work item")
             print("  Code changes will be blocked until you assign work.")
-            print("  Create a feature: uv run htmlgraph feature create \"Title\"")
+            print('  Create a feature: uv run htmlgraph feature create "Title"')
 
         # Active features
         active_features = [f for f in info["features"] if f["status"] == "in-progress"]
         if active_features:
             print(f"\nACTIVE FEATURES ({len(active_features)}):")
             for feat in active_features:
-                progress = f"{feat['steps_completed']}/{feat['steps_total']}" if feat['steps_total'] > 0 else "no steps"
+                progress = (
+                    f"{feat['steps_completed']}/{feat['steps_total']}"
+                    if feat["steps_total"] > 0
+                    else "no steps"
+                )
                 print(f"  - {feat['id']}: {feat['title']} ({progress})")
 
         # Recent sessions
@@ -984,11 +1044,13 @@ def cmd_session_start_info(args):
         if recent_sessions:
             print(f"\nRECENT SESSIONS ({len(recent_sessions)}):")
             for sess in recent_sessions:
-                print(f"  - {sess['id']}: {sess['agent']} ({sess['event_count']} events)")
+                print(
+                    f"  - {sess['id']}: {sess['agent']} ({sess['event_count']} events)"
+                )
 
         # Git log
         if info.get("git_log"):
-            print(f"\nRECENT COMMITS:")
+            print("\nRECENT COMMITS:")
             for commit in info["git_log"]:
                 print(f"  {commit}")
 
@@ -1000,12 +1062,14 @@ def cmd_session_start_info(args):
         if bottlenecks:
             print(f"\nBOTTLENECKS ({len(bottlenecks)}):")
             for bn in bottlenecks:
-                print(f"  - {bn['title']} (blocks {bn['blocks_count']} tasks, impact: {bn['impact_score']:.1f})")
+                print(
+                    f"  - {bn['title']} (blocks {bn['blocks_count']} tasks, impact: {bn['impact_score']:.1f})"
+                )
 
         # Recommendations
         recommendations = analytics.get("recommendations", [])
         if recommendations:
-            print(f"\nRECOMMENDATIONS:")
+            print("\nRECOMMENDATIONS:")
             for rec in recommendations[:3]:
                 reasons_str = ", ".join(rec["reasons"][:2])
                 print(f"  - {rec['title']} (score: {rec['score']:.1f})")
@@ -1016,7 +1080,7 @@ def cmd_session_start_info(args):
         # Parallel capacity
         parallel = analytics.get("parallel", {})
         if parallel:
-            print(f"\nPARALLEL CAPACITY:")
+            print("\nPARALLEL CAPACITY:")
             print(f"  Max parallelism: {parallel.get('max_parallelism', 0)}")
             print(f"  Ready now: {parallel.get('ready_now', 0)}")
             print(f"  Total ready: {parallel.get('total_ready', 0)}")
@@ -1026,8 +1090,9 @@ def cmd_session_start_info(args):
 
 def cmd_session_status_report(args):
     """Print a comprehensive status report (Markdown)."""
-    from htmlgraph.sdk import SDK
     import subprocess
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir)
     status = sdk.get_status()
@@ -1035,18 +1100,16 @@ def cmd_session_status_report(args):
     # Git log
     try:
         git_log = subprocess.check_output(
-            ["git", "log", "--oneline", "-n", "3"],
-            text=True,
-            stderr=subprocess.DEVNULL
+            ["git", "log", "--oneline", "-n", "3"], text=True, stderr=subprocess.DEVNULL
         ).strip()
     except Exception:
         git_log = "(Git log unavailable)"
 
     # Active features detail
     active_features_text = ""
-    if status['active_features']:
+    if status["active_features"]:
         active_features_text = "\n### Current Feature(s)\n"
-        for fid in status['active_features']:
+        for fid in status["active_features"]:
             # Use SDK to get nodes
             node = sdk.features.get(fid) or sdk.bugs.get(fid)
             if node:
@@ -1064,15 +1127,15 @@ def cmd_session_status_report(args):
     # Project Name (from directory)
     project_name = Path(args.graph_dir).resolve().parent.name
 
-    completed = status['by_status'].get('done', 0)
-    total = status['total_features']
+    completed = status["by_status"].get("done", 0)
+    total = status["total_features"]
     pct = int(completed / max(1, total) * 100)
 
     print(f"""## Session Status
 
 **Project:** {project_name}
 **Progress:** {completed}/{total} features ({pct}%)
-**Active Features (WIP):** {status['wip_count']}
+**Active Features (WIP):** {status["wip_count"]}
 
 ---
 {active_features_text}---
@@ -1112,9 +1175,10 @@ def cmd_session_dedupe(args):
 
 def cmd_session_link(args):
     """Link a feature to a session retroactively."""
+    import json
+
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.models import Edge
-    import json
 
     graph_dir = Path(args.graph_dir)
     sessions_dir = graph_dir / "sessions"
@@ -1123,7 +1187,10 @@ def cmd_session_link(args):
     # Load session
     session_file = sessions_dir / f"{args.session_id}.html"
     if not session_file.exists():
-        print(f"Error: Session '{args.session_id}' not found at {session_file}", file=sys.stderr)
+        print(
+            f"Error: Session '{args.session_id}' not found at {session_file}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     session_graph = HtmlGraph(sessions_dir)
@@ -1135,7 +1202,10 @@ def cmd_session_link(args):
     # Load feature
     feature_file = feature_dir / f"{args.feature_id}.html"
     if not feature_file.exists():
-        print(f"Error: Feature '{args.feature_id}' not found at {feature_file}", file=sys.stderr)
+        print(
+            f"Error: Feature '{args.feature_id}' not found at {feature_file}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     feature_graph = HtmlGraph(feature_dir)
@@ -1149,16 +1219,16 @@ def cmd_session_link(args):
     already_linked = any(e.target_id == args.feature_id for e in worked_on)
 
     if already_linked:
-        print(f"Feature '{args.feature_id}' is already linked to session '{args.session_id}'")
+        print(
+            f"Feature '{args.feature_id}' is already linked to session '{args.session_id}'"
+        )
         if not args.bidirectional:
             sys.exit(0)
 
     # Add edge from session to feature
     if not already_linked:
         new_edge = Edge(
-            target_id=args.feature_id,
-            relationship="worked-on",
-            title=feature.title
+            target_id=args.feature_id, relationship="worked-on", title=feature.title
         )
         if "worked-on" not in session.edges:
             session.edges["worked-on"] = []
@@ -1169,19 +1239,23 @@ def cmd_session_link(args):
     # Optionally add reciprocal edge from feature to session
     if args.bidirectional:
         implemented_in = feature.edges.get("implemented-in", [])
-        feature_already_linked = any(e.target_id == args.session_id for e in implemented_in)
+        feature_already_linked = any(
+            e.target_id == args.session_id for e in implemented_in
+        )
 
         if not feature_already_linked:
             reciprocal_edge = Edge(
                 target_id=args.session_id,
                 relationship="implemented-in",
-                title=f"Session {session.id}"
+                title=f"Session {session.id}",
             )
             if "implemented-in" not in feature.edges:
                 feature.edges["implemented-in"] = []
             feature.edges["implemented-in"].append(reciprocal_edge)
             feature_graph.update(feature)
-            print(f"✓ Added reciprocal link from feature '{args.feature_id}' to session '{args.session_id}'")
+            print(
+                f"✓ Added reciprocal link from feature '{args.feature_id}' to session '{args.session_id}'"
+            )
         else:
             print(f"Feature '{args.feature_id}' already has reciprocal link to session")
 
@@ -1190,17 +1264,17 @@ def cmd_session_link(args):
             "session_id": args.session_id,
             "feature_id": args.feature_id,
             "bidirectional": args.bidirectional,
-            "linked": not already_linked
+            "linked": not already_linked,
         }
         print(json.dumps(result, indent=2))
 
 
 def cmd_session_validate_attribution(args):
     """Validate feature attribution and tracking."""
-    from htmlgraph.graph import HtmlGraph
-    from htmlgraph.converter import SessionConverter
     import json
     from datetime import datetime
+
+    from htmlgraph.graph import HtmlGraph
 
     graph_dir = Path(args.graph_dir)
     feature_dir = graph_dir / args.collection
@@ -1232,26 +1306,30 @@ def cmd_session_validate_attribution(args):
     for session in linked_sessions:
         session_events_file = events_dir / f"{session.id}.jsonl"
         if session_events_file.exists():
-            with open(session_events_file, 'r') as f:
+            with open(session_events_file) as f:
                 for line in f:
                     try:
                         event = json.loads(line.strip())
-                        if event.get('feature_id') == args.feature_id:
+                        if event.get("feature_id") == args.feature_id:
                             event_count += 1
-                            timestamp = event.get('timestamp')
+                            timestamp = event.get("timestamp")
                             if timestamp:
-                                event_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                                event_time = datetime.fromisoformat(
+                                    timestamp.replace("Z", "+00:00")
+                                )
                                 if not last_activity or event_time > last_activity:
                                     last_activity = event_time
 
                             # Check for high drift
-                            drift_score = event.get('drift_score')
+                            drift_score = event.get("drift_score")
                             if drift_score and drift_score > 0.8:
-                                high_drift_events.append({
-                                    'timestamp': timestamp,
-                                    'tool': event.get('tool'),
-                                    'drift': drift_score
-                                })
+                                high_drift_events.append(
+                                    {
+                                        "timestamp": timestamp,
+                                        "tool": event.get("tool"),
+                                        "drift": drift_score,
+                                    }
+                                )
                     except json.JSONDecodeError:
                         continue
 
@@ -1274,7 +1352,9 @@ def cmd_session_validate_attribution(args):
     if len(high_drift_events) > 3:
         if health == "GOOD":
             health = "WARNING"
-        issues.append(f"{len(high_drift_events)} events with drift > 0.8 (may be misattributed)")
+        issues.append(
+            f"{len(high_drift_events)} events with drift > 0.8 (may be misattributed)"
+        )
 
     # Output results
     if args.format == "json":
@@ -1286,7 +1366,7 @@ def cmd_session_validate_attribution(args):
             "event_count": event_count,
             "last_activity": last_activity.isoformat() if last_activity else None,
             "high_drift_count": len(high_drift_events),
-            "issues": issues
+            "issues": issues,
         }
         print(json.dumps(result, indent=2))
     else:
@@ -1300,14 +1380,16 @@ def cmd_session_validate_attribution(args):
             print(f"  - Last activity: {last_activity.strftime('%Y-%m-%d %H:%M:%S')}")
 
         if issues:
-            print(f"\n⚠ Issues detected:")
+            print("\n⚠ Issues detected:")
             for issue in issues:
                 print(f"  - {issue}")
 
         if len(high_drift_events) > 0 and len(high_drift_events) <= 5:
-            print(f"\n⚠ High drift events:")
+            print("\n⚠ High drift events:")
             for event in high_drift_events[:5]:
-                print(f"  - {event['timestamp']}: {event['tool']} (drift: {event['drift']:.2f})")
+                print(
+                    f"  - {event['timestamp']}: {event['tool']} (drift: {event['drift']:.2f})"
+                )
 
 
 # =========================================================================
@@ -1318,16 +1400,17 @@ def cmd_session_validate_attribution(args):
 def cmd_transcript_list(args):
     """List available Claude Code transcripts."""
     import json
+
     from htmlgraph.transcript import TranscriptReader
 
     reader = TranscriptReader()
 
     # Use project path filter if provided
-    project_path = args.project if hasattr(args, 'project') and args.project else None
+    project_path = args.project if hasattr(args, "project") and args.project else None
 
     sessions = reader.list_sessions(
         project_path=project_path,
-        limit=args.limit if hasattr(args, 'limit') else 20,
+        limit=args.limit if hasattr(args, "limit") else 20,
     )
 
     if not sessions:
@@ -1359,17 +1442,22 @@ def cmd_transcript_list(args):
     else:
         print(f"Found {len(sessions)} Claude Code transcript(s):\n")
         for s in sessions:
-            started = s.started_at.strftime("%Y-%m-%d %H:%M") if s.started_at else "unknown"
+            started = (
+                s.started_at.strftime("%Y-%m-%d %H:%M") if s.started_at else "unknown"
+            )
             duration = f"{int(s.duration_seconds / 60)}m" if s.duration_seconds else "?"
             branch = s.git_branch or "no branch"
-            print(f"  {s.session_id[:12]}  {started}  {duration:>6}  {s.user_message_count:>3} msgs  [{branch}]")
+            print(
+                f"  {s.session_id[:12]}  {started}  {duration:>6}  {s.user_message_count:>3} msgs  [{branch}]"
+            )
 
 
 def cmd_transcript_import(args):
     """Import a Claude Code transcript into HtmlGraph."""
     import json
-    from htmlgraph.transcript import TranscriptReader
+
     from htmlgraph.session_manager import SessionManager
+    from htmlgraph.transcript import TranscriptReader
 
     reader = TranscriptReader()
     manager = SessionManager(args.graph_dir)
@@ -1402,7 +1490,7 @@ def cmd_transcript_import(args):
     result = manager.import_transcript_events(
         session_id=htmlgraph_session_id,
         transcript_session=transcript,
-        overwrite=args.overwrite if hasattr(args, 'overwrite') else False,
+        overwrite=args.overwrite if hasattr(args, "overwrite") else False,
     )
 
     # Link to feature if specified
@@ -1427,8 +1515,9 @@ def cmd_transcript_import(args):
 def cmd_transcript_link(args):
     """Link a Claude Code transcript to an HtmlGraph session."""
     import json
-    from htmlgraph.transcript import TranscriptReader
+
     from htmlgraph.session_manager import SessionManager
+    from htmlgraph.transcript import TranscriptReader
 
     reader = TranscriptReader()
     manager = SessionManager(args.graph_dir)
@@ -1452,12 +1541,17 @@ def cmd_transcript_link(args):
         sys.exit(1)
 
     if args.format == "json":
-        print(json.dumps({
-            "linked": True,
-            "session_id": session.id,
-            "transcript_id": args.session_id,
-            "git_branch": transcript.git_branch,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "linked": True,
+                    "session_id": session.id,
+                    "transcript_id": args.session_id,
+                    "git_branch": transcript.git_branch,
+                },
+                indent=2,
+            )
+        )
     else:
         print(f"✅ Linked transcript {args.session_id[:12]} to session {session.id}")
         if transcript.git_branch:
@@ -1467,13 +1561,17 @@ def cmd_transcript_link(args):
 def cmd_transcript_stats(args):
     """Show transcript statistics for a session."""
     import json
+
     from htmlgraph.session_manager import SessionManager
 
     manager = SessionManager(args.graph_dir)
     stats = manager.get_transcript_stats(args.session_id)
 
     if not stats:
-        print(f"Error: No transcript linked to session: {args.session_id}", file=sys.stderr)
+        print(
+            f"Error: No transcript linked to session: {args.session_id}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if stats.get("error"):
@@ -1488,19 +1586,22 @@ def cmd_transcript_stats(args):
         print(f"  Git Branch: {stats.get('git_branch', 'N/A')}")
         print(f"  User Messages: {stats['user_messages']}")
         print(f"  Tool Calls: {stats['tool_calls']}")
-        if stats.get('duration_seconds'):
-            mins = int(stats['duration_seconds'] / 60)
+        if stats.get("duration_seconds"):
+            mins = int(stats["duration_seconds"] / 60)
             print(f"  Duration: {mins} minutes")
         print(f"  Has Thinking Traces: {stats['has_thinking_traces']}")
-        if stats.get('tool_breakdown'):
-            print(f"  Tool Breakdown:")
-            for tool, count in sorted(stats['tool_breakdown'].items(), key=lambda x: -x[1]):
+        if stats.get("tool_breakdown"):
+            print("  Tool Breakdown:")
+            for tool, count in sorted(
+                stats["tool_breakdown"].items(), key=lambda x: -x[1]
+            ):
                 print(f"    {tool}: {count}")
 
 
 def cmd_transcript_auto_link(args):
     """Auto-link transcripts to sessions by git branch."""
     import json
+
     from htmlgraph.session_manager import SessionManager
 
     manager = SessionManager(args.graph_dir)
@@ -1517,7 +1618,10 @@ def cmd_transcript_auto_link(args):
             )
             branch = result.stdout.strip()
         except Exception:
-            print("Error: Could not detect git branch. Specify with --branch", file=sys.stderr)
+            print(
+                "Error: Could not detect git branch. Specify with --branch",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
     linked = manager.auto_link_transcript_by_branch(
@@ -1526,11 +1630,18 @@ def cmd_transcript_auto_link(args):
     )
 
     if args.format == "json":
-        print(json.dumps({
-            "branch": branch,
-            "linked": [{"session_id": s, "transcript_id": t} for s, t in linked],
-            "count": len(linked),
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "branch": branch,
+                    "linked": [
+                        {"session_id": s, "transcript_id": t} for s, t in linked
+                    ],
+                    "count": len(linked),
+                },
+                indent=2,
+            )
+        )
     else:
         if linked:
             print(f"✅ Auto-linked {len(linked)} session(s) for branch '{branch}':")
@@ -1543,51 +1654,74 @@ def cmd_transcript_auto_link(args):
 def cmd_transcript_health(args):
     """Show session health metrics from transcript."""
     import json
+
     from htmlgraph.transcript_analytics import TranscriptAnalytics
 
     analytics = TranscriptAnalytics(args.graph_dir)
     health = analytics.calculate_session_health(args.transcript_id)
 
     if not health:
-        print(f"Error: Could not analyze transcript {args.transcript_id}", file=sys.stderr)
+        print(
+            f"Error: Could not analyze transcript {args.transcript_id}", file=sys.stderr
+        )
         sys.exit(1)
 
     if args.format == "json":
-        print(json.dumps({
-            "session_id": health.session_id,
-            "overall_score": round(health.overall_score(), 2),
-            "efficiency_score": round(health.efficiency_score, 2),
-            "retry_rate": round(health.retry_rate, 2),
-            "context_rebuild_count": health.context_rebuild_count,
-            "tool_diversity": round(health.tool_diversity, 2),
-            "prompt_clarity_score": round(health.prompt_clarity_score, 2),
-            "error_recovery_rate": round(health.error_recovery_rate, 2),
-            "duration_seconds": round(health.duration_seconds, 1),
-            "tools_per_minute": round(health.tools_per_minute, 1),
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "session_id": health.session_id,
+                    "overall_score": round(health.overall_score(), 2),
+                    "efficiency_score": round(health.efficiency_score, 2),
+                    "retry_rate": round(health.retry_rate, 2),
+                    "context_rebuild_count": health.context_rebuild_count,
+                    "tool_diversity": round(health.tool_diversity, 2),
+                    "prompt_clarity_score": round(health.prompt_clarity_score, 2),
+                    "error_recovery_rate": round(health.error_recovery_rate, 2),
+                    "duration_seconds": round(health.duration_seconds, 1),
+                    "tools_per_minute": round(health.tools_per_minute, 1),
+                },
+                indent=2,
+            )
+        )
     else:
         score = health.overall_score()
-        grade = "🟢 Excellent" if score > 0.8 else "🟡 Good" if score > 0.6 else "🟠 Fair" if score > 0.4 else "🔴 Needs Work"
+        grade = (
+            "🟢 Excellent"
+            if score > 0.8
+            else "🟡 Good"
+            if score > 0.6
+            else "🟠 Fair"
+            if score > 0.4
+            else "🔴 Needs Work"
+        )
 
         print(f"Session Health: {args.transcript_id[:12]}...")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
         print(f"Overall Score: {score:.0%} {grade}")
         print()
         print(f"📊 Efficiency:      {health.efficiency_score:.0%}")
-        print(f"🔄 Retry Rate:      {health.retry_rate:.0%} {'⚠️' if health.retry_rate > 0.3 else '✓'}")
-        print(f"📚 Context Rebuilds: {health.context_rebuild_count} {'⚠️' if health.context_rebuild_count > 5 else '✓'}")
+        print(
+            f"🔄 Retry Rate:      {health.retry_rate:.0%} {'⚠️' if health.retry_rate > 0.3 else '✓'}"
+        )
+        print(
+            f"📚 Context Rebuilds: {health.context_rebuild_count} {'⚠️' if health.context_rebuild_count > 5 else '✓'}"
+        )
         print(f"🔧 Tool Diversity:  {health.tool_diversity:.0%}")
         print(f"💬 Prompt Clarity:  {health.prompt_clarity_score:.0%}")
         print(f"🔧 Error Recovery:  {health.error_recovery_rate:.0%}")
         print()
         dur_mins = int(health.duration_seconds // 60)
         dur_secs = int(health.duration_seconds % 60)
-        print(f"⏱️  Duration: {dur_mins}m {dur_secs}s | Tools/min: {health.tools_per_minute:.1f}")
+        print(
+            f"⏱️  Duration: {dur_mins}m {dur_secs}s | Tools/min: {health.tools_per_minute:.1f}"
+        )
 
 
 def cmd_transcript_patterns(args):
     """Detect workflow patterns in transcripts."""
     import json
+
     from htmlgraph.transcript_analytics import TranscriptAnalytics
 
     analytics = TranscriptAnalytics(args.graph_dir)
@@ -1598,11 +1732,19 @@ def cmd_transcript_patterns(args):
     )
 
     if args.format == "json":
-        print(json.dumps([{
-            "sequence": p.sequence,
-            "count": p.count,
-            "category": p.category,
-        } for p in patterns], indent=2))
+        print(
+            json.dumps(
+                [
+                    {
+                        "sequence": p.sequence,
+                        "count": p.count,
+                        "category": p.category,
+                    }
+                    for p in patterns
+                ],
+                indent=2,
+            )
+        )
     else:
         print("Workflow Patterns Detected")
         print("=" * 50)
@@ -1630,6 +1772,7 @@ def cmd_transcript_patterns(args):
 def cmd_transcript_transitions(args):
     """Show tool transition matrix."""
     import json
+
     from htmlgraph.transcript_analytics import TranscriptAnalytics
 
     analytics = TranscriptAnalytics(args.graph_dir)
@@ -1659,10 +1802,13 @@ def cmd_transcript_transitions(args):
 def cmd_transcript_recommendations(args):
     """Get workflow improvement recommendations."""
     import json
+
     from htmlgraph.transcript_analytics import TranscriptAnalytics
 
     analytics = TranscriptAnalytics(args.graph_dir)
-    recommendations = analytics.generate_recommendations(transcript_id=args.transcript_id)
+    recommendations = analytics.generate_recommendations(
+        transcript_id=args.transcript_id
+    )
 
     if args.format == "json":
         print(json.dumps({"recommendations": recommendations}, indent=2))
@@ -1676,20 +1822,26 @@ def cmd_transcript_recommendations(args):
 def cmd_transcript_insights(args):
     """Get comprehensive transcript insights."""
     import json
+
     from htmlgraph.transcript_analytics import TranscriptAnalytics
 
     analytics = TranscriptAnalytics(args.graph_dir)
     insights = analytics.get_insights()
 
     if args.format == "json":
-        print(json.dumps({
-            "total_sessions": insights.total_sessions,
-            "total_user_messages": insights.total_user_messages,
-            "total_tool_calls": insights.total_tool_calls,
-            "tool_frequency": insights.tool_frequency,
-            "avg_session_health": round(insights.avg_session_health, 2),
-            "recommendations": insights.recommendations,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "total_sessions": insights.total_sessions,
+                    "total_user_messages": insights.total_user_messages,
+                    "total_tool_calls": insights.total_tool_calls,
+                    "tool_frequency": insights.tool_frequency,
+                    "avg_session_health": round(insights.avg_session_health, 2),
+                    "recommendations": insights.recommendations,
+                },
+                indent=2,
+            )
+        )
     else:
         print("📊 Transcript Insights")
         print("=" * 50)
@@ -1714,6 +1866,7 @@ def cmd_transcript_insights(args):
 def cmd_transcript_export(args):
     """Export transcript to HTML format."""
     from pathlib import Path
+
     from htmlgraph.transcript import TranscriptReader
 
     reader = TranscriptReader()
@@ -1737,13 +1890,17 @@ def cmd_transcript_export(args):
 def cmd_transcript_track_stats(args):
     """Get aggregated transcript stats for a track."""
     import json
+
     from htmlgraph.transcript_analytics import TranscriptAnalytics
 
     analytics = TranscriptAnalytics(args.graph_dir)
     stats = analytics.get_track_stats(args.track_id)
 
     if not stats:
-        print(f"Track '{args.track_id}' not found or has no transcript data.", file=sys.stderr)
+        print(
+            f"Track '{args.track_id}' not found or has no transcript data.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.format == "json":
@@ -1769,7 +1926,9 @@ def cmd_transcript_track_stats(args):
         if stats.session_ids:
             print()
             print("📂 Sessions:")
-            for i, (sid, health) in enumerate(zip(stats.session_ids, stats.session_healths)):
+            for i, (sid, health) in enumerate(
+                zip(stats.session_ids, stats.session_healths)
+            ):
                 print(f"   {sid[:20]:20} health: {health:.0%}")
                 if i >= 9:
                     remaining = len(stats.session_ids) - 10
@@ -1781,8 +1940,8 @@ def cmd_transcript_track_stats(args):
 def cmd_transcript_link_feature(args):
     """Link a Claude Code transcript to a feature for parallel agent tracking."""
     import json
+
     from htmlgraph.session_manager import SessionManager
-    from htmlgraph.graph import HtmlGraph
 
     manager = SessionManager(args.graph_dir)
     graph = manager.features_graph
@@ -1803,11 +1962,15 @@ def cmd_transcript_link_feature(args):
             "feature_id": args.to_feature,
             "transcript_id": args.transcript_id,
             "tool_count": feature.properties.get("transcript_tool_count", 0),
-            "duration_seconds": feature.properties.get("transcript_duration_seconds", 0),
+            "duration_seconds": feature.properties.get(
+                "transcript_duration_seconds", 0
+            ),
         }
         print(json.dumps(result, indent=2))
     else:
-        print(f"✅ Linked transcript '{args.transcript_id}' to feature '{args.to_feature}'")
+        print(
+            f"✅ Linked transcript '{args.transcript_id}' to feature '{args.to_feature}'"
+        )
         tool_count = feature.properties.get("transcript_tool_count", 0)
         duration = feature.properties.get("transcript_duration_seconds", 0)
         if tool_count > 0:
@@ -1817,8 +1980,9 @@ def cmd_transcript_link_feature(args):
 
 def cmd_track(args):
     """Track an activity in the current session."""
-    from htmlgraph import SDK
     import json
+
+    from htmlgraph import SDK
 
     agent = os.environ.get("HTMLGRAPH_AGENT")
     sdk = SDK(directory=args.graph_dir, agent=agent)
@@ -1829,7 +1993,7 @@ def cmd_track(args):
             summary=args.summary,
             file_paths=args.files,
             success=not args.failed,
-            session_id=args.session  # None if not specified, SDK will find active session
+            session_id=args.session,  # None if not specified, SDK will find active session
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -1843,7 +2007,7 @@ def cmd_track(args):
             "summary": entry.summary,
             "success": entry.success,
             "feature_id": entry.feature_id,
-            "drift_score": entry.drift_score
+            "drift_score": entry.drift_score,
         }
         print(json.dumps(data, indent=2))
     else:
@@ -1857,6 +2021,7 @@ def cmd_track(args):
 # =============================================================================
 # Events & Index Commands
 # =============================================================================
+
 
 def cmd_events_export(args):
     """Export legacy session HTML activity logs to JSONL event logs."""
@@ -1880,8 +2045,8 @@ def cmd_events_export(args):
 
 def cmd_index_rebuild(args):
     """Rebuild the SQLite analytics index from JSONL event logs."""
-    from htmlgraph.event_log import JsonlEventLog
     from htmlgraph.analytics_index import AnalyticsIndex
+    from htmlgraph.event_log import JsonlEventLog
 
     graph_dir = Path(args.graph_dir)
     events_dir = graph_dir / "events"
@@ -1918,6 +2083,7 @@ def cmd_watch(args):
 def cmd_git_event(args):
     """Log a Git event (commit, checkout, merge, push)."""
     import sys
+
     from htmlgraph.git_events import (
         log_git_checkout,
         log_git_commit,
@@ -1933,7 +2099,10 @@ def cmd_git_event(args):
 
     if args.event_type == "checkout":
         if len(args.args) < 3:
-            print("Error: checkout requires args: <old_head> <new_head> <flag>", file=sys.stderr)
+            print(
+                "Error: checkout requires args: <old_head> <new_head> <flag>",
+                file=sys.stderr,
+            )
             sys.exit(1)
         old_head, new_head, flag = args.args[0], args.args[1], args.args[2]
         if not log_git_checkout(old_head, new_head, flag):
@@ -1948,7 +2117,9 @@ def cmd_git_event(args):
 
     if args.event_type == "push":
         if len(args.args) < 2:
-            print("Error: push requires args: <remote_name> <remote_url>", file=sys.stderr)
+            print(
+                "Error: push requires args: <remote_name> <remote_url>", file=sys.stderr
+            )
             sys.exit(1)
         remote_name, remote_url = args.args[0], args.args[1]
         updates_text = sys.stdin.read()
@@ -1971,19 +2142,19 @@ def cmd_mcp_serve(args):
 # Work Management Commands (Smart Routing)
 # =============================================================================
 
+
 def cmd_work_next(args):
     """Get next best task using smart routing."""
-    from htmlgraph.sdk import SDK
-    from htmlgraph.converter import node_to_dict
     import json
+
+    from htmlgraph.converter import node_to_dict
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
     try:
         task = sdk.work_next(
-            agent_id=args.agent,
-            auto_claim=args.auto_claim,
-            min_score=args.min_score
+            agent_id=args.agent, auto_claim=args.auto_claim, min_score=args.min_score
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -1993,40 +2164,47 @@ def cmd_work_next(args):
         if task:
             print(json.dumps(node_to_dict(task), indent=2, default=str))
         else:
-            print(json.dumps({"task": None, "message": "No suitable tasks found"}, indent=2))
+            print(
+                json.dumps(
+                    {"task": None, "message": "No suitable tasks found"}, indent=2
+                )
+            )
     else:
         if task:
             print(f"Next task: {task.id}")
             print(f"  Title: {task.title}")
             print(f"  Priority: {task.priority}")
             print(f"  Status: {task.status}")
-            if getattr(task, 'required_capabilities', None):
-                print(f"  Required capabilities: {', '.join(task.required_capabilities)}")
-            complexity = getattr(task, 'complexity', None)
+            if getattr(task, "required_capabilities", None):
+                print(
+                    f"  Required capabilities: {', '.join(task.required_capabilities)}"
+                )
+            complexity = getattr(task, "complexity", None)
             if complexity:
                 print(f"  Complexity: {complexity}")
-            effort = getattr(task, 'estimated_effort', None)
+            effort = getattr(task, "estimated_effort", None)
             if effort:
                 print(f"  Estimated effort: {effort}h")
             if args.auto_claim:
                 print(f"  ✓ Task claimed by {args.agent}")
         else:
             print("No suitable tasks found.")
-            print("Try lowering --min-score or check available tasks with 'htmlgraph feature list --status todo'")
+            print(
+                "Try lowering --min-score or check available tasks with 'htmlgraph feature list --status todo'"
+            )
 
 
 def cmd_work_queue(args):
     """Get prioritized work queue for an agent."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
     try:
         queue = sdk.get_work_queue(
-            agent_id=args.agent,
-            limit=args.limit,
-            min_score=args.min_score
+            agent_id=args.agent, limit=args.limit, min_score=args.min_score
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -2037,7 +2215,9 @@ def cmd_work_queue(args):
     else:
         if not queue:
             print(f"No tasks found for agent '{args.agent}'.")
-            print("Try lowering --min-score or check available tasks with 'htmlgraph feature list --status todo'")
+            print(
+                "Try lowering --min-score or check available tasks with 'htmlgraph feature list --status todo'"
+            )
             return
 
         print(f"Work queue for {args.agent} ({len(queue)} tasks):")
@@ -2046,24 +2226,31 @@ def cmd_work_queue(args):
         print("=" * 90)
 
         for item in queue:
-            complexity = item.get('complexity', 'N/A') or 'N/A'
-            title = item['title'][:30] + "..." if len(item['title']) > 33 else item['title']
-            print(f"{item['score']:<8.1f} {item['priority']:<10} {complexity:<12} {item['task_id']:<25} {title}")
+            complexity = item.get("complexity", "N/A") or "N/A"
+            title = (
+                item["title"][:30] + "..." if len(item["title"]) > 33 else item["title"]
+            )
+            print(
+                f"{item['score']:<8.1f} {item['priority']:<10} {complexity:<12} {item['task_id']:<25} {title}"
+            )
 
 
 def cmd_agent_list(args):
     """List all registered agents."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir)
     agents = sdk.list_agents(active_only=args.active_only)
 
     if args.format == "json":
-        print(json.dumps(
-            {"agents": [agent.to_dict() for agent in agents], "count": len(agents)},
-            indent=2
-        ))
+        print(
+            json.dumps(
+                {"agents": [agent.to_dict() for agent in agents], "count": len(agents)},
+                indent=2,
+            )
+        )
     else:
         if not agents:
             print("No agents registered.")
@@ -2085,10 +2272,12 @@ def cmd_agent_list(args):
 # Feature Management Commands
 # =============================================================================
 
+
 def cmd_feature_create(args):
     """Create a new feature."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     # Use SDK for feature creation (which now handles logging)
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
@@ -2097,23 +2286,23 @@ def cmd_feature_create(args):
         # Determine collection (features -> create builder, others -> manual create?)
         # For now, only 'features' has a builder in SDK.features.create()
         # But BaseCollection doesn't have create().
-        
+
         # If collection is 'features', use builder
         if args.collection == "features":
             builder = sdk.features.create(
                 title=args.title,
                 description=args.description or "",
-                priority=args.priority
+                priority=args.priority,
             )
             if args.steps:
                 builder.add_steps(args.steps)
             node = builder.save()
         else:
-            # Fallback to SessionManager directly for non-feature collections 
+            # Fallback to SessionManager directly for non-feature collections
             # (or extend SDK to support create on all collections)
             # For consistency with old CLI, we use SessionManager here if not features.
             # But wait, SDK initializes SessionManager.
-            
+
             # Creating bugs/chores via SDK isn't fully fluent yet.
             # Let's use the low-level SessionManager.create_feature logic for now via SDK's session_manager
             # IF we want to strictly use SDK. But SDK.session_manager IS exposed now.
@@ -2123,7 +2312,7 @@ def cmd_feature_create(args):
                 description=args.description or "",
                 priority=args.priority,
                 steps=args.steps,
-                agent=args.agent
+                agent=args.agent,
             )
 
     except ValueError as e:
@@ -2132,6 +2321,7 @@ def cmd_feature_create(args):
 
     if args.format == "json":
         from htmlgraph.converter import node_to_dict
+
         print(json.dumps(node_to_dict(node), indent=2))
     else:
         print(f"Created: {node.id}")
@@ -2142,14 +2332,17 @@ def cmd_feature_create(args):
 
 def cmd_feature_start(args):
     """Start working on a feature."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
     collection = getattr(sdk, args.collection, None)
-    
+
     if not collection:
-        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        print(
+            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
+        )
         sys.exit(1)
 
     try:
@@ -2159,11 +2352,15 @@ def cmd_feature_start(args):
         sys.exit(1)
 
     if node is None:
-        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        print(
+            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.format == "json":
         from htmlgraph.converter import node_to_dict
+
         print(json.dumps(node_to_dict(node), indent=2))
     else:
         print(f"Started: {node.id}")
@@ -2177,14 +2374,17 @@ def cmd_feature_start(args):
 
 def cmd_feature_complete(args):
     """Mark a feature as complete."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
     collection = getattr(sdk, args.collection, None)
 
     if not collection:
-        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        print(
+            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
+        )
         sys.exit(1)
 
     try:
@@ -2194,11 +2394,15 @@ def cmd_feature_complete(args):
         sys.exit(1)
 
     if node is None:
-        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        print(
+            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.format == "json":
         from htmlgraph.converter import node_to_dict
+
         print(json.dumps(node_to_dict(node), indent=2))
     else:
         print(f"Completed: {node.id}")
@@ -2207,24 +2411,31 @@ def cmd_feature_complete(args):
 
 def cmd_feature_primary(args):
     """Set the primary feature for attribution."""
-    from htmlgraph.sdk import SDK
     import json
 
+    from htmlgraph.sdk import SDK
+
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    
+
     # Only FeatureCollection has set_primary currently
     if args.collection == "features":
         node = sdk.features.set_primary(args.id)
     else:
         # Fallback to direct session manager for other collections
-        node = sdk.session_manager.set_primary_feature(args.id, collection=args.collection, agent=args.agent)
+        node = sdk.session_manager.set_primary_feature(
+            args.id, collection=args.collection, agent=args.agent
+        )
 
     if node is None:
-        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        print(
+            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.format == "json":
         from htmlgraph.converter import node_to_dict
+
         print(json.dumps(node_to_dict(node), indent=2))
     else:
         print(f"Primary feature set: {node.id}")
@@ -2233,14 +2444,17 @@ def cmd_feature_primary(args):
 
 def cmd_feature_claim(args):
     """Claim a feature."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
     collection = getattr(sdk, args.collection, None)
 
     if not collection:
-        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        print(
+            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
+        )
         sys.exit(1)
 
     try:
@@ -2250,11 +2464,15 @@ def cmd_feature_claim(args):
         sys.exit(1)
 
     if node is None:
-        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        print(
+            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.format == "json":
         from htmlgraph.converter import node_to_dict
+
         print(json.dumps(node_to_dict(node), indent=2))
     else:
         print(f"Claimed: {node.id}")
@@ -2264,14 +2482,17 @@ def cmd_feature_claim(args):
 
 def cmd_feature_release(args):
     """Release a feature."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
     collection = getattr(sdk, args.collection, None)
 
     if not collection:
-        print(f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr)
+        print(
+            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
+        )
         sys.exit(1)
 
     try:
@@ -2281,11 +2502,15 @@ def cmd_feature_release(args):
         sys.exit(1)
 
     if node is None:
-        print(f"Error: Feature '{args.id}' not found in {args.collection}.", file=sys.stderr)
+        print(
+            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if args.format == "json":
         from htmlgraph.converter import node_to_dict
+
         print(json.dumps(node_to_dict(node), indent=2))
     else:
         print(f"Released: {node.id}")
@@ -2293,8 +2518,9 @@ def cmd_feature_release(args):
 
 def cmd_feature_auto_release(args):
     """Release all features claimed by an agent."""
-    from htmlgraph.sdk import SDK
     import json
+
+    from htmlgraph.sdk import SDK
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
     # auto_release_features is on SessionManager, exposed via SDK
@@ -2318,7 +2544,10 @@ def cmd_publish(args):
 
     # Ensure we are in project root
     if not Path("pyproject.toml").exists():
-        print("Error: pyproject.toml not found. Run this from the project root.", file=sys.stderr)
+        print(
+            "Error: pyproject.toml not found. Run this from the project root.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # 1. Clean dist/
@@ -2374,9 +2603,10 @@ def cmd_publish(args):
 
 def cmd_feature_list(args):
     """List features by status."""
-    from htmlgraph.sdk import SDK
-    from htmlgraph.converter import node_to_dict
     import json
+
+    from htmlgraph.converter import node_to_dict
+    from htmlgraph.sdk import SDK
 
     # Use SDK for feature queries
     sdk = SDK(directory=args.graph_dir)
@@ -2389,6 +2619,7 @@ def cmd_feature_list(args):
 
     # Sort by priority then updated
     from datetime import timezone
+
     priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
     def sort_key(n):
@@ -2404,7 +2635,11 @@ def cmd_feature_list(args):
         print(json.dumps([node_to_dict(n) for n in nodes], indent=2, default=str))
     else:
         if not nodes:
-            print(f"No features found with status '{args.status}'." if args.status else "No features found.")
+            print(
+                f"No features found with status '{args.status}'."
+                if args.status
+                else "No features found."
+            )
             return
 
         print(f"{'ID':<25} {'Status':<12} {'Priority':<10} {'Title'}")
@@ -2418,17 +2653,20 @@ def cmd_feature_list(args):
 # Track Management Commands (Conductor-Style Planning)
 # =============================================================================
 
+
 def cmd_feature_step_complete(args):
     """Mark one or more feature steps as complete via API."""
-    import json
     import http.client
+    import json
 
     # Parse step indices (support both space-separated and comma-separated)
     step_indices = []
     for step_arg in args.steps:
-        if ',' in step_arg:
+        if "," in step_arg:
             # Comma-separated: "0,1,2"
-            step_indices.extend(int(s.strip()) for s in step_arg.split(',') if s.strip())
+            step_indices.extend(
+                int(s.strip()) for s in step_arg.split(",") if s.strip()
+            )
         else:
             # Space-separated: "0" "1" "2"
             step_indices.append(int(step_arg))
@@ -2450,11 +2688,11 @@ def cmd_feature_step_complete(args):
             conn = http.client.HTTPConnection(args.host, args.port, timeout=5)
             body = json.dumps({"complete_step": step_index})
             headers = {"Content-Type": "application/json"}
-            
+
             conn.request("PATCH", f"/api/{args.collection}/{args.id}", body, headers)
             response = conn.getresponse()
             response_data = response.read().decode()
-            
+
             if response.status == 200:
                 success_count += 1
                 results.append({"step": step_index, "status": "success"})
@@ -2462,16 +2700,23 @@ def cmd_feature_step_complete(args):
                     print(f"✓ Marked step {step_index} complete")
             else:
                 error_count += 1
-                results.append({"step": step_index, "status": "error", "message": response_data})
+                results.append(
+                    {"step": step_index, "status": "error", "message": response_data}
+                )
                 if args.format != "json":
-                    print(f"✗ Failed to mark step {step_index} complete: {response_data}", file=sys.stderr)
-            
+                    print(
+                        f"✗ Failed to mark step {step_index} complete: {response_data}",
+                        file=sys.stderr,
+                    )
+
             conn.close()
         except Exception as e:
             error_count += 1
             results.append({"step": step_index, "status": "error", "message": str(e)})
             if args.format != "json":
-                print(f"✗ Error marking step {step_index} complete: {e}", file=sys.stderr)
+                print(
+                    f"✗ Error marking step {step_index} complete: {e}", file=sys.stderr
+                )
 
     # Output results
     if args.format == "json":
@@ -2480,21 +2725,23 @@ def cmd_feature_step_complete(args):
             "total_steps": len(step_indices),
             "success": success_count,
             "errors": error_count,
-            "results": results
+            "results": results,
         }
         print(json.dumps(output, indent=2))
     else:
-        print(f"\nCompleted {success_count}/{len(step_indices)} steps for feature '{args.id}'")
+        print(
+            f"\nCompleted {success_count}/{len(step_indices)} steps for feature '{args.id}'"
+        )
         if error_count > 0:
             sys.exit(1)
 
 
-
 def cmd_feature_delete(args):
     """Delete a feature."""
-    from htmlgraph import SDK
     import json
     import sys
+
+    from htmlgraph import SDK
 
     sdk = SDK(agent=getattr(args, "agent", "cli"), directory=args.graph_dir)
 
@@ -2506,7 +2753,10 @@ def cmd_feature_delete(args):
 
     feature = collection.get(args.id)
     if not feature:
-        print(f"Error: {args.collection.rstrip('s').capitalize()} '{args.id}' not found", file=sys.stderr)
+        print(
+            f"Error: {args.collection.rstrip('s').capitalize()} '{args.id}' not found",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Confirmation prompt (unless --yes flag)
@@ -2514,10 +2764,10 @@ def cmd_feature_delete(args):
         print(f"Delete {args.collection.rstrip('s')} '{args.id}'?")
         print(f"  Title: {feature.title}")
         print(f"  Status: {feature.status}")
-        print(f"\nThis cannot be undone. Continue? [y/N] ", end="")
+        print("\nThis cannot be undone. Continue? [y/N] ", end="")
 
         response = input().strip().lower()
-        if response not in ('y', 'yes'):
+        if response not in ("y", "yes"):
             print("Cancelled")
             sys.exit(0)
 
@@ -2526,17 +2776,16 @@ def cmd_feature_delete(args):
         success = collection.delete(args.id)
         if success:
             if args.format == "json":
-                data = {
-                    "id": args.id,
-                    "title": feature.title,
-                    "deleted": True
-                }
+                data = {"id": args.id, "title": feature.title, "deleted": True}
                 print(json.dumps(data, indent=2))
             else:
                 print(f"Deleted {args.collection.rstrip('s')}: {args.id}")
                 print(f"  Title: {feature.title}")
         else:
-            print(f"Error: Failed to delete {args.collection.rstrip('s')} '{args.id}'", file=sys.stderr)
+            print(
+                f"Error: Failed to delete {args.collection.rstrip('s')} '{args.id}'",
+                file=sys.stderr,
+            )
             sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -2545,8 +2794,9 @@ def cmd_feature_delete(args):
 
 def cmd_track_new(args):
     """Create a new track."""
-    from htmlgraph.track_manager import TrackManager
     import json
+
+    from htmlgraph.track_manager import TrackManager
 
     manager = TrackManager(args.graph_dir)
 
@@ -2566,7 +2816,7 @@ def cmd_track_new(args):
             "title": track.title,
             "status": track.status,
             "priority": track.priority,
-            "path": f"{args.graph_dir}/tracks/{track.id}/"
+            "path": f"{args.graph_dir}/tracks/{track.id}/",
         }
         print(json.dumps(data, indent=2))
     else:
@@ -2575,15 +2825,16 @@ def cmd_track_new(args):
         print(f"  Status: {track.status}")
         print(f"  Priority: {track.priority}")
         print(f"  Path: {args.graph_dir}/tracks/{track.id}/")
-        print(f"\nNext steps:")
+        print("\nNext steps:")
         print(f"  - Create spec: htmlgraph track spec {track.id} 'Spec Title'")
         print(f"  - Create plan: htmlgraph track plan {track.id} 'Plan Title'")
 
 
 def cmd_track_list(args):
     """List all tracks."""
-    from htmlgraph.track_manager import TrackManager
     import json
+
+    from htmlgraph.track_manager import TrackManager
 
     manager = TrackManager(args.graph_dir)
     track_ids = manager.list_tracks()
@@ -2593,7 +2844,7 @@ def cmd_track_list(args):
     else:
         if not track_ids:
             print("No tracks found.")
-            print(f"\nCreate a track with: htmlgraph track new 'Track Title'")
+            print("\nCreate a track with: htmlgraph track new 'Track Title'")
             return
 
         print(f"Tracks in {args.graph_dir}/tracks/:")
@@ -2606,7 +2857,10 @@ def cmd_track_list(args):
             if track_file.exists():
                 # Consolidated format - spec and plan are in the same file
                 content = track_file.read_text(encoding="utf-8")
-                has_spec = 'data-section="overview"' in content or 'data-section="requirements"' in content
+                has_spec = (
+                    'data-section="overview"' in content
+                    or 'data-section="requirements"' in content
+                )
                 has_plan = 'data-section="plan"' in content
                 format_indicator = " (consolidated)"
             else:
@@ -2627,8 +2881,9 @@ def cmd_track_list(args):
 
 def cmd_track_spec(args):
     """Create a spec for a track."""
-    from htmlgraph.track_manager import TrackManager
     import json
+
+    from htmlgraph.track_manager import TrackManager
 
     manager = TrackManager(args.graph_dir)
 
@@ -2637,8 +2892,8 @@ def cmd_track_spec(args):
         track_file = manager.tracks_dir / f"{args.track_id}.html"
         print(f"Track '{args.track_id}' uses consolidated single-file format.")
         print(f"Spec is embedded in: {track_file}")
-        print(f"\nTo create a track with separate spec/plan files, use:")
-        print(f"  sdk.tracks.builder().separate_files().title('...').create()")
+        print("\nTo create a track with separate spec/plan files, use:")
+        print("  sdk.tracks.builder().separate_files().title('...').create()")
         return
 
     try:
@@ -2662,7 +2917,7 @@ def cmd_track_spec(args):
             "title": spec.title,
             "track_id": spec.track_id,
             "status": spec.status,
-            "path": f"{args.graph_dir}/tracks/{args.track_id}/spec.html"
+            "path": f"{args.graph_dir}/tracks/{args.track_id}/spec.html",
         }
         print(json.dumps(data, indent=2))
     else:
@@ -2676,8 +2931,9 @@ def cmd_track_spec(args):
 
 def cmd_track_plan(args):
     """Create a plan for a track."""
-    from htmlgraph.track_manager import TrackManager
     import json
+
+    from htmlgraph.track_manager import TrackManager
 
     manager = TrackManager(args.graph_dir)
 
@@ -2686,8 +2942,8 @@ def cmd_track_plan(args):
         track_file = manager.tracks_dir / f"{args.track_id}.html"
         print(f"Track '{args.track_id}' uses consolidated single-file format.")
         print(f"Plan is embedded in: {track_file}")
-        print(f"\nTo create a track with separate spec/plan files, use:")
-        print(f"  sdk.tracks.builder().separate_files().title('...').create()")
+        print("\nTo create a track with separate spec/plan files, use:")
+        print("  sdk.tracks.builder().separate_files().title('...').create()")
         return
 
     try:
@@ -2708,7 +2964,7 @@ def cmd_track_plan(args):
             "title": plan.title,
             "track_id": plan.track_id,
             "status": plan.status,
-            "path": f"{args.graph_dir}/tracks/{args.track_id}/plan.html"
+            "path": f"{args.graph_dir}/tracks/{args.track_id}/plan.html",
         }
         print(json.dumps(data, indent=2))
     else:
@@ -2722,8 +2978,9 @@ def cmd_track_plan(args):
 
 def cmd_track_delete(args):
     """Delete a track."""
-    from htmlgraph.track_manager import TrackManager
     import json
+
+    from htmlgraph.track_manager import TrackManager
 
     manager = TrackManager(args.graph_dir)
 
@@ -2734,10 +2991,7 @@ def cmd_track_delete(args):
         sys.exit(1)
 
     if args.format == "json":
-        data = {
-            "deleted": True,
-            "track_id": args.track_id
-        }
+        data = {"deleted": True, "track_id": args.track_id}
         print(json.dumps(data, indent=2))
     else:
         print(f"✓ Deleted track: {args.track_id}")
@@ -2812,48 +3066,111 @@ curl Examples:
   curl localhost:8080/api/features
   curl -X POST localhost:8080/api/features -d '{"title": "New feature"}'
   curl -X PATCH localhost:8080/api/features/feat-001 -d '{"status": "done"}'
-"""
+""",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # serve
     serve_parser = subparsers.add_parser("serve", help="Start the HtmlGraph server")
-    serve_parser.add_argument("--port", "-p", type=int, default=8080, help="Port (default: 8080)")
-    serve_parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
-    serve_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    serve_parser.add_argument("--static-dir", "-s", default=".", help="Static files directory")
-    serve_parser.add_argument("--no-watch", action="store_true", help="Disable file watching (auto-reload disabled)")
+    serve_parser.add_argument(
+        "--port", "-p", type=int, default=8080, help="Port (default: 8080)"
+    )
+    serve_parser.add_argument(
+        "--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)"
+    )
+    serve_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    serve_parser.add_argument(
+        "--static-dir", "-s", default=".", help="Static files directory"
+    )
+    serve_parser.add_argument(
+        "--no-watch",
+        action="store_true",
+        help="Disable file watching (auto-reload disabled)",
+    )
 
     # init
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
-    init_parser.add_argument("dir", nargs="?", default=".", help="Directory to initialize")
-    init_parser.add_argument("--install-hooks", action="store_true", help="Install Git hooks for event logging")
-    init_parser.add_argument("--interactive", "-i", action="store_true", help="Interactive setup wizard")
-    init_parser.add_argument("--no-index", action="store_true", help="Do not create the analytics cache (index.sqlite)")
-    init_parser.add_argument("--no-update-gitignore", action="store_true", help="Do not update/create .gitignore for HtmlGraph cache files")
-    init_parser.add_argument("--no-events-keep", action="store_true", help="Do not create .htmlgraph/events/.gitkeep")
+    init_parser.add_argument(
+        "dir", nargs="?", default=".", help="Directory to initialize"
+    )
+    init_parser.add_argument(
+        "--install-hooks",
+        action="store_true",
+        help="Install Git hooks for event logging",
+    )
+    init_parser.add_argument(
+        "--interactive", "-i", action="store_true", help="Interactive setup wizard"
+    )
+    init_parser.add_argument(
+        "--no-index",
+        action="store_true",
+        help="Do not create the analytics cache (index.sqlite)",
+    )
+    init_parser.add_argument(
+        "--no-update-gitignore",
+        action="store_true",
+        help="Do not update/create .gitignore for HtmlGraph cache files",
+    )
+    init_parser.add_argument(
+        "--no-events-keep",
+        action="store_true",
+        help="Do not create .htmlgraph/events/.gitkeep",
+    )
 
     # install-hooks
-    hooks_parser = subparsers.add_parser("install-hooks", help="Install Git hooks for automatic tracking")
-    hooks_parser.add_argument("--project-dir", "-d", default=".", help="Project directory (default: current)")
-    hooks_parser.add_argument("--force", "-f", action="store_true", help="Force installation even if hooks exist")
-    hooks_parser.add_argument("--dry-run", action="store_true", help="Show what would be done without doing it")
-    hooks_parser.add_argument("--list", "-l", action="store_true", help="List hook installation status")
-    hooks_parser.add_argument("--uninstall", "-u", metavar="HOOK", help="Uninstall a specific hook")
-    hooks_parser.add_argument("--enable", metavar="HOOK", help="Enable a specific hook in configuration")
-    hooks_parser.add_argument("--disable", metavar="HOOK", help="Disable a specific hook in configuration")
-    hooks_parser.add_argument("--use-copy", action="store_true", help="Use file copy instead of symlinks")
+    hooks_parser = subparsers.add_parser(
+        "install-hooks", help="Install Git hooks for automatic tracking"
+    )
+    hooks_parser.add_argument(
+        "--project-dir", "-d", default=".", help="Project directory (default: current)"
+    )
+    hooks_parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force installation even if hooks exist",
+    )
+    hooks_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without doing it",
+    )
+    hooks_parser.add_argument(
+        "--list", "-l", action="store_true", help="List hook installation status"
+    )
+    hooks_parser.add_argument(
+        "--uninstall", "-u", metavar="HOOK", help="Uninstall a specific hook"
+    )
+    hooks_parser.add_argument(
+        "--enable", metavar="HOOK", help="Enable a specific hook in configuration"
+    )
+    hooks_parser.add_argument(
+        "--disable", metavar="HOOK", help="Disable a specific hook in configuration"
+    )
+    hooks_parser.add_argument(
+        "--use-copy", action="store_true", help="Use file copy instead of symlinks"
+    )
 
     # status
     status_parser = subparsers.add_parser("status", help="Show graph status")
-    status_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    status_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
 
     # query
     query_parser = subparsers.add_parser("query", help="Query nodes with CSS selector")
-    query_parser.add_argument("selector", help="CSS selector (e.g. [data-status='todo'])")
-    query_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    query_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    query_parser.add_argument(
+        "selector", help="CSS selector (e.g. [data-status='todo'])"
+    )
+    query_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    query_parser.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # =========================================================================
     # Session Management
@@ -2861,216 +3178,441 @@ curl Examples:
 
     # session (with subcommands)
     session_parser = subparsers.add_parser("session", help="Session management")
-    session_subparsers = session_parser.add_subparsers(dest="session_command", help="Session command")
+    session_subparsers = session_parser.add_subparsers(
+        dest="session_command", help="Session command"
+    )
 
     # session start
     session_start = session_subparsers.add_parser("start", help="Start a new session")
-    session_start.add_argument("--id", help="Session ID (auto-generated if not provided)")
+    session_start.add_argument(
+        "--id", help="Session ID (auto-generated if not provided)"
+    )
     session_start.add_argument("--agent", default="claude-code", help="Agent name")
     session_start.add_argument("--title", help="Session title")
-    session_start.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_start.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_start.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_start.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # session end
     session_end = session_subparsers.add_parser("end", help="End a session")
     session_end.add_argument("id", help="Session ID to end")
     session_end.add_argument("--notes", help="Handoff notes for the next session")
     session_end.add_argument("--recommend", help="Recommended next steps")
-    session_end.add_argument("--blocker", action="append", default=[], help="Blocker to record (repeatable)")
-    session_end.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_end.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_end.add_argument(
+        "--blocker", action="append", default=[], help="Blocker to record (repeatable)"
+    )
+    session_end.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_end.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # session handoff
-    session_handoff = session_subparsers.add_parser("handoff", help="Set or show session handoff context")
-    session_handoff.add_argument("--session-id", help="Session ID (defaults to active session)")
-    session_handoff.add_argument("--agent", help="Agent filter (used for --show when no session provided)")
+    session_handoff = session_subparsers.add_parser(
+        "handoff", help="Set or show session handoff context"
+    )
+    session_handoff.add_argument(
+        "--session-id", help="Session ID (defaults to active session)"
+    )
+    session_handoff.add_argument(
+        "--agent", help="Agent filter (used for --show when no session provided)"
+    )
     session_handoff.add_argument("--notes", help="Handoff notes for the next session")
     session_handoff.add_argument("--recommend", help="Recommended next steps")
-    session_handoff.add_argument("--blocker", action="append", default=[], help="Blocker to record (repeatable)")
-    session_handoff.add_argument("--show", action="store_true", help="Show handoff context instead of setting it")
-    session_handoff.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_handoff.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_handoff.add_argument(
+        "--blocker", action="append", default=[], help="Blocker to record (repeatable)"
+    )
+    session_handoff.add_argument(
+        "--show", action="store_true", help="Show handoff context instead of setting it"
+    )
+    session_handoff.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_handoff.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # session list
     session_list = session_subparsers.add_parser("list", help="List all sessions")
-    session_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_list.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_list.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # session start-info (optimized for AI agents)
-    session_start_info = session_subparsers.add_parser("start-info", help="Get comprehensive session start information (optimized)")
+    session_start_info = session_subparsers.add_parser(
+        "start-info", help="Get comprehensive session start information (optimized)"
+    )
     session_start_info.add_argument("--agent", default="claude", help="Agent name")
-    session_start_info.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_start_info.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
-    session_start_info.add_argument("--no-git", action="store_true", help="Skip git log")
-    session_start_info.add_argument("--git-count", type=int, default=5, help="Number of git commits to include")
-    session_start_info.add_argument("--top-n", type=int, default=3, help="Number of bottlenecks/recommendations")
-    session_start_info.add_argument("--max-agents", type=int, default=3, help="Max agents for parallel work analysis")
+    session_start_info.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_start_info.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
+    session_start_info.add_argument(
+        "--no-git", action="store_true", help="Skip git log"
+    )
+    session_start_info.add_argument(
+        "--git-count", type=int, default=5, help="Number of git commits to include"
+    )
+    session_start_info.add_argument(
+        "--top-n", type=int, default=3, help="Number of bottlenecks/recommendations"
+    )
+    session_start_info.add_argument(
+        "--max-agents",
+        type=int,
+        default=3,
+        help="Max agents for parallel work analysis",
+    )
 
     # session status-report (and resume alias)
-    session_report = session_subparsers.add_parser("status-report", help="Print comprehensive session status report")
-    session_report.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    
-    session_resume = session_subparsers.add_parser("resume", help="Alias for status-report (Resume session context)")
-    session_resume.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    session_report = session_subparsers.add_parser(
+        "status-report", help="Print comprehensive session status report"
+    )
+    session_report.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    session_resume = session_subparsers.add_parser(
+        "resume", help="Alias for status-report (Resume session context)"
+    )
+    session_resume.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
 
     # session dedupe
     session_dedupe = session_subparsers.add_parser(
         "dedupe",
         help="Move SessionStart-only sessions into a subfolder",
     )
-    session_dedupe.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_dedupe.add_argument("--max-events", type=int, default=1, help="Max events to consider orphaned")
-    session_dedupe.add_argument("--move-dir", default="_orphans", help="Subfolder name under sessions/")
-    session_dedupe.add_argument("--dry-run", action="store_true", help="Show what would happen without moving files")
-    session_dedupe.add_argument("--no-stale-active", action="store_true", help="Do not mark extra active sessions as stale")
+    session_dedupe.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_dedupe.add_argument(
+        "--max-events", type=int, default=1, help="Max events to consider orphaned"
+    )
+    session_dedupe.add_argument(
+        "--move-dir", default="_orphans", help="Subfolder name under sessions/"
+    )
+    session_dedupe.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would happen without moving files",
+    )
+    session_dedupe.add_argument(
+        "--no-stale-active",
+        action="store_true",
+        help="Do not mark extra active sessions as stale",
+    )
 
     # session link
     session_link = session_subparsers.add_parser(
-        "link",
-        help="Link a feature to a session retroactively"
+        "link", help="Link a feature to a session retroactively"
     )
     session_link.add_argument("session_id", help="Session ID")
     session_link.add_argument("feature_id", help="Feature ID to link")
-    session_link.add_argument("--collection", "-c", default="features", help="Feature collection")
-    session_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_link.add_argument("--bidirectional", "-b", action="store_true", help="Also add session to feature's implemented-in edges")
-    session_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_link.add_argument(
+        "--collection", "-c", default="features", help="Feature collection"
+    )
+    session_link.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_link.add_argument(
+        "--bidirectional",
+        "-b",
+        action="store_true",
+        help="Also add session to feature's implemented-in edges",
+    )
+    session_link.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # session validate-attribution
     session_validate = session_subparsers.add_parser(
-        "validate-attribution",
-        help="Validate feature attribution and tracking"
+        "validate-attribution", help="Validate feature attribution and tracking"
     )
     session_validate.add_argument("feature_id", help="Feature ID to validate")
-    session_validate.add_argument("--collection", "-c", default="features", help="Feature collection")
-    session_validate.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    session_validate.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    session_validate.add_argument(
+        "--collection", "-c", default="features", help="Feature collection"
+    )
+    session_validate.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_validate.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # activity (legacy: was "track")
-    activity_parser = subparsers.add_parser("activity", help="Track an activity (legacy: use 'htmlgraph track' for new features)")
+    activity_parser = subparsers.add_parser(
+        "activity",
+        help="Track an activity (legacy: use 'htmlgraph track' for new features)",
+    )
     activity_parser.add_argument("tool", help="Tool name (Edit, Bash, Read, etc.)")
     activity_parser.add_argument("summary", help="Activity summary")
-    activity_parser.add_argument("--session", help="Session ID (uses active session if not provided)")
+    activity_parser.add_argument(
+        "--session", help="Session ID (uses active session if not provided)"
+    )
     activity_parser.add_argument("--files", nargs="*", help="Files involved")
     activity_parser.add_argument("--failed", action="store_true", help="Mark as failed")
-    activity_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    activity_parser.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    activity_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    activity_parser.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # =========================================================================
     # Transcript Management (Claude Code Integration)
     # =========================================================================
 
-    transcript_parser = subparsers.add_parser("transcript", help="Claude Code transcript integration")
-    transcript_subparsers = transcript_parser.add_subparsers(dest="transcript_command", help="Transcript command")
+    transcript_parser = subparsers.add_parser(
+        "transcript", help="Claude Code transcript integration"
+    )
+    transcript_subparsers = transcript_parser.add_subparsers(
+        dest="transcript_command", help="Transcript command"
+    )
 
     # transcript list
-    transcript_list = transcript_subparsers.add_parser("list", help="List available Claude Code transcripts")
+    transcript_list = transcript_subparsers.add_parser(
+        "list", help="List available Claude Code transcripts"
+    )
     transcript_list.add_argument("--project", "-p", help="Project path to filter by")
-    transcript_list.add_argument("--limit", "-n", type=int, default=20, help="Maximum transcripts to show")
-    transcript_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_list.add_argument(
+        "--limit", "-n", type=int, default=20, help="Maximum transcripts to show"
+    )
+    transcript_list.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript import
-    transcript_import = transcript_subparsers.add_parser("import", help="Import a Claude Code transcript")
-    transcript_import.add_argument("session_id", help="Claude Code session ID to import")
-    transcript_import.add_argument("--to-session", help="HtmlGraph session ID to import into (creates new if not specified)")
+    transcript_import = transcript_subparsers.add_parser(
+        "import", help="Import a Claude Code transcript"
+    )
+    transcript_import.add_argument(
+        "session_id", help="Claude Code session ID to import"
+    )
+    transcript_import.add_argument(
+        "--to-session",
+        help="HtmlGraph session ID to import into (creates new if not specified)",
+    )
     transcript_import.add_argument("--link-feature", help="Feature ID to link to")
-    transcript_import.add_argument("--agent", default="claude-code", help="Agent name for new session")
-    transcript_import.add_argument("--overwrite", action="store_true", help="Overwrite existing activities")
-    transcript_import.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_import.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_import.add_argument(
+        "--agent", default="claude-code", help="Agent name for new session"
+    )
+    transcript_import.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing activities"
+    )
+    transcript_import.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_import.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript link
-    transcript_link = transcript_subparsers.add_parser("link", help="Link a transcript to an HtmlGraph session")
+    transcript_link = transcript_subparsers.add_parser(
+        "link", help="Link a transcript to an HtmlGraph session"
+    )
     transcript_link.add_argument("session_id", help="Claude Code session ID")
-    transcript_link.add_argument("--to-session", required=True, help="HtmlGraph session ID to link to")
-    transcript_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_link.add_argument(
+        "--to-session", required=True, help="HtmlGraph session ID to link to"
+    )
+    transcript_link.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_link.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript stats
-    transcript_stats = transcript_subparsers.add_parser("stats", help="Show transcript statistics for a session")
+    transcript_stats = transcript_subparsers.add_parser(
+        "stats", help="Show transcript statistics for a session"
+    )
     transcript_stats.add_argument("session_id", help="HtmlGraph session ID")
-    transcript_stats.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_stats.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_stats.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_stats.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript auto-link
-    transcript_auto_link = transcript_subparsers.add_parser("auto-link", help="Auto-link transcripts by git branch")
-    transcript_auto_link.add_argument("--branch", "-b", help="Git branch (uses current if not specified)")
+    transcript_auto_link = transcript_subparsers.add_parser(
+        "auto-link", help="Auto-link transcripts by git branch"
+    )
+    transcript_auto_link.add_argument(
+        "--branch", "-b", help="Git branch (uses current if not specified)"
+    )
     transcript_auto_link.add_argument("--agent", help="Filter by agent")
-    transcript_auto_link.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_auto_link.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_auto_link.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_auto_link.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript health (analytics)
-    transcript_health = transcript_subparsers.add_parser("health", help="Show session health metrics from transcript")
-    transcript_health.add_argument("transcript_id", help="Transcript/session ID to analyze")
-    transcript_health.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_health.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_health = transcript_subparsers.add_parser(
+        "health", help="Show session health metrics from transcript"
+    )
+    transcript_health.add_argument(
+        "transcript_id", help="Transcript/session ID to analyze"
+    )
+    transcript_health.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_health.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript patterns (analytics)
-    transcript_patterns = transcript_subparsers.add_parser("patterns", help="Detect workflow patterns in transcripts")
-    transcript_patterns.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
-    transcript_patterns.add_argument("--min-length", type=int, default=3, help="Minimum pattern length (default: 3)")
-    transcript_patterns.add_argument("--max-length", type=int, default=5, help="Maximum pattern length (default: 5)")
-    transcript_patterns.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_patterns.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_patterns = transcript_subparsers.add_parser(
+        "patterns", help="Detect workflow patterns in transcripts"
+    )
+    transcript_patterns.add_argument(
+        "--transcript-id", "-t", help="Specific transcript to analyze (default: all)"
+    )
+    transcript_patterns.add_argument(
+        "--min-length", type=int, default=3, help="Minimum pattern length (default: 3)"
+    )
+    transcript_patterns.add_argument(
+        "--max-length", type=int, default=5, help="Maximum pattern length (default: 5)"
+    )
+    transcript_patterns.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_patterns.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript transitions (analytics)
-    transcript_transitions = transcript_subparsers.add_parser("transitions", help="Show tool transition matrix")
-    transcript_transitions.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
-    transcript_transitions.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_transitions.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_transitions = transcript_subparsers.add_parser(
+        "transitions", help="Show tool transition matrix"
+    )
+    transcript_transitions.add_argument(
+        "--transcript-id", "-t", help="Specific transcript to analyze (default: all)"
+    )
+    transcript_transitions.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_transitions.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript recommendations (analytics)
-    transcript_recs = transcript_subparsers.add_parser("recommendations", help="Get workflow improvement recommendations")
-    transcript_recs.add_argument("--transcript-id", "-t", help="Specific transcript to analyze (default: all)")
-    transcript_recs.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_recs.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_recs = transcript_subparsers.add_parser(
+        "recommendations", help="Get workflow improvement recommendations"
+    )
+    transcript_recs.add_argument(
+        "--transcript-id", "-t", help="Specific transcript to analyze (default: all)"
+    )
+    transcript_recs.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_recs.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript insights (analytics)
-    transcript_insights = transcript_subparsers.add_parser("insights", help="Get comprehensive transcript insights")
-    transcript_insights.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_insights.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_insights = transcript_subparsers.add_parser(
+        "insights", help="Get comprehensive transcript insights"
+    )
+    transcript_insights.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_insights.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript export (HTML export)
-    transcript_export = transcript_subparsers.add_parser("export", help="Export transcript to HTML format")
-    transcript_export.add_argument("transcript_id", help="Transcript/session ID to export")
-    transcript_export.add_argument("-o", "--output", help="Output file path (prints to stdout if not specified)")
-    transcript_export.add_argument("--include-thinking", action="store_true", help="Include thinking traces in output")
+    transcript_export = transcript_subparsers.add_parser(
+        "export", help="Export transcript to HTML format"
+    )
+    transcript_export.add_argument(
+        "transcript_id", help="Transcript/session ID to export"
+    )
+    transcript_export.add_argument(
+        "-o", "--output", help="Output file path (prints to stdout if not specified)"
+    )
+    transcript_export.add_argument(
+        "--include-thinking",
+        action="store_true",
+        help="Include thinking traces in output",
+    )
 
     # transcript track-stats (track-level aggregation)
-    transcript_track = transcript_subparsers.add_parser("track-stats", help="Get aggregated transcript stats for a track")
+    transcript_track = transcript_subparsers.add_parser(
+        "track-stats", help="Get aggregated transcript stats for a track"
+    )
     transcript_track.add_argument("track_id", help="Track ID to aggregate")
-    transcript_track.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_track.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    transcript_track.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_track.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # transcript link-feature (link transcript to feature for parallel agent tracking)
     transcript_link_feature = transcript_subparsers.add_parser(
         "link-feature",
-        help="Link a Claude Code transcript to a feature (for parallel agent tracking)"
+        help="Link a Claude Code transcript to a feature (for parallel agent tracking)",
     )
-    transcript_link_feature.add_argument("transcript_id", help="Claude Code transcript/agent session ID")
-    transcript_link_feature.add_argument("--to-feature", "-f", required=True, help="Feature ID to link to")
-    transcript_link_feature.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    transcript_link_feature.add_argument("--format", choices=["text", "json"], default="text", help="Output format")
+    transcript_link_feature.add_argument(
+        "transcript_id", help="Claude Code transcript/agent session ID"
+    )
+    transcript_link_feature.add_argument(
+        "--to-feature", "-f", required=True, help="Feature ID to link to"
+    )
+    transcript_link_feature.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    transcript_link_feature.add_argument(
+        "--format", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # =========================================================================
     # Work Management (Smart Routing)
     # =========================================================================
 
     # work (with subcommands)
-    work_parser = subparsers.add_parser("work", help="Work management with smart routing")
-    work_subparsers = work_parser.add_subparsers(dest="work_command", help="Work command")
+    work_parser = subparsers.add_parser(
+        "work", help="Work management with smart routing"
+    )
+    work_subparsers = work_parser.add_subparsers(
+        dest="work_command", help="Work command"
+    )
 
     # work next
-    work_next = work_subparsers.add_parser("next", help="Get next best task using smart routing")
+    work_next = work_subparsers.add_parser(
+        "next", help="Get next best task using smart routing"
+    )
     work_next.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "claude",
         help="Agent ID (default: $HTMLGRAPH_AGENT or 'claude')",
     )
-    work_next.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    work_next.add_argument("--auto-claim", action="store_true", help="Automatically claim the task")
-    work_next.add_argument("--min-score", type=float, default=20.0, help="Minimum routing score (default: 20.0)")
-    work_next.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    work_next.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    work_next.add_argument(
+        "--auto-claim", action="store_true", help="Automatically claim the task"
+    )
+    work_next.add_argument(
+        "--min-score",
+        type=float,
+        default=20.0,
+        help="Minimum routing score (default: 20.0)",
+    )
+    work_next.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # work queue
     work_queue = work_subparsers.add_parser("queue", help="Get prioritized work queue")
@@ -3079,20 +3621,43 @@ curl Examples:
         default=os.environ.get("HTMLGRAPH_AGENT") or "claude",
         help="Agent ID (default: $HTMLGRAPH_AGENT or 'claude')",
     )
-    work_queue.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    work_queue.add_argument("--limit", "-l", type=int, default=10, help="Maximum tasks to show (default: 10)")
-    work_queue.add_argument("--min-score", type=float, default=20.0, help="Minimum routing score (default: 20.0)")
-    work_queue.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    work_queue.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    work_queue.add_argument(
+        "--limit",
+        "-l",
+        type=int,
+        default=10,
+        help="Maximum tasks to show (default: 10)",
+    )
+    work_queue.add_argument(
+        "--min-score",
+        type=float,
+        default=20.0,
+        help="Minimum routing score (default: 20.0)",
+    )
+    work_queue.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # agent (with subcommands)
     agent_parser = subparsers.add_parser("agent", help="Agent management")
-    agent_subparsers = agent_parser.add_subparsers(dest="agent_command", help="Agent command")
+    agent_subparsers = agent_parser.add_subparsers(
+        dest="agent_command", help="Agent command"
+    )
 
     # agent list
     agent_list = agent_subparsers.add_parser("list", help="List all registered agents")
-    agent_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    agent_list.add_argument("--active-only", action="store_true", help="Only show active agents")
-    agent_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    agent_list.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    agent_list.add_argument(
+        "--active-only", action="store_true", help="Only show active agents"
+    )
+    agent_list.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # =========================================================================
     # Feature Management
@@ -3100,143 +3665,251 @@ curl Examples:
 
     # feature (with subcommands)
     feature_parser = subparsers.add_parser("feature", help="Feature management")
-    feature_subparsers = feature_parser.add_subparsers(dest="feature_command", help="Feature command")
+    feature_subparsers = feature_parser.add_subparsers(
+        dest="feature_command", help="Feature command"
+    )
 
     # feature create
-    feature_create = feature_subparsers.add_parser("create", help="Create a new feature")
+    feature_create = feature_subparsers.add_parser(
+        "create", help="Create a new feature"
+    )
     feature_create.add_argument("title", help="Feature title")
-    feature_create.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_create.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_create.add_argument("--description", "-d", help="Description")
-    feature_create.add_argument("--priority", "-p", default="medium", choices=["low", "medium", "high", "critical"], help="Priority")
+    feature_create.add_argument(
+        "--priority",
+        "-p",
+        default="medium",
+        choices=["low", "medium", "high", "critical"],
+        help="Priority",
+    )
     feature_create.add_argument("--steps", nargs="*", help="Implementation steps")
     feature_create.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_create.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_create.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_create.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_create.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature start
-    feature_start = feature_subparsers.add_parser("start", help="Start working on a feature")
+    feature_start = feature_subparsers.add_parser(
+        "start", help="Start working on a feature"
+    )
     feature_start.add_argument("id", help="Feature ID")
-    feature_start.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_start.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_start.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_start.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_start.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_start.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_start.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature complete
-    feature_complete = feature_subparsers.add_parser("complete", help="Mark feature as complete")
+    feature_complete = feature_subparsers.add_parser(
+        "complete", help="Mark feature as complete"
+    )
     feature_complete.add_argument("id", help="Feature ID")
-    feature_complete.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_complete.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_complete.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_complete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_complete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_complete.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_complete.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature primary
-    feature_primary = feature_subparsers.add_parser("primary", help="Set primary feature")
+    feature_primary = feature_subparsers.add_parser(
+        "primary", help="Set primary feature"
+    )
     feature_primary.add_argument("id", help="Feature ID")
-    feature_primary.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_primary.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_primary.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_primary.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_primary.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_primary.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_primary.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature claim
     feature_claim = feature_subparsers.add_parser("claim", help="Claim a feature")
     feature_claim.add_argument("id", help="Feature ID")
-    feature_claim.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_claim.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_claim.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_claim.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_claim.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_claim.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_claim.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature release
-    feature_release = feature_subparsers.add_parser("release", help="Release a feature claim")
+    feature_release = feature_subparsers.add_parser(
+        "release", help="Release a feature claim"
+    )
     feature_release.add_argument("id", help="Feature ID")
-    feature_release.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_release.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_release.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_release.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_release.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_release.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_release.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature auto-release
-    feature_auto_release = feature_subparsers.add_parser("auto-release", help="Release all features claimed by agent")
+    feature_auto_release = feature_subparsers.add_parser(
+        "auto-release", help="Release all features claimed by agent"
+    )
     feature_auto_release.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_auto_release.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_auto_release.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_auto_release.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_auto_release.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature list
     feature_list = feature_subparsers.add_parser("list", help="List features")
     feature_list.add_argument("--status", "-s", help="Filter by status")
-    feature_list.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
-    feature_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_list.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
+    feature_list.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_list.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # feature step-complete
-    feature_step_complete = feature_subparsers.add_parser("step-complete", help="Mark feature step(s) as complete")
+    feature_step_complete = feature_subparsers.add_parser(
+        "step-complete", help="Mark feature step(s) as complete"
+    )
     feature_step_complete.add_argument("id", help="Feature ID")
-    feature_step_complete.add_argument("steps", nargs="+", help="Step index(es) to mark complete (0-based, supports: 0 1 2 or 0,1,2)")
-    feature_step_complete.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
+    feature_step_complete.add_argument(
+        "steps",
+        nargs="+",
+        help="Step index(es) to mark complete (0-based, supports: 0 1 2 or 0,1,2)",
+    )
+    feature_step_complete.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
     feature_step_complete.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",
         help="Agent name for attribution (default: $HTMLGRAPH_AGENT or 'cli')",
     )
-    feature_step_complete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_step_complete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
-    feature_step_complete.add_argument("--host", default="localhost", help="API host (default: localhost)")
-    feature_step_complete.add_argument("--port", type=int, default=8080, help="API port (default: 8080)")
+    feature_step_complete.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_step_complete.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
+    feature_step_complete.add_argument(
+        "--host", default="localhost", help="API host (default: localhost)"
+    )
+    feature_step_complete.add_argument(
+        "--port", type=int, default=8080, help="API port (default: 8080)"
+    )
 
     # feature delete
     feature_delete = feature_subparsers.add_parser("delete", help="Delete a feature")
     feature_delete.add_argument("id", help="Feature ID to delete")
-    feature_delete.add_argument("--collection", "-c", default="features", help="Collection (features, bugs)")
-    feature_delete.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
-    feature_delete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    feature_delete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    feature_delete.add_argument(
+        "--collection", "-c", default="features", help="Collection (features, bugs)"
+    )
+    feature_delete.add_argument(
+        "--yes", "-y", action="store_true", help="Skip confirmation prompt"
+    )
+    feature_delete.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    feature_delete.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # =========================================================================
     # Track Management (Conductor-Style Planning)
     # =========================================================================
 
     # track (with subcommands)
-    track_parser = subparsers.add_parser("track", help="Track management (Conductor-style planning)")
-    track_subparsers = track_parser.add_subparsers(dest="track_command", help="Track command")
+    track_parser = subparsers.add_parser(
+        "track", help="Track management (Conductor-style planning)"
+    )
+    track_subparsers = track_parser.add_subparsers(
+        dest="track_command", help="Track command"
+    )
 
     # track new
     track_new = track_subparsers.add_parser("new", help="Create a new track")
     track_new.add_argument("title", help="Track title")
     track_new.add_argument("--description", "-d", help="Track description")
-    track_new.add_argument("--priority", "-p", default="medium", choices=["low", "medium", "high", "critical"], help="Priority")
-    track_new.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    track_new.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    track_new.add_argument(
+        "--priority",
+        "-p",
+        default="medium",
+        choices=["low", "medium", "high", "critical"],
+        help="Priority",
+    )
+    track_new.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    track_new.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # track list
     track_list = track_subparsers.add_parser("list", help="List all tracks")
-    track_list.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    track_list.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    track_list.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    track_list.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # track spec
     track_spec = track_subparsers.add_parser("spec", help="Create a spec for a track")
@@ -3245,69 +3918,125 @@ curl Examples:
     track_spec.add_argument("--overview", "-o", help="Spec overview")
     track_spec.add_argument("--context", "-c", help="Context/rationale")
     track_spec.add_argument("--author", "-a", default="claude-code", help="Spec author")
-    track_spec.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    track_spec.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    track_spec.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    track_spec.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # track plan
     track_plan = track_subparsers.add_parser("plan", help="Create a plan for a track")
     track_plan.add_argument("track_id", help="Track ID")
     track_plan.add_argument("title", help="Plan title")
-    track_plan.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    track_plan.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    track_plan.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    track_plan.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # track delete
     track_delete = track_subparsers.add_parser("delete", help="Delete a track")
     track_delete.add_argument("track_id", help="Track ID to delete")
-    track_delete.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    track_delete.add_argument("--format", "-f", choices=["text", "json"], default="text", help="Output format")
+    track_delete.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    track_delete.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
 
     # =========================================================================
     # Analytics
     # =========================================================================
 
     # analytics
-    analytics_parser = subparsers.add_parser("analytics", help="Work type analytics and project health metrics")
-    analytics_parser.add_argument("--session-id", "-s", help="Analyze specific session ID")
-    analytics_parser.add_argument("--recent", "-r", type=int, help="Analyze N recent sessions")
-    analytics_parser.add_argument("--agent", default="cli", help="Agent name for SDK initialization")
-    analytics_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    analytics_parser = subparsers.add_parser(
+        "analytics", help="Work type analytics and project health metrics"
+    )
+    analytics_parser.add_argument(
+        "--session-id", "-s", help="Analyze specific session ID"
+    )
+    analytics_parser.add_argument(
+        "--recent", "-r", type=int, help="Analyze N recent sessions"
+    )
+    analytics_parser.add_argument(
+        "--agent", default="cli", help="Agent name for SDK initialization"
+    )
+    analytics_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
 
     # =========================================================================
     # Events & Analytics Index
     # =========================================================================
 
     events_parser = subparsers.add_parser("events", help="Event log utilities")
-    events_subparsers = events_parser.add_subparsers(dest="events_command", help="Events command")
+    events_subparsers = events_parser.add_subparsers(
+        dest="events_command", help="Events command"
+    )
 
     events_export = events_subparsers.add_parser(
         "export-sessions",
         help="Export session HTML activity logs to JSONL under .htmlgraph/events/",
     )
-    events_export.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    events_export.add_argument("--overwrite", action="store_true", help="Overwrite existing JSONL files")
-    events_export.add_argument("--include-subdirs", action="store_true", help="Include subdirectories like sessions/_orphans/")
+    events_export.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    events_export.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing JSONL files"
+    )
+    events_export.add_argument(
+        "--include-subdirs",
+        action="store_true",
+        help="Include subdirectories like sessions/_orphans/",
+    )
 
     index_parser = subparsers.add_parser("index", help="Analytics index commands")
-    index_subparsers = index_parser.add_subparsers(dest="index_command", help="Index command")
+    index_subparsers = index_parser.add_subparsers(
+        dest="index_command", help="Index command"
+    )
 
     index_rebuild = index_subparsers.add_parser(
         "rebuild",
         help="Rebuild .htmlgraph/index.sqlite from .htmlgraph/events/*.jsonl",
     )
-    index_rebuild.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
+    index_rebuild.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
 
     # watch
-    watch_parser = subparsers.add_parser("watch", help="Watch file changes and log events")
-    watch_parser.add_argument("--root", "-r", default=".", help="Root directory to watch")
-    watch_parser.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    watch_parser.add_argument("--session-id", help="Session ID (defaults to deduped active session)")
-    watch_parser.add_argument("--agent", default="codex", help="Agent name for the watcher")
-    watch_parser.add_argument("--interval", type=float, default=2.0, help="Polling interval seconds")
-    watch_parser.add_argument("--batch-seconds", type=float, default=5.0, help="Batch window seconds")
+    watch_parser = subparsers.add_parser(
+        "watch", help="Watch file changes and log events"
+    )
+    watch_parser.add_argument(
+        "--root", "-r", default=".", help="Root directory to watch"
+    )
+    watch_parser.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    watch_parser.add_argument(
+        "--session-id", help="Session ID (defaults to deduped active session)"
+    )
+    watch_parser.add_argument(
+        "--agent", default="codex", help="Agent name for the watcher"
+    )
+    watch_parser.add_argument(
+        "--interval", type=float, default=2.0, help="Polling interval seconds"
+    )
+    watch_parser.add_argument(
+        "--batch-seconds", type=float, default=5.0, help="Batch window seconds"
+    )
 
     # git-event
-    git_event_parser = subparsers.add_parser("git-event", help="Log Git events (commit, checkout, merge, push)")
-    git_event_parser.add_argument("event_type", choices=["commit", "checkout", "merge", "push"], help="Type of Git event")
+    git_event_parser = subparsers.add_parser(
+        "git-event", help="Log Git events (commit, checkout, merge, push)"
+    )
+    git_event_parser.add_argument(
+        "event_type",
+        choices=["commit", "checkout", "merge", "push"],
+        help="Type of Git event",
+    )
     git_event_parser.add_argument(
         "args",
         nargs="*",
@@ -3318,58 +4047,128 @@ curl Examples:
     mcp_parser = subparsers.add_parser("mcp", help="Minimal MCP server (stdio)")
     mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_command", help="MCP command")
     mcp_serve = mcp_subparsers.add_parser("serve", help="Serve MCP over stdio")
-    mcp_serve.add_argument("--graph-dir", "-g", default=".htmlgraph", help="Graph directory")
-    mcp_serve.add_argument("--agent", default="mcp", help="Agent name for session attribution")
+    mcp_serve.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    mcp_serve.add_argument(
+        "--agent", default="mcp", help="Agent name for session attribution"
+    )
 
     # setup
-    setup_parser = subparsers.add_parser("setup", help="Set up HtmlGraph for AI CLI platforms")
-    setup_subparsers = setup_parser.add_subparsers(dest="setup_command", help="Platform to set up")
+    setup_parser = subparsers.add_parser(
+        "setup", help="Set up HtmlGraph for AI CLI platforms"
+    )
+    setup_subparsers = setup_parser.add_subparsers(
+        dest="setup_command", help="Platform to set up"
+    )
 
     setup_claude = setup_subparsers.add_parser("claude", help="Set up for Claude Code")
-    setup_claude.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+    setup_claude.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="Automatically install when possible",
+    )
 
     setup_codex = setup_subparsers.add_parser("codex", help="Set up for Codex CLI")
-    setup_codex.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+    setup_codex.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="Automatically install when possible",
+    )
 
     setup_gemini = setup_subparsers.add_parser("gemini", help="Set up for Gemini CLI")
-    setup_gemini.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+    setup_gemini.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="Automatically install when possible",
+    )
 
-    setup_all_parser = setup_subparsers.add_parser("all", help="Set up for all supported platforms")
-    setup_all_parser.add_argument("--auto-install", action="store_true", help="Automatically install when possible")
+    setup_all_parser = setup_subparsers.add_parser(
+        "all", help="Set up for all supported platforms"
+    )
+    setup_all_parser.add_argument(
+        "--auto-install",
+        action="store_true",
+        help="Automatically install when possible",
+    )
 
     # publish
-    publish_parser = subparsers.add_parser("publish", help="Build and publish package to PyPI")
-    publish_parser.add_argument("--dry-run", action="store_true", help="Build only, do not publish")
+    publish_parser = subparsers.add_parser(
+        "publish", help="Build and publish package to PyPI"
+    )
+    publish_parser.add_argument(
+        "--dry-run", action="store_true", help="Build only, do not publish"
+    )
 
     # sync-docs
-    sync_docs_parser = subparsers.add_parser("sync-docs", help="Synchronize AI agent memory files across platforms")
-    sync_docs_parser.add_argument("--check", action="store_true", help="Check if files are synchronized (no changes)")
-    sync_docs_parser.add_argument("--generate", metavar="PLATFORM", help="Generate a platform-specific file (gemini, claude, codex)")
-    sync_docs_parser.add_argument("--project-root", type=str, help="Project root directory (default: current directory)")
-    sync_docs_parser.add_argument("--force", action="store_true", help="Overwrite existing files when generating")
+    sync_docs_parser = subparsers.add_parser(
+        "sync-docs", help="Synchronize AI agent memory files across platforms"
+    )
+    sync_docs_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check if files are synchronized (no changes)",
+    )
+    sync_docs_parser.add_argument(
+        "--generate",
+        metavar="PLATFORM",
+        help="Generate a platform-specific file (gemini, claude, codex)",
+    )
+    sync_docs_parser.add_argument(
+        "--project-root",
+        type=str,
+        help="Project root directory (default: current directory)",
+    )
+    sync_docs_parser.add_argument(
+        "--force", action="store_true", help="Overwrite existing files when generating"
+    )
 
     # deploy
-    deploy_parser = subparsers.add_parser("deploy", help="Flexible deployment system for packaging and publishing")
-    deploy_subparsers = deploy_parser.add_subparsers(dest="deploy_command", help="Deploy command")
+    deploy_parser = subparsers.add_parser(
+        "deploy", help="Flexible deployment system for packaging and publishing"
+    )
+    deploy_subparsers = deploy_parser.add_subparsers(
+        dest="deploy_command", help="Deploy command"
+    )
 
     # deploy init
-    deploy_init = deploy_subparsers.add_parser("init", help="Initialize deployment configuration")
-    deploy_init.add_argument("--output", "-o", help="Output file path (default: htmlgraph-deploy.toml)")
-    deploy_init.add_argument("--force", action="store_true", help="Overwrite existing configuration")
+    deploy_init = deploy_subparsers.add_parser(
+        "init", help="Initialize deployment configuration"
+    )
+    deploy_init.add_argument(
+        "--output", "-o", help="Output file path (default: htmlgraph-deploy.toml)"
+    )
+    deploy_init.add_argument(
+        "--force", action="store_true", help="Overwrite existing configuration"
+    )
 
     # deploy run
     deploy_run = deploy_subparsers.add_parser("run", help="Run deployment process")
-    deploy_run.add_argument("--config", "-c", help="Configuration file (default: htmlgraph-deploy.toml)")
-    deploy_run.add_argument("--dry-run", action="store_true", help="Show what would happen without executing")
-    deploy_run.add_argument("--docs-only", action="store_true", help="Only commit and push to git")
-    deploy_run.add_argument("--build-only", action="store_true", help="Only build package")
-    deploy_run.add_argument("--skip-pypi", action="store_true", help="Skip PyPI publishing")
-    deploy_run.add_argument("--skip-plugins", action="store_true", help="Skip plugin updates")
+    deploy_run.add_argument(
+        "--config", "-c", help="Configuration file (default: htmlgraph-deploy.toml)"
+    )
+    deploy_run.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would happen without executing",
+    )
+    deploy_run.add_argument(
+        "--docs-only", action="store_true", help="Only commit and push to git"
+    )
+    deploy_run.add_argument(
+        "--build-only", action="store_true", help="Only build package"
+    )
+    deploy_run.add_argument(
+        "--skip-pypi", action="store_true", help="Skip PyPI publishing"
+    )
+    deploy_run.add_argument(
+        "--skip-plugins", action="store_true", help="Skip plugin updates"
+    )
 
     # install-gemini-extension
-    install_gemini_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "install-gemini-extension",
-        help="Install the Gemini CLI extension from the bundled package"
+        help="Install the Gemini CLI extension from the bundled package",
     )
 
     args = parser.parse_args()
@@ -3393,7 +4192,9 @@ curl Examples:
             cmd_session_list(args)
         elif args.session_command == "start-info":
             cmd_session_start_info(args)
-        elif args.session_command == "status-report" or args.session_command == "resume":
+        elif (
+            args.session_command == "status-report" or args.session_command == "resume"
+        ):
             cmd_session_status_report(args)
         elif args.session_command == "dedupe":
             cmd_session_dedupe(args)
@@ -3497,6 +4298,7 @@ curl Examples:
             sys.exit(1)
     elif args.command == "analytics":
         from htmlgraph.cli_analytics import cmd_analytics
+
         cmd_analytics(args)
     elif args.command == "events":
         if args.events_command == "export-sessions":
@@ -3521,7 +4323,7 @@ curl Examples:
             mcp_parser.print_help()
             sys.exit(1)
     elif args.command == "setup":
-        from htmlgraph.setup import setup_claude, setup_codex, setup_gemini, setup_all
+        from htmlgraph.setup import setup_all, setup_claude, setup_codex, setup_gemini
 
         if args.setup_command == "claude":
             setup_claude(args)
@@ -3557,6 +4359,7 @@ curl Examples:
 # Deployment Commands
 # =============================================================================
 
+
 def cmd_deploy_init(args):
     """Initialize deployment configuration."""
     from htmlgraph.deploy import create_deployment_config_template
@@ -3564,7 +4367,10 @@ def cmd_deploy_init(args):
     output_path = Path(args.output or "htmlgraph-deploy.toml")
 
     if output_path.exists() and not args.force:
-        print(f"Error: {output_path} already exists. Use --force to overwrite.", file=sys.stderr)
+        print(
+            f"Error: {output_path} already exists. Use --force to overwrite.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     create_deployment_config_template(output_path)
@@ -3572,14 +4378,17 @@ def cmd_deploy_init(args):
 
 def cmd_deploy_run(args):
     """Run deployment process."""
-    from htmlgraph.deploy import DeploymentConfig, Deployer
+    from htmlgraph.deploy import Deployer, DeploymentConfig
 
     # Load configuration
     config_path = Path(args.config or "htmlgraph-deploy.toml")
 
     if not config_path.exists():
         print(f"Error: Configuration file not found: {config_path}", file=sys.stderr)
-        print("Run 'htmlgraph deploy init' to create a template configuration.", file=sys.stderr)
+        print(
+            "Run 'htmlgraph deploy init' to create a template configuration.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:
@@ -3593,20 +4402,20 @@ def cmd_deploy_run(args):
     only_steps = None
 
     if args.docs_only:
-        only_steps = ['git-push']
+        only_steps = ["git-push"]
     elif args.build_only:
-        only_steps = ['build']
+        only_steps = ["build"]
     elif args.skip_pypi:
-        skip_steps.append('pypi-publish')
+        skip_steps.append("pypi-publish")
     elif args.skip_plugins:
-        skip_steps.append('update-plugins')
+        skip_steps.append("update-plugins")
 
     # Create deployer
     deployer = Deployer(
         config=config,
         dry_run=args.dry_run,
         skip_steps=skip_steps,
-        only_steps=only_steps
+        only_steps=only_steps,
     )
 
     # Run deployment
@@ -3617,9 +4426,14 @@ def cmd_deploy_run(args):
 # Documentation Sync Command
 # =============================================================================
 
+
 def cmd_sync_docs(args):
     """Synchronize AI agent memory files across platforms."""
-    from htmlgraph.sync_docs import check_all_files, sync_all_files, generate_platform_file
+    from htmlgraph.sync_docs import (
+        check_all_files,
+        generate_platform_file,
+        sync_all_files,
+    )
 
     project_root = Path(args.project_root or os.getcwd()).resolve()
 
@@ -3659,6 +4473,7 @@ def cmd_sync_docs(args):
         try:
             content = generate_platform_file(platform, project_root)
             from htmlgraph.sync_docs import PLATFORM_TEMPLATES
+
             template = PLATFORM_TEMPLATES[platform]
             filepath = project_root / template["filename"]
 
@@ -3668,7 +4483,7 @@ def cmd_sync_docs(args):
 
             filepath.write_text(content)
             print(f"✅ Created: {filepath}")
-            print(f"\nThe file references AGENTS.md for core documentation.")
+            print("\nThe file references AGENTS.md for core documentation.")
             return 0
 
         except ValueError as e:

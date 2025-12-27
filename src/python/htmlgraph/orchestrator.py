@@ -1,30 +1,86 @@
 """
-Subagent Orchestrator for spawning specialized explorer and coder agents.
+SubagentOrchestrator for context-preserving delegation.
 
-Enables main agent to delegate work to subagents, preserving context
-for orchestration decisions while subagents handle exploration and coding.
+IMPERATIVE USAGE INSTRUCTIONS
+=============================
 
-Usage:
-    from htmlgraph import SDK
-    from htmlgraph.orchestrator import SubagentOrchestrator
+As an orchestrator, you MUST follow these steps:
 
-    sdk = SDK(agent="claude")
-    orchestrator = SubagentOrchestrator(sdk)
+1. INITIALIZE
+   ```python
+   from htmlgraph import SDK
+   sdk = SDK(agent="claude")
+   ```
 
-    # Spawn explorer for codebase discovery
-    explorer_prompt = orchestrator.spawn_explorer(
-        task="Find all API endpoints",
-        scope="src/",
-        patterns=["**/*.py"]
-    )
-    # Use with Task tool: Task(prompt=explorer_prompt, ...)
+2. SPAWN EXPLORER (for codebase discovery)
+   ```python
+   explorer = sdk.spawn_explorer(
+       task="Find all API endpoints",
+       scope="src/api/"
+   )
+   # Use with Task tool:
+   # Task(prompt=explorer["prompt"], subagent_type=explorer["subagent_type"])
+   ```
 
-    # Spawn coder for implementation
-    coder_prompt = orchestrator.spawn_coder(
-        feature_id="feat-123",
-        context=explorer_results,
-        test_command="uv run pytest"
-    )
+3. SPAWN CODER (for implementation)
+   ```python
+   coder = sdk.spawn_coder(
+       feature_id="feat-123",
+       context="Explorer found endpoints in src/api/routes.py",
+       test_command="uv run pytest"
+   )
+   # Use with Task tool:
+   # Task(prompt=coder["prompt"], subagent_type=coder["subagent_type"])
+   ```
+
+4. FULL ORCHESTRATION (explore + implement)
+   ```python
+   prompts = sdk.orchestrate(
+       feature_id="feat-123",
+       exploration_scope="src/",
+       test_command="uv run pytest"
+   )
+   # Returns: {"explorer": {...}, "coder": {...}}
+   ```
+
+DECISION GUIDE
+==============
+
+| Scenario | Method |
+|----------|--------|
+| Unknown codebase | spawn_explorer first, then spawn_coder |
+| Known codebase | spawn_coder directly |
+| Complex feature | orchestrate for full workflow |
+| Multiple features | spawn_coder in parallel |
+
+ANTI-PATTERNS
+=============
+
+NEVER:
+- Implement without exploration on unknown codebases
+- Spawn coder without feature_id (create feature first!)
+- Edit code yourself when you should delegate
+
+ALWAYS:
+- Create work item before spawning coder
+- Pass explorer context to coder
+- Let subagents do the heavy lifting
+
+Available Classes
+=================
+
+SubagentType: Enum of subagent types (EXPLORER, CODER, REVIEWER, TESTER)
+SubagentPrompt: Prepared prompt for spawning subagent via Task tool
+SubagentResult: Parsed results from subagent execution
+SubagentOrchestrator: Main orchestration class
+
+Key Patterns
+============
+
+1. Two-phase workflow: Explorer discovers → Coder implements
+2. Stateless subagents: Each spawned agent is ephemeral and task-focused
+3. Context efficiency: Main session reserves context for orchestration
+4. Parallel execution: Multiple subagents can work simultaneously
 """
 
 from __future__ import annotations
@@ -32,7 +88,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -40,6 +96,7 @@ if TYPE_CHECKING:
 
 class SubagentType(Enum):
     """Types of specialized subagents."""
+
     EXPLORER = "explorer"
     CODER = "coder"
     REVIEWER = "reviewer"
@@ -122,7 +179,7 @@ class SubagentOrchestrator:
         ... )
     """
 
-    def __init__(self, sdk: "SDK"):
+    def __init__(self, sdk: SDK):
         """
         Initialize orchestrator.
 
@@ -197,7 +254,7 @@ Include tests: {include_tests}
 ## Efficient Exploration Strategy
 
 1. **Start with Glob** to find relevant files:
-   - Use Glob with patterns like "{patterns[0] if patterns else '**/*.py'}"
+   - Use Glob with patterns like "{patterns[0] if patterns else "**/*.py"}"
    - This is faster than recursive directory exploration
 
 2. **Use Grep for targeted search**:

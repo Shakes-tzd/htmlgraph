@@ -272,5 +272,100 @@ def test_track_get_by_id(temp_graph_dir):
     assert track.status == "active"
 
 
+def test_track_edit_context_manager(temp_graph_dir):
+    """Test that edit() context manager works for tracks."""
+    # Create directory-based track
+    track_dir = temp_graph_dir / "tracks" / "track-edit-test"
+    track_dir.mkdir()
+
+    track_html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Test Track</title>
+    <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+    <article id="track-edit-test" data-type="track" data-status="active" data-priority="medium">
+        <header><h1>Edit Test Track</h1></header>
+        <section data-description><p>Test edit method</p></section>
+    </article>
+</body>
+</html>'''
+
+    (track_dir / "index.html").write_text(track_html)
+
+    # Initialize SDK
+    sdk = SDK(directory=temp_graph_dir)
+
+    # Test edit context manager
+    with sdk.tracks.edit("track-edit-test") as track:
+        assert track.id == "track-edit-test"
+        assert track.status == "active"
+        assert track.priority == "medium"
+
+        # Modify the track
+        track.status = "completed"
+        track.priority = "high"
+        track.title = "Updated Track Title"
+
+    # Verify changes were saved
+    track = sdk.tracks.get("track-edit-test")
+    assert track.status == "completed"
+    assert track.priority == "high"
+    assert track.title == "Updated Track Title"
+
+
+def test_track_edit_nonexistent_track(temp_graph_dir):
+    """Test that edit() raises NodeNotFoundError for nonexistent tracks."""
+    from htmlgraph.exceptions import NodeNotFoundError
+
+    # Initialize SDK
+    sdk = SDK(directory=temp_graph_dir)
+
+    # Try to edit a nonexistent track
+    with pytest.raises(NodeNotFoundError) as exc_info:
+        with sdk.tracks.edit("track-nonexistent"):
+            pass
+
+    # Verify exception details
+    assert "track" in str(exc_info.value).lower()
+    assert "track-nonexistent" in str(exc_info.value)
+
+
+def test_track_edit_file_based(temp_graph_dir):
+    """Test that edit() works with file-based tracks."""
+    # Create file-based track
+    track_html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Track</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="track-file-edit" data-type="track" data-status="todo" data-priority="low">
+        <header><h1>File Track</h1></header>
+        <section data-description><p>File-based track</p></section>
+    </article>
+</body>
+</html>'''
+
+    (temp_graph_dir / "tracks" / "track-file-edit.html").write_text(track_html)
+
+    # Initialize SDK
+    sdk = SDK(directory=temp_graph_dir)
+
+    # Test edit on file-based track
+    with sdk.tracks.edit("track-file-edit") as track:
+        track.status = "in-progress"
+        track.priority = "high"
+
+    # Verify changes were saved
+    track = sdk.tracks.get("track-file-edit")
+    assert track.status == "in-progress"
+    assert track.priority == "high"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
