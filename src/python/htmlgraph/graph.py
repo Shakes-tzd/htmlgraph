@@ -8,6 +8,7 @@ Provides:
 - Bottleneck detection
 """
 
+import hashlib
 import os
 import time
 from collections import defaultdict, deque
@@ -15,6 +16,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+from htmlgraph.attribute_index import AttributeIndex
 from htmlgraph.converter import NodeConverter
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
 from htmlgraph.exceptions import NodeNotFoundError
@@ -64,8 +66,10 @@ class HtmlGraph:
         self._converter = NodeConverter(directory, stylesheet_path)
         self._edge_index = EdgeIndex()
         self._query_cache: dict[str, list[Node]] = {}
+        self._adjacency_cache: dict[str, dict[str, list[str]]] | None = None
         self._cache_enabled: bool = True
         self._explicitly_loaded: bool = False
+        self._file_hashes: dict[str, str] = {}  # Track file content hashes
 
         # Performance metrics
         self._metrics = {
@@ -88,8 +92,46 @@ class HtmlGraph:
             self.reload()
 
     def _invalidate_cache(self) -> None:
-        """Clear query cache. Called when graph is modified."""
+        """Clear query and adjacency caches. Called when graph is modified."""
         self._query_cache.clear()
+        self._adjacency_cache = None
+
+    def _compute_file_hash(self, filepath: Path) -> str:
+        """
+        Compute MD5 hash of file content.
+
+        Args:
+            filepath: Path to file to hash
+
+        Returns:
+            MD5 hash as hex string
+        """
+        try:
+            content = filepath.read_bytes()
+            return hashlib.md5(content).hexdigest()
+        except Exception:
+            return ""
+
+    def has_file_changed(self, filepath: Path | str) -> bool:
+        """
+        Check if a file has changed since it was last loaded.
+
+        Args:
+            filepath: Path to file to check
+
+        Returns:
+            True if file changed or not yet loaded, False if unchanged
+        """
+        filepath = Path(filepath)
+        if not filepath.exists():
+            return True
+
+        filepath_str = str(filepath)
+        current_hash = self._compute_file_hash(filepath)
+        stored_hash = self._file_hashes.get(filepath_str)
+
+        # If no stored hash or hash changed, file has changed
+        return stored_hash is None or current_hash != stored_hash
 
     def reload(self) -> int:
         """
@@ -102,8 +144,17 @@ class HtmlGraph:
         self._cache_enabled = False  # Disable during reload
         try:
             self._nodes.clear()
+            self._file_hashes.clear()
+
+            # Load all nodes and compute file hashes
             for node in self._converter.load_all(self.pattern):
                 self._nodes[node.id] = node
+
+                # Find and hash the node file
+                filepath = self._find_node_file(node.id)
+                if filepath:
+                    file_hash = self._compute_file_hash(filepath)
+                    self._file_hashes[str(filepath)] = file_hash
 
             # Rebuild edge index for O(1) reverse lookups
             self._edge_index.rebuild(self._nodes)
@@ -758,6 +809,32 @@ class HtmlGraph:
     # =========================================================================
     # Graph Algorithms
     # =========================================================================
+
+    def _get_adjacency_cache(self) -> dict[str, dict[str, list[str]]]:
+        """
+        Get or build the persistent adjacency cache.
+
+        Builds the cache on first access and returns it on subsequent calls.
+        Cache structure: {node_id: {"outgoing": [ids], "incoming": [ids]}}
+
+        Returns:
+            Dict mapping node_id to dict with "outgoing" and "incoming" neighbor lists
+        """
+        if self._adjacency_cache is None:
+            self._adjacency_cache = {}
+            for node_id in self._nodes:
+                # Use edge index for efficient O(1) lookups
+                outgoing = self._edge_index.get_neighbors(
+                    node_id, relationship=None, direction="outgoing"
+                )
+                incoming = self._edge_index.get_neighbors(
+                    node_id, relationship=None, direction="incoming"
+                )
+                self._adjacency_cache[node_id] = {
+                    "outgoing": list(outgoing),
+                    "incoming": list(incoming),
+                }
+        return self._adjacency_cache
 
     def _build_adjacency(self, relationship: str | None = None) -> dict[str, set[str]]:
         """

@@ -414,7 +414,7 @@ class BaseCollection(Generic[CollectionT]):
         updates = {"agent_assigned": agent, "status": "in-progress"}
         return self.batch_update(node_ids, updates)
 
-    def start(self, node_id: str, agent: str | None = None) -> Node | None:
+    def start(self, node_id: str, agent: str | None = None) -> Node:
         """
         Start working on a node (feature/bug/etc).
 
@@ -431,6 +431,9 @@ class BaseCollection(Generic[CollectionT]):
 
         Returns:
             Updated Node
+
+        Raises:
+            NodeNotFoundError: If node not found
         """
         agent = agent or self._sdk.agent
 
@@ -446,7 +449,7 @@ class BaseCollection(Generic[CollectionT]):
         # Fallback to simple update (no session/events)
         node = self.get(node_id)
         if not node:
-            raise ValueError(f"Node {node_id} not found")
+            raise NodeNotFoundError(self._node_type, node_id)
 
         node.status = "in-progress"
         node.updated = datetime.now()
@@ -458,7 +461,7 @@ class BaseCollection(Generic[CollectionT]):
         node_id: str,
         agent: str | None = None,
         transcript_id: str | None = None,
-    ) -> Node | None:
+    ) -> Node:
         """
         Complete a node.
 
@@ -476,6 +479,9 @@ class BaseCollection(Generic[CollectionT]):
 
         Returns:
             Updated Node
+
+        Raises:
+            NodeNotFoundError: If node not found
         """
         agent = agent or self._sdk.agent
 
@@ -492,7 +498,7 @@ class BaseCollection(Generic[CollectionT]):
         # Fallback
         node = self.get(node_id)
         if not node:
-            raise ValueError(f"Node {node_id} not found")
+            raise NodeNotFoundError(self._node_type, node_id)
 
         node.status = "done"
         node.updated = datetime.now()
