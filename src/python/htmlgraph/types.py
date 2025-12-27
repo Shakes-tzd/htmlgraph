@@ -8,7 +8,14 @@ These complement the Pydantic models in dependency_models.py by providing
 type hints for dict-based return values used in the SDK for backward compatibility.
 """
 
-from typing import Literal, NotRequired, TypedDict
+import sys
+from typing import Literal, TypedDict
+
+# NotRequired was added in Python 3.11
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 # ============================================================================
 # Analytics Return Types
