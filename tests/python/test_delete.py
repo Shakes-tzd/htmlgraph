@@ -285,3 +285,170 @@ class TestDeleteEdgeCases:
         """Test batch delete with empty list."""
         count = graph.batch_delete([])
         assert count == 0
+
+
+class TestTrackCollectionDelete:
+    """Tests for TrackCollection delete operations."""
+
+    @pytest.fixture
+    def sdk(self):
+        """Create a temporary SDK instance."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sdk = SDK(directory=tmpdir, agent="test-agent")
+            yield sdk
+
+    def test_delete_single_file_track(self, sdk):
+        """Test deleting a single-file track (.html)."""
+        # Create a consolidated (single-file) track
+        track = sdk.tracks.builder() \
+            .title("Test Track") \
+            .consolidated() \
+            .create()
+
+        track_id = track.id
+
+        # Verify file exists
+        track_file = sdk._directory / "tracks" / f"{track_id}.html"
+        assert track_file.exists()
+
+        # Delete the track
+        assert sdk.tracks.delete(track_id) is True
+
+        # Verify file is deleted
+        assert not track_file.exists()
+
+        # Verify track is not in collection
+        assert sdk.tracks.get(track_id) is None
+
+    def test_delete_directory_based_track(self, sdk):
+        """Test deleting a directory-based track (legacy format)."""
+        # Create a separate-files (directory-based) track
+        track = sdk.tracks.builder() \
+            .title("Test Track") \
+            .separate_files() \
+            .with_spec(overview="Test overview") \
+            .with_plan_phases([("Phase 1", ["Task 1", "Task 2"])]) \
+            .create()
+
+        track_id = track.id
+
+        # Verify directory exists
+        track_dir = sdk._directory / "tracks" / track_id
+        assert track_dir.exists()
+        assert track_dir.is_dir()
+        assert (track_dir / "index.html").exists()
+        assert (track_dir / "spec.html").exists()
+        assert (track_dir / "plan.html").exists()
+
+        # Delete the track
+        assert sdk.tracks.delete(track_id) is True
+
+        # Verify directory is deleted
+        assert not track_dir.exists()
+
+        # Verify track is not in collection
+        assert sdk.tracks.get(track_id) is None
+
+    def test_delete_nonexistent_track(self, sdk):
+        """Test deleting a track that doesn't exist."""
+        assert sdk.tracks.delete("nonexistent-track") is False
+
+    def test_delete_twice(self, sdk):
+        """Test deleting the same track twice."""
+        track = sdk.tracks.builder() \
+            .title("Test Track") \
+            .create()
+
+        track_id = track.id
+
+        # First delete should succeed
+        assert sdk.tracks.delete(track_id) is True
+
+        # Second delete should fail (not found)
+        assert sdk.tracks.delete(track_id) is False
+
+    def test_batch_delete_tracks(self, sdk):
+        """Test batch deleting multiple tracks."""
+        # Create multiple tracks
+        tracks = []
+        for i in range(5):
+            track = sdk.tracks.builder() \
+                .title(f"Track {i}") \
+                .create()
+            tracks.append(track)
+
+        track_ids = [t.id for t in tracks]
+
+        # Batch delete first 3
+        count = sdk.tracks.batch_delete(track_ids[:3])
+
+        assert count == 3
+        assert sdk.tracks.get(track_ids[0]) is None
+        assert sdk.tracks.get(track_ids[1]) is None
+        assert sdk.tracks.get(track_ids[2]) is None
+        assert sdk.tracks.get(track_ids[3]) is not None
+        assert sdk.tracks.get(track_ids[4]) is not None
+
+    def test_batch_delete_mixed_formats(self, sdk):
+        """Test batch deleting tracks with mixed formats (single-file and directory)."""
+        # Create single-file track
+        track1 = sdk.tracks.builder() \
+            .title("Single File Track") \
+            .consolidated() \
+            .create()
+
+        # Create directory-based track
+        track2 = sdk.tracks.builder() \
+            .title("Directory Track") \
+            .separate_files() \
+            .with_spec(overview="Test") \
+            .create()
+
+        # Batch delete both
+        count = sdk.tracks.batch_delete([track1.id, track2.id])
+
+        assert count == 2
+        assert sdk.tracks.get(track1.id) is None
+        assert sdk.tracks.get(track2.id) is None
+
+    def test_batch_delete_with_nonexistent(self, sdk):
+        """Test batch delete with some nonexistent tracks."""
+        # Create 2 tracks
+        track1 = sdk.tracks.builder().title("Track 1").create()
+        track2 = sdk.tracks.builder().title("Track 2").create()
+
+        # Try to delete 2 existing + 2 nonexistent
+        count = sdk.tracks.batch_delete([
+            track1.id,
+            track2.id,
+            "nonexistent-1",
+            "nonexistent-2"
+        ])
+
+        assert count == 2
+        assert sdk.tracks.get(track1.id) is None
+        assert sdk.tracks.get(track2.id) is None
+
+    def test_batch_delete_empty_list(self, sdk):
+        """Test batch delete with empty list."""
+        count = sdk.tracks.batch_delete([])
+        assert count == 0
+
+    def test_delete_clears_graph_cache(self, sdk):
+        """Test that delete clears the track from graph cache."""
+        # Create track
+        track = sdk.tracks.builder().title("Test Track").create()
+        track_id = track.id
+
+        # Load track to ensure it's in cache
+        loaded_track = sdk.tracks.get(track_id)
+        assert loaded_track is not None
+
+        # Verify it's in the graph cache
+        assert track_id in sdk.tracks._ensure_graph()._nodes
+
+        # Delete track
+        sdk.tracks.delete(track_id)
+
+        # Verify it's removed from cache
+        assert track_id not in sdk.tracks._ensure_graph()._nodes

@@ -7,13 +7,16 @@ This module now provides TrackCollection and re-exports TrackBuilder for backwar
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Iterator
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
+    from htmlgraph.models import Node
 
 # Import TrackBuilder from its new location
 from htmlgraph.builders.track import TrackBuilder  # noqa: F401
+from htmlgraph.exceptions import NodeNotFoundError
 
 
 class TrackCollection:
@@ -74,6 +77,37 @@ class TrackCollection:
 
         return self._ensure_graph().filter(matches)
 
+    @contextmanager
+    def edit(self, track_id: str) -> Iterator[Node]:
+        """
+        Context manager for editing a track.
+
+        Auto-saves on exit.
+
+        Args:
+            track_id: Track ID to edit
+
+        Yields:
+            The track node to edit
+
+        Raises:
+            NodeNotFoundError: If track not found
+
+        Example:
+            >>> with sdk.tracks.edit("track-abc123") as track:
+            ...     track.status = "completed"
+            ...     track.title = "Updated Title"
+        """
+        graph = self._ensure_graph()
+        node = graph.get(track_id)
+        if not node:
+            raise NodeNotFoundError(self._node_type, track_id)
+
+        yield node
+
+        # Auto-save on exit
+        graph.update(node)
+
     def builder(self) -> TrackBuilder:
         """
         Create a new track builder with fluent interface.
@@ -90,3 +124,64 @@ class TrackCollection:
                 .create()
         """
         return TrackBuilder(self._sdk)
+
+    def delete(self, track_id: str) -> bool:
+        """
+        Delete a track by ID.
+
+        Handles both single-file tracks (.html) and directory-based tracks (folder).
+
+        Args:
+            track_id: The track ID to delete
+
+        Returns:
+            True if deleted, False if not found
+
+        Example:
+            sdk.tracks.delete("track-abc123")
+        """
+        import shutil
+
+        collection_path = self._sdk._directory / self._collection_name
+
+        # Check for single-file track: {track_id}.html
+        single_file = collection_path / f"{track_id}.html"
+        if single_file.exists():
+            single_file.unlink()
+            # Also remove from graph cache if loaded
+            if self._graph is not None and track_id in self._graph._nodes:
+                self._graph._edge_index.remove_node(track_id)
+                del self._graph._nodes[track_id]
+            return True
+
+        # Check for directory-based track: {track_id}/
+        track_dir = collection_path / track_id
+        if track_dir.exists() and track_dir.is_dir():
+            shutil.rmtree(track_dir)
+            # Also remove from graph cache if loaded
+            if self._graph is not None and track_id in self._graph._nodes:
+                self._graph._edge_index.remove_node(track_id)
+                del self._graph._nodes[track_id]
+            return True
+
+        return False
+
+    def batch_delete(self, track_ids: list[str]) -> int:
+        """
+        Delete multiple tracks in batch.
+
+        Args:
+            track_ids: List of track IDs to delete
+
+        Returns:
+            Number of tracks successfully deleted
+
+        Example:
+            count = sdk.tracks.batch_delete(["track-001", "track-002"])
+            print(f"Deleted {count} tracks")
+        """
+        count = 0
+        for track_id in track_ids:
+            if self.delete(track_id):
+                count += 1
+        return count

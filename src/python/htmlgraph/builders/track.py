@@ -619,7 +619,7 @@ class TrackBuilder:
 
         if self._consolidated:
             # Single-file format: everything in one index.html
-            track_file = Path(".htmlgraph") / "tracks" / f"{track_id}.html"
+            track_file = self.sdk._directory / "tracks" / f"{track_id}.html"
             track_file.parent.mkdir(parents=True, exist_ok=True)
 
             consolidated_html = self._generate_consolidated_html(
@@ -631,7 +631,7 @@ class TrackBuilder:
 
         else:
             # Legacy 3-file format: index.html, spec.html, plan.html
-            track_dir = Path(".htmlgraph") / "tracks" / track_id
+            track_dir = self.sdk._directory / "tracks" / track_id
             track_dir.mkdir(parents=True, exist_ok=True)
 
             # Generate track index HTML
