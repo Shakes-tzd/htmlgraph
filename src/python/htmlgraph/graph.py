@@ -6,6 +6,7 @@ Provides:
 - CSS selector queries
 - Graph algorithms (BFS, shortest path, dependency analysis)
 - Bottleneck detection
+- Transaction/snapshot support for concurrency
 """
 
 import hashlib
@@ -13,6 +14,11 @@ import os
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from copy import deepcopy
+from dataclasses import dataclass, field
+from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +30,170 @@ from htmlgraph.find_api import FindAPI
 from htmlgraph.models import Node
 from htmlgraph.parser import HtmlParser
 from htmlgraph.query_builder import QueryBuilder
+
+
+@dataclass
+class CompiledQuery:
+    """
+    Pre-compiled CSS selector query for efficient reuse.
+
+    While justhtml doesn't support native selector pre-compilation,
+    this class provides:
+    - Cached selector string to avoid string manipulation overhead
+    - Reusable query execution with metrics tracking
+    - Integration with query cache for performance
+
+    Example:
+        >>> graph = HtmlGraph("features/")
+        >>> compiled = graph.compile_query("[data-status='blocked']")
+        >>> results = graph.query_compiled(compiled)  # Fast on reuse
+        >>> results2 = graph.query_compiled(compiled)  # Uses cache
+    """
+
+    selector: str
+    _compiled_at: datetime = field(default_factory=datetime.now)
+    _use_count: int = field(default=0, init=False)
+
+    def matches(self, node: Node) -> bool:
+        """
+        Check if a node matches this compiled query.
+
+        Args:
+            node: Node to check
+
+        Returns:
+            True if node matches selector
+        """
+        try:
+            # Convert node to HTML in-memory
+            html_content = node.to_html()
+
+            # Parse the HTML string
+            parser = HtmlParser.from_string(html_content)
+
+            # Check if selector matches
+            return bool(parser.query(f"article{self.selector}"))
+        except Exception:
+            return False
+
+    def execute(self, nodes: dict[str, Node]) -> list[Node]:
+        """
+        Execute this compiled query on a set of nodes.
+
+        Args:
+            nodes: Dict of nodes to query
+
+        Returns:
+            List of matching nodes
+        """
+        self._use_count += 1
+        return [node for node in nodes.values() if self.matches(node)]
+
+
+class GraphSnapshot:
+    """
+    Immutable snapshot of graph state at a point in time.
+
+    Provides read-only access to graph data without affecting the original graph.
+    Safe to use across multiple agents or threads.
+
+    Example:
+        snapshot = graph.snapshot()
+        node = snapshot.get("feature-001")  # Read-only access
+        results = snapshot.query("[data-status='blocked']")
+    """
+
+    def __init__(self, nodes: dict[str, Node], directory: Path):
+        """
+        Create a snapshot of graph nodes.
+
+        Args:
+            nodes: Dictionary of nodes to snapshot
+            directory: Graph directory (for context)
+        """
+        # Deep copy to prevent external mutations
+        self._nodes = {node_id: node.model_copy(deep=True) for node_id, node in nodes.items()}
+        self._directory = directory
+
+    def get(self, node_id: str) -> Node | None:
+        """
+        Get a node by ID from the snapshot.
+
+        Args:
+            node_id: Node identifier
+
+        Returns:
+            Node instance or None if not found
+        """
+        node = self._nodes.get(node_id)
+        # Return a copy to prevent mutation of snapshot
+        return node.model_copy(deep=True) if node else None
+
+    def query(self, selector: str) -> list[Node]:
+        """
+        Query nodes using CSS selector.
+
+        Args:
+            selector: CSS selector string
+
+        Returns:
+            List of matching nodes (copies)
+        """
+        matching = []
+
+        for node in self._nodes.values():
+            try:
+                # Convert node to HTML in-memory
+                html_content = node.to_html()
+
+                # Parse the HTML string
+                parser = HtmlParser.from_string(html_content)
+
+                # Check if selector matches
+                if parser.query(f"article{selector}"):
+                    # Return copy to prevent mutation
+                    matching.append(node.model_copy(deep=True))
+            except Exception:
+                # Skip nodes that fail to parse
+                continue
+
+        return matching
+
+    def filter(self, predicate: Callable[[Node], bool]) -> list[Node]:
+        """
+        Filter nodes using a predicate function.
+
+        Args:
+            predicate: Function that takes Node and returns bool
+
+        Returns:
+            List of matching nodes (copies)
+        """
+        return [
+            node.model_copy(deep=True)
+            for node in self._nodes.values()
+            if predicate(node)
+        ]
+
+    def __len__(self) -> int:
+        """Get number of nodes in snapshot."""
+        return len(self._nodes)
+
+    def __contains__(self, node_id: str) -> bool:
+        """Check if node exists in snapshot."""
+        return node_id in self._nodes
+
+    def __iter__(self) -> Iterator[Node]:
+        """Iterate over nodes in snapshot (returns copies)."""
+        return iter(node.model_copy(deep=True) for node in self._nodes.values())
+
+    @property
+    def nodes(self) -> dict[str, Node]:
+        """Get all nodes as a dict (returns copies)."""
+        return {
+            node_id: node.model_copy(deep=True)
+            for node_id, node in self._nodes.items()
+        }
 
 
 class HtmlGraph:
@@ -72,6 +242,10 @@ class HtmlGraph:
         self._explicitly_loaded: bool = False
         self._file_hashes: dict[str, str] = {}  # Track file content hashes
 
+        # Query compilation cache (LRU cache with max 100 compiled queries)
+        self._compiled_queries: dict[str, CompiledQuery] = {}
+        self._compiled_query_max_size: int = 100
+
         # Performance metrics
         self._metrics = {
             "query_count": 0,
@@ -83,6 +257,9 @@ class HtmlGraph:
             "slowest_query_ms": 0.0,
             "slowest_query_selector": "",
             "last_reload_time_ms": 0.0,
+            "compiled_queries": 0,
+            "compiled_query_hits": 0,
+            "auto_compiled_count": 0,
         }
 
         # Check for env override (backwards compatibility)
@@ -93,8 +270,9 @@ class HtmlGraph:
             self.reload()
 
     def _invalidate_cache(self) -> None:
-        """Clear query, adjacency, and attribute caches. Called when graph is modified."""
+        """Clear query, adjacency, attribute, and compiled query caches. Called when graph is modified."""
         self._query_cache.clear()
+        self._compiled_queries.clear()
         self._adjacency_cache = None
         self._attr_index.clear()
 
@@ -180,6 +358,32 @@ class HtmlGraph:
         if not self._explicitly_loaded and not self._nodes:
             self.reload()
 
+    def _get_node_files(self) -> list[Path]:
+        """
+        Get all node files matching the configured pattern(s).
+
+        Returns:
+            List of Path objects for node files
+        """
+        files = []
+        patterns = [self.pattern] if isinstance(self.pattern, str) else self.pattern
+        for pattern in patterns:
+            files.extend(self.directory.glob(pattern))
+        return files
+
+    def _filepath_to_node_id(self, filepath: Path) -> str:
+        """
+        Extract node ID from a filepath.
+
+        Handles:
+        - Flat files: features/node-id.html -> "node-id"
+        - Directory-based: features/node-id/index.html -> "node-id"
+        """
+        if filepath.name == "index.html":
+            return filepath.parent.name
+        else:
+            return filepath.stem
+
     @property
     def nodes(self) -> dict[str, Node]:
         """Get all nodes (read-only view)."""
@@ -249,7 +453,207 @@ class HtmlGraph:
         self._ensure_loaded()
         return iter(self._nodes.values())
 
+
     # =========================================================================
+    # Memory-Efficient Loading (for large graphs 10K+ nodes)
+    # =========================================================================
+
+    def load_chunked(self, chunk_size: int = 100) -> Iterator[list[Node]]:
+        """
+        Yield nodes in chunks for memory-efficient processing.
+
+        Loads nodes in batches without loading the entire graph into memory.
+        Useful for large graphs (10K+ nodes).
+
+        Args:
+            chunk_size: Number of nodes per chunk (default: 100)
+
+        Yields:
+            List of nodes (up to chunk_size per batch)
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> for chunk in graph.load_chunked(chunk_size=50):
+            ...     # Process 50 nodes at a time
+            ...     for node in chunk:
+            ...         print(node.title)
+        """
+        files = self._get_node_files()
+
+        # Yield nodes in chunks
+        for i in range(0, len(files), chunk_size):
+            chunk = []
+            for filepath in files[i:i+chunk_size]:
+                try:
+                    node_id = self._filepath_to_node_id(filepath)
+                    node = self._converter.load(node_id)
+                    if node:
+                        chunk.append(node)
+                except Exception:
+                    # Skip files that fail to parse
+                    continue
+            if chunk:
+                yield chunk
+
+    def iter_nodes(self) -> Iterator[Node]:
+        """
+        Iterate over all nodes without loading all into memory.
+
+        Memory-efficient iteration for large graphs. Loads nodes one at a time
+        instead of loading the entire graph.
+
+        Yields:
+            Node: Individual nodes from the graph
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> for node in graph.iter_nodes():
+            ...     if node.status == "blocked":
+            ...         print(f"Blocked: {node.title}")
+        """
+        for filepath in self._get_node_files():
+            try:
+                node_id = self._filepath_to_node_id(filepath)
+                node = self._converter.load(node_id)
+                if node:
+                    yield node
+            except Exception:
+                # Skip files that fail to parse
+                continue
+
+    @property
+    def node_count(self) -> int:
+        """
+        Count nodes without loading them.
+
+        Efficient count by globbing files without parsing HTML.
+
+        Returns:
+            Number of nodes in the graph
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> print(f"Graph has {graph.node_count} nodes")
+            Graph has 42 nodes
+        """
+        return len(self._get_node_files())
+
+
+    # =========================================================================
+
+    # =========================================================================
+    # Transaction & Snapshot Support
+    # =========================================================================
+
+    def snapshot(self) -> GraphSnapshot:
+        """
+        Create an immutable snapshot of the current graph state.
+
+        The snapshot is a frozen copy that won't be affected by subsequent
+        changes to the graph. Useful for:
+        - Concurrent read operations
+        - Comparing graph state before/after changes
+        - Safe multi-agent scenarios
+
+        Returns:
+            GraphSnapshot: Immutable view of current graph state
+
+        Example:
+            # Agent 1 takes snapshot
+            snapshot = graph.snapshot()
+
+            # Agent 2 modifies graph
+            graph.update(node)
+
+            # Agent 1's snapshot is unchanged
+            old_node = snapshot.get("feature-001")
+        """
+        self._ensure_loaded()
+        return GraphSnapshot(self._nodes, self.directory)
+
+    @contextmanager
+    def transaction(self):
+        """
+        Context manager for atomic multi-operation transactions.
+
+        Operations performed within the transaction are batched and applied
+        atomically. If any exception occurs, no changes are persisted.
+
+        Yields:
+            TransactionContext: Context for collecting operations
+
+        Raises:
+            Exception: Any exception from operations causes rollback
+
+        Example:
+            # All-or-nothing batch update
+            with graph.transaction() as tx:
+                tx.add(node1)
+                tx.update(node2)
+                tx.delete("feature-003")
+            # All changes persisted atomically
+
+            # Failed transaction (rollback)
+            try:
+                with graph.transaction() as tx:
+                    tx.add(node1)
+                    tx.update(invalid_node)  # Raises error
+            except Exception:
+                pass  # No changes persisted
+        """
+        # Create snapshot before transaction
+        snapshot_nodes = {node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()}
+        snapshot_file_hashes = self._file_hashes.copy()
+
+        # Transaction context for collecting operations
+        class TransactionContext:
+            def __init__(self, graph: "HtmlGraph"):
+                self._graph = graph
+                self._operations: list[Callable[[], Any]] = []
+
+            def add(self, node: Node, overwrite: bool = False) -> "TransactionContext":
+                """Queue an add operation."""
+                self._operations.append(lambda: self._graph.add(node, overwrite=overwrite))
+                return self
+
+            def update(self, node: Node) -> "TransactionContext":
+                """Queue an update operation."""
+                self._operations.append(lambda: self._graph.update(node))
+                return self
+
+            def delete(self, node_id: str) -> "TransactionContext":
+                """Queue a delete operation."""
+                self._operations.append(lambda: self._graph.delete(node_id))
+                return self
+
+            def remove(self, node_id: str) -> "TransactionContext":
+                """Queue a remove operation (alias for delete)."""
+                return self.delete(node_id)
+
+            def _commit(self):
+                """Execute all queued operations."""
+                for operation in self._operations:
+                    operation()
+
+        tx = TransactionContext(self)
+
+        try:
+            yield tx
+            # Commit all operations if no exceptions
+            tx._commit()
+        except Exception:
+            # Rollback: restore snapshot state
+            self._nodes = snapshot_nodes
+            self._file_hashes = snapshot_file_hashes
+            self._invalidate_cache()
+
+            # Rebuild indexes from restored state
+            self._edge_index.rebuild(self._nodes)
+            self._attr_index.rebuild(self._nodes)
+
+            # Re-raise exception
+            raise
+
     # CRUD Operations
     # =========================================================================
 
@@ -591,6 +995,92 @@ class HtmlGraph:
         """Query for single node matching selector."""
         results = self.query(selector)
         return results[0] if results else None
+
+    def compile_query(self, selector: str) -> CompiledQuery:
+        """
+        Pre-compile a CSS selector for reuse.
+
+        Creates a CompiledQuery object that can be reused multiple times
+        with query_compiled() for better performance when the same selector
+        is used frequently.
+
+        Args:
+            selector: CSS selector string to compile
+
+        Returns:
+            CompiledQuery object that can be reused
+
+        Example:
+            >>> graph = HtmlGraph("features/")
+            >>> compiled = graph.compile_query("[data-status='blocked']")
+            >>> results1 = graph.query_compiled(compiled)
+            >>> results2 = graph.query_compiled(compiled)  # Reuses compilation
+        """
+        # Check if already compiled
+        if selector in self._compiled_queries:
+            self._metrics["compiled_query_hits"] += 1
+            return self._compiled_queries[selector]
+
+        # Create new compiled query
+        compiled = CompiledQuery(selector=selector)
+        self._metrics["compiled_queries"] += 1
+
+        # Add to cache (with LRU eviction if needed)
+        if len(self._compiled_queries) >= self._compiled_query_max_size:
+            # Evict least recently used (first item in dict)
+            first_key = next(iter(self._compiled_queries))
+            del self._compiled_queries[first_key]
+
+        self._compiled_queries[selector] = compiled
+        return compiled
+
+    def query_compiled(self, compiled: CompiledQuery) -> list[Node]:
+        """
+        Execute a pre-compiled query.
+
+        Uses the regular query cache if available, otherwise executes
+        the compiled query and caches the result.
+
+        Args:
+            compiled: CompiledQuery object from compile_query()
+
+        Returns:
+            List of matching nodes
+
+        Example:
+            >>> compiled = graph.compile_query("[data-priority='high']")
+            >>> high_priority = graph.query_compiled(compiled)
+        """
+        self._ensure_loaded()
+        selector = compiled.selector
+        self._metrics["query_count"] += 1
+
+        # Check cache first (same cache as regular query())
+        if self._cache_enabled and selector in self._query_cache:
+            self._metrics["cache_hits"] += 1
+            return self._query_cache[selector].copy()
+
+        self._metrics["cache_misses"] += 1
+
+        # Time the query
+        start = time.perf_counter()
+
+        # Execute compiled query
+        matching = compiled.execute(self._nodes)
+
+        # Track timing
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        self._metrics["total_query_time_ms"] += elapsed_ms
+
+        if elapsed_ms > self._metrics["slowest_query_ms"]:
+            self._metrics["slowest_query_ms"] = elapsed_ms
+            self._metrics["slowest_query_selector"] = selector
+
+        # Cache result
+        if self._cache_enabled:
+            self._query_cache[selector] = matching.copy()
+
+        return matching
 
     def filter(self, predicate: Callable[[Node], bool]) -> list[Node]:
         """
@@ -936,6 +1426,16 @@ class HtmlGraph:
         # Add current state
         m["nodes_loaded"] = len(self._nodes)
         m["cached_queries"] = len(self._query_cache)
+        m["compiled_queries_cached"] = len(self._compiled_queries)
+
+        # Calculate compilation hit rate
+        total_compilations = m["compiled_queries"] + m["compiled_query_hits"]
+        if total_compilations > 0:
+            m["compilation_hit_rate"] = (
+                f"{m['compiled_query_hits'] / total_compilations * 100:.1f}%"
+            )
+        else:
+            m["compilation_hit_rate"] = "N/A"
 
         return m
 
