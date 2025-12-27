@@ -10,11 +10,12 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
 
 from htmlgraph.exceptions import ClaimConflictError, NodeNotFoundError
 
 if TYPE_CHECKING:
+    from htmlgraph.graph import HtmlGraph
     from htmlgraph.models import Node
     from htmlgraph.sdk import SDK
 
@@ -67,9 +68,9 @@ class BaseCollection(Generic[CollectionT]):
         self._sdk = sdk
         self._collection_name = collection_name or self._collection_name
         self._node_type = node_type or self._node_type
-        self._graph = None  # Lazy-loaded
+        self._graph: HtmlGraph | None = None  # Lazy-loaded
 
-    def _ensure_graph(self):
+    def _ensure_graph(self) -> HtmlGraph:
         """Lazy-load the graph for this collection."""
         if self._graph is None:
             from htmlgraph.graph import HtmlGraph
@@ -82,27 +83,38 @@ class BaseCollection(Generic[CollectionT]):
         """Return attributes with most useful ones first for discoverability."""
         priority = [
             # Creation and retrieval
-            'create', 'get', 'all', 'where', 'filter',
+            "create",
+            "get",
+            "all",
+            "where",
+            "filter",
             # Work management
-            'start', 'complete', 'claim', 'release',
+            "start",
+            "complete",
+            "claim",
+            "release",
             # Editing
-            'edit', 'update',
+            "edit",
+            "update",
             # Batch operations
-            'mark_done', 'assign', 'batch_update',
+            "mark_done",
+            "assign",
+            "batch_update",
             # Deletion
-            'delete', 'batch_delete',
+            "delete",
+            "batch_delete",
         ]
         # Get all attributes
         all_attrs = object.__dir__(self)
         # Separate into priority, regular, and dunder attributes
-        regular = [a for a in all_attrs if not a.startswith('_') and a not in priority]
-        dunder = [a for a in all_attrs if a.startswith('_')]
+        regular = [a for a in all_attrs if not a.startswith("_") and a not in priority]
+        dunder = [a for a in all_attrs if a.startswith("_")]
         # Return priority items first, then regular, then dunder
         return priority + regular + dunder
 
     def create(
-        self, title: str, priority: str = "medium", status: str = "todo", **kwargs
-    ):
+        self, title: str, priority: str = "medium", status: str = "todo", **kwargs: Any
+    ) -> Any:
         """
         Create a new node in this collection.
 
@@ -150,8 +162,13 @@ class BaseCollection(Generic[CollectionT]):
             id=node_id,
             title=title,
             type=self._node_type,
-            priority=priority,
-            status=status,
+            priority=cast(Literal["low", "medium", "high", "critical"], priority),
+            status=cast(
+                Literal[
+                    "todo", "in-progress", "blocked", "done", "active", "ended", "stale"
+                ],
+                status,
+            ),
             **kwargs,
         )
 
@@ -174,7 +191,7 @@ class BaseCollection(Generic[CollectionT]):
         Example:
             >>> feature = sdk.features.get("feat-001")
         """
-        return self._ensure_graph().get(node_id)
+        return cast("Node | None", self._ensure_graph().get(node_id))
 
     @contextmanager
     def edit(self, node_id: str) -> Iterator[Node]:
@@ -212,7 +229,7 @@ class BaseCollection(Generic[CollectionT]):
         priority: str | None = None,
         track: str | None = None,
         assigned_to: str | None = None,
-        **extra_filters,
+        **extra_filters: Any,
     ) -> list[Node]:
         """
         Query nodes with filters.
@@ -251,7 +268,7 @@ class BaseCollection(Generic[CollectionT]):
 
             return True
 
-        return self._ensure_graph().filter(matches)
+        return cast("list[Node]", self._ensure_graph().filter(matches))
 
     def filter(self, predicate: Callable[[Node], bool]) -> list[Node]:
         """
@@ -285,7 +302,7 @@ class BaseCollection(Generic[CollectionT]):
                 return False
             return predicate(node)
 
-        return self._ensure_graph().filter(matches)
+        return cast("list[Node]", self._ensure_graph().filter(matches))
 
     def all(self) -> list[Node]:
         """
@@ -313,7 +330,7 @@ class BaseCollection(Generic[CollectionT]):
             >>> sdk.features.delete("feat-001")
         """
         graph = self._ensure_graph()
-        return graph.delete(node_id)
+        return cast(bool, graph.delete(node_id))
 
     def batch_delete(self, node_ids: list[str]) -> int:
         """
@@ -330,7 +347,7 @@ class BaseCollection(Generic[CollectionT]):
             >>> print(f"Deleted {count} features")
         """
         graph = self._ensure_graph()
-        return graph.batch_delete(node_ids)
+        return cast(int, graph.batch_delete(node_ids))
 
     def update(self, node: Node) -> Node:
         """
@@ -421,7 +438,7 @@ class BaseCollection(Generic[CollectionT]):
         updates = {"agent_assigned": agent, "status": "in-progress"}
         return self.batch_update(node_ids, updates)
 
-    def start(self, node_id: str, agent: str | None = None) -> Node:
+    def start(self, node_id: str, agent: str | None = None) -> Node | None:
         """
         Start working on a node (feature/bug/etc).
 
@@ -437,7 +454,7 @@ class BaseCollection(Generic[CollectionT]):
             agent: Agent ID (defaults to SDK agent)
 
         Returns:
-            Updated Node
+            Updated Node, or None if not found
 
         Raises:
             NodeNotFoundError: If node not found
@@ -446,11 +463,14 @@ class BaseCollection(Generic[CollectionT]):
 
         # Use SessionManager if available (smart tracking)
         if hasattr(self._sdk, "session_manager"):
-            return self._sdk.session_manager.start_feature(
-                feature_id=node_id,
-                collection=self._collection_name,
-                agent=agent,
-                log_activity=True,
+            return cast(
+                "Node | None",
+                self._sdk.session_manager.start_feature(
+                    feature_id=node_id,
+                    collection=self._collection_name,
+                    agent=agent,
+                    log_activity=True,
+                ),
             )
 
         # Fallback to simple update (no session/events)
@@ -468,7 +488,7 @@ class BaseCollection(Generic[CollectionT]):
         node_id: str,
         agent: str | None = None,
         transcript_id: str | None = None,
-    ) -> Node:
+    ) -> Node | None:
         """
         Complete a node.
 
@@ -485,7 +505,7 @@ class BaseCollection(Generic[CollectionT]):
                           this feature. Used for parallel agent tracking.
 
         Returns:
-            Updated Node
+            Updated Node, or None if not found
 
         Raises:
             NodeNotFoundError: If node not found
@@ -494,12 +514,15 @@ class BaseCollection(Generic[CollectionT]):
 
         # Use SessionManager if available
         if hasattr(self._sdk, "session_manager"):
-            return self._sdk.session_manager.complete_feature(
-                feature_id=node_id,
-                collection=self._collection_name,
-                agent=agent,
-                log_activity=True,
-                transcript_id=transcript_id,
+            return cast(
+                "Node | None",
+                self._sdk.session_manager.complete_feature(
+                    feature_id=node_id,
+                    collection=self._collection_name,
+                    agent=agent,
+                    log_activity=True,
+                    transcript_id=transcript_id,
+                ),
             )
 
         # Fallback
@@ -512,7 +535,7 @@ class BaseCollection(Generic[CollectionT]):
         self._ensure_graph().update(node)
         return node
 
-    def claim(self, node_id: str, agent: str | None = None) -> Node:
+    def claim(self, node_id: str, agent: str | None = None) -> Node | None:
         """
         Claim a node for an agent.
 
@@ -526,7 +549,7 @@ class BaseCollection(Generic[CollectionT]):
             agent: Agent ID (defaults to SDK agent)
 
         Returns:
-            The claimed Node
+            The claimed Node, or None if not found
 
         Raises:
             ValueError: If agent not provided and SDK has no agent
@@ -539,13 +562,16 @@ class BaseCollection(Generic[CollectionT]):
 
         # Use SessionManager if available
         if hasattr(self._sdk, "session_manager"):
-            return self._sdk.session_manager.claim_feature(
-                feature_id=node_id, collection=self._collection_name, agent=agent
+            return cast(
+                "Node | None",
+                self._sdk.session_manager.claim_feature(
+                    feature_id=node_id, collection=self._collection_name, agent=agent
+                ),
             )
 
         # Fallback logic
         graph = self._ensure_graph()
-        node = graph.get(node_id)
+        node = cast("Node | None", graph.get(node_id))
         if not node:
             raise NodeNotFoundError(self._node_type, node_id)
 
@@ -559,7 +585,7 @@ class BaseCollection(Generic[CollectionT]):
         graph.update(node)
         return node
 
-    def release(self, node_id: str, agent: str | None = None) -> Node:
+    def release(self, node_id: str, agent: str | None = None) -> Node | None:
         """
         Release a claimed node.
 
@@ -573,7 +599,7 @@ class BaseCollection(Generic[CollectionT]):
             agent: Agent ID (defaults to SDK agent)
 
         Returns:
-            The released Node
+            The released Node, or None if not found
 
         Raises:
             NodeNotFoundError: If node not found
@@ -583,13 +609,16 @@ class BaseCollection(Generic[CollectionT]):
 
         # Use SessionManager if available
         if hasattr(self._sdk, "session_manager") and agent:
-            return self._sdk.session_manager.release_feature(
-                feature_id=node_id, collection=self._collection_name, agent=agent
+            return cast(
+                "Node | None",
+                self._sdk.session_manager.release_feature(
+                    feature_id=node_id, collection=self._collection_name, agent=agent
+                ),
             )
 
         # Fallback logic
         graph = self._ensure_graph()
-        node = graph.get(node_id)
+        node = cast("Node | None", graph.get(node_id))
         if not node:
             raise NodeNotFoundError(self._node_type, node_id)
 

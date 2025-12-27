@@ -80,7 +80,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -247,7 +247,7 @@ class ParallelWorkflow:
             max_parallelism=max_parallelism,
             ready_tasks=ready_tasks,
             blocked_tasks=blocked_tasks,
-            bottlenecks=bottlenecks,
+            bottlenecks=cast(list[dict[str, Any]], bottlenecks),
             risks=risks,
             estimated_sequential_time=sequential_time,
             estimated_parallel_time=parallel_time,

@@ -75,7 +75,7 @@ AgentRegistry: Capability-based agent routing
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from htmlgraph.agent_registry import AgentProfile, AgentRegistry
 from htmlgraph.graph import HtmlGraph
@@ -200,7 +200,9 @@ class AgentInterface:
         if auto_claim and agent_id:
             self.claim_task(task.id, agent_id)
             # Reload to get updated state
-            task = self.graph.get(task.id)
+            reloaded_task = self.graph.get(task.id)
+            if reloaded_task:
+                task = reloaded_task
 
         return task
 
@@ -256,10 +258,11 @@ class AgentInterface:
         # Sort by capability match quality
         agent_caps = set(agent_capabilities)
 
-        def capability_score(node: Node) -> tuple[int, str]:
-            """Return (negative_exact_matches, priority) for sorting."""
+        def capability_score(node: Node) -> tuple[int, int]:
+            """Return (negative_exact_matches, priority_order) for sorting."""
             if not node.required_capabilities:
-                return (0, node.priority)
+                priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+                return (0, priority_order.get(node.priority, 99))
             exact_matches = len(set(node.required_capabilities) & agent_caps)
             # Sort by exact matches (descending), then by priority
             priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -297,7 +300,9 @@ class AgentInterface:
         if auto_claim and agent_id:
             self.claim_task(task.id, agent_id)
             # Reload to get updated state
-            task = self.graph.get(task.id)
+            reloaded_task = self.graph.get(task.id)
+            if reloaded_task:
+                task = reloaded_task
 
         return task
 
@@ -804,7 +809,7 @@ class AgentInterface:
             id=task_id,
             title=title,
             type=node_type,
-            priority=priority,
+            priority=cast(Literal["low", "medium", "high", "critical"], priority),
             content=f"<p>{description}</p>" if description else "",
             steps=[Step(description=s) for s in (steps or [])],
         )
@@ -879,8 +884,9 @@ class AgentInterface:
                 score = max(score - 30, 0)
 
         # Complexity match score (0-20 points)
-        if task.complexity:
-            if agent.can_handle_complexity(task.complexity):
+        task_complexity = getattr(task, "complexity", None)
+        if task_complexity:
+            if agent.can_handle_complexity(task_complexity):
                 score += 20
                 # Bonus for preferred complexity
                 complexity_preference = {
@@ -889,7 +895,7 @@ class AgentInterface:
                     "high": 3,
                     "very-high": 1,
                 }
-                score += complexity_preference.get(task.complexity, 0)
+                score += complexity_preference.get(task_complexity, 0)
             else:
                 score = max(score - 15, 0)
 
@@ -922,14 +928,16 @@ class AgentInterface:
             Tuple of (agent_id, score) or None if no match
         """
         # Get candidate agents
+        agents: list[AgentProfile]
         if candidate_agents:
-            agents = [self.registry.get(aid) for aid in candidate_agents]
-            agents = [a for a in agents if a and a.active]
+            agents_maybe = [self.registry.get(aid) for aid in candidate_agents]
+            agents = [a for a in agents_maybe if a and a.active]
         else:
             # Find capable agents based on requirements
-            if task.required_capabilities:
+            required_caps = getattr(task, "required_capabilities", None)
+            if required_caps:
                 agents = self.registry.find_capable_agents(
-                    task.required_capabilities, task.complexity
+                    required_caps, getattr(task, "complexity", None)
                 )
             else:
                 # No requirements, all active agents
@@ -994,14 +1002,19 @@ class AgentInterface:
                         "priority": task.priority,
                         "status": task.status,
                         "score": round(score, 2),
-                        "required_capabilities": task.required_capabilities,
-                        "complexity": task.complexity,
-                        "estimated_effort": task.estimated_effort,
+                        "required_capabilities": getattr(
+                            task, "required_capabilities", None
+                        ),
+                        "complexity": getattr(task, "complexity", None),
+                        "estimated_effort": getattr(task, "estimated_effort", None),
                     }
                 )
 
         # Sort by score (highest first)
-        queue.sort(key=lambda x: x["score"], reverse=True)
+        queue.sort(
+            key=lambda x: float(x["score"]) if x["score"] is not None else 0.0,
+            reverse=True,
+        )
 
         return queue[:limit]
 

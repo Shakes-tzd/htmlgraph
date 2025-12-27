@@ -17,7 +17,7 @@ import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from htmlgraph.event_log import EventRecord, JsonlEventLog
 
@@ -147,7 +147,7 @@ def get_primary_feature_id(graph_dir: str | Path = ".htmlgraph") -> str | None:
         return None
 
 
-def get_active_session(graph_dir: str | Path = ".htmlgraph"):
+def get_active_session(graph_dir: str | Path = ".htmlgraph") -> Any:
     """
     Get the current active HtmlGraph session.
 
@@ -354,7 +354,9 @@ def log_git_commit(graph_dir: str | Path = ".htmlgraph") -> bool:
 
         # Create one event per feature (to keep continuity queries simple).
         # If there are no features, write a single un-attributed event.
-        feature_ids = all_features or [None]
+        feature_ids: list[str | None] = (
+            cast(list[str | None], all_features) if all_features else [None]
+        )
 
         subject = (
             (git_info.get("commit_message") or "").strip().splitlines()[0]
@@ -626,7 +628,7 @@ def log_git_push(
         return False
 
 
-def main():
+def main() -> None:
     """CLI entry point for git hook."""
     import sys
 

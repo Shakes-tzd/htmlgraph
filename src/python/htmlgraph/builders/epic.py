@@ -51,7 +51,7 @@ class EpicBuilder(BaseBuilder["EpicBuilder"]):
         Example:
             >>> epic.add_child_feature("feat-abc123")
         """
-        return self._add_edge("contains", feature_id)  # type: ignore
+        return self._add_edge("contains", feature_id)
 
     def add_child_features(self, feature_ids: list[str]) -> EpicBuilder:
         """
@@ -83,7 +83,7 @@ class EpicBuilder(BaseBuilder["EpicBuilder"]):
         Example:
             >>> epic.set_target_date(date(2025, 6, 1))
         """
-        return self._set_date("target_date", target)  # type: ignore
+        return self._set_date("target_date", target)
 
     def set_success_criteria(self, criteria: list[str]) -> EpicBuilder:
         """

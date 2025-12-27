@@ -198,7 +198,8 @@ def node_to_dict(node: Node) -> dict[str, Any]:
         if step.get("timestamp"):
             step["timestamp"] = step["timestamp"].isoformat()
 
-    return data
+    result: dict[str, Any] = data
+    return result
 
 
 def dict_to_node(data: dict[str, Any]) -> Node:
@@ -325,7 +326,8 @@ def session_to_dict(session: Session) -> dict[str, Any]:
         if entry.get("timestamp"):
             entry["timestamp"] = entry["timestamp"].isoformat()
 
-    return data
+    result: dict[str, Any] = data
+    return result
 
 
 def dict_to_session(data: dict[str, Any]) -> Session:

@@ -5,12 +5,13 @@ Git hooks installation and configuration management.
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 
 class HookConfig:
     """Configuration for git hooks installation."""
 
-    DEFAULT_CONFIG = {
+    DEFAULT_CONFIG: dict[str, Any] = {
         "enabled_hooks": [
             "post-commit",
             "post-checkout",
@@ -300,7 +301,7 @@ fi
         except Exception as e:
             return False, f"Failed to uninstall {hook_name}: {e}"
 
-    def list_hooks(self) -> dict[str, dict]:
+    def list_hooks(self) -> dict[str, dict[str, Any]]:
         """
         List all hooks and their installation status.
 
@@ -315,7 +316,7 @@ fi
             git_hook_path = self.git_dir / "hooks" / hook_name
             versioned_hook = self.htmlgraph_dir / "hooks" / f"{hook_name}.sh"
 
-            info = {
+            info: dict[str, Any] = {
                 "enabled": self.config.is_hook_enabled(hook_name),
                 "installed": git_hook_path.exists(),
                 "versioned": versioned_hook.exists(),

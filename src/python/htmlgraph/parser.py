@@ -62,7 +62,8 @@ class HtmlParser:
         Returns:
             List of matching elements
         """
-        return self.html.query(selector)
+        result: list[Any] = self.html.query(selector)
+        return result
 
     def query_one(self, selector: str) -> Any | None:
         """
@@ -85,14 +86,16 @@ class HtmlParser:
         """Extract node ID from article element."""
         article = self.get_article()
         if article:
-            return article.attrs.get("id")
+            result: str | None = article.attrs.get("id")
+            return result
         return None
 
     def get_data_attribute(self, element: Any, attr: str) -> str | None:
         """Get a data-* attribute value from an element."""
         if element is None:
             return None
-        return element.attrs.get(f"data-{attr}")
+        result: str | None = element.attrs.get(f"data-{attr}")
+        return result
 
     def get_all_data_attributes(self, element: Any) -> dict[str, str]:
         """Get all data-* attributes from an element."""
@@ -188,12 +191,14 @@ class HtmlParser:
         # Try h1 in header first
         h1 = self.query_one("article header h1")
         if h1:
-            return h1.to_text().strip()
+            text: str = h1.to_text().strip()
+            return text
 
         # Fall back to title element
         title = self.query_one("title")
         if title:
-            return title.to_text().strip()
+            text2: str = title.to_text().strip()
+            return text2
 
         return None
 
@@ -326,10 +331,10 @@ class HtmlParser:
         article = self.get_article()
         if article and self.get_data_attribute(article, "type") == "session":
             # Add event_count if present
-            event_count = article.attrs.get("data-event-count")
-            if event_count:
+            event_count_str: str | None = article.attrs.get("data-event-count")
+            if event_count_str:
                 try:
-                    properties["event_count"] = int(event_count)
+                    properties["event_count"] = int(event_count_str)  # type: ignore[assignment]
                 except (ValueError, TypeError):
                     pass
 

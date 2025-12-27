@@ -6,18 +6,19 @@
 # ]
 # ///
 """
-Pre-Work Validation Hook (GUIDANCE MODE) with Active Learning
+Pre-Work Validation Hook with Active Learning
 
 Provides intelligent guidance for HtmlGraph workflow based on:
 1. Current workflow state (work items, spikes)
 2. Recent tool usage patterns (anti-pattern detection)
 3. Learned patterns from transcript analytics
 
-Philosophy:
-- Hooks GUIDE agents with suggestions, they do NOT block
-- Learn from past patterns to provide smarter guidance
-- Trust the agent to make good decisions
-- Active feedback loop improves agent workflows
+Modes:
+- GUIDANCE MODE (default): Suggests creating work items, doesn't block
+- STRICT MODE: Blocks exploration/implementation without active work item
+
+Set strict mode in validation-config.json:
+  {"enforcement": {"strict_work_item_required": true}}
 
 Hook Input (stdin): JSON with tool call details
 Hook Output (stdout): JSON with guidance {"decision": "allow", "guidance": "...", "suggestion": "..."}
@@ -39,6 +40,10 @@ ANTI_PATTERNS = {
     ("Grep", "Grep", "Grep"): "3 consecutive Greps. Consider reading results before searching more.",
     ("Read", "Read", "Read", "Read"): "4 consecutive Reads. Consider caching file content.",
 }
+
+# Tools that indicate exploration/implementation (require work item in strict mode)
+EXPLORATION_TOOLS = {"Grep", "Glob", "Task"}
+IMPLEMENTATION_TOOLS = {"Edit", "Write", "NotebookEdit"}
 
 # Optimal patterns to encourage
 OPTIMAL_PATTERNS = {
@@ -297,11 +302,26 @@ def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict
 
     # Step 5: No active work item
     if active is None:
+        # Check for strict enforcement mode
+        strict_mode = config.get("enforcement", {}).get("strict_work_item_required", False)
+
         if is_sdk_cmd:
             guidance_parts.append("Creating work item via SDK")
-        elif is_code_op or tool in ["Write", "Edit", "Delete"]:
-            guidance_parts.append("No active work item. Consider creating one to track this work.")
-            result["suggestion"] = "uv run htmlgraph feature create 'Feature title'"
+        elif strict_mode and (tool in EXPLORATION_TOOLS or tool in IMPLEMENTATION_TOOLS or is_code_op):
+            # STRICT MODE: Imperative guidance (not blocking)
+            result["required_action"] = "CREATE_WORK_ITEM"
+            result["imperative"] = (
+                "🛑 STOP: Create a work item BEFORE exploring or implementing.\n"
+                "This is a feature request. Run this FIRST:\n"
+                "  sdk = SDK(agent='claude')\n"
+                "  feature = sdk.features.create('Your feature title').save()\n"
+                "  sdk.features.start(feature.id)\n"
+                "Then proceed with your exploration."
+            )
+            guidance_parts.append("🛑 NO ACTIVE WORK ITEM - Create feature first!")
+        elif tool in EXPLORATION_TOOLS or tool in IMPLEMENTATION_TOOLS or is_code_op:
+            guidance_parts.append("⚠️ No active work item. Create one to track this work.")
+            result["suggestion"] = "sdk.features.create('Title').save() then sdk.features.start(id)"
 
         if guidance_parts:
             result["guidance"] = " | ".join(guidance_parts)

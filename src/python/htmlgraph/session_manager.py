@@ -504,7 +504,7 @@ class SessionManager:
         if not sessions:
             return None
 
-        def sort_key(session: Session):
+        def sort_key(session: Session) -> datetime:
             if session.ended_at:
                 return session.ended_at
             if session.last_activity:
@@ -1220,7 +1220,7 @@ class SessionManager:
         recent_tools = [a.tool for a in feature_activities[-10:]]
         if len(recent_tools) >= 6:
             # Check for repetitive patterns
-            tool_counts = {}
+            tool_counts: dict[str, int] = {}
             for t in recent_tools:
                 tool_counts[t] = tool_counts.get(t, 0) + 1
             max_repeat = max(tool_counts.values())
@@ -1524,7 +1524,11 @@ class SessionManager:
         graph = self._get_graph(collection)
         node = graph.get(feature_id)
         if not node:
-            return None
+            # Node might have been created by SDK's collection (different graph instance)
+            # Try reloading from disk
+            node = graph.reload_node(feature_id)
+            if not node:
+                return None
 
         node.status = "done"
         node.updated = datetime.now()
@@ -1575,6 +1579,29 @@ class SessionManager:
         # Auto-create transition spike for post-completion activities
         if session:
             self._create_transition_spike(session, from_feature_id=feature_id)
+
+        # Analyze session for anti-patterns and errors on completion
+        # This surfaces feedback to the orchestrator about mistakes made
+        if session:
+            try:
+                from htmlgraph.learning import LearningPersistence
+                from htmlgraph.sdk import SDK
+
+                # Create SDK instance for analysis (shares same graph directory)
+                sdk = SDK(agent=agent or "unknown", directory=self.graph_dir)
+                learning = LearningPersistence(sdk)
+                analysis = learning.analyze_for_orchestrator(session.id)
+                node.properties["completion_analysis"] = analysis
+
+                # Log analysis summary if issues detected
+                if analysis.get("summary", "").startswith("⚠️"):
+                    logger.info(
+                        f"Work item {feature_id} completed with issues: {analysis['summary']}"
+                    )
+                    # Update node in graph with analysis
+                    graph.update(node)
+            except Exception as e:
+                logger.warning(f"Failed to analyze session on completion: {e}")
 
         return node
 
@@ -2068,7 +2095,7 @@ class SessionManager:
         session_id: str,
         transcript_session: Any,  # TranscriptSession from transcript module
         overwrite: bool = False,
-    ) -> dict[str, int]:
+    ) -> dict[str, int | str]:
         """
         Import events from a Claude Code transcript into an HtmlGraph session.
 
@@ -2213,23 +2240,41 @@ class SessionManager:
         if agent:
             sessions = [s for s in sessions if s.agent == agent]
 
+        # Helper to normalize datetimes for comparison
+        # (handles timezone-aware vs timezone-naive)
+        def normalize_dt(dt: datetime | None) -> datetime | None:
+            if dt is None:
+                return None
+            # If timezone-aware, convert to naive UTC
+            if dt.tzinfo is not None:
+                from datetime import timezone
+
+                return dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt
+
         # Match by time overlap and git branch
         for transcript in transcripts:
             if not transcript.started_at:
                 continue
+
+            transcript_start = normalize_dt(transcript.started_at)
+            transcript_end = normalize_dt(transcript.ended_at)
 
             for session in sessions:
                 # Skip if already linked
                 if session.transcript_id:
                     continue
 
+                session_start = normalize_dt(session.started_at)
+                session_end = normalize_dt(session.ended_at)
+
                 # Check if session overlaps with transcript time
-                if session.started_at and transcript.ended_at:
-                    if session.started_at > transcript.ended_at:
+                if session_start and transcript_end:
+                    if session_start > transcript_end:
                         continue  # Session started after transcript ended
 
-                if session.ended_at and transcript.started_at:
-                    if session.ended_at < transcript.started_at:
+                if session_end and transcript_start:
+                    if session_end < transcript_start:
                         continue  # Session ended before transcript started
 
                 # Link them

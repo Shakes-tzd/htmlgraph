@@ -17,7 +17,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from htmlgraph.analytics_index import AnalyticsIndex
 from htmlgraph.converter import dict_to_node, node_to_dict
@@ -49,7 +49,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         "tracks",
     ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Set directory for static file serving
         self.directory = str(self.static_dir)
         super().__init__(*args, **kwargs)
@@ -96,14 +96,21 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                             (track_dir / "plan.html").exists() if track_dir else False
                         )
 
+                    # Map Node status to Track status
+                    track_status: Literal["planned", "active", "completed", "abandoned"]
+                    if node.status in ["planned", "active", "completed", "abandoned"]:
+                        track_status = cast(
+                            Literal["planned", "active", "completed", "abandoned"],
+                            node.status,
+                        )
+                    else:
+                        track_status = "planned"
+
                     return Track(
                         id=node.id,
                         title=node.title,
                         description=node.content or "",
-                        status=node.status
-                        if node.status
-                        in ["planned", "active", "completed", "abandoned"]
-                        else "planned",
+                        status=track_status,
                         priority=node.priority,
                         created=node.created,
                         updated=node.updated,
@@ -125,12 +132,12 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                             try:
                                 node = html_to_node(filepath)
                                 track = node_to_track(node, filepath)
-                                graph._nodes[track.id] = track
+                                graph._nodes[track.id] = track  # type: ignore[assignment]
                             except Exception:
                                 continue
 
                 # Override reload to maintain Track conversion
-                def reload_tracks():
+                def reload_tracks() -> int:
                     graph._nodes.clear()
                     for pat in patterns:
                         for filepath in collection_dir.glob(pat):
@@ -138,12 +145,12 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                                 try:
                                     node = html_to_node(filepath)
                                     track = node_to_track(node, filepath)
-                                    graph._nodes[track.id] = track
+                                    graph._nodes[track.id] = track  # type: ignore[assignment]
                                 except Exception:
                                     continue
                     return len(graph._nodes)
 
-                graph.reload = reload_tracks
+                graph.reload = reload_tracks  # type: ignore[method-assign]
                 self.graphs[collection] = graph
             else:
                 self.graphs[collection] = HtmlGraph(
@@ -151,7 +158,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                 )
         return self.graphs[collection]
 
-    def _send_json(self, data: Any, status: int = 200):
+    def _send_json(self, data: Any, status: int = 200) -> None:
         """Send JSON response."""
         body = json.dumps(data, indent=2, default=str).encode("utf-8")
         self.send_response(status)
@@ -161,7 +168,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _send_error_json(self, message: str, status: int = 400):
+    def _send_error_json(self, message: str, status: int = 400) -> None:
         """Send JSON error response."""
         self._send_json({"error": message, "status": status}, status)
 
@@ -213,7 +220,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
         return True
 
-    def do_OPTIONS(self):
+    def do_OPTIONS(self) -> None:
         """Handle CORS preflight."""
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -223,7 +230,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def do_GET(self):
+    def do_GET(self) -> None:
         """Handle GET requests."""
         api, collection, node_id, params = self._parse_path()
 
@@ -277,7 +284,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         self._send_error_json(f"Unknown endpoint: {self.path}", 404)
 
-    def do_POST(self):
+    def do_POST(self) -> None:
         """Handle POST requests (create)."""
         api, collection, node_id, params = self._parse_path()
 
@@ -319,7 +326,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 500)
 
-    def do_PUT(self):
+    def do_PUT(self) -> None:
         """Handle PUT requests (full update)."""
         api, collection, node_id, params = self._parse_path()
 
@@ -339,7 +346,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 500)
 
-    def do_PATCH(self):
+    def do_PATCH(self) -> None:
         """Handle PATCH requests (partial update)."""
         api, collection, node_id, params = self._parse_path()
 
@@ -359,7 +366,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 500)
 
-    def do_DELETE(self):
+    def do_DELETE(self) -> None:
         """Handle DELETE requests."""
         api, collection, node_id, params = self._parse_path()
 
@@ -377,9 +384,9 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
     # API Handlers
     # =========================================================================
 
-    def _handle_status(self):
+    def _handle_status(self) -> None:
         """Return overall graph status."""
-        status = {
+        status: dict[str, Any] = {
             "collections": {},
             "total_nodes": 0,
             "by_status": {},
@@ -429,7 +436,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         events = (event for _, event in log.iter_events())
         index.rebuild_from_events(events)
 
-    def _handle_analytics(self, endpoint: str | None, params: dict):
+    def _handle_analytics(self, endpoint: str | None, params: dict) -> None:
         """
         Analytics endpoints.
 
@@ -472,7 +479,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                 or "schema_version" in msg
             )
 
-        def with_rebuild(fn):
+        def with_rebuild(fn: Any) -> Any:
             try:
                 return fn()
             except Exception as e:
@@ -623,7 +630,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         return self._send_error_json(f"Unknown analytics endpoint: {endpoint}", 404)
 
-    def _handle_query(self, params: dict):
+    def _handle_query(self, params: dict) -> None:
         """Handle CSS selector query across collections."""
         selector = params.get("selector", "")
         collection = params.get("collection")  # Optional filter to single collection
@@ -655,7 +662,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
                 parts.append(f"[data-{key}='{params[key]}']")
         return "".join(parts)
 
-    def _handle_list(self, collection: str, params: dict):
+    def _handle_list(self, collection: str, params: dict) -> None:
         """List all nodes in a collection."""
         graph = self._get_graph(collection)
 
@@ -706,7 +713,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             }
         )
 
-    def _handle_get(self, collection: str, node_id: str):
+    def _handle_get(self, collection: str, node_id: str) -> None:
         """Get a single node."""
         graph = self._get_graph(collection)
         node = graph.get(node_id)
@@ -721,7 +728,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         self._send_json(data)
 
-    def _handle_create(self, collection: str, data: dict):
+    def _handle_create(self, collection: str, data: dict) -> None:
         """Create a new node."""
         # Set defaults based on collection
         type_map = {
@@ -767,7 +774,9 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except ValueError as e:
             self._send_error_json(str(e), 400)
 
-    def _handle_update(self, collection: str, node_id: str, data: dict, partial: bool):
+    def _handle_update(
+        self, collection: str, node_id: str, data: dict, partial: bool
+    ) -> None:
         """Update a node (full or partial)."""
         graph = self._get_graph(collection)
         existing = graph.get(node_id)
@@ -867,7 +876,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 400)
 
-    def _handle_delete(self, collection: str, node_id: str):
+    def _handle_delete(self, collection: str, node_id: str) -> None:
         """Delete a node."""
         # Special handling for tracks (directories, not single files)
         if collection == "tracks":
@@ -894,7 +903,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
     # Track-Feature Integration Handlers
     # =========================================================================
 
-    def _handle_track_features(self, track_id: str):
+    def _handle_track_features(self, track_id: str) -> None:
         """Get all features for a track."""
         features_graph = self._get_graph("features")
 
@@ -913,7 +922,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             }
         )
 
-    def _handle_feature_context(self, feature_id: str):
+    def _handle_feature_context(self, feature_id: str) -> None:
         """Get track/plan/spec context for a feature."""
         features_graph = self._get_graph("features")
 
@@ -927,7 +936,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             self._send_error_json(f"Feature not found: {feature_id}", 404)
             return
 
-        context = {
+        context: dict[str, str | list[str] | bool | None] = {
             "feature_id": feature_id,
             "feature_title": feature.title,
             "track_id": feature.track_id if hasattr(feature, "track_id") else None,
@@ -937,15 +946,20 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             "spec_requirements": feature.spec_requirements
             if hasattr(feature, "spec_requirements")
             else [],
+            "track_exists": False,
+            "has_spec": False,
+            "has_plan": False,
+            "is_consolidated": False,
         }
 
         # Load track info if linked
-        if context["track_id"]:
+        track_id = context["track_id"]
+        if track_id and isinstance(track_id, str):
             from htmlgraph.track_manager import TrackManager
 
             manager = TrackManager(self.graph_dir)
-            track_dir = manager.tracks_dir / context["track_id"]
-            track_file = manager.tracks_dir / f"{context['track_id']}.html"
+            track_dir = manager.tracks_dir / track_id
+            track_file = manager.tracks_dir / f"{track_id}.html"
 
             # Support both consolidated (single file) and directory-based tracks
             if track_file.exists():
@@ -971,7 +985,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         self._send_json(context)
 
-    def _handle_session_transcript(self, session_id: str):
+    def _handle_session_transcript(self, session_id: str) -> None:
         """Get transcript stats for a session."""
         try:
             from htmlgraph.session_manager import SessionManager
@@ -995,7 +1009,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(f"Error getting transcript stats: {e}", 500)
 
-    def _handle_generate_features(self, track_id: str):
+    def _handle_generate_features(self, track_id: str) -> None:
         """Generate features from plan tasks."""
         from htmlgraph.track_manager import TrackManager
 
@@ -1027,7 +1041,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(f"Failed to generate features: {str(e)}", 500)
 
-    def _handle_sync_track(self, track_id: str):
+    def _handle_sync_track(self, track_id: str) -> None:
         """Sync task and spec completion based on features."""
         from htmlgraph.track_manager import TrackManager
 
@@ -1056,7 +1070,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(f"Failed to sync track: {str(e)}", 500)
 
-    def log_message(self, format: str, *args):
+    def log_message(self, format: str, *args: str) -> None:
         """Custom log format."""
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}")
 
@@ -1067,7 +1081,7 @@ def serve(
     static_dir: str | Path = ".",
     host: str = "localhost",
     watch: bool = True,
-):
+) -> None:
     """
     Start the HtmlGraph server.
 

@@ -66,7 +66,7 @@ class PhaseBuilder(BaseBuilder["PhaseBuilder"]):
         Example:
             >>> phase.set_start_date(date(2025, 1, 1))
         """
-        return self._set_date("start_date", start)  # type: ignore
+        return self._set_date("start_date", start)
 
     def set_end_date(self, end: date) -> PhaseBuilder:
         """
@@ -81,7 +81,7 @@ class PhaseBuilder(BaseBuilder["PhaseBuilder"]):
         Example:
             >>> phase.set_end_date(date(2025, 3, 31))
         """
-        return self._set_date("end_date", end)  # type: ignore
+        return self._set_date("end_date", end)
 
     def set_deliverables(self, deliverables: list[str]) -> PhaseBuilder:
         """
@@ -112,7 +112,7 @@ class PhaseBuilder(BaseBuilder["PhaseBuilder"]):
         Example:
             >>> phase.add_milestone("Alpha release")
         """
-        return self._append_to_list("milestones", milestone)  # type: ignore
+        return self._append_to_list("milestones", milestone)
 
     def follows(self, phase_id: str) -> PhaseBuilder:
         """
@@ -127,7 +127,7 @@ class PhaseBuilder(BaseBuilder["PhaseBuilder"]):
         Example:
             >>> phase.follows("phase-core-library")
         """
-        return self._add_edge("follows", phase_id)  # type: ignore
+        return self._add_edge("follows", phase_id)
 
     def set_exit_criteria(self, criteria: list[str]) -> PhaseBuilder:
         """

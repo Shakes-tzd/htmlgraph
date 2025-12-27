@@ -72,7 +72,7 @@ def _is_claude_code() -> bool:
     return False
 
 
-def _is_gemini():
+def _is_gemini() -> bool:
     """Check if running in Gemini environment."""
     # Check for Gemini-specific environment variables
     if os.environ.get("GEMINI_API_KEY"):

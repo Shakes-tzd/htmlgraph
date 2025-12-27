@@ -91,9 +91,11 @@ class Condition:
 
         # Evaluate based on operator
         if self.operator == Operator.EQ:
-            return actual == self.value
+            result: bool = actual == self.value
+            return result
         elif self.operator == Operator.NE:
-            return actual != self.value
+            result2: bool = actual != self.value
+            return result2
         elif self.operator == Operator.GT:
             return _compare_numeric(actual, self.value, lambda a, b: a > b)
         elif self.operator == Operator.GTE:
@@ -181,10 +183,12 @@ def _compare_numeric(actual: Any, expected: Any, comparator: Callable) -> bool:
         expected_num = (
             float(expected) if not isinstance(expected, (int, float)) else expected
         )
-        return comparator(actual_num, expected_num)
+        result: bool = comparator(actual_num, expected_num)
+        return result
     except (ValueError, TypeError):
         # Fall back to string comparison
-        return comparator(str(actual), str(expected))
+        result2: bool = comparator(str(actual), str(expected))
+        return result2
 
 
 @dataclass

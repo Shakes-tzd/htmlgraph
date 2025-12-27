@@ -28,6 +28,7 @@ from htmlgraph.ids import (
     is_valid_id,
     parse_id,
 )
+from htmlgraph.learning import LearningPersistence, auto_persist_on_session_end
 from htmlgraph.models import (
     ActivityEntry,
     AggregatedMetric,
@@ -75,7 +76,6 @@ from htmlgraph.types import (
     WorkRecommendation,
 )
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
-from htmlgraph.learning import LearningPersistence, auto_persist_on_session_end
 
 __version__ = "0.13.3"
 __all__ = [

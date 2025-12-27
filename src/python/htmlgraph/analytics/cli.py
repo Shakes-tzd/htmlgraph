@@ -4,6 +4,7 @@ CLI Analytics Command - Beautiful work type analytics with rich formatting.
 This module provides the `htmlgraph analytics` command for analyzing work patterns.
 """
 
+import argparse
 from pathlib import Path
 
 from rich import box
@@ -15,7 +16,7 @@ from htmlgraph import SDK, WorkType
 from htmlgraph.converter import html_to_session
 
 
-def cmd_analytics(args):
+def cmd_analytics(args: argparse.Namespace) -> int:
     """Display work type analytics with beautiful rich formatting."""
     console = Console()
 
@@ -60,7 +61,7 @@ def cmd_analytics(args):
 
 def _display_session_analytics(
     console: Console, sdk: SDK, session_id: str, graph_dir: str
-):
+) -> None:
     """Display analytics for a single session."""
     from htmlgraph.converter import html_to_session
 
@@ -166,8 +167,8 @@ def _display_session_analytics(
 
 
 def _display_recent_sessions(
-    console: Console, sdk: SDK, session_files: list, graph_dir: str
-):
+    console: Console, sdk: SDK, session_files: list[Path], graph_dir: str
+) -> None:
     """Display analytics for recent sessions."""
     console.print(
         Panel(
@@ -225,8 +226,8 @@ def _display_recent_sessions(
 
 
 def _display_project_analytics(
-    console: Console, sdk: SDK, session_files: list, graph_dir: str
-):
+    console: Console, sdk: SDK, session_files: list[Path], graph_dir: str
+) -> None:
     """Display project-wide analytics."""
     console.print(
         Panel(

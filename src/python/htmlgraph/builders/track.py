@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -52,11 +52,11 @@ class TrackBuilder:
 
     def __init__(self, sdk: SDK):
         self.sdk = sdk
-        self._title = None
+        self._title: str | None = None
         self._description = ""
         self._priority = "medium"
-        self._spec_data = {}
-        self._plan_phases = []
+        self._spec_data: dict[str, Any] = {}
+        self._plan_phases: list[tuple[str, list[str]]] = []
         self._consolidated = True  # Default: single file
 
     def title(self, title: str) -> TrackBuilder:
@@ -78,8 +78,8 @@ class TrackBuilder:
         self,
         overview: str = "",
         context: str = "",
-        requirements: list = None,
-        acceptance_criteria: list = None,
+        requirements: list[Any] | None = None,
+        acceptance_criteria: list[Any] | None = None,
     ) -> TrackBuilder:
         """
         Add spec content to track.
@@ -572,7 +572,7 @@ class TrackBuilder:
             id=track_id,
             title=f"Track: {self._title}",
             description=self._description,
-            priority=self._priority,
+            priority=cast(Literal["low", "medium", "high", "critical"], self._priority),
             has_spec=bool(self._spec_data),
             has_plan=bool(self._plan_phases),
         )

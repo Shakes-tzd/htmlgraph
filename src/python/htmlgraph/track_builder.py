@@ -7,12 +7,14 @@ This module now provides TrackCollection and re-exports TrackBuilder for backwar
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from htmlgraph.sdk import SDK
+    from htmlgraph.graph import HtmlGraph
     from htmlgraph.models import Node
+    from htmlgraph.sdk import SDK
 
 # Import TrackBuilder from its new location
 from htmlgraph.builders.track import TrackBuilder  # noqa: F401
@@ -28,9 +30,9 @@ class TrackCollection:
         self._node_type = "track"
         self.collection_name = "tracks"  # For backward compatibility
         self.id_prefix = "track"
-        self._graph = None  # Lazy-loaded
+        self._graph: HtmlGraph | None = None  # Lazy-loaded
 
-    def _ensure_graph(self):
+    def _ensure_graph(self) -> HtmlGraph:
         """Lazy-load the graph for tracks with multi-pattern support."""
         if self._graph is None:
             from htmlgraph.graph import HtmlGraph
@@ -42,17 +44,20 @@ class TrackCollection:
             )
         return self._graph
 
-    def get(self, node_id: str):
+    def get(self, node_id: str) -> Node | None:
         """Get a track by ID."""
         return self._ensure_graph().get(node_id)
 
-    def all(self):
+    def all(self) -> list[Node]:
         """Get all tracks (both file-based and directory-based)."""
         return [n for n in self._ensure_graph() if n.type == self._node_type]
 
     def where(
-        self, status: str | None = None, priority: str | None = None, **extra_filters
-    ):
+        self,
+        status: str | None = None,
+        priority: str | None = None,
+        **extra_filters: Any,
+    ) -> list[Node]:
         """
         Query tracks with filters.
 
@@ -60,7 +65,7 @@ class TrackCollection:
             active_tracks = sdk.tracks.where(status="active", priority="high")
         """
 
-        def matches(node):
+        def matches(node: Node) -> bool:
             if node.type != self._node_type:
                 return False
             if status and getattr(node, "status", None) != status:

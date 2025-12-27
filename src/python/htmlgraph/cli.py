@@ -42,9 +42,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 
-def cmd_install_gemini_extension(args):
+def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
     """Install the Gemini CLI extension from the bundled package files."""
     import htmlgraph
 
@@ -84,7 +85,7 @@ def cmd_install_gemini_extension(args):
         sys.exit(1)
 
 
-def cmd_serve(args):
+def cmd_serve(args: argparse.Namespace) -> None:
     """Start the HtmlGraph server."""
     from htmlgraph.server import serve
 
@@ -97,7 +98,7 @@ def cmd_serve(args):
     )
 
 
-def cmd_init(args):
+def cmd_init(args: argparse.Namespace) -> None:
     """Initialize a new .htmlgraph directory."""
     import shutil
 
@@ -438,7 +439,9 @@ exit 0
     # Generate documentation files from templates
     if generate_docs:
 
-        def render_template(template_path: Path, replacements: dict[str, str]) -> str:
+        def render_template(
+            template_path: Path, replacements: dict[str, str]
+        ) -> str | None:
             """Render a template file with variable replacements."""
             if not template_path.exists():
                 return None
@@ -579,7 +582,7 @@ fi
         print("\nGit events will now be logged to HtmlGraph automatically.")
 
 
-def cmd_install_hooks(args):
+def cmd_install_hooks(args: argparse.Namespace) -> None:
     """Install Git hooks for automatic tracking."""
     from pathlib import Path
 
@@ -703,7 +706,7 @@ def cmd_install_hooks(args):
         print("  htmlgraph install-hooks --disable <hook>    # Disable hook")
 
 
-def cmd_status(args):
+def cmd_status(args: argparse.Namespace) -> None:
     """Show status of the graph."""
     from collections import Counter
 
@@ -713,7 +716,7 @@ def cmd_status(args):
     sdk = SDK(directory=args.graph_dir)
 
     total = 0
-    by_status = Counter()
+    by_status: Counter[str] = Counter()
     by_collection = {}
 
     # All available collections
@@ -757,7 +760,7 @@ def cmd_status(args):
         print(f"  {status}: {count}")
 
 
-def cmd_query(args):
+def cmd_query(args: argparse.Namespace) -> None:
     """Query nodes with CSS selector."""
     import json
 
@@ -781,11 +784,11 @@ def cmd_query(args):
     if args.format == "json":
         print(json.dumps(results, indent=2, default=str))
     else:
-        for node in results:
-            status = node.get("status", "?")
-            priority = node.get("priority", "?")
+        for result in results:  # type: dict[str, Any]
+            status = result.get("status", "?")
+            priority = result.get("priority", "?")
             print(
-                f"[{node['_collection']}] {node['id']}: {node['title']} ({status}, {priority})"
+                f"[{result['_collection']}] {result['id']}: {result['title']} ({status}, {priority})"
             )
 
 
@@ -794,7 +797,7 @@ def cmd_query(args):
 # =============================================================================
 
 
-def cmd_session_start(args):
+def cmd_session_start(args: argparse.Namespace) -> None:
     """Start a new session."""
     import json
 
@@ -815,7 +818,7 @@ def cmd_session_start(args):
             print(f"  Title: {session.title}")
 
 
-def cmd_session_end(args):
+def cmd_session_end(args: argparse.Namespace) -> None:
     """End a session."""
     import json
 
@@ -846,7 +849,7 @@ def cmd_session_end(args):
             print(f"  Worked on: {', '.join(session.worked_on)}")
 
 
-def cmd_session_handoff(args):
+def cmd_session_handoff(args: argparse.Namespace) -> None:
     """Set or show session handoff context."""
     import json
 
@@ -859,9 +862,9 @@ def cmd_session_handoff(args):
         # But for now, let's keep using SessionManager logic via SDK property if needed
         # or implement show logic here using SDK collections
 
-        # If args.session_id, use SDK.sessions.get()
+        # Use session_manager.get_session() to get Session objects (not Node)
         if args.session_id:
-            session = sdk.sessions.get(args.session_id)
+            session = sdk.session_manager.get_session(args.session_id)
         else:
             # Need "last ended session" - SDK doesn't expose this yet.
             # Fallback to session_manager logic exposed on SDK
@@ -896,14 +899,14 @@ def cmd_session_handoff(args):
         )
         sys.exit(1)
 
-    session = sdk.set_session_handoff(
+    handoff_result = sdk.set_session_handoff(
         session_id=args.session_id,  # Optional, defaults to active
         handoff_notes=args.notes,
         recommended_next=args.recommend,
         blockers=args.blocker if args.blocker else None,
     )
 
-    if session is None:
+    if handoff_result is None:
         if args.session_id:
             print(f"Error: Session '{args.session_id}' not found.", file=sys.stderr)
         else:
@@ -914,14 +917,12 @@ def cmd_session_handoff(args):
         sys.exit(1)
 
     if args.format == "json":
-        from htmlgraph.converter import session_to_dict
-
-        print(json.dumps(session_to_dict(session), indent=2))
+        print(json.dumps(handoff_result, indent=2))
     else:
-        print(f"Session handoff updated: {session.id}")
+        print(f"Session handoff updated: {handoff_result.get('id', 'unknown')}")
 
 
-def cmd_session_list(args):
+def cmd_session_list(args: argparse.Namespace) -> None:
     """List all sessions."""
     import json
 
@@ -936,7 +937,7 @@ def cmd_session_list(args):
     sessions = converter.load_all()
 
     # Sort by started_at descending (handle mixed tz-aware/naive datetimes)
-    def sort_key(s):
+    def sort_key(s: Any) -> Any:
         ts = s.started_at
         # Make naive datetimes comparable by assuming UTC
         if ts.tzinfo is None:
@@ -963,7 +964,7 @@ def cmd_session_list(args):
             )
 
 
-def cmd_session_start_info(args):
+def cmd_session_start_info(args: argparse.Namespace) -> None:
     """Get comprehensive session start information (optimized for AI agents)."""
     import json
 
@@ -1088,7 +1089,7 @@ def cmd_session_start_info(args):
         print("\n" + "=" * 80)
 
 
-def cmd_session_status_report(args):
+def cmd_session_status_report(args: argparse.Namespace) -> None:
     """Print a comprehensive status report (Markdown)."""
     import subprocess
 
@@ -1150,7 +1151,7 @@ Use `htmlgraph feature list --status todo` to see backlog.
 """)
 
 
-def cmd_session_dedupe(args):
+def cmd_session_dedupe(args: argparse.Namespace) -> None:
     """Move low-signal session files out of the main sessions directory."""
     from htmlgraph import SDK
 
@@ -1173,7 +1174,7 @@ def cmd_session_dedupe(args):
             print(f"Kept:    {result['kept_active']} canonical active sessions")
 
 
-def cmd_session_link(args):
+def cmd_session_link(args: argparse.Namespace) -> None:
     """Link a feature to a session retroactively."""
     import json
 
@@ -1269,7 +1270,7 @@ def cmd_session_link(args):
         print(json.dumps(result, indent=2))
 
 
-def cmd_session_validate_attribution(args):
+def cmd_session_validate_attribution(args: argparse.Namespace) -> None:
     """Validate feature attribution and tracking."""
     import json
     from datetime import datetime
@@ -1397,7 +1398,7 @@ def cmd_session_validate_attribution(args):
 # =========================================================================
 
 
-def cmd_transcript_list(args):
+def cmd_transcript_list(args: argparse.Namespace) -> None:
     """List available Claude Code transcripts."""
     import json
 
@@ -1452,7 +1453,7 @@ def cmd_transcript_list(args):
             )
 
 
-def cmd_transcript_import(args):
+def cmd_transcript_import(args: argparse.Namespace) -> None:
     """Import a Claude Code transcript into HtmlGraph."""
     import json
 
@@ -1512,7 +1513,7 @@ def cmd_transcript_import(args):
             print(f"   → Linked to feature: {result['linked_feature']}")
 
 
-def cmd_transcript_link(args):
+def cmd_transcript_link(args: argparse.Namespace) -> None:
     """Link a Claude Code transcript to an HtmlGraph session."""
     import json
 
@@ -1558,7 +1559,7 @@ def cmd_transcript_link(args):
             print(f"   Git branch: {transcript.git_branch}")
 
 
-def cmd_transcript_stats(args):
+def cmd_transcript_stats(args: argparse.Namespace) -> None:
     """Show transcript statistics for a session."""
     import json
 
@@ -1598,7 +1599,7 @@ def cmd_transcript_stats(args):
                 print(f"    {tool}: {count}")
 
 
-def cmd_transcript_auto_link(args):
+def cmd_transcript_auto_link(args: argparse.Namespace) -> None:
     """Auto-link transcripts to sessions by git branch."""
     import json
 
@@ -1651,7 +1652,7 @@ def cmd_transcript_auto_link(args):
             print(f"No sessions to link for branch '{branch}'")
 
 
-def cmd_transcript_health(args):
+def cmd_transcript_health(args: argparse.Namespace) -> None:
     """Show session health metrics from transcript."""
     import json
 
@@ -1718,7 +1719,7 @@ def cmd_transcript_health(args):
         )
 
 
-def cmd_transcript_patterns(args):
+def cmd_transcript_patterns(args: argparse.Namespace) -> None:
     """Detect workflow patterns in transcripts."""
     import json
 
@@ -1769,7 +1770,7 @@ def cmd_transcript_patterns(args):
                 print(f"   {' → '.join(p.sequence)} ({p.count}x)")
 
 
-def cmd_transcript_transitions(args):
+def cmd_transcript_transitions(args: argparse.Namespace) -> None:
     """Show tool transition matrix."""
     import json
 
@@ -1799,7 +1800,7 @@ def cmd_transcript_transitions(args):
             print(f"  {from_t:12} → {to_t:12} {count:4} {bar}")
 
 
-def cmd_transcript_recommendations(args):
+def cmd_transcript_recommendations(args: argparse.Namespace) -> None:
     """Get workflow improvement recommendations."""
     import json
 
@@ -1819,7 +1820,7 @@ def cmd_transcript_recommendations(args):
             print(f"  {rec}")
 
 
-def cmd_transcript_insights(args):
+def cmd_transcript_insights(args: argparse.Namespace) -> None:
     """Get comprehensive transcript insights."""
     import json
 
@@ -1863,7 +1864,7 @@ def cmd_transcript_insights(args):
             print(f"   {rec}")
 
 
-def cmd_transcript_export(args):
+def cmd_transcript_export(args: argparse.Namespace) -> None:
     """Export transcript to HTML format."""
     from pathlib import Path
 
@@ -1887,7 +1888,7 @@ def cmd_transcript_export(args):
         print(html)
 
 
-def cmd_transcript_track_stats(args):
+def cmd_transcript_track_stats(args: argparse.Namespace) -> None:
     """Get aggregated transcript stats for a track."""
     import json
 
@@ -1937,7 +1938,7 @@ def cmd_transcript_track_stats(args):
                     break
 
 
-def cmd_transcript_link_feature(args):
+def cmd_transcript_link_feature(args: argparse.Namespace) -> None:
     """Link a Claude Code transcript to a feature for parallel agent tracking."""
     import json
 
@@ -1978,7 +1979,7 @@ def cmd_transcript_link_feature(args):
             print(f"   Duration: {duration}s")
 
 
-def cmd_track(args):
+def cmd_track(args: argparse.Namespace) -> None:
     """Track an activity in the current session."""
     import json
 
@@ -2023,7 +2024,7 @@ def cmd_track(args):
 # =============================================================================
 
 
-def cmd_events_export(args):
+def cmd_events_export(args: argparse.Namespace) -> None:
     """Export legacy session HTML activity logs to JSONL event logs."""
     from htmlgraph.event_migration import export_sessions_to_jsonl
 
@@ -2043,7 +2044,7 @@ def cmd_events_export(args):
     print(f"Failed:  {result['failed']}")
 
 
-def cmd_index_rebuild(args):
+def cmd_index_rebuild(args: argparse.Namespace) -> None:
     """Rebuild the SQLite analytics index from JSONL event logs."""
     from htmlgraph.analytics_index import AnalyticsIndex
     from htmlgraph.event_log import JsonlEventLog
@@ -2063,7 +2064,7 @@ def cmd_index_rebuild(args):
     print(f"Skipped:  {result['skipped']}")
 
 
-def cmd_watch(args):
+def cmd_watch(args: argparse.Namespace) -> None:
     """Watch filesystem changes and record them as activity events."""
     from htmlgraph.watch import watch_and_track
 
@@ -2080,7 +2081,7 @@ def cmd_watch(args):
     )
 
 
-def cmd_git_event(args):
+def cmd_git_event(args: argparse.Namespace) -> None:
     """Log a Git event (commit, checkout, merge, push)."""
     import sys
 
@@ -2131,7 +2132,7 @@ def cmd_git_event(args):
         sys.exit(1)
 
 
-def cmd_mcp_serve(args):
+def cmd_mcp_serve(args: argparse.Namespace) -> None:
     """Run the minimal MCP server over stdio."""
     from htmlgraph.mcp_server import serve_stdio
 
@@ -2143,7 +2144,7 @@ def cmd_mcp_serve(args):
 # =============================================================================
 
 
-def cmd_work_next(args):
+def cmd_work_next(args: argparse.Namespace) -> None:
     """Get next best task using smart routing."""
     import json
 
@@ -2194,7 +2195,7 @@ def cmd_work_next(args):
             )
 
 
-def cmd_work_queue(args):
+def cmd_work_queue(args: argparse.Namespace) -> None:
     """Get prioritized work queue for an agent."""
     import json
 
@@ -2235,14 +2236,15 @@ def cmd_work_queue(args):
             )
 
 
-def cmd_agent_list(args):
+def cmd_agent_list(args: argparse.Namespace) -> None:
     """List all registered agents."""
     import json
 
-    from htmlgraph.sdk import SDK
+    from htmlgraph.agent_registry import AgentRegistry
 
-    sdk = SDK(directory=args.graph_dir)
-    agents = sdk.list_agents(active_only=args.active_only)
+    # Use AgentRegistry to get AgentProfile objects (not Node objects)
+    registry = AgentRegistry(args.graph_dir)
+    agents = list(registry.list_agents())
 
     if args.format == "json":
         print(
@@ -2273,7 +2275,7 @@ def cmd_agent_list(args):
 # =============================================================================
 
 
-def cmd_feature_create(args):
+def cmd_feature_create(args: argparse.Namespace) -> None:
     """Create a new feature."""
     import json
 
@@ -2330,7 +2332,7 @@ def cmd_feature_create(args):
         print(f"  Path: {args.graph_dir}/{args.collection}/{node.id}.html")
 
 
-def cmd_feature_start(args):
+def cmd_feature_start(args: argparse.Namespace) -> None:
     """Start working on a feature."""
     import json
 
@@ -2372,7 +2374,7 @@ def cmd_feature_start(args):
         print(f"  WIP: {status['wip_count']}/{status['wip_limit']}")
 
 
-def cmd_feature_complete(args):
+def cmd_feature_complete(args: argparse.Namespace) -> None:
     """Mark a feature as complete."""
     import json
 
@@ -2409,7 +2411,7 @@ def cmd_feature_complete(args):
         print(f"  Title: {node.title}")
 
 
-def cmd_feature_primary(args):
+def cmd_feature_primary(args: argparse.Namespace) -> None:
     """Set the primary feature for attribution."""
     import json
 
@@ -2442,7 +2444,7 @@ def cmd_feature_primary(args):
         print(f"  Title: {node.title}")
 
 
-def cmd_feature_claim(args):
+def cmd_feature_claim(args: argparse.Namespace) -> None:
     """Claim a feature."""
     import json
 
@@ -2480,7 +2482,7 @@ def cmd_feature_claim(args):
         print(f"  Session: {node.claimed_by_session}")
 
 
-def cmd_feature_release(args):
+def cmd_feature_release(args: argparse.Namespace) -> None:
     """Release a feature."""
     import json
 
@@ -2516,7 +2518,7 @@ def cmd_feature_release(args):
         print(f"Released: {node.id}")
 
 
-def cmd_feature_auto_release(args):
+def cmd_feature_auto_release(args: argparse.Namespace) -> None:
     """Release all features claimed by an agent."""
     import json
 
@@ -2537,7 +2539,7 @@ def cmd_feature_auto_release(args):
                 print(f"  - {node_id}")
 
 
-def cmd_publish(args):
+def cmd_publish(args: argparse.Namespace) -> None:
     """Build and publish the package to PyPI (Interoperable)."""
     import shutil
     import subprocess
@@ -2601,7 +2603,7 @@ def cmd_publish(args):
         sys.exit(1)
 
 
-def cmd_feature_list(args):
+def cmd_feature_list(args: argparse.Namespace) -> None:
     """List features by status."""
     import json
 
@@ -2622,7 +2624,7 @@ def cmd_feature_list(args):
 
     priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
-    def sort_key(n):
+    def sort_key(n: Any) -> Any:
         # Ensure timezone-aware datetime for comparison
         updated = n.updated
         if updated.tzinfo is None:
@@ -2654,13 +2656,13 @@ def cmd_feature_list(args):
 # =============================================================================
 
 
-def cmd_feature_step_complete(args):
+def cmd_feature_step_complete(args: argparse.Namespace) -> None:
     """Mark one or more feature steps as complete via API."""
     import http.client
     import json
 
     # Parse step indices (support both space-separated and comma-separated)
-    step_indices = []
+    step_indices: list[int] = []
     for step_arg in args.steps:
         if "," in step_arg:
             # Comma-separated: "0,1,2"
@@ -2736,7 +2738,7 @@ def cmd_feature_step_complete(args):
             sys.exit(1)
 
 
-def cmd_feature_delete(args):
+def cmd_feature_delete(args: argparse.Namespace) -> None:
     """Delete a feature."""
     import json
     import sys
@@ -2792,7 +2794,7 @@ def cmd_feature_delete(args):
         sys.exit(1)
 
 
-def cmd_track_new(args):
+def cmd_track_new(args: argparse.Namespace) -> None:
     """Create a new track."""
     import json
 
@@ -2830,7 +2832,7 @@ def cmd_track_new(args):
         print(f"  - Create plan: htmlgraph track plan {track.id} 'Plan Title'")
 
 
-def cmd_track_list(args):
+def cmd_track_list(args: argparse.Namespace) -> None:
     """List all tracks."""
     import json
 
@@ -2879,7 +2881,7 @@ def cmd_track_list(args):
             print(f"  {track_id}{components_str}{format_indicator}")
 
 
-def cmd_track_spec(args):
+def cmd_track_spec(args: argparse.Namespace) -> None:
     """Create a spec for a track."""
     import json
 
@@ -2929,7 +2931,7 @@ def cmd_track_spec(args):
         print(f"\nView spec: open {args.graph_dir}/tracks/{args.track_id}/spec.html")
 
 
-def cmd_track_plan(args):
+def cmd_track_plan(args: argparse.Namespace) -> None:
     """Create a plan for a track."""
     import json
 
@@ -2976,7 +2978,7 @@ def cmd_track_plan(args):
         print(f"\nView plan: open {args.graph_dir}/tracks/{args.track_id}/plan.html")
 
 
-def cmd_track_delete(args):
+def cmd_track_delete(args: argparse.Namespace) -> None:
     """Delete a track."""
     import json
 
@@ -2998,7 +3000,7 @@ def cmd_track_delete(args):
         print(f"  Removed: {args.graph_dir}/tracks/{args.track_id}/")
 
 
-def create_default_index(path: Path):
+def create_default_index(path: Path) -> None:
     """
     Create a default index.html for new projects.
 
@@ -3022,7 +3024,7 @@ def create_default_index(path: Path):
     )
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="HtmlGraph - HTML is All You Need",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -4323,16 +4325,27 @@ curl Examples:
             mcp_parser.print_help()
             sys.exit(1)
     elif args.command == "setup":
-        from htmlgraph.setup import setup_all, setup_claude, setup_codex, setup_gemini
+        from htmlgraph.setup import (
+            setup_all as setup_all_fn,
+        )
+        from htmlgraph.setup import (
+            setup_claude as setup_claude_fn,
+        )
+        from htmlgraph.setup import (
+            setup_codex as setup_codex_fn,
+        )
+        from htmlgraph.setup import (
+            setup_gemini as setup_gemini_fn,
+        )
 
         if args.setup_command == "claude":
-            setup_claude(args)
+            setup_claude_fn(args)
         elif args.setup_command == "codex":
-            setup_codex(args)
+            setup_codex_fn(args)
         elif args.setup_command == "gemini":
-            setup_gemini(args)
+            setup_gemini_fn(args)
         elif args.setup_command == "all":
-            setup_all(args)
+            setup_all_fn(args)
         else:
             setup_parser.print_help()
             sys.exit(1)
@@ -4360,7 +4373,7 @@ curl Examples:
 # =============================================================================
 
 
-def cmd_deploy_init(args):
+def cmd_deploy_init(args: argparse.Namespace) -> None:
     """Initialize deployment configuration."""
     from htmlgraph.deploy import create_deployment_config_template
 
@@ -4376,7 +4389,7 @@ def cmd_deploy_init(args):
     create_deployment_config_template(output_path)
 
 
-def cmd_deploy_run(args):
+def cmd_deploy_run(args: argparse.Namespace) -> None:
     """Run deployment process."""
     from htmlgraph.deploy import Deployer, DeploymentConfig
 
@@ -4427,7 +4440,7 @@ def cmd_deploy_run(args):
 # =============================================================================
 
 
-def cmd_sync_docs(args):
+def cmd_sync_docs(args: argparse.Namespace) -> int:
     """Synchronize AI agent memory files across platforms."""
     from htmlgraph.sync_docs import (
         check_all_files,

@@ -41,7 +41,7 @@ class AgentCapabilityRegistry:
         # Returns: [AgentProfile(agent_id='claude', ...)]
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize empty registry."""
         self.agents: dict[str, AgentProfile] = {}
 

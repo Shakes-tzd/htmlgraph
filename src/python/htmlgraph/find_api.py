@@ -61,7 +61,7 @@ class FindAPI:
     def __init__(self, graph: HtmlGraph):
         self._graph = graph
 
-    def find(self, type: str | None = None, **kwargs) -> Node | None:
+    def find(self, type: str | None = None, **kwargs: Any) -> Node | None:
         """
         Find the first node matching the given criteria.
 
@@ -86,7 +86,7 @@ class FindAPI:
         return None
 
     def find_all(
-        self, type: str | None = None, limit: int | None = None, **kwargs
+        self, type: str | None = None, limit: int | None = None, **kwargs: Any
     ) -> list[Node]:
         """
         Find all nodes matching the given criteria.
@@ -157,7 +157,8 @@ class FindAPI:
             List of related nodes
         """
         neighbor_ids = self._graph.get_neighbors(node_id, relationship, direction)
-        return [self._graph.get(nid) for nid in neighbor_ids if self._graph.get(nid)]
+        nodes = [self._graph.get(nid) for nid in neighbor_ids]
+        return [n for n in nodes if n is not None]
 
     def find_blocking(self, node_id: str) -> list[Node]:
         """
@@ -185,11 +186,8 @@ class FindAPI:
         """
         # Nodes that have blocked_by pointing to this node
         incoming = self._graph.get_incoming_edges(node_id, "blocked_by")
-        return [
-            self._graph.get(ref.source_id)
-            for ref in incoming
-            if self._graph.get(ref.source_id)
-        ]
+        nodes = [self._graph.get(ref.source_id) for ref in incoming]
+        return [n for n in nodes if n is not None]
 
     def _matches(self, node: Node, filters: dict[str, Any]) -> bool:
         """
@@ -241,7 +239,8 @@ class FindAPI:
 
         # Apply lookup
         lookup_fn = self._lookups.get(lookup, self._exact)
-        return lookup_fn(actual, expected)
+        result: bool = lookup_fn(actual, expected)
+        return result
 
     def _get_attr(self, node: Node, path: str) -> Any:
         """Get attribute value supporting nested access with double underscore."""
@@ -264,12 +263,14 @@ class FindAPI:
 
     # Lookup functions
     def _exact(self, actual: Any, expected: Any) -> bool:
-        return actual == expected
+        result: bool = actual == expected
+        return result
 
     def _iexact(self, actual: Any, expected: Any) -> bool:
         if actual is None:
             return expected is None
-        return str(actual).lower() == str(expected).lower()
+        result: bool = str(actual).lower() == str(expected).lower()
+        return result
 
     def _contains(self, actual: Any, expected: Any) -> bool:
         if actual is None:
@@ -350,9 +351,11 @@ class FindAPI:
             expected_num = (
                 float(expected) if not isinstance(expected, (int, float)) else expected
             )
-            return op(actual_num, expected_num)
+            result: bool = op(actual_num, expected_num)
+            return result
         except (ValueError, TypeError):
-            return op(str(actual), str(expected))
+            result2: bool = op(str(actual), str(expected))
+            return result2
 
     @property
     def _lookups(self) -> dict[str, Callable]:
@@ -379,7 +382,7 @@ class FindAPI:
 
 
 # Convenience functions for direct import
-def find(graph: HtmlGraph, type: str | None = None, **kwargs) -> Node | None:
+def find(graph: HtmlGraph, type: str | None = None, **kwargs: Any) -> Node | None:
     """
     Find first node matching criteria.
 
@@ -395,7 +398,7 @@ def find(graph: HtmlGraph, type: str | None = None, **kwargs) -> Node | None:
 
 
 def find_all(
-    graph: HtmlGraph, type: str | None = None, limit: int | None = None, **kwargs
+    graph: HtmlGraph, type: str | None = None, limit: int | None = None, **kwargs: Any
 ) -> list[Node]:
     """
     Find all nodes matching criteria.

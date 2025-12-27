@@ -106,7 +106,7 @@ class JsonlEventLog:
             f.write(line)
         return path
 
-    def iter_events(self):
+    def iter_events(self) -> Any:
         """
         Yield (path, event_dict) for all events across all JSONL files.
         Skips malformed lines.

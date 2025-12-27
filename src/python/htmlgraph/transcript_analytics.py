@@ -443,7 +443,7 @@ class TranscriptAnalytics:
         # Tool frequency analysis
         freq = self.get_tool_frequency(transcript_id)
         if freq:
-            top_tool = max(freq, key=freq.get)
+            top_tool = max(freq, key=lambda k: freq[k])
             if freq[top_tool] > 50:
                 recommendations.append(
                     f"📈 Heavy use of {top_tool} ({freq[top_tool]}x). Consider if this is optimal."
@@ -461,9 +461,10 @@ class TranscriptAnalytics:
         transcript_ids: list[str] | None = None,
     ) -> TranscriptInsights:
         """Generate comprehensive insights from transcripts."""
+        transcripts_raw: list[TranscriptSession | None]
         if transcript_ids:
-            transcripts = [self.get_transcript(tid) for tid in transcript_ids]
-            transcripts = [t for t in transcripts if t]
+            transcripts_raw = [self.get_transcript(tid) for tid in transcript_ids]
+            transcripts = [t for t in transcripts_raw if t is not None]
         else:
             transcripts = list(self._get_transcripts(None, None))
 
@@ -560,10 +561,25 @@ class TranscriptAnalytics:
             return None
 
         # Get session IDs from track (stored in edges or properties)
-        session_ids = track.edges.get("sessions", []) if hasattr(track, "edges") else []
+        session_ids_raw = (
+            track.edges.get("sessions", []) if hasattr(track, "edges") else []
+        )
         # Also check properties for sessions
-        if not session_ids and hasattr(track, "properties"):
-            session_ids = track.properties.get("sessions", [])
+        if not session_ids_raw and hasattr(track, "properties"):
+            session_ids_raw = track.properties.get("sessions", [])
+
+        # Convert to list of strings (handle both Edge objects and plain strings)
+        session_ids: list[str] = []
+        for item in session_ids_raw:
+            if isinstance(item, str):
+                session_ids.append(item)
+            elif hasattr(item, "target"):
+                # It's an Edge object
+                session_ids.append(str(item.target))
+            else:
+                # Try to convert to string
+                session_ids.append(str(item))
+
         if not session_ids:
             # Return empty stats
             return TrackTranscriptStats(
@@ -578,7 +594,7 @@ class TranscriptAnalytics:
         total_user_messages = 0
         total_tool_calls = 0
         total_duration = 0.0
-        all_session_ids = []
+        all_session_ids: list[str] = []
         session_healths = []
         combined_tool_freq: Counter[str] = Counter()
         combined_transitions: dict[str, dict[str, int]] = {}

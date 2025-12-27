@@ -7,7 +7,7 @@ spike_type and timebox_hours.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.models import Node
@@ -40,7 +40,7 @@ class SpikeBuilder(BaseBuilder["SpikeBuilder"]):
 
     node_type = "spike"
 
-    def __init__(self, sdk: SDK, title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
         """Initialize spike builder with spike-specific defaults."""
         super().__init__(sdk, title, **kwargs)
         # Set spike-specific defaults

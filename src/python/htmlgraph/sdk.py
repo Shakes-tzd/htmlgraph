@@ -205,11 +205,11 @@ class SDK:
         self.phases = PhaseCollection(self)
 
         # Non-work collections
-        self.sessions = BaseCollection(self, "sessions", "session")
-        self.tracks = TrackCollection(
+        self.sessions: BaseCollection = BaseCollection(self, "sessions", "session")
+        self.tracks: TrackCollection = TrackCollection(
             self
         )  # Use specialized collection with builder support
-        self.agents = BaseCollection(self, "agents", "agent")
+        self.agents: BaseCollection = BaseCollection(self, "agents", "agent")
 
         # Learning collections (Active Learning Persistence)
         self.patterns = PatternCollection(self)
@@ -311,7 +311,7 @@ class SDK:
         recommended_next: str | None = None,
         blockers: list[str] | None = None,
         session_id: str | None = None,
-    ):
+    ) -> Any:
         """
         Set handoff context on a session.
 
@@ -858,13 +858,18 @@ class SDK:
             return None
 
         # Auto-claim if requested
-        if auto_claim and task.status == "todo":
+        if auto_claim and task.status == "todo" and collection is not None:
             # Claim the task
-            with collection.edit(task.id) as t:
-                t.status = "in-progress"
-                t.agent_assigned = agent
+            # collection.edit returns context manager or None
+            task_editor: Any = collection.edit(task.id)
+            if task_editor is not None:
+                # collection.edit returns context manager
+                with task_editor as t:
+                    t.status = "in-progress"
+                    t.agent_assigned = agent
 
-        return task
+        result: Node | None = task
+        return result
 
     # =========================================================================
     # Planning Workflow Integration
@@ -976,7 +981,9 @@ class SDK:
 
         # Add reference to planning spike if provided
         if spike_id:
-            builder._data["properties"]["planning_spike"] = spike_id
+            # Access internal data for track builder
+            data: dict[str, Any] = builder._data  # type: ignore[attr-defined]
+            data["properties"]["planning_spike"] = spike_id
 
         # Add spec if requirements provided
         if requirements:
@@ -1311,7 +1318,7 @@ class SDK:
     # =========================================================================
 
     @property
-    def orchestrator(self):
+    def orchestrator(self) -> Any:
         """
         Get the subagent orchestrator for spawning explorer/coder agents.
 
@@ -1330,7 +1337,7 @@ class SDK:
         if self._orchestrator is None:
             from htmlgraph.orchestrator import SubagentOrchestrator
 
-            self._orchestrator = SubagentOrchestrator(self)
+            self._orchestrator = SubagentOrchestrator(self)  # type: ignore[assignment]
         return self._orchestrator
 
     def spawn_explorer(
@@ -1378,7 +1385,8 @@ class SDK:
             patterns=patterns,
             questions=questions,
         )
-        return subagent_prompt.to_task_kwargs()
+        result: dict[str, Any] = subagent_prompt.to_task_kwargs()
+        return result
 
     def spawn_coder(
         self,
@@ -1423,7 +1431,8 @@ class SDK:
             files_to_modify=files_to_modify,
             test_command=test_command,
         )
-        return subagent_prompt.to_task_kwargs()
+        result: dict[str, Any] = subagent_prompt.to_task_kwargs()
+        return result
 
     def orchestrate(
         self,
@@ -1530,11 +1539,11 @@ class SDK:
         # 1. Project status
         result["status"] = self.get_status()
 
-        # 2. Active work item (validation status)
-        result["active_work"] = self.get_active_work_item()
+        # 2. Active work item (validation status) - always include, even if None
+        result["active_work"] = self.get_active_work_item()  # type: ignore[assignment]
 
         # 3. Features list (simplified)
-        features_list = []
+        features_list: list[dict[str, object]] = []
         for feature in self.features.all():
             features_list.append(
                 {
@@ -1546,10 +1555,10 @@ class SDK:
                     "steps_completed": sum(1 for s in feature.steps if s.completed),
                 }
             )
-        result["features"] = features_list
+        result["features"] = features_list  # type: ignore[assignment]
 
         # 4. Sessions list (recent 20)
-        sessions_list = []
+        sessions_list: list[dict[str, Any]] = []
         for session in self.sessions.all()[:20]:
             sessions_list.append(
                 {
@@ -1562,7 +1571,7 @@ class SDK:
                     else None,
                 }
             )
-        result["sessions"] = sessions_list
+        result["sessions"] = sessions_list  # type: ignore[assignment]
 
         # 5. Git log (if requested)
         if include_git_log:
@@ -1574,9 +1583,11 @@ class SDK:
                     check=True,
                     cwd=self._directory.parent,
                 )
-                result["git_log"] = git_result.stdout.strip().split("\n")
+                git_lines: list[str] = git_result.stdout.strip().split("\n")
+                result["git_log"] = git_lines  # type: ignore[assignment]
             except (subprocess.CalledProcessError, FileNotFoundError):
-                result["git_log"] = []
+                empty_list: list[str] = []
+                result["git_log"] = empty_list  # type: ignore[assignment]
 
         # 6. Strategic analytics
         result["analytics"] = {
@@ -1585,7 +1596,7 @@ class SDK:
             "parallel": self.get_parallel_work(max_agents=analytics_max_agents),
         }
 
-        return result
+        return result  # type: ignore[return-value]
 
     def get_active_work_item(
         self,
@@ -1671,7 +1682,7 @@ class SDK:
         # Return first active item (primary work item)
         # TODO: In future, could support multiple active items or prioritization
         if active_items:
-            return active_items[0]
+            return active_items[0]  # type: ignore[return-value]
 
         return None
 
@@ -1788,27 +1799,43 @@ For detailed help on a topic:
         """Return attributes with most useful ones first for discoverability."""
         priority = [
             # Work item managers
-            'features', 'bugs', 'spikes', 'chores', 'epics', 'phases',
+            "features",
+            "bugs",
+            "spikes",
+            "chores",
+            "epics",
+            "phases",
             # Non-work collections
-            'tracks', 'sessions', 'agents',
+            "tracks",
+            "sessions",
+            "agents",
             # Learning collections
-            'patterns', 'insights', 'metrics',
+            "patterns",
+            "insights",
+            "metrics",
             # Orchestration
-            'spawn_explorer', 'spawn_coder', 'orchestrate',
+            "spawn_explorer",
+            "spawn_coder",
+            "orchestrate",
             # Session management
-            'get_session_start_info', 'start_session', 'end_session',
+            "get_session_start_info",
+            "start_session",
+            "end_session",
             # Strategic analytics
-            'find_bottlenecks', 'recommend_next_work', 'get_parallel_work',
+            "find_bottlenecks",
+            "recommend_next_work",
+            "get_parallel_work",
             # Work queue
-            'get_work_queue', 'work_next',
+            "get_work_queue",
+            "work_next",
             # Help
-            'help',
+            "help",
         ]
         # Get all attributes
         all_attrs = object.__dir__(self)
         # Separate into priority, regular, and dunder attributes
-        regular = [a for a in all_attrs if not a.startswith('_') and a not in priority]
-        dunder = [a for a in all_attrs if a.startswith('_')]
+        regular = [a for a in all_attrs if not a.startswith("_") and a not in priority]
+        dunder = [a for a in all_attrs if a.startswith("_")]
         # Return priority items first, then regular, then dunder
         return priority + regular + dunder
 

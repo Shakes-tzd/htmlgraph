@@ -1,0 +1,41 @@
+{
+  "enforcement": {
+    "strict_work_item_required": true,
+    "description": "When true, returns imperative guidance requiring work item creation before exploration/implementation"
+  },
+  "always_allow": {
+    "tools": ["Read", "LSP", "TodoWrite", "BashOutput"],
+    "bash_patterns": [
+      "^git status",
+      "^git diff",
+      "^git log",
+      "^ls",
+      "^pwd",
+      "^echo",
+      "^cat ",
+      "^head ",
+      "^tail ",
+      "^wc "
+    ],
+    "description": "Tools and patterns always allowed without work item check"
+  },
+  "sdk_commands": {
+    "patterns": [
+      "^uv run python.*SDK",
+      "^uv run htmlgraph",
+      "^htmlgraph "
+    ],
+    "description": "Bash patterns that are SDK commands (used to create work items)"
+  },
+  "code_operations": {
+    "tools": ["Edit", "Write", "Delete", "NotebookEdit"],
+    "bash_patterns": [
+      "^sed ",
+      "^awk ",
+      "^mv ",
+      "^rm ",
+      "^cp "
+    ],
+    "description": "Tools and patterns that modify code"
+  }
+}

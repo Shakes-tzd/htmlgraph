@@ -362,6 +362,7 @@ dependencies = [
     { name = "justhtml" },
     { name = "pydantic" },
     { name = "rich" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
     { name = "watchdog" },
 ]
 
@@ -402,6 +403,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'", specifier = ">=4.0.0" },
     { name = "watchdog", specifier = ">=3.0.0" },
 ]
 provides-extras = ["dev", "sqlite", "deploy"]

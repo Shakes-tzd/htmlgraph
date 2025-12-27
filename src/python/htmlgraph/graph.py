@@ -15,12 +15,10 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from htmlgraph.attribute_index import AttributeIndex
 from htmlgraph.converter import NodeConverter
@@ -112,7 +110,9 @@ class GraphSnapshot:
             directory: Graph directory (for context)
         """
         # Deep copy to prevent external mutations
-        self._nodes = {node_id: node.model_copy(deep=True) for node_id, node in nodes.items()}
+        self._nodes = {
+            node_id: node.model_copy(deep=True) for node_id, node in nodes.items()
+        }
         self._directory = directory
 
     def get(self, node_id: str) -> Node | None:
@@ -191,8 +191,7 @@ class GraphSnapshot:
     def nodes(self) -> dict[str, Node]:
         """Get all nodes as a dict (returns copies)."""
         return {
-            node_id: node.model_copy(deep=True)
-            for node_id, node in self._nodes.items()
+            node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()
         }
 
 
@@ -345,7 +344,8 @@ class HtmlGraph:
 
             # Track metrics
             elapsed_ms = (time.perf_counter() - start) * 1000
-            self._metrics["reload_count"] += 1
+            reload_count: int = int(self._metrics.get("reload_count", 0))  # type: ignore[call-overload]
+            self._metrics["reload_count"] = reload_count + 1
             self._metrics["last_reload_time_ms"] = elapsed_ms
 
             return len(self._nodes)
@@ -365,7 +365,7 @@ class HtmlGraph:
         Returns:
             List of Path objects for node files
         """
-        files = []
+        files: list[Path] = []
         patterns = [self.pattern] if isinstance(self.pattern, str) else self.pattern
         for pattern in patterns:
             files.extend(self.directory.glob(pattern))
@@ -453,7 +453,6 @@ class HtmlGraph:
         self._ensure_loaded()
         return iter(self._nodes.values())
 
-
     # =========================================================================
     # Memory-Efficient Loading (for large graphs 10K+ nodes)
     # =========================================================================
@@ -483,7 +482,7 @@ class HtmlGraph:
         # Yield nodes in chunks
         for i in range(0, len(files), chunk_size):
             chunk = []
-            for filepath in files[i:i+chunk_size]:
+            for filepath in files[i : i + chunk_size]:
                 try:
                     node_id = self._filepath_to_node_id(filepath)
                     node = self._converter.load(node_id)
@@ -538,7 +537,6 @@ class HtmlGraph:
         """
         return len(self._get_node_files())
 
-
     # =========================================================================
 
     # =========================================================================
@@ -572,7 +570,7 @@ class HtmlGraph:
         return GraphSnapshot(self._nodes, self.directory)
 
     @contextmanager
-    def transaction(self):
+    def transaction(self) -> Iterator[Any]:
         """
         Context manager for atomic multi-operation transactions.
 
@@ -602,7 +600,9 @@ class HtmlGraph:
                 pass  # No changes persisted
         """
         # Create snapshot before transaction
-        snapshot_nodes = {node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()}
+        snapshot_nodes = {
+            node_id: node.model_copy(deep=True) for node_id, node in self._nodes.items()
+        }
         snapshot_file_hashes = self._file_hashes.copy()
 
         # Transaction context for collecting operations
@@ -613,7 +613,9 @@ class HtmlGraph:
 
             def add(self, node: Node, overwrite: bool = False) -> "TransactionContext":
                 """Queue an add operation."""
-                self._operations.append(lambda: self._graph.add(node, overwrite=overwrite))
+                self._operations.append(
+                    lambda: self._graph.add(node, overwrite=overwrite)
+                )
                 return self
 
             def update(self, node: Node) -> "TransactionContext":
@@ -630,7 +632,7 @@ class HtmlGraph:
                 """Queue a remove operation (alias for delete)."""
                 return self.delete(node_id)
 
-            def _commit(self):
+            def _commit(self) -> None:
                 """Execute all queued operations."""
                 for operation in self._operations:
                     operation()
@@ -769,7 +771,8 @@ class HtmlGraph:
         node = self._converter.load(node_id)
         if node:
             self._nodes[node_id] = node
-            self._metrics["single_reload_count"] += 1
+            reload_count: int = int(self._metrics.get("single_reload_count", 0))  # type: ignore[call-overload]
+            self._metrics["single_reload_count"] = reload_count + 1
         return node
 
     def reload_node(self, node_id: str) -> Node | None:
@@ -824,7 +827,8 @@ class HtmlGraph:
             self._invalidate_cache()
 
             # Track metric
-            self._metrics["single_reload_count"] += 1
+            reload_count: int = int(self._metrics.get("single_reload_count", 0))  # type: ignore[call-overload]
+            self._metrics["single_reload_count"] = reload_count + 1
 
             return updated_node
         except Exception:
@@ -947,14 +951,17 @@ class HtmlGraph:
             graph.query("[data-priority='high'][data-type='feature']")
         """
         self._ensure_loaded()
-        self._metrics["query_count"] += 1
+        query_count: int = int(self._metrics.get("query_count", 0))  # type: ignore[call-overload]
+        self._metrics["query_count"] = query_count + 1
 
         # Check cache first
         if self._cache_enabled and selector in self._query_cache:
-            self._metrics["cache_hits"] += 1
+            cache_hits: int = int(self._metrics.get("cache_hits", 0))  # type: ignore[call-overload]
+            self._metrics["cache_hits"] = cache_hits + 1
             return self._query_cache[selector].copy()  # Return copy to prevent mutation
 
-        self._metrics["cache_misses"] += 1
+        cache_misses: int = int(self._metrics.get("cache_misses", 0))  # type: ignore[call-overload]
+        self._metrics["cache_misses"] = cache_misses + 1
 
         # Time the query
         start = time.perf_counter()
@@ -979,9 +986,11 @@ class HtmlGraph:
 
         # Track timing
         elapsed_ms = (time.perf_counter() - start) * 1000
-        self._metrics["total_query_time_ms"] += elapsed_ms
+        total_time: float = cast(float, self._metrics.get("total_query_time_ms", 0.0))
+        self._metrics["total_query_time_ms"] = total_time + elapsed_ms
 
-        if elapsed_ms > self._metrics["slowest_query_ms"]:
+        slowest: float = cast(float, self._metrics.get("slowest_query_ms", 0.0))
+        if elapsed_ms > slowest:
             self._metrics["slowest_query_ms"] = elapsed_ms
             self._metrics["slowest_query_selector"] = selector
 
@@ -1018,12 +1027,14 @@ class HtmlGraph:
         """
         # Check if already compiled
         if selector in self._compiled_queries:
-            self._metrics["compiled_query_hits"] += 1
+            hits: int = int(self._metrics.get("compiled_query_hits", 0))  # type: ignore[call-overload]
+            self._metrics["compiled_query_hits"] = hits + 1
             return self._compiled_queries[selector]
 
         # Create new compiled query
         compiled = CompiledQuery(selector=selector)
-        self._metrics["compiled_queries"] += 1
+        compiled_count: int = int(self._metrics.get("compiled_queries", 0))  # type: ignore[call-overload]
+        self._metrics["compiled_queries"] = compiled_count + 1
 
         # Add to cache (with LRU eviction if needed)
         if len(self._compiled_queries) >= self._compiled_query_max_size:
@@ -1053,14 +1064,17 @@ class HtmlGraph:
         """
         self._ensure_loaded()
         selector = compiled.selector
-        self._metrics["query_count"] += 1
+        query_count: int = int(self._metrics.get("query_count", 0))  # type: ignore[call-overload]
+        self._metrics["query_count"] = query_count + 1
 
         # Check cache first (same cache as regular query())
         if self._cache_enabled and selector in self._query_cache:
-            self._metrics["cache_hits"] += 1
+            cache_hits: int = int(self._metrics.get("cache_hits", 0))  # type: ignore[call-overload]
+            self._metrics["cache_hits"] = cache_hits + 1
             return self._query_cache[selector].copy()
 
-        self._metrics["cache_misses"] += 1
+        cache_misses: int = int(self._metrics.get("cache_misses", 0))  # type: ignore[call-overload]
+        self._metrics["cache_misses"] = cache_misses + 1
 
         # Time the query
         start = time.perf_counter()
@@ -1070,9 +1084,11 @@ class HtmlGraph:
 
         # Track timing
         elapsed_ms = (time.perf_counter() - start) * 1000
-        self._metrics["total_query_time_ms"] += elapsed_ms
+        total_time: float = cast(float, self._metrics.get("total_query_time_ms", 0.0))
+        self._metrics["total_query_time_ms"] = total_time + elapsed_ms
 
-        if elapsed_ms > self._metrics["slowest_query_ms"]:
+        slowest: float = cast(float, self._metrics.get("slowest_query_ms", 0.0))
+        if elapsed_ms > slowest:
             self._metrics["slowest_query_ms"] = elapsed_ms
             self._metrics["slowest_query_selector"] = selector
 
@@ -1230,7 +1246,7 @@ class HtmlGraph:
         """
         return QueryBuilder(_graph=self)
 
-    def find(self, type: str | None = None, **kwargs) -> Node | None:
+    def find(self, type: str | None = None, **kwargs: Any) -> Node | None:
         """
         Find the first node matching the given criteria.
 
@@ -1257,7 +1273,7 @@ class HtmlGraph:
         return FindAPI(self).find(type=type, **kwargs)
 
     def find_all(
-        self, type: str | None = None, limit: int | None = None, **kwargs
+        self, type: str | None = None, limit: int | None = None, **kwargs: Any
     ) -> list[Node]:
         """
         Find all nodes matching the given criteria.
@@ -1416,9 +1432,12 @@ class HtmlGraph:
         m = self._metrics.copy()
 
         # Calculate derived metrics
-        if m["query_count"] > 0:
-            m["cache_hit_rate"] = f"{m['cache_hits'] / m['query_count'] * 100:.1f}%"
-            m["avg_query_time_ms"] = m["total_query_time_ms"] / m["query_count"]
+        query_count = cast(int, m["query_count"])
+        if query_count > 0:
+            cache_hits = cast(int, m["cache_hits"])
+            total_query_time_ms = cast(float, m["total_query_time_ms"])
+            m["cache_hit_rate"] = f"{cache_hits / query_count * 100:.1f}%"
+            m["avg_query_time_ms"] = total_query_time_ms / query_count
         else:
             m["cache_hit_rate"] = "N/A"
             m["avg_query_time_ms"] = 0.0
@@ -1429,10 +1448,12 @@ class HtmlGraph:
         m["compiled_queries_cached"] = len(self._compiled_queries)
 
         # Calculate compilation hit rate
-        total_compilations = m["compiled_queries"] + m["compiled_query_hits"]
+        compiled_queries = cast(int, m["compiled_queries"])
+        compiled_query_hits = cast(int, m["compiled_query_hits"])
+        total_compilations = compiled_queries + compiled_query_hits
         if total_compilations > 0:
             m["compilation_hit_rate"] = (
-                f"{m['compiled_query_hits'] / total_compilations * 100:.1f}%"
+                f"{compiled_query_hits / total_compilations * 100:.1f}%"
             )
         else:
             m["compilation_hit_rate"] = "N/A"
@@ -1906,7 +1927,7 @@ class HtmlGraph:
         adj = self._build_adjacency(relationship)
         start_time = time.time()
 
-        def dfs(current: str, target: str, path: list[str], visited: set[str]):
+        def dfs(current: str, target: str, path: list[str], visited: set[str]) -> None:
             # Check timeout periodically (every recursive call)
             if time.time() - start_time > timeout_seconds:
                 raise TimeoutError(
@@ -1952,34 +1973,40 @@ class HtmlGraph:
         - completion_rate: Overall completion percentage
         - edge_count: Total number of edges
         """
-        stats = {
+        by_status: defaultdict[str, int] = defaultdict(int)
+        by_type: defaultdict[str, int] = defaultdict(int)
+        by_priority: defaultdict[str, int] = defaultdict(int)
+        edge_count = 0
+
+        stats: dict[str, Any] = {
             "total": len(self._nodes),
-            "by_status": defaultdict(int),
-            "by_type": defaultdict(int),
-            "by_priority": defaultdict(int),
-            "edge_count": 0,
+            "by_status": by_status,
+            "by_type": by_type,
+            "by_priority": by_priority,
+            "edge_count": edge_count,
         }
 
         done_count = 0
         for node in self._nodes.values():
-            stats["by_status"][node.status] += 1
-            stats["by_type"][node.type] += 1
-            stats["by_priority"][node.priority] += 1
+            by_status[node.status] += 1
+            by_type[node.type] += 1
+            by_priority[node.priority] += 1
 
             for edges in node.edges.values():
-                stats["edge_count"] += len(edges)
+                edge_count += len(edges)
 
             if node.status == "done":
                 done_count += 1
 
+        stats["edge_count"] = edge_count
         stats["completion_rate"] = (
             round(done_count / len(self._nodes) * 100, 1) if self._nodes else 0
         )
 
         # Convert defaultdicts to regular dicts
-        stats["by_status"] = dict(stats["by_status"])
-        stats["by_type"] = dict(stats["by_type"])
-        stats["by_priority"] = dict(stats["by_priority"])
+        stats["by_status"] = dict(by_status)
+        stats["by_type"] = dict(by_type)
+        stats["by_priority"] = dict(by_priority)
 
         return stats
 

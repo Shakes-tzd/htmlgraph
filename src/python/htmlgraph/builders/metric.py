@@ -8,7 +8,7 @@ time-series aggregation and trend analysis.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.models import Node
@@ -37,7 +37,7 @@ class MetricBuilder(BaseBuilder["MetricBuilder"]):
 
     node_type = "metric"
 
-    def __init__(self, sdk: SDK, title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
         """Initialize metric builder with metric-specific defaults."""
         super().__init__(sdk, title, **kwargs)
         # Set metric-specific defaults

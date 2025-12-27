@@ -95,7 +95,5 @@ class InsightCollection(BaseCollection["InsightCollection"]):
             >>> problematic = sdk.insights.get_with_issues()
         """
         return [
-            i
-            for i in self.all()
-            if hasattr(i, "issues_detected") and i.issues_detected
+            i for i in self.all() if hasattr(i, "issues_detected") and i.issues_detected
         ]

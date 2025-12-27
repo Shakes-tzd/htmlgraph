@@ -4,10 +4,12 @@ Active Learning Persistence Module.
 Bridges TranscriptAnalytics to the HtmlGraph for persistent learning.
 Analyzes sessions and persists patterns, insights, and metrics to the graph.
 """
+
 from __future__ import annotations
-from datetime import datetime
-from typing import TYPE_CHECKING
+
 from collections import Counter
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -23,7 +25,7 @@ class LearningPersistence:
         >>> learning.persist_patterns()
     """
 
-    def __init__(self, sdk: "SDK"):
+    def __init__(self, sdk: SDK):
         self.sdk = sdk
 
     def persist_session_insight(self, session_id: str) -> str | None:
@@ -35,42 +37,44 @@ class LearningPersistence:
         Returns:
             Insight ID if created, None if session not found
         """
-        session = self.sdk.sessions.get(session_id)
+        # Use session_manager to get full Session object with activity_log
+        # (sdk.sessions.get returns generic Node without activity_log)
+        session = self.sdk.session_manager.get_session(session_id)
         if not session:
             return None
 
         # Calculate health metrics from activity log
         health = self._calculate_health(session)
 
-        # Create insight
-        insight = self.sdk.insights.create(f"Session Analysis: {session_id}") \
-            .for_session(session_id) \
+        # Create insight using builder pattern
+        # Add issues and recommendations BEFORE save() since Node objects are immutable
+        builder = (
+            self.sdk.insights.create(f"Session Analysis: {session_id}")
+            .for_session(session_id)
             .set_health_scores(
                 efficiency=health.get("efficiency", 0.0),
                 retry_rate=health.get("retry_rate", 0.0),
                 context_rebuilds=health.get("context_rebuilds", 0),
                 tool_diversity=health.get("tool_diversity", 0.0),
                 error_recovery=health.get("error_recovery", 0.0),
-            ) \
-            .save()
+            )
+        )
 
-        # Add issues
+        # Add issues via builder
         for issue in health.get("issues", []):
-            insight.issues_detected.append(issue)
+            builder.add_issue(issue)
 
-        # Add recommendations
+        # Add recommendations via builder
         for rec in health.get("recommendations", []):
-            insight.recommendations.append(rec)
+            builder.add_recommendation(rec)
 
-        # Update insight
-        if health.get("issues") or health.get("recommendations"):
-            self.sdk.insights.update(insight)
+        # Save and return
+        insight = builder.save()
+        return cast(str, insight.id)
 
-        return insight.id
-
-    def _calculate_health(self, session) -> dict:
+    def _calculate_health(self, session: Any) -> dict[str, Any]:
         """Calculate health metrics from session activity log."""
-        health = {
+        health: dict[str, Any] = {
             "efficiency": 0.8,  # Default reasonable value
             "retry_rate": 0.0,
             "context_rebuilds": 0,
@@ -80,7 +84,7 @@ class LearningPersistence:
             "recommendations": [],
         }
 
-        if not hasattr(session, 'activity_log') or not session.activity_log:
+        if not hasattr(session, "activity_log") or not session.activity_log:
             return health
 
         activities = session.activity_log
@@ -90,7 +94,9 @@ class LearningPersistence:
             return health
 
         # Count tool usage
-        tools = [a.tool if hasattr(a, 'tool') else a.get('tool', '') for a in activities]
+        tools = [
+            a.tool if not isinstance(a, dict) else a.get("tool", "") for a in activities
+        ]
         tool_counts = Counter(tools)
         unique_tools = len(tool_counts)
 
@@ -98,13 +104,25 @@ class LearningPersistence:
         health["tool_diversity"] = min(unique_tools / 10.0, 1.0)
 
         # Detect retries (same tool twice in a row)
-        retries = sum(1 for i in range(1, len(tools)) if tools[i] == tools[i-1])
+        retries = sum(1 for i in range(1, len(tools)) if tools[i] == tools[i - 1])
         health["retry_rate"] = retries / total if total > 0 else 0.0
 
         # Detect context rebuilds (Read same file multiple times)
-        reads = [a for a in activities if (hasattr(a, 'tool') and a.tool == 'Read') or (isinstance(a, dict) and a.get('tool') == 'Read')]
+        reads = [
+            a
+            for a in activities
+            if (hasattr(a, "tool") and a.tool == "Read")
+            or (isinstance(a, dict) and a.get("tool") == "Read")
+        ]
         if reads:
-            read_targets = [str(getattr(r, 'summary', '') if hasattr(r, 'summary') else r.get('summary', '')) for r in reads]
+            read_targets = [
+                str(
+                    getattr(r, "summary", "")
+                    if hasattr(r, "summary")
+                    else r.get("summary", "")
+                )
+                for r in reads
+            ]
             rebuild_count = len(read_targets) - len(set(read_targets))
             health["context_rebuilds"] = rebuild_count
 
@@ -115,10 +133,14 @@ class LearningPersistence:
         # Generate issues
         if health["retry_rate"] > 0.2:
             health["issues"].append(f"High retry rate: {health['retry_rate']:.0%}")
-            health["recommendations"].append("Consider reading more context before acting")
+            health["recommendations"].append(
+                "Consider reading more context before acting"
+            )
 
         if health["context_rebuilds"] > 2:
-            health["issues"].append(f"Excessive context rebuilds: {health['context_rebuilds']}")
+            health["issues"].append(
+                f"Excessive context rebuilds: {health['context_rebuilds']}"
+            )
             health["recommendations"].append("Cache file contents or take notes")
 
         if health["tool_diversity"] < 0.3:
@@ -137,16 +159,17 @@ class LearningPersistence:
             List of persisted pattern IDs
         """
         # Collect tool sequences from all sessions
-        sequences = []
-        for session in self.sdk.sessions.all():
-            if hasattr(session, 'activity_log') and session.activity_log:
+        # Use session_manager to get full Session objects with activity_log
+        sequences: list[tuple[Any, ...]] = []
+        for session in self.sdk.session_manager.session_converter.load_all():
+            if session.activity_log:
                 tools = [
-                    a.tool if hasattr(a, 'tool') else a.get('tool', '')
+                    a.tool if not isinstance(a, dict) else a.get("tool", "")
                     for a in session.activity_log
                 ]
                 # Extract 3-tool sequences
                 for i in range(len(tools) - 2):
-                    seq = tools[i:i+3]
+                    seq = tools[i : i + 3]
                     if all(seq):  # No empty tools
                         sequences.append(tuple(seq))
 
@@ -154,29 +177,31 @@ class LearningPersistence:
         seq_counts = Counter(sequences)
 
         # Persist patterns with min_count
-        pattern_ids = []
-        for seq, count in seq_counts.items():
+        pattern_ids: list[str | Any] = []
+        for seq, count in seq_counts.items():  # type: ignore[assignment]
             if count >= min_count:
                 # Check if pattern already exists
                 existing = self.sdk.patterns.find_by_sequence(list(seq))
                 if existing:
-                    # Update count
+                    # Update count - use properties dict for updates
                     pattern = existing[0]
-                    pattern.detection_count = count
-                    pattern.last_detected = datetime.now()
+                    pattern.properties["detection_count"] = count
+                    pattern.properties["last_detected"] = datetime.now().isoformat()
                     self.sdk.patterns.update(pattern)
                     pattern_ids.append(pattern.id)
                 else:
-                    # Create new pattern
+                    # Create new pattern using builder methods
                     pattern_type = self._classify_pattern(list(seq))
-                    pattern = self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}") \
-                        .set_sequence(list(seq)) \
-                        .set_pattern_type(pattern_type) \
+                    now = datetime.now()
+                    pattern = (
+                        self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}")
+                        .set_sequence(list(seq))
+                        .set_pattern_type(pattern_type)
+                        .set_detection_count(count)
+                        .set_first_detected(now)
+                        .set_last_detected(now)
                         .save()
-                    pattern.detection_count = count
-                    pattern.first_detected = datetime.now()
-                    pattern.last_detected = datetime.now()
-                    self.sdk.patterns.update(pattern)
+                    )
                     pattern_ids.append(pattern.id)
 
         return pattern_ids
@@ -237,8 +262,10 @@ class LearningPersistence:
         # Collect insights for this period
         insights = list(self.sdk.insights.all())
         period_insights = [
-            i for i in insights
-            if hasattr(i, 'analyzed_at') and i.analyzed_at
+            i
+            for i in insights
+            if hasattr(i, "analyzed_at")
+            and i.analyzed_at
             and start <= i.analyzed_at <= end
         ]
 
@@ -251,36 +278,183 @@ class LearningPersistence:
 
         # Calculate aggregate metrics
         efficiency_scores = [
-            getattr(i, 'efficiency_score', 0.0)
+            getattr(i, "efficiency_score", 0.0)
             for i in period_insights
-            if getattr(i, 'efficiency_score', None)
+            if getattr(i, "efficiency_score", None)
         ]
-        avg_efficiency = sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.0
+        avg_efficiency = (
+            sum(efficiency_scores) / len(efficiency_scores)
+            if efficiency_scores
+            else 0.0
+        )
 
         # Create metric
-        metric = self.sdk.metrics.create(f"Efficiency Metric: {period} ending {end.strftime('%Y-%m-%d')}") \
-            .set_scope("session") \
-            .set_period(period, start, end) \
-            .set_metrics({
-                "avg_efficiency": avg_efficiency,
-                "sessions_analyzed": len(period_insights),
-            }) \
+        metric = (
+            self.sdk.metrics.create(
+                f"Efficiency Metric: {period} ending {end.strftime('%Y-%m-%d')}"
+            )
+            .set_scope("session")
+            .set_period(period, start, end)
+            .set_metrics(
+                {
+                    "avg_efficiency": avg_efficiency,
+                    "sessions_analyzed": len(period_insights),
+                }
+            )
             .save()
+        )
 
         # Note: After save(), metric is a Node object
         # The sessions_in_period is tracked in metric_values
         metric.properties = metric.properties or {}
         metric.properties["data_points_count"] = len(period_insights)
         metric.properties["sessions_in_period"] = [
-            getattr(i, 'session_id', i.id) for i in period_insights
-            if hasattr(i, 'session_id') or hasattr(i, 'id')
+            getattr(i, "session_id", i.id)
+            for i in period_insights
+            if hasattr(i, "session_id") or hasattr(i, "id")
         ]
         self.sdk.metrics.update(metric)
 
-        return metric.id
+        return cast(str, metric.id)
+
+    def analyze_for_orchestrator(self, session_id: str) -> dict[str, Any]:
+        """Analyze session and return compact feedback for orchestrator.
+
+        This method is called on work item completion to surface:
+        - Anti-patterns detected in the session
+        - Errors encountered
+        - Efficiency metrics
+        - Actionable recommendations
+
+        Args:
+            session_id: Session to analyze
+
+        Returns:
+            Dict with analysis results for orchestrator feedback
+        """
+        result: dict[str, Any] = {
+            "session_id": session_id,
+            "anti_patterns": [],
+            "errors": [],
+            "error_count": 0,
+            "efficiency": 0.8,
+            "issues": [],
+            "recommendations": [],
+            "summary": "",
+        }
+
+        session = self.sdk.session_manager.get_session(session_id)
+        if (
+            not session
+            or not hasattr(session, "activity_log")
+            or not session.activity_log
+        ):
+            result["summary"] = "No activity data available for analysis"
+            return result
+
+        activities = session.activity_log
+
+        # Count errors (success=False)
+        errors = []
+        for a in activities:
+            success = a.success if not isinstance(a, dict) else a.get("success", True)
+            if not success:
+                tool = a.tool if not isinstance(a, dict) else a.get("tool", "")
+                summary = a.summary if not isinstance(a, dict) else a.get("summary", "")
+                errors.append({"tool": tool, "summary": summary[:100]})
+
+        result["errors"] = errors[:10]  # Limit to 10 most recent
+        result["error_count"] = len(errors)
+
+        # Detect anti-patterns in this session
+        tools = [
+            a.tool if not isinstance(a, dict) else a.get("tool", "") for a in activities
+        ]
+
+        # Known anti-patterns
+        anti_patterns = [
+            ("Edit", "Edit", "Edit"),
+            ("Bash", "Bash", "Bash"),
+            ("Read", "Read", "Read"),
+        ]
+
+        # Count anti-pattern occurrences
+        anti_pattern_counts: Counter[tuple[str, ...]] = Counter()
+        for i in range(len(tools) - 2):
+            seq = tuple(tools[i : i + 3])
+            if seq in anti_patterns:
+                anti_pattern_counts[seq] += 1
+
+        for seq, count in anti_pattern_counts.most_common():
+            result["anti_patterns"].append(
+                {
+                    "sequence": list(seq),
+                    "count": count,
+                    "description": self._describe_anti_pattern(seq),
+                }
+            )
+
+        # Calculate health metrics
+        health = self._calculate_health(session)
+        result["efficiency"] = health.get("efficiency", 0.8)
+        result["issues"] = health.get("issues", [])
+        result["recommendations"] = health.get("recommendations", [])
+
+        # Generate summary
+        summary_parts = []
+        if result["error_count"] > 0:
+            summary_parts.append(f"{result['error_count']} errors")
+        if result["anti_patterns"]:
+            total_anti = sum(p["count"] for p in result["anti_patterns"])
+            summary_parts.append(f"{total_anti} anti-pattern occurrences")
+        if result["efficiency"] < 0.7:
+            summary_parts.append(f"low efficiency ({result['efficiency']:.0%})")
+
+        if summary_parts:
+            result["summary"] = "⚠️ Issues: " + ", ".join(summary_parts)
+        else:
+            result["summary"] = "✓ Session completed cleanly"
+
+        return result
+
+    def _describe_anti_pattern(self, seq: tuple) -> str:
+        """Return human-readable description of an anti-pattern."""
+        descriptions = {
+            (
+                "Edit",
+                "Edit",
+                "Edit",
+            ): "Multiple edits without testing - run tests between changes",
+            ("Bash", "Bash", "Bash"): "Command spam - plan commands before executing",
+            (
+                "Read",
+                "Read",
+                "Read",
+            ): "Excessive reading - take notes or use grep to find specific content",
+        }
+        return descriptions.get(seq, f"Repeated {seq[0]} without variation")
 
 
-def auto_persist_on_session_end(sdk: "SDK", session_id: str) -> dict:
+def analyze_on_completion(sdk: SDK, session_id: str) -> dict:
+    """Analyze session on work item completion and return orchestrator feedback.
+
+    This is the main entry point called by complete_feature().
+
+    Returns:
+        Dict with:
+        - anti_patterns: List of detected anti-patterns with counts
+        - errors: List of error summaries
+        - error_count: Total error count
+        - efficiency: Efficiency score (0.0-1.0)
+        - issues: List of detected issues
+        - recommendations: List of recommendations
+        - summary: One-line summary for orchestrator
+    """
+    learning = LearningPersistence(sdk)
+    return learning.analyze_for_orchestrator(session_id)
+
+
+def auto_persist_on_session_end(sdk: SDK, session_id: str) -> dict:
     """Convenience function to auto-persist learning data when session ends.
 
     Returns:

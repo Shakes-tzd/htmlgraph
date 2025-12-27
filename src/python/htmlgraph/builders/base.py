@@ -42,7 +42,7 @@ class BaseBuilder(Generic[BuilderT]):
 
     node_type: str = "node"  # Override in subclasses
 
-    def __init__(self, sdk: SDK, title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
         """
         Initialize builder.
 
@@ -73,22 +73,22 @@ class BaseBuilder(Generic[BuilderT]):
         self._data["edges"][edge_type].append(
             Edge(target_id=target_id, relationship=relationship or edge_type)
         )
-        return self  # type: ignore
+        return self
 
-    def _set_date(self, field_name: str, date_value) -> Self:
+    def _set_date(self, field_name: str, date_value: Any) -> Self:
         """Set a date field in properties, converting to ISO format if needed."""
         iso_date = (
             date_value.isoformat() if hasattr(date_value, "isoformat") else date_value
         )
         self._data["properties"][field_name] = iso_date
-        return self  # type: ignore
+        return self
 
-    def _append_to_list(self, field_name: str, value) -> Self:
+    def _append_to_list(self, field_name: str, value: Any) -> Self:
         """Append a value to a list field in properties, creating list if needed."""
         if field_name not in self._data["properties"]:
             self._data["properties"][field_name] = []
         self._data["properties"][field_name].append(value)
-        return self  # type: ignore
+        return self
 
     def set_priority(self, priority: str) -> BuilderT:
         """Set node priority (low, medium, high, critical)."""

@@ -221,7 +221,7 @@ def sync_all_files(project_root: Path, dry_run: bool = False) -> list[str]:
     return changes
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Synchronize AI agent memory files for a project"
     )

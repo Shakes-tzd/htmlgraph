@@ -11,6 +11,7 @@ Automates setup of HtmlGraph for different AI CLI platforms:
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 
 def check_command_exists(command: str) -> bool:
@@ -19,9 +20,10 @@ def check_command_exists(command: str) -> bool:
 
 
 def run_command(
-    cmd: list[str], capture=False, check=True
-) -> subprocess.CompletedProcess:
+    cmd: list[str], capture: bool = False, check: bool = True
+) -> subprocess.CompletedProcess[Any]:
     """Run a shell command."""
+    result: subprocess.CompletedProcess[Any]
     try:
         if capture:
             result = subprocess.run(cmd, capture_output=True, text=True, check=check)
@@ -36,7 +38,7 @@ def run_command(
         raise
 
 
-def setup_claude(args):
+def setup_claude(args: Any) -> bool:
     """Set up HtmlGraph for Claude Code."""
     print("🔧 Setting up HtmlGraph for Claude Code...")
     print()
@@ -99,7 +101,7 @@ def setup_claude(args):
     return True
 
 
-def setup_codex(args):
+def setup_codex(args: Any) -> bool:
     """Set up HtmlGraph for Codex CLI."""
     print("🔧 Setting up HtmlGraph for Codex CLI...")
     print()
@@ -192,7 +194,7 @@ def setup_codex(args):
     return True
 
 
-def setup_gemini(args):
+def setup_gemini(args: Any) -> bool:
     """Set up HtmlGraph for Gemini CLI."""
     print("🔧 Setting up HtmlGraph for Gemini CLI...")
     print()
@@ -265,7 +267,7 @@ def setup_gemini(args):
     return True
 
 
-def setup_all(args):
+def setup_all(args: Any) -> bool:
     """Set up HtmlGraph for all supported platforms."""
     print("🚀 Setting up HtmlGraph for all supported platforms...")
     print("=" * 60)

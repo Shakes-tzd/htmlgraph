@@ -318,4 +318,7 @@ def get_depth(node_id: str) -> int:
         2
     """
     parsed = parse_id(node_id)
-    return len(parsed.get("hierarchy", []))
+    hierarchy = parsed.get("hierarchy", [])
+    if isinstance(hierarchy, list):
+        return len(hierarchy)
+    return 0

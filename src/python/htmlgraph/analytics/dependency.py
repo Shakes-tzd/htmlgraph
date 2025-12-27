@@ -281,7 +281,7 @@ class DependencyAnalytics:
             in_degree[node.id] = count
 
         levels = []
-        processed = set()
+        processed: set[str] = set()
 
         while len(processed) < len(node_ids):
             # Find all nodes with in-degree 0 (no unprocessed dependencies)
@@ -390,9 +390,9 @@ class DependencyAnalytics:
 
         # Generate recommendations
         recommendations = []
-        for node in high_risk[:3]:
+        for risk_node in high_risk[:3]:
             recommendations.append(
-                f"Break {node.title} into smaller features to reduce SPOF risk"
+                f"Break {risk_node.title} into smaller features to reduce SPOF risk"
             )
         if cycles:
             recommendations.append(
@@ -751,7 +751,7 @@ class DependencyAnalytics:
 
         return dependents_set
 
-    def invalidate_cache(self):
+    def invalidate_cache(self) -> None:
         """
         Clear the transitive dependency cache.
 

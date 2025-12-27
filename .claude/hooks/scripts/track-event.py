@@ -504,6 +504,13 @@ def main():
                 is_error = not success_field
             else:
                 is_error = bool(tool_response.get("is_error", False))
+
+            # Additional check for Bash failures: detect non-zero exit codes
+            if tool_name == "Bash" and not is_error:
+                output = str(tool_response.get("output", "") or tool_response.get("content", ""))
+                # Check for exit code patterns (e.g., "Exit code 1", "exit status 1")
+                if re.search(r"Exit code [1-9]\d*|exit status [1-9]\d*", output, re.IGNORECASE):
+                    is_error = True
         else:
             # For list or other non-dict responses (like Playwright), assume success
             is_error = False

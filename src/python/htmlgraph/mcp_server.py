@@ -33,7 +33,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from htmlgraph.session_manager import SessionManager
 
@@ -75,12 +75,12 @@ class StdioTransport:
 
     def __init__(
         self,
-        inp=None,
-        out=None,
+        inp: Any = None,
+        out: Any = None,
         *,
         force_content_length: bool | None = None,
         log_to_stderr: bool = True,
-    ):
+    ) -> None:
         self.inp = inp or sys.stdin.buffer
         self.out = out or sys.stdout.buffer
         self.log_to_stderr = log_to_stderr
@@ -121,7 +121,7 @@ class StdioTransport:
                 False if self.use_content_length is None else self.use_content_length
             )
             try:
-                return json.loads(line.decode("utf-8").strip())
+                return cast(dict[str, Any], json.loads(line.decode("utf-8").strip()))
             except Exception:
                 # If we can't parse, keep scanning (avoids hanging on unexpected headers).
                 self._log(f"mcp: skipped non-json line: {line[:120]!r}")
@@ -180,7 +180,7 @@ class StdioTransport:
         if not body:
             return None
         try:
-            return json.loads(body.decode("utf-8"))
+            return cast(dict[str, Any], json.loads(body.decode("utf-8")))
         except Exception as e:
             self._log(f"mcp: invalid json body: {e}")
             return None

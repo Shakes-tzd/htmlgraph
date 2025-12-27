@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 
 # ANSI color codes
@@ -152,9 +153,9 @@ class Deployer:
         with open(pyproject, "rb") as f:
             data = tomllib.load(f)
 
-        return data.get("project", {}).get("version", "unknown")
+        return cast(str, data.get("project", {}).get("version", "unknown"))
 
-    def log_section(self, message: str):
+    def log_section(self, message: str) -> None:
         """Log a section header."""
         print()
         print(f"{Colors.BLUE}{'=' * 60}{Colors.NC}")
@@ -162,19 +163,19 @@ class Deployer:
         print(f"{Colors.BLUE}{'=' * 60}{Colors.NC}")
         print()
 
-    def log_success(self, message: str):
+    def log_success(self, message: str) -> None:
         """Log a success message."""
         print(f"{Colors.GREEN}✅ {message}{Colors.NC}")
 
-    def log_error(self, message: str):
+    def log_error(self, message: str) -> None:
         """Log an error message."""
         print(f"{Colors.RED}❌ {message}{Colors.NC}")
 
-    def log_warning(self, message: str):
+    def log_warning(self, message: str) -> None:
         """Log a warning message."""
         print(f"{Colors.YELLOW}⚠️  {message}{Colors.NC}")
 
-    def log_info(self, message: str):
+    def log_info(self, message: str) -> None:
         """Log an info message."""
         print(f"ℹ️  {message}")
 
@@ -207,7 +208,7 @@ class Deployer:
                 print(e.stderr, file=sys.stderr)
             raise
 
-    def run_hook(self, hook_commands: list[str], hook_name: str):
+    def run_hook(self, hook_commands: list[str], hook_name: str) -> None:
         """Run custom hook commands."""
         if not hook_commands:
             return
@@ -229,7 +230,7 @@ class Deployer:
             return False
         return True
 
-    def _step_git_push(self):
+    def _step_git_push(self) -> None:
         """Push to git remote."""
         self.log_section("Step 1: Git Push")
 
@@ -255,7 +256,7 @@ class Deployer:
         )
         self.log_success("Git push complete")
 
-    def _step_build(self):
+    def _step_build(self) -> None:
         """Build the package."""
         self.log_section("Step 2: Build Package")
 
@@ -287,7 +288,7 @@ class Deployer:
                 for file in dist_dir.iterdir():
                     print(f"  - {file.name}")
 
-    def _step_pypi_publish(self):
+    def _step_pypi_publish(self) -> None:
         """Publish to PyPI."""
         self.log_section("Step 3: Publish to PyPI")
 
@@ -350,7 +351,7 @@ class Deployer:
             f"View at: https://pypi.org/project/{package_name}/{self.version}/"
         )
 
-    def _step_local_install(self):
+    def _step_local_install(self) -> None:
         """Install package locally."""
         self.log_section("Step 4: Install Locally")
 
@@ -399,7 +400,7 @@ class Deployer:
             except Exception as e:
                 self.log_warning(f"Could not verify installation: {e}")
 
-    def _step_update_plugins(self):
+    def _step_update_plugins(self) -> None:
         """Update plugins (Claude, Gemini, etc.)."""
         self.log_section("Step 5: Update Plugins")
 
@@ -428,7 +429,7 @@ class Deployer:
             except Exception as e:
                 self.log_warning(f"{plugin_name} update failed: {e}")
 
-    def deploy(self):
+    def deploy(self) -> None:
         """Run the full deployment process."""
         self.log_section(f"Deployment - {self.config.project_name} v{self.version}")
 
@@ -466,7 +467,7 @@ class Deployer:
         print()
 
 
-def create_deployment_config_template(output_path: Path):
+def create_deployment_config_template(output_path: Path) -> None:
     """Create a template deployment configuration file."""
 
     template = """# HtmlGraph Deployment Configuration

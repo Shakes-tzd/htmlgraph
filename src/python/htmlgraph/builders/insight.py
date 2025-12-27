@@ -7,7 +7,7 @@ session health scoring and pattern detection.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.models import Node
@@ -36,7 +36,7 @@ class InsightBuilder(BaseBuilder["InsightBuilder"]):
 
     node_type = "insight"
 
-    def __init__(self, sdk: SDK, title: str, **kwargs):
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
         """Initialize insight builder with insight-specific defaults."""
         super().__init__(sdk, title, **kwargs)
         # Set insight-specific defaults
