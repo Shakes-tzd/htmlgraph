@@ -65,6 +65,7 @@ class HtmlGraph:
         self._nodes: dict[str, Node] = {}
         self._converter = NodeConverter(directory, stylesheet_path)
         self._edge_index = EdgeIndex()
+        self._attr_index = AttributeIndex()
         self._query_cache: dict[str, list[Node]] = {}
         self._adjacency_cache: dict[str, dict[str, list[str]]] | None = None
         self._cache_enabled: bool = True
@@ -92,9 +93,10 @@ class HtmlGraph:
             self.reload()
 
     def _invalidate_cache(self) -> None:
-        """Clear query and adjacency caches. Called when graph is modified."""
+        """Clear query, adjacency, and attribute caches. Called when graph is modified."""
         self._query_cache.clear()
         self._adjacency_cache = None
+        self._attr_index.clear()
 
     def _compute_file_hash(self, filepath: Path) -> str:
         """
@@ -157,6 +159,8 @@ class HtmlGraph:
                     self._file_hashes[str(filepath)] = file_hash
 
             # Rebuild edge index for O(1) reverse lookups
+            # Rebuild attribute index for O(1) attribute lookups
+            self._attr_index.rebuild(self._nodes)
             self._edge_index.rebuild(self._nodes)
 
             self._explicitly_loaded = True
@@ -266,17 +270,26 @@ class HtmlGraph:
         if node.id in self._nodes and not overwrite:
             raise ValueError(f"Node already exists: {node.id}")
 
-        # If overwriting, remove old edges from index first
+        # If overwriting, remove old node from indexes first
         if overwrite and node.id in self._nodes:
+            old_node = self._nodes[node.id]
             self._edge_index.remove_node(node.id)
+            self._attr_index.remove_node(node.id, old_node)
 
         filepath = self._converter.save(node)
         self._nodes[node.id] = node
+
+        # Update file hash
+        file_hash = self._compute_file_hash(filepath)
+        self._file_hashes[str(filepath)] = file_hash
 
         # Add new edges to index
         for relationship, edges in node.edges.items():
             for edge in edges:
                 self._edge_index.add(node.id, edge.target_id, edge.relationship)
+
+        # Add node to attribute index
+        self._attr_index.add_node(node.id, node)
 
         self._invalidate_cache()
         return filepath
@@ -315,6 +328,11 @@ class HtmlGraph:
 
         filepath = self._converter.save(node)
         self._nodes[node.id] = node
+
+        # Update file hash
+        file_hash = self._compute_file_hash(filepath)
+        self._file_hashes[str(filepath)] = file_hash
+
         self._invalidate_cache()
         return filepath
 
@@ -352,6 +370,7 @@ class HtmlGraph:
 
         Much faster than full reload() when only one node changed.
         Updates the node in cache and refreshes its edges in the index.
+        Uses file hash to skip reload if content hasn't changed.
 
         Args:
             node_id: ID of the node to reload
@@ -367,6 +386,11 @@ class HtmlGraph:
         if not filepath:
             return None
 
+        # Check if file has actually changed
+        if not self.has_file_changed(filepath):
+            # File unchanged, return cached node if available
+            return self._nodes.get(node_id)
+
         try:
             # Remove old node's edges from index if exists
             if node_id in self._nodes:
@@ -380,6 +404,10 @@ class HtmlGraph:
 
             # Update cache
             self._nodes[node_id] = updated_node
+
+            # Update file hash
+            file_hash = self._compute_file_hash(filepath)
+            self._file_hashes[str(filepath)] = file_hash
 
             # Add new edges to index
             self._edge_index.add_node_edges(node_id, updated_node)
@@ -440,6 +468,11 @@ class HtmlGraph:
             True if node was removed
         """
         if node_id in self._nodes:
+            # Find and remove file hash
+            filepath = self._find_node_file(node_id)
+            if filepath:
+                self._file_hashes.pop(str(filepath), None)
+
             # Remove all edges involving this node from index
             self._edge_index.remove_node(node_id)
             del self._nodes[node_id]
@@ -570,16 +603,100 @@ class HtmlGraph:
         return [node for node in self._nodes.values() if predicate(node)]
 
     def by_status(self, status: str) -> list[Node]:
-        """Get all nodes with given status."""
-        return self.filter(lambda n: n.status == status)
+        """
+        Get all nodes with given status (O(1) lookup via attribute index).
+
+        Uses the attribute index for efficient lookups instead of
+        filtering all nodes.
+
+        Args:
+            status: Status value to filter by
+
+        Returns:
+            List of nodes with the given status
+        """
+        self._ensure_loaded()
+        self._attr_index.ensure_built(self._nodes)
+        node_ids = self._attr_index.get_by_status(status)
+        return [self._nodes[node_id] for node_id in node_ids if node_id in self._nodes]
 
     def by_type(self, node_type: str) -> list[Node]:
-        """Get all nodes with given type."""
-        return self.filter(lambda n: n.type == node_type)
+        """
+        Get all nodes with given type (O(1) lookup via attribute index).
+
+        Uses the attribute index for efficient lookups instead of
+        filtering all nodes.
+
+        Args:
+            node_type: Node type to filter by
+
+        Returns:
+            List of nodes with the given type
+        """
+        self._ensure_loaded()
+        self._attr_index.ensure_built(self._nodes)
+        node_ids = self._attr_index.get_by_type(node_type)
+        return [self._nodes[node_id] for node_id in node_ids if node_id in self._nodes]
 
     def by_priority(self, priority: str) -> list[Node]:
-        """Get all nodes with given priority."""
-        return self.filter(lambda n: n.priority == priority)
+        """
+        Get all nodes with given priority (O(1) lookup via attribute index).
+
+        Uses the attribute index for efficient lookups instead of
+        filtering all nodes.
+
+        Args:
+            priority: Priority value to filter by
+
+        Returns:
+            List of nodes with the given priority
+        """
+        self._ensure_loaded()
+        self._attr_index.ensure_built(self._nodes)
+        node_ids = self._attr_index.get_by_priority(priority)
+        return [self._nodes[node_id] for node_id in node_ids if node_id in self._nodes]
+
+    def get_by_status(self, status: str) -> list[Node]:
+        """
+        Get all nodes with given status (O(1) lookup via attribute index).
+
+        Alias for by_status() with explicit name for clarity.
+
+        Args:
+            status: Status value to filter by
+
+        Returns:
+            List of nodes with the given status
+        """
+        return self.by_status(status)
+
+    def get_by_type(self, node_type: str) -> list[Node]:
+        """
+        Get all nodes with given type (O(1) lookup via attribute index).
+
+        Alias for by_type() with explicit name for clarity.
+
+        Args:
+            node_type: Node type to filter by
+
+        Returns:
+            List of nodes with the given type
+        """
+        return self.by_type(node_type)
+
+    def get_by_priority(self, priority: str) -> list[Node]:
+        """
+        Get all nodes with given priority (O(1) lookup via attribute index).
+
+        Alias for by_priority() with explicit name for clarity.
+
+        Args:
+            priority: Priority value to filter by
+
+        Returns:
+            List of nodes with the given priority
+        """
+        return self.by_priority(priority)
 
     def query_builder(self) -> QueryBuilder:
         """
@@ -755,6 +872,24 @@ class HtmlGraph:
     def edge_index(self) -> EdgeIndex:
         """Access the edge index for advanced queries."""
         return self._edge_index
+
+    @property
+    def attribute_index(self) -> AttributeIndex:
+        """
+        Access the attribute index for advanced queries.
+
+        The attribute index is lazy-built on first access.
+
+        Returns:
+            AttributeIndex instance
+
+        Example:
+            >>> stats = graph.attribute_index.stats()
+            >>> print(stats)
+        """
+        self._ensure_loaded()
+        self._attr_index.ensure_built(self._nodes)
+        return self._attr_index
 
     @property
     def cache_stats(self) -> dict:
