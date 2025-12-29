@@ -34,12 +34,46 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">⏳ Add orchestration section to AGENTS.md with clear 'when to use'</li>
-                <li data-completed="false">⏳ Add sdk.spawn_coder() call in session-start context hints</li>
-                <li data-completed="false">⏳ Create pre-Task-tool hook to suggest SDK orchestration</li>
-                <li data-completed="false">⏳ Add orchestration metrics to session analytics</li>
-                <li data-completed="false">⏳ Test with next multi-agent task</li>
+                <li data-completed="false">⏳ Investigate if hook additionalContext is surfaced to agent</li>
+                <li data-completed="false">⏳ Add skill activation reminder to context</li>
+                <li data-completed="false">⏳ Consider auto-activating htmlgraph-tracker on session start</li>
+                <li data-completed="false">⏳ Add parallel-orchestrator reminder when Task tool is used</li>
+                <li data-completed="false">⏳ Test with next parallel work session</li>
             </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            
+## Problem
+Session-start hook instructs skill activation but it's not happening.
+
+## Evidence
+1. Session-start hook explicitly says:
+   > **IMPORTANT: Activate the `htmlgraph-tracker` skill now using the Skill tool.**
+2. I did NOT activate the skill at session start
+3. When spawning agents, I should have activated `parallel-orchestrator` skill
+4. Neither skill was activated during this session
+
+## Root Cause Options
+1. **Hook output not surfaced** - I don't see the additionalContext from hooks
+2. **I chose to ignore** - I saw it but didn't follow the instruction
+3. **No enforcement** - Skills require explicit activation, no automatic trigger
+
+## Three Skills Available
+- `htmlgraph-tracker` - SDK usage, step completion (every session)
+- `parallel-orchestrator` - 6-phase parallel workflow (when spawning agents)
+- `strategic-planning` - Bottleneck detection (when planning)
+
+## Expected Behavior
+1. At session start → Activate `htmlgraph-tracker`
+2. Before spawning agents → Activate `parallel-orchestrator`
+3. Skills provide imperative instructions for orchestration
+
+## Impact
+- Orchestration workflow not followed
+- Task tool used directly instead of SDK methods
+- No 6-phase parallel workflow (analyze, prepare, dispatch, monitor, aggregate, validate)
+
         </section>
     </article>
 </body>
