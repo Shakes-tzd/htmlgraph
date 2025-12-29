@@ -12,7 +12,7 @@ Provides:
 import fnmatch
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -2338,8 +2338,6 @@ class SessionManager:
                 return None
             # If timezone-aware, convert to naive UTC
             if dt.tzinfo is not None:
-                from datetime import timezone
-
                 return dt.astimezone(timezone.utc).replace(tzinfo=None)
             return dt
 
