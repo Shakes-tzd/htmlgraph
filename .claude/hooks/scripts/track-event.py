@@ -219,6 +219,30 @@ def save_drift_queue(graph_dir: Path, queue: dict) -> None:
         print(f"Warning: Could not save drift queue: {e}", file=sys.stderr)
 
 
+def clear_drift_queue_activities(graph_dir: Path) -> None:
+    """
+    Clear activities from the drift queue after successful classification.
+
+    This removes stale entries that have been processed, preventing indefinite accumulation.
+    """
+    queue_path = graph_dir / DRIFT_QUEUE_FILE
+    try:
+        # Load existing queue to preserve last_classification timestamp
+        queue = {"activities": [], "last_classification": datetime.now().isoformat()}
+        if queue_path.exists():
+            with open(queue_path) as f:
+                existing = json.load(f)
+                # Preserve the classification timestamp if it exists
+                if existing.get("last_classification"):
+                    queue["last_classification"] = existing["last_classification"]
+
+        # Save cleared queue
+        with open(queue_path, "w") as f:
+            json.dump(queue, f, indent=2)
+    except Exception as e:
+        print(f"Warning: Could not clear drift queue: {e}", file=sys.stderr)
+
+
 def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
     """Add a high-drift activity to the queue."""
     max_age_hours = config.get("queue", {}).get("max_age_hours", 48)
@@ -596,8 +620,8 @@ def main():
                                 )
                                 if result.returncode == 0:
                                     nudge = f"Drift auto-classification completed. Check .htmlgraph/ for new work item."
-                                    queue["last_classification"] = datetime.now().isoformat()
-                                    save_drift_queue(graph_dir, queue)
+                                    # Clear the queue after successful classification
+                                    clear_drift_queue_activities(graph_dir)
                                 else:
                                     # Fallback to manual prompt
                                     nudge = f"""HIGH DRIFT ({drift_score:.2f}) - Headless classification failed.
