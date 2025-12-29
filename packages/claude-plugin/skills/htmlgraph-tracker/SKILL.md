@@ -918,6 +918,123 @@ impact = analytics.impact_analysis("feature-001")
 
 ---
 
+## Orchestrator Workflow (Multi-Agent Delegation)
+
+**CRITICAL: When spawning subagents with Task tool, follow the orchestrator workflow.**
+
+### When to Use Orchestration
+
+Use orchestration (spawn subagents) when:
+- Multiple independent tasks can run in parallel
+- Work can be partitioned without conflicts
+- Speedup factor > 1.5x
+- `sdk.get_parallel_work()` shows `max_parallelism >= 2`
+
+### 6-Phase Parallel Workflow
+
+```
+1. ANALYZE   → Check dependencies, assess parallelizability
+2. PREPARE   → Cache shared context, partition files
+3. DISPATCH  → Generate prompts via SDK, spawn agents in ONE message
+4. MONITOR   → Track health metrics per agent
+5. AGGREGATE → Collect results, detect conflicts
+6. VALIDATE  → Verify outputs, run tests
+```
+
+### SDK Orchestration Methods (USE THESE!)
+
+**IMPORTANT: Use SDK methods instead of raw Task prompts!**
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="orchestrator")
+
+# 1. ANALYZE - Check if work can be parallelized
+parallel = sdk.get_parallel_work(max_agents=5)
+if parallel["max_parallelism"] < 2:
+    print("Work sequentially instead")
+
+# 2. PLAN - Get structured prompts with context
+plan = sdk.plan_parallel_work(max_agents=3)
+
+if plan["can_parallelize"]:
+    # 3. DISPATCH - Spawn all agents in ONE message
+    for p in plan["prompts"]:
+        Task(
+            subagent_type="general-purpose",
+            prompt=p["prompt"],
+            description=p["description"]
+        )
+
+    # 4-5. AGGREGATE - After agents complete
+    results = sdk.aggregate_parallel_results(agent_ids)
+
+    # 6. VALIDATE
+    if results["all_passed"]:
+        print("✅ Parallel execution validated!")
+```
+
+### Why SDK Over Raw Prompts?
+
+| Raw Task Prompt | SDK Orchestration |
+|-----------------|-------------------|
+| No context caching | Shares context efficiently |
+| No file isolation | Prevents conflicts |
+| Manual prompt writing | Structured prompts |
+| No aggregation | Automatic result collection |
+| No feature linking | Auto-links to work items |
+
+### Quick Reference
+
+```python
+# Check parallelizability
+parallel = sdk.get_parallel_work(max_agents=5)
+
+# Plan parallel work
+plan = sdk.plan_parallel_work(max_agents=3)
+
+# Alternative: spawn individual agents
+explorer_prompt = sdk.spawn_explorer(task="Find API endpoints", scope="src/api/")
+coder_prompt = sdk.spawn_coder(feature_id="feat-123", context="...")
+
+# Full orchestration
+prompts = sdk.orchestrate("feat-123", exploration_scope="src/", test_command="pytest")
+```
+
+### Anti-Patterns to Avoid
+
+❌ **DON'T:** Write raw prompts to Task tool
+```python
+# BAD - bypasses SDK orchestration
+Task(prompt="Fix the bug in auth.py...", subagent_type="general-purpose")
+```
+
+✅ **DO:** Use SDK to generate prompts
+```python
+# GOOD - uses SDK orchestration with proper context
+prompt = sdk.spawn_coder(feature_id="bug-123", files_to_modify=["auth.py"])
+Task(prompt=prompt["prompt"], ...)
+```
+
+❌ **DON'T:** Send Task calls in separate messages (sequential)
+```python
+# BAD - agents run one at a time
+result1 = Task(...)  # Wait
+result2 = Task(...)  # Then next
+```
+
+✅ **DO:** Send all Task calls in ONE message (parallel)
+```python
+# GOOD - true parallelism
+for p in prompts:
+    Task(prompt=p["prompt"], ...)  # All in same response
+```
+
+**See also**: `packages/claude-plugin/skills/parallel-orchestrator/SKILL.md` for detailed 6-phase workflow
+
+---
+
 ## Work Type Classification (Phase 1)
 
 **NEW: HtmlGraph now automatically categorizes all work by type to differentiate exploratory work from implementation.**

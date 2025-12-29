@@ -12,7 +12,7 @@ Provides:
 import fnmatch
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.ids import generate_id
 from htmlgraph.models import ActivityEntry, Node, Session
 from htmlgraph.services import ClaimingService
+from htmlgraph.spike_index import ActiveAutoSpikeIndex
 
 
 class SessionManager:
@@ -82,6 +83,8 @@ class SessionManager:
         graph_dir: str | Path = ".htmlgraph",
         wip_limit: int = DEFAULT_WIP_LIMIT,
         session_dedupe_window_seconds: int = DEFAULT_SESSION_DEDUPE_WINDOW_SECONDS,
+        features_graph: HtmlGraph | None = None,
+        bugs_graph: HtmlGraph | None = None,
     ):
         """
         Initialize SessionManager.
@@ -89,6 +92,9 @@ class SessionManager:
         Args:
             graph_dir: Directory containing HtmlGraph data
             wip_limit: Maximum features in progress simultaneously
+            session_dedupe_window_seconds: Deduplication window for sessions
+            features_graph: Optional pre-initialized HtmlGraph for features (avoids double-loading)
+            bugs_graph: Optional pre-initialized HtmlGraph for bugs (avoids double-loading)
         """
         self.graph_dir = Path(graph_dir)
         self.wip_limit = wip_limit
@@ -107,9 +113,18 @@ class SessionManager:
         # Session converter
         self.session_converter = SessionConverter(self.sessions_dir)
 
-        # Feature graphs
-        self.features_graph = HtmlGraph(self.features_dir, auto_load=True)
-        self.bugs_graph = HtmlGraph(self.bugs_dir, auto_load=True)
+        # Feature graphs - reuse provided instances to avoid double-loading, or create new with lazy loading
+        # Note: Use 'is not None' check because HtmlGraph.__bool__ returns False when empty
+        self.features_graph = (
+            features_graph
+            if features_graph is not None
+            else HtmlGraph(self.features_dir, auto_load=False)
+        )
+        self.bugs_graph = (
+            bugs_graph
+            if bugs_graph is not None
+            else HtmlGraph(self.bugs_dir, auto_load=False)
+        )
 
         # Claiming service (handles feature claims/releases)
         self.claiming_service = ClaimingService(
@@ -129,9 +144,9 @@ class SessionManager:
         self._active_features_cache: list[Node] | None = None
         self._features_cache_dirty: bool = True
 
-        # Index of active auto-generated spike IDs (session-init, transition, conversation-init)
-        # This avoids loading all spikes from disk just to find the active ones
-        self._active_auto_spikes: set[str] = set()
+        # Fast index for active auto-generated spikes (avoids scanning all spike files)
+        self._spike_index = ActiveAutoSpikeIndex(self.graph_dir)
+        self._active_auto_spikes: set[str] = self._spike_index.get_all()
 
         # Append-only event log (Git-friendly source of truth for activities)
         self.events_dir = self.graph_dir / "events"
@@ -310,6 +325,10 @@ class SessionManager:
         self._sessions_cache_dirty = True
         self._active_session = session
 
+        # Complete any lingering transition spikes from previous conversations
+        # This marks the end of the previous conversation's transition period
+        self._complete_transition_spikes_on_conversation_start(session.agent)
+
         # Auto-create session-init spike for transitional activities
         self._create_session_init_spike(session)
 
@@ -337,6 +356,7 @@ class SessionManager:
             # Add to index if it's still active
             if existing.status == "in-progress":
                 self._active_auto_spikes.add(existing.id)
+                self._spike_index.add(existing.id, "session-init", session.id)
             return existing
 
         # Create session-init spike
@@ -356,8 +376,9 @@ class SessionManager:
         # Save spike
         spike_converter.save(spike)
 
-        # Add to active auto-spikes index
+        # Add to active auto-spikes index (both in-memory and persistent)
         self._active_auto_spikes.add(spike.id)
+        self._spike_index.add(spike.id, "session-init", session.id)
 
         # Link session to spike
         if spike.id not in session.worked_on:
@@ -402,8 +423,9 @@ class SessionManager:
         spike_converter = NodeConverter(self.graph_dir / "spikes")
         spike_converter.save(spike)
 
-        # Add to active auto-spikes index
+        # Add to active auto-spikes index (both in-memory and persistent)
         self._active_auto_spikes.add(spike.id)
+        self._spike_index.add(spike.id, "transition", session.id)
 
         # Link session to spike
         if spike.id not in session.worked_on:
@@ -411,6 +433,60 @@ class SessionManager:
             self.session_converter.save(session)
 
         return spike
+
+    def _complete_transition_spikes_on_conversation_start(
+        self, agent: str
+    ) -> list[Node]:
+        """
+        Complete transition spikes from previous conversations when a new conversation starts.
+
+        This implements the state management pattern:
+        1. Work item completes → creates transition spike
+        2. New conversation starts → completes previous transition spike
+        3. New work item starts → completes session-init spike
+
+        Args:
+            agent: Agent starting the new conversation
+
+        Returns:
+            List of completed transition spikes
+        """
+        from htmlgraph.converter import NodeConverter
+
+        spike_converter = NodeConverter(self.graph_dir / "spikes")
+        completed_spikes = []
+
+        # Complete only TRANSITION spikes (not session-init, which should persist)
+        for spike_id in list(self._active_auto_spikes):
+            spike = spike_converter.load(spike_id)
+
+            if not spike:
+                self._active_auto_spikes.discard(spike_id)
+                self._spike_index.remove(spike_id)
+                continue
+
+            # Only complete transition spikes on conversation start
+            if not (
+                spike.type == "spike"
+                and getattr(spike, "auto_generated", False)
+                and getattr(spike, "spike_subtype", None) == "transition"
+                and spike.status == "in-progress"
+            ):
+                continue
+
+            # Complete the transition spike
+            spike.status = "done"
+            spike.updated = datetime.now()
+            spike.properties["completed_by"] = "conversation-start"
+
+            spike_converter.save(spike)
+            completed_spikes.append(spike)
+            self._active_auto_spikes.discard(spike_id)
+            self._spike_index.remove(spike_id)
+
+            logger.debug(f"Completed transition spike {spike_id} on conversation start")
+
+        return completed_spikes
 
     def _complete_active_auto_spikes(
         self, agent: str, to_feature_id: str
@@ -442,6 +518,7 @@ class SessionManager:
             if not spike:
                 # Spike was deleted or doesn't exist - remove from index
                 self._active_auto_spikes.discard(spike_id)
+                self._spike_index.remove(spike_id)
                 continue
 
             if not (
@@ -453,6 +530,7 @@ class SessionManager:
             ):
                 # Spike is no longer active - remove from index
                 self._active_auto_spikes.discard(spike_id)
+                self._spike_index.remove(spike_id)
                 continue
 
             # Complete the spike
@@ -465,8 +543,9 @@ class SessionManager:
             spike_converter.save(spike)
             completed_spikes.append(spike)
 
-            # Remove from active index since it's now completed
+            # Remove from active index (both in-memory and persistent) since it's now completed
             self._active_auto_spikes.discard(spike_id)
+            self._spike_index.remove(spike_id)
 
         # Import transcript when auto-spikes complete (work boundary)
         if completed_spikes:
@@ -1154,7 +1233,7 @@ class SessionManager:
         System overhead includes:
         - Skill invocations for system skills (htmlgraph-tracker, etc.)
         - Read/Write operations on .htmlgraph/ metadata files
-        - Other infrastructure operations
+        - Infrastructure files (config, docs, build artifacts, IDE files)
         """
         # System skills that are overhead, not feature work
         system_skills = {
@@ -1169,13 +1248,112 @@ class SessionManager:
                 if skill_name in summary.lower():
                     return True
 
-        # Check if any file paths are in .htmlgraph/ directory (metadata operations)
+        # Infrastructure file patterns to exclude from drift scoring
+        infrastructure_patterns = [
+            # HtmlGraph metadata
+            ".htmlgraph/",
+            # Configuration files
+            "pyproject.toml",
+            "package.json",
+            "package-lock.json",
+            "setup.py",
+            "setup.cfg",
+            "requirements.txt",
+            "requirements-dev.txt",
+            ".gitignore",
+            ".gitattributes",
+            ".editorconfig",
+            "pytest.ini",
+            "tox.ini",
+            ".coveragerc",
+            # CI/CD configs
+            ".github/",
+            ".gitlab-ci.yml",
+            ".travis.yml",
+            "circle.yml",
+            ".pre-commit-config.yaml",
+            # Build and distribution
+            "dist/",
+            "build/",
+            ".eggs/",
+            "*.egg-info/",
+            "__pycache__/",
+            "*.pyc",
+            "*.pyo",
+            "*.pyd",
+            # IDE and editor files
+            ".vscode/",
+            ".idea/",
+            "*.swp",
+            "*.swo",
+            "*~",
+            ".DS_Store",
+            "Thumbs.db",
+            # Testing artifacts
+            ".pytest_cache/",
+            ".coverage",
+            "htmlcov/",
+            ".tox/",
+            # Environment and secrets
+            ".env",
+            ".env.local",
+            ".env.*.local",
+            # Documentation (consider docs/ as infrastructure)
+            "README.md",
+            "CONTRIBUTING.md",
+            "LICENSE",
+            "CHANGELOG.md",
+            "docs/",
+            # Other common infrastructure
+            ".contextune/",
+            ".parallel/",
+            "node_modules/",
+            ".venv/",
+            "venv/",
+        ]
+
+        # Check if any file paths match infrastructure patterns
         if file_paths:
             for path in file_paths:
-                # Normalize path to handle both absolute and relative paths
-                path_lower = path.lower()
-                if ".htmlgraph/" in path_lower or path_lower.startswith(".htmlgraph"):
-                    return True
+                # Normalize path
+                path_normalized = path.replace("\\", "/")
+                path_lower = path_normalized.lower()
+
+                for pattern in infrastructure_patterns:
+                    pattern_lower = pattern.lower()
+
+                    # Directory patterns (end with /)
+                    if pattern_lower.endswith("/"):
+                        # For wildcard directory patterns like "*.egg-info/"
+                        if "*" in pattern_lower:
+                            import fnmatch
+
+                            # Check each path segment
+                            path_parts = path_lower.split("/")
+                            for part in path_parts:
+                                if fnmatch.fnmatch(part, pattern_lower.rstrip("/")):
+                                    return True
+                        # For regular directory patterns like ".htmlgraph/"
+                        elif pattern_lower in path_lower or path_lower.startswith(
+                            pattern_lower
+                        ):
+                            return True
+                    # Wildcard file patterns (e.g., *.pyc)
+                    elif "*" in pattern_lower:
+                        import fnmatch
+
+                        # Check the filename (last part of path)
+                        filename = path_lower.split("/")[-1]
+                        if fnmatch.fnmatch(filename, pattern_lower):
+                            return True
+                    # Exact filename match
+                    else:
+                        # Check if path ends with the pattern (handles both absolute and relative)
+                        if (
+                            path_lower.endswith(pattern_lower)
+                            or f"/{pattern_lower}" in path_lower
+                        ):
+                            return True
 
         return False
 
@@ -1577,6 +1755,8 @@ class SessionManager:
                 )
 
         # Auto-create transition spike for post-completion activities
+        # This captures work between features. Completed when next feature starts,
+        # or when a new conversation starts (completing previous conversation's spike).
         if session:
             self._create_transition_spike(session, from_feature_id=feature_id)
 
@@ -1593,13 +1773,26 @@ class SessionManager:
                 analysis = learning.analyze_for_orchestrator(session.id)
                 node.properties["completion_analysis"] = analysis
 
+                # PERSIST learning insights to graph (not just ephemeral properties)
+                # This creates queryable SessionInsight and Pattern nodes
+                insight_id = learning.persist_session_insight(session.id)
+                if insight_id:
+                    node.properties["insight_id"] = insight_id
+                    logger.debug(f"Persisted learning insight: {insight_id}")
+
+                # Persist patterns detected across sessions
+                pattern_ids = learning.persist_patterns()
+                if pattern_ids:
+                    logger.debug(f"Persisted {len(pattern_ids)} patterns")
+
                 # Log analysis summary if issues detected
                 if analysis.get("summary", "").startswith("⚠️"):
                     logger.info(
                         f"Work item {feature_id} completed with issues: {analysis['summary']}"
                     )
-                    # Update node in graph with analysis
-                    graph.update(node)
+
+                # Update node in graph with analysis
+                graph.update(node)
             except Exception as e:
                 logger.warning(f"Failed to analyze session on completion: {e}")
 
@@ -2247,8 +2440,6 @@ class SessionManager:
                 return None
             # If timezone-aware, convert to naive UTC
             if dt.tzinfo is not None:
-                from datetime import timezone
-
                 return dt.astimezone(timezone.utc).replace(tzinfo=None)
             return dt
 

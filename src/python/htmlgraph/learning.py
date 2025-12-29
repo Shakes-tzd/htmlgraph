@@ -324,6 +324,7 @@ class LearningPersistence:
         - Anti-patterns detected in the session
         - Errors encountered
         - Efficiency metrics
+        - Test execution results (pytest)
         - Actionable recommendations
 
         Args:
@@ -340,6 +341,8 @@ class LearningPersistence:
             "efficiency": 0.8,
             "issues": [],
             "recommendations": [],
+            "test_runs": [],
+            "test_summary": None,
             "summary": "",
         }
 
@@ -400,6 +403,17 @@ class LearningPersistence:
         result["issues"] = health.get("issues", [])
         result["recommendations"] = health.get("recommendations", [])
 
+        # Analyze test runs (pytest)
+        test_analysis = self._analyze_test_runs(activities)
+        result["test_runs"] = test_analysis["test_runs"]
+        result["test_summary"] = test_analysis["summary"]
+
+        # Add test-related issues and recommendations
+        if test_analysis.get("issues"):
+            result["issues"].extend(test_analysis["issues"])
+        if test_analysis.get("recommendations"):
+            result["recommendations"].extend(test_analysis["recommendations"])
+
         # Generate summary
         summary_parts = []
         if result["error_count"] > 0:
@@ -410,10 +424,136 @@ class LearningPersistence:
         if result["efficiency"] < 0.7:
             summary_parts.append(f"low efficiency ({result['efficiency']:.0%})")
 
+        # Include test summary in main summary
+        if result["test_summary"]:
+            summary_parts.append(result["test_summary"])
+
         if summary_parts:
             result["summary"] = "⚠️ Issues: " + ", ".join(summary_parts)
         else:
             result["summary"] = "✓ Session completed cleanly"
+
+        return result
+
+    def _analyze_test_runs(self, activities: list[Any]) -> dict[str, Any]:
+        """Analyze pytest test runs from activity log.
+
+        Args:
+            activities: List of ActivityEntry objects
+
+        Returns:
+            Dict with test_runs, summary, issues, recommendations
+        """
+        import re
+
+        result: dict[str, Any] = {
+            "test_runs": [],
+            "summary": None,
+            "issues": [],
+            "recommendations": [],
+        }
+
+        # Find all pytest runs in Bash activities
+        for activity in activities:
+            tool = (
+                activity.tool
+                if not isinstance(activity, dict)
+                else activity.get("tool", "")
+            )
+            summary = (
+                activity.summary
+                if not isinstance(activity, dict)
+                else activity.get("summary", "")
+            )
+            success = (
+                activity.success
+                if not isinstance(activity, dict)
+                else activity.get("success", True)
+            )
+
+            # Check if this is a pytest run
+            if tool == "Bash" and (
+                "pytest" in summary.lower() or "py.test" in summary.lower()
+            ):
+                test_run: dict[str, Any] = {
+                    "command": summary,
+                    "success": success,
+                    "passed": None,
+                    "failed": None,
+                    "skipped": None,
+                    "errors": None,
+                }
+
+                # Try to extract test results from payload if available
+                payload = (
+                    activity.payload
+                    if not isinstance(activity, dict)
+                    else activity.get("payload", {})
+                )
+                if payload and isinstance(payload, dict):
+                    output = payload.get("output", "") or payload.get("stdout", "")
+                    if output:
+                        # Parse pytest output for results
+                        # Example: "5 passed, 2 failed, 1 skipped in 2.34s"
+                        # Example: "===== 10 passed in 1.23s ====="
+                        passed_match = re.search(r"(\d+)\s+passed", output)
+                        failed_match = re.search(r"(\d+)\s+failed", output)
+                        skipped_match = re.search(r"(\d+)\s+skipped", output)
+                        error_match = re.search(r"(\d+)\s+error", output)
+
+                        if passed_match:
+                            test_run["passed"] = int(passed_match.group(1))
+                        if failed_match:
+                            test_run["failed"] = int(failed_match.group(1))
+                        if skipped_match:
+                            test_run["skipped"] = int(skipped_match.group(1))
+                        if error_match:
+                            test_run["errors"] = int(error_match.group(1))
+
+                result["test_runs"].append(test_run)
+
+        # Generate summary and recommendations
+        if result["test_runs"]:
+            total_runs = len(result["test_runs"])
+            successful_runs = sum(1 for r in result["test_runs"] if r["success"])
+            failed_runs = total_runs - successful_runs
+
+            # Calculate total test results across all runs
+            total_passed = sum(r["passed"] or 0 for r in result["test_runs"])
+            total_failed = sum(r["failed"] or 0 for r in result["test_runs"])
+            total_errors = sum(r["errors"] or 0 for r in result["test_runs"])
+
+            # Generate summary
+            summary_parts = [f"{total_runs} test run{'s' if total_runs > 1 else ''}"]
+            if total_passed > 0:
+                summary_parts.append(f"{total_passed} passed")
+            if total_failed > 0:
+                summary_parts.append(f"{total_failed} failed")
+            if total_errors > 0:
+                summary_parts.append(f"{total_errors} errors")
+
+            result["summary"] = ", ".join(summary_parts)
+
+            # Add issues and recommendations
+            if failed_runs > 0:
+                result["issues"].append(
+                    f"{failed_runs} test run{'s' if failed_runs > 1 else ''} failed"
+                )
+
+            if total_runs > 5:
+                result["issues"].append(f"High test run count: {total_runs}")
+                result["recommendations"].append(
+                    "Consider fixing tests in one batch to reduce test iterations"
+                )
+
+            if total_failed > 0 and successful_runs == 0:
+                result["recommendations"].append(
+                    "No passing test runs - verify test environment and dependencies"
+                )
+
+            # Positive feedback for good testing practices
+            if successful_runs > 0 and failed_runs == 0:
+                result["summary"] = f"✓ {result['summary']}"
 
         return result
 

@@ -23,14 +23,13 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
 
 if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     print(json.dumps({}))
     sys.exit(0)
 
 
-def check_htmlgraph_version() -> Tuple[Optional[str], Optional[str], bool]:
+def check_htmlgraph_version() -> tuple[str | None, str | None, bool]:
     """
     Check if installed htmlgraph version matches latest on PyPI.
 
@@ -43,7 +42,13 @@ def check_htmlgraph_version() -> Tuple[Optional[str], Optional[str], bool]:
     # Get installed version
     try:
         result = subprocess.run(
-            ["uv", "run", "python", "-c", "import htmlgraph; print(htmlgraph.__version__)"],
+            [
+                "uv",
+                "run",
+                "python",
+                "-c",
+                "import htmlgraph; print(htmlgraph.__version__)",
+            ],
             capture_output=True,
             text=True,
             timeout=10,
@@ -73,7 +78,10 @@ def check_htmlgraph_version() -> Tuple[Optional[str], Optional[str], bool]:
 
         req = urllib.request.Request(
             "https://pypi.org/pypi/htmlgraph/json",
-            headers={"Accept": "application/json", "User-Agent": "htmlgraph-version-check"}
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "htmlgraph-version-check",
+            },
         )
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode())
@@ -94,14 +102,18 @@ def check_htmlgraph_version() -> Tuple[Optional[str], Optional[str], bool]:
 
     return installed_version, latest_version, is_outdated
 
+
 try:
     from htmlgraph import SDK
-    from htmlgraph.graph import HtmlGraph
-    from htmlgraph.session_manager import SessionManager
     from htmlgraph.converter import node_to_dict
-    from htmlgraph.models import Node, generate_id
+    from htmlgraph.graph import HtmlGraph
+    from htmlgraph.models import generate_id
+    from htmlgraph.session_manager import SessionManager
 except Exception as e:
-    print(f"Warning: HtmlGraph not available ({e}). Install with: uv pip install htmlgraph", file=sys.stderr)
+    print(
+        f"Warning: HtmlGraph not available ({e}). Install with: uv pip install htmlgraph",
+        file=sys.stderr,
+    )
     print(json.dumps({}))
     sys.exit(0)
 
@@ -127,15 +139,15 @@ def get_sessions(graph_dir: Path) -> list[dict]:
     return [session_to_dict(s) for s in sessions]
 
 
-def get_head_commit(project_dir: str) -> Optional[str]:
+def get_head_commit(project_dir: str) -> str | None:
     """Get current HEAD commit hash (short form)."""
     try:
         result = subprocess.run(
-            ['git', 'rev-parse', '--short', 'HEAD'],
+            ["git", "rev-parse", "--short", "HEAD"],
             capture_output=True,
             text=True,
             cwd=project_dir,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -144,16 +156,16 @@ def get_head_commit(project_dir: str) -> Optional[str]:
     return None
 
 
-def resolve_project_path(cwd: Optional[str] = None) -> str:
+def resolve_project_path(cwd: str | None = None) -> str:
     """Resolve project path (git root or cwd)."""
     start_dir = cwd or os.getcwd()
     try:
         result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
+            ["git", "rev-parse", "--show-toplevel"],
             capture_output=True,
             text=True,
             cwd=start_dir,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -278,12 +290,14 @@ def get_feature_summary(graph_dir: Path) -> tuple[list, dict]:
         "blocked": sum(1 for f in features if f.get("status") == "blocked"),
         "todo": sum(1 for f in features if f.get("status") == "todo"),
     }
-    stats["percentage"] = int(stats["done"] * 100 / stats["total"]) if stats["total"] > 0 else 0
+    stats["percentage"] = (
+        int(stats["done"] * 100 / stats["total"]) if stats["total"] > 0 else 0
+    )
 
     return features, stats
 
 
-def get_session_summary(graph_dir: Path) -> Optional[dict]:
+def get_session_summary(graph_dir: Path) -> dict | None:
     """Get previous session summary."""
     sessions = get_sessions(graph_dir)
 
@@ -301,7 +315,10 @@ def get_session_summary(graph_dir: Path) -> Optional[dict]:
 
     ended = [s for s in sessions if s.get("status") == "ended"]
     if ended:
-        ended.sort(key=lambda s: parse_ts(s.get("ended_at") or s.get("last_activity")), reverse=True)
+        ended.sort(
+            key=lambda s: parse_ts(s.get("ended_at") or s.get("last_activity")),
+            reverse=True,
+        )
         return ended[0]
     return None
 
@@ -323,41 +340,50 @@ def get_strategic_recommendations(graph_dir: Path, agent_count: int = 1) -> dict
         return {
             "recommendations": recs[:3] if recs else [],
             "bottlenecks": bottlenecks,
-            "parallel_capacity": parallel
+            "parallel_capacity": parallel,
         }
     except Exception as e:
         print(f"Warning: Could not get strategic recommendations: {e}", file=sys.stderr)
         return {
             "recommendations": [],
             "bottlenecks": [],
-            "parallel_capacity": {"max_parallelism": 0, "ready_now": 0, "total_ready": 0}
+            "parallel_capacity": {
+                "max_parallelism": 0,
+                "ready_now": 0,
+                "total_ready": 0,
+            },
         }
 
 
 def get_active_agents(graph_dir: Path) -> list[dict]:
     """Get information about other active agents."""
     try:
-        manager = SessionManager(graph_dir)
-
         # Get all active sessions
         sessions_dir = graph_dir / "sessions"
         if not sessions_dir.exists():
             return []
 
         from htmlgraph.converter import SessionConverter
+
         converter = SessionConverter(sessions_dir)
         all_sessions = converter.load_all()
 
         active_agents = []
         for session in all_sessions:
             if session.status == "active":
-                active_agents.append({
-                    "agent": session.agent,
-                    "session_id": session.id,
-                    "started_at": session.started_at.isoformat() if session.started_at else None,
-                    "event_count": session.event_count,
-                    "worked_on": list(session.worked_on) if hasattr(session, 'worked_on') else []
-                })
+                active_agents.append(
+                    {
+                        "agent": session.agent,
+                        "session_id": session.id,
+                        "started_at": session.started_at.isoformat()
+                        if session.started_at
+                        else None,
+                        "event_count": session.event_count,
+                        "worked_on": list(session.worked_on)
+                        if hasattr(session, "worked_on")
+                        else [],
+                    }
+                )
 
         return active_agents
     except Exception as e:
@@ -365,7 +391,9 @@ def get_active_agents(graph_dir: Path) -> list[dict]:
         return []
 
 
-def detect_feature_conflicts(features: list[dict], active_agents: list[dict]) -> list[dict]:
+def detect_feature_conflicts(
+    features: list[dict], active_agents: list[dict]
+) -> list[dict]:
     """Detect features being worked on by multiple agents simultaneously."""
     conflicts = []
 
@@ -385,11 +413,13 @@ def detect_feature_conflicts(features: list[dict], active_agents: list[dict]) ->
                 # Get feature details
                 feature = next((f for f in features if f.get("id") == feature_id), None)
                 if feature:
-                    conflicts.append({
-                        "feature_id": feature_id,
-                        "title": feature.get("title", "Unknown"),
-                        "agents": agents
-                    })
+                    conflicts.append(
+                        {
+                            "feature_id": feature_id,
+                            "title": feature.get("title", "Unknown"),
+                            "agents": agents,
+                        }
+                    )
     except Exception as e:
         print(f"Warning: Could not detect conflicts: {e}", file=sys.stderr)
 
@@ -400,31 +430,35 @@ def get_recent_commits(project_dir: str, count: int = 5) -> list[str]:
     """Get recent git commits."""
     try:
         result = subprocess.run(
-            ['git', 'log', '--oneline', f'-{count}'],
+            ["git", "log", "--oneline", f"-{count}"],
             capture_output=True,
             text=True,
             cwd=project_dir,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
-            return result.stdout.strip().split('\n')
+            return result.stdout.strip().split("\n")
     except Exception:
         pass
     return []
 
 
-def output_response(context: str, status_summary: Optional[str] = None) -> None:
+def output_response(context: str, status_summary: str | None = None) -> None:
     """Output JSON response with context."""
     if status_summary:
         print(f"\n{status_summary}\n", file=sys.stderr)
 
-    print(json.dumps({
-        "continue": True,
-        "hookSpecificOutput": {
-            "hookEventName": "SessionStart",
-            "additionalContext": context
-        }
-    }))
+    print(
+        json.dumps(
+            {
+                "continue": True,
+                "hookSpecificOutput": {
+                    "hookEventName": "SessionStart",
+                    "additionalContext": context,
+                },
+            }
+        )
+    )
 
 
 def main():
@@ -439,16 +473,20 @@ def main():
         installed_ver, latest_ver, is_outdated = check_htmlgraph_version()
         if is_outdated and installed_ver and latest_ver:
             version_warning = HTMLGRAPH_VERSION_WARNING.format(
-                installed=installed_ver,
-                latest=latest_ver
+                installed=installed_ver, latest=latest_ver
             )
-            print(f"⚠️  HtmlGraph update available: {installed_ver} → {latest_ver}", file=sys.stderr)
+            print(
+                f"⚠️  HtmlGraph update available: {installed_ver} → {latest_ver}",
+                file=sys.stderr,
+            )
     except Exception:
         pass  # Never block on version check failure
 
-    external_session_id = hook_input.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "unknown")
+    external_session_id = hook_input.get("session_id") or os.environ.get(
+        "CLAUDE_SESSION_ID", "unknown"
+    )
     cwd = hook_input.get("cwd")
-    project_dir = _resolve_project_dir(cwd if cwd else None)
+    project_dir = resolve_project_path(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
     # Ensure a single stable HtmlGraph session exists for this agent.
@@ -499,22 +537,31 @@ def main():
             try:
                 # Close any open auto-spikes from previous conversation
                 from htmlgraph.converter import NodeConverter
+
                 spike_converter = NodeConverter(graph_dir / "spikes")
                 all_spikes = spike_converter.load_all()
 
                 for spike in all_spikes:
-                    if (spike.type == "spike"
+                    if (
+                        spike.type == "spike"
                         and spike.auto_generated
-                        and spike.spike_subtype in ("session-init", "transition", "conversation-init")
-                        and spike.status == "in-progress"):
+                        and spike.spike_subtype
+                        in ("session-init", "transition", "conversation-init")
+                        and spike.status == "in-progress"
+                    ):
                         spike.status = "done"
                         spike.updated = datetime.now()
                         spike_converter.save(spike)
 
                 # Create new conversation-init spike
-                spike_id = f"spk-{external_session_id[:8]}" if external_session_id != "unknown" else generate_id("spike", "conversation")
+                spike_id = (
+                    f"spk-{external_session_id[:8]}"
+                    if external_session_id != "unknown"
+                    else generate_id("spike", "conversation")
+                )
 
-                from htmlgraph.models import Node, generate_id
+                from htmlgraph.models import Node
+
                 conversation_spike = Node(
                     id=spike_id,
                     title=f"Conversation {datetime.now().strftime('%H:%M')}",
@@ -525,7 +572,7 @@ def main():
                     auto_generated=True,
                     session_id=active.id,
                     model_name=active.agent,
-                    content=f"Auto-generated spike for conversation startup.\n\nCaptures:\n- Context review\n- Planning\n- Exploration\n\nAuto-completes when feature is started or next conversation begins.",
+                    content="Auto-generated spike for conversation startup.\n\nCaptures:\n- Context review\n- Planning\n- Exploration\n\nAuto-completes when feature is started or next conversation begins.",
                 )
                 spike_converter.save(conversation_spike)
 
@@ -536,7 +583,10 @@ def main():
                 manager.session_converter.save(active)
 
             except Exception as e:
-                print(f"Warning: Could not create conversation spike: {e}", file=sys.stderr)
+                print(
+                    f"Warning: Could not create conversation spike: {e}",
+                    file=sys.stderr,
+                )
     except Exception as e:
         print(f"Warning: Could not start session: {e}", file=sys.stderr)
 
@@ -588,7 +638,9 @@ Or create features manually in `.htmlgraph/features/`
         if prev_session.get("handoff_notes"):
             handoff_lines.append(f"**Notes:** {prev_session.get('handoff_notes')}")
         if prev_session.get("recommended_next"):
-            handoff_lines.append(f"**Recommended Next:** {prev_session.get('recommended_next')}")
+            handoff_lines.append(
+                f"**Recommended Next:** {prev_session.get('recommended_next')}"
+            )
         blockers = prev_session.get("blockers") or []
         if blockers:
             handoff_lines.append(f"**Blockers:** {', '.join(blockers)}")
@@ -598,15 +650,15 @@ Or create features manually in `.htmlgraph/features/`
             handoff_text = "\n\n" + "\n".join(handoff_lines)
 
         # Format worked_on list
-        worked_on = prev_session.get('worked_on', [])
-        worked_on_text = ', '.join(worked_on[:3]) if worked_on else 'N/A'
+        worked_on = prev_session.get("worked_on", [])
+        worked_on_text = ", ".join(worked_on[:3]) if worked_on else "N/A"
         if len(worked_on) > 3:
             worked_on_text += f" (+{len(worked_on) - 3} more)"
 
         context_parts.append(f"""## Previous Session
 
-**Session:** {prev_session.get('id', 'unknown')[:12]}...
-**Events:** {prev_session.get('event_count', 0)}
+**Session:** {prev_session.get("id", "unknown")[:12]}...
+**Events:** {prev_session.get("event_count", 0)}
 **Worked On:** {worked_on_text}
 {handoff_text}
 """)
@@ -614,12 +666,14 @@ Or create features manually in `.htmlgraph/features/`
     # Current status
     context_parts.append(f"""## Project Status
 
-**Progress:** {stats['done']}/{stats['total']} features complete ({stats['percentage']}%)
-**Active:** {stats['in_progress']} | **Blocked:** {stats['blocked']} | **Todo:** {stats['todo']}
+**Progress:** {stats["done"]}/{stats["total"]} features complete ({stats["percentage"]}%)
+**Active:** {stats["in_progress"]} | **Blocked:** {stats["blocked"]} | **Todo:** {stats["todo"]}
 """)
 
     if active_features:
-        active_list = "\n".join([f"- **{f['id']}**: {f['title']}" for f in active_features[:3]])
+        active_list = "\n".join(
+            [f"- **{f['id']}**: {f['title']}" for f in active_features[:3]]
+        )
         context_parts.append(f"""## Active Features
 
 {active_list}
@@ -636,7 +690,9 @@ htmlgraph feature start <feature-id>
 """)
 
     if pending_features:
-        pending_list = "\n".join([f"- {f['id']}: {f['title'][:50]}" for f in pending_features[:5]])
+        pending_list = "\n".join(
+            [f"- {f['id']}: {f['title'][:50]}" for f in pending_features[:5]]
+        )
         context_parts.append(f"""## Pending Features
 
 {pending_list}
@@ -661,19 +717,23 @@ htmlgraph feature start <feature-id>
         # Bottlenecks
         if bottlenecks:
             bottleneck_count = len(bottlenecks)
-            bottleneck_list = "\n".join([
-                f"  - **{bn['title']}** (blocks {bn['blocks_count']} tasks, impact: {bn['impact_score']:.1f})"
-                for bn in bottlenecks[:3]
-            ])
+            bottleneck_list = "\n".join(
+                [
+                    f"  - **{bn['title']}** (blocks {bn['blocks_count']} tasks, impact: {bn['impact_score']:.1f})"
+                    for bn in bottlenecks[:3]
+                ]
+            )
             insights_parts.append(f"""#### Bottlenecks ({bottleneck_count})
 {bottleneck_list}""")
 
         # Recommendations
         if recommendations:
-            rec_list = "\n".join([
-                f"  {i+1}. **{rec['title']}** (score: {rec['score']:.1f})\n     - Why: {', '.join(rec['reasons'][:2])}"
-                for i, rec in enumerate(recommendations[:3])
-            ])
+            rec_list = "\n".join(
+                [
+                    f"  {i + 1}. **{rec['title']}** (score: {rec['score']:.1f})\n     - Why: {', '.join(rec['reasons'][:2])}"
+                    for i, rec in enumerate(recommendations[:3])
+                ]
+            )
             insights_parts.append(f"""#### Top Recommendations
 {rec_list}""")
 
@@ -682,7 +742,7 @@ htmlgraph feature start <feature-id>
             ready_now = parallel.get("ready_now", 0)
             total_ready = parallel.get("total_ready", 0)
             insights_parts.append(f"""#### Parallel Work
-**Can work on {parallel['max_parallelism']} tasks simultaneously**
+**Can work on {parallel["max_parallelism"]} tasks simultaneously**
 - {ready_now} tasks ready now
 - {total_ready} total tasks ready""")
 
@@ -695,10 +755,12 @@ htmlgraph feature start <feature-id>
     # Add active agents section (multi-agent awareness)
     other_agents = [a for a in active_agents if a["agent"] != "claude-code"]
     if other_agents:
-        agents_list = "\n".join([
-            f"  - **{agent['agent']}**: {agent['event_count']} events, working on {', '.join(agent.get('worked_on', [])[:2]) or 'unknown'}"
-            for agent in other_agents[:5]
-        ])
+        agents_list = "\n".join(
+            [
+                f"  - **{agent['agent']}**: {agent['event_count']} events, working on {', '.join(agent.get('worked_on', [])[:2]) or 'unknown'}"
+                for agent in other_agents[:5]
+            ]
+        )
         context_parts.append(f"""## 👥 Other Active Agents
 
 {agents_list}
@@ -708,10 +770,12 @@ htmlgraph feature start <feature-id>
 
     # Add conflict warnings
     if conflicts:
-        conflict_list = "\n".join([
-            f"  - **{conf['title']}** ({conf['feature_id']}): {', '.join(conf['agents'])}"
-            for conf in conflicts
-        ])
+        conflict_list = "\n".join(
+            [
+                f"  - **{conf['title']}** ({conf['feature_id']}): {', '.join(conf['agents'])}"
+                for conf in conflicts
+            ]
+        )
         context_parts.append(f"""## ⚠️ CONFLICT DETECTED
 
 **Multiple agents working on the same features:**

@@ -150,8 +150,9 @@ def test_work_next_auto_claim(temp_sdk):
 
     assert task is not None
 
-    # Re-fetch task to verify it was updated
-    refetched = temp_sdk.features.get(task.id)
+    # Re-fetch task to verify it was updated (could be feature or bug)
+    refetched = temp_sdk.features.get(task.id) or temp_sdk.bugs.get(task.id)
+    assert refetched is not None
     assert refetched.status == "in-progress"
     assert refetched.agent_assigned == "test-agent"
 
@@ -162,8 +163,9 @@ def test_work_next_no_auto_claim(temp_sdk):
 
     assert task is not None
 
-    # Task should still be todo
-    refetched = temp_sdk.features.get(task.id)
+    # Task should still be todo (could be feature or bug)
+    refetched = temp_sdk.features.get(task.id) or temp_sdk.bugs.get(task.id)
+    assert refetched is not None
     assert refetched.status == "todo"
 
 

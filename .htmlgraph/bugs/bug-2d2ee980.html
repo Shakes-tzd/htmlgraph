@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Active learning not generating actionable behavioral insights</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-2d2ee980"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-29T10:42:32.931818"
+             data-updated="2025-12-29T10:42:33.348738">
+
+        <header>
+            <h1>Active learning not generating actionable behavioral insights</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-40ed8a68.html" data-relationship="implemented-in" data-since="2025-12-29T10:42:33.348725">sess-40ed8a68</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Add source field to TranscriptEntry (user, hook, system)</li>
+                <li data-completed="false">⏳ Implement hook feedback pattern detection in transcript analytics</li>
+                <li data-completed="false">⏳ Create behavioral insight generator (not just session summaries)</li>
+                <li data-completed="false">⏳ Add context injection for insights at session start</li>
+                <li data-completed="false">⏳ Test with commit-before-stop pattern as validation</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            ## Root Cause
+
+The active learning implementation was architecturally complete but functionally disconnected:
+- `persist_session_insight()` and `persist_patterns()` methods existed but were never called
+- `analyze_for_orchestrator()` was called on feature completion, but results were only stored in feature properties
+- Pattern files were empty shells with titles but no data
+
+## Fix Applied
+
+Modified `session_manager.py` (lines 1776-1786) to call persistence methods on feature completion:
+
+```python
+# PERSIST learning insights to graph (not just ephemeral properties)
+insight_id = learning.persist_session_insight(session.id)
+if insight_id:
+    node.properties["insight_id"] = insight_id
+    logger.debug(f"Persisted learning insight: {insight_id}")
+
+# Persist patterns detected across sessions
+pattern_ids = learning.persist_patterns()
+if pattern_ids:
+    logger.debug(f"Persisted {len(pattern_ids)} patterns")
+```
+
+## Result
+
+Now on every feature completion:
+1. SessionInsight nodes are created with health metrics, issues, and recommendations
+2. Pattern nodes are created/updated with detection counts and classifications
+3. Insights and patterns are queryable via `sdk.insights` and `sdk.patterns`
+4. Cross-session behavioral patterns are collected and persisted
+
+## Verification
+
+- All 789 tests pass
+- Pattern and insight nodes will be populated on next feature completions
+
+        </section>
+    </article>
+</body>
+</html>

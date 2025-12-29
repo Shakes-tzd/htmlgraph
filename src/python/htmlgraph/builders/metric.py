@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from htmlgraph.models import Node
+    from htmlgraph.models import AggregatedMetric
     from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
@@ -179,15 +179,15 @@ class MetricBuilder(BaseBuilder["MetricBuilder"]):
         self._data["data_points_count"] = len(self._data["sessions_in_period"])
         return self
 
-    def save(self) -> Node:
+    def save(self) -> AggregatedMetric:
         """
-        Save the metric and return the Node instance.
+        Save the metric and return the AggregatedMetric instance.
 
         Overrides BaseBuilder.save() to ensure metrics are saved
         to the metrics directory.
 
         Returns:
-            Created Metric node instance
+            Created AggregatedMetric node instance
         """
         # Generate collision-resistant ID if not provided
         if "id" not in self._data:
@@ -196,10 +196,10 @@ class MetricBuilder(BaseBuilder["MetricBuilder"]):
                 title=self._data.get("title", ""),
             )
 
-        # Import Node here to avoid circular imports
-        from htmlgraph.models import Node
+        # Import AggregatedMetric here to avoid circular imports
+        from htmlgraph.models import AggregatedMetric
 
-        node = Node(**self._data)
+        node = AggregatedMetric(**self._data)
 
         # Save to the metrics collection
         if hasattr(self._sdk, "metrics") and self._sdk.metrics is not None:

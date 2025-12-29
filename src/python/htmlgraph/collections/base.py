@@ -71,12 +71,24 @@ class BaseCollection(Generic[CollectionT]):
         self._graph: HtmlGraph | None = None  # Lazy-loaded
 
     def _ensure_graph(self) -> HtmlGraph:
-        """Lazy-load the graph for this collection."""
+        """Get the graph for this collection, using SDK's shared instances where available."""
         if self._graph is None:
-            from htmlgraph.graph import HtmlGraph
+            # Use SDK's shared graph instances to avoid multiple graph objects
+            if self._collection_name == "features" and hasattr(self._sdk, "_graph"):
+                self._graph = self._sdk._graph
+            elif self._collection_name == "bugs" and hasattr(self._sdk, "_bugs_graph"):
+                self._graph = self._sdk._bugs_graph
+            else:
+                # For other collections, create a new graph instance
+                from htmlgraph.graph import HtmlGraph
 
-            collection_path = self._sdk._directory / self._collection_name
-            self._graph = HtmlGraph(collection_path, auto_load=True)
+                collection_path = self._sdk._directory / self._collection_name
+                self._graph = HtmlGraph(collection_path, auto_load=True)
+
+            # Ensure graph is loaded
+            if not self._graph._nodes:
+                self._graph.reload()
+
         return self._graph
 
     def __dir__(self) -> list[str]:

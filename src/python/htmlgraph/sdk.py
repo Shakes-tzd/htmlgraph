@@ -53,6 +53,7 @@ from htmlgraph.collections import (
     FeatureCollection,
     PhaseCollection,
     SpikeCollection,
+    TodoCollection,
 )
 from htmlgraph.collections.insight import InsightCollection
 from htmlgraph.collections.metric import MetricCollection
@@ -61,6 +62,7 @@ from htmlgraph.context_analytics import ContextAnalytics
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
+from htmlgraph.session_warning import check_and_show_warning
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.types import (
     ActiveWorkItem,
@@ -85,6 +87,7 @@ class SDK:
         - sessions: Agent sessions
         - tracks: Work tracks
         - agents: Agent information
+        - todos: Persistent task tracking (mirrors TodoWrite API)
 
     Error Handling Patterns
     =======================
@@ -187,11 +190,19 @@ class SDK:
         self._directory = Path(directory)
         self._agent_id = agent
 
-        # Initialize SessionManager for smart tracking and attribution
-        self.session_manager = SessionManager(self._directory)
-
-        # Initialize underlying components (for backward compatibility)
+        # Initialize underlying HtmlGraphs first (for backward compatibility and sharing)
+        # These are shared with SessionManager to avoid double-loading features
         self._graph = HtmlGraph(self._directory / "features")
+        self._bugs_graph = HtmlGraph(self._directory / "bugs")
+
+        # Initialize SessionManager with shared graph instances to avoid double-loading
+        self.session_manager = SessionManager(
+            self._directory,
+            features_graph=self._graph,
+            bugs_graph=self._bugs_graph,
+        )
+
+        # Agent interface (for backward compatibility)
         self._agent_interface = AgentInterface(
             self._directory / "features", agent_id=agent
         )
@@ -216,10 +227,14 @@ class SDK:
         self.insights = InsightCollection(self)
         self.metrics = MetricCollection(self)
 
+        # Todo collection (persistent task tracking)
+        self.todos = TodoCollection(self)
+
         # Create learning directories if needed
         (self._directory / "patterns").mkdir(exist_ok=True)
         (self._directory / "insights").mkdir(exist_ok=True)
         (self._directory / "metrics").mkdir(exist_ok=True)
+        (self._directory / "todos").mkdir(exist_ok=True)
 
         # Analytics interface (Phase 2: Work Type Analytics)
         self.analytics = Analytics(self)
@@ -232,6 +247,14 @@ class SDK:
 
         # Lazy-loaded orchestrator for subagent management
         self._orchestrator = None
+
+        # Session warning system (workaround for Claude Code hook bug #10373)
+        # Shows orchestrator instructions on first SDK usage per session
+        self._session_warning = check_and_show_warning(
+            self._directory,
+            agent=self._agent_id,
+            session_id=None,  # Will be set by session manager if available
+        )
 
     @staticmethod
     def _discover_htmlgraph() -> Path:
@@ -258,6 +281,44 @@ class SDK:
     def agent(self) -> str | None:
         """Get current agent ID."""
         return self._agent_id
+
+    def dismiss_session_warning(self) -> bool:
+        """
+        Dismiss the session warning after reading it.
+
+        IMPORTANT: Call this as your FIRST action after seeing the orchestrator
+        warning. This confirms you've read the instructions.
+
+        Returns:
+            True if warning was dismissed, False if already dismissed
+
+        Example:
+            sdk = SDK(agent="claude")
+            # Warning shown automatically...
+
+            # First action: dismiss to confirm you read it
+            sdk.dismiss_session_warning()
+
+            # Now proceed with orchestration
+            sdk.spawn_coder(feature_id="feat-123", ...)
+        """
+        if self._session_warning:
+            return self._session_warning.dismiss(
+                agent=self._agent_id,
+                session_id=None,
+            )
+        return False
+
+    def get_warning_status(self) -> dict[str, Any]:
+        """
+        Get current session warning status.
+
+        Returns:
+            Dict with dismissed status, timestamp, and show count
+        """
+        if self._session_warning:
+            return self._session_warning.get_status()
+        return {"dismissed": True, "show_count": 0}
 
     def reload(self) -> None:
         """Reload all data from disk."""
@@ -833,14 +894,21 @@ class SDK:
         """
         agent = agent_id or self._agent_id or "cli"
 
-        # Get work queue
-        queue = self.get_work_queue(agent_id=agent, limit=1, min_score=min_score)
+        # Get work queue - get more items since we filter for actionable (todo) only
+        queue = self.get_work_queue(agent_id=agent, limit=20, min_score=min_score)
 
         if not queue:
             return None
 
-        # Get the top task
-        top_item = queue[0]
+        # Find the first actionable (todo) task - blocked tasks are not actionable
+        top_item = None
+        for item in queue:
+            if item["status"] == "todo":
+                top_item = item
+                break
+
+        if top_item is None:
+            return None
 
         # Fetch the actual node
         task = None
@@ -1642,7 +1710,9 @@ class SDK:
             work_types = ["features", "bugs", "spikes", "chores", "epics"]
 
         # Search across all work item types
-        active_items = []
+        # Separate real work items from auto-generated spikes
+        real_work_items = []
+        auto_spikes = []
 
         for work_type in work_types:
             collection = getattr(self, work_type, None)
@@ -1677,12 +1747,28 @@ class SDK:
                     item_dict["auto_generated"] = getattr(item, "auto_generated", False)
                     item_dict["spike_subtype"] = getattr(item, "spike_subtype", None)
 
-                active_items.append(item_dict)
+                    # Separate auto-spikes from real work
+                    # Auto-spikes are temporary tracking items (session-init, transition, conversation-init)
+                    is_auto_spike = item_dict["auto_generated"] and item_dict[
+                        "spike_subtype"
+                    ] in ("session-init", "transition", "conversation-init")
 
-        # Return first active item (primary work item)
-        # TODO: In future, could support multiple active items or prioritization
-        if active_items:
-            return active_items[0]  # type: ignore[return-value]
+                    if is_auto_spike:
+                        auto_spikes.append(item_dict)
+                    else:
+                        # Real user-created spike
+                        real_work_items.append(item_dict)
+                else:
+                    # Features, bugs, chores, epics are always real work
+                    real_work_items.append(item_dict)
+
+        # Prioritize real work items over auto-spikes
+        # Auto-spikes should only show if there's NO other active work item
+        if real_work_items:
+            return real_work_items[0]  # type: ignore[return-value]
+
+        if auto_spikes:
+            return auto_spikes[0]  # type: ignore[return-value]
 
         return None
 

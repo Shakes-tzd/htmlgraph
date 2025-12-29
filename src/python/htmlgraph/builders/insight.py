@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from htmlgraph.models import Node
+    from htmlgraph.models import SessionInsight
     from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
@@ -157,15 +157,15 @@ class InsightBuilder(BaseBuilder["InsightBuilder"]):
         self._data[key].append(pattern_id)
         return self
 
-    def save(self) -> Node:
+    def save(self) -> SessionInsight:
         """
-        Save the insight and return the Node instance.
+        Save the insight and return the SessionInsight instance.
 
         Overrides BaseBuilder.save() to ensure insights are saved
         to the insights directory.
 
         Returns:
-            Created Insight node instance
+            Created SessionInsight instance
         """
         # Generate collision-resistant ID if not provided
         if "id" not in self._data:
@@ -174,10 +174,10 @@ class InsightBuilder(BaseBuilder["InsightBuilder"]):
                 title=self._data.get("title", ""),
             )
 
-        # Import Node here to avoid circular imports
-        from htmlgraph.models import Node
+        # Import SessionInsight here to avoid circular imports
+        from htmlgraph.models import SessionInsight
 
-        node = Node(**self._data)
+        node = SessionInsight(**self._data)
 
         # Save to the insights collection
         if hasattr(self._sdk, "insights") and self._sdk.insights is not None:

@@ -517,9 +517,8 @@ Return a summary including:
             ... ])
             >>> print(results["linked_count"])  # 3
         """
-        from htmlgraph.session_manager import SessionManager
-
-        manager = SessionManager(self._graph_dir)
+        # Use SDK's session manager to ensure shared graph instances
+        manager = self.sdk.session_manager
         linked = []
         failed = []
 

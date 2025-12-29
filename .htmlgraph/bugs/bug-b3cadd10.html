@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SessionStart hook additionalContext not injected (Claude Code bug)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-b3cadd10"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-29T10:45:23.298717"
+             data-updated="2025-12-29T10:45:23.690508">
+
+        <header>
+            <h1>SessionStart hook additionalContext not injected (Claude Code bug)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-40ed8a68.html" data-relationship="implemented-in" data-since="2025-12-29T10:45:23.690499">sess-40ed8a68</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Monitor Claude Code releases for fix</li>
+                <li data-completed="false">⏳ Add visible fallback to session-start hook</li>
+                <li data-completed="false">⏳ Consider pre-tool hook as alternative injection point</li>
+                <li data-completed="false">⏳ Document /clear workaround for users</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            ## Root Cause Identified
+
+**This is a Claude Code bug, not our implementation.**
+
+### Known Claude Code Issues
+
+1. **Issue #10373** - SessionStart hooks not working for new conversations
+   - additionalContext is NOT injected for brand new conversations
+   - Works after /clear, /compact, or URL resume
+   - But fails silently on fresh session start
+
+2. **Issue #13650** - SessionStart hook stdout silently dropped
+   - Valid JSON with exit code 0, but output is dropped
+
+3. **Issue #14281** - additionalContext injected multiple times (different bug)
+
+## Workaround Implemented
+
+Created SDK session warning system (`session_warning.py`) that:
+
+1. Shows orchestrator instructions on SDK initialization
+2. Prints visible banner to stderr (which Claude sees)
+3. Requires explicit dismissal: `sdk.dismiss_session_warning()`
+4. Persists dismissal state in `.htmlgraph/.session-warning-state.json`
+
+This ensures agents always see orchestrator instructions regardless of Claude Code bug.
+
+### Usage
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+# Warning automatically shown if not dismissed for this session
+
+# Agent dismisses after reading (as first action)
+sdk.dismiss_session_warning()
+```
+
+## Status
+
+- Workaround implemented and tested
+- Waiting for Claude Code fix to issue #10373
+- Will remove workaround when upstream fix is available
+
+        </section>
+    </article>
+</body>
+</html>
