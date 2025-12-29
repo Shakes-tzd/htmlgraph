@@ -53,6 +53,7 @@ from htmlgraph.collections import (
     FeatureCollection,
     PhaseCollection,
     SpikeCollection,
+    TodoCollection,
 )
 from htmlgraph.collections.insight import InsightCollection
 from htmlgraph.collections.metric import MetricCollection
@@ -86,6 +87,7 @@ class SDK:
         - sessions: Agent sessions
         - tracks: Work tracks
         - agents: Agent information
+        - todos: Persistent task tracking (mirrors TodoWrite API)
 
     Error Handling Patterns
     =======================
@@ -225,10 +227,14 @@ class SDK:
         self.insights = InsightCollection(self)
         self.metrics = MetricCollection(self)
 
+        # Todo collection (persistent task tracking)
+        self.todos = TodoCollection(self)
+
         # Create learning directories if needed
         (self._directory / "patterns").mkdir(exist_ok=True)
         (self._directory / "insights").mkdir(exist_ok=True)
         (self._directory / "metrics").mkdir(exist_ok=True)
+        (self._directory / "todos").mkdir(exist_ok=True)
 
         # Analytics interface (Phase 2: Work Type Analytics)
         self.analytics = Analytics(self)

@@ -1942,3 +1942,210 @@ class AggregatedMetric(Node):
 </body>
 </html>
 '''
+
+
+class Todo(BaseModel):
+    """
+    A persistent todo item for AI agent task tracking.
+
+    Unlike ephemeral in-context todos (TodoWrite), this model:
+    - Persists to `.htmlgraph/todos/` as HTML files
+    - Links to sessions and features
+    - Enables learning from task patterns across sessions
+    - Provides full audit trail of agent work decomposition
+
+    Matches TodoWrite format with content and activeForm fields.
+    """
+
+    id: str
+    content: str  # The imperative form (e.g., "Run tests")
+    active_form: str  # The present continuous form (e.g., "Running tests")
+    status: Literal["pending", "in_progress", "completed"] = "pending"
+
+    # Timestamps
+    created: datetime = Field(default_factory=datetime.now)
+    updated: datetime = Field(default_factory=datetime.now)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+    # Context linking
+    session_id: str | None = None  # Session where this todo was created
+    feature_id: str | None = None  # Feature this todo belongs to
+    parent_todo_id: str | None = None  # For nested/sub-todos
+
+    # Agent tracking
+    agent: str | None = None  # Agent that created this todo
+    completed_by: str | None = None  # Agent that completed it
+
+    # Metadata
+    priority: int = 0  # Order within a list (0 = first)
+    duration_seconds: float | None = None  # How long it took to complete
+
+    def start(self) -> "Todo":
+        """Mark todo as in progress."""
+        self.status = "in_progress"
+        self.started_at = datetime.now()
+        self.updated = datetime.now()
+        return self
+
+    def complete(self, agent: str | None = None) -> "Todo":
+        """Mark todo as completed."""
+        self.status = "completed"
+        self.completed_at = datetime.now()
+        self.completed_by = agent
+        self.updated = datetime.now()
+
+        # Calculate duration if started
+        if self.started_at:
+            self.duration_seconds = (self.completed_at - self.started_at).total_seconds()
+
+        return self
+
+    def to_html(self, stylesheet_path: str = "../styles.css") -> str:
+        """Convert todo to HTML document."""
+        # Status emoji
+        status_emoji = {
+            "pending": "⏳",
+            "in_progress": "🔄",
+            "completed": "✅",
+        }.get(self.status, "⏳")
+
+        # Build attributes
+        # Escape quotes in content for HTML attributes
+        escaped_content = self.content.replace('"', '&quot;')
+        escaped_active_form = self.active_form.replace('"', '&quot;')
+
+        attrs = [
+            f'data-status="{self.status}"',
+            f'data-priority="{self.priority}"',
+            f'data-created="{self.created.isoformat()}"',
+            f'data-updated="{self.updated.isoformat()}"',
+            f'data-todo-content="{escaped_content}"',
+            f'data-todo-active-form="{escaped_active_form}"',
+        ]
+
+        if self.session_id:
+            attrs.append(f'data-session-id="{self.session_id}"')
+        if self.feature_id:
+            attrs.append(f'data-feature-id="{self.feature_id}"')
+        if self.parent_todo_id:
+            attrs.append(f'data-parent-todo-id="{self.parent_todo_id}"')
+        if self.agent:
+            attrs.append(f'data-agent="{self.agent}"')
+        if self.started_at:
+            attrs.append(f'data-started-at="{self.started_at.isoformat()}"')
+        if self.completed_at:
+            attrs.append(f'data-completed-at="{self.completed_at.isoformat()}"')
+        if self.completed_by:
+            attrs.append(f'data-completed-by="{self.completed_by}"')
+        if self.duration_seconds is not None:
+            attrs.append(f'data-duration="{self.duration_seconds:.1f}"')
+
+        attrs_str = " ".join(attrs)
+
+        # Build links section
+        links_html = ""
+        if self.session_id or self.feature_id or self.parent_todo_id:
+            links_section = """
+        <section data-links>
+            <h3>Related</h3>
+            <ul>"""
+            if self.session_id:
+                links_section += f'\n                <li><a href="../sessions/{self.session_id}.html">Session: {self.session_id}</a></li>'
+            if self.feature_id:
+                links_section += f'\n                <li><a href="../features/{self.feature_id}.html">Feature: {self.feature_id}</a></li>'
+            if self.parent_todo_id:
+                links_section += f'\n                <li><a href="{self.parent_todo_id}.html">Parent: {self.parent_todo_id}</a></li>'
+            links_section += """
+            </ul>
+        </section>"""
+            links_html = links_section
+
+        return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>{status_emoji} {self.content}</title>
+    <link rel="stylesheet" href="{stylesheet_path}">
+</head>
+<body>
+    <article id="{self.id}"
+             data-type="todo"
+             {attrs_str}>
+
+        <header>
+            <h1>{status_emoji} {self.content}</h1>
+            <div class="metadata">
+                <span class="badge status-{self.status}">{self.status.replace("_", " ").title()}</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h3>Task</h3>
+            <p><strong>Content:</strong> {self.content}</p>
+            <p><strong>Active Form:</strong> {self.active_form}</p>
+        </section>
+{links_html}
+    </article>
+</body>
+</html>
+'''
+
+    def to_context(self) -> str:
+        """Lightweight context for AI agents."""
+        status_marker = {
+            "pending": "[ ]",
+            "in_progress": "[~]",
+            "completed": "[x]",
+        }.get(self.status, "[ ]")
+
+        return f"{status_marker} {self.content}"
+
+    def to_todowrite_format(self) -> dict[str, str]:
+        """Convert to TodoWrite format for compatibility."""
+        return {
+            "content": self.content,
+            "status": self.status,
+            "activeForm": self.active_form,
+        }
+
+    @classmethod
+    def from_todowrite(
+        cls,
+        todo_dict: dict[str, str],
+        todo_id: str,
+        session_id: str | None = None,
+        feature_id: str | None = None,
+        agent: str | None = None,
+        priority: int = 0,
+    ) -> "Todo":
+        """
+        Create a Todo from TodoWrite format.
+
+        Args:
+            todo_dict: Dict with 'content', 'status', 'activeForm' keys
+            todo_id: Unique ID for this todo
+            session_id: Current session ID
+            feature_id: Feature this todo belongs to
+            agent: Agent creating this todo
+            priority: Order in the list
+
+        Returns:
+            Todo instance
+        """
+        status = todo_dict.get("status", "pending")
+        if status not in ("pending", "in_progress", "completed"):
+            status = "pending"
+
+        return cls(
+            id=todo_id,
+            content=todo_dict.get("content", ""),
+            active_form=todo_dict.get("activeForm", todo_dict.get("content", "")),
+            status=status,  # type: ignore
+            session_id=session_id,
+            feature_id=feature_id,
+            agent=agent,
+            priority=priority,
+        )
