@@ -1,0 +1,29 @@
+#!/bin/bash
+# Pre-commit hook: Run code quality checks before allowing commit
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Run ruff linting
+echo "  → ruff check..."
+if ! uv run ruff check src/ packages/ 2>/dev/null; then
+    echo "❌ ruff check failed. Fix errors before committing."
+    exit 1
+fi
+
+# Run ruff format check
+echo "  → ruff format --check..."
+if ! uv run ruff format --check src/ packages/ 2>/dev/null; then
+    echo "❌ ruff format check failed. Run 'uv run ruff format src/ packages/' to fix."
+    exit 1
+fi
+
+# Run mypy type checks
+echo "  → mypy..."
+if ! uv run mypy src/python/htmlgraph/ --ignore-missing-imports 2>/dev/null; then
+    echo "❌ mypy check failed. Fix type errors before committing."
+    exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"

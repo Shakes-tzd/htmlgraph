@@ -103,6 +103,40 @@ def check_htmlgraph_version() -> tuple[str | None, str | None, bool]:
     return installed_version, latest_version, is_outdated
 
 
+def install_git_hooks(project_dir: str) -> bool:
+    """
+    Install pre-commit hooks if not already installed.
+
+    Returns True if hooks were installed or already exist.
+    """
+    hooks_source = Path(project_dir) / "scripts" / "hooks" / "pre-commit"
+    hooks_target = Path(project_dir) / ".git" / "hooks" / "pre-commit"
+
+    # Skip if not a git repo or hooks source doesn't exist
+    if not (Path(project_dir) / ".git").exists():
+        return False
+    if not hooks_source.exists():
+        return False
+
+    # Skip if hook already installed and up to date
+    if hooks_target.exists():
+        try:
+            if hooks_source.read_text() == hooks_target.read_text():
+                return True  # Already installed and current
+        except Exception:
+            pass
+
+    # Install the hook
+    try:
+        import shutil
+
+        shutil.copy2(hooks_source, hooks_target)
+        hooks_target.chmod(0o755)
+        return True
+    except Exception:
+        return False
+
+
 try:
     from htmlgraph import SDK
     from htmlgraph.converter import node_to_dict
@@ -552,6 +586,12 @@ def main():
     cwd = hook_input.get("cwd")
     project_dir = resolve_project_path(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
+
+    # Install pre-commit hooks if available (silent, non-blocking)
+    try:
+        install_git_hooks(project_dir)
+    except Exception:
+        pass  # Never block on hook installation
 
     # Ensure a single stable HtmlGraph session exists for this agent.
     # Do NOT create a new HtmlGraph session per external Claude session id (that can explode into many files).
