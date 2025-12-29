@@ -204,20 +204,151 @@ class LearningPersistence:
                     )
                     pattern_ids.append(pattern.id)
 
+        # Also persist parallel patterns
+        parallel_pattern_ids = self.persist_parallel_patterns(min_count=min_count)
+        pattern_ids.extend(parallel_pattern_ids)
+
         return pattern_ids
 
-    def _classify_pattern(self, sequence: list[str]) -> str:
-        """Classify a pattern as optimal, anti-pattern, or neutral."""
+    def persist_parallel_patterns(self, min_count: int = 2) -> list[str]:
+        """Detect and persist parallel execution patterns from sessions.
+
+        Identifies when multiple tools are invoked in parallel (same parent_activity_id).
+        This is especially useful for detecting orchestrator patterns like parallel Task delegation.
+
+        Args:
+            min_count: Minimum occurrences to persist a pattern
+
+        Returns:
+            List of persisted pattern IDs
+        """
+        from collections import defaultdict
+
+        # Collect parallel execution groups from all sessions
+        parallel_patterns: list[tuple[str, ...]] = []
+
+        for session in self.sdk.session_manager.session_converter.load_all():
+            if not session.activity_log:
+                continue
+
+            # Group activities by parent_activity_id
+            parent_groups: dict[str, list[Any]] = defaultdict(list)
+            for activity in session.activity_log:
+                parent_id = (
+                    activity.parent_activity_id
+                    if not isinstance(activity, dict)
+                    else activity.get("parent_activity_id")
+                )
+                if parent_id:  # Only track activities with a parent
+                    parent_groups[parent_id].append(activity)
+
+            # Detect parallel patterns (2+ activities with same parent)
+            for parent_id, activities in parent_groups.items():
+                if len(activities) < 2:
+                    continue
+
+                # Check if activities overlap in time (parallel execution)
+                # Sort by timestamp
+                sorted_activities = sorted(
+                    activities,
+                    key=lambda a: (
+                        a.timestamp
+                        if not isinstance(a, dict)
+                        else a.get("timestamp", datetime.min)
+                    ),
+                )
+
+                # Extract tool sequence
+                tools = tuple(
+                    a.tool if not isinstance(a, dict) else a.get("tool", "")
+                    for a in sorted_activities
+                )
+
+                # Filter out empty tools
+                if all(tools):
+                    parallel_patterns.append(tools)
+
+        # Count parallel patterns
+        pattern_counts = Counter(parallel_patterns)
+
+        # Persist patterns with min_count
+        pattern_ids: list[str | Any] = []
+        for tools, count in pattern_counts.items():
+            if count >= min_count:
+                # Create a pattern name that indicates parallelism
+                tool_names = list(tools)
+                pattern_name = f"Parallel[{len(tools)}]: {' || '.join(tools)}"
+
+                # Check if pattern already exists
+                existing = self.sdk.patterns.find_by_sequence(tool_names)
+                if existing:
+                    # Update existing pattern
+                    pattern = existing[0]
+                    pattern.properties = pattern.properties or {}
+                    pattern.properties["detection_count"] = count
+                    pattern.properties["last_detected"] = datetime.now().isoformat()
+                    pattern.properties["parallel_count"] = len(tools)
+                    pattern.properties["is_parallel"] = True
+                    self.sdk.patterns.update(pattern)
+                    pattern_ids.append(pattern.id)
+                else:
+                    # Create new parallel pattern
+                    pattern_type = self._classify_pattern(tool_names, is_parallel=True)
+                    now = datetime.now()
+                    pattern = (
+                        self.sdk.patterns.create(pattern_name)
+                        .set_sequence(tool_names)
+                        .set_pattern_type(pattern_type)
+                        .set_detection_count(count)
+                        .set_first_detected(now)
+                        .set_last_detected(now)
+                        .save()
+                    )
+                    # Mark as parallel in properties
+                    pattern.properties = pattern.properties or {}
+                    pattern.properties["parallel_count"] = len(tools)
+                    pattern.properties["is_parallel"] = True
+                    self.sdk.patterns.update(pattern)
+                    pattern_ids.append(pattern.id)
+
+        return pattern_ids
+
+    def _classify_pattern(self, sequence: list[str], is_parallel: bool = False) -> str:
+        """Classify a pattern as optimal, anti-pattern, or neutral.
+
+        Args:
+            sequence: List of tool names in the pattern
+            is_parallel: Whether this is a parallel execution pattern
+
+        Returns:
+            Pattern classification string
+        """
         seq = tuple(sequence)
 
-        # Known optimal patterns
+        # Orchestrator patterns (parallel execution)
+        if is_parallel:
+            # Parallel Task delegation is optimal (orchestrator pattern)
+            if all(tool == "Task" for tool in sequence) and len(sequence) >= 2:
+                return "orchestrator-optimal"
+            # Mixed parallel operations can also be optimal
+            if "Task" in sequence:
+                return "orchestrator-optimal"
+            # Other parallel patterns are neutral
+            return "neutral"
+
+        # Sequential anti-patterns for orchestrators
+        # Multiple sequential Tasks without parallelism is an anti-pattern
+        if seq == ("Task", "Task", "Task"):
+            return "orchestrator-anti-pattern"
+
+        # Known optimal patterns (sequential)
         optimal = [
             ("Read", "Edit", "Bash"),  # Read, modify, test
             ("Grep", "Read", "Edit"),  # Search, understand, modify
             ("Glob", "Read", "Edit"),  # Find, understand, modify
         ]
 
-        # Known anti-patterns
+        # Known anti-patterns (sequential)
         anti = [
             ("Edit", "Edit", "Edit"),  # Too many edits without testing
             ("Bash", "Bash", "Bash"),  # Command spam
