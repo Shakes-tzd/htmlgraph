@@ -231,3 +231,66 @@ def test_get_active_work_item_step_progress(sdk: SDK):
     assert result is not None
     assert result["steps_total"] == 5
     assert result["steps_completed"] == 3
+
+
+def test_get_active_work_item_auto_spike_deprioritized(sdk: SDK):
+    """Test that auto-generated spikes are deprioritized behind real work items."""
+    from htmlgraph.graph import HtmlGraph
+
+    # Create an auto-generated spike (session-init)
+    spikes_graph = HtmlGraph(sdk._directory / "spikes")
+    auto_spike = Node(
+        id="spike-init-001",
+        title="Session Init: test",
+        type="spike",
+        status="in-progress",
+        spike_subtype="session-init",
+        auto_generated=True,
+        session_id="sess-test-001",  # Required for auto-generated spikes
+        steps=[]
+    )
+    spikes_graph.add(auto_spike)
+
+    # With only auto-spike active, it should be returned
+    result = sdk.get_active_work_item()
+    assert result is not None
+    assert result["type"] == "spike"
+    assert result["id"] == "spike-init-001"
+    assert result["auto_generated"] is True
+
+    # Create a real feature using SDK (not HtmlGraph directly)
+    # This ensures the SDK's collection is aware of the new feature
+    feature = sdk.features.create("Real Feature").save()
+    with sdk.features.edit(feature.id) as f:
+        f.status = "in-progress"
+
+    # Now the real feature should be returned instead of auto-spike
+    result = sdk.get_active_work_item()
+    assert result is not None
+    assert result["type"] == "feature"
+    assert result["id"] == feature.id
+
+    # Create a real user spike (investigation) using SDK
+    real_spike = sdk.spikes.create("User Investigation").save()
+    with sdk.spikes.edit(real_spike.id) as s:
+        s.status = "in-progress"
+        s.spike_subtype = "investigation"  # Not session-init/transition
+        s.auto_generated = False
+
+    # Real spike should be prioritized over auto-spike
+    # (features come before spikes in search order, so feature returned)
+    result = sdk.get_active_work_item()
+    assert result is not None
+    # Should still be the feature since it comes first in search order
+    assert result["type"] == "feature"
+
+    # Mark feature as done
+    with sdk.features.edit(feature.id) as f:
+        f.status = "done"
+
+    # Now the real user spike should be returned, not the auto-spike
+    result = sdk.get_active_work_item()
+    assert result is not None
+    assert result["type"] == "spike"
+    assert result["id"] == real_spike.id  # Real spike, not auto-spike
+    assert result.get("auto_generated") is False

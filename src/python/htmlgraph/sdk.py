@@ -1642,7 +1642,9 @@ class SDK:
             work_types = ["features", "bugs", "spikes", "chores", "epics"]
 
         # Search across all work item types
-        active_items = []
+        # Separate real work items from auto-generated spikes
+        real_work_items = []
+        auto_spikes = []
 
         for work_type in work_types:
             collection = getattr(self, work_type, None)
@@ -1677,12 +1679,29 @@ class SDK:
                     item_dict["auto_generated"] = getattr(item, "auto_generated", False)
                     item_dict["spike_subtype"] = getattr(item, "spike_subtype", None)
 
-                active_items.append(item_dict)
+                    # Separate auto-spikes from real work
+                    # Auto-spikes are temporary tracking items (session-init, transition, conversation-init)
+                    is_auto_spike = (
+                        item_dict["auto_generated"] and
+                        item_dict["spike_subtype"] in ("session-init", "transition", "conversation-init")
+                    )
 
-        # Return first active item (primary work item)
-        # TODO: In future, could support multiple active items or prioritization
-        if active_items:
-            return active_items[0]  # type: ignore[return-value]
+                    if is_auto_spike:
+                        auto_spikes.append(item_dict)
+                    else:
+                        # Real user-created spike
+                        real_work_items.append(item_dict)
+                else:
+                    # Features, bugs, chores, epics are always real work
+                    real_work_items.append(item_dict)
+
+        # Prioritize real work items over auto-spikes
+        # Auto-spikes should only show if there's NO other active work item
+        if real_work_items:
+            return real_work_items[0]  # type: ignore[return-value]
+
+        if auto_spikes:
+            return auto_spikes[0]  # type: ignore[return-value]
 
         return None
 
