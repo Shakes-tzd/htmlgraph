@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="htmlgraph-version" content="1.0">
-    <title>SDK orchestration not documented or enforced in agent workflows</title>
+    <title>SessionStart hook additionalContext not injected (Claude Code bug)</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
              data-updated="2025-12-29T10:45:23.690508">
 
         <header>
-            <h1>SDK orchestration not documented or enforced in agent workflows</h1>
+            <h1>SessionStart hook additionalContext not injected (Claude Code bug)</h1>
             <div class="metadata">
                 <span class="badge status-todo">Todo</span>
                 <span class="badge priority-high">High Priority</span>
@@ -34,45 +34,64 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false">⏳ Investigate if hook additionalContext is surfaced to agent</li>
-                <li data-completed="false">⏳ Add skill activation reminder to context</li>
-                <li data-completed="false">⏳ Consider auto-activating htmlgraph-tracker on session start</li>
-                <li data-completed="false">⏳ Add parallel-orchestrator reminder when Task tool is used</li>
-                <li data-completed="false">⏳ Test with next parallel work session</li>
+                <li data-completed="false">⏳ Monitor Claude Code releases for fix</li>
+                <li data-completed="false">⏳ Add visible fallback to session-start hook</li>
+                <li data-completed="false">⏳ Consider pre-tool hook as alternative injection point</li>
+                <li data-completed="false">⏳ Document /clear workaround for users</li>
             </ol>
         </section>
         <section data-content>
             <h3>Description</h3>
             
-## Problem
-Session-start hook instructs skill activation but it's not happening.
+## Root Cause Identified
 
-## Evidence
-1. Session-start hook explicitly says:
-   > **IMPORTANT: Activate the `htmlgraph-tracker` skill now using the Skill tool.**
-2. I did NOT activate the skill at session start
-3. When spawning agents, I should have activated `parallel-orchestrator` skill
-4. Neither skill was activated during this session
+**This is a Claude Code bug, not our implementation.**
 
-## Root Cause Options
-1. **Hook output not surfaced** - I don't see the additionalContext from hooks
-2. **I chose to ignore** - I saw it but didn't follow the instruction
-3. **No enforcement** - Skills require explicit activation, no automatic trigger
+### Known Claude Code Issues
 
-## Three Skills Available
-- `htmlgraph-tracker` - SDK usage, step completion (every session)
-- `parallel-orchestrator` - 6-phase parallel workflow (when spawning agents)
-- `strategic-planning` - Bottleneck detection (when planning)
+1. **Issue #10373** - SessionStart hooks not working for new conversations
+   - additionalContext is NOT injected for brand new conversations
+   - Works after /clear, /compact, or URL resume
+   - But fails silently on fresh session start
 
-## Expected Behavior
-1. At session start → Activate `htmlgraph-tracker`
-2. Before spawning agents → Activate `parallel-orchestrator`
-3. Skills provide imperative instructions for orchestration
+2. **Issue #13650** - SessionStart hook stdout silently dropped
+   - Valid JSON with exit code 0, but output is dropped
 
-## Impact
-- Orchestration workflow not followed
-- Task tool used directly instead of SDK methods
-- No 6-phase parallel workflow (analyze, prepare, dispatch, monitor, aggregate, validate)
+3. **Issue #14281** - additionalContext injected multiple times (different bug)
+
+### Evidence
+
+Our session-start.py outputs correctly:
+```python
+print(json.dumps({
+    "continue": True,
+    "hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": context  # Contains skill activation instruction
+    }
+}))
+```
+
+But the agent never sees this context in new conversations.
+
+### Workarounds
+
+1. Run `/clear` at session start to trigger hook re-evaluation
+2. Add visible instructions as fallback (in addition to additionalContext)
+3. Consider using a different hook type that works more reliably
+
+### Impact
+
+- Skill activation instructions not surfaced
+- Orchestrator workflow not followed
+- Active learning context not injected
+- Session start context missing
+
+### Resolution Options
+
+1. **Wait for Claude Code fix** - Monitor releases
+2. **Add fallback mechanism** - Output visible text in addition to additionalContext
+3. **Use pre-tool hooks** - More reliable injection point
 
         </section>
     </article>
