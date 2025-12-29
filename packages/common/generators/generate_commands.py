@@ -8,10 +8,11 @@ Usage:
     python generate_commands.py [--platform claude|codex|gemini|all]
 """
 
-import yaml
+import argparse
 from pathlib import Path
 from typing import Any
-import argparse
+
+import yaml
 
 
 def load_command_definition(yaml_file: Path) -> dict[str, Any]:

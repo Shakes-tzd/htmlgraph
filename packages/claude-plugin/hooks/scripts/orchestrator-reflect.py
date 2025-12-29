@@ -54,12 +54,12 @@ def is_python_execution(command: str) -> bool:
 
     # Check for Python execution patterns
     python_patterns = [
-        r'\buv\s+run\b',           # uv run <anything>
-        r'\bpython\s+-c\b',        # python -c "code"
-        r'\bpython\s+[\w/.-]+\.py\b',  # python script.py
-        r'\bpython\s+-m\s+\w+',    # python -m module
-        r'\bpytest\b',             # pytest
-        r'\bpython3\s+',           # python3 command
+        r"\buv\s+run\b",  # uv run <anything>
+        r"\bpython\s+-c\b",  # python -c "code"
+        r"\bpython\s+[\w/.-]+\.py\b",  # python script.py
+        r"\bpython\s+-m\s+\w+",  # python -m module
+        r"\bpytest\b",  # pytest
+        r"\bpython3\s+",  # python3 command
     ]
 
     for pattern in python_patterns:
