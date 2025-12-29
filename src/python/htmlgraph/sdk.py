@@ -187,11 +187,19 @@ class SDK:
         self._directory = Path(directory)
         self._agent_id = agent
 
-        # Initialize SessionManager for smart tracking and attribution
-        self.session_manager = SessionManager(self._directory)
-
-        # Initialize underlying components (for backward compatibility)
+        # Initialize underlying HtmlGraphs first (for backward compatibility and sharing)
+        # These are shared with SessionManager to avoid double-loading features
         self._graph = HtmlGraph(self._directory / "features")
+        self._bugs_graph = HtmlGraph(self._directory / "bugs")
+
+        # Initialize SessionManager with shared graph instances to avoid double-loading
+        self.session_manager = SessionManager(
+            self._directory,
+            features_graph=self._graph,
+            bugs_graph=self._bugs_graph,
+        )
+
+        # Agent interface (for backward compatibility)
         self._agent_interface = AgentInterface(
             self._directory / "features", agent_id=agent
         )

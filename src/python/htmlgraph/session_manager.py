@@ -83,6 +83,8 @@ class SessionManager:
         graph_dir: str | Path = ".htmlgraph",
         wip_limit: int = DEFAULT_WIP_LIMIT,
         session_dedupe_window_seconds: int = DEFAULT_SESSION_DEDUPE_WINDOW_SECONDS,
+        features_graph: HtmlGraph | None = None,
+        bugs_graph: HtmlGraph | None = None,
     ):
         """
         Initialize SessionManager.
@@ -90,6 +92,9 @@ class SessionManager:
         Args:
             graph_dir: Directory containing HtmlGraph data
             wip_limit: Maximum features in progress simultaneously
+            session_dedupe_window_seconds: Deduplication window for sessions
+            features_graph: Optional pre-initialized HtmlGraph for features (avoids double-loading)
+            bugs_graph: Optional pre-initialized HtmlGraph for bugs (avoids double-loading)
         """
         self.graph_dir = Path(graph_dir)
         self.wip_limit = wip_limit
@@ -108,9 +113,9 @@ class SessionManager:
         # Session converter
         self.session_converter = SessionConverter(self.sessions_dir)
 
-        # Feature graphs (lazy loading - only load when needed)
-        self.features_graph = HtmlGraph(self.features_dir, auto_load=False)
-        self.bugs_graph = HtmlGraph(self.bugs_dir, auto_load=False)
+        # Feature graphs - reuse provided instances to avoid double-loading, or create new with lazy loading
+        self.features_graph = features_graph or HtmlGraph(self.features_dir, auto_load=False)
+        self.bugs_graph = bugs_graph or HtmlGraph(self.bugs_dir, auto_load=False)
 
         # Claiming service (handles feature claims/releases)
         self.claiming_service = ClaimingService(
@@ -343,6 +348,7 @@ class SessionManager:
             # Add to index if it's still active
             if existing.status == "in-progress":
                 self._active_auto_spikes.add(existing.id)
+                self._spike_index.add(existing.id, "session-init", session.id)
             return existing
 
         # Create session-init spike
@@ -362,8 +368,9 @@ class SessionManager:
         # Save spike
         spike_converter.save(spike)
 
-        # Add to active auto-spikes index
+        # Add to active auto-spikes index (both in-memory and persistent)
         self._active_auto_spikes.add(spike.id)
+        self._spike_index.add(spike.id, "session-init", session.id)
 
         # Link session to spike
         if spike.id not in session.worked_on:
@@ -408,8 +415,9 @@ class SessionManager:
         spike_converter = NodeConverter(self.graph_dir / "spikes")
         spike_converter.save(spike)
 
-        # Add to active auto-spikes index
+        # Add to active auto-spikes index (both in-memory and persistent)
         self._active_auto_spikes.add(spike.id)
+        self._spike_index.add(spike.id, "transition", session.id)
 
         # Link session to spike
         if spike.id not in session.worked_on:
@@ -446,6 +454,7 @@ class SessionManager:
 
             if not spike:
                 self._active_auto_spikes.discard(spike_id)
+                self._spike_index.remove(spike_id)
                 continue
 
             # Only complete transition spikes on conversation start
@@ -465,6 +474,7 @@ class SessionManager:
             spike_converter.save(spike)
             completed_spikes.append(spike)
             self._active_auto_spikes.discard(spike_id)
+            self._spike_index.remove(spike_id)
 
             logger.debug(f"Completed transition spike {spike_id} on conversation start")
 
@@ -500,6 +510,7 @@ class SessionManager:
             if not spike:
                 # Spike was deleted or doesn't exist - remove from index
                 self._active_auto_spikes.discard(spike_id)
+                self._spike_index.remove(spike_id)
                 continue
 
             if not (
@@ -511,6 +522,7 @@ class SessionManager:
             ):
                 # Spike is no longer active - remove from index
                 self._active_auto_spikes.discard(spike_id)
+                self._spike_index.remove(spike_id)
                 continue
 
             # Complete the spike
@@ -523,8 +535,9 @@ class SessionManager:
             spike_converter.save(spike)
             completed_spikes.append(spike)
 
-            # Remove from active index since it's now completed
+            # Remove from active index (both in-memory and persistent) since it's now completed
             self._active_auto_spikes.discard(spike_id)
+            self._spike_index.remove(spike_id)
 
         # Import transcript when auto-spikes complete (work boundary)
         if completed_spikes:
@@ -1311,17 +1324,34 @@ class SessionManager:
 
                     # Directory patterns (end with /)
                     if pattern_lower.endswith("/"):
-                        if pattern_lower in path_lower or path_lower.startswith(pattern_lower):
+                        # For wildcard directory patterns like "*.egg-info/"
+                        if "*" in pattern_lower:
+                            import fnmatch
+
+                            # Check each path segment
+                            path_parts = path_lower.split("/")
+                            for part in path_parts:
+                                if fnmatch.fnmatch(part, pattern_lower.rstrip("/")):
+                                    return True
+                        # For regular directory patterns like ".htmlgraph/"
+                        elif pattern_lower in path_lower or path_lower.startswith(
+                            pattern_lower
+                        ):
                             return True
-                    # Wildcard patterns (e.g., *.pyc)
+                    # Wildcard file patterns (e.g., *.pyc)
                     elif "*" in pattern_lower:
                         import fnmatch
-                        if fnmatch.fnmatch(path_lower, pattern_lower):
+
+                        # Check the filename (last part of path)
+                        filename = path_lower.split("/")[-1]
+                        if fnmatch.fnmatch(filename, pattern_lower):
                             return True
                     # Exact filename match
                     else:
                         # Check if path ends with the pattern (handles both absolute and relative)
-                        if path_lower.endswith(pattern_lower) or f"/{pattern_lower}" in path_lower:
+                        if path_lower.endswith(
+                            pattern_lower
+                        ) or f"/{pattern_lower}" in path_lower:
                             return True
 
         return False
