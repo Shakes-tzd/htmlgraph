@@ -6,39 +6,59 @@
 # ]
 # ///
 """
-Pre-Work Validation Hook (GUIDANCE MODE) with Active Learning
+Pre-Work Validation Hook with Active Learning
 
 Provides intelligent guidance for HtmlGraph workflow based on:
 1. Current workflow state (work items, spikes)
 2. Recent tool usage patterns (anti-pattern detection)
 3. Learned patterns from transcript analytics
 
-Philosophy:
-- Hooks GUIDE agents with suggestions, they do NOT block
-- Learn from past patterns to provide smarter guidance
-- Trust the agent to make good decisions
-- Active feedback loop improves agent workflows
+Modes:
+- GUIDANCE MODE (default): Suggests creating work items, doesn't block
+- STRICT MODE: Blocks exploration/implementation without active work item
+
+Set strict mode in validation-config.json:
+  {"enforcement": {"strict_work_item_required": true}}
 
 Hook Input (stdin): JSON with tool call details
 Hook Output (stdout): JSON with guidance {"decision": "allow", "guidance": "...", "suggestion": "..."}
 """
 
 import json
-import os
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-
 
 # Anti-patterns to detect (tool sequence -> warning message)
 ANTI_PATTERNS = {
-    ("Bash", "Bash", "Bash", "Bash"): "4 consecutive Bash commands. Check for errors or consider a different approach.",
-    ("Edit", "Edit", "Edit"): "3 consecutive Edits. Consider batching changes or reading file first.",
-    ("Grep", "Grep", "Grep"): "3 consecutive Greps. Consider reading results before searching more.",
-    ("Read", "Read", "Read", "Read"): "4 consecutive Reads. Consider caching file content.",
+    (
+        "Bash",
+        "Bash",
+        "Bash",
+        "Bash",
+    ): "4 consecutive Bash commands. Check for errors or consider a different approach.",
+    (
+        "Edit",
+        "Edit",
+        "Edit",
+    ): "3 consecutive Edits. Consider batching changes or reading file first.",
+    (
+        "Grep",
+        "Grep",
+        "Grep",
+    ): "3 consecutive Greps. Consider reading results before searching more.",
+    (
+        "Read",
+        "Read",
+        "Read",
+        "Read",
+    ): "4 consecutive Reads. Consider caching file content.",
 }
+
+# Tools that indicate exploration/implementation (require work item in strict mode)
+EXPLORATION_TOOLS = {"Grep", "Glob", "Task"}
+IMPLEMENTATION_TOOLS = {"Edit", "Write", "NotebookEdit"}
 
 # Optimal patterns to encourage
 OPTIMAL_PATTERNS = {
@@ -75,14 +95,11 @@ def save_tool_history(history: list[dict]) -> None:
 
 def record_tool(tool: str, history: list[dict]) -> list[dict]:
     """Record a tool use in history."""
-    history.append({
-        "tool": tool,
-        "ts": datetime.now().timestamp()
-    })
+    history.append({"tool": tool, "ts": datetime.now().timestamp()})
     return history[-MAX_HISTORY:]
 
 
-def detect_anti_pattern(tool: str, history: list[dict]) -> Optional[str]:
+def detect_anti_pattern(tool: str, history: list[dict]) -> str | None:
     """Check if adding this tool creates an anti-pattern."""
     recent_tools = [h["tool"] for h in history[-4:]] + [tool]
 
@@ -96,7 +113,7 @@ def detect_anti_pattern(tool: str, history: list[dict]) -> Optional[str]:
     return None
 
 
-def detect_optimal_pattern(tool: str, history: list[dict]) -> Optional[str]:
+def detect_optimal_pattern(tool: str, history: list[dict]) -> str | None:
     """Check if this tool continues an optimal pattern."""
     if not history:
         return None
@@ -112,23 +129,17 @@ def get_pattern_guidance(tool: str, history: list[dict]) -> dict:
     # Check for anti-patterns first
     anti_pattern = detect_anti_pattern(tool, history)
     if anti_pattern:
-        return {
-            "pattern_warning": f"⚠️ {anti_pattern}",
-            "pattern_type": "anti-pattern"
-        }
+        return {"pattern_warning": f"⚠️ {anti_pattern}", "pattern_type": "anti-pattern"}
 
     # Check for optimal patterns
     optimal = detect_optimal_pattern(tool, history)
     if optimal:
-        return {
-            "pattern_note": optimal,
-            "pattern_type": "optimal"
-        }
+        return {"pattern_note": optimal, "pattern_type": "optimal"}
 
     return {}
 
 
-def get_session_health_hint(history: list[dict]) -> Optional[str]:
+def get_session_health_hint(history: list[dict]) -> str | None:
     """Get a health hint based on session patterns."""
     if len(history) < 10:
         return None
@@ -139,7 +150,7 @@ def get_session_health_hint(history: list[dict]) -> Optional[str]:
     consecutive = 1
     max_consecutive = 1
     for i in range(1, len(tools)):
-        if tools[i] == tools[i-1]:
+        if tools[i] == tools[i - 1]:
             consecutive += 1
             max_consecutive = max(max_consecutive, consecutive)
         else:
@@ -158,7 +169,9 @@ def get_session_health_hint(history: list[dict]) -> Optional[str]:
 
 def load_validation_config() -> dict:
     """Load validation config with defaults."""
-    config_path = Path(__file__).parent.parent.parent / "config" / "validation-config.json"
+    config_path = (
+        Path(__file__).parent.parent.parent / "config" / "validation-config.json"
+    )
 
     if config_path.exists():
         try:
@@ -171,11 +184,9 @@ def load_validation_config() -> dict:
     return {
         "always_allow": {
             "tools": ["Read", "Glob", "Grep", "LSP"],
-            "bash_patterns": ["^git status", "^git diff", "^ls", "^cat"]
+            "bash_patterns": ["^git status", "^git diff", "^ls", "^cat"],
         },
-        "sdk_commands": {
-            "patterns": ["^uv run htmlgraph ", "^htmlgraph "]
-        }
+        "sdk_commands": {"patterns": ["^uv run htmlgraph ", "^htmlgraph "]},
     }
 
 
@@ -236,7 +247,7 @@ def is_code_operation(tool: str, params: dict, config: dict) -> bool:
     return False
 
 
-def get_active_work_item() -> Optional[dict]:
+def get_active_work_item() -> dict | None:
     """Get active work item using SDK."""
     try:
         from htmlgraph import SDK
@@ -249,7 +260,9 @@ def get_active_work_item() -> Optional[dict]:
         return None
 
 
-def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict]) -> dict:
+def validate_tool_call(
+    tool: str, params: dict, config: dict, history: list[dict]
+) -> dict:
     """
     Validate tool call and return GUIDANCE with active learning.
 
@@ -285,7 +298,7 @@ def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict
             "decision": "block",
             "reason": f"BLOCKED: Direct edits to .htmlgraph/ files are not allowed. File: {file_path}",
             "suggestion": "Use SDK instead: `from htmlgraph import SDK; sdk = SDK(); sdk.features.complete('id')`",
-            "documentation": "See AGENTS.md line 3: 'AI agents must NEVER edit .htmlgraph/ HTML files directly'"
+            "documentation": "See AGENTS.md line 3: 'AI agents must NEVER edit .htmlgraph/ HTML files directly'",
         }
 
     # Step 3: Classify operation
@@ -297,11 +310,47 @@ def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict
 
     # Step 5: No active work item
     if active is None:
+        # Check for strict enforcement mode
+        strict_mode = config.get("enforcement", {}).get(
+            "strict_work_item_required", False
+        )
+
         if is_sdk_cmd:
             guidance_parts.append("Creating work item via SDK")
-        elif is_code_op or tool in ["Write", "Edit", "Delete"]:
-            guidance_parts.append("No active work item. Consider creating one to track this work.")
-            result["suggestion"] = "uv run htmlgraph feature create 'Feature title'"
+        elif strict_mode and (tool in IMPLEMENTATION_TOOLS or is_code_op):
+            # STRICT MODE: BLOCK implementation without work item
+            return {
+                "decision": "block",
+                "reason": (
+                    "🛑 BLOCKED: No active work item.\n\n"
+                    "You MUST create and start a work item BEFORE making code changes.\n\n"
+                    "Run this FIRST:\n"
+                    "  sdk = SDK(agent='claude')\n"
+                    "  feature = sdk.features.create('Your feature title').save()\n"
+                    "  sdk.features.start(feature.id)\n\n"
+                    "Then retry your edit."
+                ),
+                "suggestion": "sdk.features.create('Title').save() then sdk.features.start(id)",
+                "required_action": "CREATE_WORK_ITEM",
+            }
+        elif strict_mode and tool in EXPLORATION_TOOLS:
+            # STRICT MODE: Strong guidance for exploration (allow but warn loudly)
+            result["required_action"] = "CREATE_WORK_ITEM"
+            result["imperative"] = (
+                "⚠️ WARNING: No active work item for exploration.\n"
+                "Consider creating a spike first:\n"
+                "  sdk = SDK(agent='claude')\n"
+                "  spike = sdk.spikes.create('Investigation title').save()\n"
+                "  sdk.spikes.start(spike.id)"
+            )
+            guidance_parts.append("⚠️ No work item - consider creating a spike first")
+        elif tool in EXPLORATION_TOOLS or tool in IMPLEMENTATION_TOOLS or is_code_op:
+            guidance_parts.append(
+                "⚠️ No active work item. Create one to track this work."
+            )
+            result["suggestion"] = (
+                "sdk.features.create('Title').save() then sdk.features.start(id)"
+            )
 
         if guidance_parts:
             result["guidance"] = " | ".join(guidance_parts)
@@ -314,7 +363,9 @@ def validate_tool_call(tool: str, params: dict, config: dict, history: list[dict
         if is_sdk_cmd:
             guidance_parts.append(f"Planning with spike {spike_id}")
         elif tool in ["Write", "Edit", "Delete", "NotebookEdit"] or is_code_op:
-            guidance_parts.append(f"Active spike ({spike_id}) is for planning. Consider creating a feature for implementation.")
+            guidance_parts.append(
+                f"Active spike ({spike_id}) is for planning. Consider creating a feature for implementation."
+            )
             result["suggestion"] = "uv run htmlgraph feature create 'Feature title'"
 
         if guidance_parts:
@@ -368,10 +419,9 @@ def main():
 
     except Exception as e:
         # Graceful degradation - allow on error
-        print(json.dumps({
-            "decision": "allow",
-            "guidance": f"Validation hook error: {e}"
-        }))
+        print(
+            json.dumps({"decision": "allow", "guidance": f"Validation hook error: {e}"})
+        )
         sys.exit(0)
 
 

@@ -19,22 +19,20 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-
 
 DRIFT_QUEUE_FILE = "drift-queue.json"
 
 
-def resolve_project_path(cwd: Optional[str] = None) -> str:
+def resolve_project_path(cwd: str | None = None) -> str:
     """Resolve project path (git root or cwd)."""
     start_dir = cwd or os.getcwd()
     try:
         result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
+            ["git", "rev-parse", "--show-toplevel"],
             capture_output=True,
             text=True,
             cwd=start_dir,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -62,13 +60,16 @@ def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
 
             # Filter out stale activities
             from datetime import timedelta
+
             cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
             original_count = len(queue.get("activities", []))
 
             fresh_activities = []
             for activity in queue.get("activities", []):
                 try:
-                    activity_time = datetime.fromisoformat(activity.get("timestamp", ""))
+                    activity_time = datetime.fromisoformat(
+                        activity.get("timestamp", "")
+                    )
                     if activity_time >= cutoff_time:
                         fresh_activities.append(activity)
                 except (ValueError, TypeError):
@@ -121,7 +122,7 @@ def update_work_item_with_activities(work_item_path: Path, activities: list) -> 
             activity_entries.append(entry)
 
         # Find the activity log section and insert entries
-        activity_log_pattern = r'(<section data-activity-log>.*?<ol reversed>)'
+        activity_log_pattern = r"(<section data-activity-log>.*?<ol reversed>)"
         match = re.search(activity_log_pattern, content, re.DOTALL)
 
         if match:
@@ -137,7 +138,9 @@ def update_work_item_with_activities(work_item_path: Path, activities: list) -> 
     return False
 
 
-def update_session_with_work_item_link(graph_dir: Path, work_item_id: str, work_item_type: str) -> bool:
+def update_session_with_work_item_link(
+    graph_dir: Path, work_item_id: str, work_item_type: str
+) -> bool:
     """Add work item link to the current session's edges."""
     from htmlgraph.session_manager import SessionManager
 
@@ -154,7 +157,7 @@ def update_session_with_work_item_link(graph_dir: Path, work_item_id: str, work_
         content = session_path.read_text()
 
         # Find the nav section and add a "created" edge
-        nav_pattern = r'(<nav data-graph-edges>)'
+        nav_pattern = r"(<nav data-graph-edges>)"
         if nav_pattern not in content:
             return False
 
@@ -170,18 +173,16 @@ def update_session_with_work_item_link(graph_dir: Path, work_item_id: str, work_
             </section>'''
 
             content = re.sub(
-                r'(<nav data-graph-edges>)',
-                r'\1' + created_section,
-                content
+                r"(<nav data-graph-edges>)", r"\1" + created_section, content
             )
         else:
             # Add to existing created section
             new_link = f'                    <li><a href="../{work_item_type}s/{work_item_id}.html" data-relationship="created" data-since="{datetime.now().isoformat()}">{work_item_id}</a></li>'
             content = re.sub(
                 r'(data-edge-type="created".*?<ul>)',
-                r'\1\n' + new_link,
+                r"\1\n" + new_link,
                 content,
-                flags=re.DOTALL
+                flags=re.DOTALL,
             )
 
         session_path.write_text(content)
@@ -200,7 +201,7 @@ def main():
         sys.exit(1)
 
     work_item_type = sys.argv[1]  # bug, feature, spike, chore
-    work_item_id = sys.argv[2]    # e.g., bug-password-validation
+    work_item_id = sys.argv[2]  # e.g., bug-password-validation
 
     project_dir = resolve_project_path()
     graph_dir = Path(project_dir) / ".htmlgraph"
@@ -211,7 +212,7 @@ def main():
         "feature": "features",
         "spike": "spikes",
         "chore": "chores",
-        "hotfix": "hotfixes"
+        "hotfix": "hotfixes",
     }
     work_item_dir = type_dirs.get(work_item_type, f"{work_item_type}s")
     work_item_path = graph_dir / work_item_dir / f"{work_item_id}.html"
@@ -234,9 +235,9 @@ def main():
 
     # Update session with work item link
     if update_session_with_work_item_link(graph_dir, work_item_id, work_item_type):
-        print(f"  Added 'created' link to session")
+        print("  Added 'created' link to session")
     else:
-        print(f"  Warning: Could not update session")
+        print("  Warning: Could not update session")
 
     # Clear the queue
     clear_drift_queue(graph_dir)

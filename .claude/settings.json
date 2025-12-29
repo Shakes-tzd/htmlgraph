@@ -5,6 +5,17 @@
     "padding": 0
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run $CLAUDE_PROJECT_DIR/.claude/hooks/scripts/user-prompt-submit.py"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "",

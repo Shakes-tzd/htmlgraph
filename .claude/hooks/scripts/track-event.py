@@ -20,13 +20,13 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     print(json.dumps({"continue": True}))
     sys.exit(0)
 
-def _resolve_project_dir(cwd: Optional[str] = None) -> str:
+
+def _resolve_project_dir(cwd: str | None = None) -> str:
     """
     Prefer Claude's project dir env var; fall back to git root; then cwd.
     """
@@ -61,8 +61,8 @@ def _bootstrap_pythonpath(project_dir: str) -> None:
     if venv.exists():
         pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         candidates = [
-            venv / "lib" / pyver / "site-packages",   # mac/linux
-            venv / "Lib" / "site-packages",           # windows
+            venv / "lib" / pyver / "site-packages",  # mac/linux
+            venv / "Lib" / "site-packages",  # windows
         ]
         for c in candidates:
             if c.exists():
@@ -80,7 +80,10 @@ try:
     from htmlgraph.session_manager import SessionManager
 except Exception as e:
     # Do not break Claude execution if the dependency isn't installed.
-    print(f"Warning: HtmlGraph not available ({e}). Install with: pip install htmlgraph", file=sys.stderr)
+    print(
+        f"Warning: HtmlGraph not available ({e}). Install with: pip install htmlgraph",
+        file=sys.stderr,
+    )
     print(json.dumps({"continue": True}))
     sys.exit(0)
 
@@ -95,7 +98,10 @@ def load_drift_config() -> dict:
     """Load drift configuration from plugin config or project .claude directory."""
     config_paths = [
         Path(__file__).parent.parent.parent / "config" / "drift-config.json",
-        Path(os.environ.get("CLAUDE_PROJECT_DIR", "")) / ".claude" / "config" / "drift-config.json",
+        Path(os.environ.get("CLAUDE_PROJECT_DIR", ""))
+        / ".claude"
+        / "config"
+        / "drift-config.json",
         Path(os.environ.get("CLAUDE_PLUGIN_ROOT", "")) / "config" / "drift-config.json",
     ]
 
@@ -114,18 +120,15 @@ def load_drift_config() -> dict:
             "warning_threshold": 0.7,
             "auto_classify_threshold": 0.85,
             "min_activities_before_classify": 3,
-            "cooldown_minutes": 10
+            "cooldown_minutes": 10,
         },
-        "classification": {
-            "enabled": True,
-            "use_haiku_agent": True
-        },
+        "classification": {"enabled": True, "use_haiku_agent": True},
         "queue": {
             "max_pending_classifications": 5,
             "max_age_hours": 48,
             "process_on_stop": True,
-            "process_on_threshold": True
-        }
+            "process_on_threshold": True,
+        },
     }
 
 
@@ -147,17 +150,22 @@ def load_parent_activity(graph_dir: Path) -> dict:
     return {}
 
 
-def save_parent_activity(graph_dir: Path, parent_id: str | None, tool: str | None = None) -> None:
+def save_parent_activity(
+    graph_dir: Path, parent_id: str | None, tool: str | None = None
+) -> None:
     """Save the active parent activity state."""
     path = graph_dir / PARENT_ACTIVITY_FILE
     try:
         if parent_id:
             with open(path, "w") as f:
-                json.dump({
-                    "parent_id": parent_id,
-                    "tool": tool,
-                    "timestamp": datetime.now().isoformat()
-                }, f)
+                json.dump(
+                    {
+                        "parent_id": parent_id,
+                        "tool": tool,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                    f,
+                )
         else:
             # Clear parent activity
             path.unlink(missing_ok=True)
@@ -189,7 +197,9 @@ def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
             fresh_activities = []
             for activity in queue.get("activities", []):
                 try:
-                    activity_time = datetime.fromisoformat(activity.get("timestamp", ""))
+                    activity_time = datetime.fromisoformat(
+                        activity.get("timestamp", "")
+                    )
                     if activity_time >= cutoff_time:
                         fresh_activities.append(activity)
                 except (ValueError, TypeError):
@@ -201,7 +211,10 @@ def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
                 queue["activities"] = fresh_activities
                 save_drift_queue(graph_dir, queue)
                 removed = original_count - len(fresh_activities)
-                print(f"Cleaned {removed} stale drift queue entries (older than {max_age_hours}h)", file=sys.stderr)
+                print(
+                    f"Cleaned {removed} stale drift queue entries (older than {max_age_hours}h)",
+                    file=sys.stderr,
+                )
 
             return queue
         except Exception:
@@ -249,14 +262,16 @@ def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
     queue = load_drift_queue(graph_dir, max_age_hours=max_age_hours)
     max_pending = config.get("queue", {}).get("max_pending_classifications", 5)
 
-    queue["activities"].append({
-        "timestamp": datetime.now().isoformat(),
-        "tool": activity.get("tool"),
-        "summary": activity.get("summary"),
-        "file_paths": activity.get("file_paths", []),
-        "drift_score": activity.get("drift_score"),
-        "feature_id": activity.get("feature_id")
-    })
+    queue["activities"].append(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "tool": activity.get("tool"),
+            "summary": activity.get("summary"),
+            "file_paths": activity.get("file_paths", []),
+            "drift_score": activity.get("drift_score"),
+            "feature_id": activity.get("feature_id"),
+        }
+    )
 
     # Keep only recent activities
     queue["activities"] = queue["activities"][-max_pending:]
@@ -267,7 +282,6 @@ def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
 def should_trigger_classification(queue: dict, config: dict) -> bool:
     """Check if we should trigger auto-classification."""
     drift_config = config.get("drift_detection", {})
-    queue_config = config.get("queue", {})
 
     if not config.get("classification", {}).get("enabled", True):
         return False
@@ -299,7 +313,7 @@ def build_classification_prompt(queue: dict, feature_id: str) -> str:
     activity_lines = []
     for act in activities:
         line = f"- {act.get('tool', 'unknown')}: {act.get('summary', 'no summary')}"
-        if act.get('file_paths'):
+        if act.get("file_paths"):
             line += f" (files: {', '.join(act['file_paths'][:2])})"
         line += f" [drift: {act.get('drift_score', 0):.2f}]"
         activity_lines.append(line)
@@ -326,16 +340,16 @@ Use the classification rules:
 Create the work item now using Write tool."""
 
 
-def resolve_project_path(cwd: Optional[str] = None) -> str:
+def resolve_project_path(cwd: str | None = None) -> str:
     """Resolve project path (git root or cwd)."""
     start_dir = cwd or os.getcwd()
     try:
         result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
+            ["git", "rev-parse", "--show-toplevel"],
             capture_output=True,
             text=True,
             cwd=start_dir,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -362,13 +376,15 @@ def extract_file_paths(tool_input: dict, tool_name: str) -> list[str]:
     # Bash commands - extract paths heuristically
     if tool_name == "Bash" and "command" in tool_input:
         cmd = tool_input["command"]
-        file_matches = re.findall(r'[\w./\-_]+\.[a-zA-Z]{1,5}', cmd)
+        file_matches = re.findall(r"[\w./\-_]+\.[a-zA-Z]{1,5}", cmd)
         paths.extend(file_matches[:3])
 
     return paths
 
 
-def format_tool_summary(tool_name: str, tool_input: dict, tool_result: dict = None) -> str:
+def format_tool_summary(
+    tool_name: str, tool_input: dict, tool_result: dict = None
+) -> str:
     """Format a human-readable summary of the tool call."""
     if tool_name == "Read":
         path = tool_input.get("file_path", "unknown")
@@ -419,14 +435,14 @@ def format_tool_summary(tool_name: str, tool_input: dict, tool_result: dict = No
         return f"{tool_name}: {str(tool_input)[:50]}"
 
 
-def output_response(nudge: Optional[str] = None) -> None:
+def output_response(nudge: str | None = None) -> None:
     """Output JSON response."""
     response: dict = {"continue": True}
 
     if nudge:
         response["hookSpecificOutput"] = {
             "hookEventName": os.environ.get("HTMLGRAPH_HOOK_TYPE", "PostToolUse"),
-            "additionalContext": nudge
+            "additionalContext": nudge,
         }
     print(json.dumps(response))
 
@@ -439,7 +455,6 @@ def main():
     except json.JSONDecodeError:
         hook_input = {}
 
-    session_id = hook_input.get("session_id") or os.environ.get("CLAUDE_SESSION_ID", "unknown")
     cwd = hook_input.get("cwd")
     project_dir = _resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
@@ -476,9 +491,7 @@ def main():
         # Session is ending - track stop event
         try:
             manager.track_activity(
-                session_id=active_session_id,
-                tool="Stop",
-                summary="Agent stopped"
+                session_id=active_session_id, tool="Stop", summary="Agent stopped"
             )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
@@ -494,9 +507,7 @@ def main():
 
         try:
             manager.track_activity(
-                session_id=active_session_id,
-                tool="UserQuery",
-                summary=f'"{preview}"'
+                session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
@@ -507,7 +518,9 @@ def main():
         # Tool was used - track it
         tool_name = hook_input.get("tool_name", "unknown")
         tool_input_data = hook_input.get("tool_input", {})
-        tool_response = hook_input.get("tool_response", hook_input.get("tool_result", {})) or {}
+        tool_response = (
+            hook_input.get("tool_response", hook_input.get("tool_result", {})) or {}
+        )
 
         # Skip tracking for some tools
         skip_tools = {"AskUserQuestion"}
@@ -531,9 +544,13 @@ def main():
 
             # Additional check for Bash failures: detect non-zero exit codes
             if tool_name == "Bash" and not is_error:
-                output = str(tool_response.get("output", "") or tool_response.get("content", ""))
+                output = str(
+                    tool_response.get("output", "") or tool_response.get("content", "")
+                )
                 # Check for exit code patterns (e.g., "Exit code 1", "exit status 1")
-                if re.search(r"Exit code [1-9]\d*|exit status [1-9]\d*", output, re.IGNORECASE):
+                if re.search(
+                    r"Exit code [1-9]\d*|exit status [1-9]\d*", output, re.IGNORECASE
+                ):
                     is_error = True
         else:
             # For list or other non-dict responses (like Playwright), assume success
@@ -571,7 +588,7 @@ def main():
                 summary=summary,
                 file_paths=file_paths if file_paths else None,
                 success=not is_error,
-                parent_activity_id=parent_activity_id
+                parent_activity_id=parent_activity_id,
             )
 
             # If this was a parent tool, save its ID for subsequent activities
@@ -582,31 +599,46 @@ def main():
 
             # Check for drift and handle accordingly
             # Skip drift detection for child activities (they inherit parent's context)
-            if result and hasattr(result, 'drift_score') and not parent_activity_id:
+            if result and hasattr(result, "drift_score") and not parent_activity_id:
                 drift_score = result.drift_score
-                feature_id = getattr(result, 'feature_id', 'unknown')
+                feature_id = getattr(result, "feature_id", "unknown")
 
                 if drift_score and drift_score >= auto_classify_threshold:
                     # High drift - add to classification queue
-                    queue = add_to_drift_queue(graph_dir, {
-                        "tool": tool_name,
-                        "summary": summary,
-                        "file_paths": file_paths,
-                        "drift_score": drift_score,
-                        "feature_id": feature_id
-                    }, drift_config)
+                    queue = add_to_drift_queue(
+                        graph_dir,
+                        {
+                            "tool": tool_name,
+                            "summary": summary,
+                            "file_paths": file_paths,
+                            "drift_score": drift_score,
+                            "feature_id": feature_id,
+                        },
+                        drift_config,
+                    )
 
                     # Check if we should trigger classification
                     if should_trigger_classification(queue, drift_config):
-                        classification_prompt = build_classification_prompt(queue, feature_id)
+                        classification_prompt = build_classification_prompt(
+                            queue, feature_id
+                        )
 
                         # Try to run headless classification
-                        use_headless = drift_config.get("classification", {}).get("use_headless", True)
+                        use_headless = drift_config.get("classification", {}).get(
+                            "use_headless", True
+                        )
                         if use_headless:
                             try:
                                 # Run claude in print mode for classification
                                 result = subprocess.run(
-                                    ["claude", "-p", classification_prompt, "--model", "haiku", "--dangerously-skip-permissions"],
+                                    [
+                                        "claude",
+                                        "-p",
+                                        classification_prompt,
+                                        "--model",
+                                        "haiku",
+                                        "--dangerously-skip-permissions",
+                                    ],
                                     capture_output=True,
                                     text=True,
                                     timeout=120,
@@ -619,14 +651,14 @@ def main():
                                     },
                                 )
                                 if result.returncode == 0:
-                                    nudge = f"Drift auto-classification completed. Check .htmlgraph/ for new work item."
+                                    nudge = "Drift auto-classification completed. Check .htmlgraph/ for new work item."
                                     # Clear the queue after successful classification
                                     clear_drift_queue_activities(graph_dir)
                                 else:
                                     # Fallback to manual prompt
                                     nudge = f"""HIGH DRIFT ({drift_score:.2f}) - Headless classification failed.
 
-{len(queue['activities'])} activities don't align with '{feature_id}'.
+{len(queue["activities"])} activities don't align with '{feature_id}'.
 
 Please classify manually: bug, feature, spike, or chore in .htmlgraph/"""
                             except Exception as e:
@@ -634,7 +666,7 @@ Please classify manually: bug, feature, spike, or chore in .htmlgraph/"""
                         else:
                             nudge = f"""HIGH DRIFT DETECTED ({drift_score:.2f}) - Auto-classification triggered.
 
-{len(queue['activities'])} activities don't align with '{feature_id}'.
+{len(queue["activities"])} activities don't align with '{feature_id}'.
 
 ACTION REQUIRED: Spawn a Haiku agent to classify this work:
 ```
