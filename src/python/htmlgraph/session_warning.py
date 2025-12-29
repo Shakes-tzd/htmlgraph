@@ -133,7 +133,7 @@ class SessionWarning:
         print(
             f"\n⚠️  WARNING: Orchestrator instructions shown ({self._state['show_count']} times). "
             f"Dismiss with: sdk.dismiss_session_warning()\n",
-            file=sys.stderr
+            file=sys.stderr,
         )
 
     def dismiss(self, agent: str | None = None, session_id: str | None = None) -> bool:
@@ -157,7 +157,7 @@ class SessionWarning:
         if was_new:
             print(
                 "✅ Orchestrator warning dismissed. You may now proceed with delegating work.",
-                file=sys.stderr
+                file=sys.stderr,
             )
 
         return was_new

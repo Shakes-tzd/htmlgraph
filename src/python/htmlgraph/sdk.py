@@ -62,7 +62,7 @@ from htmlgraph.context_analytics import ContextAnalytics
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
-from htmlgraph.session_warning import SessionWarning, check_and_show_warning
+from htmlgraph.session_warning import check_and_show_warning
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.types import (
     ActiveWorkItem,
@@ -1749,10 +1749,9 @@ class SDK:
 
                     # Separate auto-spikes from real work
                     # Auto-spikes are temporary tracking items (session-init, transition, conversation-init)
-                    is_auto_spike = (
-                        item_dict["auto_generated"] and
-                        item_dict["spike_subtype"] in ("session-init", "transition", "conversation-init")
-                    )
+                    is_auto_spike = item_dict["auto_generated"] and item_dict[
+                        "spike_subtype"
+                    ] in ("session-init", "transition", "conversation-init")
 
                     if is_auto_spike:
                         auto_spikes.append(item_dict)

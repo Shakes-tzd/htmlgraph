@@ -455,12 +455,26 @@ class LearningPersistence:
 
         # Find all pytest runs in Bash activities
         for activity in activities:
-            tool = activity.tool if not isinstance(activity, dict) else activity.get("tool", "")
-            summary = activity.summary if not isinstance(activity, dict) else activity.get("summary", "")
-            success = activity.success if not isinstance(activity, dict) else activity.get("success", True)
+            tool = (
+                activity.tool
+                if not isinstance(activity, dict)
+                else activity.get("tool", "")
+            )
+            summary = (
+                activity.summary
+                if not isinstance(activity, dict)
+                else activity.get("summary", "")
+            )
+            success = (
+                activity.success
+                if not isinstance(activity, dict)
+                else activity.get("success", True)
+            )
 
             # Check if this is a pytest run
-            if tool == "Bash" and ("pytest" in summary.lower() or "py.test" in summary.lower()):
+            if tool == "Bash" and (
+                "pytest" in summary.lower() or "py.test" in summary.lower()
+            ):
                 test_run: dict[str, Any] = {
                     "command": summary,
                     "success": success,
@@ -471,7 +485,11 @@ class LearningPersistence:
                 }
 
                 # Try to extract test results from payload if available
-                payload = activity.payload if not isinstance(activity, dict) else activity.get("payload", {})
+                payload = (
+                    activity.payload
+                    if not isinstance(activity, dict)
+                    else activity.get("payload", {})
+                )
                 if payload and isinstance(payload, dict):
                     output = payload.get("output", "") or payload.get("stdout", "")
                     if output:
@@ -518,14 +536,20 @@ class LearningPersistence:
 
             # Add issues and recommendations
             if failed_runs > 0:
-                result["issues"].append(f"{failed_runs} test run{'s' if failed_runs > 1 else ''} failed")
+                result["issues"].append(
+                    f"{failed_runs} test run{'s' if failed_runs > 1 else ''} failed"
+                )
 
             if total_runs > 5:
                 result["issues"].append(f"High test run count: {total_runs}")
-                result["recommendations"].append("Consider fixing tests in one batch to reduce test iterations")
+                result["recommendations"].append(
+                    "Consider fixing tests in one batch to reduce test iterations"
+                )
 
             if total_failed > 0 and successful_runs == 0:
-                result["recommendations"].append("No passing test runs - verify test environment and dependencies")
+                result["recommendations"].append(
+                    "No passing test runs - verify test environment and dependencies"
+                )
 
             # Positive feedback for good testing practices
             if successful_runs > 0 and failed_runs == 0:

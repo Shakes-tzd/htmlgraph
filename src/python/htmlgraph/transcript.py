@@ -705,9 +705,7 @@ class TranscriptReader:
         )
 
         # Detect subagents (session IDs starting with "agent-")
-        subagent_count = sum(
-            1 for s in sessions if s.session_id.startswith("agent-")
-        )
+        subagent_count = sum(1 for s in sessions if s.session_id.startswith("agent-"))
 
         # Calculate wall clock time using interval merging
         # This gives actual elapsed time accounting for overlaps
@@ -720,9 +718,7 @@ class TranscriptReader:
 
         # Calculate parallelism factor
         parallelism_factor = (
-            total_agent_seconds / wall_clock_seconds
-            if wall_clock_seconds > 0
-            else 1.0
+            total_agent_seconds / wall_clock_seconds if wall_clock_seconds > 0 else 1.0
         )
 
         return {
@@ -766,9 +762,7 @@ class TranscriptReader:
                 merged.append((start, end))
 
         # Sum durations of merged intervals
-        total_seconds = sum(
-            (end - start).total_seconds() for start, end in merged
-        )
+        total_seconds = sum((end - start).total_seconds() for start, end in merged)
 
         return total_seconds
 

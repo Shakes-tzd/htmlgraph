@@ -81,6 +81,7 @@ class BaseCollection(Generic[CollectionT]):
             else:
                 # For other collections, create a new graph instance
                 from htmlgraph.graph import HtmlGraph
+
                 collection_path = self._sdk._directory / self._collection_name
                 self._graph = HtmlGraph(collection_path, auto_load=True)
 

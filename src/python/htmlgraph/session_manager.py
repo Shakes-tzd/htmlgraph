@@ -115,8 +115,16 @@ class SessionManager:
 
         # Feature graphs - reuse provided instances to avoid double-loading, or create new with lazy loading
         # Note: Use 'is not None' check because HtmlGraph.__bool__ returns False when empty
-        self.features_graph = features_graph if features_graph is not None else HtmlGraph(self.features_dir, auto_load=False)
-        self.bugs_graph = bugs_graph if bugs_graph is not None else HtmlGraph(self.bugs_dir, auto_load=False)
+        self.features_graph = (
+            features_graph
+            if features_graph is not None
+            else HtmlGraph(self.features_dir, auto_load=False)
+        )
+        self.bugs_graph = (
+            bugs_graph
+            if bugs_graph is not None
+            else HtmlGraph(self.bugs_dir, auto_load=False)
+        )
 
         # Claiming service (handles feature claims/releases)
         self.claiming_service = ClaimingService(
@@ -143,7 +151,6 @@ class SessionManager:
         # Append-only event log (Git-friendly source of truth for activities)
         self.events_dir = self.graph_dir / "events"
         self.event_log = JsonlEventLog(self.events_dir)
-
 
     # =========================================================================
     # Session Lifecycle
@@ -1245,7 +1252,6 @@ class SessionManager:
         infrastructure_patterns = [
             # HtmlGraph metadata
             ".htmlgraph/",
-
             # Configuration files
             "pyproject.toml",
             "package.json",
@@ -1260,14 +1266,12 @@ class SessionManager:
             "pytest.ini",
             "tox.ini",
             ".coveragerc",
-
             # CI/CD configs
             ".github/",
             ".gitlab-ci.yml",
             ".travis.yml",
             "circle.yml",
             ".pre-commit-config.yaml",
-
             # Build and distribution
             "dist/",
             "build/",
@@ -1277,7 +1281,6 @@ class SessionManager:
             "*.pyc",
             "*.pyo",
             "*.pyd",
-
             # IDE and editor files
             ".vscode/",
             ".idea/",
@@ -1286,25 +1289,21 @@ class SessionManager:
             "*~",
             ".DS_Store",
             "Thumbs.db",
-
             # Testing artifacts
             ".pytest_cache/",
             ".coverage",
             "htmlcov/",
             ".tox/",
-
             # Environment and secrets
             ".env",
             ".env.local",
             ".env.*.local",
-
             # Documentation (consider docs/ as infrastructure)
             "README.md",
             "CONTRIBUTING.md",
             "LICENSE",
             "CHANGELOG.md",
             "docs/",
-
             # Other common infrastructure
             ".contextune/",
             ".parallel/",
@@ -1350,9 +1349,10 @@ class SessionManager:
                     # Exact filename match
                     else:
                         # Check if path ends with the pattern (handles both absolute and relative)
-                        if path_lower.endswith(
-                            pattern_lower
-                        ) or f"/{pattern_lower}" in path_lower:
+                        if (
+                            path_lower.endswith(pattern_lower)
+                            or f"/{pattern_lower}" in path_lower
+                        ):
                             return True
 
         return False

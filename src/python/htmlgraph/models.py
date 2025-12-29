@@ -1514,11 +1514,11 @@ class Pattern(Node):
             if self.first_detected:
                 trend_html += f"""
                 <dt>First Detected</dt>
-                <dd>{self.first_detected.strftime('%Y-%m-%d %H:%M')}</dd>"""
+                <dd>{self.first_detected.strftime("%Y-%m-%d %H:%M")}</dd>"""
             if self.last_detected:
                 trend_html += f"""
                 <dt>Last Detected</dt>
-                <dd>{self.last_detected.strftime('%Y-%m-%d %H:%M')}</dd>"""
+                <dd>{self.last_detected.strftime("%Y-%m-%d %H:%M")}</dd>"""
             trend_html += f"""
                 <dt>Detection Trend</dt>
                 <dd class="trend-{self.detection_trend}">{self.detection_trend.title()}</dd>
@@ -1532,6 +1532,7 @@ class Pattern(Node):
         pattern_attrs += f' data-detection-trend="{self.detection_trend}"'
         if self.sequence:
             import json
+
             sequence_json = json.dumps(self.sequence)
             pattern_attrs += f" data-sequence='{sequence_json}'"
 
@@ -1699,7 +1700,9 @@ class SessionInsight(Node):
         # Build insight-specific attributes
         import json
 
-        insight_attrs = f' data-session-id="{self.session_id}"' if self.session_id else ""
+        insight_attrs = (
+            f' data-session-id="{self.session_id}"' if self.session_id else ""
+        )
         insight_attrs += f' data-insight-type="{self.insight_type}"'
         insight_attrs += f' data-efficiency-score="{self.efficiency_score:.2f}"'
         insight_attrs += f' data-retry-rate="{self.retry_rate:.2f}"'
@@ -1805,12 +1808,12 @@ class AggregatedMetric(Node):
         if self.period_start:
             overview_html += f"""
                 <dt>Period Start</dt>
-                <dd>{self.period_start.strftime('%Y-%m-%d %H:%M')}</dd>"""
+                <dd>{self.period_start.strftime("%Y-%m-%d %H:%M")}</dd>"""
 
         if self.period_end:
             overview_html += f"""
                 <dt>Period End</dt>
-                <dd>{self.period_end.strftime('%Y-%m-%d %H:%M')}</dd>"""
+                <dd>{self.period_end.strftime("%Y-%m-%d %H:%M")}</dd>"""
 
         overview_html += """
             </dl>
@@ -1856,7 +1859,7 @@ class AggregatedMetric(Node):
                 <dt>Strength</dt>
                 <dd>{self.trend_strength:.1%}</dd>
                 <dt>vs Previous Period</dt>
-                <dd class="{'positive' if self.vs_previous_period_pct > 0 else 'negative'}">{self.vs_previous_period_pct:+.1f}%</dd>
+                <dd class="{"positive" if self.vs_previous_period_pct > 0 else "negative"}">{self.vs_previous_period_pct:+.1f}%</dd>
             </dl>
         </section>"""
 
@@ -1997,7 +2000,9 @@ class Todo(BaseModel):
 
         # Calculate duration if started
         if self.started_at:
-            self.duration_seconds = (self.completed_at - self.started_at).total_seconds()
+            self.duration_seconds = (
+                self.completed_at - self.started_at
+            ).total_seconds()
 
         return self
 
@@ -2012,8 +2017,8 @@ class Todo(BaseModel):
 
         # Build attributes
         # Escape quotes in content for HTML attributes
-        escaped_content = self.content.replace('"', '&quot;')
-        escaped_active_form = self.active_form.replace('"', '&quot;')
+        escaped_content = self.content.replace('"', "&quot;")
+        escaped_active_form = self.active_form.replace('"', "&quot;")
 
         attrs = [
             f'data-status="{self.status}"',

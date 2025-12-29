@@ -11,8 +11,7 @@ Unlike other collections, TodoCollection provides:
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from htmlgraph.ids import generate_id
 
@@ -147,7 +146,9 @@ class TodoCollection:
                     agent=all_attrs.get("agent"),
                     completed_by=all_attrs.get("completed-by"),
                     priority=int(all_attrs.get("priority", 0)),
-                    duration_seconds=float(all_attrs["duration"]) if all_attrs.get("duration") else None,
+                    duration_seconds=float(all_attrs["duration"])
+                    if all_attrs.get("duration")
+                    else None,
                 )
                 self._todos[todo.id] = todo
             except Exception:
@@ -199,7 +200,10 @@ class TodoCollection:
 
         # Get current session/feature context
         session_id = None
-        if hasattr(self._sdk, "session_manager") and self._sdk.session_manager._active_session:
+        if (
+            hasattr(self._sdk, "session_manager")
+            and self._sdk.session_manager._active_session
+        ):
             session_id = self._sdk.session_manager._active_session.id
 
         # Use provided feature_id or try to get from active work
@@ -381,12 +385,17 @@ class TodoCollection:
 
         # Get current session
         session_id = None
-        if hasattr(self._sdk, "session_manager") and self._sdk.session_manager._active_session:
+        if (
+            hasattr(self._sdk, "session_manager")
+            and self._sdk.session_manager._active_session
+        ):
             session_id = self._sdk.session_manager._active_session.id
 
         # Clear existing session todos if requested
         if clear_existing and session_id:
-            session_todo_ids = [t.id for t in todos.values() if t.session_id == session_id]
+            session_todo_ids = [
+                t.id for t in todos.values() if t.session_id == session_id
+            ]
             for todo_id in session_todo_ids:
                 del todos[todo_id]
                 self._delete_todo_file(todo_id)
@@ -434,7 +443,9 @@ class TodoCollection:
         Returns:
             List of todos linked to this feature
         """
-        todos = [t for t in self._ensure_loaded().values() if t.feature_id == feature_id]
+        todos = [
+            t for t in self._ensure_loaded().values() if t.feature_id == feature_id
+        ]
         return sorted(todos, key=lambda t: t.priority)
 
     def for_session(self, session_id: str) -> list[Todo]:
@@ -447,7 +458,9 @@ class TodoCollection:
         Returns:
             List of todos from this session
         """
-        todos = [t for t in self._ensure_loaded().values() if t.session_id == session_id]
+        todos = [
+            t for t in self._ensure_loaded().values() if t.session_id == session_id
+        ]
         return sorted(todos, key=lambda t: t.priority)
 
     def summary(self) -> dict[str, Any]:
@@ -465,10 +478,13 @@ class TodoCollection:
 
         # Calculate average completion time
         completed_with_duration = [
-            t for t in todos if t.status == "completed" and t.duration_seconds is not None
+            t
+            for t in todos
+            if t.status == "completed" and t.duration_seconds is not None
         ]
         avg_duration = (
-            sum(t.duration_seconds for t in completed_with_duration) / len(completed_with_duration)
+            sum(t.duration_seconds for t in completed_with_duration)
+            / len(completed_with_duration)
             if completed_with_duration
             else None
         )

@@ -43,7 +43,9 @@ class ActiveAutoSpikeIndex:
                 with open(self.index_path) as f:
                     self._data = json.load(f)
             except (json.JSONDecodeError, OSError) as e:
-                logger.warning(f"Failed to load active-auto-spikes index: {e}. Starting fresh.")
+                logger.warning(
+                    f"Failed to load active-auto-spikes index: {e}. Starting fresh."
+                )
                 self._data = {}
         else:
             self._data = {}
@@ -53,12 +55,14 @@ class ActiveAutoSpikeIndex:
     def save(self) -> None:
         """Save index to disk."""
         try:
-            with open(self.index_path, 'w') as f:
+            with open(self.index_path, "w") as f:
                 json.dump(self._data, f, indent=2)
         except OSError as e:
             logger.warning(f"Failed to save active-auto-spikes index: {e}")
 
-    def add(self, spike_id: str, spike_subtype: str, session_id: str | None = None) -> None:
+    def add(
+        self, spike_id: str, spike_subtype: str, session_id: str | None = None
+    ) -> None:
         """
         Add an active auto-spike to the index.
 
