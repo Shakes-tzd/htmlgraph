@@ -564,6 +564,7 @@ class TranscriptReader:
         project_path: str | Path | None = None,
         limit: int | None = None,
         since: datetime | None = None,
+        deduplicate: bool = False,
     ) -> list[TranscriptSession]:
         """
         List available transcript sessions.
@@ -572,6 +573,8 @@ class TranscriptReader:
             project_path: Optional project path to filter by
             limit: Maximum number of sessions to return
             since: Only sessions started after this time
+            deduplicate: If True, remove context snapshot duplicates
+                        (keeps longest session per unique start time)
 
         Returns:
             List of TranscriptSession objects, newest first
@@ -587,6 +590,11 @@ class TranscriptReader:
 
             sessions.append(session)
 
+        # De-duplicate context snapshots if requested
+        # Context snapshots have the same start time but different end times
+        if deduplicate and sessions:
+            sessions = self._deduplicate_context_snapshots(sessions)
+
         # Sort by start time, newest first
         sessions.sort(key=lambda s: s.started_at or datetime.min, reverse=True)
 
@@ -594,6 +602,175 @@ class TranscriptReader:
             sessions = sessions[:limit]
 
         return sessions
+
+    def _deduplicate_context_snapshots(
+        self, sessions: list[TranscriptSession]
+    ) -> list[TranscriptSession]:
+        """
+        Remove duplicate context snapshots, keeping the longest per start time.
+
+        Context snapshots occur when a conversation is resumed - Claude Code
+        creates a new transcript file with the same start time but extended
+        content. This keeps only the most complete version.
+
+        Args:
+            sessions: List of sessions to deduplicate
+
+        Returns:
+            Deduplicated list with longest session per start time
+        """
+        from collections import defaultdict
+
+        # Group by start time (rounded to second for tolerance)
+        by_start: dict[str, list[TranscriptSession]] = defaultdict(list)
+
+        for session in sessions:
+            if session.started_at:
+                # Use ISO format truncated to seconds as key
+                key = session.started_at.strftime("%Y-%m-%dT%H:%M:%S")
+            else:
+                # No start time, use session ID as unique key
+                key = f"unknown-{session.session_id}"
+            by_start[key].append(session)
+
+        # Keep the longest session per start time
+        deduplicated = []
+        for start_key, group in by_start.items():
+            if len(group) == 1:
+                deduplicated.append(group[0])
+            else:
+                # Multiple sessions with same start - keep longest duration
+                longest = max(
+                    group,
+                    key=lambda s: s.duration_seconds if s.duration_seconds else 0,
+                )
+                deduplicated.append(longest)
+
+        return deduplicated
+
+    def calculate_duration_metrics(
+        self,
+        sessions: list[TranscriptSession] | None = None,
+        project_path: str | Path | None = None,
+    ) -> dict[str, float]:
+        """
+        Calculate duration metrics accounting for overlaps and parallelism.
+
+        Returns both wall clock time (actual elapsed) and total agent time
+        (sum of all agent work, including parallel).
+
+        Args:
+            sessions: Sessions to analyze (or fetches all if None)
+            project_path: Filter by project if fetching sessions
+
+        Returns:
+            dict with:
+                - wall_clock_seconds: Actual elapsed time
+                - total_agent_seconds: Sum of all agent durations
+                - parallelism_factor: Ratio of agent time to wall clock
+                - context_snapshot_count: Number of duplicate snapshots removed
+                - subagent_count: Number of parallel subagents detected
+        """
+        if sessions is None:
+            sessions = self.list_sessions(project_path=project_path)
+
+        if not sessions:
+            return {
+                "wall_clock_seconds": 0.0,
+                "total_agent_seconds": 0.0,
+                "parallelism_factor": 1.0,
+                "context_snapshot_count": 0,
+                "subagent_count": 0,
+            }
+
+        # Calculate total agent time (simple sum)
+        total_agent_seconds = sum(
+            s.duration_seconds for s in sessions if s.duration_seconds
+        )
+
+        # Detect context snapshots vs subagents
+        from collections import defaultdict
+
+        by_start: dict[str, list[TranscriptSession]] = defaultdict(list)
+        for session in sessions:
+            if session.started_at:
+                key = session.started_at.strftime("%Y-%m-%dT%H:%M:%S")
+            else:
+                key = f"unknown-{session.session_id}"
+            by_start[key].append(session)
+
+        # Count context snapshots (same start, different durations = snapshots)
+        context_snapshot_count = sum(
+            len(group) - 1 for group in by_start.values() if len(group) > 1
+        )
+
+        # Detect subagents (session IDs starting with "agent-")
+        subagent_count = sum(
+            1 for s in sessions if s.session_id.startswith("agent-")
+        )
+
+        # Calculate wall clock time using interval merging
+        # This gives actual elapsed time accounting for overlaps
+        intervals = []
+        for session in sessions:
+            if session.started_at and session.ended_at:
+                intervals.append((session.started_at, session.ended_at))
+
+        wall_clock_seconds = self._merge_intervals_duration(intervals)
+
+        # Calculate parallelism factor
+        parallelism_factor = (
+            total_agent_seconds / wall_clock_seconds
+            if wall_clock_seconds > 0
+            else 1.0
+        )
+
+        return {
+            "wall_clock_seconds": wall_clock_seconds,
+            "total_agent_seconds": total_agent_seconds,
+            "parallelism_factor": parallelism_factor,
+            "context_snapshot_count": context_snapshot_count,
+            "subagent_count": subagent_count,
+        }
+
+    def _merge_intervals_duration(
+        self, intervals: list[tuple[datetime, datetime]]
+    ) -> float:
+        """
+        Merge overlapping time intervals and calculate total duration.
+
+        This gives "wall clock time" - the actual elapsed time accounting
+        for parallel/overlapping sessions.
+
+        Args:
+            intervals: List of (start, end) datetime tuples
+
+        Returns:
+            Total duration in seconds after merging overlaps
+        """
+        if not intervals:
+            return 0.0
+
+        # Sort by start time
+        sorted_intervals = sorted(intervals, key=lambda x: x[0])
+
+        # Merge overlapping intervals
+        merged = [sorted_intervals[0]]
+        for start, end in sorted_intervals[1:]:
+            last_start, last_end = merged[-1]
+            if start <= last_end:
+                # Overlapping - extend the last interval
+                merged[-1] = (last_start, max(last_end, end))
+            else:
+                # Non-overlapping - add new interval
+                merged.append((start, end))
+
+        # Sum durations of merged intervals
+        total_seconds = sum(
+            (end - start).total_seconds() for start, end in merged
+        )
+
+        return total_seconds
 
     def find_sessions_for_branch(
         self,
