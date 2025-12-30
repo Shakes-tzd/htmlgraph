@@ -3,12 +3,16 @@
 # HtmlGraph Flexible Deployment Script
 #
 # This script performs deployment operations with flexible options:
-# 1. Push to git
-# 2. Build and publish Python package to PyPI
-# 3. Install latest version locally
-# 4. Update Claude plugin
-# 5. Update Gemini extension
-# 6. Update Codex skill
+# 0. Pre-flight: Verify plugin sync
+# 1. Update version numbers and commit
+# 2. Push to git with tags
+# 3. Build Python package
+# 4. Publish to PyPI
+# 5. Install latest version locally
+# 6. Update Claude plugin
+# 7. Update Gemini extension
+# 8. Update Codex skill
+# 9. Create GitHub release
 #
 # Usage:
 #   ./scripts/deploy-all.sh [version] [flags]
@@ -323,8 +327,20 @@ if [ "$SKIP_GIT" != true ]; then
         fi
     fi
 
+    # Create version tag if it doesn't exist
+    if ! git tag | grep -q "^v$VERSION$"; then
+        log_info "Creating version tag v$VERSION..."
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would create tag v$VERSION"
+        else
+            git tag -a "v$VERSION" -m "Release v$VERSION" || log_warning "Tag creation failed (may already exist)"
+        fi
+    else
+        log_info "Tag v$VERSION already exists"
+    fi
+
     # Push to remote
-    log_info "Pushing to origin/main..."
+    log_info "Pushing to origin/main with tags..."
     if run_command git push origin main --tags; then
         log_success "Pushed to git"
     else
@@ -521,6 +537,62 @@ else
 fi
 
 # ============================================================================
+# STEP 8: Create GitHub Release
+# ============================================================================
+if [ "$SKIP_GIT" != true ] && [ "$SKIP_BUILD" != true ]; then
+    log_section "Step 8: Creating GitHub Release"
+
+    # Check if gh CLI is available
+    if ! command -v gh &> /dev/null; then
+        log_warning "GitHub CLI (gh) not found - skipping release creation"
+        log_info "Install with: brew install gh"
+    elif [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would create GitHub release v$VERSION"
+    else
+        # Check if release already exists
+        if gh release view "v$VERSION" &> /dev/null; then
+            log_info "Release v$VERSION already exists"
+            log_success "GitHub release verified"
+        else
+            log_info "Creating GitHub release v$VERSION..."
+
+            # Create release with distribution files
+            if [ -f "dist/htmlgraph-$VERSION-py3-none-any.whl" ] && [ -f "dist/htmlgraph-$VERSION.tar.gz" ]; then
+                if gh release create "v$VERSION" \
+                    --title "v$VERSION" \
+                    --notes "Release v$VERSION
+
+See [CHANGELOG](https://github.com/Shakes-tzd/htmlgraph/blob/main/docs/changelog.md) for details.
+
+**Installation:**
+\`\`\`bash
+uv pip install htmlgraph==$VERSION
+\`\`\`
+
+**PyPI:** https://pypi.org/project/htmlgraph/$VERSION/" \
+                    "dist/htmlgraph-$VERSION-py3-none-any.whl" \
+                    "dist/htmlgraph-$VERSION.tar.gz"; then
+                    log_success "GitHub release created: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
+                else
+                    log_warning "GitHub release creation failed (may already exist)"
+                fi
+            else
+                log_warning "Distribution files not found - skipping release assets"
+                if gh release create "v$VERSION" \
+                    --title "v$VERSION" \
+                    --notes "Release v$VERSION"; then
+                    log_success "GitHub release created (without assets)"
+                else
+                    log_warning "GitHub release creation failed"
+                fi
+            fi
+        fi
+    fi
+else
+    log_info "⏭️  Skipping GitHub Release (--skip-git or --skip-build)"
+fi
+
+# ============================================================================
 # Summary
 # ============================================================================
 log_section "Deployment Complete! 🎉"
@@ -531,6 +603,7 @@ echo "--------"
 echo "✅ Git push: Complete"
 echo "✅ Package build: htmlgraph-$VERSION"
 echo "✅ PyPI publish: https://pypi.org/project/htmlgraph/$VERSION/"
+echo "✅ GitHub release: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
 echo "✅ Local install: $INSTALLED_VERSION"
 echo "✅ Claude plugin: Updated"
 echo "✅ Gemini extension: Updated"
@@ -539,6 +612,7 @@ log_success "All deployment steps completed successfully!"
 echo ""
 echo "Verify deployment:"
 echo "  - PyPI: https://pypi.org/project/htmlgraph/$VERSION/"
-echo "  - GitHub: https://github.com/Shakes-tzd/htmlgraph"
+echo "  - GitHub Release: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
+echo "  - GitHub Repo: https://github.com/Shakes-tzd/htmlgraph"
 echo "  - Local: uv run python -c 'import htmlgraph; print(htmlgraph.__version__)'"
 echo ""
