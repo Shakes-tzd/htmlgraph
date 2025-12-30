@@ -72,3 +72,4 @@ docs/api/*.html
 docs/api/*.js
 
 .contextune/
+.claude/settings.local.json
