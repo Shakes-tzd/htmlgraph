@@ -5,14 +5,36 @@ Collection of utility scripts for common development workflows.
 ## Quick Reference
 
 ```bash
+# Install git hooks (run after cloning)
+./scripts/install-hooks.sh
+
 # Git workflow (3 commands → 1)
 ./scripts/git-commit-push.sh "commit message"
 
 # Deployment (7 steps automated)
 ./scripts/deploy-all.sh 0.9.1
 
-# Both support --dry-run and --help
+# All support --dry-run and --help
 ```
+
+---
+
+## Install Git Hooks (`install-hooks.sh`)
+
+**Purpose**: Install pre-commit hooks for code quality checks.
+
+**Run after cloning**:
+```bash
+./scripts/install-hooks.sh
+```
+
+**What it installs**:
+- `pre-commit` hook that runs before every commit:
+  - `ruff check` - linting
+  - `ruff format --check` - formatting
+  - `mypy` - type checking
+
+Commits will be blocked if any check fails.
 
 ---
 

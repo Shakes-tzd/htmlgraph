@@ -103,6 +103,40 @@ def check_htmlgraph_version() -> tuple[str | None, str | None, bool]:
     return installed_version, latest_version, is_outdated
 
 
+def install_git_hooks(project_dir: str) -> bool:
+    """
+    Install pre-commit hooks if not already installed.
+
+    Returns True if hooks were installed or already exist.
+    """
+    hooks_source = Path(project_dir) / "scripts" / "hooks" / "pre-commit"
+    hooks_target = Path(project_dir) / ".git" / "hooks" / "pre-commit"
+
+    # Skip if not a git repo or hooks source doesn't exist
+    if not (Path(project_dir) / ".git").exists():
+        return False
+    if not hooks_source.exists():
+        return False
+
+    # Skip if hook already installed and up to date
+    if hooks_target.exists():
+        try:
+            if hooks_source.read_text() == hooks_target.read_text():
+                return True  # Already installed and current
+        except Exception:
+            pass
+
+    # Install the hook
+    try:
+        import shutil
+
+        shutil.copy2(hooks_source, hooks_target)
+        hooks_target.chmod(0o755)
+        return True
+    except Exception:
+        return False
+
+
 try:
     from htmlgraph import SDK
     from htmlgraph.converter import node_to_dict
@@ -276,6 +310,70 @@ uv run htmlgraph serve
 - `.htmlgraph/features/` - Feature HTML files
 - `.htmlgraph/sessions/` - Session HTML files with activity logs
 - `index.html` - Dashboard (open in browser)
+"""
+
+ORCHESTRATOR_DIRECTIVES = """## 🎯 ORCHESTRATOR DIRECTIVES (IMPERATIVE)
+
+**YOU ARE THE ORCHESTRATOR.** Follow these directives:
+
+### 1. DELEGATE Implementation Work
+**DO NOT execute code directly.** Use `Task(subagent_type="general-purpose")` for coding tasks.
+
+**Why:** Direct execution fills YOUR context with implementation details. You are strategic, not tactical.
+
+### 2. CREATE Work Items FIRST
+**Before ANY implementation, create features:**
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude-code")
+feature = sdk.features.create("Feature Title").save()
+```
+
+**Why:** Work items enable learning, pattern detection, and progress tracking.
+
+### 3. PARALLELIZE Independent Tasks
+**Spawn multiple `Task()` calls in a single message when tasks don't depend on each other.**
+
+**Example:**
+```python
+# DO THIS:
+Task("Implement auth API", subagent_type="general-purpose")
+Task("Write auth tests", subagent_type="general-purpose")
+Task("Update docs", subagent_type="general-purpose")
+
+# NOT THIS (sequential):
+Task("Implement auth API")  # wait...
+# then later:
+Task("Write auth tests")    # wait...
+# then later:
+Task("Update docs")         # wait...
+```
+
+**Why:** Parallel delegation is faster. You coordinate, subagents execute.
+
+### 4. PRESERVE Your Context
+**Your context is STRATEGIC. Keep it lean:**
+- ✅ Project overview, architecture decisions
+- ✅ Feature dependencies, bottlenecks
+- ✅ High-level coordination
+- ❌ Implementation details (delegate these)
+- ❌ File contents (subagents handle)
+- ❌ Test results (subagents report)
+
+**Why:** Strategic context = better decisions. Tactical details = noise.
+
+### 5. USE Exploration Agents
+**For codebase research, use `Task(subagent_type="Explore")`:**
+```python
+Task("Find all authentication-related files", subagent_type="Explore")
+Task("Analyze database schema for users table", subagent_type="Explore")
+```
+
+**Why:** Exploration agents search efficiently without filling your context.
+
+---
+
+**YOU ARE THE ARCHITECT. SUBAGENTS ARE BUILDERS. DELEGATE.**
 """
 
 
@@ -489,6 +587,12 @@ def main():
     project_dir = resolve_project_path(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
+    # Install pre-commit hooks if available (silent, non-blocking)
+    try:
+        install_git_hooks(project_dir)
+    except Exception:
+        pass  # Never block on hook installation
+
     # Ensure a single stable HtmlGraph session exists for this agent.
     # Do NOT create a new HtmlGraph session per external Claude session id (that can explode into many files).
     #
@@ -598,6 +702,10 @@ def main():
 
 ---
 
+{ORCHESTRATOR_DIRECTIVES}
+
+---
+
 ## No Features Found
 
 Initialize HtmlGraph in this project:
@@ -630,6 +738,7 @@ Or create features manually in `.htmlgraph/features/`
     if version_warning:
         context_parts.append(version_warning.strip())
     context_parts.append(HTMLGRAPH_PROCESS_NOTICE)
+    context_parts.append(ORCHESTRATOR_DIRECTIVES)
 
     # Previous session summary (enhanced with more detail)
     prev_session = get_session_summary(graph_dir)

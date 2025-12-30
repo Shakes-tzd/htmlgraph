@@ -573,6 +573,45 @@ if __name__ == "__main__":
 
 ---
 
+## Orchestrator Success Patterns
+
+### Pattern 1: Parallel Test Execution
+**❌ Direct (Sequential)**:
+```python
+# Orchestrator runs tests directly - fills context
+uv run pytest tests/unit/
+uv run pytest tests/integration/
+uv run pytest tests/e2e/
+# Result: 3 sequential calls, full output in orchestrator context
+```
+
+**✅ Delegated (Parallel)**:
+```python
+# Orchestrator spawns parallel subagents
+Task(subagent_type="general-purpose", prompt="Run unit tests and report failures")
+Task(subagent_type="general-purpose", prompt="Run integration tests and report failures")
+Task(subagent_type="general-purpose", prompt="Run e2e tests and report failures")
+# Result: 3 parallel agents, orchestrator gets summaries only
+```
+
+### Pattern 2: Multi-File Implementation
+**❌ Direct**: Orchestrator edits 5 files, context fills with diffs
+**✅ Delegated**: Subagent handles all edits, returns summary
+
+### Pattern 3: Codebase Exploration
+**❌ Direct**: 10 Grep/Glob calls pollute orchestrator context
+**✅ Delegated**: `Task(subagent_type="Explore")` returns structured findings
+
+### Why Delegation Wins
+| Metric | Direct | Delegated |
+|--------|--------|-----------|
+| Context used | HIGH | LOW |
+| Parallelization | None | Full |
+| Work tracking | Manual | Automatic |
+| Learning/Patterns | Lost | Captured |
+
+---
+
 ## API Reference
 
 ### SDK Class

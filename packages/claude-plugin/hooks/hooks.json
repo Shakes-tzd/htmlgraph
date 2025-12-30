@@ -62,6 +62,10 @@
           {
             "type": "command",
             "command": "HTMLGRAPH_HOOK_TYPE=PostToolUse uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
+          },
+          {
+            "type": "command",
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/orchestrator-reflect.py\""
           }
         ]
       }

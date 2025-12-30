@@ -8,10 +8,11 @@ Usage:
     python generate_commands.py [--platform claude|codex|gemini|all]
 """
 
-import yaml
+import argparse
 from pathlib import Path
 from typing import Any
-import argparse
+
+import yaml
 
 
 def load_command_definition(yaml_file: Path) -> dict[str, Any]:
@@ -28,22 +29,26 @@ def generate_claude_code_command(cmd: dict[str, Any], output_dir: Path) -> None:
     for param in cmd.get("parameters", []):
         req_str = "required" if param.get("required", False) else "optional"
         default = f" (default: {param['default']})" if "default" in param else ""
-        params_md += f"- `{param['name']}` ({req_str}){default}: {param['description']}\n"
+        params_md += (
+            f"- `{param['name']}` ({req_str}){default}: {param['description']}\n"
+        )
 
     # Build examples section
     examples_md = ""
     for example in cmd.get("examples", []):
-        examples_md += f"```bash\n{example['command']}\n```\n{example['description']}\n\n"
+        examples_md += (
+            f"```bash\n{example['command']}\n```\n{example['description']}\n\n"
+        )
 
     # Generate markdown
-    md_content = f"""# /htmlgraph:{cmd['name']}
+    md_content = f"""# /htmlgraph:{cmd["name"]}
 
-{cmd['short_description']}
+{cmd["short_description"]}
 
 ## Usage
 
 ```
-{cmd['usage'].strip()}
+{cmd["usage"].strip()}
 ```
 
 ## Parameters
@@ -56,7 +61,7 @@ def generate_claude_code_command(cmd: dict[str, Any], output_dir: Path) -> None:
 
 ## Instructions for Claude
 
-This command uses the SDK's `{cmd['sdk_method']}()` method.
+This command uses the SDK's `{cmd["sdk_method"]}()` method.
 
 ### Implementation:
 
@@ -66,12 +71,12 @@ from htmlgraph import SDK
 sdk = SDK(agent="claude")
 
 # Parse arguments
-{cmd['behavior']['claude_code'].strip()}
+{cmd["behavior"]["claude_code"].strip()}
 ```
 
 ### Output Format:
 
-{cmd['output_template'].strip()}
+{cmd["output_template"].strip()}
 """
 
     # Write to file
@@ -89,21 +94,21 @@ def generate_codex_command_section(cmd: dict[str, Any]) -> str:
         examples_md += f"- `{example['command']}` - {example['description']}\n"
 
     section = f"""
-### `/{cmd['name']}` - {cmd['short_description']}
+### `/{cmd["name"]}` - {cmd["short_description"]}
 
-**Usage:** `{cmd['usage'].strip()}`
+**Usage:** `{cmd["usage"].strip()}`
 
 **Examples:**
 {examples_md}
 
-**SDK Method:** `sdk.{cmd['sdk_method']}()`
+**SDK Method:** `sdk.{cmd["sdk_method"]}()`
 
 ```python
 from htmlgraph import SDK
 
 sdk = SDK(agent="codex")
 
-{cmd['behavior']['codex'].strip() if 'codex' in cmd['behavior'] else cmd['behavior']['claude_code'].replace('agent="claude"', 'agent="codex"').strip()}
+{cmd["behavior"]["codex"].strip() if "codex" in cmd["behavior"] else cmd["behavior"]["claude_code"].replace('agent="claude"', 'agent="codex"').strip()}
 ```
 """
     return section
@@ -118,21 +123,21 @@ def generate_gemini_command_section(cmd: dict[str, Any]) -> str:
         examples_md += f"- `{example['command']}` - {example['description']}\n"
 
     section = f"""
-### `/{cmd['name']}` - {cmd['short_description']}
+### `/{cmd["name"]}` - {cmd["short_description"]}
 
-**Usage:** `{cmd['usage'].strip()}`
+**Usage:** `{cmd["usage"].strip()}`
 
 **Examples:**
 {examples_md}
 
-**SDK Method:** `sdk.{cmd['sdk_method']}()`
+**SDK Method:** `sdk.{cmd["sdk_method"]}()`
 
 ```python
 from htmlgraph import SDK
 
 sdk = SDK(agent="gemini")
 
-{cmd['behavior']['gemini'].strip() if 'gemini' in cmd['behavior'] else cmd['behavior']['claude_code'].replace('agent="claude"', 'agent="gemini"').strip()}
+{cmd["behavior"]["gemini"].strip() if "gemini" in cmd["behavior"] else cmd["behavior"]["claude_code"].replace('agent="claude"', 'agent="gemini"').strip()}
 ```
 """
     return section
@@ -164,7 +169,7 @@ def main():
         "--platform",
         choices=["claude", "codex", "gemini", "all"],
         default="all",
-        help="Target platform (default: all)"
+        help="Target platform (default: all)",
     )
     args = parser.parse_args()
 
@@ -173,8 +178,8 @@ def main():
     definitions_dir = root / "common" / "command_definitions"
 
     claude_output_dir = root / "claude-plugin" / "commands"
-    codex_skill_file = root / "codex-skill" / "SKILL.md"
-    gemini_doc_file = root / "gemini-extension" / "GEMINI.md"
+    # Note: codex_skill_file and gemini_doc_file removed - not currently used
+    # Add back when implementing generation for these platforms
 
     # Load all command definitions
     command_files = sorted(definitions_dir.glob("*.yaml"))

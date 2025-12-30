@@ -1228,9 +1228,11 @@ class Session(BaseModel):
         activity_html = ""
         if self.activity_log:
             # Show most recent first (reversed)
+            # NOTE: Previously limited to last 100 entries, but this caused data loss
+            # for pattern detection and analytics. Now stores all entries.
             log_items = "\n                ".join(
                 entry.to_html()
-                for entry in reversed(self.activity_log[-100:])  # Last 100 entries
+                for entry in reversed(self.activity_log)  # All entries
             )
             activity_html = f"""
         <section data-activity-log>

@@ -134,13 +134,39 @@ def generate_guidance(
         # Implementation request with spike active - suggest creating feature
         if classification["is_implementation"] and work_type == "spike":
             return (
-                f"📋 WORKFLOW GUIDANCE:\n"
+                f"⚡ ORCHESTRATOR DIRECTIVE: Implementation requested during spike.\n\n"
                 f"Active work: {work_id} ({work_title}) - Type: spike\n\n"
-                f"This looks like an implementation request, but you have a spike active.\n"
-                f"Spikes are for investigation/planning. For implementation:\n\n"
-                f"  sdk = SDK(agent='claude')\n"
-                f"  feature = sdk.features.create('Feature title').save()\n"
-                f"  sdk.features.start(feature.id)\n"
+                f"Spikes are for investigation, NOT implementation.\n\n"
+                f"REQUIRED WORKFLOW:\n\n"
+                f"1. COMPLETE OR PAUSE the spike:\n"
+                f"   sdk = SDK(agent='claude')\n"
+                f"   sdk.spikes.complete('{work_id}')  # or sdk.spikes.pause('{work_id}')\n\n"
+                f"2. CREATE A FEATURE for implementation:\n"
+                f"   feature = sdk.features.create('Feature title').save()\n"
+                f"   sdk.features.start(feature.id)\n\n"
+                f"3. DELEGATE TO SUBAGENT:\n"
+                f"   from htmlgraph.tasks import Task\n"
+                f"   Task(\n"
+                f"       subagent_type='general-purpose',\n"
+                f"       prompt='Implement: [details]'\n"
+                f"   ).execute()\n\n"
+                f"Proceed with orchestration.\n"
+            )
+
+        # Implementation request with feature active - remind to delegate
+        if classification["is_implementation"] and work_type == "feature":
+            return (
+                f"⚡ ORCHESTRATOR DIRECTIVE: Implementation work detected.\n\n"
+                f"Active work: {work_id} ({work_title}) - Type: feature\n\n"
+                f"REQUIRED: DELEGATE TO SUBAGENT:\n\n"
+                f"  from htmlgraph.tasks import Task\n"
+                f"  Task(\n"
+                f"      subagent_type='general-purpose',\n"
+                f"      prompt='Implement: [specific implementation details for {work_title}]'\n"
+                f"  ).execute()\n\n"
+                f"DO NOT EXECUTE CODE DIRECTLY IN THIS CONTEXT.\n"
+                f"Orchestrators coordinate, subagents implement.\n\n"
+                f"Proceed with orchestration.\n"
             )
 
         # Bug report with feature active - might want bug instead
@@ -162,15 +188,22 @@ def generate_guidance(
     # No active work item - provide guidance based on intent
     if classification["is_implementation"]:
         return (
-            "📋 WORKFLOW GUIDANCE - IMPLEMENTATION REQUEST DETECTED:\n\n"
-            "You MUST create a work item BEFORE implementing:\n\n"
-            "  sdk = SDK(agent='claude')\n"
-            "  feature = sdk.features.create('Your feature title').save()\n"
-            "  sdk.features.start(feature.id)\n\n"
-            "Then proceed with implementation. This ensures:\n"
-            "- Work is tracked in HtmlGraph\n"
-            "- Session activity is linked\n"
-            "- Progress can be monitored\n"
+            "⚡ ORCHESTRATOR DIRECTIVE: This is implementation work.\n\n"
+            "REQUIRED WORKFLOW (execute in order):\n\n"
+            "1. CREATE A WORK ITEM:\n"
+            "   sdk = SDK(agent='claude')\n"
+            "   feature = sdk.features.create('Your feature title').save()\n"
+            "   sdk.features.start(feature.id)\n\n"
+            "2. DELEGATE TO SUBAGENT:\n"
+            "   from htmlgraph.tasks import Task\n"
+            "   Task(\n"
+            "       subagent_type='general-purpose',\n"
+            "       prompt='Implement: [specific implementation details]'\n"
+            "   ).execute()\n\n"
+            "3. DO NOT EXECUTE CODE DIRECTLY IN THIS CONTEXT\n"
+            "   - Orchestrators coordinate, subagents implement\n"
+            "   - This ensures proper work tracking and session management\n\n"
+            "Proceed with orchestration.\n"
         )
 
     if classification["is_bug_report"]:
