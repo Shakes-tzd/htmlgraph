@@ -12,8 +12,13 @@ All hooks use a unified architecture:
 - Deployed via package updates
 """
 
+from pathlib import Path
+
 from htmlgraph.hooks.posttooluse import posttooluse_hook
 from htmlgraph.hooks.pretooluse import pretooluse_hook
+
+# Directory containing hook scripts
+HOOKS_DIR = Path(__file__).parent
 
 # Git hooks that can be installed
 AVAILABLE_HOOKS = [
@@ -28,4 +33,5 @@ __all__ = [
     "pretooluse_hook",
     "posttooluse_hook",
     "AVAILABLE_HOOKS",
+    "HOOKS_DIR",
 ]

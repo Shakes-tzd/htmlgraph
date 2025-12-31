@@ -1187,6 +1187,155 @@ print(f"Work breakdown: {breakdown}")
 # → This was primarily an exploratory/research session
 ```
 
+## Research Checkpoint - MANDATORY Before Implementation
+
+**CRITICAL: Always research BEFORE implementing solutions. Never guess.**
+
+HtmlGraph enforces a research-first philosophy. This emerged from dogfooding where we repeatedly made trial-and-error attempts before researching documentation.
+
+### When to Research (Before ANY Implementation)
+
+**STOP and research if:**
+- ❓ You encounter unfamiliar errors or behaviors
+- ❓ You're working with Claude Code hooks, plugins, or configuration
+- ❓ You're implementing a solution based on assumptions
+- ❓ Multiple attempted fixes have failed
+- ❓ You're debugging without understanding root cause
+- ❓ You're about to "try something" to see if it works
+
+### Research-First Workflow
+
+**REQUIRED PATTERN:**
+```
+1. RESEARCH     → Use documentation, claude-code-guide, GitHub issues
+2. UNDERSTAND   → Identify root cause through evidence
+3. IMPLEMENT    → Apply fix based on understanding
+4. VALIDATE     → Test to confirm fix works
+5. DOCUMENT     → Capture learning in HtmlGraph spike
+```
+
+**❌ NEVER do this:**
+```
+1. Try Fix A    → Doesn't work
+2. Try Fix B    → Doesn't work
+3. Try Fix C    → Doesn't work
+4. Research     → Find actual root cause
+5. Apply fix    → Finally works
+```
+
+### Available Research Tools
+
+**Debugging Agents (use these!):**
+- **Researcher Agent** - Research documentation before implementing
+  - Activate via: `.claude/agents/researcher.md`
+  - Use for: Documentation research, pattern identification
+
+- **Debugger Agent** - Systematically analyze errors
+  - Activate via: `.claude/agents/debugger.md`
+  - Use for: Error analysis, hypothesis testing
+
+- **Test Runner Agent** - Enforce quality gates
+  - Activate via: `.claude/agents/test-runner.md`
+  - Use for: Pre-commit validation, test execution
+
+**Claude Code Tools:**
+```bash
+# Built-in debug commands
+claude --debug <command>        # Verbose output
+/hooks                          # List active hooks
+/hooks PreToolUse              # Show specific hook
+/doctor                         # System diagnostics
+claude --verbose               # Detailed logging
+```
+
+**Documentation Resources:**
+- Claude Code docs: https://code.claude.com/docs
+- Hook documentation: https://code.claude.com/docs/en/hooks.md
+- GitHub issues: https://github.com/anthropics/claude-code/issues
+
+### Research Checkpoint Questions
+
+**Before implementing ANY fix, ask yourself:**
+- [ ] Did I research the documentation for this issue?
+- [ ] Have I used the researcher agent or claude-code-guide?
+- [ ] Is this approach based on evidence or assumptions?
+- [ ] Have I checked GitHub issues for similar problems?
+- [ ] What debug tools can provide more information?
+- [ ] Am I making an informed decision or guessing?
+
+### Example: Correct Research-First Pattern
+
+**Scenario**: Hooks are duplicating
+
+**✅ CORRECT (Research First):**
+```
+1. STOP - Don't remove files yet
+2. RESEARCH - Read Claude Code hook loading documentation
+3. Use /hooks command to inspect active hooks
+4. Check GitHub issues for "duplicate hooks"
+5. UNDERSTAND - Hooks from multiple sources MERGE
+6. IMPLEMENT - Remove duplicates from correct source
+7. VALIDATE - Verify fix with /hooks command
+8. DOCUMENT - Create spike with findings
+```
+
+**❌ WRONG (Trial and Error):**
+```
+1. Remove .claude/hooks/hooks.json - Still broken
+2. Clear plugin cache - Still broken
+3. Remove old plugin versions - Still broken
+4. Remove marketplaces symlink - Still broken
+5. Finally research documentation
+6. Find root cause: Hook merging behavior
+```
+
+### Documenting Research Findings
+
+**REQUIRED: Capture all research in HtmlGraph spike:**
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+spike = sdk.spikes.create("Research: [Problem]") \
+    .set_spike_type(SpikeType.TECHNICAL) \
+    .set_findings("""
+## Problem
+[Brief description of issue]
+
+## Research Sources
+- [Documentation]: [Key findings]
+- [GitHub issue #123]: [Relevant discussion]
+- [Debug output]: [What it revealed]
+
+## Root Cause
+[What the research revealed]
+
+## Solution Options
+1. [Option A]: [Pros/cons based on docs]
+2. [Option B]: [Pros/cons based on docs]
+
+## Implemented Solution
+[What you chose and why, with evidence]
+
+## Validation
+[How you confirmed it works]
+    """) \
+    .save()
+```
+
+### Integration with Pre-Work Validation
+
+The validation hook already prevents multi-file changes without a feature. Research checkpoints add another layer:
+
+1. **Pre-Work Validation** - Ensures work is tracked
+2. **Research Checkpoint** - Ensures decisions are evidence-based
+
+Both work together to maintain quality and prevent wasted effort.
+
+---
+
 ## Feature Creation Decision Framework
 
 **CRITICAL**: Use this framework to decide when to create a feature vs implementing directly.
@@ -1252,8 +1401,12 @@ See `docs/WORKFLOW.md` for the complete decision framework with detailed criteri
    - Reduces context usage from 30% to <5%
 4. ✅ Review active features and decide if you need to create a new one
 5. ✅ Greet user with brief status update
-6. ✅ **DECIDE:** Create feature or implement directly? (use decision framework in "Pre-Work Validation" section)
-7. ✅ **If creating feature:** Use SDK or run `uv run htmlgraph feature start <id>`
+6. ✅ **RESEARCH CHECKPOINT:** Before implementing ANY solution:
+   - Did I research documentation first?
+   - Am I using evidence or assumptions?
+   - Should I activate researcher/debugger agent?
+7. ✅ **DECIDE:** Create feature or implement directly? (use decision framework)
+8. ✅ **If creating feature:** Use SDK or run `uv run htmlgraph feature start <id>`
 
 ### During Work (DO CONTINUOUSLY)
 1. ✅ Feature MUST be marked "in-progress" before you write any code

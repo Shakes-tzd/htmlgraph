@@ -397,8 +397,17 @@ class TranscriptReader:
 
         Claude encodes paths by replacing forward slashes with hyphens.
         Example: /home/user/myproject -> -home-user-myproject
+
+        On macOS, paths may have /System/Volumes/Data prefix which is stripped
+        to normalize the encoding.
         """
         path_str = str(Path(project_path).resolve())
+
+        # Normalize macOS volume paths - strip /System/Volumes/Data prefix
+        # This is the APFS volume mount point that macOS adds to paths
+        if path_str.startswith("/System/Volumes/Data/"):
+            path_str = path_str.replace("/System/Volumes/Data", "", 1)
+
         # Replace forward slashes with hyphens
         encoded = path_str.replace("/", "-")
         # Handle Windows paths (replace backslashes too)

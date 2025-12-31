@@ -94,8 +94,15 @@ for arg in "$@"; do
         --help|-h)
             show_help
             ;;
+        --*)
+            # Unknown flag - reject it
+            echo "Error: Unknown flag: $arg"
+            echo "Use --help to see available options"
+            exit 1
+            ;;
         *)
-            if [[ ! $arg =~ ^-- ]] && [ -z "$VERSION" ]; then
+            # Not a flag, treat as version
+            if [ -z "$VERSION" ]; then
                 VERSION=$arg
             fi
             ;;
