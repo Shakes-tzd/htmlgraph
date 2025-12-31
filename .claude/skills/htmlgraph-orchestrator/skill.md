@@ -135,6 +135,323 @@ Task(
 
 ---
 
+## Git Delegation Patterns
+
+**CRITICAL: ALL git operations MUST be delegated. NEVER run git commands directly as orchestrator.**
+
+### Why Git Must Be Delegated
+
+Git operations cascade unpredictably and consume excessive context when executed directly:
+
+**Typical git workflow failures:**
+1. `git commit` → Pre-commit hook fails (linter errors)
+2. Fix linter errors → Retry commit
+3. Commit succeeds → `git push` fails (conflicts)
+4. `git pull` → Merge conflicts
+5. Resolve conflicts → Retry push
+6. Push succeeds
+
+**Cost:**
+- Direct execution: 8-12+ tool calls
+- Delegation: 2 tool calls (Task + result)
+
+### Git Delegation Templates
+
+#### Standard Commit and Push
+
+```python
+# ✅ CORRECT - Delegate entire git workflow
+Task(
+    prompt="""
+    Commit and push changes to git:
+
+    Files to commit: CLAUDE.md, packages/claude-plugin/skills/htmlgraph-orchestrator/SKILL.md
+    Commit message: "docs: enforce strict git delegation in orchestrator directives"
+
+    Workflow:
+    1. Use git-commit-push.sh script if available:
+       ./scripts/git-commit-push.sh "docs: enforce strict git delegation..." --no-confirm
+
+    2. If script unavailable, manual workflow:
+       git add CLAUDE.md packages/claude-plugin/skills/htmlgraph-orchestrator/SKILL.md
+       git commit -m "docs: enforce strict git delegation in orchestrator directives"
+       git push origin main
+
+    3. Handle all errors:
+       - Pre-commit hook failures: fix issues, retry commit
+       - Push conflicts: pull, merge, retry push
+       - Test failures in hooks: fix tests, retry commit
+
+    4. Report final status with details
+
+    🔴 CRITICAL - Track Results:
+    After successful commit, update HtmlGraph feature with:
+    ```python
+    from htmlgraph import SDK
+    sdk = SDK(agent='coder')
+    with sdk.features.edit('feat-aa5530bd') as f:
+        f.complete_step(0)  # Mark git commit step complete
+    ```
+    """,
+    subagent_type="general-purpose"
+)
+```
+
+#### Commit Only (No Push)
+
+```python
+# ✅ CORRECT - Delegate commit without push
+Task(
+    prompt="""
+    Commit changes locally (do not push):
+
+    Files: [list files]
+    Message: "commit message here"
+
+    Steps:
+    1. git add [files]
+    2. git commit -m "message"
+    3. Handle pre-commit hook failures if any
+    4. DO NOT push to remote
+
+    Report status.
+    """,
+    subagent_type="general-purpose"
+)
+```
+
+#### Branch Operations
+
+```python
+# ✅ CORRECT - Delegate branch creation and switching
+Task(
+    prompt="""
+    Create and switch to feature branch:
+
+    Branch name: feature/add-authentication
+
+    Steps:
+    1. git checkout -b feature/add-authentication
+    2. Verify branch creation
+    3. Report status
+
+    If branch exists, switch to it instead.
+    """,
+    subagent_type="general-purpose"
+)
+```
+
+#### Merge Operations
+
+```python
+# ✅ CORRECT - Delegate merge workflow
+Task(
+    prompt="""
+    Merge feature branch into main:
+
+    Source: feature/add-authentication
+    Target: main
+
+    Steps:
+    1. git checkout main
+    2. git pull origin main
+    3. git merge feature/add-authentication
+    4. Handle merge conflicts if any
+    5. git push origin main
+    6. Delete feature branch: git branch -d feature/add-authentication
+
+    Report status and any conflicts encountered.
+    """,
+    subagent_type="general-purpose"
+)
+```
+
+### Anti-Patterns (WRONG)
+
+```python
+# ❌ WRONG - Running git commands directly as orchestrator
+Bash(command="git add .")
+Bash(command='git commit -m "update files"')
+Bash(command="git push origin main")
+# This will fail when hooks run, consuming YOUR context for retries
+
+# ❌ WRONG - Incomplete delegation (missing error handling)
+Task(
+    prompt="Run: git add . && git commit -m 'update' && git push",
+    subagent_type="general-purpose"
+)
+# No error handling means failures propagate back to you
+
+# ❌ WRONG - Delegating without tracking
+Task(prompt="Commit and push changes", subagent_type="general-purpose")
+# No HtmlGraph tracking means work is lost
+```
+
+### Correct Patterns (RIGHT)
+
+```python
+# ✅ CORRECT - Complete delegation with error handling and tracking
+Task(
+    prompt="""
+    Complete git workflow with full error handling:
+
+    [Clear instructions]
+    [Error handling steps]
+    [HtmlGraph tracking integration]
+    """,
+    subagent_type="general-purpose"
+)
+
+# ✅ CORRECT - Using convenience script
+Task(
+    prompt="""
+    Use git-commit-push.sh script:
+    ./scripts/git-commit-push.sh "message" --no-confirm
+
+    Handle errors and report status.
+    """,
+    subagent_type="general-purpose"
+)
+```
+
+### Integration with HtmlGraph Tracking
+
+Always include HtmlGraph tracking in git delegation:
+
+```python
+Task(
+    prompt="""
+    Commit changes with HtmlGraph tracking:
+
+    1. Git workflow: [commit and push steps]
+    2. Track in HtmlGraph:
+       ```python
+       from htmlgraph import SDK
+       sdk = SDK(agent='coder')
+
+       # Update feature with commit hash
+       with sdk.features.edit('feat-123') as f:
+           f.metadata['last_commit'] = "[commit hash from git]"
+           f.complete_step(3)  # Mark commit step complete
+       ```
+
+    Report commit hash and status.
+    """,
+    subagent_type="general-purpose"
+)
+```
+
+---
+
+## Parallel Task Coordination
+
+**Use Task ID pattern for parallel delegations.**
+
+### Task ID Pattern
+
+Generate unique IDs to track parallel tasks:
+
+```python
+from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+
+# Generate task ID and prepare prompt
+task_id, enhanced_prompt = delegate_with_id(
+    description="Implement feature X",
+    prompt="Your task instructions...",
+    subagent_type="general-purpose"
+)
+
+# Delegate
+Task(
+    prompt=enhanced_prompt,
+    description=f"{task_id}: Implement feature X",
+    subagent_type="general-purpose"
+)
+
+# Retrieve results
+results = get_results_by_task_id(sdk, task_id, timeout=120)
+print(results["findings"])
+```
+
+### Parallel Example
+
+```python
+# Three independent tasks in parallel
+tasks = []
+
+# Task 1: Authentication
+auth_id, auth_prompt = delegate_with_id("Add auth", "Implement JWT...", "general-purpose")
+tasks.append((auth_id, auth_prompt, "Add auth"))
+
+# Task 2: Tests
+test_id, test_prompt = delegate_with_id("Write tests", "Add unit tests...", "general-purpose")
+tasks.append((test_id, test_prompt, "Write tests"))
+
+# Task 3: Documentation
+docs_id, docs_prompt = delegate_with_id("Update docs", "Document API...", "general-purpose")
+tasks.append((docs_id, docs_prompt, "Update docs"))
+
+# Spawn all in parallel (single message)
+for task_id, prompt, desc in tasks:
+    Task(prompt=prompt, description=f"{task_id}: {desc}", subagent_type="general-purpose")
+
+# Retrieve all results
+for task_id, _, desc in tasks:
+    results = get_results_by_task_id(sdk, task_id)
+    if results["success"]:
+        print(f"✅ {desc}: {results['spike_id']}")
+```
+
+### Benefits
+
+- **Works with parallel delegations** - Each task has unique ID
+- **Full traceability** - Task → task_id → spike → findings
+- **Timeout handling** - Polling with configurable timeout
+- **Independent retrieval** - Results can be retrieved in any order
+- **Automatic tracking** - Subagents save to HtmlGraph spikes
+
+### Common Patterns
+
+#### Sequential with Dependencies
+
+```python
+# Task 1: Research
+research_id, research_prompt = delegate_with_id("Research auth patterns", "...", "general-purpose")
+Task(prompt=research_prompt, description=f"{research_id}: Research")
+
+# Wait for research
+research = get_results_by_task_id(sdk, research_id, timeout=60)
+
+# Task 2: Implement (depends on research)
+impl_id, impl_prompt = delegate_with_id(
+    "Implement auth",
+    f"Based on research:\n{research['findings']}\n\nImplement JWT auth...",
+    "general-purpose"
+)
+Task(prompt=impl_prompt, description=f"{impl_id}: Implement")
+
+# Wait for implementation
+impl = get_results_by_task_id(sdk, impl_id, timeout=120)
+```
+
+#### Fully Parallel
+
+```python
+# All tasks independent - spawn all at once
+task_ids = []
+for desc, prompt in tasks:
+    task_id, enhanced_prompt = delegate_with_id(desc, prompt, "general-purpose")
+    task_ids.append((task_id, desc))
+    Task(prompt=enhanced_prompt, description=f"{task_id}: {desc}")
+
+# Collect all results
+results = {}
+for task_id, desc in task_ids:
+    results[desc] = get_results_by_task_id(sdk, task_id, timeout=120)
+```
+
+---
+
 ## Debugging Delegation Patterns
 
 When delegating error resolution tasks:
