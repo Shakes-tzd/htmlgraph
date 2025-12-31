@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Results: implement-validator-blocking - Implement validator blocking for orchestrator violations</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-d051e88b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T08:58:27.799379"
+             data-updated="2025-12-31T08:58:27.799382" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Results: implement-validator-blocking - Implement validator blocking for orchestrator violations</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Task: Implement validator blocking for orchestrator violations
+# Task ID: implement-validator-blocking
+# Status: completed
+
+## Results
+
+
+## Fix Implemented Successfully
+
+**Changes Made**: Added `check_orchestrator_violation()` to validator.py
+
+**How it works**:
+1. Validator calls `check_orchestrator_violation()` before allowing operations
+2. Function checks if orchestrator mode is enabled + strict
+3. Calls orchestrator logic to detect violations
+4. Returns `"decision": "block"` (not just warnings)
+5. PreToolUse hook respects the block decision
+
+**Testing**:
+```python
+result = check_orchestrator_violation('Edit', {...})
+# Returns: {"decision": "block", "reason": "🚫 ORCHESTRATOR MODE VIOLATION..."}
+```
+
+✅ Blocking works in code
+⚠️ Changes not yet deployed - need to commit + publish + plugin update
+
+**File modified**: src/python/htmlgraph/hooks/validator.py (+76 lines)
+
+**Next steps**:
+1. Commit changes  
+2. Run tests
+3. Deploy new version
+4. Update plugin
+5. Verify blocking works in actual Claude Code sessions
+
+
+## Linked Work Items
+- Feature: feat-86dd776e
+
+## Metadata
+- Saved by: orchestrator
+- Task pattern: delegate_with_id
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

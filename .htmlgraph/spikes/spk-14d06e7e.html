@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Pattern: Orchestrator-Side Result Management</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-14d06e7e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T08:55:14.701570"
+             data-updated="2025-12-31T08:55:14.701575" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Pattern: Orchestrator-Side Result Management</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Orchestrator-Side Result Management Pattern
+
+## The Pattern
+
+When orchestrator delegates work to subagents, the ORCHESTRATOR (not subagent) captures and saves results.
+
+## Why This Pattern
+
+**Problem**: Subagents unreliably save results to spikes
+- TaskOutput tool often fails to retrieve results  
+- Subagents may not execute save code correctly
+- No quality gates before saving
+
+**Solution**: Orchestrator controls the save operation
+- Captures result from Task() output (reliable)
+- Can validate/test before saving
+- Links to work items with full context
+- 100% reliable result management
+
+## How to Use
+
+```python
+from htmlgraph.orchestration import delegate_with_id, save_task_results
+from htmlgraph import SDK
+
+sdk = SDK(agent='orchestrator')
+
+# 1. Generate task ID for delegation
+task_id, prompt = delegate_with_id(
+    "Fix authentication bug",
+    "Debug auth.py and fix token expiration issue"
+)
+
+# 2. Delegate to subagent (DO NOT tell it to save)
+result = Task(
+    prompt=prompt,
+    description=f"{task_id}: Fix auth bug",
+    subagent_type="general-purpose"
+)
+
+# 3. Orchestrator validates (optional)
+# - Review code changes
+# - Run tests  
+# - Check quality gates
+
+# 4. Orchestrator saves validated results
+spike_id = save_task_results(
+    sdk,
+    task_id=task_id,
+    description="Fix authentication bug",
+    results=result,  # From Task() output
+    feature_id="feat-123",  # Link to work item
+    status="completed"
+)
+
+# Result: Spike saved with findings + linked to feature
+```
+
+## When to Use
+
+✅ USE for:
+- Parallel task delegation
+- Investigation tasks
+- Code implementation by subagents
+- Any work needing quality gates
+
+❌ DON'T USE for:
+- Direct tool execution (Read, Edit, Bash)
+- Simple queries
+- SDK operations orchestrator does directly
+
+## Benefits
+
+1. **Reliability**: 100% result capture (vs 0% when subagent saves)
+2. **Quality gates**: Test before saving
+3. **Work item linking**: Full context to link features/tracks
+4. **Traceability**: task_id → results → spike → feature
+5. **Validation**: Orchestrator can delegate to testing agents first
+
+## Implementation Files
+
+- `src/python/htmlgraph/orchestration.py` - delegate_with_id(), save_task_results()
+- `test_real_workitem_integration.py` - Complete working example
+- `test_orchestrator_pattern.py` - Parallel delegation test (100% success rate)
+
+## Related Work
+
+- feat-ef098d5b: Initial implementation
+- spk-5044c3ce: Investigation of hook enforcement
+- This pattern is THE correct way to delegate + save results
+
+## Version
+
+Pattern established: 2025-12-31
+HtmlGraph version: 0.16.0+
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

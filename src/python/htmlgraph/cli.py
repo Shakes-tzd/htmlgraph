@@ -709,6 +709,7 @@ def cmd_install_hooks(args: argparse.Namespace) -> None:
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Show status of the graph."""
+    import json
     from collections import Counter
 
     from htmlgraph.sdk import SDK
@@ -750,15 +751,44 @@ def cmd_status(args: argparse.Namespace) -> None:
             # Collection might not exist yet
             pass
 
-    print(f"HtmlGraph Status: {args.graph_dir}")
-    print(f"{'=' * 40}")
-    print(f"Total nodes: {total}")
-    print("\nBy Collection:")
-    for coll, count in sorted(by_collection.items()):
-        print(f"  {coll}: {count}")
-    print("\nBy Status:")
-    for status, count in sorted(by_status.items()):
-        print(f"  {status}: {count}")
+    # Output based on format flag
+    if args.format == "json":
+        output = {
+            "graph_dir": args.graph_dir,
+            "total_nodes": total,
+            "by_collection": dict(sorted(by_collection.items())),
+            "by_status": dict(sorted(by_status.items())),
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        # Text output (default)
+        if not args.quiet:
+            print(f"HtmlGraph Status: {args.graph_dir}")
+            print(f"{'=' * 40}")
+
+        print(f"Total nodes: {total}")
+
+        if not args.quiet:
+            print("\nBy Collection:")
+            for coll, count in sorted(by_collection.items()):
+                print(f"  {coll}: {count}")
+            print("\nBy Status:")
+            for status, count in sorted(by_status.items()):
+                print(f"  {status}: {count}")
+
+        # Verbose output
+        if args.verbose >= 1:
+            print("\n--- Verbose Details ---")
+            print(f"Graph directory: {args.graph_dir}")
+            print(f"Collections scanned: {len(collections)}")
+            print(f"Collections with data: {len(by_collection)}")
+
+        if args.verbose >= 2:
+            print("\nAll collections checked:")
+            for coll_name in collections:
+                count = by_collection.get(coll_name, 0)
+                marker = "✓" if count > 0 else "○"
+                print(f"  {marker} {coll_name}: {count}")
 
 
 def cmd_debug(args: argparse.Namespace) -> None:
@@ -2771,18 +2801,40 @@ def cmd_feature_list(args: argparse.Namespace) -> None:
         print(json.dumps([node_to_dict(n) for n in nodes], indent=2, default=str))
     else:
         if not nodes:
-            print(
-                f"No features found with status '{args.status}'."
-                if args.status
-                else "No features found."
-            )
+            if not args.quiet:
+                print(
+                    f"No features found with status '{args.status}'."
+                    if args.status
+                    else "No features found."
+                )
             return
 
-        print(f"{'ID':<25} {'Status':<12} {'Priority':<10} {'Title'}")
-        print("=" * 80)
+        # Header (skip if quiet)
+        if not args.quiet:
+            print(f"{'ID':<25} {'Status':<12} {'Priority':<10} {'Title'}")
+            print("=" * 80)
+
+        # List features
         for node in nodes:
             title = node.title[:35] + "..." if len(node.title) > 38 else node.title
             print(f"{node.id:<25} {node.status:<12} {node.priority:<10} {title}")
+
+        # Verbose output
+        if args.verbose >= 1:
+            print("\n--- Verbose Details ---")
+            print(f"Total features: {len(nodes)}")
+            print(f"Graph directory: {args.graph_dir}")
+            if args.status:
+                print(f"Filtered by status: {args.status}")
+
+        if args.verbose >= 2:
+            print("\nFeature breakdown by status:")
+            from collections import Counter
+
+            status_counts = Counter(n.status for n in sdk.features.all())
+            for status, count in sorted(status_counts.items()):
+                marker = "→" if status == args.status else " "
+                print(f"  {marker} {status}: {count}")
 
 
 # =============================================================================
@@ -3218,6 +3270,27 @@ Debugging & Quality:
 
 For more help: https://github.com/Shakes-tzd/htmlgraph
 """,
+    )
+
+    # Global output control flags (work across all commands)
+    parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format: text (default) or json",
+    )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="Suppress progress messages and non-essential output",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="count",
+        default=0,
+        help="Increase verbosity (can be used multiple times: -v, -vv, -vvv)",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Results: investigate-pretooluse - PreToolUse Hook Investigation: Why No Blocking?</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5044c3ce"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T08:11:14.245282"
+             data-updated="2025-12-31T08:11:14.245286" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Results: investigate-pretooluse - PreToolUse Hook Investigation: Why No Blocking?</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Task: PreToolUse Hook Investigation: Why No Blocking?
+# Task ID: investigate-pretooluse
+# Status: completed
+
+## Results
+
+
+## Root Cause Found
+
+**Bug Location**: src/python/htmlgraph/hooks/orchestrator.py line 379
+
+**The Bug**: Orchestrator returns `"continue": True` even in strict enforcement mode.
+
+```python
+if enforcement_level == "strict":
+    return {"continue": True}  # ← BUG: Should be False
+```
+
+**Code Comment**: "Changed from False - blocking doesn't work"
+
+## Fix Options
+
+**Option B (Recommended)**: Enhance validator.py to detect orchestrator violations and return "decision": "block".
+
+## Files Analyzed
+- src/python/htmlgraph/hooks/orchestrator.py (bug at line 379)
+- src/python/htmlgraph/hooks/validator.py (can be enhanced)
+
+
+## Linked Work Items
+- Feature: feat-86dd776e
+
+## Metadata
+- Saved by: orchestrator
+- Task pattern: delegate_with_id
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

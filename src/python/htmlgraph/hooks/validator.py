@@ -288,6 +288,80 @@ def get_active_work_item() -> dict | None:
         return None
 
 
+def check_orchestrator_violation(tool: str, params: dict) -> dict | None:
+    """
+    Check if operation violates orchestrator mode rules.
+
+    This function detects when orchestrator.py would warn about a violation
+    and converts it to a blocking decision when in strict mode.
+
+    Args:
+        tool: Tool name
+        params: Tool parameters
+
+    Returns:
+        Blocking response dict if violation detected in strict mode, None otherwise
+    """
+    try:
+        from pathlib import Path
+
+        from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+        # Find .htmlgraph directory
+        cwd = Path.cwd()
+        graph_dir = cwd / ".htmlgraph"
+
+        if not graph_dir.exists():
+            for parent in [cwd.parent, cwd.parent.parent, cwd.parent.parent.parent]:
+                candidate = parent / ".htmlgraph"
+                if candidate.exists():
+                    graph_dir = candidate
+                    break
+
+        if not graph_dir.exists():
+            return None
+
+        manager = OrchestratorModeManager(graph_dir)
+
+        if not manager.is_enabled():
+            return None
+
+        if manager.get_enforcement_level() != "strict":
+            return None
+
+        # Import orchestrator logic
+        from htmlgraph.hooks.orchestrator import (
+            create_task_suggestion,
+            is_allowed_orchestrator_operation,
+        )
+
+        is_allowed, reason, category = is_allowed_orchestrator_operation(tool, params)
+
+        # If orchestrator would block (but returns continue=True), we block here
+        if not is_allowed:
+            suggestion = create_task_suggestion(tool, params)
+
+            return {
+                "decision": "block",
+                "reason": (
+                    f"🚫 ORCHESTRATOR MODE VIOLATION: {reason}\n\n"
+                    f"⚠️  WARNING: Direct operations waste context and break delegation pattern!\n\n"
+                    f"Suggested delegation:\n"
+                    f"{suggestion}\n\n"
+                    f"See ORCHESTRATOR_DIRECTIVES in session context for HtmlGraph delegation pattern.\n"
+                    f"To disable orchestrator mode: uv run htmlgraph orchestrator disable"
+                ),
+                "suggestion": "Use Task tool to delegate this work to a subagent",
+                "required_action": "DELEGATE_TO_SUBAGENT",
+            }
+
+        return None
+
+    except Exception:
+        # Graceful degradation - allow on error
+        return None
+
+
 def validate_tool_call(
     tool: str, params: dict, config: dict, history: list[dict]
 ) -> dict:
@@ -314,7 +388,13 @@ def validate_tool_call(
     result = {"decision": "allow"}
     guidance_parts = []
 
-    # Step 0: Check for pattern-based guidance (Active Learning)
+    # Step 0a: Check orchestrator mode violations (if enabled)
+    orchestrator_violation = check_orchestrator_violation(tool, params)
+    if orchestrator_violation:
+        # BLOCK orchestrator violations in strict mode
+        return orchestrator_violation
+
+    # Step 0b: Check for pattern-based guidance (Active Learning)
     pattern_info = get_pattern_guidance(tool, history)
     if pattern_info.get("pattern_warning"):
         guidance_parts.append(pattern_info["pattern_warning"])

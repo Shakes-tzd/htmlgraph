@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix orchestrator enforcement + improve decision traceability</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-86dd776e"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="critical"
+             data-created="2025-12-31T07:49:25.235623"
+             data-updated="2025-12-31T07:51:36.658632">
+
+        <header>
+            <h1>Fix orchestrator enforcement + improve decision traceability</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-3d9ec350.html" data-relationship="implemented-in" data-since="2025-12-31T07:49:25.631957">sess-3d9ec350</a></li>
+                    <li><a href="sess-40ed8a68.html" data-relationship="implemented-in" data-since="2025-12-31T07:51:36.658610">sess-40ed8a68</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Delegate investigation of PreToolUse hook enforcement</li>
+                <li data-completed="true">✅ Review htmlgraph.hooks.pretooluse implementation</li>
+                <li data-completed="true">✅ Fix blocking behavior if broken</li>
+                <li data-completed="true">✅ Create spike documenting the investigation</li>
+                <li data-completed="true">✅ Add analytics queries for decision traceability</li>
+                <li data-completed="false">⏳ Test enforcement works correctly</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Two related problems:
+1. PreToolUse hook gives warnings but doesn't block (strict enforcement broken)  
+2. Poor decision/changelog tracking between sessions
+
+Solution:
+- Investigate why pretooluse-integrator.py doesn't block
+- Add HtmlGraph analytics queries to trace decisions
+- Document decisions in spikes with context
+        </section>
+    </article>
+</body>
+</html>

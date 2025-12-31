@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PreToolUse Hook Investigation: Why No Blocking?</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0ec2322d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T08:08:46.574726"
+             data-updated="2025-12-31T08:08:46.574732" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>PreToolUse Hook Investigation: Why No Blocking?</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Root Cause Found
+
+**Bug Location**: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/orchestrator.py line 379
+
+**The Bug**: Orchestrator returns `"continue": True` even in strict enforcement mode.
+
+```python
+# Line 378-384 in orchestrator.py
+if enforcement_level == "strict":
+    # STRICT mode - loud warning but allow (blocking doesn't work)
+    return {
+        "continue": True,  # ← BUG: Should be False to block
+        "hookSpecificOutput": {...}
+    }
+```
+
+**Code Comment**: "Changed from False - blocking doesn't work"
+
+This reveals that `{"continue": False}` was previously tried but did not work in Claude Code hook infrastructure.
+
+## Control Flow
+
+1. PreToolUse hook runs 4 parallel checks (pretooluse.py:172)
+2. Orchestrator check detects violation but returns continue:True
+3. Final decision uses AND logic: `orch_continues and validate_allows and task_continues`
+4. Since orchestrator returns True, violations only produce warnings
+
+## Fix Options
+
+**Option A (Aggressive)**: Return "continue": False
+- Risk: May not work in Claude Code hook system
+- Evidence suggests this was already tried
+
+**Option B (Conservative)**: Enhance validator to block on orchestrator violations
+- Validator already participates in AND logic
+- More reliable than fixing orchestrator directly
+
+**Option C (Investigation)**: Determine what blocking mechanism Claude Code actually supports
+- May require hook infrastructure changes
+- Most thorough but time-consuming
+
+## Recommendation
+
+Start with **Option B** - enhance validator to detect orchestrator violations and return "decision": "block". This leverages existing working infrastructure.
+
+## Files Analyzed
+
+- `src/python/htmlgraph/hooks/pretooluse.py` - Main hook entry
+- `src/python/htmlgraph/hooks/orchestrator.py` - Bug at line 379
+- `src/python/htmlgraph/hooks/validator.py` - Could be enhanced to block
+- `.htmlgraph/orchestrator-mode.json` - Config shows "strict" enabled
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>
