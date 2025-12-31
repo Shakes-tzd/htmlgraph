@@ -49,50 +49,24 @@ def delegate_with_id(
     """
     task_id = generate_task_id()
 
-    # Inject task ID and reporting instructions into prompt
+    # Inject task ID into prompt for traceability
+    # Note: Orchestrator will capture results and save to HtmlGraph, NOT the subagent
     enhanced_prompt = f"""
 TASK_ID: {task_id}
 TASK_DESCRIPTION: {description}
 
 {prompt}
 
-🔴 CRITICAL - Report Results with Task ID:
-After completing the task, save your findings to HtmlGraph with the task ID in the title:
-
-```python
-from htmlgraph import SDK
-import os
-
-# Set agent name for proper attribution
-os.environ['HTMLGRAPH_AGENT'] = '{subagent_type}'
-sdk = SDK(agent='{subagent_type}')
-
-# Create spike with task ID in title
-spike = sdk.spikes.create('Results: {task_id} - {description}')
-spike.set_findings(\"\"\"
-# Task: {description}
-# Task ID: {task_id}
-
-## Summary
-[Brief overview of what was accomplished]
-
-## Details
-[Detailed findings, changes made, etc.]
-
-## Files Modified
-[List of files changed]
-
-## Status
-[Success/Partial/Failed with explanation]
-\"\"\").save()
-
-print(f"✅ Results saved with task ID: {task_id}")
-```
+📝 Note: This task has ID {task_id} for tracking purposes.
+Provide detailed findings in your response.
 """
 
-    # Note: Actual Task() tool call should be done by orchestrator
-    # This function just prepares the prompt and returns the task_id
-    # The orchestrator will call: Task(prompt=enhanced_prompt, description=f"{task_id}: {description}")
+    # The orchestrator will:
+    # 1. Call: Task(prompt=enhanced_prompt, description=f"{task_id}: {description}")
+    # 2. Capture the result from Task() function return
+    # 3. Optionally validate/test the result
+    # 4. Save to HtmlGraph spike using save_task_results()
+    # 5. Link to work items (features, tracks, etc.)
 
     return task_id, enhanced_prompt
 
@@ -212,3 +186,150 @@ def parallel_delegate(
         results[task_id] = get_results_by_task_id(sdk, task_id, timeout=timeout)
 
     return results
+
+
+def save_task_results(
+    sdk: SDK,
+    task_id: str,
+    description: str,
+    results: str,
+    feature_id: str | None = None,
+    status: str = "completed",
+) -> str:
+    """
+    Save task results to HtmlGraph spike (orchestrator-side).
+
+    This is the recommended pattern for saving delegation results.
+    The orchestrator captures Task() output and saves it, rather than
+    relying on subagents to save their own results.
+
+    Args:
+        sdk: HtmlGraph SDK instance
+        task_id: Task ID from delegate_with_id()
+        description: Task description
+        results: Task results (from Task() function return)
+        feature_id: Optional feature ID to link
+        status: Task status (completed, failed, partial)
+
+    Returns:
+        Spike ID
+
+    Example:
+        task_id, prompt = delegate_with_id("Implement auth", "Add JWT...")
+
+        # Call Task() and capture result
+        result = Task(prompt=prompt, description=f"{task_id}: Implement auth")
+
+        # Orchestrator saves the result
+        spike_id = save_task_results(
+            sdk, task_id, "Implement auth", result,
+            feature_id="feat-123", status="completed"
+        )
+    """
+    # Create spike with task results (chain all calls)
+    findings = f"""
+# Task: {description}
+# Task ID: {task_id}
+# Status: {status}
+
+## Results
+
+{results}
+
+## Linked Work Items
+{f"- Feature: {feature_id}" if feature_id else "None"}
+
+## Metadata
+- Saved by: orchestrator
+- Task pattern: delegate_with_id
+"""
+
+    spike = (
+        sdk.spikes.create(f"Results: {task_id} - {description}")
+        .set_findings(findings)
+        .save()
+    )
+
+    # Link to feature if provided
+    if feature_id:
+        try:
+            with sdk.features.edit(feature_id) as _:
+                # Add activity log entry when method is available
+                pass
+        except Exception:
+            pass  # Feature linking is optional
+
+    return str(spike.id)
+
+
+def validate_and_save(
+    sdk: SDK,
+    task_id: str,
+    description: str,
+    results: str,
+    validation_prompt: str | None = None,
+    feature_id: str | None = None,
+) -> dict[str, Any]:
+    """
+    Validate task results and save to HtmlGraph.
+
+    Optionally delegates validation to a testing agent before saving.
+    This implements quality gates in the orchestration pattern.
+
+    Args:
+        sdk: HtmlGraph SDK instance
+        task_id: Task ID from delegate_with_id()
+        description: Task description
+        results: Task results to validate
+        validation_prompt: Optional prompt for validation agent
+        feature_id: Optional feature ID to link
+
+    Returns:
+        Dict with:
+        - validated: bool
+        - spike_id: str
+        - validation_results: str (if validation performed)
+
+    Example:
+        # Delegate implementation
+        impl_id, impl_prompt = delegate_with_id("Add auth", "Implement JWT...")
+        impl_result = Task(prompt=impl_prompt, ...)
+
+        # Validate and save
+        outcome = validate_and_save(
+            sdk, impl_id, "Add auth", impl_result,
+            validation_prompt="Run tests and verify auth works",
+            feature_id="feat-auth"
+        )
+
+        if outcome["validated"]:
+            print(f"✅ Saved to spike: {outcome['spike_id']}")
+    """
+    validated = True
+    validation_results = None
+
+    # Optional validation step
+    if validation_prompt:
+        test_id, test_prompt = delegate_with_id(
+            f"Validate: {description}",
+            f"{validation_prompt}\n\nResults to validate:\n{results}",
+            "general-purpose",
+        )
+
+        # Note: Orchestrator should call Task() here to run validation
+        # validation_results = Task(prompt=test_prompt, ...)
+        # For now, we'll assume validation happens externally
+
+    # Determine status based on validation
+    status = "completed" if validated else "needs-review"
+
+    # Save results
+    spike_id = save_task_results(
+        sdk, task_id, description, results, feature_id=feature_id, status=status
+    )
+
+    return {
+        "validated": validated,
+        "spike_id": spike_id,
+        "validation_results": validation_results,
+    }

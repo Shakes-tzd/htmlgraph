@@ -29,16 +29,17 @@ def test_delegate_with_id():
     assert task_id in prompt
     assert "Test task" in prompt
     assert "Do something" in prompt
-    assert "🔴 CRITICAL - Report Results with Task ID:" in prompt
-    assert "spike = sdk.spikes.create" in prompt
+    # Updated: Orchestrator pattern - no subagent save instructions
+    assert "📝 Note: This task has ID" in prompt
 
 
 def test_delegate_with_id_includes_subagent_type():
-    """Test delegate_with_id includes subagent type in prompt."""
+    """Test delegate_with_id no longer includes subagent type (orchestrator-side save)."""
     task_id, prompt = delegate_with_id("Test task", "Do something", "specialized-agent")
 
-    assert "specialized-agent" in prompt
-    assert "HTMLGRAPH_AGENT" in prompt
+    # Subagent type is used but not in prompt (orchestrator manages saving)
+    assert task_id.startswith("task-")
+    assert "TASK_ID:" in prompt
 
 
 def test_get_results_by_task_id_timeout(tmp_path):
