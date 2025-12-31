@@ -21,9 +21,7 @@ def create_notes(sdk: SDK):
     print("📝 Creating knowledge base notes...")
 
     # Daily note
-    (
-        sdk.features.create(f"Daily Note: {date.today()}").set_priority("low").save()
-    )
+    (sdk.features.create(f"Daily Note: {date.today()}").set_priority("low").save())
 
     # Concept notes
     htmlgraph_note = Node(

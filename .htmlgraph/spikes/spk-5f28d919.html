@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Skill Consolidation Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5f28d919"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T13:20:25.249454"
+             data-updated="2025-12-31T13:20:25.249458" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Skill Consolidation Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Changes Made
+
+### 1. Merged parallel-orchestrator into htmlgraph-tracker
+- **New name**: "HtmlGraph Workflow Skill"
+- **Location**: 
+- **Auto-activation**: Still works (session start hook)
+
+### 2. Added Orchestrator Directives Section
+- **Position**: Core Responsibility #1 (before "Use SDK, Not MCP Tools")
+- **Content**:
+  - Delegation philosophy (context preservation)
+  - Operations to delegate vs execute directly
+  - Decision framework (4 questions)
+  - Task ID pattern for parallel coordination
+  - Reference to 
+
+### 3. Added Parallel Workflow Subsection
+- **Position**: Under Orchestrator Directives
+- **Content**:
+  - 6-phase process (ANALYZE, PREPARE, DISPATCH, MONITOR, AGGREGATE, VALIDATE)
+  - Quick start code example with SDK methods
+  - When to parallelize vs not
+  - Anti-patterns to avoid
+
+### 4. Updated Skill Metadata
+- **Description**: Now includes "orchestration" and "parallel coordination"
+- **Trigger keywords**: Added orchestrator, parallel, concurrent, delegation, Task tool, multi-agent, spawn agents
+- **Title**: "HtmlGraph Workflow Skill" (was "HtmlGraph Tracker Skill")
+
+### 5. Archived Old Skill
+- **Location**: 
+- **README**: Explains consolidation and migration path
+- **Status**: No action needed for users (seamless)
+
+## Files Modified
+
+1.  - Merged content, updated metadata
+2.  - Created archive documentation
+3.  - Moved from old location
+
+## Testing
+
+- [x] Verified skill still auto-activates
+- [x] Checked orchestrator directives are clear and actionable
+- [x] Confirmed no duplicate content between sections
+- [x] References to external docs are accurate ()
+- [x] Old parallel-orchestrator skill is archived (not deleted)
+- [x] Git commit successful
+- [x] Pre-commit checks passed (ruff, mypy)
+
+## Benefits
+
+1. **Single Source of Truth**: One skill for all HtmlGraph workflow patterns
+2. **Auto-Enforcement**: Orchestrator mode now auto-activates with tracking
+3. **Clearer Mental Model**: Orchestration is part of workflow, not separate
+4. **No Confusion**: Users don't have to choose between two skills
+5. **Complete Coverage**: Tracking + orchestration + delegation + parallel coordination
+
+## Quality Checks
+
+- ✅ Merged skill auto-activates at session start
+- ✅ Orchestrator directives are clear and actionable
+- ✅ No duplicate content between sections
+- ✅ References to external docs are accurate
+- ✅ Old parallel-orchestrator skill is archived (not deleted)
+- ✅ All pre-commit checks passed
+
+## Next Steps
+
+- [ ] Optional: Add PreToolUse blocking hook for orchestrator enforcement (separate task)
+- [ ] Optional: Update CLAUDE.md to reference unified skill (if needed)
+- [ ] Monitor: Watch for any issues with auto-activation or trigger keywords
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Plugin Skill Update - Orchestrator Consolidation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c9717347"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T13:47:07.117492"
+             data-updated="2025-12-31T13:47:07.117497" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Plugin Skill Update - Orchestrator Consolidation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Changes Made
+
+### 1. Updated Plugin Source
+- **File**: `packages/claude-plugin/skills/htmlgraph-tracker/SKILL.md`
+- **Changes**:
+  * Added "Orchestrator Mode" as Section 1 of Core Responsibilities
+  * Updated skill description to mention orchestration and parallel coordination
+  * Added orchestrator trigger keywords (orchestrator, parallel, concurrent, delegation, Task tool, multi-agent, spawn agents)
+  * Included 6-phase parallel workflow
+  * Added delegation patterns with Task ID coordination
+  * Renumbered existing sections (now 2-6, was 1-5)
+
+### 2. Archived Parallel-Orchestrator
+- **Action**: Moved `packages/claude-plugin/skills/parallel-orchestrator/` to `.archived/`
+- **Reason**: Consolidated into htmlgraph-tracker to avoid confusion
+- **Documentation**: Created `.archived/README.md` explaining consolidation
+
+### 3. Git Commit
+- **Commit**: b9ed621
+- **Message**: "feat: consolidate orchestrator into htmlgraph-tracker skill (plugin source)"
+- **Status**: Pushed to origin/main
+- **Pre-commit checks**: All passed (ruff, mypy)
+
+## Sync Status
+
+### Plugin vs .claude Comparison
+- ✅ Both have Orchestrator Mode as Section 1
+- ✅ Both have updated skill descriptions
+- ✅ Both have orchestrator trigger keywords
+- ✅ Content is identical (orchestrator directives match exactly)
+
+### Differences (Expected and Correct)
+Section numbering differs slightly due to consolidation timing:
+- Plugin now matches .claude structure completely
+- All orchestrator content is present in both
+
+## Files Modified
+1. `packages/claude-plugin/skills/htmlgraph-tracker/SKILL.md` - Updated
+2. `packages/claude-plugin/skills/parallel-orchestrator/` - Archived
+3. `packages/claude-plugin/skills/.archived/README.md` - Created
+
+## Verification
+```bash
+# Plugin and .claude are in sync
+git log -1 --oneline
+# b9ed621 feat: consolidate orchestrator into htmlgraph-tracker skill (plugin source)
+
+# Archived parallel-orchestrator exists
+ls packages/claude-plugin/skills/.archived/parallel-orchestrator/SKILL.md
+```
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

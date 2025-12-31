@@ -3,11 +3,11 @@
 
 from htmlgraph import SDK
 
-sdk = SDK(agent='claude')
+sdk = SDK(agent="claude")
 
 # Create comprehensive findings spike
-spike = sdk.spikes.create('Results: Task ID Pattern Implementation - feat-ef098d5b')
-spike.set_findings('''
+spike = sdk.spikes.create("Results: Task ID Pattern Implementation - feat-ef098d5b")
+spike.set_findings("""
 # Task ID Pattern for Parallel Agent Coordination
 
 ## Summary
@@ -141,7 +141,7 @@ print(test_results["findings"])
 ## Status
 
 **SUCCESS** - Feature fully implemented, tested, and documented.
-''').save()
+""").save()
 
-print('✅ Spike created successfully')
-print('📄 Task ID Pattern implementation complete')
+print("✅ Spike created successfully")
+print("📄 Task ID Pattern implementation complete")

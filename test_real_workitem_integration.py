@@ -11,10 +11,12 @@ Demonstrates:
 """
 
 import sys
-sys.path.insert(0, '/Users/shakes/DevProjects/htmlgraph/src/python')
+
+sys.path.insert(0, "/Users/shakes/DevProjects/htmlgraph/src/python")
 
 from htmlgraph import SDK
 from htmlgraph.orchestration import delegate_with_id, save_task_results
+
 
 def test_real_workitem_integration():
     """Test orchestrator pattern with real causal-compass feature."""
@@ -37,7 +39,7 @@ def test_real_workitem_integration():
 
     print(f"  ✅ Found feature: {feature_id}")
     print(f"  ✅ Title: {feature_title}")
-    print(f"  ✅ Project: causal-compass")
+    print("  ✅ Project: causal-compass")
 
     # =========================================================================
     # STEP 2: Orchestrator delegates 3 parallel investigation tasks
@@ -55,7 +57,7 @@ Find:
 - File organization patterns
 
 Report findings clearly.""",
-        "general-purpose"
+        "general-purpose",
     )
 
     # Task 2: Review notebook architecture
@@ -69,7 +71,7 @@ Identify:
 - Interactive analysis guidelines
 
 Summarize key points.""",
-        "general-purpose"
+        "general-purpose",
     )
 
     # Task 3: Check existing components
@@ -83,7 +85,7 @@ Find:
 - Reusable patterns
 
 List what exists.""",
-        "general-purpose"
+        "general-purpose",
     )
 
     print(f"  ✅ Task 1: {task1_id} - Analyze lesson structure")
@@ -120,7 +122,6 @@ List what exists.""",
 - Variable selection
 - Real-time feedback
 - Step-by-step guidance""",
-
         task2_id: f"""## Architecture Review Complete
 
 ### Notebook Architecture
@@ -146,7 +147,6 @@ List what exists.""",
 - State management via notebook kernel
 
 **Alignment**: New Interactive Analysis step should follow these patterns""",
-
         task3_id: f"""## Component Inventory Complete
 
 ### Existing UI Components
@@ -171,10 +171,10 @@ List what exists.""",
 - StepProgress tracker
 - AnalysisPreview
 
-**Recommendation**: Compose existing + create 3 new components"""
+**Recommendation**: Compose existing + create 3 new components""",
     }
 
-    print(f"  ✅ Captured results for all 3 tasks")
+    print("  ✅ Captured results for all 3 tasks")
 
     # =========================================================================
     # STEP 4: Orchestrator uses HtmlGraph SDK to save results
@@ -182,23 +182,26 @@ List what exists.""",
     print("\n💾 STEP 4: Orchestrator saving results to HtmlGraph...")
 
     # Initialize SDK (using htmlgraph project for this demo)
-    sdk = SDK(agent='orchestrator-demo')
+    sdk = SDK(agent="orchestrator-demo")
 
     # Save each task result with feature linking
     spike_ids = []
 
-    for idx, (task_id, desc) in enumerate([
-        (task1_id, "Analyze lesson structure"),
-        (task2_id, "Review architecture docs"),
-        (task3_id, "Check UI components"),
-    ], 1):
+    for idx, (task_id, desc) in enumerate(
+        [
+            (task1_id, "Analyze lesson structure"),
+            (task2_id, "Review architecture docs"),
+            (task3_id, "Check UI components"),
+        ],
+        1,
+    ):
         spike_id = save_task_results(
             sdk,
             task_id,
             desc,
             task_results[task_id],
             feature_id=feature_id,  # Link to causal-compass feature
-            status="completed"
+            status="completed",
         )
         spike_ids.append(spike_id)
         print(f"  ✅ Task {idx} saved to spike: {spike_id}")
@@ -272,7 +275,7 @@ Completed 3 parallel investigation tasks:
 
 ### Work Item Tracking
 - Feature: {feature_id}
-- Investigation spikes: {', '.join(spike_ids)}
+- Investigation spikes: {", ".join(spike_ids)}
 - Status: Ready for implementation
 """
 
@@ -283,7 +286,7 @@ Completed 3 parallel investigation tasks:
         f"Consolidated analysis for {feature_id}",
         consolidated_analysis,
         feature_id=feature_id,
-        status="completed"
+        status="completed",
     )
 
     print(f"  ✅ Consolidated analysis saved: {consolidation_spike_id}")
@@ -295,22 +298,22 @@ Completed 3 parallel investigation tasks:
     print("✅ REAL WORK ITEM INTEGRATION TEST COMPLETE")
     print("=" * 80)
 
-    print(f"\nWhat We Demonstrated:")
-    print(f"  ✅ Cross-project feature access (causal-compass → htmlgraph)")
-    print(f"  ✅ Parallel task delegation (3 investigation tasks)")
-    print(f"  ✅ Orchestrator-side result capture (100% reliable)")
+    print("\nWhat We Demonstrated:")
+    print("  ✅ Cross-project feature access (causal-compass → htmlgraph)")
+    print("  ✅ Parallel task delegation (3 investigation tasks)")
+    print("  ✅ Orchestrator-side result capture (100% reliable)")
     print(f"  ✅ Work item linking (feature: {feature_id})")
     print(f"  ✅ Spike traceability ({len(spike_ids)} investigation spikes)")
-    print(f"  ✅ Consolidated analysis (synthesis of findings)")
+    print("  ✅ Consolidated analysis (synthesis of findings)")
 
-    print(f"\nOrchestrator Benefits:")
-    print(f"  • Full control over result management")
-    print(f"  • Quality gates (could validate before saving)")
-    print(f"  • Work item integration (automatic linking)")
-    print(f"  • Traceability (task → spike → feature)")
-    print(f"  • Synthesis (consolidate parallel findings)")
+    print("\nOrchestrator Benefits:")
+    print("  • Full control over result management")
+    print("  • Quality gates (could validate before saving)")
+    print("  • Work item integration (automatic linking)")
+    print("  • Traceability (task → spike → feature)")
+    print("  • Synthesis (consolidate parallel findings)")
 
-    print(f"\nSpikes Created:")
+    print("\nSpikes Created:")
     for spike_id in spike_ids + [consolidation_spike_id]:
         print(f"  • {spike_id}")
 

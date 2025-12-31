@@ -228,9 +228,7 @@ def test_work_queue_priority_ordering(temp_sdk):
     if high_priority and low_priority:
         # High priority should generally score higher than low priority
         # (though routing can override based on other factors)
-        sum(item["score"] for item in high_priority) / len(
-            high_priority
-        )
+        sum(item["score"] for item in high_priority) / len(high_priority)
         sum(item["score"] for item in low_priority) / len(low_priority)
 
         # This is a soft check - routing logic may vary

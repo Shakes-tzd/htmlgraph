@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Deployment: Orchestrator Blocking v0.18.0</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c31f74f9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T18:26:06.859741"
+             data-updated="2025-12-31T18:26:06.859746" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Deployment: Orchestrator Blocking v0.18.0</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Deployment Summary
+
+### Version
+- Previous: 0.17.0
+- New: 0.18.0 (orchestrator blocking feature)
+
+### Feature Description
+Implemented PreToolUse hook blocking that enforces orchestrator delegation rules:
+- Blocks git operations (add, commit, push, etc.) when in orchestrator mode
+- Provides helpful error messages directing users to delegate instead
+- Validator enforces strict mode requirement for blocking
+- All operations except strategic activities must be delegated
+
+### Deployment Steps
+- [x] Tests passed (899 passed, 9 skipped)
+- [x] Plugin files synced
+- [x] Version bumped to 0.18.0
+- [x] Git pushed with tags
+- [x] PyPI published successfully
+- [x] Plugin updated to 0.18.0
+- [x] Local install verified
+
+### Verification
+- PyPI version: 0.18.0 ✅
+- Local install version: 0.18.0 ✅
+- Plugin version: 0.18.0 ✅
+
+### Quality Checks
+- All code quality checks passed (ruff, mypy)
+- All tests passed (899 passed, 9 skipped)
+- Dashboard files synced automatically
+- Plugin files synced before deployment
+
+### Issues Encountered
+None - deployment was smooth and automated via deploy-all.sh script
+
+### Next Steps
+- Test blocking in real orchestrator usage
+- Monitor for false positives in blocking rules
+- Adjust delegation thresholds if needed
+- Gather feedback on orchestrator experience
+
+### Notes
+The --no-confirm flag made deployment fully automated and non-interactive.
+Pre-flight checks caught plugin sync issue and we resolved it before continuing.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

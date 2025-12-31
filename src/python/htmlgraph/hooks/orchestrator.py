@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from htmlgraph.orchestrator_mode import OrchestratorModeManager
+from htmlgraph.orchestrator_validator import OrchestratorValidator
 
 # Tool history file (temporary storage for session)
 TOOL_HISTORY_FILE = Path("/tmp/htmlgraph-tool-history.json")
@@ -106,6 +107,16 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
         - reason_if_not: Explanation if blocked (empty if allowed)
         - category: Operation category for logging
     """
+    # Use OrchestratorValidator for comprehensive validation
+    validator = OrchestratorValidator()
+    result, reason = validator.validate_tool_use(tool, params)
+
+    if result == "block":
+        return False, reason, "validator-blocked"
+    elif result == "warn":
+        # Continue but with warning
+        pass  # Fall through to existing checks
+
     # Category 1: ALWAYS ALLOWED - Orchestrator core operations
     if tool in ["Task", "AskUserQuestion", "TodoWrite"]:
         return True, "", "orchestrator-core"
@@ -376,7 +387,7 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
         )
 
         return {
-            "continue": True,  # Changed from False - blocking doesn't work
+            "continue": False,  # Block when orchestrator mode is strict and operation violates rules
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "additionalContext": error_message,

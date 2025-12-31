@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestrator Impact Analysis - Event Level</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-d56f4231"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T12:29:55.133542"
+             data-updated="2025-12-31T12:29:55.133544" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Orchestrator Impact Analysis - Event Level</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Analysis Method
+
+This analysis uses **event-level timestamps** rather than session start dates to classify tool usage as pre or post-orchestrator. This provides a more accurate picture of behavioral changes.
+
+**Timeline:**
+- **Cutoff Date**: December 30, 2025 00:00:00
+- **Pre-orchestrator**: Events with timestamp < Dec 30, 2025
+- **Post-orchestrator**: Events with timestamp >= Dec 30, 2025
+
+## Event-Level Analysis
+
+### Pre-Orchestrator Events (< Dec 30, 2025)
+
+**Total Events**: 216
+
+**Delegation Metrics:**
+- Task calls: 0 (0.0%)
+- Bash calls: 44 (20.4%)
+- Task:Bash ratio: 0.00:1
+
+**Top Tools:**
+
+- FSWatch: 81 (37.5%)
+- Bash: 44 (20.4%)
+- Edit: 14 (6.5%)
+- SessionStart: 8 (3.7%)
+- Stop: 8 (3.7%)
+- TodoWrite: 8 (3.7%)
+- FeatureComplete: 7 (3.2%)
+- UserQuery: 7 (3.2%)
+- Read: 7 (3.2%)
+- FeatureStart: 5 (2.3%)
+
+### Post-Orchestrator Events (>= Dec 30, 2025)
+
+**Total Events**: 1259
+
+**Delegation Metrics:**
+- Task calls: 50 (4.0%)
+- Bash calls: 591 (46.9%)
+- Task:Bash ratio: 0.08:1
+
+**Top Tools:**
+
+- Bash: 591 (46.9%)
+- Read: 168 (13.3%)
+- Edit: 99 (7.9%)
+- UserQuery: 69 (5.5%)
+- Grep: 54 (4.3%)
+- Task: 50 (4.0%)
+- TodoWrite: 41 (3.3%)
+- Write: 31 (2.5%)
+- Stop: 31 (2.5%)
+- ClaudeSessionStart: 30 (2.4%)
+
+## Impact Analysis
+
+### Key Findings
+
+**1. Delegation Rate Change:**
+- Pre: 0.0%
+- Post: 4.0%
+- Change: +4.0 percentage points
+- **Impact**: ✅ Increased delegation as intended
+
+**2. Direct Execution Rate Change:**
+- Pre: 20.4%
+- Post: 46.9%
+- Change: +26.6 percentage points
+- **Impact**: ⚠️  Direct execution rate similar
+
+**3. Task:Bash Ratio Change:**
+- Pre: 0.00:1
+- Post: 0.08:1
+- Change: +0.0%
+- **Impact**: ⚠️  Limited improvement in delegation ratio
+
+### Session Statistics
+
+**Total Sessions Analyzed**: 11
+**Pre-orchestrator Only**: 8
+**Post-orchestrator Only**: 0
+**Spans Cutoff**: 3
+
+### Conclusions
+
+1. ⚠️  **Modest Delegation Increase**: 4.0 percentage point increase suggests partial adoption
+2. ❌ **Increased Direct Execution**: 26.6 percentage point increase in Bash usage
+
+## Raw Event Timeline
+
+
+**Events around cutoff date (Dec 30, 2025):**
+
+- 📍 PRE  | 2025-12-16 07:33:06 | SessionStart | session-20251216-073306
+- 📍 PRE  | 2025-12-16 07:33:12 | Edit | session-20251216-073306
+- 📍 PRE  | 2025-12-16 07:33:25 | SessionEnd | session-20251216-073306
+- 📍 PRE  | 2025-12-17 08:40:26 | SessionStart | session-20251217-084026
+- 📍 PRE  | 2025-12-17 08:40:26 | Codex | session-20251217-084026
+- 📍 PRE  | 2025-12-22 17:21:43 | SessionStart | sess-ef8d1e1c
+- 📍 PRE  | 2025-12-22 23:44:47 | SessionEnd | sess-ef8d1e1c
+- 📍 PRE  | 2025-12-25 05:34:10 | SessionStart | sess-fd50862f
+- 📍 PRE  | 2025-12-25 05:34:10 | FeatureClaim | sess-fd50862f
+- 📍 PRE  | 2025-12-25 05:34:10 | FeatureStart | sess-fd50862f
+- 📍 PRE  | 2025-12-25 05:35:30 | FeatureComplete | sess-fd50862f
+- 📍 PRE  | 2025-12-25 05:35:38 | FeatureClaim | sess-fd50862f
+- 📍 PRE  | 2025-12-25 05:35:38 | FeatureStart | sess-fd50862f
+- 📍 PRE  | 2025-12-25 05:39:37 | FeatureComplete | sess-fd50862f
+- 📍 PRE  | 2025-12-25 06:13:09 | FeatureClaim | sess-fd50862f
+- 📍 PRE  | 2025-12-25 06:13:09 | FeatureStart | sess-fd50862f
+- 📍 PRE  | 2025-12-26 09:00:53 | FeatureCreate | sess-fd50862f
+- 📍 PRE  | 2025-12-26 09:02:31 | FeatureComplete | sess-fd50862f
+- 📍 PRE  | 2025-12-26 09:56:50 | FeatureCreate | sess-fd50862f
+- 📍 PRE  | 2025-12-26 10:09:47 | FeatureCreate | sess-fd50862f
+- 📍 POST | 2025-12-30 05:05:04 | FeatureClaim | sess-fd50862f
+- 📍 POST | 2025-12-30 05:05:04 | FeatureStart | sess-fd50862f
+- 📍 POST | 2025-12-30 05:09:11 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-30 07:43:24 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-30 09:39:48 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-30 18:53:56 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-30 22:11:02 | Skill | sess-fd50862f
+- 📍 POST | 2025-12-31 02:02:25 | FeatureClaim | sess-fd50862f
+- 📍 POST | 2025-12-31 02:02:25 | FeatureStart | sess-fd50862f
+- 📍 POST | 2025-12-31 10:16:59 | FeatureClaim | sess-fd50862f
+- 📍 POST | 2025-12-31 10:16:59 | FeatureStart | sess-fd50862f
+- 📍 POST | 2025-12-31 10:19:25 | FeaturePrimary | sess-fd50862f
+- 📍 POST | 2025-12-31 11:22:31 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-31 11:40:07 | FeaturePrimary | sess-fd50862f
+- 📍 POST | 2025-12-31 11:42:59 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-31 11:45:28 | FeatureCreate | sess-3d9ec350
+- 📍 POST | 2025-12-31 11:45:38 | FeatureClaim | sess-fd50862f
+- 📍 POST | 2025-12-31 11:45:38 | FeatureStart | sess-fd50862f
+- 📍 POST | 2025-12-31 12:09:11 | FeatureComplete | sess-fd50862f
+- 📍 POST | 2025-12-31 12:14:03 | ClaudeSessionStart | sess-3d9ec350
+            </div>
+        </section>
+    </article>
+</body>
+</html>

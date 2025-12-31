@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SDK API Reference: Node/Feature/Spike Actual Methods</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-673ff313"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T09:09:47.523739"
+             data-updated="2025-12-31T09:09:47.523743" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>SDK API Reference: Node/Feature/Spike Actual Methods</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# SDK API Reference - Actual Methods and Attributes
+
+**Problem:** Repeated AttributeErrors from guessing at API methods instead of checking actual schema.
+
+## Node Class (Base for Feature, Bug, Epic, Chore, etc.)
+
+**Attributes:**
+- `id: str` - Unique identifier
+- `title: str` - Human-readable title
+- `type: str` - Node type (feature, bug, spike, etc.)
+- `status: str` - "todo", "in-progress", "blocked", "done", "active", "ended", "stale"
+- `priority: str` - Priority level
+- `created: datetime` - Creation timestamp
+- `updated: datetime` - Last modification timestamp
+- `properties: dict` - Arbitrary key-value properties
+- `edges: dict[str, list[Edge]]` - Relationships keyed by type
+- `steps: list[Step]` - Implementation steps/checklist
+- `content: str` - Main content (NOT description!)
+- `agent_assigned: str | None` - Agent working on node
+
+**Methods:**
+- `to_html()` - Convert to HTML
+- `to_context()` - Lightweight context for AI
+- `add_edge(edge: Edge)` - Add relationship
+- `complete_step(index: int, agent: str)` - Mark step done
+- `get_edges_by_type(relationship: str)` - Get edges
+- `from_dict(data: dict)` - Class method to create from dict
+
+**❌ DOES NOT HAVE:**
+- `description` attribute (use `content` instead)
+- `add_activity()` method (that's on Session!)
+
+## Spike Class (extends Node)
+
+**Additional Attributes:**
+- `spike_type: SpikeType` - technical, architectural, risk, general
+- `timebox_hours: int | None` - Timebox duration
+- `findings: str | None` - Investigation findings
+- `decision: str | None` - Decision made
+
+**Methods:**
+- Same as Node, plus:
+- `to_html()` - Override with spike-specific sections
+
+## Session Class
+
+**Attributes:**
+- `id`, `title`, `status`, `created`, `updated` (from Node)
+- `start_time: datetime` - Session start
+- `end_time: datetime | None` - Session end
+- `activity_log: list[ActivityEntry]` - Activity entries
+
+**Methods:**
+- `add_activity(entry: ActivityEntry)` - Add activity ✅ ONLY ON SESSION
+- `end()` - End session
+- `record_context()` - Record context snapshot
+
+## Builders (SDK convenience)
+
+**FeatureBuilder, SpikeBuilder, etc:**
+- Methods: `.set_priority()`, `.set_status()`, `.add_steps()`, `.save()`
+- `.save()` RETURNS the actual Node object with `id`
+- ❌ Builders do NOT have `id` until after `.save()`
+
+**Correct usage:**
+```python
+# ❌ WRONG
+builder = sdk.features.create("Title")
+print(builder.id)  # ERROR: Builder has no id
+
+# ✅ CORRECT
+feature = sdk.features.create("Title").save()
+print(feature.id)  # Works - feature is Node with id
+```
+
+## Common Mistakes to Avoid
+
+1. **Accessing id before save:**
+   ```python
+   # ❌ WRONG
+   builder = sdk.features.create("Title")
+   print(builder.id)
+   
+   # ✅ CORRECT
+   feature = sdk.features.create("Title").save()
+   print(feature.id)
+   ```
+
+2. **Using description instead of content:**
+   ```python
+   # ❌ WRONG
+   feature.description = "..."
+   
+   # ✅ CORRECT  
+   feature.content = "..."
+   ```
+
+3. **Calling add_activity on Feature:**
+   ```python
+   # ❌ WRONG
+   feature.add_activity("Did something")
+   
+   # ✅ CORRECT
+   session.add_activity(ActivityEntry(...))
+   ```
+
+## Source of Truth
+
+File: `src/python/htmlgraph/models.py`
+- Line 127: `class Node` definition
+- Line 611: `class Spike` definition  
+- Line 816: `class Session` definition
+
+**Always check models.py when unsure about API!**
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

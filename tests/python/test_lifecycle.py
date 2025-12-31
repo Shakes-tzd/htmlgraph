@@ -147,9 +147,7 @@ class TestFullLifecycle:
 
         manager = SessionManager(graph_dir, wip_limit=3)
 
-        manager.start_session(
-            agent="test-agent", title="Parallel Work Session"
-        )
+        manager.start_session(agent="test-agent", title="Parallel Work Session")
 
         # Start multiple features in parallel
         feature1 = manager.create_feature("Parallel Feature 1", agent="test-agent")

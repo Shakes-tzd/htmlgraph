@@ -1,23 +1,29 @@
 # Archived Skills
 
-This directory contains skills that have been deprecated or consolidated into other skills.
+This directory contains skills that have been consolidated or deprecated.
 
 ## parallel-orchestrator (Archived 2025-12-31)
 
-**Status:** Consolidated into `htmlgraph-tracker` (now "HtmlGraph Workflow Skill")
+**Reason:** Consolidated into `htmlgraph-tracker` skill.
 
-**Reason:** Orchestration and delegation are core parts of the HtmlGraph workflow, not separate concerns. Having two skills created confusion about when to use which.
+**Why?** The parallel-orchestrator skill provided orchestration and delegation patterns, but this created confusion:
+- Two skills with overlapping responsibilities
+- Users didn't know which to activate
+- Orchestration is a core part of the HtmlGraph workflow, not a separate concern
 
-**What changed:**
-- Orchestrator directives merged into htmlgraph-tracker as "Core Responsibility #1"
-- Parallel workflow (6-phase process) added as subsection
-- Single unified skill now handles: tracking, orchestration, delegation, and parallel coordination
-- Auto-activation still works (session start)
-- All trigger keywords preserved
+**Solution:** All orchestration directives are now in `htmlgraph-tracker` as "Orchestrator Mode" (Section 1 of Core Responsibilities).
 
-**Migration:**
-- No action needed - htmlgraph-tracker now includes all parallel-orchestrator functionality
-- Skills that referenced parallel-orchestrator should reference htmlgraph-tracker instead
-- All SDK methods (`plan_parallel_work`, `aggregate_parallel_results`, etc.) unchanged
+**Migration:** The `htmlgraph-tracker` skill now includes:
+- Orchestrator mode directives (delegation patterns)
+- 6-phase parallel workflow
+- Task ID coordination helpers
+- All orchestration anti-patterns and best practices
 
-**See:** `.claude/skills/htmlgraph-tracker/SKILL.md` for the unified skill
+**What was moved:**
+- Delegation philosophy and decision framework
+- Git delegation requirements (ALWAYS DELEGATE)
+- Parallel workflow coordination
+- Task ID pattern for result retrieval
+- SDK orchestration methods
+
+**See:** `htmlgraph-tracker/SKILL.md` for the consolidated skill.

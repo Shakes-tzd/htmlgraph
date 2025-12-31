@@ -1,11 +1,11 @@
 ---
 name: htmlgraph-tracker
-description: HtmlGraph session tracking and documentation skill. Activated automatically at session start to ensure proper activity attribution, feature awareness, and documentation habits. Use when working with HtmlGraph-enabled projects, when drift warnings appear, or when the user asks about tracking features or sessions.
+description: HtmlGraph workflow skill combining session tracking, orchestration, and parallel coordination. Activated automatically at session start. Enforces delegation patterns, manages multi-agent workflows, ensures proper activity attribution, and maintains feature awareness. Use when working with HtmlGraph projects, spawning parallel agents, or coordinating complex work.
 ---
 
-# HtmlGraph Tracker Skill
+# HtmlGraph Workflow Skill
 
-Use this skill when HtmlGraph is tracking the session to ensure proper activity attribution and documentation. Activate this skill at session start via the SessionStart hook.
+Use this skill when HtmlGraph is tracking the session to ensure proper activity attribution, documentation, and orchestration patterns. Activate this skill at session start via the SessionStart hook.
 
 ---
 
@@ -33,14 +33,129 @@ The root AGENTS.md file contains:
 - When drift detection warnings appear
 - When the user mentions htmlgraph, features, sessions, or activity tracking
 - When discussing work attribution or documentation
+- When planning multi-agent work or parallel execution
+- When using Task tool to spawn subagents
+- When coordinating concurrent feature implementation
 
-**Trigger keywords:** htmlgraph, feature tracking, session tracking, drift detection, activity log, work attribution, feature status, session management
+**Trigger keywords:** htmlgraph, feature tracking, session tracking, drift detection, activity log, work attribution, feature status, session management, orchestrator, parallel, concurrent, delegation, Task tool, multi-agent, spawn agents
 
 ---
 
 ## Core Responsibilities
 
-### 1. **Use SDK, Not MCP Tools** (CRITICAL)
+### 1. **ORCHESTRATOR MODE - Delegation Over Direct Execution** (CRITICAL)
+
+**CRITICAL: When operating in orchestrator mode, delegate ALL operations except strategic activities.**
+
+**Core Philosophy:** You don't know the outcome before running a tool. What looks like "one bash call" often becomes 2, 3, 4+ calls when handling failures, conflicts, hooks, or errors. Delegation preserves strategic context by isolating tactical execution in subagent threads.
+
+**Operations You MAY Execute Directly:**
+- `Task()` - Delegation itself
+- `AskUserQuestion()` - Clarifying requirements
+- `TodoWrite()` - Tracking work items
+- SDK operations - Creating features, spikes, analytics
+
+**ALWAYS Delegate:**
+- ✅ Git operations (commit, push, branch, merge) - **ALWAYS DELEGATE**
+- ✅ Code changes (multi-file edits, implementation)
+- ✅ Research & exploration (codebase searches)
+- ✅ Testing & validation (test suites, debugging)
+- ✅ Build & deployment (package publishing)
+- ✅ Complex file operations (batch operations)
+
+**Why Git MUST be delegated:** Git operations cascade unpredictably (hooks fail, conflicts occur, tests fail in hooks). Context cost: Direct execution = 7+ tool calls vs Delegation = 2 tool calls.
+
+**Decision Framework - Ask yourself:**
+1. Will this likely be one tool call? → If uncertain, DELEGATE
+2. Does this require error handling? → DELEGATE
+3. Could this cascade into multiple operations? → DELEGATE
+4. Is this strategic (decisions) or tactical (execution)? → Tactical = DELEGATE
+
+**Delegation Pattern with Task ID:**
+```python
+from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+
+# Generate task ID and enhanced prompt
+task_id, prompt = delegate_with_id(
+    "Commit and push changes",
+    "Files: CLAUDE.md, SKILL.md\nMessage: 'docs: consolidate skills'",
+    "general-purpose"
+)
+
+# Delegate
+Task(prompt=prompt, description=f"{task_id}: Commit and push")
+
+# Retrieve results by task ID (works with parallel tasks!)
+results = get_results_by_task_id(sdk, task_id, timeout=120)
+if results["success"]:
+    print(results["findings"])
+```
+
+**See:** `.claude/rules/orchestration.md` for complete orchestrator directives and delegation patterns.
+
+#### Parallel Workflow (6-Phase Process)
+
+When coordinating multiple agents with Task tool, follow this structured workflow:
+
+```
+1. ANALYZE   → Check dependencies, assess parallelizability
+2. PREPARE   → Cache shared context, partition files
+3. DISPATCH  → Generate prompts via SDK, spawn agents in ONE message
+4. MONITOR   → Track health metrics per agent
+5. AGGREGATE → Collect results, detect conflicts
+6. VALIDATE  → Verify outputs, run tests
+```
+
+**Quick Start - Parallel Execution:**
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="orchestrator")
+
+# 1. ANALYZE - Check if work can be parallelized
+parallel = sdk.get_parallel_work(max_agents=5)
+if parallel["max_parallelism"] < 2:
+    print("Work sequentially instead")
+
+# 2. PLAN - Get structured prompts with context
+plan = sdk.plan_parallel_work(max_agents=3)
+
+if plan["can_parallelize"]:
+    # 3. DISPATCH - Spawn all agents in ONE message (critical!)
+    for p in plan["prompts"]:
+        Task(
+            subagent_type="general-purpose",
+            prompt=p["prompt"],
+            description=p["description"]
+        )
+
+    # 4-5. AGGREGATE - After agents complete
+    results = sdk.aggregate_parallel_results(agent_ids)
+
+    # 6. VALIDATE
+    if results["all_passed"]:
+        print("✅ Parallel execution validated!")
+```
+
+**When to Parallelize:**
+- Multiple independent tasks can run simultaneously
+- Work can be partitioned without file conflicts
+- Speedup factor > 1.5x
+- `sdk.get_parallel_work()` shows `max_parallelism >= 2`
+
+**When NOT to Parallelize:**
+- Shared dependencies or file conflicts
+- Tasks < 1 minute (overhead not worth it)
+- Complex coordination required
+
+**Anti-Patterns to Avoid:**
+- ❌ Sequential Task calls (send all in ONE message for true parallelism)
+- ❌ Overlapping file edits (partition work to avoid conflicts)
+- ❌ No shared context caching (read shared files once, not per-agent)
+
+---
+
+### 2. **Use SDK, Not MCP Tools** (CRITICAL)
 
 **IMPORTANT: For Claude Code, use the Python SDK directly instead of MCP tools.**
 
