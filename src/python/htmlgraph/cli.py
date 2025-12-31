@@ -95,6 +95,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
         static_dir=args.static_dir,
         host=args.host,
         watch=not args.no_watch,
+        auto_port=args.auto_port,
     )
 
 
@@ -3239,6 +3240,11 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         "--no-watch",
         action="store_true",
         help="Disable file watching (auto-reload disabled)",
+    )
+    serve_parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        help="Automatically find an available port if default is occupied",
     )
 
     # init

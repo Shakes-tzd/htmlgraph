@@ -13,6 +13,8 @@ Or via CLI:
 """
 
 import json
+import socket
+import sys
 import urllib.parse
 from datetime import datetime, timezone
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -1075,12 +1077,58 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}")
 
 
+def find_available_port(start_port: int = 8080, max_attempts: int = 10) -> int:
+    """
+    Find an available port starting from start_port.
+
+    Args:
+        start_port: Port to start searching from
+        max_attempts: Maximum number of ports to try
+
+    Returns:
+        Available port number
+
+    Raises:
+        OSError: If no available port found in range
+    """
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("", port))
+                return port
+        except OSError:
+            continue
+    raise OSError(
+        f"No available ports found in range {start_port}-{start_port + max_attempts}"
+    )
+
+
+def check_port_in_use(port: int, host: str = "localhost") -> bool:
+    """
+    Check if a port is already in use.
+
+    Args:
+        port: Port number to check
+        host: Host to check on
+
+    Returns:
+        True if port is in use, False otherwise
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+            return False
+    except OSError:
+        return True
+
+
 def serve(
     port: int = 8080,
     graph_dir: str | Path = ".htmlgraph",
     static_dir: str | Path = ".",
     host: str = "localhost",
     watch: bool = True,
+    auto_port: bool = False,
 ) -> None:
     """
     Start the HtmlGraph server.
@@ -1091,9 +1139,16 @@ def serve(
         static_dir: Directory for static files (index.html, etc.)
         host: Host to bind to
         watch: Enable file watching for auto-reload (default: True)
+        auto_port: Automatically find available port if specified port is in use
     """
     graph_dir = Path(graph_dir)
     static_dir = Path(static_dir)
+
+    # Handle auto-port selection
+    if auto_port and check_port_in_use(port, host):
+        original_port = port
+        port = find_available_port(port + 1)
+        print(f"⚠️  Port {original_port} is in use, using {port} instead\n")
 
     # Check if root index.html is in sync with packaged dashboard
     root_index = static_dir / "index.html"
@@ -1128,7 +1183,32 @@ def serve(
     HtmlGraphAPIHandler.graphs = {}
     HtmlGraphAPIHandler.analytics_db = None
 
-    server = HTTPServer((host, port), HtmlGraphAPIHandler)
+    # Create server with error handling
+    try:
+        server = HTTPServer((host, port), HtmlGraphAPIHandler)
+    except OSError as e:
+        # Handle "Address already in use" error
+        if e.errno == 48 or "Address already in use" in str(e):
+            print(f"\n❌ Port {port} is already in use\n")
+            print("Solutions:")
+            print("  1. Use a different port:")
+            print(f"     htmlgraph serve --port {port + 1}\n")
+            print("  2. Let htmlgraph automatically find an available port:")
+            print("     htmlgraph serve --auto-port\n")
+            print(f"  3. Find and kill the process using port {port}:")
+            print(f"     lsof -ti:{port} | xargs kill -9\n")
+
+            # Try to find and suggest an available port
+            try:
+                alt_port = find_available_port(port + 1)
+                print(f"💡 Found available port: {alt_port}")
+                print(f"   Run: htmlgraph serve --port {alt_port}\n")
+            except OSError:
+                pass
+
+            sys.exit(1)
+        # Re-raise other OSErrors
+        raise
 
     # Start file watcher if enabled
     watcher = None
