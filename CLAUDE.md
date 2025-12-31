@@ -915,6 +915,7 @@ uv run pytest
 ./scripts/deploy-all.sh 0.9.4 --no-confirm
 
 # That's it! The script now handles:
+# ✅ Dashboard file sync (index.html ← dashboard.html)
 # ✅ Version updates in all files (Step 0)
 # ✅ Auto-commit of version changes
 # ✅ Git push with tags
@@ -965,8 +966,11 @@ This eliminates the multi-commit cycle problem.
 - `--skip-plugins` - Skip plugin update steps
 - `--dry-run` - Show what would happen without executing
 
-**What the Script Does (8 Steps):**
-0. **Update & Commit Versions** - Auto-update version numbers in all files and commit **[NEW]**
+**What the Script Does (9 Steps):**
+- **Pre-flight: Dashboard Sync** - Sync `src/python/htmlgraph/dashboard.html` → `index.html` **[NEW]**
+- **Pre-flight: Code Quality** - Run linters (ruff, mypy) and tests
+- **Pre-flight: Plugin Sync** - Verify packages/claude-plugin and .claude are synced
+0. **Update & Commit Versions** - Auto-update version numbers in all files and commit
 1. **Git Push** - Push commits and tags to origin/main
 2. **Build Package** - Create wheel and source distributions
 3. **Publish to PyPI** - Upload package to PyPI
@@ -974,6 +978,7 @@ This eliminates the multi-commit cycle problem.
 5. **Update Claude Plugin** - Run `claude plugin update htmlgraph`
 6. **Update Gemini Extension** - Update version in gemini-extension.json
 7. **Update Codex Skill** - Check for Codex and update if present
+8. **Create GitHub Release** - Create release with distribution files
 
 **See:** `scripts/README.md` for complete documentation
 
@@ -1008,6 +1013,37 @@ uv run htmlgraph sync-docs
 - ✅ Consistency across all platforms
 
 **See:** `scripts/README.md` for complete documentation
+
+---
+
+## Dashboard File Synchronization
+
+**AUTOMATIC: Dashboard sync happens automatically during deployment.**
+
+HtmlGraph maintains two versions of the dashboard HTML file:
+- **Source of Truth**: `src/python/htmlgraph/dashboard.html` (packaged with Python library)
+- **Project Root**: `index.html` (for easy viewing in development)
+
+**Automatic Sync Behavior:**
+- ✅ **During Deployment**: `deploy-all.sh` automatically syncs dashboard files in pre-flight
+- ✅ **Auto-Commit**: If changes detected, automatically commits with message "chore: sync index.html with dashboard.html"
+- ✅ **Idempotent**: Safe to run multiple times, only commits when out of sync
+- ✅ **Dry-Run Support**: `--dry-run` flag shows what would be synced without executing
+
+**Manual Sync (if needed):**
+```bash
+# Sync manually (rare - deployment handles this)
+cp src/python/htmlgraph/dashboard.html index.html
+
+# Check if files are in sync
+git diff --quiet index.html && echo "In sync" || echo "Out of sync"
+```
+
+**Why This Matters:**
+- ✅ Ensures packaged dashboard matches development version
+- ✅ Eliminates manual copy-paste errors
+- ✅ Prevents deployment with stale dashboard
+- ✅ Maintains consistency automatically
 
 ---
 
