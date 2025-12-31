@@ -1,6 +1,6 @@
 {
   "name": "htmlgraph",
-  "version": "0.13.18",
+  "version": "0.13.19",
   "description": "HTML-based agent observability + workflow analytics (Git-first JSONL + rebuildable SQLite index)",
   "author": {
     "name": "Shakes Dlamini"
