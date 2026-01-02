@@ -150,68 +150,86 @@ class LearningPersistence:
         return health
 
     def persist_patterns(self, min_count: int = 2) -> list[str]:
-        """Detect and persist workflow patterns from sessions.
+        """Detect and persist workflow patterns IN SESSIONS (not as separate files).
+
+        This refactored version stores patterns inline within session HTML files
+        to avoid creating 2,890+ individual pattern files.
 
         Args:
             min_count: Minimum occurrences to persist a pattern
 
         Returns:
-            List of persisted pattern IDs
+            List of session IDs that had patterns updated
         """
-        # Collect tool sequences from all sessions
-        # Use session_manager to get full Session objects with activity_log
-        sequences: list[tuple[Any, ...]] = []
+        # Collect tool sequences per session (not globally)
+        session_ids_updated: list[str] = []
+
         for session in self.sdk.session_manager.session_converter.load_all():
-            if session.activity_log:
-                tools = [
-                    a.tool if not isinstance(a, dict) else a.get("tool", "")
-                    for a in session.activity_log
-                ]
-                # Extract 3-tool sequences
-                for i in range(len(tools) - 2):
-                    seq = tools[i : i + 3]
-                    if all(seq):  # No empty tools
-                        sequences.append(tuple(seq))
+            if not session.activity_log:
+                continue
 
-        # Count sequences
-        seq_counts = Counter(sequences)
+            # Extract 3-tool sequences from this session
+            tools = [
+                a.tool if not isinstance(a, dict) else a.get("tool", "")
+                for a in session.activity_log
+            ]
 
-        # Persist patterns with min_count
-        pattern_ids: list[str | Any] = []
-        for seq, count in seq_counts.items():  # type: ignore[assignment]
-            if count >= min_count:
-                # Check if pattern already exists
-                existing = self.sdk.patterns.find_by_sequence(list(seq))
-                if existing:
-                    # Update count - use properties dict for updates
-                    pattern = existing[0]
-                    pattern.properties["detection_count"] = count
-                    pattern.properties["last_detected"] = datetime.now().isoformat()
-                    self.sdk.patterns.update(pattern)
-                    pattern_ids.append(pattern.id)
-                else:
-                    # Create new pattern using builder methods
-                    pattern_type = self._classify_pattern(list(seq))
-                    now = datetime.now()
-                    pattern = (
-                        self.sdk.patterns.create(f"Pattern: {' -> '.join(seq)}")
-                        .set_sequence(list(seq))
-                        .set_pattern_type(pattern_type)
-                        .set_detection_count(count)
-                        .set_first_detected(now)
-                        .set_last_detected(now)
-                        .save()
+            # Count sequences in this session
+            sequences: list[tuple[Any, ...]] = []
+            for i in range(len(tools) - 2):
+                seq = tools[i : i + 3]
+                if all(seq):  # No empty tools
+                    sequences.append(tuple(seq))
+
+            seq_counts = Counter(sequences)
+
+            # Update session's detected_patterns
+            patterns_updated = False
+            for seq, count in seq_counts.items():  # type: ignore[assignment]
+                if count >= min_count:
+                    # Check if pattern already exists in this session
+                    existing = next(
+                        (
+                            p
+                            for p in session.detected_patterns
+                            if p.get("sequence") == list(seq)
+                        ),
+                        None,
                     )
-                    pattern_ids.append(pattern.id)
+
+                    if existing:
+                        # Update existing pattern
+                        existing["detection_count"] = count
+                        existing["last_detected"] = datetime.now().isoformat()
+                        patterns_updated = True
+                    else:
+                        # Add new pattern to session
+                        pattern_type = self._classify_pattern(list(seq))
+                        now = datetime.now()
+                        session.detected_patterns.append(
+                            {
+                                "sequence": list(seq),
+                                "pattern_type": pattern_type,
+                                "detection_count": count,
+                                "first_detected": now.isoformat(),
+                                "last_detected": now.isoformat(),
+                            }
+                        )
+                        patterns_updated = True
+
+            # Save updated session if patterns were modified
+            if patterns_updated:
+                self.sdk.session_manager.session_converter.save(session)
+                session_ids_updated.append(session.id)
 
         # Also persist parallel patterns
-        parallel_pattern_ids = self.persist_parallel_patterns(min_count=min_count)
-        pattern_ids.extend(parallel_pattern_ids)
+        parallel_session_ids = self.persist_parallel_patterns(min_count=min_count)
+        session_ids_updated.extend(parallel_session_ids)
 
-        return pattern_ids
+        return session_ids_updated
 
     def persist_parallel_patterns(self, min_count: int = 2) -> list[str]:
-        """Detect and persist parallel execution patterns from sessions.
+        """Detect and persist parallel execution patterns IN SESSIONS.
 
         Identifies when multiple tools are invoked in parallel (same parent_activity_id).
         This is especially useful for detecting orchestrator patterns like parallel Task delegation.
@@ -220,12 +238,11 @@ class LearningPersistence:
             min_count: Minimum occurrences to persist a pattern
 
         Returns:
-            List of persisted pattern IDs
+            List of session IDs that had parallel patterns updated
         """
         from collections import defaultdict
 
-        # Collect parallel execution groups from all sessions
-        parallel_patterns: list[tuple[str, ...]] = []
+        session_ids_updated: list[str] = []
 
         for session in self.sdk.session_manager.session_converter.load_all():
             if not session.activity_log:
@@ -242,12 +259,12 @@ class LearningPersistence:
                 if parent_id:  # Only track activities with a parent
                     parent_groups[parent_id].append(activity)
 
-            # Detect parallel patterns (2+ activities with same parent)
+            # Collect parallel patterns for this session
+            parallel_patterns: list[tuple[str, ...]] = []
             for parent_id, activities in parent_groups.items():
                 if len(activities) < 2:
                     continue
 
-                # Check if activities overlap in time (parallel execution)
                 # Sort by timestamp
                 sorted_activities = sorted(
                     activities,
@@ -268,50 +285,57 @@ class LearningPersistence:
                 if all(tools):
                     parallel_patterns.append(tools)
 
-        # Count parallel patterns
-        pattern_counts = Counter(parallel_patterns)
+            # Count parallel patterns in this session
+            pattern_counts = Counter(parallel_patterns)
 
-        # Persist patterns with min_count
-        pattern_ids: list[str | Any] = []
-        for tools, count in pattern_counts.items():
-            if count >= min_count:
-                # Create a pattern name that indicates parallelism
-                tool_names = list(tools)
-                pattern_name = f"Parallel[{len(tools)}]: {' || '.join(tools)}"
+            # Update session's detected_patterns with parallel patterns
+            patterns_updated = False
+            for tools, count in pattern_counts.items():
+                if count >= min_count:
+                    tool_names = list(tools)
 
-                # Check if pattern already exists
-                existing = self.sdk.patterns.find_by_sequence(tool_names)
-                if existing:
-                    # Update existing pattern
-                    pattern = existing[0]
-                    pattern.properties = pattern.properties or {}
-                    pattern.properties["detection_count"] = count
-                    pattern.properties["last_detected"] = datetime.now().isoformat()
-                    pattern.properties["parallel_count"] = len(tools)
-                    pattern.properties["is_parallel"] = True
-                    self.sdk.patterns.update(pattern)
-                    pattern_ids.append(pattern.id)
-                else:
-                    # Create new parallel pattern
-                    pattern_type = self._classify_pattern(tool_names, is_parallel=True)
-                    now = datetime.now()
-                    pattern = (
-                        self.sdk.patterns.create(pattern_name)
-                        .set_sequence(tool_names)
-                        .set_pattern_type(pattern_type)
-                        .set_detection_count(count)
-                        .set_first_detected(now)
-                        .set_last_detected(now)
-                        .save()
+                    # Check if pattern already exists in this session
+                    # Parallel patterns have special naming: "Parallel[N]: tool1 || tool2"
+                    existing = next(
+                        (
+                            p
+                            for p in session.detected_patterns
+                            if p.get("sequence") == tool_names
+                            and p.get("is_parallel", False)
+                        ),
+                        None,
                     )
-                    # Mark as parallel in properties
-                    pattern.properties = pattern.properties or {}
-                    pattern.properties["parallel_count"] = len(tools)
-                    pattern.properties["is_parallel"] = True
-                    self.sdk.patterns.update(pattern)
-                    pattern_ids.append(pattern.id)
 
-        return pattern_ids
+                    if existing:
+                        # Update existing parallel pattern
+                        existing["detection_count"] = count
+                        existing["last_detected"] = datetime.now().isoformat()
+                        patterns_updated = True
+                    else:
+                        # Add new parallel pattern to session
+                        pattern_type = self._classify_pattern(
+                            tool_names, is_parallel=True
+                        )
+                        now = datetime.now()
+                        session.detected_patterns.append(
+                            {
+                                "sequence": tool_names,
+                                "pattern_type": pattern_type,
+                                "detection_count": count,
+                                "first_detected": now.isoformat(),
+                                "last_detected": now.isoformat(),
+                                "is_parallel": True,
+                                "parallel_count": len(tools),
+                            }
+                        )
+                        patterns_updated = True
+
+            # Save updated session if patterns were modified
+            if patterns_updated:
+                self.sdk.session_manager.session_converter.save(session)
+                session_ids_updated.append(session.id)
+
+        return session_ids_updated
 
     def _classify_pattern(self, sequence: list[str], is_parallel: bool = False) -> str:
         """Classify a pattern as optimal, anti-pattern, or neutral.

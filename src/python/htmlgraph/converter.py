@@ -548,6 +548,45 @@ def html_to_session(filepath: Path | str) -> Session:
     # Activity log in HTML is reversed (newest first), so reverse back
     data["activity_log"] = list(reversed(activity_log))
 
+    # Parse detected patterns from table (if present)
+    detected_patterns = []
+    for tr in parser.query("section[data-detected-patterns] table tbody tr"):
+        # Extract pattern data from table row
+        pattern_type = tr.attrs.get("data-pattern-type", "neutral")
+
+        # Extract sequence from first <td class="sequence">
+        seq_td = tr.query_one("td.sequence")
+        sequence_str = seq_td.to_text().strip() if seq_td else ""
+        sequence = [s.strip() for s in sequence_str.split("→")] if sequence_str else []
+
+        # Extract count from third <td>
+        count_td = tr.query_all("td")[2] if len(tr.query_all("td")) > 2 else None
+        count_str = count_td.to_text().strip() if count_td else "0"
+        try:
+            count = int(count_str)
+        except (ValueError, TypeError):
+            count = 0
+
+        # Extract timestamps from fourth <td>
+        time_td = tr.query_all("td")[3] if len(tr.query_all("td")) > 3 else None
+        time_str = time_td.to_text().strip() if time_td else ""
+        times = time_str.split(" / ")
+        first_detected = times[0].strip() if len(times) > 0 else ""
+        last_detected = times[1].strip() if len(times) > 1 else ""
+
+        if sequence:  # Only add if we have a valid sequence
+            detected_patterns.append(
+                {
+                    "sequence": sequence,
+                    "pattern_type": pattern_type,
+                    "detection_count": count,
+                    "first_detected": first_detected,
+                    "last_detected": last_detected,
+                }
+            )
+
+    data["detected_patterns"] = detected_patterns
+
     return Session(**data)
 
 

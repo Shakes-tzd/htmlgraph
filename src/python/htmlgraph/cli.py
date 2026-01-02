@@ -4327,6 +4327,87 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
     )
 
     # =========================================================================
+    # Archive Management
+    # =========================================================================
+
+    # archive (with subcommands)
+    archive_parser = subparsers.add_parser(
+        "archive", help="Archive management with optimized search"
+    )
+    archive_subparsers = archive_parser.add_subparsers(
+        dest="archive_command", help="Archive command"
+    )
+
+    # archive create
+    archive_create = archive_subparsers.add_parser(
+        "create", help="Create archive from old entities"
+    )
+    archive_create.add_argument(
+        "--older-than",
+        type=int,
+        default=90,
+        help="Archive entities older than N days (default: 90)",
+    )
+    archive_create.add_argument(
+        "--period",
+        choices=["quarter", "month", "year"],
+        default="quarter",
+        help="Archive grouping period (default: quarter)",
+    )
+    archive_create.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview what would be archived without making changes",
+    )
+    archive_create.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # archive search
+    archive_search = archive_subparsers.add_parser(
+        "search", help="Search archived entities"
+    )
+    archive_search.add_argument("query", help="Search query")
+    archive_search.add_argument(
+        "--limit", "-l", type=int, default=10, help="Maximum results (default: 10)"
+    )
+    archive_search.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    archive_search.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
+
+    # archive stats
+    archive_stats = archive_subparsers.add_parser(
+        "stats", help="Show archive statistics"
+    )
+    archive_stats.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    archive_stats.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
+
+    # archive restore
+    archive_restore = archive_subparsers.add_parser(
+        "restore", help="Restore archived entity"
+    )
+    archive_restore.add_argument("entity_id", help="Entity ID to restore")
+    archive_restore.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # archive list
+    archive_list = archive_subparsers.add_parser("list", help="List all archive files")
+    archive_list.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    archive_list.add_argument(
+        "--format", "-f", choices=["text", "json"], default="text", help="Output format"
+    )
+
+    # =========================================================================
     # Analytics
     # =========================================================================
 
@@ -4700,6 +4781,21 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         else:
             track_parser.print_help()
             sys.exit(1)
+    elif args.command == "archive":
+        # Archive management
+        if args.archive_command == "create":
+            cmd_archive_create(args)
+        elif args.archive_command == "search":
+            cmd_archive_search(args)
+        elif args.archive_command == "stats":
+            cmd_archive_stats(args)
+        elif args.archive_command == "restore":
+            cmd_archive_restore(args)
+        elif args.archive_command == "list":
+            cmd_archive_list(args)
+        else:
+            archive_parser.print_help()
+            sys.exit(1)
     elif args.command == "work":
         # Work management with smart routing
         if args.work_command == "next":
@@ -4969,6 +5065,181 @@ def cmd_sync_docs(args: argparse.Namespace) -> int:
             print(f"  {change}")
 
         return 1 if any("⚠️" in c or "❌" in c for c in changes) else 0
+
+
+# =============================================================================
+# Archive Management Commands
+# =============================================================================
+
+
+def cmd_archive_create(args: argparse.Namespace) -> None:
+    """Create archive from old entities."""
+    from pathlib import Path
+
+    from htmlgraph.archive import ArchiveManager
+
+    htmlgraph_dir = Path(args.graph_dir).resolve()
+
+    if not htmlgraph_dir.exists():
+        print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ArchiveManager(htmlgraph_dir)
+
+    # Run archive operation
+    result = manager.archive_entities(
+        older_than_days=args.older_than,
+        period=args.period,
+        dry_run=args.dry_run,
+    )
+
+    if result["dry_run"]:
+        print("\n🔍 DRY RUN - Preview (no changes made)\n")
+        print(f"Would archive: {result['would_archive']} entities")
+        print(f"Archive files: {len(result['archive_files'])}")
+        print("\nDetails:")
+        for archive_key, count in result["details"].items():
+            print(f"  {archive_key}: {count} entities")
+    else:
+        print(f"\n✅ Archived {result['archived_count']} entities")
+        print(f"Created {len(result['archive_files'])} archive file(s):")
+        for archive_file in result["archive_files"]:
+            count = result["details"].get(archive_file.replace(".html", ""), 0)
+            print(f"  - {archive_file} ({count} entities)")
+
+    manager.close()
+
+
+def cmd_archive_search(args: argparse.Namespace) -> None:
+    """Search archived entities."""
+    import json
+    from pathlib import Path
+
+    from htmlgraph.archive import ArchiveManager
+
+    htmlgraph_dir = Path(args.graph_dir).resolve()
+
+    if not htmlgraph_dir.exists():
+        print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ArchiveManager(htmlgraph_dir)
+
+    # Search archives
+    results = manager.search(args.query, limit=args.limit)
+
+    if args.format == "json":
+        print(json.dumps({"query": args.query, "results": results}, indent=2))
+    else:
+        print(f"\n🔍 Search results for: '{args.query}'\n")
+        print(f"Found {len(results)} result(s):\n")
+
+        for i, result in enumerate(results, 1):
+            print(f"{i}. {result['entity_id']} ({result['entity_type']})")
+            print(f"   Archive: {result['archive_file']}")
+            print(f"   Status: {result['status']}")
+            print(f"   Title: {result['title_snippet']}")
+            if result["description_snippet"]:
+                print(f"   Description: {result['description_snippet']}")
+            print(f"   Relevance: {result['rank']:.2f}")
+            print()
+
+    manager.close()
+
+
+def cmd_archive_stats(args: argparse.Namespace) -> None:
+    """Show archive statistics."""
+    import json
+    from pathlib import Path
+
+    from htmlgraph.archive import ArchiveManager
+
+    htmlgraph_dir = Path(args.graph_dir).resolve()
+
+    if not htmlgraph_dir.exists():
+        print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ArchiveManager(htmlgraph_dir)
+
+    # Get statistics
+    stats = manager.get_archive_stats()
+
+    if args.format == "json":
+        print(json.dumps(stats, indent=2))
+    else:
+        print("\n📊 Archive Statistics\n")
+        print(f"Archive files: {stats['archive_count']}")
+        print(f"Archived entities: {stats['entity_count']}")
+        print(f"Total size: {stats['total_size_mb']:.2f} MB")
+        print(f"FTS5 index: {stats['fts_size_mb']:.2f} MB")
+        print(
+            f"Bloom filters: {stats['bloom_size_kb']:.2f} KB ({stats['bloom_count']} files)"
+        )
+
+    manager.close()
+
+
+def cmd_archive_restore(args: argparse.Namespace) -> None:
+    """Restore archived entity."""
+    from pathlib import Path
+
+    from htmlgraph.archive import ArchiveManager
+
+    htmlgraph_dir = Path(args.graph_dir).resolve()
+
+    if not htmlgraph_dir.exists():
+        print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    manager = ArchiveManager(htmlgraph_dir)
+
+    # Restore entity
+    success = manager.unarchive(args.entity_id)
+
+    if success:
+        print(f"✅ Restored {args.entity_id} from archive")
+    else:
+        print(f"❌ Entity not found in archives: {args.entity_id}", file=sys.stderr)
+        sys.exit(1)
+
+    manager.close()
+
+
+def cmd_archive_list(args: argparse.Namespace) -> None:
+    """List all archive files."""
+    import json
+    from pathlib import Path
+
+    htmlgraph_dir = Path(args.graph_dir).resolve()
+
+    if not htmlgraph_dir.exists():
+        print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    archive_dir = htmlgraph_dir / "archives"
+
+    if not archive_dir.exists():
+        print("No archives found")
+        return
+
+    archive_files = sorted(archive_dir.glob("*.html"))
+
+    if args.format == "json":
+        file_list = [
+            {
+                "filename": f.name,
+                "size_kb": f.stat().st_size / 1024,
+                "modified": f.stat().st_mtime,
+            }
+            for f in archive_files
+        ]
+        print(json.dumps({"archives": file_list}, indent=2))
+    else:
+        print(f"\n📦 Archive Files ({len(archive_files)})\n")
+        for f in archive_files:
+            size_kb = f.stat().st_size / 1024
+            print(f"  - {f.name} ({size_kb:.1f} KB)")
 
 
 if __name__ == "__main__":
