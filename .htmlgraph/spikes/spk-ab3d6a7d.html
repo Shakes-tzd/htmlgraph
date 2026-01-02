@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Deployment: PostToolUseFailure Hook v0.19.0</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-ab3d6a7d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T23:21:43.766950"
+             data-updated="2025-12-31T23:21:43.766954" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Deployment: PostToolUseFailure Hook v0.19.0</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Deployment Summary
+
+### Version
+- Previous: 0.18.0
+- New: 0.19.0 (PostToolUseFailure hook feature)
+
+### Deployment Steps Completed
+- ✅ All 919 tests passed (910 passed, 9 skipped)
+- ✅ Code quality checks passed (ruff, mypy)
+- ✅ Version bumped in all files
+- ✅ Git pushed with tags (v0.19.0)
+- ✅ PyPI published successfully
+- ✅ Plugin updated to 0.19.0
+- ✅ Local install verified
+
+### New Feature: PostToolUseFailure Hook
+- Automatic error logging to .htmlgraph/errors.jsonl
+- Pattern detection for recurring errors
+- Auto-create debug spikes after 3 similar failures
+- Deduplication prevents spike spam
+- 11 comprehensive tests, all passing
+
+### Files Modified During Deployment
+- pyproject.toml (version: 0.19.0)
+- src/python/htmlgraph/__init__.py (version: 0.19.0)
+- packages/claude-plugin/.claude-plugin/plugin.json (version: 0.19.0)
+- packages/gemini-extension/gemini-extension.json (version: 0.19.0)
+- All PostToolUseFailure hook files included in package
+
+### Pre-Deployment Fixes
+- Fixed ruff import ordering in post-tool-use-failure.py
+- Fixed ruff formatting in pretooluse.py
+- Synced plugin files to .claude directory
+
+### Verification
+- PyPI version confirmed: 0.19.0
+- Package URL: https://pypi.org/project/htmlgraph/0.19.0/
+- Git tag created: v0.19.0
+- All quality gates passed
+
+### Next Steps for Users
+Users can now update the plugin:
+```bash
+claude plugin update htmlgraph
+```
+
+The PostToolUseFailure hook will automatically:
+1. Log all tool failures to .htmlgraph/errors.jsonl
+2. Detect patterns in recurring errors
+3. Auto-create debug spikes after 3 similar failures
+4. Help identify and resolve systematic issues
+
+### Issues Encountered
+None - deployment completed successfully after fixing:
+- Import ordering (ruff check)
+- Code formatting (ruff format)
+- Plugin sync (.claude directory)
+
+### Feature Link
+Feature: feat-f9009a8d (PostToolUseFailure Hook)
+Track: trk-ff9426ad (Error Handling & Debugging)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

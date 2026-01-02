@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Claude Code Hook Blocking Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e2c74bb2"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T19:01:19.641611"
+             data-updated="2025-12-31T19:01:19.641617" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Claude Code Hook Blocking Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Findings
+
+### Root Cause: Wrong Return Format
+The issue is NOT a bug - it's incorrect JSON output format.
+
+**Current Code (INCORRECT):**
+```python
+return {
+    "continue": False,
+    "hookSpecificOutput": {...}
+}
+```
+
+**Correct Format (REQUIRED):**
+```python
+return {
+    "hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",  # "allow" or "deny"
+        "permissionDecisionReason": "Git operations must be delegated to subagent"
+    }
+}
+```
+
+### Why Previous Attempt Failed
+- `continue: False` is for Stop hooks, NOT PreToolUse hooks
+- PreToolUse hooks use `permissionDecision: "deny"` to block
+- Missing the correct field names caused blocking to fail
+
+### Working Example
+```python
+def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
+    # ... validation logic ...
+    
+    if not is_allowed:
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    f"🚫 ORCHESTRATOR MODE: {reason}
+
+"
+                    f"Suggested delegation:
+{suggestion}"
+                )
+            }
+        }
+    
+    # Allow operation
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow"
+        }
+    }
+```
+
+### Official Documentation
+- Source: GitHub Issue #4362 (resolved by Anthropic engineer)
+- Docs: https://docs.anthropic.com/en/docs/claude-code/hooks#pretooluse-decision-control
+- Two valid formats exist (older "decision"/"reject" and newer "permissionDecision"/"deny")
+
+### Implementation Changes Needed
+1. Replace `"continue": False` with `"permissionDecision": "deny"`
+2. Move reason text to `"permissionDecisionReason"` field
+3. Always include `"hookEventName": "PreToolUse"` in hookSpecificOutput
+4. Return `"permissionDecision": "allow"` when allowing (not just empty dict)
+
+### Alternative Approaches (Not Needed)
+Since blocking IS supported with correct format, no alternatives needed.
+Just fix the return format in:
+- src/python/htmlgraph/hooks/orchestrator.py
+- src/python/htmlgraph/hooks/pretooluse.py
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

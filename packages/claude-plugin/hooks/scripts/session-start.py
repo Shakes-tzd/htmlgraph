@@ -1150,22 +1150,47 @@ htmlgraph feature start <feature-id>
 **Action required:** Coordinate with other agents or choose a different feature.
 """)
 
+    # Add PROMINENT skill activation instruction at the very top
+    skill_activation = """🚨🚨🚨 MANDATORY FIRST STEP 🚨🚨🚨
+
+**STOP - ACTIVATE ORCHESTRATOR SKILL NOW**
+
+Before reading ANYTHING else, execute this EXACT command:
+
+```python
+Skill(skill="htmlgraph-orchestrator")
+```
+
+This is NON-NEGOTIABLE. The skill provides:
+- Orchestrator delegation patterns
+- Work item management workflow
+- Task execution templates
+- Strategic context preservation
+
+DO NOT proceed without activating the skill first.
+
+🚨🚨🚨 ACTIVATE THE SKILL NOW 🚨🚨🚨
+
+---
+"""
+
+    context_parts.insert(0, skill_activation)  # Insert at very beginning
+
     context_parts.append("""## Session Continuity & Checklist
 
-**CRITICAL - DO THIS FIRST:**
-1. **IMMEDIATELY activate the `htmlgraph-tracker` skill** using the Skill tool (required for every session start and after every compact)
-2. **Follow the Session Workflow Checklist** (see skill for quick reference, `docs/WORKFLOW.md` for full version)
-3. Then greet the user with a brief status update:
+**After activating the orchestrator skill above:**
+1. **Follow the Session Workflow Checklist** from the skill
+2. Greet the user with a brief status update:
    - Previous session summary (if any)
    - Current feature progress
    - What remains to be done
    - Ask what they'd like to work on next
 
-The htmlgraph-tracker skill contains the Session Workflow Checklist to ensure:
-- Proper feature creation decisions (use decision framework)
-- Correct attribution throughout work
-- Quality checks before completion
-- Proper testing and validation
+The orchestrator skill ensures:
+- Strict delegation over direct execution
+- Work item creation before implementation
+- Quality checks and validation
+- Proper testing workflow
 """)
 
     context = "\n\n---\n\n".join(context_parts)

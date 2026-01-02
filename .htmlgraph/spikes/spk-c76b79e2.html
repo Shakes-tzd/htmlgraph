@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PostToolUseFailure Hook Implementation Complete</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c76b79e2"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T23:05:11.297927"
+             data-updated="2025-12-31T23:05:11.297930" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>PostToolUseFailure Hook Implementation Complete</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Implementation Summary
+
+Successfully implemented PostToolUseFailure hook for automatic error tracking and debug spike creation.
+
+### Files Created
+
+**Core Implementation:**
+- `src/python/htmlgraph/hooks/post_tool_use_failure.py` (200 lines)
+  - Error logging to `.htmlgraph/errors.jsonl`
+  - Pattern detection (3+ occurrences triggers spike)
+  - Auto-debug spike creation with deduplication
+  - Exit code 0, fast execution, file-based output
+
+**Plugin Integration:**
+- `packages/claude-plugin/hooks/scripts/post-tool-use-failure.py` (wrapper)
+- Updated `packages/claude-plugin/hooks/hooks.json` with PostToolUseFailure registration
+
+**Tests:**
+- `tests/python/test_post_tool_use_failure.py` (11 tests)
+  - Error logging tests
+  - Pattern detection tests
+  - Spike creation tests
+  - Integration tests
+  - Edge case handling
+
+### Test Results
+
+✅ **All 11 tests passing**
+- test_error_logging
+- test_error_logging_with_name_field  
+- test_pattern_detection
+- test_pattern_detection_partial_match
+- test_no_pattern_with_insufficient_occurrences
+- test_spike_creation
+- test_spike_creation_deduplication
+- test_error_logging_with_missing_fields
+- test_hook_never_blocks
+- test_integration_with_auto_spike_creation
+- test_error_log_creates_directory
+
+### Quality Checks
+
+✅ **Ruff**: All checks passed
+✅ **Mypy**: No type errors
+✅ **Pytest**: 11/11 tests passing
+
+### Features Implemented
+
+1. **Error Logging**
+   - Logs to `.htmlgraph/errors.jsonl`
+   - Captures tool name, error message, timestamp, session ID
+   - Creates directory if needed
+
+2. **Pattern Detection**
+   - Tracks error frequency by tool + error signature (first 100 chars)
+   - Triggers spike creation after 3+ occurrences
+   - Handles malformed JSON gracefully
+
+3. **Auto-Debug Spike Creation**
+   - Creates technical spikes with:
+     - Error message and context
+     - Occurrence timestamps and session IDs
+     - Recommended debugging actions
+     - Links to debugging resources
+   - Deduplication via `.htmlgraph/.error-spikes.json`
+
+4. **Hook Best Practices**
+   - Always exits with code 0 (never blocks Claude)
+   - Fast execution (< 1 second)
+   - File-based output only
+   - Graceful exception handling
+   - Respects HTMLGRAPH_DISABLE_TRACKING environment variable
+
+### Hook Registration
+
+Registered in `packages/claude-plugin/hooks/hooks.json`:
+
+
+### Next Steps
+
+1. Deploy to PyPI (version bump needed)
+2. Update documentation with PostToolUseFailure hook usage
+3. Test in real usage scenarios
+4. Monitor effectiveness of auto-spike creation
+
+### Integration with HtmlGraph Track
+
+This implementation completes:
+- **Feature**: feat-f9009a8d (Implement PostToolUseFailure Hook)
+- **Track**: trk-ff9426ad (Hook System Enhancement)
+
+All implementation steps from the feature specification have been completed.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

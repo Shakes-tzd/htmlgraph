@@ -340,13 +340,23 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
         if not manager.is_enabled():
             # Mode not active, allow everything
             add_to_tool_history(tool)
-            return {"continue": True}
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
+                },
+            }
 
         enforcement_level = manager.get_enforcement_level()
     except Exception:
         # If we can't check mode, fail open (allow)
         add_to_tool_history(tool)
-        return {"continue": True}
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+            },
+        }
 
     # Check if operation is allowed
     is_allowed, reason, category = is_allowed_orchestrator_operation(tool, params)
@@ -363,13 +373,18 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
         ):
             # Provide guidance even when allowing
             return {
-                "continue": True,
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
                     "additionalContext": f"✅ {reason}",
                 },
             }
-        return {"continue": True}
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+            },
+        }
 
     # Operation not allowed - provide strong warnings
     # NOTE: {"continue": False} doesn't work in Claude Code, so we use advisory warnings only
@@ -387,10 +402,10 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
         )
 
         return {
-            "continue": False,  # Block when orchestrator mode is strict and operation violates rules
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
-                "additionalContext": error_message,
+                "permissionDecision": "deny",
+                "permissionDecisionReason": error_message,
             },
         }
     else:
@@ -400,9 +415,9 @@ def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
         )
 
         return {
-            "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
                 "additionalContext": warning_message,
             },
         }

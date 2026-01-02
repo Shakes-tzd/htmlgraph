@@ -237,25 +237,31 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
         if ctx:
             guidance_parts.append(f"[Debugging] {ctx}")
 
-    # Build unified response
-    response = {"continue": should_continue}
+    # Build unified response in Claude Code format
+    response = {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow" if should_continue else "deny",
+        }
+    }
 
     # Check if task enforcer provided updatedInput
     updated_input = None
     if "hookSpecificOutput" in task_response:
         updated_input = task_response["hookSpecificOutput"].get("updatedInput")
 
-    if guidance_parts or updated_input:
-        response["hookSpecificOutput"] = {
-            "hookEventName": "PreToolUse",
-        }
+    if updated_input:
+        response["hookSpecificOutput"]["updatedInput"] = updated_input
 
-        if updated_input:
-            response["hookSpecificOutput"]["updatedInput"] = updated_input
-
-        if guidance_parts:
-            response["hookSpecificOutput"]["additionalContext"] = "\n".join(
-                guidance_parts
+    if guidance_parts:
+        combined_guidance = "\n".join(guidance_parts)
+        if should_continue:
+            # Allow with context
+            response["hookSpecificOutput"]["additionalContext"] = combined_guidance
+        else:
+            # Deny with reason
+            response["hookSpecificOutput"]["permissionDecisionReason"] = (
+                combined_guidance
             )
 
     return response
@@ -283,7 +289,10 @@ def main() -> None:
 
     # Output response
     print(json.dumps(result))
-    sys.exit(0 if result["continue"] else 1)
+
+    # Exit code based on permission decision
+    permission = result.get("hookSpecificOutput", {}).get("permissionDecision", "allow")
+    sys.exit(0 if permission == "allow" else 1)
 
 
 if __name__ == "__main__":

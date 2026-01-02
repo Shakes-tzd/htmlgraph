@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implement PostToolUseFailure Hook for Error Tracking</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-f9009a8d"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-31T22:53:12.940585"
+             data-updated="2025-12-31T22:53:13.304965" data-agent-assigned="claude-orchestrator" data-track-id="trk-ff9426ad">
+
+        <header>
+            <h1>Implement PostToolUseFailure Hook for Error Tracking</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-0ceb50b7.html" data-relationship="implemented-in" data-since="2025-12-31T22:53:13.304947">sess-0ceb50b7</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Create hook script at src/python/htmlgraph/hooks/post_tool_use_failure.py</li>
+                <li data-completed="true">✅ Implement error logging with file-based output</li>
+                <li data-completed="true">✅ Add pattern detection logic - track error frequency</li>
+                <li data-completed="true">✅ Auto-create debug spikes after 3 similar failures</li>
+                <li data-completed="true">✅ Register hook in plugin hooks.json with matcher star</li>
+                <li data-completed="true">✅ Add tests for error tracking and spike creation</li>
+                <li data-completed="true">✅ Handle known issues - exit code 0, fast execution</li>
+                <li data-completed="true">✅ Update documentation with PostToolUseFailure usage</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

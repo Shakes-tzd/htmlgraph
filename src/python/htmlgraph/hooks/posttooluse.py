@@ -119,6 +119,8 @@ async def run_error_tracking(hook_input: dict[str, Any]) -> dict[str, Any]:
     """
     Track errors to .htmlgraph/errors.jsonl and auto-create debug spikes.
 
+    Only tracks ACTUAL errors, not responses containing the word "error".
+
     Args:
         hook_input: Hook input with tool execution details
 
@@ -128,23 +130,26 @@ async def run_error_tracking(hook_input: dict[str, Any]) -> dict[str, Any]:
     try:
         loop = asyncio.get_event_loop()
 
-        # Check if this is an error (check for error field or non-zero exit code)
+        # Check if this is an ACTUAL error
         has_error = False
-        tool_response = hook_input.get("result", {}) or hook_input.get(
-            "tool_response", {}
-        )
+        tool_response = hook_input.get("tool_response") or hook_input.get("result", {})
 
-        # Check for explicit error field
-        if "error" in tool_response or hook_input.get("error"):
-            has_error = True
+        if isinstance(tool_response, dict):
+            # Bash: non-empty stderr indicates error
+            stderr = tool_response.get("stderr", "")
+            if stderr and isinstance(stderr, str) and stderr.strip():
+                has_error = True
 
-        # Check for error indicators in response text
-        response_text = str(tool_response).lower()
-        error_indicators = ["error", "failed", "exception", "traceback", "errno"]
-        if any(indicator in response_text for indicator in error_indicators):
-            has_error = True
+            # Explicit error field with content
+            error_field = tool_response.get("error")
+            if error_field and str(error_field).strip():
+                has_error = True
 
-        # Only track if there's an error
+            # success=false flag
+            if tool_response.get("success") is False:
+                has_error = True
+
+        # Only track if there's an actual error
         if has_error:
             return await loop.run_in_executor(
                 None,
@@ -162,6 +167,9 @@ async def suggest_debugging_resources(hook_input: dict[str, Any]) -> dict[str, A
     """
     Suggest debugging resources based on tool results.
 
+    Only triggers on ACTUAL errors, not on responses that happen to contain
+    the word "error" in their content.
+
     Args:
         hook_input: Hook input with tool execution details
 
@@ -176,11 +184,24 @@ async def suggest_debugging_resources(hook_input: dict[str, Any]) -> dict[str, A
 
         suggestions = []
 
-        # Check for error indicators in response
-        response_text = str(tool_response).lower()
-        error_indicators = ["error", "failed", "exception", "traceback", "errno"]
+        # Check for ACTUAL errors (not just text containing "error")
+        has_actual_error = False
 
-        if any(indicator in response_text for indicator in error_indicators):
+        if isinstance(tool_response, dict):
+            # Bash: non-empty stderr indicates error
+            stderr = tool_response.get("stderr", "")
+            if stderr and isinstance(stderr, str) and stderr.strip():
+                has_actual_error = True
+
+            # Explicit error field
+            if tool_response.get("error"):
+                has_actual_error = True
+
+            # success=false flag
+            if tool_response.get("success") is False:
+                has_actual_error = True
+
+        if has_actual_error:
             suggestions.append("⚠️ Error detected in tool response")
             suggestions.append("Debugging resources:")
             suggestions.append("  📚 DEBUGGING.md - Systematic debugging guide")

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestrator Workflow Violations - Session Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f415c9c6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-01T19:13:44.472133"
+             data-updated="2026-01-01T19:13:44.472140" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Orchestrator Workflow Violations - Session Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Session: Error Tracking Fix and Deployment
+
+**Date:** 2026-01-01  
+**Context Used:** ~50,000+ tokens (should have been ~1,500)
+
+---
+
+## Critical Violations
+
+### 1. Never Activated htmlgraph-tracker Skill ❌
+- Required: First action every session
+- Actual: Skipped entirely
+- Impact: No workflow guidance
+
+### 2. No Feature Creation ❌
+- Required: Create feature before implementation
+- Actual: Implemented directly
+- Impact: No attribution, no tracking
+
+### 3. Zero Delegation ❌
+- Required: Delegate EVERYTHING except Task/Ask/Todo/SDK
+- Actual: Executed 100% directly
+
+Executed myself (should delegate):
+- Research (web search)
+- Code fixes (4 files edited)
+- Formatting (ruff)
+- Testing (900+ tests)
+- Deployment (full release)
+- Verification (plugin testing)
+
+### 4. Massive Context Burn ❌
+- 50,000+ tokens on tactical work
+- Should be: 1,500 tokens (orchestrator only)
+- **97% waste**
+
+---
+
+## Root Causes
+
+1. **Session Start Hook Not Prominent**
+   - Hidden in system-reminder
+   - Easy to skim
+   - No forcing function
+
+2. **No Enforcement**
+   - "strict" mode doesn'''t block
+   - Reflection comes AFTER violation
+   - No PreToolUse prevention
+
+3. **Skill Activation Manual**
+   - Requires Skill() call
+   - Easy to forget
+   - No consequence
+
+---
+
+## Required Changes
+
+### 1. Auto-Activate Skill in SessionStart Hook
+Don'''t make it optional - run automatically
+
+### 2. PreToolUse Hook - Block Direct Execution
+- Intercept Read/Edit/Write/Bash
+- Check: Feature in-progress?
+- Check: Is this delegation?
+- Block with workflow guidance
+
+### 3. Session Start - More Prominent
+Clear checklist, cannot miss
+
+### 4. Orchestrator Strict = Actually Block
+Not just reflect, actually prevent
+
+### 5. Mandatory Feature Before Code
+PreToolUse checks and blocks
+
+---
+
+## Success Criteria
+
+✅ Cannot skip skill activation (auto)
+✅ Cannot code without feature
+✅ Cannot bypass delegation
+✅ Clear guidance when blocked
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

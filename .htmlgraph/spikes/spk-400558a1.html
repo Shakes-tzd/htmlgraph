@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Session: PreToolUse Blocking Investigation & Fix Attempts</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-400558a1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T21:15:18.619484"
+             data-updated="2025-12-31T21:15:18.619487" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Session: PreToolUse Blocking Investigation & Fix Attempts</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Summary: PreToolUse Blocking Still Not Working
+
+We deployed v0.18.0 with orchestrator blocking, but discovered blocking doesn'''t work.
+
+### What We Tried
+
+1. **Initial Implementation (v0.18.0)**
+   - Created OrchestratorValidator class
+   - Integrated into PreToolUse hook
+   - Result: Git operations not blocked
+
+2. **Debug #1: Found continue:True Workaround**
+   - Line 390 had hardcoded "continue": True
+   - Changed to "continue": False
+   - Result: Still not blocked
+
+3. **Debug #2: Wrong Return Format**
+   - Research found correct format: "permissionDecision": "deny"
+   - Changed from "continue": False to correct format
+   - Result: STILL not blocked
+
+### Current State
+
+**Code:** Using correct format ("permissionDecision": "deny")
+**Package:** Reinstalled (v0.18.0)
+**Test:** git commit executed (not blocked)
+**Hook:** Returns deny decision, but Claude Code ignores it
+
+### Evidence
+
+
+
+### Possible Causes
+
+1. **Hook not registered correctly** - PreToolUse hook may not be active
+2. **Claude Code version issue** - Hook blocking may not work in current version
+3. **Plugin installation issue** - Hook files may not be loaded
+4. **Return format still wrong** - Maybe needs additional fields
+5. **Orchestrator mode not applying** - Mode enabled but not enforced
+
+### Next Steps
+
+1. Check if PreToolUse hook is actually being called (/hooks command)
+2. Verify plugin is installed correctly (claude plugin show htmlgraph)
+3. Check Claude Code version supports hook blocking
+4. Consider alternative enforcement (PostToolUse warnings, documentation)
+5. Contact Anthropic support if blocking fundamentally broken
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

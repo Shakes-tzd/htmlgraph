@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestrator Workflow Violations - Session Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c5d5c27e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-01T19:13:56.072489"
+             data-updated="2026-01-01T19:13:56.072493" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Orchestrator Workflow Violations - Session Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Session: Error Tracking Fix and Deployment (2026-01-01)
+
+**Context Burned:** ~50,000+ tokens (should be ~1,500)  
+**Efficiency Loss:** 97%
+
+### Critical Violations
+
+1. Never activated htmlgraph-tracker skill
+2. No feature creation before implementation
+3. Zero delegation (executed everything directly)
+4. Massive context burn on tactical work
+
+### What I Executed Directly (Should Delegate)
+- Research via web search
+- Code fixes (4 files)
+- ruff formatting
+- pytest (900+ tests)
+- Deployment script
+- Plugin verification
+
+### Root Causes
+- Session start hook not prominent (buried in system-reminder)
+- No enforcement (strict mode doesn'''t block)
+- Skill activation not automatic
+- Old habits (direct execution feels faster)
+
+### Required Changes
+1. Auto-activate htmlgraph-tracker in SessionStart hook
+2. PreToolUse hook blocks direct execution (check feature, enforce delegation)
+3. Session start more prominent (clear checklist)
+4. Orchestrator strict mode actually blocks
+5. Mandatory feature before code changes
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

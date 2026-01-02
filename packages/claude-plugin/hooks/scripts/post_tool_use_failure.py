@@ -37,48 +37,27 @@ def run(hook_input: dict[str, Any]) -> dict[str, Any]:
         Standard hook response: {"continue": True}
     """
     try:
-        # DEBUG: Log raw hook input to understand structure
-        debug_log = Path(".htmlgraph/hook-debug.jsonl")
-        debug_log.parent.mkdir(parents=True, exist_ok=True)
-        with open(debug_log, "a") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "raw_input": hook_input,
-                        "keys": list(hook_input.keys()),
-                        "ts": datetime.now().isoformat(),
-                    }
-                )
-                + "\n"
-            )
-
         # Extract error information from PostToolUse hook format
-        # Official PostToolUse uses: tool_name, tool_response
-        # Custom hooks may use: name, result
-        tool_name = hook_input.get("tool_name") or hook_input.get("name", "unknown")
+        tool_name = hook_input.get("name", "unknown")
         session_id = hook_input.get("session_id", "unknown")
 
         # Error message can be in different places depending on tool
         error_msg = "No error message"
 
-        # Check tool_response field first (official PostToolUse format)
-        # Then check result field (custom hook format)
-        result = hook_input.get("tool_response") or hook_input.get("result", {})
+        # Check result field first (Bash, Read, etc.)
+        result = hook_input.get("result", {})
         if isinstance(result, dict):
             if "error" in result:
                 error_msg = result["error"]
             elif "message" in result:
                 error_msg = result["message"]
-        elif isinstance(result, str):
-            # Sometimes the error is directly in the result as a string
-            error_msg = result
 
         # Fallback: check top-level error field
         if error_msg == "No error message" and "error" in hook_input:
             error_msg = hook_input["error"]
 
         # Last resort: stringify the result if it contains error indicators
-        if error_msg == "No error message" and result:
+        if error_msg == "No error message":
             result_str = str(result).lower()
             if any(
                 indicator in result_str

@@ -356,7 +356,7 @@ wheels = [
 
 [[package]]
 name = "htmlgraph"
-version = "0.18.0"
+version = "0.20.2"
 source = { editable = "." }
 dependencies = [
     { name = "justhtml" },

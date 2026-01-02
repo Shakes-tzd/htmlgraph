@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PreToolUse Blocking Debug Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e2a1aec8"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T18:54:54.742372"
+             data-updated="2025-12-31T18:54:54.742375" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>PreToolUse Blocking Debug Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Root Cause
+
+**Line 390 in orchestrator.py: Blocking is intentionally disabled**
+
+The code comment says "blocking doesn't work" in Claude Code, so it was changed to always return True.
+
+## Evidence
+
+1. **Validator works correctly:**
+   - OrchestratorValidator.validate_tool_use() correctly returns ("block", "Git operations must be delegated")
+   - Test: git add . → Result: block ✅
+
+2. **Hook integration works:**
+   - pretooluse.py correctly calls enforce_orchestrator_mode()
+   - Returns {"continue": false} when tested directly ✅
+
+3. **The problem:**
+   - Line 390 in orchestrator.py hardcodes "continue": True
+   - Comment says: "Changed from False - blocking doesn't work"
+   - This was added as a workaround because Claude Code allegedly ignores blocking
+
+## Fix Required
+
+**Remove the workaround - try actual blocking:**
+
+File: src/python/htmlgraph/hooks/orchestrator.py
+Line: 390
+
+Change "continue": True to "continue": False
+
+## Test Plan
+
+After fix:
+1. Enable orchestrator mode
+2. Try git operation: git add . (should be BLOCKED)
+3. Verify error message appears
+4. Try allowed operation (should work)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

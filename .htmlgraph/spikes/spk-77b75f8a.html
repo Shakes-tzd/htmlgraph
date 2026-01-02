@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PreToolUse Blocking Fix Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-77b75f8a"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T18:58:44.989689"
+             data-updated="2025-12-31T18:58:44.989693" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>PreToolUse Blocking Fix Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Fix Applied
+
+Changed line 390 in orchestrator.py:
+- FROM: "continue": True  # workaround comment claiming blocking doesn't work
+- TO: "continue": False  # Block when orchestrator mode is strict and operation violates rules
+
+## Test Results
+
+### Unit Tests
+All 28 tests in test_orchestrator_validator.py PASSED:
+- Git operations (commit, push, add, pull, merge, branch, checkout, rebase) correctly blocked
+- SDK operations allowed as expected
+- Strategic tools allowed as expected
+- Regular operations allowed as expected
+
+### Package Reinstallation
+Successfully reinstalled with: uv pip install -e .
+Version: htmlgraph==0.18.0
+
+## Status
+
+- [x] Code changed (line 390)
+- [x] Package reinstalled
+- [x] Tests pass (28/28)
+- [x] Blocking should now work in strict mode
+
+## Next Steps
+
+The fix is ready to commit. The "continue": False flag should now properly block operations in strict orchestrator mode instead of just issuing warnings.
+
+Note: The actual blocking behavior will be verified in real usage when Claude Code's PreToolUse hook processes the return value.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

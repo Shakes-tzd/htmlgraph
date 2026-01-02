@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SubagentStart/Stop Hook Research Findings</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-9b605f8b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T22:03:59.106018"
+             data-updated="2025-12-31T22:03:59.106022" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>SubagentStart/Stop Hook Research Findings</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Research Summary
+
+Comprehensive research into Claude Code SubagentStart and SubagentStop hooks for reliable task tracking.
+
+---
+
+## SubagentStart Hook
+
+### Status: NOT YET IMPLEMENTED
+
+GitHub issue #14859 (Dec 20, 2025) - OPEN, no implementation yet.
+
+**Proposed functionality**: Fire when sub-agent spawned via Task tool
+**Proposed schema**: agent_id, parent_agent_id, subagent_type, description
+**Why needed**: All events share session_id, cannot track agent hierarchy
+**Priority**: CRITICAL - Blocking observability tooling
+
+**Workaround**: Use PreToolUse hook with Task matcher to capture spawns
+
+---
+
+## SubagentStop Hook
+
+### Status: IMPLEMENTED (v1.0.41+)
+
+**Hook signature**:
+Input: hook_event_name, session_id, transcript_path, stop_hook_active
+Output: action (approve/block), reason, optional stopReason/systemMessage
+
+**Configuration example**:
+{
+  "hooks": {
+    "SubagentStop": [{
+      "hooks": [{ "type": "command", "command": "uv run .claude/hooks/subagent_stop.py" }]
+    }]
+  }
+}
+
+**Python implementation**: Read stdin JSON, parse transcript_path JSONL, extract results, return approval JSON
+
+---
+
+## CRITICAL LIMITATION: Shared Session ID Problem
+
+**GitHub Issue #7881**: All subagents share same session_id
+
+**Impact**:
+- Cannot identify which specific subagent stopped
+- Parallel execution breaks tracking (session map overwritten)
+- No reliable correlation between Task spawn and completion
+
+**Proposed solutions** (not implemented):
+1. Add subagent_id + subagent_type fields
+2. Create unique subagent_session per task (recommended)
+
+---
+
+## Current Best Practices
+
+1. **Use PreToolUse for Task tracking**: Capture Task tool invocations
+2. **Parse transcript in SubagentStop**: Read transcript_path to extract results
+3. **Workaround for parallel execution**:
+   - Option A: Timestamp correlation (unreliable)
+   - Option B: Inject unique ID in prompt (parse from transcript)
+   - Option C: File-based state (race conditions)
+
+---
+
+## Recommendations for HtmlGraph
+
+**Short-term**: Document TaskOutput unreliability, use manual spike creation
+**Medium-term**: Implement prompt injection with unique task IDs
+**Long-term**: Wait for official SubagentStart hook (#14859)
+
+---
+
+## References
+
+Official Docs:
+- Hooks Reference: https://code.claude.com/docs/en/hooks
+- Subagents: https://code.claude.com/docs/en/sub-agents
+
+GitHub Issues:
+- #14859 SubagentStart request
+- #7881 Shared session ID problem
+- #5812 Context bridging
+
+Community:
+- github.com/disler/claude-code-hooks-mastery
+- github.com/disler/claude-code-hooks-multi-agent-observability
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

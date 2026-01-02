@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PostToolUseFailure Hook Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-27dd6d41"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T22:51:38.538456"
+             data-updated="2025-12-31T22:51:38.538460" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>PostToolUseFailure Hook Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## PostToolUseFailure Hook Research
+
+### Hook Signature
+Based on Claude Code documentation and GitHub examples, PostToolUseFailure is triggered when a tool execution fails.
+
+**Configuration Pattern:**
+```json
+{
+  "hooks": {
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "path/to/error-handler.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Available Error Information
+PostToolUseFailure hooks receive:
+- Tool name that failed
+- Error message/output
+- Tool input parameters (via environment or stdin)
+- Timestamp of failure
+
+### Use Cases
+1. **Error Logging** - Track all tool failures for analysis
+2. **Pattern Detection** - Identify recurring error patterns
+3. **Auto-Debug Spikes** - Create debug spikes for failures
+4. **Auto-Retry Logic** - Retry with modified inputs (advanced)
+
+### Implementation Example
+```python
+#!/usr/bin/env python3
+"""PostToolUseFailure hook - track tool failures"""
+import sys
+import json
+from datetime import datetime
+from htmlgraph import SDK
+
+def main():
+    # Read hook input from stdin
+    hook_input = json.loads(sys.stdin.read())
+    
+    tool_name = hook_input.get("tool_name", "unknown")
+    error_msg = hook_input.get("error", "No error message")
+    
+    # Track in HtmlGraph
+    sdk = SDK(agent='claude')
+    sdk.spikes.create(f'Tool Failure: {tool_name}')         .set_findings(f"""
+## Error Details
+**Tool:** {tool_name}
+**Time:** {datetime.now().isoformat()}
+**Error:** {error_msg}
+
+## Context
+{json.dumps(hook_input, indent=2)}
+""")         .save()
+
+if __name__ == "__main__":
+    main()
+```
+
+### Integration Plan for HtmlGraph
+
+**Step 1: Create Hook Script**
+- Location: `src/python/htmlgraph/hooks/post_tool_use_failure.py`
+- Function: Parse error, create debug spike, detect patterns
+
+**Step 2: Register in hooks.json**
+```json
+{
+  "PostToolUseFailure": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${HTMLGRAPH_ROOT}/hooks/post_tool_use_failure.py"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Step 3: Pattern Detection Logic**
+- Track error frequency by tool type
+- Identify recurring errors (3+ occurrences)
+- Auto-create comprehensive debug spikes
+- Suggest potential fixes based on error patterns
+
+**Step 4: Testing**
+- Trigger intentional tool failures
+- Verify spike creation
+- Check error context capture
+- Validate pattern detection
+
+### Known Issues & Limitations
+
+**From GitHub Issues:**
+1. **Issue #3983** - JSON output from PostToolUse hooks not processed
+   - May affect PostToolUseFailure as well
+   - Use file-based output as workaround
+
+2. **Issue #4809** - PostToolUse hook exit code 1 blocks execution
+   - Ensure PostToolUseFailure hooks exit with 0
+   - Handle errors gracefully without blocking
+
+3. **Issue #6305** - Some hooks not executing
+   - Verify hook registration
+   - Check matcher patterns
+   - Test with simple commands first
+
+### Best Practices
+
+1. **Exit Code 0** - Always exit successfully to avoid blocking Claude
+2. **Fast Execution** - Keep processing under 1 second
+3. **Error Handling** - Catch all exceptions in hook script
+4. **Logging** - Write to files, not stdout (may interfere with Claude)
+5. **Idempotent** - Safe to run multiple times
+
+### References
+- [Hooks Reference - Claude Code Docs](https://code.claude.com/docs/en/hooks)
+- [GitHub: claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery)
+- [Post/PreToolUse Hooks Not Executing Issue #6305](https://github.com/anthropics/claude-code/issues/6305)
+- [PostToolUse Hook Exit Code 1 Blocks Issue #4809](https://github.com/anthropics/claude-code/issues/4809)
+- [Complete Guide: Creating Claude Code Hooks](https://suiteinsider.com/complete-guide-creating-claude-code-hooks/)
+- [PostToolUse hook JSON output not processed Issue #3983](https://github.com/anthropics/claude-code/issues/3983)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

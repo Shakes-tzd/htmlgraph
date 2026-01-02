@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Hook Research Findings - Aggregated Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-3bf31522"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-31T22:37:34.696609"
+             data-updated="2025-12-31T22:37:34.696612" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Hook Research Findings - Aggregated Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Research Complete: 3 Hooks Analyzed in Parallel
+
+Researched SubagentStart/Stop, PostToolUseFailure, and PreCompact hooks.
+
+### Critical Findings
+
+#### 🔴 SubagentStart: NOT IMPLEMENTED
+- **Status**: GitHub issue #14859 (Dec 2025) - STILL OPEN
+- **Impact**: Cannot auto-generate task IDs at spawn time
+- **Workaround**: Use PreToolUse + Task matcher (what we already do!)
+
+#### 🟡 SubagentStop: IMPLEMENTED BUT LIMITED
+- **Status**: Available since v1.0.41
+- **Problem**: All subagents share same session_id (GitHub issue #7881)
+- **Impact**: Cannot identify which subagent in parallel execution
+- **Workaround**: Inject task IDs in prompts, parse transcripts
+
+#### 🟠 PostToolUseFailure: NEEDS RESEARCH
+- **Status**: Agent had error, need to retry research
+- **Next**: Re-run research for this hook
+
+#### 🟡 PreCompact: IMPLEMENTED BUT BUGGY
+- **Status**: Available but has known bugs
+- **Bugs**: transcript_path often empty (#13668), sometimes doesn'''t fire (#13572)
+- **Limitation**: Cannot block compaction, only informational
+- **Use**: Warnings and snapshots, not enforcement
+
+### Revised Priorities
+
+Based on research findings:
+
+**❌ CANCEL: SubagentStart/Stop as originally planned**
+- SubagentStart doesn'''t exist yet
+- SubagentStop can'''t identify parallel subagents
+- Our current TaskOutput workaround is actually best practice!
+
+**✅ KEEP: Manual Task ID Pattern**
+- Generate IDs in orchestrator
+- Include in Task prompts
+- Save results as spikes
+- This is the recommended approach until Claude Code fixes these issues
+
+**✅ ADD: PostToolUseFailure** (after successful research)
+- Error pattern detection
+- Auto-debug spike creation
+- Still valuable even without subagent fixes
+
+**✅ ADD: PreCompact with Workarounds**
+- Implement  instruction template
+- Add warnings for uncommitted work
+- Create snapshots when transcript_path works
+- Handle bugs gracefully
+
+### Updated Track Plan
+
+Original plan assumed hooks worked. New plan based on reality:
+
+**Phase 1: Research** ✅ COMPLETE
+- SubagentStart/Stop research ✅
+- PreCompact research ✅
+- PostToolUseFailure research ⏳ (retry needed)
+
+**Phase 2: PostToolUseFailure** (New Priority #1)
+- Implement error tracking hook
+- Add pattern detection logic
+- Auto-create debug spikes
+
+**Phase 3: PreCompact Workarounds** (New Priority #2)
+- Implement /compact instruction template
+- Add uncommitted work warnings
+- Handle known bugs gracefully
+
+**Phase 4: Monitor Claude Code Issues** (Ongoing)
+- Watch GitHub issues #14859, #7881
+- Adopt official solutions when available
+- Migrate from workarounds to proper implementations
+
+### Recommendations
+
+1. **Update orchestrator directives** - Document that manual Task IDs are best practice
+2. **Implement PostToolUseFailure** - Still valuable for debugging
+3. **Add /compact template** - Better than buggy PreCompact hook
+4. **Keep TaskOutput workaround** - It'''s actually the right approach!
+5. **Monitor GitHub** - Implement proper hooks when available
+
+### References
+
+- spk-5b12fe46: SubagentStart/Stop research
+- spk-9c186d27: PreCompact research
+- GitHub #14859: SubagentStart feature request
+- GitHub #7881: Shared session_id problem
+- GitHub #13668: Empty transcript_path bug
+- GitHub #13572: PreCompact not firing bug
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>
