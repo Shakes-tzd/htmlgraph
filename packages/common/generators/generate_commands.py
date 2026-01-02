@@ -114,6 +114,56 @@ sdk = SDK(agent="codex")
     return section
 
 
+def generate_opencode_command_section(cmd: dict[str, Any]) -> str:
+    """Generate OpenCode extension command section."""
+
+    # Build parameters section
+    params_md = ""
+    for param in cmd.get("parameters", []):
+        req_str = "required" if param.get("required", False) else "optional"
+        default = f" (default: {param['default']})" if "default" in param else ""
+        params_md += (
+            f"- `{param['name']}` ({req_str}){default}: {param['description']}\n"
+        )
+
+    # Build examples section
+    examples_md = ""
+    for example in cmd.get("examples", []):
+        examples_md += (
+            f"```bash\n{example['command']}\n```\n{example['description']}\n\n"
+        )
+
+    # Get OpenCode-specific behavior or fall back to CLI commands
+    behavior = cmd.get("behavior", {}).get("opencode")
+    if not behavior:
+        # Fall back to CLI commands
+        cli_commands = cmd.get("cli_commands", [])
+        behavior = (
+            "Execute the following HtmlGraph commands:\n\n"
+            "```bash\n" + "\n".join(cli_commands) + "\n```\n\n"
+        )
+
+    # Generate markdown section
+    section = f"""### /htmlgraph:{cmd["name"]}
+
+{cmd["short_description"]}
+
+**Usage:** `{cmd["usage"]}`
+
+**Parameters:**
+{params_md if params_md else "None"}
+
+**Examples:**
+{examples_md if examples_md else "None"}
+
+**Implementation:**
+{behavior}
+
+---
+"""
+    return section
+
+
 def generate_gemini_command_section(cmd: dict[str, Any]) -> str:
     """Generate markdown section for Gemini extension."""
 
@@ -167,7 +217,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate platform-specific commands")
     parser.add_argument(
         "--platform",
-        choices=["claude", "codex", "gemini", "all"],
+        choices=["claude", "codex", "gemini", "opencode", "all"],
         default="all",
         help="Target platform (default: all)",
     )
@@ -212,6 +262,15 @@ def main():
             output_file = root / "gemini-extension" / f"command_{cmd['name']}.md"
             output_file.write_text(section)
             print(f"✓ Generated Gemini section: {output_file}")
+
+    if args.platform in ["opencode", "all"]:
+        print("\n📦 Generating OpenCode extension sections...")
+        opencode_sections = [generate_opencode_command_section(cmd) for cmd in commands]
+        # Note: Manual insertion for now - would need marker in OPENCODE.md
+        for i, (cmd, section) in enumerate(zip(commands, opencode_sections), 1):
+            output_file = root / "opencode-extension" / f"command_{cmd['name']}.md"
+            output_file.write_text(section)
+            print(f"✓ Generated OpenCode section: {output_file}")
 
     print("\n" + "=" * 60)
     print("✅ Command generation complete!")

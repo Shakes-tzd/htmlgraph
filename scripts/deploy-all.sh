@@ -15,7 +15,8 @@
 #   5. Update Claude plugin (with sync)
 #   6. Update Gemini extension
 #   7. Update Codex skill
-#   8. Create GitHub release
+#   8. Update OpenCode extension
+#   9. Create GitHub release
 #
 # Usage:
 #   ./scripts/deploy-all.sh [version] [flags]
@@ -212,6 +213,23 @@ with open('packages/gemini-extension/gemini-extension.json', 'w') as f:
     json.dump(data, f, indent=2)
 "
             log_success "Updated gemini-extension.json"
+        fi
+    fi
+
+    # Update OpenCode extension JSON
+    if [ -f "packages/opencode-extension/opencode-extension.json" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would update opencode-extension.json version to $version"
+        else
+            uv run python -c "
+import json
+with open('packages/opencode-extension/opencode-extension.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$version'
+with open('packages/opencode-extension/opencode-extension.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+            log_success "Updated opencode-extension.json"
         fi
     fi
 
@@ -696,7 +714,57 @@ else
 fi
 
 # ============================================================================
-# STEP 8: Create GitHub Release
+# STEP 8: Update OpenCode Extension
+# ============================================================================
+if [ "$SKIP_PLUGINS" != true ]; then
+    log_section "Step 8: Updating OpenCode Extension"
+
+    OPENCODE_EXTENSION_DIR="packages/opencode-extension"
+    if [ -d "$OPENCODE_EXTENSION_DIR" ]; then
+        log_info "Updating OpenCode extension version in opencode-extension.json..."
+
+        # Update version in opencode-extension.json
+        if [ -f "$OPENCODE_EXTENSION_DIR/opencode-extension.json" ]; then
+            # Use Python to update JSON (more reliable than sed)
+            if [ "$DRY_RUN" = true ]; then
+                log_info "[DRY-RUN] Would update opencode-extension.json to version $VERSION"
+            else
+                uv run python -c "
+import json
+with open('$OPENCODE_EXTENSION_DIR/opencode-extension.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '$VERSION'
+with open('$OPENCODE_EXTENSION_DIR/opencode-extension.json', 'w') as f:
+    json.dump(data, f, indent=2)
+print('Updated opencode-extension.json to version $VERSION')
+"
+            fi
+            log_success "OpenCode extension version updated"
+
+            # If there's a build/deploy process, run it
+            if [ -f "$OPENCODE_EXTENSION_DIR/deploy.sh" ]; then
+                log_info "Running OpenCode extension deploy script..."
+                if [ "$DRY_RUN" = true ]; then
+                    log_info "[DRY-RUN] Would run: cd $OPENCODE_EXTENSION_DIR && bash deploy.sh"
+                else
+                    (cd "$OPENCODE_EXTENSION_DIR" && bash deploy.sh)
+                fi
+            else
+                log_info "No deploy script found for OpenCode extension"
+                log_info "Extension files updated, manual deployment may be needed"
+            fi
+        else
+            log_warning "opencode-extension.json not found"
+        fi
+    else
+        log_warning "OpenCode extension directory not found"
+    fi
+else
+    log_info "⏭️  Skipping OpenCode Extension Update"
+fi
+
+# ============================================================================
+# STEP 9: Create GitHub Release
 # ============================================================================
 if [ "$SKIP_GIT" != true ] && [ "$SKIP_BUILD" != true ]; then
     log_section "Step 8: Creating GitHub Release"

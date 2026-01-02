@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Design: Agent Docs Versioning Strategy</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-de785ff3"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:12:46.819039"
+             data-updated="2026-01-02T12:12:46.819044" data-spike-type="architectural" data-timebox-hours="4">
+
+        <header>
+            <h1>Design: Agent Docs Versioning Strategy</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Architectural</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# HtmlGraph Agent Documentation Versioning Strategy
+
+## 1. Version Numbering Scheme
+
+### Dual Versioning System
+- **Package Version**: Semantic versioning (e.g., 0.21.0) - MAJOR.MINOR.PATCH
+- **Documentation Schema Version**: Independent integer (e.g., v1, v2, v3)
+
+**Rationale**: Package versions change frequently (bug fixes, features), but documentation 
+schema only changes when structure/format changes (rare breaking changes).
+
+### Version Mapping
+```
+Package Version → Docs Schema Version
+0.1.0 - 0.19.x  → v1 (initial format)
+0.20.0 - 0.21.x → v2 (added YAML frontmatter, template system)
+0.22.0+         → v3 (future: interactive tutorials, etc.)
+```
+
+### Version Format in Files
+```yaml
+---
+htmlgraph:
+  docs_version: "2"
+  min_package_version: "0.20.0"
+  max_package_version: "0.21.99"
+  generated_at: "2024-01-02T12:00:00Z"
+  checksum: "sha256:abc123..."
+---
+```
+
+## 2. Version Storage Locations
+
+### Package-Level Version Metadata
+```
+src/python/htmlgraph/
+├── __init__.py                 # __version__ = "0.21.0"
+├── docs_version.py             # DOCS_VERSION = "2"
+└── templates/
+    ├── VERSION                 # Schema version: "2"
+    ├── AGENTS.md.template      # YAML frontmatter with version
+    ├── CLAUDE.md.template      # YAML frontmatter with version
+    └── GEMINI.md.template      # YAML frontmatter with version
+```
+
+### Project-Level Version Tracking
+```
+.htmlgraph/
+├── AGENTS.md                   # User's copy with YAML frontmatter
+├── CLAUDE.md                   # Platform-specific with frontmatter
+├── GEMINI.md                   # Platform-specific with frontmatter
+├── .docs-metadata.json         # Version tracking metadata
+└── .docs-backups/              # Backup older versions on upgrade
+    ├── AGENTS.md.v1.backup
+    └── AGENTS.md.v2.backup
+```
+
+### Metadata File Format
+```json
+{
+  "current_docs_version": "2",
+  "package_version": "0.21.0",
+  "last_updated": "2024-01-02T12:00:00Z",
+  "user_customizations": {
+    "AGENTS.md": {
+      "customized": true,
+      "sections_modified": ["Quick Start", "Workflows"],
+      "last_sync": "2024-01-01T10:00:00Z"
+    }
+  },
+  "compatibility": {
+    "min_package": "0.20.0",
+    "max_package": "0.21.99"
+  }
+}
+```
+
+## 3. Compatibility Rules
+
+### Version Compatibility Matrix
+```python
+# docs_version.py
+COMPATIBILITY_MATRIX = {
+    "1": {
+        "min_package": "0.1.0",
+        "max_package": "0.19.99",
+        "status": "deprecated",
+        "migration_guide": "docs/migrations/v1-to-v2.md"
+    },
+    "2": {
+        "min_package": "0.20.0",
+        "max_package": "0.21.99",
+        "status": "current",
+        "features": ["yaml_frontmatter", "template_system", "sync_command"]
+    },
+    "3": {
+        "min_package": "0.22.0",
+        "max_package": None,  # Open-ended
+        "status": "future",
+        "breaking_changes": ["interactive_tutorials", "ai_context_injection"]
+    }
+}
+
+def check_compatibility(package_version: str, docs_version: str) -> dict:
+    """Check if package and docs versions are compatible."""
+    compat = COMPATIBILITY_MATRIX.get(docs_version)
+    if not compat:
+        return {"compatible": False, "reason": "Unknown docs version"}
+    
+    from packaging import version
+    pkg_ver = version.parse(package_version)
+    min_ver = version.parse(compat["min_package"])
+    max_ver = version.parse(compat["max_package"]) if compat["max_package"] else None
+    
+    if pkg_ver < min_ver:
+        return {
+            "compatible": False,
+            "reason": f"Package too old (need >={compat['min_package']})",
+            "action": "upgrade_package"
+        }
+    
+    if max_ver and pkg_ver > max_ver:
+        return {
+            "compatible": False,
+            "reason": f"Docs too old (need docs v{docs_version + 1})",
+            "action": "upgrade_docs"
+        }
+    
+    return {"compatible": True, "status": compat["status"]}
+```
+
+### Compatibility Checks
+- **On SDK Init**: Check `.htmlgraph/.docs-metadata.json` against package version
+- **On Upgrade**: Detect version mismatch, trigger migration workflow
+- **On Doc Read**: Validate frontmatter version matches expected schema
+
+## 4. Update Workflow
+
+### Scenario 1: Package Upgrade (Compatible Docs)
+```bash
+# User runs:
+pip install --upgrade htmlgraph  # 0.20.5 → 0.21.0
+
+# What happens:
+# 1. Package installed (docs templates bundled)
+# 2. On first SDK use:
+sdk = SDK()  # Triggers version check
+
+# Version check logic:
+def check_docs_on_init(sdk):
+    metadata = load_metadata(".htmlgraph/.docs-metadata.json")
+    
+    if metadata["current_docs_version"] == "2":
+        # Compatible - no action needed
+        log.debug("Docs v2 compatible with package 0.21.0")
+        return
+```
+
+### Scenario 2: Package Upgrade (Breaking Docs Change)
+```bash
+# User runs:
+pip install --upgrade htmlgraph  # 0.21.9 → 0.22.0 (requires docs v3)
+
+# What happens:
+# 1. Package installed
+# 2. On first SDK use:
+sdk = SDK()
+
+# Triggers migration:
+"""
+⚠️  HtmlGraph Documentation Upgrade Required
+
+Your documentation files are version 2, but package 0.22.0 requires version 3.
+
+Changes in v3:
+  - New: Interactive tutorial sections
+  - Changed: YAML frontmatter structure
+  - Removed: Legacy template variables
+
+Actions available:
+  1. Auto-migrate (preserves customizations)
+  2. Side-by-side (keep v2, generate v3)
+  3. Manual migration (view diff first)
+
+Choose: [1/2/3/cancel]
+"""
+
+# User selects option 1 (auto-migrate):
+# - Backup .htmlgraph/AGENTS.md → .htmlgraph/.docs-backups/AGENTS.md.v2.backup
+# - Parse user customizations (sections modified)
+# - Generate new v3 docs from templates
+# - Merge user customizations into v3 structure
+# - Update .docs-metadata.json
+```
+
+### Scenario 3: Documentation-Only Update
+```bash
+# User runs:
+uv run htmlgraph sync-docs --upgrade
+
+# What happens:
+# 1. Check bundled template version vs current version
+# 2. If newer template available (but compatible):
+"""
+📄 Documentation Update Available
+
+Current: v2 (compatible)
+Latest:  v2.1 (bug fixes, improved examples)
+
+This is a non-breaking update. Your customizations will be preserved.
+
+Upgrade? [yes/no]
+"""
+
+# User confirms:
+# - Backup current docs
+# - Generate from latest templates
+# - Merge customizations
+# - Update metadata
+```
+
+## 5. Breaking Change Handling
+
+### Migration Scripts
+```python
+# src/python/htmlgraph/migrations/v2_to_v3.py
+
+from typing import Dict, Any
+from htmlgraph.migrations.base import MigrationScript
+
+class V2ToV3Migration(MigrationScript):
+    """Migrate docs from v2 to v3."""
+    
+    source_version = "2"
+    target_version = "3"
+    
+    def migrate_frontmatter(self, frontmatter: Dict[str, Any]) -> Dict[str, Any]:
+        """Update YAML frontmatter structure."""
+        # v2 format:
+        # htmlgraph:
+        #   docs_version: "2"
+        
+        # v3 format (add new fields):
+        frontmatter["htmlgraph"]["schema_version"] = "3"
+        frontmatter["htmlgraph"]["features"] = {
+            "interactive_tutorials": True,
+            "ai_context_injection": True
+        }
+        return frontmatter
+    
+    def migrate_content(self, content: str) -> str:
+        """Update content structure."""
+        # Replace old section markers with new format
+        content = content.replace("## Quick Start (Python SDK)", 
+                                 "## 🚀 Quick Start
+
+### Python SDK")
+        
+        # Add new interactive tutorial sections
+        if "## Workflows" in content:
+            content = content.replace(
+                "## Workflows",
+                "## 🎓 Interactive Tutorials
+
+[Auto-generated tutorials]
+
+## Workflows"
+            )
+        
+        return content
+    
+    def preserve_customizations(self, old_content: str, new_content: str) -> str:
+        """Merge user customizations into new format."""
+        # Detect custom sections (not in template)
+        # Preserve and inject into appropriate locations
+        pass
+
+# Registry
+MIGRATIONS = {
+    ("1", "2"): V1ToV2Migration(),
+    ("2", "3"): V2ToV3Migration(),
+}
+
+def run_migration(from_version: str, to_version: str, docs_path: str):
+    """Run migration script."""
+    migration = MIGRATIONS.get((from_version, to_version))
+    if not migration:
+        raise ValueError(f"No migration path from v{from_version} to v{to_version}")
+    
+    migration.migrate(docs_path)
+```
+
+### Rollback Mechanism
+```python
+# src/python/htmlgraph/cli.py
+
+@cli.command()
+def rollback_docs(version: Optional[str] = None):
+    """Rollback documentation to previous version."""
+    backups = list(Path(".htmlgraph/.docs-backups").glob("*.backup"))
+    
+    if not backups:
+        print("No backups available")
+        return
+    
+    if version:
+        backup_file = f".htmlgraph/.docs-backups/AGENTS.md.v{version}.backup"
+    else:
+        # Latest backup
+        backup_file = max(backups, key=lambda p: p.stat().st_mtime)
+    
+    print(f"Rolling back to {backup_file}")
+    
+    # Restore backup
+    shutil.copy(backup_file, ".htmlgraph/AGENTS.md")
+    
+    # Update metadata
+    metadata = load_metadata()
+    metadata["current_docs_version"] = version
+    save_metadata(metadata)
+    
+    print("✅ Rollback complete")
+```
+
+## 6. Discovery Mechanism
+
+### Version Detection on SDK Initialization
+```python
+# src/python/htmlgraph/sdk.py
+
+class SDK:
+    def __init__(self, agent: str = "claude", base_path: str = "."):
+        self.agent = agent
+        self.base_path = Path(base_path)
+        
+        # Version check on init
+        self._check_docs_version()
+    
+    def _check_docs_version(self):
+        """Check documentation version compatibility."""
+        from htmlgraph.docs_version import check_compatibility, DOCS_VERSION
+        from htmlgraph import __version__
+        
+        metadata_path = self.base_path / ".htmlgraph/.docs-metadata.json"
+        
+        if not metadata_path.exists():
+            # First run - initialize metadata
+            self._initialize_docs_metadata()
+            return
+        
+        metadata = json.loads(metadata_path.read_text())
+        current_docs_version = metadata.get("current_docs_version")
+        
+        # Check compatibility
+        compat = check_compatibility(__version__, current_docs_version)
+        
+        if not compat["compatible"]:
+            self._handle_version_mismatch(compat)
+    
+    def _handle_version_mismatch(self, compat: dict):
+        """Handle version mismatch (upgrade/migrate/rollback)."""
+        if compat["action"] == "upgrade_package":
+            warnings.warn(
+                f"Your HtmlGraph package is too old. "
+                f"Please upgrade: pip install --upgrade htmlgraph"
+            )
+        
+        elif compat["action"] == "upgrade_docs":
+            # Offer migration
+            print("⚠️  Documentation upgrade required.")
+            print(f"Reason: {compat['reason']}")
+            
+            response = input("Migrate now? [yes/no/diff]: ")
+            
+            if response == "yes":
+                self._run_migration()
+            elif response == "diff":
+                self._show_migration_diff()
+            else:
+                print("Skipping migration. Some features may not work correctly.")
+```
+
+### YAML Frontmatter Validation
+```python
+# src/python/htmlgraph/docs_validation.py
+
+from pydantic import BaseModel, Field, validator
+from typing import Optional
+
+class DocsMetadata(BaseModel):
+    """YAML frontmatter schema for documentation files."""
+    
+    htmlgraph: 'HtmlGraphMetadata'
+    
+    class Config:
+        extra = "allow"  # Allow user custom fields
+
+class HtmlGraphMetadata(BaseModel):
+    docs_version: str = Field(..., description="Documentation schema version")
+    min_package_version: str
+    max_package_version: Optional[str] = None
+    generated_at: str
+    checksum: Optional[str] = None
+    
+    @validator("docs_version")
+    def validate_docs_version(cls, v):
+        from htmlgraph.docs_version import DOCS_VERSION
+        if v != DOCS_VERSION:
+            raise ValueError(
+                f"Documentation version mismatch: expected v{DOCS_VERSION}, got v{v}"
+            )
+        return v
+
+def validate_docs_frontmatter(filepath: Path) -> DocsMetadata:
+    """Validate YAML frontmatter in documentation file."""
+    import yaml
+    
+    content = filepath.read_text()
+    
+    # Extract frontmatter
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            frontmatter = yaml.safe_load(parts[1])
+            return DocsMetadata(**frontmatter)
+    
+    raise ValueError(f"No valid YAML frontmatter found in {filepath}")
+```
+
+## 7. Real-World Upgrade Scenarios
+
+### Scenario A: User Customized AGENTS.md
+```markdown
+# User's .htmlgraph/AGENTS.md (v2, customized)
+
+---
+htmlgraph:
+  docs_version: "2"
+  min_package_version: "0.20.0"
+---
+
+## Quick Start (Python SDK)
+[standard content...]
+
+## Our Team Workflows  👈 USER ADDED THIS SECTION
+
+1. Morning standup - review `sdk.summary()`
+2. Create daily feature with template
+3. End of day - commit with `git-commit-push.sh`
+
+## SDK Reference
+[standard content...]
+```
+
+**User upgrades: pip install --upgrade htmlgraph (0.21.0 → 0.22.0)**
+
+**Migration Process:**
+1. Detect user section: "Our Team Workflows"
+2. Generate v3 template with new structure
+3. Inject user section into appropriate location in v3
+4. Preserve original as backup
+
+**Result:**
+```markdown
+# .htmlgraph/AGENTS.md (v3, customizations preserved)
+
+---
+htmlgraph:
+  docs_version: "3"
+  min_package_version: "0.22.0"
+---
+
+## 🚀 Quick Start
+
+### Python SDK
+[new v3 format...]
+
+## 🎓 Interactive Tutorials
+[auto-generated from package...]
+
+## Our Team Workflows  👈 PRESERVED
+1. Morning standup - review `sdk.summary()`
+2. Create daily feature with template
+3. End of day - commit with `git-commit-push.sh`
+
+## Workflows
+[new v3 format...]
+```
+
+### Scenario B: Breaking Change in Frontmatter Structure
+```yaml
+# v2 frontmatter
+---
+htmlgraph:
+  docs_version: "2"
+  min_package_version: "0.20.0"
+---
+
+# v3 frontmatter (breaking change)
+---
+htmlgraph:
+  schema_version: "3"  # Renamed from docs_version
+  compatibility:       # Restructured
+    min_package: "0.22.0"
+    max_package: "0.22.99"
+  features:           # New field
+    interactive_tutorials: true
+---
+```
+
+**Migration:**
+- Parse v2 frontmatter
+- Transform to v3 structure
+- Validate against v3 schema
+- Write with new format
+
+### Scenario C: Side-by-Side Version Support
+```bash
+# User wants to keep old docs while testing new version
+
+uv run htmlgraph sync-docs --upgrade --side-by-side
+
+# Result:
+.htmlgraph/
+├── AGENTS.md          # v2 (user's current, untouched)
+├── AGENTS.md.v3       # v3 (new version, for review)
+├── CLAUDE.md          # v2
+├── CLAUDE.md.v3       # v3
+└── .docs-metadata.json
+
+# User reviews v3, then:
+uv run htmlgraph sync-docs --commit-upgrade v3
+
+# Replaces v2 with v3, backs up v2
+```
+
+## 8. Implementation Checklist
+
+### Phase 1: Version Infrastructure
+- [ ] Create `src/python/htmlgraph/docs_version.py`
+- [ ] Add YAML frontmatter to all templates
+- [ ] Create `.docs-metadata.json` schema
+- [ ] Implement version compatibility checks
+
+### Phase 2: Migration System
+- [ ] Create `src/python/htmlgraph/migrations/` directory
+- [ ] Implement base `MigrationScript` class
+- [ ] Write v1→v2 migration (if needed for legacy users)
+- [ ] Add migration registry and runner
+
+### Phase 3: CLI Commands
+- [ ] `htmlgraph sync-docs --check` - Check version compatibility
+- [ ] `htmlgraph sync-docs --upgrade` - Upgrade docs
+- [ ] `htmlgraph sync-docs --diff` - Show migration diff
+- [ ] `htmlgraph rollback-docs [version]` - Rollback to backup
+
+### Phase 4: SDK Integration
+- [ ] Add version check to `SDK.__init__()`
+- [ ] Implement automatic migration prompts
+- [ ] Add `sdk.docs.version()` method
+- [ ] Create `sdk.docs.upgrade()` method
+
+### Phase 5: Documentation
+- [ ] Write migration guide template
+- [ ] Create upgrade troubleshooting docs
+- [ ] Add version FAQ to README
+- [ ] Document customization preservation
+
+## 9. Open Questions & Decisions Needed
+
+### Q1: How aggressive should auto-migration be?
+**Options:**
+- A. Always auto-migrate (risky for customizations)
+- B. Always prompt user (interrupts workflow)
+- C. Auto-migrate patch versions, prompt for major (balanced) ✅ RECOMMENDED
+
+### Q2: Should we support N-1 version compatibility?
+**Recommendation:** Yes, support one version back
+- Package 0.22.0 can read v2 and v3 docs
+- Allows gradual migration
+- Warn if using deprecated version
+
+### Q3: How to handle Claude plugin vs PyPI package version drift?
+**Scenario:** User has PyPI 0.22.0 but Claude plugin still 0.21.0
+
+**Solution:**
+- Plugin and PyPI should stay in sync (deploy-all.sh handles this)
+- If drift detected, show warning with update instructions
+- Don't block usage (degrade gracefully)
+
+### Q4: What about user-specific template variables?
+**Example:** User adds `{{TEAM_NAME}}` to their AGENTS.md
+
+**Solution:**
+- Preserve any `{{CUSTOM_*}}` variables during migration
+- Document variable naming convention
+- Provide `htmlgraph config set CUSTOM_VAR value` command
+
+## 10. Success Metrics
+
+### Technical Metrics
+- ✅ Zero data loss during migrations
+- ✅ < 5 seconds for version check and migration
+- ✅ 100% test coverage for migration scripts
+- ✅ Support rollback within 1 command
+
+### User Experience Metrics
+- ✅ No manual editing of files required
+- ✅ Clear error messages on version mismatch
+- ✅ Customizations preserved in 99% of cases
+- ✅ Migration diff visible before commit
+
+### Adoption Metrics
+- ✅ < 5% support requests related to versioning
+- ✅ No GitHub issues about lost customizations
+- ✅ Smooth upgrade path for all users from v1 → v3
+
+---
+
+**RECOMMENDATION: Start with Phase 1-2, ship with 0.22.0**
+- Establish version infrastructure now
+- Create migration system for future-proofing
+- Document customization best practices
+- Iterate based on user feedback
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

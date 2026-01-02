@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Research: Template Systems for Docs</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a7882903"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:04:43.790171"
+             data-updated="2026-01-02T12:04:43.790174" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Research: Template Systems for Docs</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Template Systems Research for Documentation Generation
+
+## Executive Summary
+
+**Recommendation: Jinja2** for HtmlGraph agent documentation generation with user customization support.
+
+**Runner-up: YAML Frontmatter + Jinja2** for maximum flexibility and separation of metadata from content.
+
+---
+
+## Detailed Comparison
+
+### 1. Jinja2 (Python) - ⭐⭐⭐⭐⭐ (5/5)
+
+**Overview:**
+- Industry-standard templating engine for Python
+- Compiles templates to optimized Python bytecode
+- Rich feature set: inheritance, macros, filters, control structures
+- Already installed in HtmlGraph project
+
+**Pros:**
+✅ Powerful inheritance system - Template blocks can be overridden by users  
+✅ Custom filters/functions - Extend with domain-specific formatting  
+✅ Well-documented - Extensive docs, large community  
+✅ Performance - Compiled templates, cached execution  
+✅ Separation of concerns - Logic separate from presentation  
+✅ Already a dependency - No new packages needed  
+
+**Cons:**
+❌ Limited Python in templates - Can't use arbitrary Python code (by design)  
+❌ Learning curve - More complex than simple string substitution  
+❌ Template complexity - Can become hard to maintain if logic grows  
+
+**Code Example:**
+```python
+from jinja2 import Template, Environment, FileSystemLoader
+
+# Simple inline template
+template = Template('''
+# {{ agent.name }} Agent
+**Type:** {{ agent.type }}
+{{ agent.description }}
+''')
+
+# File-based with inheritance
+env = Environment(loader=FileSystemLoader('templates/'))
+base = env.get_template('agent_base.md')
+output = base.render(agent=agent_data)
+```
+
+**User Customization Pattern:**
+```python
+# Base template (package-provided)
+# templates/agent_base.md
+{% block header %}
+# {{ agent.name }} Agent
+{% endblock %}
+
+{% block content %}
+{{ agent.description }}
+{% endblock %}
+
+# User override (user-provided)
+# ~/.htmlgraph/templates/agent_custom.md
+{% extends "agent_base.md" %}
+{% block header %}
+# 🤖 {{ agent.name }} - Custom Header
+{% endblock %}
+```
+
+---
+
+### 2. YAML Frontmatter + Markdown - ⭐⭐⭐⭐ (4/5)
+
+**Overview:**
+- Metadata in YAML block at top of file
+- Content in Markdown body
+- Used by Jekyll, Hugo, Obsidian, etc.
+
+**Pros:**
+✅ Separation of metadata and content - Clear structure  
+✅ Version control friendly - Text-based, good diffs  
+✅ Human-readable - Easy to edit manually  
+✅ Standards-based - YAML + Markdown are widely known  
+✅ Flexible - Can combine with any template engine for body  
+✅ User-editable - Non-programmers can modify metadata  
+
+**Cons:**
+❌ Not a template engine itself - Needs Jinja2/etc for body  
+❌ Manual parsing required - Need to split frontmatter from body  
+❌ YAML quirks - Indentation-sensitive, type coercion surprises  
+
+---
+
+### 3. Mustache (Logic-less) - ⭐⭐⭐ (3/5)
+
+Too restrictive for complex documentation - no conditionals, limited loops, requires additional view layer.
+
+---
+
+### 4. Python string.Template - ⭐⭐ (2/5)
+
+Only for trivial use cases - variable substitution only, no loops/conditionals/inheritance.
+
+---
+
+### 5. Mako - ⭐⭐⭐ (3/5)
+
+Overkill for our use case - extra dependency, security concerns with arbitrary Python execution.
+
+---
+
+## Comparison Table
+
+| Feature | Jinja2 | Mustache | string.Template | YAML+Jinja2 | Mako |
+|---------|--------|----------|-----------------|-------------|------|
+| Ease of use | Medium | High | Very High | Medium | Medium |
+| User customization | Excellent | Poor | None | Excellent | Excellent |
+| Dependencies | ✅ Installed | ❌ New | ✅ Built-in | ✅ Installed | ❌ New |
+| Inheritance | ✅ Yes | ❌ No | ❌ No | ⚠️ Via Jinja2 | ✅ Yes |
+| Loops/Conditionals | ✅ Yes | ⚠️ Limited | ❌ No | ✅ Via Jinja2 | ✅ Yes |
+| Custom filters | ✅ Yes | ❌ No | ❌ No | ✅ Via Jinja2 | ✅ Yes |
+
+---
+
+## Recommendation: Jinja2
+
+**Why:**
+1. Already installed - no new dependencies
+2. Template inheritance - users can override sections
+3. Custom filters - domain-specific formatting
+4. Industry standard - well-documented, large community
+5. Good error messages - helps users debug templates
+
+**Implementation pattern for HtmlGraph:**
+```python
+# htmlgraph/templates/agent.md (package default)
+{% block header %}
+# {{ agent.name }} Agent
+{% endblock %}
+
+{% block description %}
+{{ agent.description }}
+{% endblock %}
+
+# User can override in ~/.htmlgraph/templates/agent.md
+{% extends "htmlgraph::agent.md" %}
+{% block header %}
+# 🤖 {{ agent.name }} - My Custom Agent
+{% endblock %}
+```
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

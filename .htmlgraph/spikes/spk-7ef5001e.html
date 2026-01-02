@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix: Feature Reference Parsing Regression</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7ef5001e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T13:19:48.146814"
+             data-updated="2026-01-02T13:19:48.146819" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Fix: Feature Reference Parsing Regression</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Problem
+
+The git continuity spine feature had a regression in `parse_feature_refs()` function that was blocking v0.22.0 deployment. The function was returning empty lists instead of extracting feature IDs from commit messages, causing 4 test failures:
+
+- `test_claude_code_commit_format`
+- `test_codex_inline_feature_refs`
+- `test_merge_commit_with_multiple_features`
+- `test_parallel_work_three_agents`
+
+## Root Cause
+
+Two issues were identified:
+
+### 1. Incomplete ID Format Support
+
+The original regex patterns only matched `feature-` and `bug-` prefixes:
+```python
+# OLD (broken)
+pattern1 = r"(?:Implements|Fixes|Closes|Refs):\s*(feature-[\w-]+|bug-[\w-]+)"
+pattern2 = r"(feature-[\w-]+|bug-[\w-]+)"
+```
+
+But HtmlGraph generates IDs with different prefixes:
+- `feat-XXXXXXXX` (features) ← Not matched!
+- `spk-XXXXXXXX` (spikes) ← Not matched!
+- `bug-XXXXXXXX` (bugs) ✓ Matched
+- `chr-XXXXXXXX` (chores) ← Not matched!
+
+### 2. Multi-Agent Session Attribution
+
+When multiple sessions were active (e.g., Claude and Gemini working in parallel), `_determine_context()` would pick one session arbitrarily instead of determining which session should receive the commit based on the feature IDs in the commit message.
+
+## Solution
+
+### Part 1: Enhanced Regex Patterns
+
+Updated `parse_feature_refs()` to support all HtmlGraph ID formats:
+
+```python
+# All HtmlGraph ID prefixes (current + legacy)
+id_prefixes = r"(?:feat|feature|bug|spk|spike|chr|chore|trk|track|todo)"
+
+# Pattern 1: Explicit tags (Implements: feat-xyz)
+pattern1 = rf"(?:Implements|Fixes|Closes|Refs):\s*({id_prefixes}-[\w-]+)"
+
+# Pattern 2: Square brackets [feat-xyz] (common in commit messages)
+pattern2 = rf"\[({id_prefixes}-[\w-]+)\]"
+
+# Pattern 3: Anywhere in message as word boundary
+pattern3 = rf"({id_prefixes}-[\w-]+)"
+```
+
+Key improvements:
+- ✅ Supports all ID prefixes (feat, bug, spk, chr, trk, etc.)
+- ✅ Handles square bracket notation `[feat-abc123]`
+- ✅ Backward compatible with legacy formats
+
+### Part 2: Intelligent Session Selection
+
+Enhanced `_determine_context()` to determine the correct session when multiple are active:
+
+```python
+# Try to find the right session based on feature IDs in commit message
+session = None
+if message_features:
+    manager = _get_session_manager(graph_dir)
+    if manager:
+        for feature_id in message_features:
+            # Get the feature to check which agent is working on it
+            feature = manager.features_graph.get(feature_id)
+            if not feature:
+                feature = manager.bugs_graph.get(feature_id)
+            
+            if feature and feature.agent_assigned:
+                # Find active session for this agent
+                session = manager.get_active_session(agent=feature.agent_assigned)
+                if session:
+                    break
+
+# Fallback to any active session if we couldn't match by feature
+if not session:
+    session = get_active_session(graph_dir)
+```
+
+This ensures commits are attributed to the correct agent even in multi-agent scenarios.
+
+## Test Results
+
+### Focused Tests
+All 17 git continuity spine tests passing:
+```
+tests/integration/multi_agent/test_git_continuity_spine.py::TestCrossAgentContinuity::test_parallel_work_three_agents PASSED
+... (all 17 tests) ...
+17 passed in 3.02s
+```
+
+### Full Test Suite
+```
+920 tests collected
+920 passed
+```
+
+### Quality Gates
+- ✅ Ruff clean: `All checks passed!`
+- ✅ Mypy clean: `Success: no issues found in 1 source file`
+- ✅ Pre-commit hooks: All checks passed
+
+## Verification
+
+The fix correctly handles:
+1. ✅ Conventional commits: `feat(feat-abc123): message`
+2. ✅ Implements tag: `Implements: feat-abc123`
+3. ✅ Inline references: `... [feat-abc123] ...` in commit body
+4. ✅ Multiple features in one commit
+5. ✅ Multi-agent parallel work (Claude + Gemini + Codex)
+
+## Code Changes
+
+**File**: `src/python/htmlgraph/git_events.py`
+
+**Modified functions**:
+- `parse_feature_refs()` - Enhanced regex patterns
+- `_determine_context()` - Intelligent session selection
+
+**Lines changed**: 61 insertions, 7 deletions
+
+## Deployment Status
+
+✅ **Fix is ready for v0.22.0 deployment**
+
+All blocking test failures resolved. The git continuity spine now correctly:
+- Parses feature references from commit messages
+- Attributes commits to the correct agent/session in multi-agent scenarios
+- Supports all HtmlGraph ID formats (current and legacy)
+    
+            </div>
+        </section>
+    </article>
+</body>
+</html>

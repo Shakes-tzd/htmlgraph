@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Design: Package vs Project Doc Separation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e9bb3062"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:14:17.084131"
+             data-updated="2026-01-02T12:14:17.084134" data-spike-type="architectural" data-timebox-hours="4">
+
+        <header>
+            <h1>Design: Package vs Project Doc Separation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Architectural</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # File Structure Design: Package vs Project Documentation Separation
+
+## Overview
+
+HtmlGraph needs clear separation between:
+1. **Package documentation** - Bundled with pip install, universal for all users
+2. **Project documentation** - User-specific customizations in .htmlgraph/
+
+## Current State Analysis
+
+### What Exists Today
+- Root-level docs: AGENTS.md, CLAUDE.md, GEMINI.md (user-facing memory files)
+- Package dashboard: src/python/htmlgraph/dashboard.html (bundled)
+- Sync tool: sync_docs.py (CLI integration via htmlgraph sync-docs)
+- Git-based continuity: .htmlgraph/ (project-specific tracking)
+
+### Current Pattern (AGENTS.md Standard)
+- **AGENTS.md** = Single source of truth
+- **CLAUDE.md** = Platform-specific + references AGENTS.md
+- **GEMINI.md** = Platform-specific + references AGENTS.md
+
+This works but conflates package docs with project docs.
+
+---
+
+## Design: Two-Tier Documentation System
+
+### Tier 1: Package Documentation (Bundled)
+**Location**: `src/python/htmlgraph/docs/`
+
+**Structure**:
+- src/python/htmlgraph/docs/AGENTS.md (Core agent docs)
+- src/python/htmlgraph/docs/QUICK_START.md (Getting started)
+- src/python/htmlgraph/docs/SDK_REFERENCE.md (Complete SDK API)
+- src/python/htmlgraph/docs/DEPLOYMENT.md (Deployment instructions)
+- src/python/htmlgraph/docs/templates/ (User templates)
+
+**What Goes Here**:
+- SDK API reference
+- Core concepts (graph structure, nodes, edges)
+- Getting started guide
+- CLI command reference
+- Deployment instructions
+- Debugging workflows
+- Orchestrator patterns
+- Best practices (universal)
+
+**Discovery**: Package docs are always available via Python import
+
+### Tier 2: Project Documentation (User .htmlgraph/)
+**Location**: `.htmlgraph/docs/` (user project)
+
+**What Goes Here**:
+- Project-specific workflow customizations
+- Team conventions (commit message format, branch strategy)
+- Custom skills/hooks/agents
+- Overrides for package documentation sections
+- Project roadmap and planning docs
+
+**Discovery**: Project docs override package docs in priority order
+
+---
+
+## Override Mechanism: Layered Documentation
+
+### How It Works
+
+**Package provides base**:
+- Complete documentation in htmlgraph/docs/
+- Template files for common customizations
+
+**Project overrides sections**:
+- User creates .htmlgraph/docs/AGENTS.md to customize
+- Sections marked with USER_CUSTOMIZATION can be overridden
+- SDK merges package docs + project overrides
+
+### Example: Sectioned AGENTS.md
+
+**Package AGENTS.md** (base):
+Includes USER_CUSTOMIZATION sections that can be overridden
+
+**User Override** (.htmlgraph/docs/AGENTS.md):
+Replaces specific sections with project context
+
+**SDK Merges**:
+- Reads package AGENTS.md
+- Finds USER_CUSTOMIZATION sections in project AGENTS.md
+- Replaces matching sections
+- Returns merged document to agent
+
+---
+
+## Discovery Flow: How Agents Find Docs
+
+### Priority Order (Override Chain)
+1. .htmlgraph/docs/AGENTS.md (project customizations)
+2. htmlgraph/docs/AGENTS.md (package defaults)
+3. htmlgraph/extensions/{platform}/{PLATFORM}.md
+
+### SDK Discovery API
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent='claude')
+
+# Get merged AGENTS.md (package + project overrides)
+agents_doc = sdk.get_documentation('AGENTS.md')
+
+# Get platform-specific docs
+claude_doc = sdk.get_documentation('CLAUDE.md')
+
+# Get package docs directly (ignore overrides)
+package_doc = sdk.get_package_documentation('SDK_REFERENCE.md')
+```
+
+### CLI Discovery Commands
+
+```bash
+# Show effective documentation (merged)
+htmlgraph docs show AGENTS.md
+
+# Show only package docs (ignore overrides)
+htmlgraph docs show AGENTS.md --package-only
+
+# Initialize project docs from template
+htmlgraph docs init
+
+# Validate overrides (check for conflicts)
+htmlgraph docs validate
+```
+
+---
+
+## Version Conflicts: Handling Package Updates
+
+### Problem
+- User customizes .htmlgraph/docs/AGENTS.md based on v0.20
+- Package updates to v0.21 with new SDK methods
+- User's AGENTS.md is now stale
+
+### Solution: Version-Aware Merging
+
+**Package AGENTS.md includes version**:
+```markdown
+<!-- HTMLGRAPH_VERSION: 0.21.0 -->
+```
+
+**User override includes base version**:
+```markdown
+<!-- BASED_ON: 0.20.0 -->
+```
+
+**SDK detects version drift**:
+```python
+sdk.check_documentation_drift()
+```
+
+**Migration Command**:
+```bash
+# Show what changed between versions
+htmlgraph docs diff 0.20.0 0.21.0
+
+# Migrate user overrides to new version
+htmlgraph docs migrate
+```
+
+---
+
+## Migration Path: Current to New Structure
+
+### Phase 1: Package Documentation (v0.22)
+**Goal**: Bundle core docs with package
+
+**Steps**:
+1. Create src/python/htmlgraph/docs/
+2. Move AGENTS.md to package/docs/AGENTS.md
+3. Move CLAUDE.md to package/extensions/claude/CLAUDE.md
+4. Move GEMINI.md to package/extensions/gemini/GEMINI.md
+5. Add SDK discovery API (sdk.get_documentation())
+6. Update sync-docs to reference new locations
+
+**Breaking?**: No - root-level docs remain as symlinks/copies during transition
+
+### Phase 2: Project Override System (v0.23)
+**Goal**: Enable user customizations
+
+**Steps**:
+1. Add .htmlgraph/docs/ directory
+2. Implement section-based override merging
+3. Add version tracking to docs
+4. Add drift detection to SDK
+5. Update sync-docs to handle overrides
+
+**Breaking?**: No - optional feature, backward compatible
+
+### Phase 3: Root Cleanup (v0.24)
+**Goal**: Remove redundant root-level docs
+
+**Steps**:
+1. Deprecation warning when reading root AGENTS.md
+2. Auto-migrate root docs to .htmlgraph/docs/
+3. Remove root-level AGENTS.md, CLAUDE.md, GEMINI.md
+4. Keep README.md (human-facing, not agent memory)
+
+**Breaking?**: Yes - major version bump, migration tool provided
+
+---
+
+## Separation Rules: What Goes Where
+
+| Documentation Type | Package Docs | Project Docs |
+|--------------------|-------------|--------------|
+| SDK API reference | Yes | No |
+| Core concepts | Yes | No |
+| CLI commands | Yes | No |
+| Deployment guide | Yes | Can override |
+| Debugging workflow | Yes | Can override |
+| Team conventions | No | Yes |
+| Project roadmap | No | Yes |
+| Custom skills/hooks | No | Yes |
+| Platform integration | Yes (base) | Can extend |
+
+---
+
+## Benefits of This Design
+
+1. **Clear Separation**: Package docs vs project docs
+2. **Version Safety**: Track package version, detect drift
+3. **User Flexibility**: Override what you need, keep rest default
+4. **Cross-Platform**: Works for Claude, Gemini, API, CLI
+5. **Offline-First**: All docs local, no network required
+6. **Backward Compatible**: Phased migration, no breaking changes until v0.24
+
+---
+
+## Open Questions
+
+1. **Should package docs be editable post-install?**
+   - Recommendation: Read-only, use overrides for customization
+
+2. **How to handle conflicting overrides?**
+   - Recommendation: User override always wins, warn on drift
+
+3. **Should .htmlgraph/docs/ be version-controlled?**
+   - Recommendation: Yes, with .gitignore for personal notes
+
+4. **CLI integration for package docs?**
+   - Recommendation: Yes, add htmlgraph docs browse for offline reference
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

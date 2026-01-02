@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implementation: Jinja2 Template System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-edd42147"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:28:38.744198"
+             data-updated="2026-01-02T12:28:38.744201" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Implementation: Jinja2 Template System</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Implementation Complete: Jinja2 Template System with User Customization
+
+## Files Created
+
+### Core Template Engine
+- `src/python/htmlgraph/docs/template_engine.py` (144 lines)
+  - DocTemplateEngine class with Jinja2 integration
+  - Multi-loader: User templates → Package templates
+  - Custom filters: format_date, highlight_code
+  - render_agents_md() method with platform support
+
+### Package Templates (Base)
+- `src/python/htmlgraph/docs/templates/base_agents.md.j2`
+  - Base AGENTS.md template with extensible blocks
+  - Blocks: header, introduction, quick_start, core_concepts, sdk_reference, cli_reference, custom_workflows, deployment, footer
+  
+### Reusable Sections
+- `src/python/htmlgraph/docs/templates/_sections/core_concepts.md.j2`
+- `src/python/htmlgraph/docs/templates/_sections/sdk_basics.md.j2`
+- `src/python/htmlgraph/docs/templates/_sections/cli_reference.md.j2`
+
+### Example User Override
+- `src/python/htmlgraph/docs/templates/example_user_override.md.j2`
+  - Shows how users can customize documentation
+  - Team workflows, commit conventions, code review checklist
+
+### Integration & CLI
+- Updated `src/python/htmlgraph/docs/__init__.py`
+  - Added get_agents_md() and sync_docs_to_file() functions
+- Updated `src/python/htmlgraph/cli.py`
+  - Added cmd_docs_generate() function
+  - Added CLI parser for `htmlgraph docs generate`
+  - Supports --platform (claude/gemini/api/cli) and --output flags
+
+## Tests Written (322 lines, 18 tests)
+
+✅ `tests/python/test_template_system.py`
+
+**Coverage:**
+- Base template rendering (3 tests)
+- User overrides (4 tests)
+- Platform variables (1 test)
+- Version handling (1 test)
+- SDK functions (2 tests)
+- Custom filters (2 tests)
+- Edge cases (3 tests)
+- Section templates (2 tests)
+
+**All 18 tests pass!**
+
+## Quality Gates: PASSED
+
+✅ **Tests**: 18/18 passed
+✅ **Ruff**: All checks passed (new files)
+✅ **Mypy**: No type errors
+✅ **CLI**: Command works correctly
+
+## Usage Example
+
+### Generate Documentation
+```bash
+# Generate docs for Claude
+htmlgraph docs generate --platform claude --output AGENTS.md
+
+# Generate docs for Gemini
+htmlgraph docs generate --platform gemini --output GEMINI.md
+```
+
+### User Customization
+```bash
+# 1. Create user template
+mkdir -p .htmlgraph/docs/templates
+cat > .htmlgraph/docs/templates/agents.md.j2 << EOF
+{% extends "base_agents.md.j2" %}
+
+{% block header %}
+# 🤖 Our Team Documentation
+{% endblock %}
+
+{% block custom_workflows %}
+## Team Workflows
+- Morning standup review
+- Daily feature creation
+- Evening commit
+{% endblock %}
+EOF
+
+# 2. Generate with customizations
+htmlgraph docs generate
+```
+
+### Programmatic Usage
+```python
+from pathlib import Path
+from htmlgraph.docs import get_agents_md, sync_docs_to_file
+
+# Get content as string
+content = get_agents_md(Path(".htmlgraph"), "claude")
+
+# Write to file
+sync_docs_to_file(Path(".htmlgraph"), Path("AGENTS.md"), "claude")
+```
+
+## Key Features Delivered
+
+1. ✅ **Package provides base templates** - in `htmlgraph/docs/templates/`
+2. ✅ **Users override in .htmlgraph/docs/** - priority loader system
+3. ✅ **Block-based customization** - Jinja2 `{% extends %}` and `{% block %}`
+4. ✅ **Platform-specific docs** - claude, gemini, api, cli
+5. ✅ **CLI integration** - `htmlgraph docs generate`
+6. ✅ **Comprehensive tests** - 18 tests with 100% pass rate
+7. ✅ **Example template** - shows best practices for customization
+
+## Design Decisions
+
+1. **Named base template "base_agents.md.j2"** to avoid recursion when users extend it
+2. **Multi-loader priority**: User templates → Package templates (fallback)
+3. **Block-based override**: Users can override specific sections without rewriting everything
+4. **Reusable sections**: Common content in `_sections/` for DRY principle
+5. **Platform support**: Generate docs for different AI platforms
+
+## Next Steps (Not Blocking)
+
+1. Add more templates (SDK_REFERENCE.md.j2, QUICK_START.md.j2, etc.)
+2. Implement version tracking in generated docs
+3. Add drift detection when package updates
+4. Create migration guide for existing documentation
+5. Add `htmlgraph docs validate` command
+
+## Verification
+
+```bash
+# All tests pass
+uv run pytest tests/python/test_template_system.py -v
+# 18 passed in 0.36s
+
+# CLI works
+uv run htmlgraph docs generate --platform claude
+# ✅ Documentation generated: AGENTS.md
+
+# Quality gates pass
+uv run ruff check src/python/htmlgraph/docs/template_engine.py
+# All checks passed!
+
+uv run mypy src/python/htmlgraph/docs/template_engine.py
+# Success: no issues found
+```
+
+**Status: COMPLETE AND READY FOR USE**
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

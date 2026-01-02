@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Archive Manager Extension - All Entity Types Support</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-d1769be4"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T03:52:58.746119"
+             data-updated="2026-01-02T03:52:58.746123" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Archive Manager Extension - All Entity Types Support</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Summary
+Successfully extended HtmlGraph archive manager to support all entity types, not just features/bugs/chores.
+
+## Changes Made
+
+### 1. Updated ArchiveConfig (src/python/htmlgraph/archive/manager.py)
+Extended default entity_types from 3 to 11 types:
+- **Before**: ["feature", "bug", "chore"]
+- **After**: ["feature", "bug", "chore", "spike", "pattern", "session", "track", "epic", "phase", "insight", "metric"]
+
+### 2. Added Comprehensive Tests (tests/python/test_archive_manager.py)
+Created 4 new test functions:
+- `test_archive_patterns()` - Verifies pattern archiving works correctly
+- `test_archive_spikes()` - Verifies spike archiving works correctly
+- `test_archive_sessions()` - Verifies session archiving works correctly
+- `test_archive_all_entity_types()` - Verifies mixed entity type archiving
+
+### 3. Updated Existing Test
+- `test_archive_config_defaults()` - Updated to reflect new default entity types list
+
+## Test Results
+All 16 tests passing (1 skipped - unarchive needs refinement):
+```
+======================== 16 passed, 1 skipped in 0.34s ========================
+```
+
+## Quality Gates
+✅ All tests pass
+✅ Ruff linting: Fixed 3 issues, 0 remaining
+✅ Ruff formatting: 2 files reformatted
+✅ Mypy type checking: Success, no issues found
+
+## Impact
+This change enables archiving for ALL HtmlGraph entity types:
+- **Immediate benefit**: Can now archive the 2,890 zero-detection patterns in .htmlgraph/patterns/
+- **Storage optimization**: Patterns can be consolidated into searchable archives with FTS5 indexing
+- **Consistency**: Archive system now matches SDK entity type support
+
+## Next Steps (Recommended)
+1. Demo archiving the 2,890 patterns to measure storage savings
+2. Consider adding CLI command for easy archiving: `htmlgraph archive --type pattern --older-than 90`
+3. Document new entity type support in archive documentation
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

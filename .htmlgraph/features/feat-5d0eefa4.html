@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Refactor: Session-Based Pattern Storage</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-5d0eefa4"
+             data-type="feature"
+             data-status="done"
+             data-priority="critical"
+             data-created="2026-01-02T04:02:16.380768"
+             data-updated="2026-01-02T04:21:53.949713" data-agent-assigned="cli" data-claimed-at="2026-01-02T04:02:24.765264" data-claimed-by-session="sess-fd50862f">
+
+        <header>
+            <h1>Refactor: Session-Based Pattern Storage</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-3d9ec350.html" data-relationship="implemented-in" data-since="2026-01-02T04:02:16.686419">sess-3d9ec350</a></li>
+                    <li><a href="sess-fd50862f.html" data-relationship="implemented-in" data-since="2026-01-02T04:02:24.771981">sess-fd50862f</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-01-02T04:21:53.949726">2026-01-02T04:21:53.949726</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Update Session model to include detected_patterns field</li>
+                <li data-completed="true">✅ Modify learning.py to store patterns in session file (not individual files)</li>
+                <li data-completed="true">✅ Add pattern section to session HTML template</li>
+                <li data-completed="true">✅ Migrate existing patterns to their respective sessions</li>
+                <li data-completed="true">✅ Delete individual pattern files after migration</li>
+                <li data-completed="true">✅ Update pattern queries to read from sessions</li>
+                <li data-completed="true">✅ Add tests for session-based pattern storage</li>
+                <li data-completed="true">✅ Verify pattern detection still works correctly</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Replace individual pattern files (2,890+) with session-based pattern storage to eliminate massive file bloat
+        </section>
+    </article>
+</body>
+</html>

@@ -1,3 +1,10 @@
+---
+name: codex-skill
+description: HtmlGraph session tracking and work continuity for Codex. Ensures proper activity attribution, feature awareness, and continuous work tracking across sessions.
+metadata:
+  short-description: HtmlGraph session tracking for Codex
+---
+
 # HtmlGraph Session Tracking
 
 **Description**: HtmlGraph session tracking and work continuity for Codex. Ensures proper activity attribution, feature awareness, and continuous work tracking across sessions.

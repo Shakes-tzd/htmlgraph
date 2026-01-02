@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Research: Anthropic Agent Docs Best Practices</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f9708f74"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:04:26.373388"
+             data-updated="2026-01-02T12:04:26.373393" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Research: Anthropic Agent Docs Best Practices</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Anthropic Agent Documentation Best Practices
+
+## Executive Summary
+
+Anthropic's approach to agent documentation emphasizes **clear, explicit, context-optimized communication** built on three pillars:
+1. **Context Engineering** - Minimize tokens, maximize signal
+2. **Progressive Disclosure** - Just-in-time retrieval over upfront loading
+3. **Structured Formats** - XML tags, JSON schemas, consistent patterns
+
+---
+
+## 1. CORE PRINCIPLES
+
+### Context is a Finite Resource
+- **Goal**: Find "the smallest set of high-signal tokens that maximize the likelihood of your desired outcome"
+- **Diminishing Returns**: More tokens ≠ better results. Quality over quantity.
+- **Progressive Disclosure**: Use lightweight identifiers (file paths, URLs) and retrieve data dynamically at runtime
+
+### Be Explicit and Direct
+- Claude 4.x models respond to clear, explicit instructions
+- Specify desired output precisely
+- Add context/motivation behind instructions ("why" matters)
+- Examples are "pictures worth a thousand words" for LLMs
+
+### Tell What TO Do, Not What NOT to Do
+- Instead of: "Do not use markdown"
+- Use: "Your response should be composed of smoothly flowing prose paragraphs"
+
+---
+
+## 2. DOCUMENTATION STRUCTURE
+
+### XML Tags for Organization
+Claude is fine-tuned to recognize XML tags for clear section separation:
+
+```xml
+<instructions>
+  Step 1: Do this
+  Step 2: Do that
+</instructions>
+
+<context>
+  Background information here
+</context>
+
+<examples>
+  Example 1: ...
+</examples>
+```
+
+**But**: For most use cases, clear headings and whitespace work just as well with less overhead.
+
+### Organize System Prompts into Sections
+Use distinct sections with XML or Markdown:
+1. **Background** - Context and motivation
+2. **Instructions** - What to do
+3. **Tool Guidance** - When/how to use tools
+4. **Output Descriptions** - Expected format
+
+### Structured Formats for Data
+- **JSON** for schemas, test results, task status
+- **Unstructured text** for progress notes
+- **Git logs** for state tracking across sessions
+
+---
+
+## 3. TOOL DOCUMENTATION BEST PRACTICES
+
+### Clear, Explicit Naming
+- ❌ Bad: `user` (ambiguous)
+- ✅ Good: `user_id` (unambiguous)
+
+Prevents misinterpretation and reduces hallucinations.
+
+### Comprehensive Descriptions
+"Think of how you would describe your tool to a new hire on your team. Consider the context you might implicitly bring—specialized query formats, definitions of niche terminology, relationships between underlying resources—and make it explicit."
+
+### Actionable Error Messages
+Replace opaque errors with constructive feedback:
+- ❌ "Error 404"
+- ✅ "User not found. Try searching by username instead of email."
+
+Guide agents toward token-efficient strategies (targeted searches > broad queries).
+
+### Semantic Identifiers Over UUIDs
+Return meaningful names instead of cryptic IDs:
+- ❌ "abc-123-def-456"
+- ✅ "feature-user-authentication"
+
+Significantly improves Claude's precision in retrieval tasks.
+
+### Response Format Options
+Expose `response_format` enum parameters:
+- "concise" - Minimal response
+- "detailed" - Full context
+
+Enables flexible information retrieval while optimizing token usage.
+
+### Intentional Tool Selection
+- Group related tools with consistent prefixes (e.g., `asana_projects_search`, `asana_users_search`)
+- Consolidate frequently-chained operations into single tools
+- Implement pagination, filtering, truncation with sensible defaults
+
+---
+
+## 4. CONTEXT OPTIMIZATION TECHNIQUES
+
+### Token Efficiency in System Prompts
+- Strike balance between specificity and flexibility
+- Avoid brittle if-else logic
+- Avoid vague guidance
+- Use examples sparingly (diverse, canonical examples > exhaustive edge cases)
+
+### Minimal, Non-Overlapping Tool Sets
+Each tool should be:
+- Self-contained
+- Clearly scoped
+- Promote token-efficient returns
+- Have distinct purpose
+
+### Pagination and Truncation
+"Implement some combination of pagination, range selection, filtering, and/or truncation with sensible default parameter values for any tool responses that could use up lots of context."
+
+### Long-Horizon Context Management
+
+**Compaction**: Summarize conversations nearing limits, preserve critical details.
+
+**Structured Note-Taking**: Persistent external memory for tracking complex tasks.
+
+**Sub-Agent Architectures**: Specialized agents handle focused tasks, return condensed summaries.
+
+---
+
+## 5. STATE MANAGEMENT
+
+### Use Structured Formats for State Data
+```json
+{
+  "tests": [
+    {"id": 1, "name": "auth_flow", "status": "passing"},
+    {"id": 2, "name": "user_mgmt", "status": "failing"}
+  ],
+  "total": 200,
+  "passing": 150,
+  "failing": 25
+}
+```
+
+### Use Git for State Tracking
+- Provides log of what's been done
+- Checkpoints that can be restored
+- Claude 4.5 models excel at using git for state tracking
+
+### Emphasize Incremental Progress
+Explicitly ask Claude to track progress and focus on incremental work.
+
+---
+
+## 6. MULTI-WINDOW WORKFLOWS
+
+Claude 4.5 has **context awareness** - it can track remaining token budget throughout conversation.
+
+### Best Practices for Long Tasks
+
+1. **Different prompt for first window**: Set up framework (tests, scripts), then iterate with todo-list
+2. **Write tests in structured format**: Create `tests.json` before starting work
+3. **Set up quality of life tools**: Create `init.sh` to start servers, run tests, linters
+4. **Starting fresh vs compacting**: Claude 4.5 excels at discovering state from filesystem
+5. **Provide verification tools**: Playwright, computer use for testing UIs
+6. **Encourage complete usage of context**: "Spend your entire output context working on the task"
+
+### Memory Tool Integration
+Context awareness pairs naturally with memory tool for seamless context transitions.
+
+---
+
+## 7. DOS AND DON'TS
+
+### DO:
+✅ Be explicit and direct with instructions
+✅ Add context/motivation ("why")
+✅ Use XML tags for clear section separation
+✅ Provide diverse, canonical examples
+✅ Use structured formats (JSON) for schemas/data
+✅ Return semantic identifiers over UUIDs
+✅ Implement pagination/filtering with defaults
+✅ Track state with git logs and JSON
+✅ Emphasize incremental progress
+✅ Use tool prefixes for namespacing (e.g., `asana_*`)
+
+### DON'T:
+❌ Preload all context upfront (use progressive disclosure)
+❌ Use vague or ambiguous parameter names
+❌ Return opaque error messages
+❌ Create overlapping or redundant tools
+❌ Provide exhaustive edge-case examples
+❌ Use "do not" instructions (use "do" instead)
+❌ Return cryptic UUIDs without semantic meaning
+❌ Create tools without clear, distinct purpose
+
+---
+
+## 8. CLAUDE 4.5 SPECIFIC GUIDANCE
+
+### Communication Style
+- More direct and grounded
+- Less verbose (skips summaries unless prompted)
+- More conversational, less machine-like
+
+### Tool Usage
+Claude 4.5 is precise and literal. Be explicit:
+- ❌ "Can you suggest changes?" → Will only suggest
+- ✅ "Change this function" → Will make changes
+
+### Parallel Tool Calling
+Claude 4.5 excels at parallel execution:
+- Runs multiple speculative searches
+- Reads several files at once
+- Executes bash commands in parallel
+
+Encourage with: "If you intend to call multiple tools and there are no dependencies between the calls, make all independent calls in parallel."
+
+### Subagent Orchestration
+Claude 4.5 demonstrates improved native subagent orchestration:
+- Recognizes when to delegate
+- Does so proactively without explicit instruction
+- Ensure well-defined subagent tools in tool definitions
+
+---
+
+## 9. KEY TAKEAWAYS FOR HTMLGRAPH
+
+### Apply to AGENTS.md, CLAUDE.md, GEMINI.md
+
+1. **Use XML tags** for clear section separation (already doing this!)
+2. **Progressive disclosure** - Reference external docs rather than embedding everything
+3. **Structured examples** - Show JSON/code patterns clearly
+4. **Clear tool descriptions** - SDK methods need "new hire" level clarity
+5. **Semantic naming** - Use meaningful IDs in examples (feature-auth, not uuid-123)
+6. **Context budgeting** - Keep memory files concise, link to full docs
+7. **State tracking** - Use git logs and JSON for session/feature state (already doing this!)
+8. **Explicit instructions** - "Create feature" not "Can you create feature?"
+
+### Specific Improvements
+
+**Tool Documentation (SDK Methods)**:
+- Add "when to use" guidance for each method
+- Provide response format options (concise vs detailed)
+- Return semantic IDs in examples
+- Add error handling examples
+
+**Memory File Structure**:
+- Keep CLAUDE.md/GEMINI.md under 2000 tokens
+- Use XML tags for critical sections
+- Reference AGENTS.md for full details
+- Provide "quick reference" sections
+
+**Progressive Disclosure Pattern**:
+```
+CLAUDE.md (concise):
+  <quick_reference>SDK basics</quick_reference>
+  → See AGENTS.md for full API
+
+AGENTS.md (comprehensive):
+  Full SDK documentation with all methods
+```
+
+---
+
+## Sources
+
+- [Writing effective tools for AI agents](https://www.anthropic.com/engineering/writing-tools-for-agents)
+- [Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
+- [Building Effective AI Agents](https://www.anthropic.com/research/building-effective-agents)
+- [Prompting best practices - Claude 4.x](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-4-best-practices)
+- [How to implement tool use](https://docs.claude.com/en/docs/agents-and-tools/tool-use/implement-tool-use)
+- [Equipping agents for the real world with Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

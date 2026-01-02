@@ -1,0 +1,16 @@
+{
+  "name": "htmlgraph",
+  "version": "0.22.0",
+  "description": "HtmlGraph session tracking for OpenCode",
+  "author": "Shakes",
+  "license": "MIT",
+  "contextFileName": "OPENCODE.md",
+  "homepage": "https://github.com/Shakes-tzd/htmlgraph",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Shakes-tzd/htmlgraph.git",
+    "directory": "packages/opencode-extension"
+  },
+  "keywords": ["opencode", "htmlgraph", "session-tracking", "development-workflow"],
+  "agent": "opencode"
+}

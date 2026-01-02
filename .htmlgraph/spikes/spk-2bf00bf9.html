@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Deployment Results v0.21.0</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-2bf00bf9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T04:29:55.932504"
+             data-updated="2026-01-02T04:29:55.932508" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Deployment Results v0.21.0</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Deployment Status: PARTIAL SUCCESS
+
+## What Succeeded:
+✅ Code quality checks passed (ruff, mypy)
+✅ Version bumped to 0.21.0 in all files
+✅ Git commit created: d4a8152
+✅ Git tag created: v0.21.0
+✅ Package built successfully:
+   - htmlgraph-0.21.0-py3-none-any.whl (462 KB)
+   - htmlgraph-0.21.0.tar.gz (539 KB)
+
+## What Failed:
+❌ 4 integration tests failed during deployment:
+   1. test_claude_code_commit_format
+   2. test_codex_inline_feature_refs  
+   3. test_merge_commit_with_multiple_features
+   4. test_parallel_work_three_agents
+
+❌ PyPI publishing blocked by test failures
+❌ Plugin updates skipped due to test failures
+
+## Git Status:
+- Commits pushed: YES
+- Tag pushed: v0.21.0
+- Latest commit: d4a8152 (chore: bump version to 0.21.0)
+
+## Next Steps:
+1. Fix the 4 failing integration tests
+2. Re-run deployment with --skip-tests flag, OR
+3. Fix tests and re-deploy normally
+
+## PyPI Status:
+- Current version: 0.20.9 (0.21.0 not yet published)
+- URL: https://pypi.org/project/htmlgraph/
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

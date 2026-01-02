@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implementation: Version Tracking and Migration System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-24acfc9b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:28:50.969668"
+             data-updated="2026-01-02T12:28:50.969674" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Implementation: Version Tracking and Migration System</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Version Tracking and Migration System Implementation
+
+## Files Created
+
+### Core Infrastructure
+1. **src/python/htmlgraph/docs/__init__.py** - Package exports
+2. **src/python/htmlgraph/docs/docs_version.py** - Version compatibility matrix
+3. **src/python/htmlgraph/docs/metadata.py** - DocsMetadata model with save/load
+4. **src/python/htmlgraph/docs/migrations.py** - Migration scripts and registry
+5. **src/python/htmlgraph/docs/version_check.py** - Version checking and upgrade workflows
+6. **src/python/htmlgraph/docs/template_engine.py** - Already exists (Jinja2 template engine)
+
+### CLI Integration
+- **src/python/htmlgraph/cli.py** - Added docs subcommand with 4 commands:
+  - `htmlgraph docs version` - Check compatibility
+  - `htmlgraph docs upgrade` - Interactive or auto migration
+  - `htmlgraph docs diff` - Preview migration (placeholder)
+  - `htmlgraph docs rollback` - Rollback to previous version
+
+### Tests
+- **tests/python/test_version_migration.py** - Comprehensive test suite (29 tests, 100% pass)
+
+## Test Coverage Summary
+
+✅ **29/29 tests passing**
+
+### Test Categories:
+1. **DocVersion Tests** (5 tests) - Version compatibility checking
+2. **DocsMetadata Tests** (7 tests) - Save/load metadata, customization tracking
+3. **VersionCheck Tests** (4 tests) - Compatible/incompatible detection
+4. **V1toV2Migration Tests** (8 tests) - Backup, customization, migration, rollback
+5. **Integration Tests** (2 tests) - Full workflows
+6. **Migration Registry Tests** (3 tests) - Migration lookup
+
+## Quality Gates
+
+✅ **All quality gates passed:**
+- Ruff check: All checks passed
+- Ruff format: 6 files formatted
+- Mypy: Success, no issues found
+- Pytest: 29/29 tests passing
+
+## Example Usage
+
+### Check Version
+```bash
+uv run htmlgraph docs version
+# Output: ✅ Documentation is up to date
+```
+
+### Upgrade (Auto)
+```bash
+uv run htmlgraph docs upgrade --auto
+# Creates backup, migrates, preserves customizations
+```
+
+### Rollback
+```bash
+uv run htmlgraph docs rollback
+# Restores from latest backup
+```
+
+## Key Features
+
+1. **Version Infrastructure** - DOC_VERSIONS registry, N-1 compatibility
+2. **Metadata Storage** - .docs-metadata.json with Pydantic validation
+3. **Migration System** - Abstract base class, V1→V2 implementation
+4. **Version Checking** - Compatibility checks with clear messages
+5. **CLI Commands** - 4 subcommands for version management
+
+## Integration Points
+
+- SDK can check version on init (optional)
+- Template engine already supports customizations
+- Backup system preserves user modifications
+
+## Design Decisions
+
+1. **N-1 Compatibility** - Support one version back
+2. **Timestamped Backups** - Dated backup directories
+3. **Interactive by Default** - User confirmation unless --auto
+4. **Pydantic v2** - Uses model_dump_json() not .json()
+5. **Type-Safe** - Full mypy annotations
+
+## Backwards Compatibility
+
+✅ No breaking changes to existing code
+✅ Optional feature (only used when running docs commands)
+✅ Default metadata compatible with current setup
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

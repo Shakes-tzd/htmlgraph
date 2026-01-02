@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Git Commit: Auto-Updating Docs Feature</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-8e402f3b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:51:27.816488"
+             data-updated="2026-01-02T12:51:27.816494" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Git Commit: Auto-Updating Docs Feature</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Commit Summary
+**Commit Hash**: fe7821fcc6f372b09046aa11fc816cc179e36316
+**Feature**: feat-bda2afc3 - Packageable auto-updating agent documentation system
+
+## Commit Message
+feat(feat-bda2afc3): implement packageable auto-updating agent documentation system
+
+Completed comprehensive auto-updating documentation system with:
+- Jinja2 template engine with user customization support
+- Two-tier system (package docs + project docs)
+- Version tracking with migration support (v1→v2)
+- Comprehensive testing (28 integration tests, 18 template tests, 29 version tests)
+- Developer pattern guide (17,500 words)
+
+## Files Committed (Key Components)
+
+### New Implementation Files
+- src/python/htmlgraph/docs/template_engine.py
+- src/python/htmlgraph/docs/metadata.py
+- src/python/htmlgraph/docs/docs_version.py
+- src/python/htmlgraph/docs/migrations.py
+- src/python/htmlgraph/docs/version_check.py
+- src/python/htmlgraph/docs/templates/ (base templates)
+
+### New Test Files
+- tests/python/test_template_system.py (18 tests)
+- tests/python/test_version_migration.py (29 tests)
+- tests/python/test_plugin_update_preservation.py (28 tests)
+
+### Documentation
+- docs/PACKAGEABLE_DOCS_PATTERN.md (comprehensive guide)
+
+## Statistics
+- **Total files changed**: 3,027
+- **Total insertions**: 6,189
+- **Total deletions**: 162,618 (mostly cleanup of old HtmlGraph tracking files)
+- **Net change**: -156,429 lines (significant cleanup!)
+
+## Quality Gates Status
+✅ All 75 tests passing
+✅ Ruff clean (after fixing TYPE_CHECKING import)
+✅ Mypy clean
+✅ Pre-commit hooks passed
+
+## Status
+✅ All changes committed successfully
+✅ Feature attribution included (feat-bda2afc3)
+✅ Ready for completion
+✅ No push to remote (as requested)
+
+## Next Steps
+Feature feat-bda2afc3 is ready to be marked as complete.
+    
+            </div>
+        </section>
+    </article>
+</body>
+</html>

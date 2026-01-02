@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Research: GitHub Agent Docs Examples</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-728b1b9a"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T12:02:44.613942"
+             data-updated="2026-01-02T12:02:44.613947" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Research: GitHub Agent Docs Examples</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# GitHub Projects with Excellent Agent-Facing Documentation
+
+## 1. AGENTS.md Standard (agentsmd/agents.md)
+**URL:** https://github.com/agentsmd/agents.md
+**Adoption:** Used by 60,000+ open-source projects
+
+**What Makes It Good:**
+- Simple, standardized format (like README but for agents)
+- Clear sections: Dev Environment Tips, Testing Instructions, PR Instructions
+- Concrete, executable commands with placeholders
+- Focus on actionable guidance vs general information
+
+**Key Patterns:**
+- Predictable location (root AGENTS.md file)
+- Step-by-step workflows for common tasks
+- Testing and quality gate documentation
+- Project-specific conventions and commands
+
+## 2. Anthropic Claude Plugins Official (anthropics/claude-plugins-official)
+**URL:** https://github.com/anthropics/claude-plugins-official
+
+**What Makes It Good:**
+- Standardized directory structure (.claude-plugin/, commands/, agents/, skills/)
+- plugin.json metadata for discoverability
+- Separation of concerns (commands vs agents vs skills)
+- MCP integration via .mcp.json
+
+**Key Patterns:**
+- **File Structure:**
+  
+- Clear separation: metadata (JSON) + behavior (agents/) + documentation (README)
+- Reference implementations as internal examples
+- Version-aware plugin discovery
+
+## 3. Model Context Protocol Servers (modelcontextprotocol/servers)
+**URL:** https://github.com/modelcontextprotocol/servers
+
+**What Makes It Good:**
+- Each server is self-contained example
+- Standardized MCP protocol documentation
+- Clear capability declarations
+- Example servers demonstrate core features
+
+**Key Patterns:**
+- **Reference Servers:**
+  - Everything - Full-featured test server
+  - Fetch - Web content fetching
+  - Filesystem - Secure file operations
+  - Git - Repository manipulation
+  - Memory - Knowledge graph system
+  - Sequential Thinking - Problem-solving
+- Server capabilities declared in structured format
+- Python/TypeScript SDKs with consistent API
+- Official spec at modelcontextprotocol.io (built with Mintlify)
+
+## 4. LangGraph (langchain-ai/langgraph)
+**URL:** https://github.com/langchain-ai/langgraph
+
+**What Makes It Good:**
+- Multi-layered documentation strategy
+- Quick, actionable code snippets
+- Design patterns explicitly documented
+- AGENTS.md file in repository
+
+**Key Patterns:**
+- **Three Documentation Layers:**
+  1. Guides - Actionable code snippets (streaming, memory, persistence)
+  2. Reference - Core classes, methods, APIs
+  3. Examples - Guided examples across use cases
+- **Complementary Resources:**
+  - LangChain Academy (free course)
+  - LangChain Forum (community support)
+  - Case studies (production deployments)
+- Progressive disclosure: basics → advanced patterns
+- Separation: AGENTS.md (agent-specific) vs README (general)
+
+## 5. OpenAI Agents SDK (openai/openai-agents-python)
+**URL:** https://github.com/openai/openai-agents-python
+
+**What Makes It Good:**
+- Code-first learning approach
+- Progressive complexity examples
+- Session management patterns documented
+- Integration-friendly design
+
+**Key Patterns:**
+- **Progressive Disclosure:**
+  - Core concepts as concise bullets
+  - Minimal viable example (< 10 lines)
+  - Progressive complexity (hello world → handoffs → advanced)
+- **Practical Sessions:**
+  - No memory (default)
+  - SQLiteSession (built-in)
+  - RedisSession (distributed)
+  - Custom implementations (protocol-based)
+- **External Integration Emphasis:**
+  - Logfire, AgentOps, Braintrust, Scorecard, Keywords AI
+  - Tracing and observability first-class
+- Philosophy: Show *what works* before *why it works*
+
+## 6. Microsoft MCP for Beginners (microsoft/mcp-for-beginners)
+**URL:** https://github.com/microsoft/mcp-for-beginners
+
+**What Makes It Good:**
+- Cross-language examples (.NET, Java, TypeScript, JavaScript, Rust, Python)
+- Real-world, practical examples
+- Modular curriculum structure
+- Security and orchestration focused
+
+**Key Patterns:**
+- Beginner-friendly progression
+- Language-agnostic concepts
+- Service orchestration patterns
+- Session setup to deployment lifecycle
+
+## Common Patterns Across All Projects
+
+### 1. File Structure Conventions
+- **Root-level agent files:** AGENTS.md, AI.md
+- **Metadata in JSON:** plugin.json, .mcp.json, package.json
+- **Specialized directories:** agents/, commands/, skills/, hooks/
+- **Separation:** Human docs (README) vs Agent docs (AGENTS.md)
+
+### 2. Documentation Format
+- **Markdown as primary:** Easy to parse and render
+- **Structured metadata:** JSON/YAML for machine-readable config
+- **Code-first examples:** Working code snippets, not just prose
+- **Progressive disclosure:** Quick start → intermediate → advanced
+
+### 3. Agent-Specific Patterns
+- **Actionable commands:** Concrete, executable instructions
+- **Testing workflows:** How to validate changes
+- **Project conventions:** File naming, PR formats, commit styles
+- **Capability declarations:** What the agent/server can do
+
+### 4. Versioning & Discovery
+- **Semantic versioning:** MAJOR.MINOR.PATCH
+- **Version in metadata:** plugin.json, package.json
+- **Marketplace integration:** Discoverable via official registries
+- **Migration guides:** How to upgrade between versions
+
+### 5. Integration Patterns
+- **MCP protocol:** Standardized external integrations
+- **Plugin architecture:** Extend core functionality
+- **SDK consistency:** Python/TypeScript/JS with parallel APIs
+- **Tracing/observability:** First-class integration support
+
+## Recommendations for HtmlGraph
+
+Based on these patterns, we should:
+
+1. **Adopt AGENTS.md:** Create root-level AGENTS.md for agent-specific workflows
+2. **Structured Metadata:** Use JSON for machine-readable config (manifest.json?)
+3. **Directory Structure:** Separate SDK docs, plugin docs, MCP integration
+4. **Progressive Disclosure:** Quick start examples → advanced patterns
+5. **Code-First:** Working examples before conceptual explanations
+6. **Version Awareness:** Clear versioning in all metadata files
+7. **Integration Ready:** Document MCP integration, Claude plugin integration
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

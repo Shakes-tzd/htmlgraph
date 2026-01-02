@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Deployment Blocked: v0.22.0 Test Failures</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7c5e0f05"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T13:12:21.877966"
+             data-updated="2026-01-02T13:12:21.877972" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Deployment Blocked: v0.22.0 Test Failures</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Deployment Status: BLOCKED
+
+**Target Version**: 0.22.0
+**Feature**: Auto-updating documentation system (feat-bda2afc3)
+**Outcome**: Deployment blocked during pre-flight test phase
+
+### Test Failures (4 total, 1082 passed)
+
+#### 1. test_claude_code_commit_format
+- **Location**: tests/integration/multi_agent/test_agent_quirks.py
+- **Issue**: Feature reference not being parsed from git commit message
+- **Expected**: `feat-c4184185` in commit event payload features list
+- **Actual**: Empty features list `[]`
+- **Commit message format**: "Implements: feat-c4184185"
+
+#### 2. test_codex_inline_feature_refs
+- **Location**: tests/integration/multi_agent/test_agent_quirks.py
+- **Status**: FAILED (similar parsing issue)
+
+#### 3. test_merge_commit_with_multiple_features
+- **Location**: tests/integration/multi_agent/test_agent_quirks.py
+- **Status**: FAILED
+
+#### 4. test_parallel_work_three_agents
+- **Location**: tests/integration/multi_agent/test_git_continuity_spine.py
+- **Status**: FAILED
+
+### Root Cause Analysis
+
+The git continuity spine feature (feat-6285158) introduced a regression in feature reference parsing from git commit messages.
+
+**Symptom**: The `_parse_feature_references()` function returns empty lists when parsing commit messages with feature references.
+
+**Affected patterns**:
+- "Implements: feat-XXXXXX"
+- "feat(XXXXXX): message"
+- Inline references in commit body
+
+### Deployment Script Quality Gates
+
+✅ **Dashboard sync**: Passed
+✅ **Ruff check**: Passed (all checks passed)
+✅ **Ruff format**: Passed (115 files formatted)
+✅ **Mypy type check**: Passed (102 source files, no issues)
+❌ **Test suite**: FAILED (4 failures, 1082 passed, 8 skipped)
+
+**Script behavior**: ✅ CORRECT
+- Deployment properly blocked at test phase
+- No version changes committed (clean state)
+- No PyPI publish attempted with failing tests
+- Quality gates working as designed
+
+### Next Steps
+
+1. **Fix feature reference parsing** in git continuity spine module
+   - File: `src/python/htmlgraph/git_continuity_spine.py`
+   - Function: `_parse_feature_references()`
+   - Review regex patterns for feature ID extraction
+
+2. **Verify fix** with focused test run:
+   ```bash
+   uv run pytest tests/integration/multi_agent/ -v
+   ```
+
+3. **Re-run full test suite** to ensure no regressions:
+   ```bash
+   uv run pytest
+   ```
+
+4. **Re-attempt deployment**:
+   ```bash
+   ./scripts/deploy-all.sh 0.22.0 --no-confirm
+   ```
+
+### Test Suite Summary
+
+- **Total tests**: 1086
+- **Passed**: 1082 (99.6%)
+- **Failed**: 4 (0.4%)
+- **Skipped**: 8 (UI tests, disabled by default)
+
+### Deployment Timeline
+
+- **Started**: 2026-01-02 13:11:22
+- **Blocked at**: Pre-flight test phase
+- **Duration**: ~3 minutes
+- **Clean rollback**: Yes
+
+### Lessons Learned
+
+1. ✅ Quality gates working correctly
+2. ✅ Deployment script properly blocks on test failures
+3. ⚠️ Git continuity spine needs regression testing for parsing logic
+4. ⚠️ Feature reference parsing is critical path functionality
+    
+            </div>
+        </section>
+    </article>
+</body>
+</html>
