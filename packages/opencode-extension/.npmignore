@@ -1,0 +1,30 @@
+# Exclude development files and dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Exclude development scripts and config
+scripts/
+*.test.js
+*.spec.js
+
+# Exclude IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude git
+.git/
+.gitignore
+
+# Keep only necessary files for the extension
+!opencode-extension.json
+!hooks/
+!command_*.md
+!README.md

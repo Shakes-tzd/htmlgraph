@@ -23,7 +23,8 @@
     "opencode-extension.json",
     "hooks/",
     "command_*.md",
-    "README.md"
+    "README.md",
+    "scripts/install.js"
   ],
   "engines": {
     "node": ">=14.0.0"
