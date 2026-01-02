@@ -39,12 +39,12 @@ def finalize_session():
         sdk = SDK(agent="opencode")
 
         # Get active session
-        sessions = sdk.session_manager.get_active_sessions()
-        if not sessions:
-            return {"has_htmlgraph": True, "no_active_session": True}
-
-        session_id = sessions[0].get("id")
-        if not session_id:
+        try:
+            active_session = sdk.session_manager.get_active_session(agent="opencode")
+            if not active_session:
+                return {"has_htmlgraph": True, "no_active_session": True}
+            session_id = active_session.id
+        except Exception:
             return {"has_htmlgraph": True, "no_active_session": True}
 
         # Get handoff context from environment if provided

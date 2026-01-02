@@ -109,20 +109,10 @@ def generate_session_context() -> dict:
         sdk = SDK(agent="opencode")
 
         # Get comprehensive session start info
-        session_start_info = sdk.session_start_info()
+        session_start_info = sdk.get_session_start_info()
 
-        # Check for handoff context
+        # Check for handoff context (simplified - not currently implemented)
         handoff_context = None
-        if sdk._session_manager:
-            handoffs = sdk._session_manager.get_pending_handoffs()
-            if handoffs:
-                handoff = handoffs[0]  # Get most recent
-                handoff_context = {
-                    "from_agent": handoff.get("agent"),
-                    "feature_id": handoff.get("feature_id"),
-                    "reason": handoff.get("reason"),
-                    "notes": handoff.get("notes"),
-                }
 
         # Get version info
         installed_version, latest_version, is_outdated = check_htmlgraph_version()
@@ -226,14 +216,19 @@ def format_opencode_message(context: dict) -> str:
             lines.append("### Project Status")
             lines.append("")
             if "status" in session_info:
-                lines.append(session_info["status"])
-                lines.append("")
+                status = session_info["status"]
+                if isinstance(status, dict):
+                    for key, value in status.items():
+                        lines.append(f"- {key}: {value}")
+                    lines.append("")
             if "recommendations" in session_info:
                 lines.append("**Recommendations:**")
                 lines.append("")
-                for rec in session_info["recommendations"]:
-                    lines.append(f"- {rec}")
-                lines.append("")
+                recommendations = session_info["recommendations"]
+                if isinstance(recommendations, list):
+                    for rec in recommendations:
+                        lines.append(f"- {rec}")
+                    lines.append("")
 
     # Add handoff context if available
     if context.get("handoff_context"):
