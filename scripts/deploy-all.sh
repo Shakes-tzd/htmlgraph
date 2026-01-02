@@ -249,7 +249,6 @@ with open('packages/opencode-extension/package.json', 'w') as f:
             log_success "Updated opencode-extension package.json"
         fi
     fi
-    fi
 
     # Update marketplace.json
     if [ -f ".claude-plugin/marketplace.json" ]; then
