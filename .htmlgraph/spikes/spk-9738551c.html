@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Builder API Standardization Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-9738551c"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T13:55:44.662972"
+             data-updated="2026-01-03T13:55:44.662975" data-spike-type="technical" data-timebox-hours="2">
+
+        <header>
+            <h1>Builder API Standardization Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>2 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Investigation Summary
+
+Conducted comprehensive audit of all Builder classes in src/python/htmlgraph/builders/ to identify method naming inconsistencies.
+
+## Current State: Builder Classes
+
+Found 13 builder classes:
+1. **BaseBuilder** (base.py) - Parent class
+2. **FeatureBuilder** (feature.py)
+3. **SpikeBuilder** (spike.py)
+4. **BugBuilder** (bug.py)
+5. **ChoreBuilder** (chore.py)
+6. **EpicBuilder** (epic.py)
+7. **InsightBuilder** (insight.py)
+8. **MetricBuilder** (metric.py)
+9. **PatternBuilder** (pattern.py)
+10. **PhaseBuilder** (phase.py)
+11. **TrackBuilder** (track.py) - Special case, not extending BaseBuilder
+
+## Method Naming Patterns Discovered
+
+### BaseBuilder (Inherited by All)
+- ✅ **add_step(description)** - ADDITIVE, singular
+- ✅ **add_steps(descriptions)** - ADDITIVE, plural (batch method)
+- ❌ **set_priority(priority)** - REPLACEMENT
+- ❌ **set_status(status)** - REPLACEMENT
+- ❌ **set_description(description)** - REPLACEMENT
+
+### SpikeBuilder - INCONSISTENT
+- ❌ **set_findings(findings)** - REPLACEMENT, singular field
+- ❌ **set_decision(decision)** - REPLACEMENT
+- ❌ **set_spike_type(spike_type)** - REPLACEMENT
+- ❌ **set_timebox_hours(hours)** - REPLACEMENT
+
+### FeatureBuilder - MIXED
+- ❌ **set_required_capabilities(capabilities)** - REPLACEMENT, plural/list
+- ✅ **add_capability_tag(tag)** - ADDITIVE, singular
+- ✅ **add_capability_tags(tags)** - ADDITIVE, plural (batch method)
+
+### BugBuilder - REPLACEMENT ONLY
+- ❌ **set_severity(severity)** - REPLACEMENT
+- ❌ **set_repro_steps(steps)** - REPLACEMENT, plural/list
+- ❌ **set_expected_behavior(expected)** - REPLACEMENT
+- ❌ **set_actual_behavior(actual)** - REPLACEMENT
+- ❌ **set_affected_version(version)** - REPLACEMENT
+- ❌ **set_environment(environment)** - REPLACEMENT
+
+### ChoreBuilder - REPLACEMENT ONLY
+- ❌ **set_chore_type(chore_type)** - REPLACEMENT
+- ❌ **set_recurring(interval_days)** - REPLACEMENT
+- ❌ **set_scope(scope)** - REPLACEMENT
+- ❌ **set_estimated_effort(hours)** - REPLACEMENT
+
+### EpicBuilder - MIXED
+- ✅ **add_child_feature(feature_id)** - ADDITIVE, singular
+- ✅ **add_child_features(feature_ids)** - ADDITIVE, plural (batch method)
+- ❌ **set_target_date(target)** - REPLACEMENT
+- ❌ **set_success_criteria(criteria)** - REPLACEMENT, plural/list
+- ❌ **set_business_value(value)** - REPLACEMENT
+- ❌ **set_stakeholder(stakeholder)** - REPLACEMENT
+
+### InsightBuilder - MIXED
+- ❌ **for_session(session_id)** - REPLACEMENT (setter)
+- ❌ **set_health_scores(...)** - REPLACEMENT
+- ✅ **add_issue(issue)** - ADDITIVE, singular
+- ✅ **add_recommendation(rec)** - ADDITIVE, singular
+- ✅ **add_pattern_match(pattern_id, is_anti)** - ADDITIVE, singular
+
+### MetricBuilder - MIXED
+- ❌ **set_scope(scope, scope_id)** - REPLACEMENT
+- ❌ **set_period(period, start, end)** - REPLACEMENT
+- ❌ **set_metrics(metrics)** - REPLACEMENT, plural/dict
+- ❌ **set_percentiles(percentiles)** - REPLACEMENT, plural/dict
+- ❌ **set_trend(direction, strength, vs_previous_pct)** - REPLACEMENT
+- ✅ **add_session(session_id)** - ADDITIVE, singular
+
+### PatternBuilder - REPLACEMENT ONLY
+- ❌ **set_pattern_type(ptype)** - REPLACEMENT
+- ❌ **set_sequence(sequence)** - REPLACEMENT, plural/list
+- ❌ **set_success_rate(rate)** - REPLACEMENT
+- ❌ **set_recommendation(rec)** - REPLACEMENT
+- ✅ **increment_detection()** - ADDITIVE (special case)
+- ❌ **set_detection_count(count)** - REPLACEMENT
+- ❌ **set_first_detected(dt)** - REPLACEMENT
+- ❌ **set_last_detected(dt)** - REPLACEMENT
+
+### PhaseBuilder - MIXED
+- ❌ **set_phase_number(number)** - REPLACEMENT
+- ❌ **set_start_date(start)** - REPLACEMENT
+- ❌ **set_end_date(end)** - REPLACEMENT
+- ❌ **set_deliverables(deliverables)** - REPLACEMENT, plural/list
+- ✅ **add_milestone(milestone)** - ADDITIVE, singular
+- ✅ **follows(phase_id)** - ADDITIVE (edge relationship)
+- ❌ **set_exit_criteria(criteria)** - REPLACEMENT, plural/list
+
+### TrackBuilder - SPECIAL CASE
+- Does NOT extend BaseBuilder
+- Uses different pattern: builder methods without self-chaining prefix
+- Methods: title(), description(), priority(), with_spec(), with_plan_phases()
+
+## Key Finding: Spike.findings Field Type
+
+**CRITICAL DISCOVERY:**
+- **Spike.findings is `str | None`** (Line 642 in models.py)
+- NOT a dict, NOT a list - it is a simple string field
+- Current API: `.set_findings(findings: str)` is CORRECT for field type
+- However, the USAGE PATTERN in task description shows dict:
+  ```python
+  spike.set_findings({
+      'Current State': '...',
+      'Inconsistencies': '...'
+  })
+  ```
+  This is INCORRECT - it would fail at runtime!
+
+## Pattern Analysis
+
+### REPLACEMENT Pattern (.set_*)
+Used for:
+- Scalar fields (priority, status, severity)
+- Configuration options (spike_type, chore_type)
+- Single-value replacements (findings, decision, description)
+- List fields that should be set atomically (repro_steps, success_criteria, deliverables)
+- Dict fields (metrics, percentiles)
+
+### ADDITIVE Pattern (.add_*)
+Used for:
+- Building up collections incrementally (steps, tags, issues, recommendations)
+- Adding relationships/edges (child_features, milestones)
+- Append-only lists
+
+### HYBRID (Both Patterns)
+Some builders provide both:
+- FeatureBuilder: .set_required_capabilities(list) AND .add_capability_tag(str)
+- EpicBuilder: .set_success_criteria(list) AND .add_child_feature(str)
+
+## Recommendation: NO STANDARDIZATION NEEDED
+
+**DECISION: Current API is CORRECT and INTENTIONAL**
+
+The inconsistency is NOT a bug - it reflects field semantics:
+
+1. **.set_*()** for REPLACEMENT semantics (correct for scalar/atomic fields)
+2. **.add_*()** for ADDITIVE semantics (correct for collections)
+3. Hybrid pattern when both make sense (e.g., set all tags OR add one tag)
+
+**HOWEVER:** The task description contains a BUG:
+```python
+# WRONG - findings is str, not dict!
+spike.set_findings({...})
+
+# CORRECT
+spike.set_findings("""
+Current State: ...
+Inconsistencies: ...
+""")
+```
+
+## Migration Plan
+
+**NO CODE CHANGES NEEDED** - API is correct as-is.
+
+**DOCUMENTATION IMPROVEMENTS:**
+1. Add docstring clarification to BaseBuilder explaining .set_* vs .add_* semantics
+2. Update examples to show correct usage patterns
+3. Add type hints validation (already present via Pydantic)
+
+**BUG FIX:**
+- Fix examples in task descriptions that incorrectly use dict with .set_findings()
+
+            </div>
+        </section>
+        <section data-decision>
+            <h3>Decision</h3>
+            <p>No API changes needed. Current design is intentional and correct. Update documentation to clarify .set_* vs .add_* semantics.</p>
+        </section>
+    </article>
+</body>
+</html>

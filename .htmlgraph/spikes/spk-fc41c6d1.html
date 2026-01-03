@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Multi-AI Delegation Observability - Exploration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-fc41c6d1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T03:57:21.827893"
+             data-updated="2026-01-03T03:57:21.827896" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Multi-AI Delegation Observability - Exploration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Current Architecture
+
+### Server Implementation
+**File:** `src/python/htmlgraph/server.py` (1400+ lines)
+
+- **HTTP API Server:** REST API handler with endpoints for CRUD operations on graph database
+- **Collections:** features, bugs, spikes, chores, epics, sessions, agents, tracks
+- **Analytics Backend:** SQLite index at `.htmlgraph/index.sqlite` (rebuild-on-demand from JSONL events)
+- **Session Integration:** Direct session tracking via `SessionManager` for work item status updates
+- **Events Tracking:** JSONL append-only event log at `.htmlgraph/events/*.jsonl`
+
+**Key Insight:** Server already tracks sessions but NOT delegation events specifically. Sessions are marked `is_subagent: bool` but subagent delegation context is missing from dashboards.
+
+### Event Tracking System
+**Files:** 
+- `src/python/htmlgraph/event_log.py` (EventRecord dataclass)
+- `src/python/htmlgraph/session_manager.py` (SessionManager with track_activity method)
+- `src/python/htmlgraph/hooks/event_tracker.py` (Hook integration)
+
+**EventRecord Fields:**
+- event_id, timestamp, session_id, agent, tool
+- summary, success, feature_id
+- drift_score, start_commit, continued_from
+- work_type, session_status, file_paths, payload
+
+**Current Tracking:**
+- All tool calls (Edit, Bash, Read, Write, etc.)
+- User queries (UserQuery tool)
+- Feature lifecycle events (FeatureStart, FeatureComplete, FeatureCreate)
+- Session lifecycle (SessionStart, SessionEnd)
+- Special activities: StepComplete, WorkItemStatus
+
+**MISSING:** No explicit tracking for:
+- Task() delegations
+- Which AI is being delegated to (Gemini, Codex, Copilot)
+- Delegation status (started, in-progress, completed, failed)
+- Subagent task results/findings
+- Multi-AI cost/time metrics
+
+### Session Model
+**File:** `src/python/htmlgraph/models.py` (Session class)
+
+**Fields:**
+```
+id: str
+agent: str = "claude-code"
+is_subagent: bool = False  ← Key for multi-AI tracking
+status: Literal["active", "ended", "stale"]
+worked_on: list[str]  ← Feature IDs worked on
+continued_from: str | None  ← Session continuity
+```
+
+**Missing Fields:**
+- parent_session_id (links subagent session to orchestrator)
+- task_id (links to Task() delegation)
+- spawned_model (which AI: claude, gemini, codex, copilot)
+- delegation_reason (what was delegated and why)
+- delegation_results_spike_id (where findings are stored)
+
+### Task Coordination
+**File:** `src/python/htmlgraph/orchestration/task_coordination.py`
+
+**Existing Patterns:**
+- `delegate_with_id()` - Generate unique task ID for traceability
+- `get_results_by_task_id()` - Retrieve results from spikes by task ID
+- `save_task_results()` - Save delegation results to spike
+- `parallel_delegate()` - Coordinate multiple parallel tasks
+- `validate_and_save()` - Validate task results before saving
+
+**Key Insight:** Task coordination system EXISTS but:
+- Results are saved to SPIKES (not events)
+- No connection between Task() tool call and subagent session
+- Delegation status flow isn't visible in dashboard
+- Cost/token metrics not tracked
+
+### Dashboard
+**File:** `src/python/htmlgraph/dashboard.html` and `index.html`
+
+**Current Views:**
+- Overall status (total nodes, by status, by priority)
+- Feature analytics (top features, continuity)
+- Session events (analytics/session endpoint)
+- Tool transitions (tool usage patterns)
+- Commits (per feature)
+
+**Missing Views:**
+- Delegation observability view
+- Subagent sessions timeline
+- Multi-AI cost breakdown
+- Task results/findings
+- Delegation status (pending, in-progress, completed)
+
+### Event Tracking in Hooks
+**File:** `src/python/htmlgraph/hooks/event_tracker.py`
+
+**Current Hook Tracking:**
+- PostToolUse: Tracks every tool call with drift detection
+- UserPromptSubmit: Tracks user queries
+- Stop: Tracks session end
+
+**Task() Handling:**
+- Recognized as "parent tool" (creates parent context)
+- Parent activity saved for subsequent child activities
+- Format: `Task (general-purpose): [description...]`
+- No delegation metadata captured
+
+## Current Limitations
+
+### 1. Missing Delegation Events
+**Problem:** Task() calls are treated like any other tool, not as special delegation events.
+
+**Current:** 
+```json
+{
+  "tool": "Task",
+  "summary": "Task (general-purpose): Implement authentication",
+  "feature_id": "feat-auth"
+}
+```
+
+**What's Missing:**
+- Which AI model will execute this?
+- Task ID (for result retrieval)
+- Is this a Gemini/Codex/Copilot spawn?
+- Time to completion
+- Results/findings
+
+### 2. Subagent Session Isolation
+**Problem:** Subagent sessions are created but no link back to parent orchestrator session.
+
+**Current:**
+- `Session.is_subagent = True`
+- `Session.continued_from` (used for session continuity, not delegation)
+
+**Missing:**
+- `parent_orchestrator_session_id`
+- `parent_task_id` (links to specific Task() invocation)
+- `spawner_model` (gemini/codex/copilot/claude)
+- `delegated_at` timestamp
+- `completed_at` timestamp
+
+### 3. Results Not Visible in Dashboard
+**Problem:** Task results are saved to spikes, but:
+- No dashboard view for delegation results
+- No timeline of delegation status
+- No cost tracking
+- No failure detection
+
+**Current Data Flow:**
+```
+Task() call
+    ↓
+Hook captures tool call
+    ↓
+Event logged to JSONL
+    ↓
+Results saved to spike (manual)
+    ↓
+❌ No connection back to original Task()
+```
+
+### 4. Missing Cost & Performance Metrics
+**Problem:** No tracking of:
+- Token usage per delegation
+- Time per AI model
+- Cost breakdown (Claude vs Gemini vs Codex vs Copilot)
+- Success/failure rates by model
+- Retry/re-delegation events
+
+## Data Sources (Current)
+
+1. **Session HTML Files** (`.htmlgraph/sessions/*.html`)
+   - Session metadata, activity log, features worked on
+   - `is_subagent` flag present
+   - Missing: parent session link, spawner model
+
+2. **Event JSONL Files** (`.htmlgraph/events/*.jsonl`)
+   - All tool calls with timestamps
+   - Agent name, tool name, summary
+   - Drift scores, feature attribution
+   - Missing: delegation metadata, model name, task ID
+
+3. **Spike Files** (`.htmlgraph/spikes/*.html`)
+   - Task results (if manually saved)
+   - Findings, recommendations
+   - Missing: structured delegation data
+
+4. **Analytics SQLite Index** (`.htmlgraph/index.sqlite`)
+   - Rebuilt from events on demand
+   - Top tools, tool transitions, continuity
+   - Missing: delegation events schema
+
+## Implementation Approach
+
+### Phase 1: Event Schema Extension (MINIMAL)
+Add delegation fields to EventRecord:
+```python
+@dataclass(frozen=True)
+class EventRecord:
+    # ... existing fields ...
+    
+    # NEW: Delegation context
+    delegated_to_model: str | None = None  # "gemini", "codex", "copilot", "claude"
+    task_id: str | None = None  # Links to task_coordination.task_id
+    parent_task_id: str | None = None  # If this is a child of a Task()
+    delegation_status: str | None = None  # "started", "in-progress", "completed", "failed"
+```
+
+### Phase 2: Hook Integration
+Enhance event_tracker.py to capture Task() delegation:
+```python
+# In format_tool_summary() for Task
+if tool_name == "Task":
+    desc = tool_input.get("description", "")[:50]
+    agent = tool_input.get("subagent_type", "")
+    spawn_model = tool_input.get("model", "claude")  # NEW
+    task_id = generate_unique_task_id()  # NEW
+    return f"Task ({agent}, model={spawn_model}, id={task_id}): {desc}"
+```
+
+### Phase 3: Session Enhancement
+Add delegation fields to Session model:
+```python
+class Session(BaseModel):
+    # ... existing fields ...
+    
+    # NEW: Delegation context
+    parent_session_id: str | None = None
+    spawned_model: str | None = None  # "gemini", "codex", "copilot"
+    parent_task_id: str | None = None
+    delegation_completed_at: datetime | None = None
+    delegation_results_spike_id: str | None = None
+```
+
+### Phase 4: Server API Endpoint
+Add delegation observability endpoint to server.py:
+```python
+GET /api/analytics/delegations
+  Returns:
+  - Total delegations (by model, status, feature)
+  - Recent delegations (with results)
+  - Cost breakdown by model
+  - Success/failure rates
+
+GET /api/analytics/delegations?model=gemini
+GET /api/analytics/delegations?status=in-progress
+GET /api/analytics/delegations?feature_id=feat-123
+```
+
+### Phase 5: Dashboard View
+Add "Delegations" tab to dashboard showing:
+- Timeline of delegations (started, in-progress, completed)
+- Which AI was used (Gemini, Codex, Copilot, Claude)
+- Task description
+- Status indicator
+- Results link
+- Cost/time metrics
+
+### Phase 6: Analytics Index
+Extend SQLite schema to include delegation events:
+```sql
+CREATE TABLE delegations (
+    task_id TEXT PRIMARY KEY,
+    event_id TEXT,
+    timestamp TEXT,
+    orchestrator_session_id TEXT,
+    subagent_session_id TEXT,
+    spawned_model TEXT,
+    status TEXT,
+    feature_id TEXT,
+    results_spike_id TEXT,
+    token_usage INT,
+    duration_seconds INT,
+    cost_usd REAL
+)
+```
+
+## Recommendations
+
+### Immediate (High Impact, Low Effort)
+1. Add task_id to EventRecord - enables result traceability
+2. Capture spawned_model in event_tracker.py - identifies which AI
+3. Link subagent sessions to parent via continued_from - creates session chain
+
+### Short-term (Medium Impact, Medium Effort)
+4. Add delegation endpoint to server API
+5. Dashboard delegation status view
+6. Session linking in HTML (parent_session_id)
+
+### Long-term (High Impact, Higher Effort)
+7. Full analytics schema for delegations
+8. Cost tracking and breakdown
+9. ML-based delegation routing (optimize which AI for which task)
+
+## Why This Matters
+
+**Current State:** When you delegate with Task():
+- ✅ Tool call is logged
+- ✅ Results are manually saved to spike
+- ❌ No visibility into delegation status
+- ❌ No cost tracking
+- ❌ No subagent session linkage
+- ❌ No failure detection
+- ❌ No dashboard view
+
+**After Implementation:** Users will see:
+- ✅ Complete delegation lifecycle (started → in-progress → completed)
+- ✅ Which AI was used (Gemini, Codex, Copilot)
+- ✅ Cost per delegation (tokens × model rate)
+- ✅ Task results with one click
+- ✅ Orchestrator → Subagent session chain
+- ✅ Automatic retry detection
+- ✅ Dashboard timeline with all delegations
+
+## Files to Modify
+
+1. `src/python/htmlgraph/event_log.py` - Add delegation fields to EventRecord
+2. `src/python/htmlgraph/models.py` - Add delegation fields to Session
+3. `src/python/htmlgraph/hooks/event_tracker.py` - Capture delegation metadata
+4. `src/python/htmlgraph/server.py` - Add delegation API endpoint
+5. `src/python/htmlgraph/analytics_index.py` - Add delegation schema
+6. `src/python/htmlgraph/dashboard.html` - Add delegations tab/view
+
+## Missing Pieces Summary
+
+| What | Where | Current | Missing |
+|------|-------|---------|---------|
+| Task() calls | Events | ✅ Logged as tool | ❌ No task ID, model, status |
+| Subagent sessions | Sessions | ✅ is_subagent flag | ❌ No parent link |
+| Delegation results | Spikes | ✅ Manual save | ❌ No automatic linkage |
+| Cost tracking | Events | ❌ Not tracked | ❌ Needs implementation |
+| Dashboard view | Server | ❌ Missing | ❌ Needs implementation |
+| Analytics | SQLite | ✅ Event schema | ❌ No delegation queries |
+    
+            </div>
+        </section>
+    </article>
+</body>
+</html>

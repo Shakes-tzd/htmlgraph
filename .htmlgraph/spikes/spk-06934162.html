@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Feature Creation: Orchestrator CLI Commands</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-06934162"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T00:32:16.304290"
+             data-updated="2026-01-03T00:32:16.304295" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Feature Creation: Orchestrator CLI Commands</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Feature Created
+Feature ID: feat-385e17e2
+
+## Purpose
+Replace SessionStart hook + skill activation with simple CLI commands:
+- `htmlgraph claude --init` (start new orchestrator session)
+- `htmlgraph claude --continue` (resume last orchestrator session)
+
+## Goal
+Eliminate friction of "ACTIVATE SKILL NOW" reminder by building orchestrator directives into htmlgraph package.
+
+## Implementation Steps
+1. Extract orchestrator prompt into `htmlgraph/prompts/orchestrator.txt`
+2. Add CLI commands to `htmlgraph/cli.py`
+3. Use HeadlessSpawner with `--append-system-prompt` flag
+4. Support session continuation via resume functionality
+
+## Benefits
+- Zero-friction onboarding
+- Orchestrator mode is default for interactive sessions
+- Prompt is version-controlled as part of package
+- Available to all htmlgraph users automatically
+
+## Linked Feature
+- feat-385e17e2: Add htmlgraph claude --init/--continue CLI commands
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

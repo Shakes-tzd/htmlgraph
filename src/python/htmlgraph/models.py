@@ -317,6 +317,24 @@ class Node(BaseModel):
             "session_ids": self.context_sessions,
         }
 
+    def to_dict(self) -> dict:
+        """
+        Convert Node to dictionary format.
+
+        This is a convenience alias for Pydantic's model_dump() method,
+        providing a more discoverable API for serialization.
+
+        Returns:
+            dict: Dictionary representation of the Node with all fields
+
+        Example:
+            >>> feature = sdk.features.create("My Feature").save()
+            >>> data = feature.to_dict()
+            >>> print(data['title'])
+            'My Feature'
+        """
+        return self.model_dump()
+
     def to_html(self, stylesheet_path: str = "../styles.css") -> str:
         """
         Convert node to full HTML document.

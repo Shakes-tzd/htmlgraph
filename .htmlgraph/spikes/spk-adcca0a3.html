@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Collection API Patterns Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-adcca0a3"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T12:45:45.056658"
+             data-updated="2026-01-03T12:45:45.056664" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Collection API Patterns Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Collection API Patterns Analysis
+
+### BaseCollection (base.py:1-708)
+- Generic class: BaseCollection[T] using TypeVar bound to itself
+- Lazy-loads graph data on first access via _ensure_graph()
+- Template Method pattern with configurable _builder_class
+
+### Collection Implementations (9 total)
+All inherit from BaseCollection with identical init pattern:
+
+1. FeatureCollection - builder: FeatureBuilder, special: .set_primary()
+2. SpikeCollection - builder: SpikeBuilder, special: .get_latest(agent, limit)
+3. BugCollection - builder: BugBuilder
+4. EpicCollection - builder: EpicBuilder
+5. PatternCollection - builder: PatternBuilder, special: .find_by_sequence(), .get_anti_patterns()
+6. ChoreCollection - builder: ChoreBuilder
+7. PhaseCollection - builder: PhaseBuilder
+8. InsightCollection - builder: InsightBuilder
+9. MetricCollection - builder: MetricBuilder
+
+TodoCollection is UNIQUE - standalone, doesn't inherit BaseCollection, unique API
+
+### Method Naming: .all() vs .list()
+- Django ORM semantics: .all() emphasizes "get ALL items"
+- Pairs naturally with .where() and .filter()
+- More semantic than type-based .list()
+
+### API Methods Summary
+- CRUD: create(title, priority, status, **kwargs), get(id), delete(id), update(node)
+- Query: all(), where(status, priority, track, assigned_to, **filters), filter(predicate)
+- Workflow: start(id), complete(id), claim(id), release(id)
+- Batch: mark_done(ids), assign(ids, agent), batch_update(ids, updates), batch_delete(ids)
+- Edit: edit(id) - context manager with auto-save
+- Pattern-specific: find_by_sequence(), get_optimal_patterns(), get_anti_patterns()
+- Spike-specific: get_latest(agent, limit)
+- Feature-specific: set_primary(id)
+
+### complete() Signature
+def complete(node_id: str, agent: str | None = None, transcript_id: str | None = None) -> Node | None
+
+Behavior: Delegates to SessionManager.complete_feature() if available, falls back to simple status update. Raises NodeNotFoundError if not found.
+
+### Error Handling
+__getattribute__ override (base.py:94-134) provides:
+- Maps common mistakes: mark_complete→mark_done, finish→mark_done, update_status→edit()
+- Suggests similar method names via fuzzy matching
+- Lists available methods (prioritized for usefulness)
+- Directs to sdk.help() for documentation
+
+### API Consistency Issues
+1. TodoCollection: Breaks pattern entirely - standalone, uses .add() not .create(), has .sync_from_todowrite()
+2. TodoCollection.complete(todo_id) naming collision with BaseCollection.complete(node_id)
+3. PatternCollection special methods just wrap .where()
+4. SpikeCollection.get_latest() has timezone normalization logic
+5. Builder imports inconsistent: htmlgraph.builders vs htmlgraph.builders.{type}
+
+### Django ORM Influences
+- .all() method naming
+- .where() for filtering
+- .filter(predicate) for advanced queries
+- Context manager .edit() (similar to transactions)
+- Batch operations pattern
+- Lazy-loading with _ensure_graph()
+
+### Recommendations
+1. Rename TodoCollection.complete() to .mark_complete()
+2. Standardize builder imports across all collection types
+3. Add .where() method stub to TodoCollection with clear explanation
+4. Document timezone handling in SpikeCollection.get_latest()
+5. Consider consolidating PatternCollection special methods
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

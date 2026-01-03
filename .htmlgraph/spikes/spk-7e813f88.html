@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Multi-AI Delegation Observability - Architecture Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7e813f88"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T04:07:36.537991"
+             data-updated="2026-01-03T04:07:36.537996" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Multi-AI Delegation Observability - Architecture Design</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Multi-AI Delegation Observability System
+## Complete Architecture Design for HtmlGraph
+
+## 1. Executive Summary
+
+This design provides full observability for multi-AI delegation workflows in HtmlGraph.
+
+## 2. Delegation Event Schema
+
+### Core Schema: DelegationEvent
+
+Fields:
+- delegation_id: str (unique ID like del-a3f8b29c)
+- task_id: str | None (linked task ID from delegate_with_id)
+- parent_session_id: str (HtmlGraph session that initiated)
+- parent_delegation_id: str | None (for nested delegations)
+- depth: int (nesting depth, 0 = top-level)
+- target_ai: gemini | codex | copilot | claude | haiku
+- model: str | None (specific model)
+- task_description: str
+- prompt_sent: str
+- prompt_tokens: int | None
+- status: pending | running | completed | failed | timeout
+- start_time: datetime
+- end_time: datetime | None
+- duration_seconds: float | None
+- response_text: str | None
+- response_tokens: int | None
+- total_tokens: int | None
+- tool_calls: list[ToolCallRecord] | None
+- error_message: str | None
+- error_type: str | None
+- retry_count: int
+- cost_usd: float | None
+- feature_id: str | None
+- spike_id: str | None
+- raw_output: dict | None
+- cli_command: list[str] | None
+- timeout_seconds: int | None
+
+## 3. Real-Time Tracking System
+
+TrackedHeadlessSpawner wraps HeadlessSpawner to capture lifecycle events:
+1. delegation.started - Before subprocess.run()
+2. delegation.progress - Polling during execution
+3. delegation.completed - After successful result
+4. delegation.failed - On exception or error
+5. delegation.timeout - On TimeoutExpired
+
+## 4. Dashboard Tab Structure
+
+New Delegations tab with 4 views:
+1. Real-Time Status - Active delegations with progress bars
+2. Timeline - Chronological history with filtering
+3. Cost Analytics - Token usage and costs per AI
+4. Results Browser - Full prompt/response visibility
+
+## 5. Data Flow
+
+Claude Orchestrator
+    -> TrackedHeadlessSpawner
+        -> Create DelegationEvent (running)
+        -> Execute HeadlessSpawner (subprocess)
+        -> Update DelegationEvent (completed/failed)
+    -> DelegationStore
+        -> .htmlgraph/delegations/*.json
+        -> .htmlgraph/delegations/_active.json
+    -> Dashboard reads via polling
+
+## 6. Cost Tracking
+
+Pricing per 1K tokens:
+- Gemini 2.0 Flash: /bin/zsh.00 (free tier)
+- Codex GPT-4o-mini: /bin/zsh.00015 input, /bin/zsh.0006 output
+- Claude Haiku: /bin/zsh.0008 input, /bin/zsh.004 output
+- Claude Sonnet: /bin/zsh.003 input, /bin/zsh.015 output
+
+Aggregation levels: Per-delegation, Session, Feature, Daily, AI Model
+
+## 7. Implementation Phases
+
+Phase 1 (Week 1): Basic delegation logging in JSONL
+Phase 2 (Week 2): Real-time status with _active.json
+Phase 3 (Week 3): Dashboard UI with 4 views
+Phase 4 (Week 4): Cost analytics with Chart.js
+Phase 5 (Week 5+): Budget alerts, export, CLI
+
+## 8. SDK Extensions
+
+New methods:
+- sdk.delegations.active() - Get running delegations
+- sdk.delegations.history(session_id, feature_id, target_ai, since, limit)
+- sdk.delegations.get(delegation_id)
+- sdk.delegations.costs(date_range, group_by)
+- sdk.delegations.stats(date_range)
+
+## 9. Edge Cases Handled
+
+- Nested delegations (Claude -> Gemini -> Haiku)
+- Failed delegations with error capture
+- Timeout handling with partial results
+- Concurrent delegations (3+ AIs simultaneously)
+- Historical data (graceful degradation for old sessions)
+
+## 10. Storage Structure
+
+.htmlgraph/
+  delegations/
+    del-*.json          # Individual delegation files
+    _active.json        # Index of active delegations
+    _summary.json       # Daily/weekly aggregates
+  events/
+    sess-*.jsonl        # Extended with delegation events
+  sessions/
+    sess-*.html         # Now includes delegation_ids
+
+## 11. Dashboard Polling
+
+Real-Time Status: 2s interval
+Timeline: 10s interval
+Cost Analytics: 60s interval
+Results Browser: On-demand
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

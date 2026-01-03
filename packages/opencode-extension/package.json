@@ -1,13 +1,19 @@
 {
   "name": "@htmlgraph/opencode-extension",
-  "version": "0.22.0",
+  "version": "0.23.3",
   "description": "HtmlGraph session tracking and workflow extension for OpenCode",
   "main": "opencode-extension.json",
   "scripts": {
     "test": "echo \"No tests specified\"",
     "install": "node scripts/install.js || echo 'Extension installed. Restart OpenCode to activate.'"
   },
-  "keywords": ["opencode", "htmlgraph", "session-tracking", "development-workflow", "ai-agent"],
+  "keywords": [
+    "opencode",
+    "htmlgraph",
+    "session-tracking",
+    "development-workflow",
+    "ai-agent"
+  ],
   "author": "Shakes <shakestzd@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -33,7 +39,6 @@
     "glob": "^10.3.0",
     "fs-extra": "^11.0.0"
   },
-
   "publishConfig": {
     "access": "public"
   }

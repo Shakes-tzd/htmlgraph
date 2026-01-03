@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Node.to_dict() Implementation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bc0f6dac"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T13:48:00.987681"
+             data-updated="2026-01-03T13:48:01.550020" data-spike-type="technical" data-timebox-hours="4">
+
+        <header>
+            <h1>Node.to_dict() Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Implementation Summary
+
+Successfully implemented `Node.to_dict()` method as a convenience alias for Pydantic's `model_dump()`.
+
+### Changes Made
+
+**File: `src/python/htmlgraph/models.py`**
+- Added `to_dict()` method to Node class (after `context_stats()` method, line ~320)
+- Method is a simple wrapper around `model_dump()` with clear docstring
+- Includes usage example in docstring
+
+**File: `tests/test_sdk_api_surface.py`** (new file)
+- Created comprehensive test suite for API surface methods
+- 5 tests covering:
+  1. Basic `to_dict()` functionality on Node/Feature
+  2. Inheritance behavior on Spike subclass
+  3. Session model_dump() (baseline comparison)
+  4. All fields included in output
+  5. JSON serialization compatibility
+
+### Test Results
+
+All tests passing:
+```
+tests/test_sdk_api_surface.py::test_node_to_dict PASSED                  [ 20%]
+tests/test_sdk_api_surface.py::test_spike_to_dict PASSED                 [ 40%]
+tests/test_sdk_api_surface.py::test_session_to_dict PASSED               [ 60%]
+tests/test_sdk_api_surface.py::test_to_dict_contains_all_fields PASSED   [ 80%]
+tests/test_sdk_api_surface.py::test_to_dict_serializable PASSED          [100%]
+
+5 passed in 0.26s
+```
+
+### Quality Gates
+
+All checks passed:
+- ✅ Ruff linting (1 auto-fix applied)
+- ✅ Ruff formatting (3 files reformatted)
+- ✅ Mypy type checking (no issues)
+- ✅ Pytest tests (5/5 passing)
+
+### API Design
+
+The `to_dict()` method provides:
+- **Discoverability**: More intuitive than `model_dump()` for users unfamiliar with Pydantic
+- **Consistency**: Matches common Python conventions (`to_dict()`, `to_json()`, etc.)
+- **Simplicity**: Thin wrapper with clear semantics
+- **Compatibility**: Returns identical output to `model_dump()`
+
+### Usage Example
+
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='example')
+feature = sdk.features.create('My Feature').save()
+
+# New convenience method
+data = feature.to_dict()
+print(data['title'])  # 'My Feature'
+
+# Equivalent to model_dump()
+assert feature.to_dict() == feature.model_dump()
+```
+
+### Future Considerations
+
+This establishes a pattern for adding convenience methods that improve API discoverability without changing underlying Pydantic behavior. Could extend to:
+- `to_json()` - JSON string serialization
+- `from_dict()` - Already exists, could add alias `from_json()`
+
+            </div>
+        </section>
+        <section data-decision>
+            <h3>Decision</h3>
+            <p>Implementation complete and tested. Ready for deployment.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>ElementNode query_one Fix Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e3fff81c"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T05:18:04.288482"
+             data-updated="2026-01-03T05:18:04.288486" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>ElementNode query_one Fix Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# ElementNode query_one Fix - Already Resolved
+
+## Root Cause
+The bug was introduced in commit 7002aa3 (Jan 2, 2026) when pattern detection parsing was added to `html_to_session()` in converter.py.
+
+**Problem**: Code called `query_one()` and `query_all()` methods directly on ElementNode objects returned by justhtml.
+
+**Why it failed**: The `ElementNode` class from justhtml only provides a `query()` method that returns a list. The `query_one()` and `query_all()` methods only exist on the `HtmlParser` wrapper class.
+
+## Fix Applied (Commit bffc0f4 - Jan 3, 2026)
+
+Changed converter.py lines 558-573:
+
+**Before (broken)**:
+```python
+seq_td = tr.query_one("td.sequence")  # AttributeError!
+count_td = tr.query_all("td")[2]      # AttributeError!
+time_td = tr.query_all("td")[3]       # AttributeError!
+```
+
+**After (fixed)**:
+```python
+seq_tds = tr.query("td.sequence")
+seq_td = seq_tds[0] if seq_tds else None
+
+tds = tr.query("td")
+count_td = tds[2] if len(tds) > 2 else None
+time_td = tds[3] if len(tds) > 3 else None
+```
+
+## Files Modified
+- `src/python/htmlgraph/converter.py` (lines 558-573)
+
+## Testing
+Tested with actual session files:
+```bash
+uv run python -c "from htmlgraph.converter import html_to_session; ..."
+```
+
+**Results**: ✅ PASS
+- Successfully loaded session: sess-24a7238b
+- Parsed 13 activity log entries
+- Parsed 4 detected patterns
+- No AttributeError
+
+## Verification
+All converter operations work correctly:
+- ✅ Session HTML parsing
+- ✅ Pattern detection parsing
+- ✅ Activity log parsing
+- ✅ Feature completion workflows
+
+## Key Insight
+The justhtml library provides:
+- `ElementNode.query(selector)` → returns list
+- `HtmlParser.query_one(selector)` → returns first element or None (wrapper convenience)
+
+When iterating over elements from `parser.query()`, must use `.query()` on child elements, not `.query_one()`.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

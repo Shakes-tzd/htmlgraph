@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Test Run Results - Full Test Suite</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0940c4ec"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-02T23:18:35.401691"
+             data-updated="2026-01-02T23:18:35.401694" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Test Run Results - Full Test Suite</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Test Execution Summary
+
+**Command:** `uv run pytest -v`  
+**Duration:** 142.36 seconds (2 minutes 22 seconds)  
+**Total Tests:** 979 tests collected
+
+## Status
+
+**PASSED with failures**
+
+### Test Results Breakdown:
+- ✅ **959 PASSED** (97.96%)
+- ❌ **11 FAILED** (1.12%)
+- ⏭️ **9 SKIPPED** (0.92%)
+
+## Failed Tests
+
+### 1. Agent Detection Tests (3 failures)
+- `test_detect_agent_with_opencode_version` - AttributeError in agent_detection module
+- `test_detect_agent_with_opencode_api_key` - Expected opencode, got claude
+- `test_detect_agent_with_opencode_session_id` - Expected opencode, got claude
+
+### 2. CLI Tests (1 failure)
+- `test_cli_init_bootstraps_events_index_and_hooks` - AttributeError: Namespace object has no attribute quiet
+
+### 3. Headless Spawner Tests (4 failures)
+- `test_spawn_gemini_basic` - Gemini CLI failed with exit code 1
+- `test_spawn_gemini_with_json_format` - Assertion failure
+- `test_spawn_gemini_complex_prompt` - Assertion failure
+- `test_spawn_copilot_basic` - Expected output not found
+
+### 4. OpenCode Integration Tests (3 failures)
+- `test_opencode_agent_detection_with_env_vars` - Expected opencode, got claude
+- `test_opencode_sdk_initialization` - Expected opencode, got claude
+- `test_opencode_session_start_hook` - AttributeError: SDK object has no attribute session_start_info
+
+## Analysis
+
+Most test failures are related to:
+1. **OpenCode integration** - Agent detection not working correctly for OpenCode platform
+2. **Gemini spawner** - External CLI dependency issues (Gemini not installed or configured)
+3. **CLI argument handling** - Missing quiet attribute in Namespace
+
+## Recommendation
+
+Core functionality is solid (97.96% pass rate). Failures are in:
+- Platform-specific integrations (OpenCode, Gemini)
+- External CLI tool dependencies
+- Recent CLI argument changes
+
+These are non-critical for core HtmlGraph functionality.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

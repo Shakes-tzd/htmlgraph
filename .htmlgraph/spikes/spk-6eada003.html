@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Directory Listing Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-6eada003"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T03:34:24.791076"
+             data-updated="2026-01-03T03:34:24.791082" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Directory Listing Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# HtmlGraph Project Directory Structure
+
+## Overview
+The htmlgraph project (v0.23.0) is a lightweight graph database built on web standards (HTML, CSS, JS) for AI agent coordination and human observability.
+
+## Root Directory Organization
+
+### Core Configuration Files
+- **pyproject.toml** - Python package configuration (v0.23.0)
+- **uv.lock** - UV dependency lock file (228 KB)
+- **pytest.ini** - Test configuration
+- **mkdocs.yml** - Documentation site generator config
+- **.gitignore** - Git ignore patterns
+- **.pre-commit-config.yaml** - Pre-commit hook configuration
+- **agents.json** - Agent configuration
+
+### Documentation Files (Root)
+**Platform-Specific Guides:**
+- **CLAUDE.md** - Claude Code integration guide
+- **GEMINI.md** - Gemini AI integration guide  
+- **OPENCODE.md** - OpenCode extension guide
+- **AGENTS.md** - Comprehensive agent documentation (47 KB)
+- **README.md** - Main project README
+
+**Project Documentation:**
+- **PRD.md** - Product Requirements Document (21 KB)
+- **CONTRIBUTING.md** - Contributor guide
+- **CHANGELOG.md** - Version history
+- **INITIAL_PROMPT.md** - Original project prompt
+
+**Orchestrator & Optimization Docs:**
+- **ORCHESTRATOR_SYSTEM_PROMPT_DESIGN.md** (24 KB)
+- **ORCHESTRATOR_IMPLEMENTATION_GUIDE.md** (18 KB)
+- **ORCHESTRATOR_INDEX.md** (15 KB)
+- **ORCHESTRATOR_OPTIMIZATION_INDEX.md** (9.6 KB)
+- **ORCHESTRATOR_EXECUTIVE_SUMMARY.txt** (14 KB)
+- **OPTIMIZATION_ANALYSIS.md** (17 KB)
+- **ROUTING_DECISION_FLOW.md** (15 KB)
+- Plus 8 more orchestrator-related files
+
+**Technical Docs:**
+- **DEBUGGING.md** - Debug workflows (18 KB)
+- **QUERY_COMPILATION_SUMMARY.md** - Query compilation patterns
+- **hook-analysis.md** - Hook system analysis
+- **TOOL_HISTORY_FIX.md** - Tool history improvements
+
+**Release Notes:**
+- RELEASE_NOTES_0.7.0.md through 0.7.3.md
+
+### Directory Structure
+
+####  - Claude Code Integration
+- Hooks, rules, skills for Claude Code integration
+- Orchestration patterns and guidelines
+
+####  - Plugin Marketplace Config
+- Plugin configuration for distribution
+
+####  - Dogfooding Instance
+- **sessions/** - Session tracking (JSONL files)
+- **features/** - Feature work items (HTML nodes)
+- **spikes/** - Research spikes (HTML nodes)
+- **tracks/** - Multi-feature initiatives
+- This directory demonstrates HtmlGraph in use for its own development
+
+####  - Performance Testing
+- query_benchmarks.py - Query performance tests
+
+####  - Web Dashboard
+- index.html, app.js, styles.css - Interactive dashboard
+- README.md - Dashboard documentation
+
+####  - Built Packages
+- htmlgraph-0.23.0-py3-none-any.whl (wheel distribution)
+- htmlgraph-0.23.0.tar.gz (source distribution)
+
+####  - Comprehensive Documentation
+**Subdirectories:**
+- api/ - API reference
+- guide/, guides/, getting-started/ - User guides
+- cookbook/, examples/ - Usage examples
+- design/, philosophy/ - Design principles
+- contributing/ - Contributor docs
+- archive/ - Historical docs
+- BUGS/ - Bug tracking
+
+**Key Files:**
+- ORCHESTRATOR_MODE_GUIDE.md
+- PARALLEL_WORKFLOW.md
+- PLANNING_WORKFLOW.md
+- SDK_ANALYTICS.md
+- OPERATIONS_LAYER.md
+- MIGRATION_GUIDE.md
+- Plus 15+ more architectural docs
+
+####  - Usage Examples
+**Directories:**
+- agent-coordination/ - Multi-agent patterns
+- documentation-site/ - Doc generation
+- knowledge-base/ - Knowledge management
+- todo-list/ - Task management
+
+**Python Scripts:**
+- sdk_demo.py - Basic SDK usage
+- parallel_task_coordination.py - Parallel workflows
+- handoff-demo.py - Agent handoffs
+- routing-demo.py - Agent routing
+- create_auth_track_demo.py - Track creation
+
+####  - Feature Templates
+- HTML files (feat-*.html) - Feature work items
+- note-*.html - Conceptual notes
+
+####  - Distributable Components
+- **claude-plugin/** - Claude Code plugin
+- **gemini-extension/** - Gemini AI extension
+- **opencode-extension/** - OpenCode extension
+- **codex-skill/** - Codex skill integration
+- **git-hooks/** - Git hook integrations
+- **common/** - Shared utilities
+
+####  - Automation Scripts
+**Key Scripts:**
+- **deploy-all.sh** - Full deployment automation
+- **git-commit-push.sh** - Git workflow automation
+- **sync_memory_files.py** - Doc synchronization
+- **generate-docs.sh** - Documentation generation
+- **install-hooks.sh** - Git hook installation
+- **statusline.py** - Status display
+
+**Subdirectories:**
+- hooks/ - Git hook implementations
+- templates/ - Script templates
+
+####  - Generated Documentation Site
+- Built MkDocs site with full documentation
+- Static HTML files organized by topic
+
+####  - Source Code
+- **python/htmlgraph/** - Python package source
+- **js/** - JavaScript utilities
+
+####  - Test Suite
+**Subdirectories:**
+- integration/ - Integration tests
+- operations/ - Operations layer tests
+- python/ - Python unit tests
+- js/ - JavaScript tests
+- benchmarks/ - Performance tests
+
+**Test Files:**
+- test_cli_sdk_parity.py - CLI/SDK consistency
+- test_orchestrator_validator.py - Orchestrator tests
+- test_sdk_operations.py - SDK tests
+- test_deployment_models.py - Deployment tests
+
+####  - Git Worktrees
+- task-0/ through task-3/ - Parallel development worktrees
+
+### Hidden Directories
+- **.git/** - Git repository
+- **.github/** - GitHub workflows
+- **.venv/** - Virtual environment
+- **.mypy_cache/** - Type checking cache
+- **.pytest_cache/** - Test cache
+- **.ruff_cache/** - Linter cache
+- **.uv-cache/** - UV package cache
+- **.playwright-mcp/** - Playwright integration
+- **.contextune/** - Contextual tuning
+- **.parallel/** - Parallel execution
+- **.plans/** - Planning files
+
+### Test & Analysis Scripts (Root)
+- test_*.py - Various test scripts (11 files)
+- analyze_orchestrator_impact*.py - Impact analysis
+- demo_*.py - Demonstration scripts
+- setup_features.py - Feature initialization
+- create_spike.py - Spike generation
+
+### Configuration Files (Root)
+- htmlgraph-aliases.sh - Shell aliases
+- htmlgraph-deploy.toml - Deployment config
+- .env - Environment variables
+
+## File Type Summary
+
+**Documentation:** 40+ markdown files covering all aspects
+**Python Source:** Organized in src/python/htmlgraph/
+**Tests:** Comprehensive test coverage in tests/
+**Examples:** 6 example directories + 8 demo scripts
+**Built Packages:** Current version 0.23.0 in dist/
+**Dashboard:** Interactive HTML/JS/CSS dashboard
+
+## Key Insights
+
+1. **Dogfooding:** Project uses HtmlGraph to develop itself (.htmlgraph/ directory)
+2. **Multi-Platform:** Supports Claude, Gemini, and OpenCode
+3. **Well-Documented:** Extensive docs/ directory + root-level guides
+4. **Orchestration-Focused:** Heavy emphasis on orchestrator patterns and optimization
+5. **Test-Driven:** Comprehensive test suite with benchmarks
+6. **Automation:** Rich scripts/ directory for deployment and workflows
+7. **Modular:** Separate packages/ for different integrations
+8. **Latest Version:** 0.23.0 (built packages in dist/)
+
+## Total Count
+- **68 directories**
+- **142+ files** (excluding hidden directories)
+- **~40 documentation files** in root
+- **~15 test scripts** in root
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 4-6 Implementation Complete: Hooks, Model Selection, CLI Commands</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-8d127d7d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T01:53:10.236087"
+             data-updated="2026-01-03T01:53:10.236094" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Phase 4-6 Implementation Complete: Hooks, Model Selection, CLI Commands</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Implementation Summary
+
+Successfully implemented all Phase 4-6 features for HtmlGraph orchestration infrastructure.
+
+### 1. Enhanced UserPromptSubmit Hook
+- Task classification (exploration, debugging, implementation, quality, general)
+- Skill recommendations based on task type
+- Updated hook output includes task_type and recommended_skill fields
+
+### 2. Model Selection Module (orchestration/model_selection.py)
+- 3-dimensional decision matrix: (task_type, complexity, budget) → model
+- Fallback chains for model resilience
+- Token estimation for cost planning
+- Support for: Gemini, Claude (Haiku/Sonnet/Opus), Codex, Copilot
+
+### 3. Claude CLI Commands
+- `htmlgraph claude` - Start Claude Code
+- `htmlgraph claude --init` - Start with orchestrator system prompt
+- `htmlgraph claude --continue` - Resume last session
+- Proper error handling and user feedback
+
+### Files Modified
+- .claude/hooks/scripts/user-prompt-submit.py (enhanced)
+- src/python/htmlgraph/cli.py (added claude command + handler)
+- src/python/htmlgraph/orchestration/__init__.py (updated exports)
+
+### Files Created
+- src/python/htmlgraph/orchestration/model_selection.py (300+ lines)
+- IMPLEMENTATION_SUMMARY.md (documentation)
+
+### Testing
+✓ All components verified working
+✓ Hook processes prompts correctly
+✓ Model selection returns appropriate models
+✓ CLI commands parse and dispatch correctly
+✓ Integration with orchestration system complete
+
+### Integration Points
+- Works with existing HeadlessSpawner
+- Compatible with SDK task coordination
+- Hooks into Claude Code workflows
+- Supports multi-AI orchestration
+
+### Production Ready
+All components tested and integrated. No outstanding issues.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

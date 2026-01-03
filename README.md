@@ -218,6 +218,7 @@ MIT
 ## Links
 
 - [GitHub](https://github.com/Shakes-tzd/htmlgraph)
+- [API Reference](docs/API_REFERENCE.md) - Complete SDK API documentation
 - [Documentation](docs/) - SDK guide, workflows, development principles
 - [Examples](examples/) - Real-world usage examples
 - [PyPI](https://pypi.org/project/htmlgraph/)

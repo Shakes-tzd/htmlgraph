@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Multi-AI Delegation Observability - Architecture Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b74fd325"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T04:07:50.917430"
+             data-updated="2026-01-03T04:07:50.917434" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Multi-AI Delegation Observability - Architecture Design</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Multi-AI Delegation Observability System
+
+## 1. Executive Summary
+
+Full observability for multi-AI delegation workflows in HtmlGraph.
+
+## 2. Delegation Event Schema
+
+Fields: delegation_id, task_id, parent_session_id, parent_delegation_id, depth, target_ai, model, task_description, prompt_sent, prompt_tokens, status, start_time, end_time, duration_seconds, response_text, response_tokens, total_tokens, tool_calls, error_message, error_type, retry_count, cost_usd, feature_id, spike_id, raw_output, cli_command, timeout_seconds
+
+## 3. Real-Time Tracking
+
+TrackedHeadlessSpawner wraps HeadlessSpawner to capture: delegation.started, delegation.progress, delegation.completed, delegation.failed, delegation.timeout
+
+## 4. Dashboard Views
+
+1. Real-Time Status - Active delegations with progress
+2. Timeline - Chronological history
+3. Cost Analytics - Token usage per AI
+4. Results Browser - Full prompt/response visibility
+
+## 5. Implementation Phases
+
+Phase 1: Basic logging | Phase 2: Real-time status | Phase 3: Dashboard UI | Phase 4: Cost analytics | Phase 5: Advanced features
+
+## 6. SDK Extensions
+
+sdk.delegations.active(), sdk.delegations.history(), sdk.delegations.costs(), sdk.delegations.stats()
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

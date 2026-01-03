@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Prevent Incomplete Systematic Changes</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="epc-de85467f"
+             data-type="epic"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-03T07:07:01.552034"
+             data-updated="2026-01-03T07:07:01.552037">
+
+        <header>
+            <h1>Prevent Incomplete Systematic Changes</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Phase 1: Immediate Guardrails - Pre-commit hook for systematic changes</li>
+                <li data-completed="false">⏳ Phase 2: Workflow Documentation - Document systematic change process in RULES.md</li>
+                <li data-completed="false">⏳ Phase 3: Automation Tools - Create scripts for find-and-replace verification</li>
+                <li data-completed="false">⏳ Phase 4: Test Coverage - Require tests that would catch incomplete migrations</li>
+                <li data-completed="false">⏳ Phase 5: Code Review Checklist - Add systematic change checklist to PR template</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>**Problem**: The query_one/query_all migration (commit bffc0f4) claimed to be complete but only fixed 3 of 17 instances, leaving 14 unfixed. This caused production errors.
+
+**Root Causes**:
+1. No verification that ALL instances were found
+2. No pre-commit checks for systematic changes  
+3. No documentation of systematic change workflow
+4. Manual search/replace prone to human error
+
+**Goal**: Implement guardrails and automation to ensure systematic changes are always complete.
+
+**Success Metrics**:
+- Zero incomplete migrations in future commits
+- Automated detection of systematic change patterns
+- Clear workflow documented and enforced
+- Pre-commit verification catches incomplete changes
+
+**Examples of Systematic Changes**:
+- API refactoring (rename methods, change signatures)
+- Module/class renaming
+- Import path changes
+- Data model migrations
+- Deprecation removals</p>
+        </section>
+    </article>
+</body>
+</html>

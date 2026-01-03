@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>CLAUDE.md Restoration - Complete Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a1ab7fd5"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T03:24:33.254863"
+             data-updated="2026-01-03T03:24:33.254866" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>CLAUDE.md Restoration - Complete Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Restoration Summary
+
+### What Was Restored
+
+**Added 3 New Sections (44 lines):**
+
+1. **Debugging Workflow Section** (lines 63-75)
+   - Quick reference to research-first philosophy
+   - Built-in debug tools (claude --debug, /hooks, /doctor)
+   - Reference to `/debugging-workflow` skill
+
+2. **Memory Sync Section** (lines 78-88)
+   - Commands for documentation synchronization
+   - Reference to deployment.md rules
+   - Reference to `/memory-sync` skill
+
+3. **Project vs General Tooling Clarity** (lines 97-110)
+   - Explains dual nature: Package development + Dogfooding
+   - Clarifies what belongs in CLAUDE.md vs Plugin/Skills
+   - Progressive disclosure pattern explanation
+
+### File Statistics
+
+- **Before**: 89 lines (v0.23.0 optimized)
+- **After**: 133 lines (restored + clarity)
+- **Net change**: +44 lines (+49% increase)
+- **Previous version**: 788 lines (pre-optimization)
+- **Optimization retained**: 83% reduction from original (788 → 133)
+
+### What Stayed in Skills (Progressive Disclosure)
+
+**✅ Kept delegated to skills:**
+- Full orchestrator directives → `/orchestrator-directives` skill
+- Complete code quality workflow → `/code-quality` skill
+- Detailed deployment workflow → `/deployment-automation` skill
+- Full debugging methodology → `/debugging-workflow` skill
+- Memory sync details → `/memory-sync` skill
+- Multi-AI orchestration patterns → `/multi-ai-orchestration` skill
+
+### What's Now in CLAUDE.md (Project-Specific)
+
+**✅ Project development essentials:**
+1. **Quick Commands Table** - HtmlGraph-specific commands
+2. **Code Quality** - Mandatory quality gates before commit
+3. **Deployment** - deploy-all.sh workflow
+4. **Debugging** - Research-first philosophy + debug tools
+5. **Memory Sync** - Documentation synchronization
+6. **Dogfooding Context** - Using HtmlGraph to build HtmlGraph
+7. **Clarity Section** - Project vs General distinction
+
+### Verification Against Requirements
+
+**All `.claude/rules/*.md` files referenced?**
+- ✅ orchestration.md - Referenced in "Orchestrator Mode" + Rules Reference
+- ✅ code-hygiene.md - Referenced in "Code Quality" + Rules Reference
+- ✅ deployment.md - Referenced in "Deployment" + Rules Reference
+- ✅ debugging.md - Referenced in "Debugging Workflow" + Rules Reference
+- ✅ dogfooding.md - Referenced in "Dogfooding" + Rules Reference
+
+**Deployment workflow clear?**
+- ✅ Command present: `./scripts/deploy-all.sh 0.9.4 --no-confirm`
+- ✅ Reference to `/deployment-automation` skill
+- ✅ Reference to `deployment.md` rules file
+
+**Code quality gates documented?**
+- ✅ Commands present: ruff, mypy, pytest
+- ✅ Reference to `/code-quality` skill
+- ✅ Reference to `code-hygiene.md` rules file
+
+**Debugging methodology present?**
+- ✅ Research-first philosophy stated
+- ✅ Debug tools listed (claude --debug, /hooks, /doctor)
+- ✅ Reference to `/debugging-workflow` skill
+- ✅ Reference to `debugging.md` rules file
+
+**Memory sync documented?**
+- ✅ Commands present: `uv run htmlgraph sync-docs`
+- ✅ Reference to `/memory-sync` skill
+- ✅ Reference to `deployment.md` rules file (contains sync docs)
+
+**Project-specific content complete?**
+- ✅ Deployment workflow (HtmlGraph package)
+- ✅ Testing workflow (pytest, ruff, mypy)
+- ✅ Debugging methodology (research-first)
+- ✅ Memory sync (documentation consistency)
+- ✅ Dogfooding context (dual usage)
+- ✅ Quick commands table (project-specific)
+- ✅ Clarity section (Project vs General)
+
+### Structure Analysis
+
+**CLAUDE.md now follows optimal pattern:**
+```
+1. Header + Documentation References
+2. Project Vision (brief)
+3. Orchestrator Mode (reference to skill)
+4. Code Quality (command + skill reference)
+5. Deployment (command + skill reference)
+6. Quick Commands (project-specific table)
+7. Debugging Workflow (NEW - command + skill reference)
+8. Memory Sync (NEW - command + skill reference)
+9. Dogfooding (brief context)
+10. Project vs General (NEW - clarity section)
+11. Skills Reference (table with all skills)
+12. Rules Reference (links to all .claude/rules/*.md)
+```
+
+**Progressive Disclosure Working:**
+- ✅ CLAUDE.md = Quick reference (133 lines)
+- ✅ Skills = Detailed workflows (loaded on-demand)
+- ✅ Rules files = Complete documentation (5 files)
+- ✅ AGENTS.md = SDK reference (comprehensive)
+
+### Optimization Maintained
+
+**Original problem (v0.23.0 addressed):**
+- Before optimization: 788 lines of mixed content
+- Issue: General patterns + project-specific mixed together
+- Solution: Move general patterns to skills
+
+**Current state:**
+- ✅ General patterns in skills (orchestration, multi-AI, etc.)
+- ✅ Project-specific in CLAUDE.md (deployment, testing, etc.)
+- ✅ Progressive disclosure maintained (skills loaded on-demand)
+- ✅ 83% reduction in size (788 → 133 lines)
+- ✅ Clarity improved with explicit "Project vs General" section
+
+### Impact Assessment
+
+**For HtmlGraph Package Developers:**
+- ✅ All project-specific workflows documented
+- ✅ Clear references to detailed docs
+- ✅ Quick commands readily available
+- ✅ No need to search through 788 lines
+
+**For HtmlGraph Users (via skills):**
+- ✅ General patterns still in skills
+- ✅ Progressive disclosure maintained
+- ✅ No pollution of project-specific content
+- ✅ Skills remain reusable across projects
+
+**For AI Agents:**
+- ✅ Concise quick reference (133 lines fits easily in context)
+- ✅ Clear navigation to detailed docs
+- ✅ Project vs General distinction explicit
+- ✅ All mandatory workflows covered
+
+## Conclusion
+
+**Status: ✅ COMPLETE - All objectives achieved**
+
+The restoration successfully:
+1. ✅ Added missing project-specific sections (Debugging, Memory Sync)
+2. ✅ Added clarity section (Project vs General distinction)
+3. ✅ Maintained optimization (83% reduction from original)
+4. ✅ Preserved progressive disclosure (skills on-demand)
+5. ✅ Verified all rules files referenced
+6. ✅ Ensured all project workflows documented
+7. ✅ Kept general patterns in skills (reusable)
+
+**The optimized CLAUDE.md (v0.23.0+) is now complete and serves as an effective quick reference for HtmlGraph package development.**
+    
+            </div>
+        </section>
+    </article>
+</body>
+</html>

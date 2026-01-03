@@ -1145,47 +1145,16 @@ htmlgraph feature start <feature-id>
 **Action required:** Coordinate with other agents or choose a different feature.
 """)
 
-    # Add PROMINENT skill activation instruction at the very top
-    skill_activation = """🚨🚨🚨 MANDATORY FIRST STEP 🚨🚨🚨
+    # Session continuity instructions (minimal - no forced skill activation)
+    context_parts.append("""## Session Continuity
 
-**STOP - ACTIVATE ORCHESTRATOR SKILL NOW**
+Greet the user with a brief status update:
+- Previous session summary (if any)
+- Current feature progress
+- What remains to be done
+- Ask what they'd like to work on next
 
-Before reading ANYTHING else, execute this EXACT command:
-
-```python
-Skill(skill="htmlgraph")
-```
-
-This is NON-NEGOTIABLE. The skill provides:
-- Orchestrator delegation patterns
-- Work item management workflow
-- Task execution templates
-- Strategic context preservation
-
-DO NOT proceed without activating the skill first.
-
-🚨🚨🚨 ACTIVATE THE SKILL NOW 🚨🚨🚨
-
----
-"""
-
-    context_parts.insert(0, skill_activation)  # Insert at very beginning
-
-    context_parts.append("""## Session Continuity & Checklist
-
-**After activating the orchestrator skill above:**
-1. **Follow the Session Workflow Checklist** from the skill
-2. Greet the user with a brief status update:
-   - Previous session summary (if any)
-   - Current feature progress
-   - What remains to be done
-   - Ask what they'd like to work on next
-
-The orchestrator skill ensures:
-- Strict delegation over direct execution
-- Work item creation before implementation
-- Quality checks and validation
-- Proper testing workflow
+**Note:** Orchestrator directives are loaded via system prompt. Skills activate on-demand when needed.
 """)
 
     context = "\n\n---\n\n".join(context_parts)

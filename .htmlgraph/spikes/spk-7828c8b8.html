@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Claude Spawner Usage Verification Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7828c8b8"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T00:03:47.683028"
+             data-updated="2026-01-03T00:03:47.683034" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Claude Spawner Usage Verification Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## HeadlessSpawner Analysis: Usage Verification Capabilities
+
+### Location & Implementation
+File: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/orchestration/headless_spawner.py`
+
+HeadlessSpawner (lines 434-566) is a multi-AI spawner supporting Gemini, Codex, Copilot, and Claude Code in headless mode.
+
+### Claude-Specific Methods
+**Method**: `spawn_claude(prompt, output_format="json", permission_mode="bypassPermissions", resume=None, verbose=False, timeout=300)`
+
+**CLI Options Supported for Claude**:
+- `-p` / `--prompt`: Task description
+- `--output-format`: "text" or "json" (default: json)
+- `--permission-mode`: bypassPermissions|acceptEdits|dontAsk|default|plan|delegate
+- `--resume`: Resume from previous session (optional)
+- `--verbose`: Enable verbose output (optional)
+
+### Usage Verification Capabilities: NEGATIVE RESULT
+**CAN IT VERIFY CURRENT CLAUDE USAGE?** NO
+
+**Why It Cannot Verify Usage**:
+1. Spawner designed for task execution only, not administration
+2. No CLI options to call `claude usage`, `claude quota`, or `claude verify` commands
+3. Can only capture per-execution metrics:
+   - Token count (input + cache + output)
+   - Cost per call (total_cost_usd)
+4. Cannot access cumulative usage or quota information
+
+**Per-Execution Tracking Available**:
+```python
+usage = output.get("usage", {})
+tokens = (
+    usage.get("input_tokens", 0)
+    + usage.get("cache_creation_input_tokens", 0)
+    + usage.get("cache_read_input_tokens", 0)
+    + usage.get("output_tokens", 0)
+)
+cost = output.get("total_cost_usd")
+```
+
+### Recent CLI Enhancements (Commit 5b097a0)
+Added comprehensive option support to all AI spawners:
+- Claude: resume, verbose options
+- Gemini: model, include_directories, color
+- Codex: 11 options (sandbox, full_auto, working_directory, etc)
+- Copilot: tool permission controls
+
+### Workaround If Usage Verification Needed
+Would require:
+1. New method: `verify_claude_usage()` with subprocess.run(["claude", "usage"])
+2. Extend CLI support beyond task execution to admin commands
+3. Separate parsing for admin vs execution output
+
+### Design Philosophy
+Headless spawner emphasizes execution isolation:
+- Each call is independent
+- No shared context between calls
+- No administrative/quota access
+- Per-call token/cost tracking only
+
+### Conclusion
+The spawner cannot verify current Claude usage. It can only track tokens and costs per individual execution, not cumulative usage or quotas.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

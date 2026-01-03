@@ -71,7 +71,19 @@ class BaseCollection(Generic[CollectionT]):
         self._graph: HtmlGraph | None = None  # Lazy-loaded
 
     def _ensure_graph(self) -> HtmlGraph:
-        """Get the graph for this collection, using SDK's shared instances where available."""
+        """
+        Get or initialize the graph for this collection.
+
+        Uses SDK's shared graph instances where available to avoid creating
+        multiple graph objects for the same collection. Creates a new instance
+        for unrecognized collections.
+
+        Returns:
+            HtmlGraph instance for this collection
+
+        Note:
+            This method is lazy - the graph is only loaded on first access.
+        """
         if self._graph is None:
             # Use SDK's shared graph instances to avoid multiple graph objects
             if self._collection_name == "features" and hasattr(self._sdk, "_graph"):
@@ -92,7 +104,21 @@ class BaseCollection(Generic[CollectionT]):
         return self._graph
 
     def __getattribute__(self, name: str) -> Any:
-        """Override to provide helpful error messages for missing attributes."""
+        """
+        Override attribute access to provide helpful error messages.
+
+        When an attribute doesn't exist, provides suggestions for common
+        mistakes and similar method names to improve discoverability.
+
+        Args:
+            name: Attribute name being accessed
+
+        Returns:
+            The requested attribute
+
+        Raises:
+            AttributeError: With helpful suggestions if attribute not found
+        """
         try:
             return object.__getattribute__(self, name)
         except AttributeError as e:
@@ -134,7 +160,15 @@ class BaseCollection(Generic[CollectionT]):
             raise AttributeError(error_msg) from e
 
     def __dir__(self) -> list[str]:
-        """Return attributes with most useful ones first for discoverability."""
+        """
+        Return attributes with most useful ones first.
+
+        Orders attributes to show commonly-used methods first in auto-complete
+        and help() output, improving discoverability for new users.
+
+        Returns:
+            List of attribute names, ordered by priority then alphabetically
+        """
         priority = [
             # Creation and retrieval
             "create",
@@ -518,12 +552,14 @@ class BaseCollection(Generic[CollectionT]):
         """
         Start working on a node (feature/bug/etc).
 
-        Delegates to SessionManager to:
+        Delegates to SessionManager if available for smart tracking:
         1. Check WIP limits
         2. Ensure not claimed by others
         3. Auto-claim for agent
         4. Link to active session
         5. Log 'FeatureStart' event
+
+        Falls back to simple status update if SessionManager not available.
 
         Args:
             node_id: Node ID to start
@@ -534,6 +570,10 @@ class BaseCollection(Generic[CollectionT]):
 
         Raises:
             NodeNotFoundError: If node not found
+
+        Example:
+            >>> sdk.features.start('feat-abc123')
+            >>> sdk.features.start('feat-xyz', agent='claude')
         """
         agent = agent or self._sdk.agent
 
@@ -566,13 +606,16 @@ class BaseCollection(Generic[CollectionT]):
         transcript_id: str | None = None,
     ) -> Node | None:
         """
-        Complete a node.
+        Mark a node as complete.
 
-        Delegates to SessionManager to:
-        1. Update status
+        Delegates to SessionManager if available for event logging and
+        transcript linking:
+        1. Update status to 'done'
         2. Log 'FeatureComplete' event
         3. Release claim (optional behavior)
         4. Link transcript if provided (for parallel agent tracking)
+
+        Falls back to simple status update if SessionManager not available.
 
         Args:
             node_id: Node ID to complete
@@ -585,6 +628,10 @@ class BaseCollection(Generic[CollectionT]):
 
         Raises:
             NodeNotFoundError: If node not found
+
+        Example:
+            >>> sdk.features.complete('feat-abc123')
+            >>> sdk.features.complete('feat-xyz', agent='claude', transcript_id='trans-123')
         """
         agent = agent or self._sdk.agent
 
@@ -615,10 +662,12 @@ class BaseCollection(Generic[CollectionT]):
         """
         Claim a node for an agent.
 
-        Delegates to SessionManager to:
+        Delegates to SessionManager if available for ownership tracking:
         1. Check ownership rules
         2. Update assignment
         3. Log 'FeatureClaim' event
+
+        Falls back to simple assignment if SessionManager not available.
 
         Args:
             node_id: Node ID to claim
@@ -631,6 +680,10 @@ class BaseCollection(Generic[CollectionT]):
             ValueError: If agent not provided and SDK has no agent
             NodeNotFoundError: If node not found
             ClaimConflictError: If node already claimed by different agent
+
+        Example:
+            >>> sdk.features.claim('feat-abc123')
+            >>> sdk.features.claim('feat-xyz', agent='claude')
         """
         agent = agent or self._sdk.agent
         if not agent:
@@ -665,10 +718,12 @@ class BaseCollection(Generic[CollectionT]):
         """
         Release a claimed node.
 
-        Delegates to SessionManager to:
+        Delegates to SessionManager if available for ownership tracking:
         1. Verify ownership
         2. Clear assignment
         3. Log 'FeatureRelease' event
+
+        Falls back to simple assignment clearing if SessionManager not available.
 
         Args:
             node_id: Node ID to release
@@ -679,6 +734,10 @@ class BaseCollection(Generic[CollectionT]):
 
         Raises:
             NodeNotFoundError: If node not found
+
+        Example:
+            >>> sdk.features.release('feat-abc123')
+            >>> sdk.features.release('feat-xyz', agent='claude')
         """
         # SessionManager.release_feature requires an agent to verify ownership
         agent = agent or self._sdk.agent

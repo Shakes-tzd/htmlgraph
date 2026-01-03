@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Complete query_one migration to query method</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-5b046f3d"
+             data-type="bug"
+             data-status="done"
+             data-priority="critical"
+             data-created="2026-01-03T06:28:28.323994"
+             data-updated="2026-01-03T06:28:28.681068">
+
+        <header>
+            <h1>Complete query_one migration to query method</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-529faa2c.html" data-relationship="implemented-in" data-since="2026-01-03T06:28:28.681049">sess-529faa2c</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Search for all remaining query_one instances</li>
+                <li data-completed="true">✅ Replace with safe query() pattern</li>
+                <li data-completed="true">✅ Search for all remaining query_all instances</li>
+                <li data-completed="true">✅ Replace with query() method</li>
+                <li data-completed="true">✅ Run tests to verify fix</li>
+                <li data-completed="true">✅ Verify no more query_one/query_all remain</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Previous commit bffc0f4 only partially fixed the query_one issue.
+
+Error in production:
+AttributeError: ElementNode object has no attribute query_one
+
+Remaining instances found:
+- parser.py: 8 instances (lines 83, 203, 209, 228, 366, 384, 389, 409)
+- converter.py: 6 instances (lines 398, 468, 485, 493, 495, 502)
+
+Need to replace ALL query_one() calls with query() method.
+Pattern: element.query_one("sel") → element.query("sel")[0] if element.query("sel") else None
+        </section>
+    </article>
+</body>
+</html>

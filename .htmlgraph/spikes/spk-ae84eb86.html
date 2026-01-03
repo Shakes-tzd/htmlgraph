@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Sonnet: Spawner Agents Implementation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-ae84eb86"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T01:52:19.962734"
+             data-updated="2026-01-03T01:52:19.962739" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Sonnet: Spawner Agents Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Agents Created
+
+Created three spawner agents in .claude/agents/:
+
+1. **gemini-spawner** - Google Gemini 2.0-Flash spawner
+   - FREE tier optimization (2M tokens/minute)
+   - Multimodal capabilities (images, PDFs, audio)
+   - Use cases: Exploratory research, batch operations, cost-sensitive workflows
+   - Fallback: Haiku (cheaper than Sonnet)
+
+2. **codex-spawner** - OpenAI Codex (GPT-4) spawner
+   - Sandbox mode selection (read-only, workspace-write, danger-full-access)
+   - Structured outputs with JSON schema validation
+   - Use cases: Code generation, isolated execution, tool restrictions
+   - Fallback: Sonnet (more reliable)
+
+3. **copilot-spawner** - GitHub Copilot spawner
+   - Fine-grained tool permissions (allowlist/denylist)
+   - GitHub-native integration (issues, PRs, actions)
+   - Use cases: GitHub workflows, git operations, tool-restricted tasks
+   - Fallback: Sonnet with gh CLI
+
+## Fallback Strategies
+
+All spawners implement automatic fallback pattern:
+1. Attempt spawn via HeadlessSpawner
+2. Parse result and check success
+3. If failure, log error details
+4. Fallback to appropriate Claude model via Task()
+   - Gemini → Haiku (cost-efficient)
+   - Codex → Sonnet (more reliable)
+   - Copilot → Sonnet (with gh CLI if needed)
+
+## Code Pattern
+
+Each spawner follows consistent structure:
+```python
+from htmlgraph.orchestration import HeadlessSpawner
+
+spawner = HeadlessSpawner()
+result = spawner.spawn_X(prompt, **options)
+
+if result.success:
+    # Process successful result
+    print(result.response)
+    print(result.tokens_used)
+else:
+    # Fallback to Task()
+    Task(prompt=..., subagent_type=...)
+```
+
+## Testing Results
+
+Verification steps:
+- ✅ All three AGENT.md files created in .claude/agents/
+- ✅ Consistent structure (Purpose, Workflow, Use Cases, Code Pattern, Error Handling)
+- ✅ HeadlessSpawner API usage documented correctly
+- ✅ Fallback strategies clearly defined
+- ✅ Integration with HtmlGraph SDK shown
+
+## Key Features
+
+**Gemini Spawner:**
+- FREE tier optimization (2M tokens/min)
+- include_directories for context
+- output_format: json/stream-json
+- Cost comparison table
+
+**Codex Spawner:**
+- 3 sandbox modes (read-only, workspace-write, danger-full-access)
+- output_schema for structured outputs
+- full_auto mode for execution
+- image inputs for multimodal
+
+**Copilot Spawner:**
+- Tool permission patterns (allowlist/denylist)
+- GitHub-specific features (issues, PRs, actions)
+- Glob-style pattern matching
+- Lightweight execution
+
+## Documentation Quality
+
+Each agent provides:
+- Clear purpose and activation criteria
+- Step-by-step workflow
+- Real code examples
+- Error handling patterns
+- Use case scenarios
+- HtmlGraph integration examples
+- Success metrics
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

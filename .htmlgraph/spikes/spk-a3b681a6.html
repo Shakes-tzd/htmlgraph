@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Multi-AI Delegation Observability - Architecture Exploration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a3b681a6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T03:58:48.132940"
+             data-updated="2026-01-03T03:58:48.132945" data-spike-type="architectural" data-timebox-hours="2">
+
+        <header>
+            <h1>Multi-AI Delegation Observability - Architecture Exploration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Architectural</dd>
+                <dt>Timebox</dt>
+                <dd>2 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Multi-AI Delegation Observability - Architecture Exploration
+
+## Current Architecture
+
+### Event Tracking System
+**Location**: `src/python/htmlgraph/event_log.py` + `hooks/event_tracker.py`
+
+**Current Event Data** (EventRecord):
+- `event_id`: Unique event identifier
+- `timestamp`: When event occurred
+- `session_id`: Claude Code session
+- `agent`: Agent name (currently only "claude-code")
+- `tool`: Tool name (Edit, Bash, Read, Task, etc.)
+- `summary`: Human-readable summary
+- `success`: Boolean success flag
+- `feature_id`: Attributed feature
+- `drift_score`: Activity alignment score
+- `start_commit`: Git commit at session start
+- `continued_from`: Previous session if continued
+- `work_type`: WorkType enum (feature-implementation, spike-investigation, etc.)
+- `session_status`: Session state (active, ended, stale)
+- `file_paths`: Array of files touched
+- `payload`: Optional rich payload data
+
+**Storage**: JSONL append-only logs in `.htmlgraph/events/` (one file per session)
+
+### Session Management
+**Location**: `src/python/htmlgraph/session_manager.py`
+
+**Current Session Tracking**:
+- Tracks Claude Code sessions only
+- Stores: agent, status, started_at, last_activity, event_count, activity_log, worked_on features
+- HTML serialization with metadata attributes (data-agent, data-status, data-event-count)
+- Links to "worked-on" features via edges
+- Supports: transcript linking, claim tracking, handoff management
+
+### Task() Delegation Tracking
+**Location**: `hooks/event_tracker.py` (lines 352-360)
+
+**Current Status**: 
+- Task() tool calls ARE tracked (tool="Task")
+- Summary format: `"Task (subagent_type): description[:50]"`
+- NO tracking of:
+  - Which specific AI model was spawned (Claude, Gemini, Codex, Copilot)
+  - Task delegation status (in-progress, completed, failed)
+  - Results/findings from delegation
+  - Cost/token metrics
+  - Execution time
+
+### Model Selection System
+**Location**: `src/python/htmlgraph/orchestration/model_selection.py`
+
+**Available Models** (decision matrix):
+- Gemini (free tier) - exploration tasks
+- Codex (OpenAI) - implementation tasks
+- Copilot (GitHub) - fallback option
+- Claude Haiku/Sonnet/Opus - fallback chains
+
+**NOT tracked in events**: Which model was selected or used
+
+### Spawner Implementation
+**Location**: `src/python/htmlgraph/orchestration/headless_spawner.py`
+
+**Available Spawners**:
+- `spawn_gemini()` - Google Gemini in headless mode
+- `spawn_codex()` - OpenAI Codex in headless mode
+- `spawn_copilot()` - GitHub Copilot in headless mode
+- `spawn_claude()` - Claude Code in headless mode
+
+**Not currently tracked in HtmlGraph**:
+- Spawner invocation events
+- Which spawner was used for Task() delegations
+- Results from spawner execution
+- Cost/performance metrics
+
+### Dashboard
+**Location**: `src/python/htmlgraph/dashboard.html` (1500+ lines)
+
+**Current Views**:
+- Session list with event counts
+- Feature/work item graphs
+- Activity timelines
+- Feature status tracking
+- Agent information
+
+**Missing Views**:
+- Delegation timeline/waterfall
+- Multi-AI execution chains
+- Model selection decisions
+- Task status tracking
+- Parallel task coordination visualization
+
+## What's Currently Tracked vs Missing
+
+### ✅ Currently Tracked
+1. **Basic delegation events**: Task() tool calls logged with summary
+2. **Session metadata**: Agent, status, timestamps
+3. **Activity attribution**: Features linked to sessions
+4. **Tool counts**: Event log aggregates by tool type
+5. **Drift detection**: Activities scored for feature alignment
+
+### ❌ Not Currently Tracked
+1. **Delegated AI model**: Which AI is executing the task
+2. **Task metadata**:
+   - Subagent type
+   - Model selection rationale
+   - Budget mode (free/balanced/quality)
+   - Complexity classification
+3. **Task execution**:
+   - Status transitions (pending → running → completed/failed)
+   - Start time of actual execution
+   - Completion time and duration
+   - Exit code or failure reason
+4. **Task results**:
+   - Findings/output from delegated task
+   - Token usage estimates
+   - Cost implications
+   - Validation status
+5. **Coordination data**:
+   - Task IDs for parallel tracking
+   - Parent-child task relationships
+   - Result polling/retrieval patterns
+6. **Performance metrics**:
+   - Execution time per AI
+   - Cost per model
+   - Success rates by model
+   - Model selection effectiveness
+
+## Data Sources for Delegation
+
+### Where Delegation Data Lives
+1. **Hook events**: `.htmlgraph/events/{session_id}.jsonl`
+   - Current: Tool name and summary only
+   - Missing: AI selection, status, results
+
+2. **Task coordination**: `htmlgraph/orchestration/task_coordination.py`
+   - Task ID generation for traceability
+   - Result retrieval pattern (polling HtmlGraph spikes)
+   - Missing: Log these operations to events
+
+3. **Spike findings**: `.htmlgraph/spikes/*.html`
+   - Where Task() results are saved
+   - Missing: Link back to original delegation event
+
+4. **Model selection**: Not logged anywhere
+   - Decision matrix exists (model_selection.py)
+   - Missing: Log which model was selected and why
+
+5. **Spawner results**: Process-level, not tracked
+   - HeadlessSpawner executes AI CLIs
+   - Missing: Capture results into HtmlGraph
+
+## Implementation Approach
+
+### Phase 1: Enhanced Event Data
+**Extend EventRecord** in `event_log.py`:
+```python
+@dataclass(frozen=True)
+class EventRecord:
+    # ... existing fields ...
+    
+    # Delegation fields
+    delegated_to_ai: str | None = None          # "gemini", "codex", "copilot", "claude"
+    task_id: str | None = None                  # For parallel task tracking
+    parent_task_id: str | None = None           # For hierarchical tasks
+    task_status: str | None = None              # "pending", "running", "completed", "failed"
+    model_selected: str | None = None           # "claude-haiku", "gemini-2.0-flash", etc.
+    complexity_level: str | None = None         # "low", "medium", "high"
+    budget_mode: str | None = None              # "free", "balanced", "quality"
+    execution_start: datetime | None = None     # When delegated task actually started
+    execution_duration_seconds: float | None = None
+    tokens_estimated: int | None = None
+    tokens_actual: int | None = None
+    cost_estimate_cents: float | None = None
+    task_findings: str | None = None            # Summary of delegated task results
+```
+
+### Phase 2: Hook Integration
+**Update event_tracker.py** to capture:
+1. Task() invocations:
+   - Parse subagent_type to infer AI model
+   - Generate task_id for tracking
+   - Log to events immediately
+
+2. Model selection decisions:
+   - Intercept orchestration calls
+   - Log which model was selected and rationale
+
+3. Task completion:
+   - Create listener for spike creation
+   - Link spike findings back to original event
+   - Update task_status to "completed"
+
+### Phase 3: Session Manager Updates
+**Extend Session** model to track:
+1. Delegated tasks list (task_ids)
+2. AI usage breakdown (models used count)
+3. Total tokens/cost for session
+
+### Phase 4: Dashboard Enhancements
+**Add delegation observability views**:
+
+1. **Delegation Timeline**:
+   - Horizontal timeline of Task() invocations
+   - Color-coded by AI model (Gemini=green, Claude=blue, etc.)
+   - Status indicators (pending, running, done, failed)
+   - Hover shows task details
+
+2. **AI Execution Waterfall**:
+   - Parallel task view
+   - Task dependencies and sequencing
+   - Execution duration per task
+   - Model used per task
+
+3. **Model Selection Analytics**:
+   - Cost breakdown by model
+   - Token usage by model
+   - Success rate by model
+   - Task complexity distribution
+
+4. **Task Status Table**:
+   - Task ID, description, AI, status
+   - Start/duration
+   - Results snippet
+   - Link to spike findings
+
+### Phase 5: SDK Integration
+**Add to SDK** in `sdk.py`:
+1. `sdk.delegations.list()` - Get all delegated tasks
+2. `sdk.delegations.by_model("gemini")` - Filter by AI
+3. `sdk.delegations.analytics()` - Cost/performance breakdown
+4. `sdk.delegations.track_execution(task_id, status)` - Manual tracking
+
+## Data Schema for Dashboard
+
+### DelegationEvent (extends Event)
+```json
+{
+  "event_id": "evt-abc123",
+  "timestamp": "2026-01-03T10:30:00Z",
+  "session_id": "sess-xyz789",
+  "tool": "Task",
+  "delegated_to_ai": "gemini",
+  "task_id": "task-a3f8b29c",
+  "parent_task_id": null,
+  "model_selected": "gemini-2.0-flash",
+  "complexity_level": "medium",
+  "budget_mode": "balanced",
+  "task_status": "completed",
+  "execution_start": "2026-01-03T10:30:05Z",
+  "execution_duration_seconds": 42,
+  "tokens_estimated": 2500,
+  "tokens_actual": 2187,
+  "cost_estimate_cents": 2.50,
+  "task_findings": "Research completed. Found 3 OAuth patterns..."
+}
+```
+
+### TaskCoordination (new table/index)
+```json
+{
+  "task_id": "task-a3f8b29c",
+  "session_id": "sess-xyz789",
+  "parent_task_id": null,
+  "description": "Research OAuth providers",
+  "subagent_type": "general-purpose",
+  "ai_model": "gemini",
+  "status": "completed",
+  "created_at": "2026-01-03T10:30:00Z",
+  "started_at": "2026-01-03T10:30:05Z",
+  "completed_at": "2026-01-03T10:30:47Z",
+  "spike_id": "spk-findings123",
+  "dependencies": [],
+  "cost_cents": 2.40,
+  "tokens_used": 2187
+}
+```
+
+## Missing Pieces Summary
+
+1. **No AI identification in events** - Can't tell which model executed a Task()
+2. **No task status tracking** - Don't know if delegation succeeded until spike appears
+3. **No result linking** - Spike findings not connected to original Task() event
+4. **No cost tracking** - Can't analyze AI spending by model
+5. **No parallel task visibility** - No dashboard for multiple simultaneous delegations
+6. **No model selection rationale** - Don't track why certain models were chosen
+7. **No performance metrics** - Can't compare model effectiveness
+8. **No failure tracking** - Spawner errors not logged to HtmlGraph
+
+## Recommendations
+
+### Quick Wins (Low effort, high value)
+1. Add `delegated_to_ai` field to EventRecord on Task() calls
+2. Parse subagent_type to infer AI model (Gemini → "gemini", etc.)
+3. Add task_id to event payload for parallel task tracking
+4. Log spike_id when results are saved
+
+### Medium Effort (High value)
+1. Create TaskCoordination index in analytics_index
+2. Add delegation status tracking in hooks
+3. Parse HeadlessSpawner results into HtmlGraph
+4. Add model selection decision logging
+
+### Long Term
+1. Build dashboard delegation timeline view
+2. Implement task result linking
+3. Add cost/performance analytics
+4. Create orchestration quality gates view
+
+## Affected Files
+
+### To Modify
+- `event_log.py` - Add delegation fields to EventRecord
+- `hooks/event_tracker.py` - Parse Task() and update delegation tracking
+- `session_manager.py` - Link delegations to sessions
+- `orchestration/headless_spawner.py` - Return structured results
+- `orchestration/task_coordination.py` - Log task state changes
+- `dashboard.html` - Add delegation views
+- `analytics_index.py` - Add TaskCoordination table
+
+### Key Integration Points
+1. Hook: When Task() is called → Log delegated_to_ai + task_id
+2. Hook: When spike is created → Link to original Task() event
+3. SDK: Delegation methods for querying and tracking
+4. Dashboard: Delegation timeline and status views
+
+## Testing Strategy
+
+1. **Unit tests**: EventRecord with delegation fields
+2. **Integration tests**: Task() tracking through hook chain
+3. **Dashboard tests**: Render delegation timeline with sample data
+4. **E2E test**: Full delegation flow (Task → Spike → Dashboard)
+
+## Success Metrics
+
+- Users can see when and to which AI a task was delegated
+- Users can track task status from Task() invocation to completion
+- Users can analyze cost and performance by AI model
+- Dashboard shows parallel task execution clearly
+- Spike findings are linked back to original delegation
+
+            </div>
+        </section>
+        <section data-decision>
+            <h3>Decision</h3>
+            <p>
+Implement phased approach:
+1. Phase 1-2: Enhance EventRecord and hook tracking
+2. Phase 3-4: Dashboard delegation views
+3. Phase 5: SDK integration and analytics
+
+Start with Phase 1 (event data) as foundation for all downstream work.
+</p>
+        </section>
+    </article>
+</body>
+</html>

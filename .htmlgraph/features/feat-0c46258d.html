@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Standardize Builder API methods (.add_* vs .set_*)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-0c46258d"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-01-03T13:06:32.875143"
+             data-updated="2026-01-03T13:55:51.220525">
+
+        <header>
+            <h1>Standardize Builder API methods (.add_* vs .set_*)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-0ceb50b7.html" data-relationship="implemented-in" data-since="2026-01-03T13:06:33.293220">sess-0ceb50b7</a></li>
+                    <li><a href="sess-1df3ae6e.html" data-relationship="implemented-in" data-since="2026-01-03T13:55:51.220514">sess-1df3ae6e</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-01-03T13:55:50.904024">2026-01-03T13:55:50.904024</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'sess-1df3ae6e', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 1.0, 'issues': ['Low tool diversity'], 'recommendations': ['Consider using more specialized tools'], 'test_runs': [], 'test_summary': None, 'summary': '✓ Session completed cleanly'}">{'session_id': 'sess-1df3ae6e', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 1.0, 'issues': ['Low tool diversity'], 'recommendations': ['Consider using more specialized tools'], 'test_runs': [], 'test_summary': None, 'summary': '✓ Session completed cleanly'}</dd>
+<dt>Insight Id</dt>
+                <dd data-key="insight_id" data-value="insi-fc620c67">insi-fc620c67</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Audit all Builder classes for method naming patterns</li>
+                <li data-completed="false">⏳ Document current state: FeatureBuilder.add_step() vs SpikeBuilder.set_findings()</li>
+                <li data-completed="false">⏳ Investigate findings field structure in Spike model</li>
+                <li data-completed="false">⏳ Decide on standard: .add_* (additive) vs .set_* (replacement)</li>
+                <li data-completed="false">⏳ Create spike documenting decision rationale</li>
+                <li data-completed="false">⏳ Implement standardization across all builders</li>
+                <li data-completed="false">⏳ Update tests to reflect new API</li>
+                <li data-completed="false">⏳ Update documentation with correct method names</li>
+                <li data-completed="false">⏳ Run quality gates: ruff, mypy, pytest</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Standardize Builder API method naming for consistency.
+
+**Why**: Inconsistent naming - FeatureBuilder.add_step() vs SpikeBuilder.set_findings()
+**Investigation needed**: Understand findings field structure and why different pattern
+**Goal**: Consistent API across all builders
+
+Related: Discovered during bug-ba4cedc6 investigation
+        </section>
+    </article>
+</body>
+</html>

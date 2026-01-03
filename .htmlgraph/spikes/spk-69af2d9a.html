@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Git automation scripts analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-69af2d9a"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T12:40:51.472570"
+             data-updated="2026-01-03T12:40:51.472576" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Git automation scripts analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Git Automation Scripts Analysis
+
+### Scripts Found
+1. git-commit-push.sh - Main git workflow automation
+2. deploy-all.sh - Complete deployment orchestration (9 steps)
+3. install-hooks.sh - Pre-commit hook installation
+4. sync_plugin_to_local.py - Plugin synchronization tool
+
+Supporting files:
+- scripts/hooks/pre-commit - Pre-commit hook implementation
+- scripts/README.md - Complete documentation
+
+### git-commit-push.sh Capabilities
+Purpose: Reduce git workflow from 3 commands to 1
+- Stages all changes (git add -A)
+- Commits with provided message
+- Pushes to origin/current-branch
+- Shows file summary before proceeding
+- Supports --dry-run (preview mode)
+- Supports --no-confirm (non-interactive)
+- Supports --help (usage info)
+
+Location: /Users/shakes/DevProjects/htmlgraph/scripts/git-commit-push.sh
+
+### deploy-all.sh Capabilities
+Purpose: Automate complete release workflow (git push to PyPI to plugin updates)
+
+Pre-flight checks:
+  - Code quality (ruff lint, ruff format, mypy, pytest)
+  - Plugin sync verification
+
+Deployment steps (9 total):
+  0. Update and commit version numbers in all files
+  1. Push to git with tags
+  2. Build Python package (wheel + source)
+  3. Publish to PyPI
+  4. Install locally
+  5. Update Claude plugin
+  6. Update Gemini extension
+  7. Update Codex skill (if present)
+  8. Create GitHub release
+
+Supports flexible modes:
+  - --no-confirm (non-interactive)
+  - --docs-only (git only, skip build/publish)
+  - --build-only (build only, skip git/publish)
+  - --skip-pypi (build but don't publish)
+  - --skip-plugins (skip extension updates)
+  - --dry-run (preview mode)
+
+Location: /Users/shakes/DevProjects/htmlgraph/scripts/deploy-all.sh
+
+### install-hooks.sh Capabilities
+Purpose: Install git pre-commit hooks for code quality
+
+Installs from: scripts/hooks/ → .git/hooks/
+
+Pre-commit hook runs:
+  - ruff check (linting)
+  - ruff format --check (formatting)
+  - mypy (type checking)
+
+Blocks commits if any check fails
+
+Features:
+  - Backs up existing hooks
+  - Makes hooks executable
+  - Git repo validation
+
+Location: /Users/shakes/DevProjects/htmlgraph/scripts/install-hooks.sh
+
+### sync_plugin_to_local.py Capabilities
+Purpose: Keep packages/claude-plugin → .claude in sync
+
+Syncs:
+  - Hook scripts (hooks/scripts/*.py)
+  - Hook configuration (hooks/hooks.json)
+  - Skills (skills/*/SKILL.md)
+  - Config files (config/*.json, config/*.md)
+
+Supports:
+  - --check (check sync status)
+  - --dry-run (preview changes)
+  - Default mode (perform sync)
+
+Integration: Automatically called by deploy-all.sh
+
+Location: /Users/shakes/DevProjects/htmlgraph/scripts/sync_plugin_to_local.py
+
+### Orchestrator Integration
+git-commit-push.sh includes explicit note for orchestrator delegation:
+"ORCHESTRATOR NOTE: This script should be called via Task delegation, 
+not executed directly. See CLAUDE.md "Git Delegation" section."
+
+This aligns with orchestration.md rules that ALL git operations must be delegated.
+
+Pattern: Delegate to subagent with error handling for:
+- Pre-commit hook failures
+- Push conflicts
+- Authentication issues
+- Test failures in hooks
+
+### Code Quality Enforcement
+Pre-commit hook (scripts/hooks/pre-commit):
+- Runs automatically before every commit
+- Checks: ruff lint, ruff format, mypy type checking
+- Blocks commits that fail any check
+- Uses uv run for Python execution consistency
+
+Benefits:
+  - Prevents low-quality code from being committed
+  - Catches errors early (before push)
+  - Enforces project standards automatically
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

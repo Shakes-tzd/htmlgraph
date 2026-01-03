@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SessionStart Hook Fix - Remove Forced Skill Activation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-63acde71"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T02:58:57.276969"
+             data-updated="2026-01-03T02:58:57.276975" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>SessionStart Hook Fix - Remove Forced Skill Activation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Problem Identified
+
+The SessionStart hook was forcing skill activation on every session start:
+- Lines 1149-1172 in both .claude/hooks/scripts/session-start.py and packages/claude-plugin/hooks/scripts/session-start.py
+- Forced activation of Skill(skill="htmlgraph") or Skill(skill="htmlgraph-orchestrator")
+- This loaded 15-20KB of skill content upfront, defeating progressive disclosure optimization
+
+## Changes Made
+
+### Files Modified
+1. .claude/hooks/scripts/session-start.py
+2. packages/claude-plugin/hooks/scripts/session-start.py
+
+### What Changed
+REMOVED:
+- Forced skill activation section (lines 1148-1172)
+- "MANDATORY FIRST STEP" warning with Skill() call
+- "After activating the orchestrator skill above" checklist
+
+REPLACED WITH:
+- Minimal session continuity section
+- Note that orchestrator directives load via system prompt
+- Note that skills activate on-demand when needed
+
+## Context Reduction
+
+Before fix:
+- SessionStart hook forced skill activation
+- Total context: ~15-20 KB
+- Included full skill content on every session start
+
+After fix:
+- No forced skill activation
+- Actual context: 12.0 KB (measured)
+- 40% reduction from estimated 20KB max
+- Skills now activate progressively on keywords
+
+## Verification Results
+
+✅ No forced skill activation in output
+✅ Orchestrator directives still present (via inline text, not skill)
+✅ Progressive disclosure note added
+✅ Session tracking functionality preserved
+✅ Active feature display working
+✅ Strategic recommendations working
+
+## Architecture Alignment
+
+This fix aligns with the v0.23.0 optimization:
+1. System prompt (226 tokens) - Loaded via --append-system-prompt
+2. SessionStart hook (12KB) - Minimal context only
+3. Skills - Load on-demand via keywords (progressive disclosure)
+
+Total upfront context: System prompt + SessionStart = ~15KB (down from 35KB)
+
+## Files Modified
+
+1. /Users/shakes/DevProjects/htmlgraph/.claude/hooks/scripts/session-start.py
+   - Removed lines 1148-1189 (forced skill activation)
+   - Added minimal session continuity section (lines 1148-1158)
+
+2. /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/hooks/scripts/session-start.py
+   - Same changes (plugin version)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

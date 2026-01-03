@@ -1,0 +1,149 @@
+# ORCHESTRATOR QUICK REFERENCE (Ultra-Condensed)
+
+**Core:** Delegation > Direct Execution. Every tool call can fail (needs 2-3 retry attempts). Delegation isolates failure to subagent.
+
+---
+
+## DECISION: Execute or Delegate?
+
+Q: Strategic (planning/design/decisions)?         → YES: Execute directly
+Q: Can do in one tool call?                      → YES: Execute directly
+Q: Needs error handling or retries?              → YES: Delegate
+Q: Can cascade to 3+ calls?                      → YES: Delegate
+Q: Independent parallel work?                    → YES: Spawn (not Task)
+Otherwise                                        → Task() (shared context)
+
+---
+
+## SPAWNER ROUTING (Fast)
+
+**Code gen/fix/debug?**         → spawn_codex (sandbox="workspace-write")
+**Image/screenshot analysis?**  → spawn_gemini (include_directories=[])
+**GitHub/PR/git work?**         → spawn_copilot (allow_tools=["shell(git)"])
+**Quick validation/check?**     → spawn_gemini (default, cheap)
+**Complex reasoning/strategy?** → spawn_claude (permission_mode="plan")
+
+**Special:** Parallel 10+ items → spawn_gemini concurrent | Mixed workflow → Sequence different spawners
+
+---
+
+## TASK() vs SPAWN_*
+
+Task() = Dependent steps + Shared context + Cache hits = 5x cheaper
+Spawn = Independent work + Parallel execution = Faster completion
+
+Rule: Feature impl (3+ steps) → Task(). Parallel analysis (10+ files) → spawn_gemini.
+
+---
+
+## COST RANKING (Cheap to Expensive)
+
+1. spawn_gemini (quick analysis, parallel)
+2. Task() (sequential, cached)
+3. spawn_codex (code work)
+4. spawn_copilot (GitHub ops)
+5. spawn_claude (reasoning)
+
+---
+
+## ROUTING EXAMPLES (Copy-Paste)
+
+❌ "Fix the null pointer in auth.py"
+✓ spawn_codex("Fix null pointer at line X in auth.py", sandbox="workspace-write")
+
+❌ "Analyze 20 security configs"
+✓ with ThreadPoolExecutor() as ex: [ex.submit(spawn_gemini, f"Check {f}") for f in configs]
+
+❌ "Implement auth + write tests + update docs"
+✓ Task("Implement auth flow. Add tests. Update docs. All dependent steps.")
+
+❌ "Design the microservices architecture"
+✓ spawn_claude("Design microservices arch", permission_mode="plan")
+
+---
+
+## PERMISSION MODES (spawn_claude only)
+
+plan (default for strategy) = Generate plan without executing
+delegate = Auto-approve delegated work
+bypassPermissions = Auto-approve all (dangerous)
+acceptEdits = Auto-approve edits only
+dontAsk = Fail on any permission
+default = Interactive (slow)
+
+---
+
+## HTMLGRAPH TRACKING
+
+```python
+# 1. Create feature
+feature = sdk.features.create("OAuth impl").add_steps(["Research", "Code", "Test"]).save()
+
+# 2. Delegate with ID
+task_id, prompt = delegate_with_id("OAuth", "Add JWT...", "general-purpose")
+result = Task(prompt=prompt, description=f"{task_id}: OAuth")
+
+# 3. Save results
+sdk.spikes.create(f"Result: {task_id}").set_findings(result).save()
+```
+
+---
+
+## WHEN TO SPAWN (Examples)
+
+USE Task()            USE spawn_*
+─────────────────────────────────────
+Impl + test + doc    | Analyze 20 files
+Feature + feature    | Code review + strategic
+Step 1 → Step 2      | Independent research
+Sequential chain     | Parallel analysis
+
+---
+
+## QUICK DECISION
+
+User asks "fix this bug"?         → spawn_codex
+User asks "what's next"?          → Execute directly (planning)
+User asks "implement feature"?    → Task() (sequential)
+User asks "analyze screenshot"?   → spawn_gemini
+User asks "design architecture"?  → spawn_claude
+
+---
+
+## ANTI-PATTERNS (Avoid These)
+
+❌ 8+ sequential tool calls
+❌ Lost context between operations
+❌ Untracked delegated work
+❌ Spawner choice doesn't match task type
+❌ No error handling in delegations
+
+---
+
+## SUCCESS METRICS
+
+✓ Delegation reduces calls by 5-8x
+✓ Parallel work faster than sequential
+✓ Strategic context preserved (≥90%)
+✓ All work tracked in HtmlGraph
+✓ Can explain why each choice made
+
+---
+
+## CHEAT SHEET: WHICH SPAWNER?
+
+| I want to... | Use | Setting |
+|--------------|-----|---------|
+| Fix a bug | spawn_codex | sandbox="workspace-write" |
+| Analyze code for issues | spawn_gemini | include_directories=["src/"] |
+| Check if JSON is valid | spawn_gemini | (default) |
+| Review a PR | spawn_copilot | allow_tools=["read(*.py)", "shell(git)"] |
+| Design something | spawn_claude | permission_mode="plan" |
+
+---
+
+**Remember:** One tool can fail 3 ways (error, timeout, rejection). Delegation handles retries. Direct execution cascades failures.
+
+Use this page + decision tree above = 95% of orchestration decisions covered.
+
+For full details, see ORCHESTRATOR_OPTIMIZED.md (1850 tokens) or orchestrator-system-prompt.txt (2295 tokens).

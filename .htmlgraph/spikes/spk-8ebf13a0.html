@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Node API Surface Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-8ebf13a0"
+             data-type="spike"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-03T12:47:08.062025"
+             data-updated="2026-01-03T12:47:08.062028" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Node API Surface Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Find Node class definition</li>
+                <li data-completed="false">⏳ Analyze methods and API surface</li>
+                <li data-completed="false">⏳ Document serialization support</li>
+                <li data-completed="false">⏳ Identify fluent API gaps</li>
+                <li data-completed="false">⏳ Propose enhancements</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>## Node Class API Surface Analysis
+
+### 1. Node Class Location
+- **File**: src/python/htmlgraph/models.py
+- **Line**: 127 (class definition)
+- **Base Class**: pydantic.BaseModel
+- **Status**: Base class for Node, Spike, Chore, Pattern, SessionInsight, AggregatedMetric
+
+### 2. Instance Methods (22+ methods)
+
+#### Data Management
+- add_edge(edge: Edge) - Add relationship to another node
+- complete_step(index: int, agent) - Mark step as completed
+- record_context_usage(session_id, tokens, peak, cost) - Track context usage
+- context_stats() -> dict - Get context usage metrics
+- get_edges_by_type(relationship) -> list[Edge] - Query edges by type
+
+#### Serialization
+- to_html(stylesheet_path) -> str - Generate full HTML document
+- to_context() -> str - Lightweight context for AI agents (50-100 tokens)
+- Inherited from Pydantic: model_dump(), model_dump_json()
+- from_dict(data) - classmethod, Create from dict with nested object handling
+
+#### Properties
+- completion_percentage -> int - Progress from steps
+- next_step -> Step | None - First incomplete step
+- blocking_edges -> list[Edge] - Gets blocked_by + blocks edges
+
+### 3. Class Methods
+- from_dict(cls, data) - Create Node from dictionary
+  - Converts edge dicts to Edge objects
+  - Converts step dicts to Step objects
+  - Handles nested structure conversion properly
+
+### 4. Pydantic Integration (Automatic)
+- model_dump() - Inherited Pydantic method to dict
+- model_dump_json() - Inherited Pydantic method to JSON
+- model_construct() - Inherited Pydantic method for fast creation
+- model_validate_json() - Inherited Pydantic method from JSON
+- No __getattr__ or __getattribute__ overrides
+
+### 5. Serialization Support
+
+#### Current Implementation
+- to_html(): Full document generation with all metadata as data-* attributes
+- to_context(): Lightweight agent-friendly format (100 tokens)
+- from_dict(): Proper deserialization with nested object handling
+- Pydantic model_dump(): Automatic dict conversion
+
+### 6. Fluent API Analysis
+
+#### Current Fluent Methods (in builders, NOT on Node)
+BaseBuilder provides fluent interface:
+- set_priority(priority) -> Self
+- set_status(status) -> Self
+- add_step(description) -> Self
+- add_steps(descriptions) -> Self
+- set_description(description) -> Self
+- blocks(node_id) -> Self
+- blocked_by(node_id) -> Self
+- set_track(track_id) -> Self
+- complete_and_handoff(reason, notes, next_agent) -> Self
+- save() -> Node (returns the created Node instance)
+
+#### Why .complete() is NOT on Node instances
+Design Decision: State changes delegate to Collections
+- Collections.complete(node_id) - Instance method on collections
+  - Handles status update
+  - Logs FeatureComplete event
+  - Releases claim if configured
+  - Links transcript for parallel tracking
+- Pattern: Node instances are data models, state changes via collections
+- Why: Centralized event logging, ownership validation, audit trail
+
+#### Gap Identified
+- No instance method like node.set_status() or node.mark_complete()
+- Must use builder pattern or directly mutate node then call collection.update()
+- No fluent API on Node itself (by design - promotes immutability)
+
+### 7. Key Design Patterns
+
+#### 1. Builder Pattern for Creation
+- BaseBuilder handles fluent API
+- Specialized builders (FeatureBuilder, etc.) extend with type-specific methods
+- builder.save() returns Node instance
+
+#### 2. Collection-Based State Management
+- Collections (sdk.features, sdk.bugs, etc.) own state changes
+- collections.complete(node_id) - Not node.complete()
+- collections.claim(node_id) - Not node.claim()
+- Enables centralized logging and validation
+
+#### 3. Separation of Concerns
+- Node = Data model (Pydantic BaseModel)
+- Builder = Creation with fluent API
+- Collection = State management and operations
+- Converter = HTML to Node serialization
+
+#### 4. Immutability Through Design
+- Node instances from HTML should not be modified directly
+- Changes go through collections which trigger events
+- Promotes proper audit trails and consistency
+
+### 8. Recommended Enhancements
+
+1. Add explicit to_dict() method for better discoverability
+2. Improve builder method documentation
+3. Document immutability pattern in docstrings
+4. Consider read-only query methods on Node
+
+### 9. Usage Patterns
+
+Building:
+feature = sdk.features.create("User Auth").set_priority("high").add_steps(["Step 1"]).save()
+
+Modifying:
+sdk.features.complete(feature.id)
+
+Serialization:
+html = feature.to_html()
+context = feature.to_context()
+data = feature.model_dump()
+node = Node.from_dict(data)
+
+### 10. Summary
+
+Node API Surface: Compact and intentional
+- Data model with serialization methods
+- NOT a state machine (no mutation methods)
+- Builder pattern for fluent creation
+- Collections handle state changes + logging
+
+Strengths:
+- Clear separation of concerns
+- Immutability enforced through design
+- Proper event logging via collections
+- Flexible serialization (HTML, dict, context)
+
+Gaps:
+- No explicit to_dict() method
+- No instance state-change methods (by design)
+- Could use better documentation
+- Discovery issues due to Builder being separate
+</p>
+        </section>
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

@@ -8,6 +8,12 @@ Usage:
     htmlgraph status [--dir DIR]
     htmlgraph query SELECTOR [--dir DIR]
 
+Claude Code Integration:
+    htmlgraph claude                    # Start Claude Code
+    htmlgraph claude --init             # Start with orchestrator system prompt (recommended)
+    htmlgraph claude --continue         # Resume last Claude Code session (with plugin loaded)
+    htmlgraph claude --dev              # Start in development mode (load plugin from packages/)
+
 Session Management:
     htmlgraph session start [--id ID] [--agent AGENT]
     htmlgraph session end ID [--notes NOTES] [--recommend NEXT] [--blocker BLOCKER]
@@ -3580,6 +3586,161 @@ def create_default_index(path: Path) -> None:
     )
 
 
+def cmd_claude(args: argparse.Namespace) -> None:
+    """Start Claude Code with orchestrator prompt."""
+    import textwrap
+
+    try:
+        if args.init:
+            # Load optimized orchestrator system prompt
+            prompt_file = Path(__file__).parent / "orchestrator_system_prompt.txt"
+
+            if prompt_file.exists():
+                system_prompt = prompt_file.read_text(encoding="utf-8")
+            else:
+                # Fallback: provide minimal orchestrator guidance
+                system_prompt = textwrap.dedent(
+                    """
+                    You are an AI orchestrator for HtmlGraph project development.
+
+                    CRITICAL DIRECTIVES:
+                    1. DELEGATE to subagents - do not implement directly
+                    2. CREATE work items before delegating (features, bugs, spikes)
+                    3. USE SDK for tracking - all work must be tracked in .htmlgraph/
+                    4. RESPECT dependencies - check blockers before starting
+
+                    Key Rules:
+                    - Implementation work → delegate to general-purpose subagent
+                    - Research/exploration → delegate to explorer subagent
+                    - Testing/validation → delegate to test-runner subagent
+                    - Complex analysis → delegate to appropriate specialist
+
+                    Always use:
+                        from htmlgraph import SDK
+                        sdk = SDK(agent='orchestrator')
+
+                    See CLAUDE.md for complete orchestrator directives.
+                    """
+                )
+
+            if args.quiet or args.format == "json":
+                # Non-interactive: directly launch Claude with system prompt
+                cmd = ["claude", "--append-system-prompt", system_prompt]
+            else:
+                # Interactive: show summary first
+                print("=" * 60)
+                print("🤖 HtmlGraph Orchestrator Mode")
+                print("=" * 60)
+                print("\nStarting Claude Code with orchestrator system prompt...")
+                print("Key directives:")
+                print("  ✓ Delegate implementation to subagents")
+                print("  ✓ Create work items before delegating")
+                print("  ✓ Track all work in .htmlgraph/")
+                print("  ✓ Respect dependency chains")
+                print()
+
+                cmd = ["claude", "--append-system-prompt", system_prompt]
+
+            try:
+                subprocess.run(cmd, check=False)
+            except FileNotFoundError:
+                print("Error: 'claude' command not found.", file=sys.stderr)
+                print(
+                    "Please install Claude Code CLI: https://code.claude.com",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        elif args.continue_session:
+            # Resume last Claude Code session
+            # Find plugin directory relative to project root
+            plugin_dir = (
+                Path(__file__).parent.parent.parent.parent
+                / "packages"
+                / "claude-plugin"
+                / ".claude-plugin"
+            )
+
+            if args.quiet or args.format == "json":
+                cmd = ["claude", "--resume"]
+            else:
+                print("Resuming last Claude Code session...")
+                cmd = ["claude", "--resume"]
+
+            # Add plugin directory if it exists
+            if plugin_dir.exists():
+                cmd.extend(["--plugin-dir", str(plugin_dir)])
+                if not (args.quiet or args.format == "json"):
+                    print(f"  ✓ Loading plugin from: {plugin_dir}")
+
+            try:
+                subprocess.run(cmd, check=False)
+            except FileNotFoundError:
+                print("Error: 'claude' command not found.", file=sys.stderr)
+                print(
+                    "Please install Claude Code CLI: https://code.claude.com",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        elif args.dev:
+            # Development mode: load plugin from local directory
+            plugin_dir = (
+                Path(__file__).parent.parent.parent.parent
+                / "packages"
+                / "claude-plugin"
+                / ".claude-plugin"
+            )
+
+            if not plugin_dir.exists():
+                print(
+                    f"Error: Plugin directory not found: {plugin_dir}", file=sys.stderr
+                )
+                print(
+                    "Expected location: packages/claude-plugin/.claude-plugin",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+            if args.quiet or args.format == "json":
+                cmd = ["claude", "--plugin-dir", str(plugin_dir)]
+            else:
+                print("=" * 60)
+                print("🔧 HtmlGraph Development Mode")
+                print("=" * 60)
+                print(f"\nLoading plugin from: {plugin_dir}")
+                print("  ✓ Skills, agents, and hooks will be loaded from local files")
+                print("  ✓ Changes to plugin files will take effect after restart")
+                print()
+                cmd = ["claude", "--plugin-dir", str(plugin_dir)]
+
+            try:
+                subprocess.run(cmd, check=False)
+            except FileNotFoundError:
+                print("Error: 'claude' command not found.", file=sys.stderr)
+                print(
+                    "Please install Claude Code CLI: https://code.claude.com",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        else:
+            # Default: start normal Claude Code session
+            try:
+                subprocess.run(["claude"], check=False)
+            except FileNotFoundError:
+                print("Error: 'claude' command not found.", file=sys.stderr)
+                print(
+                    "Please install Claude Code CLI: https://code.claude.com",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+    except Exception as e:
+        print(f"Error: Failed to start Claude Code: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="HtmlGraph - HTML is All You Need",
@@ -4985,6 +5146,29 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         help="Install the Gemini CLI extension from the bundled package",
     )
 
+    # claude - Start Claude Code with orchestrator support
+    claude_parser = subparsers.add_parser(
+        "claude", help="Start Claude Code with HtmlGraph integration"
+    )
+    claude_group = claude_parser.add_mutually_exclusive_group()
+    claude_group.add_argument(
+        "--init",
+        action="store_true",
+        help="Start with orchestrator system prompt (recommended)",
+    )
+    claude_group.add_argument(
+        "--continue",
+        dest="continue_session",
+        action="store_true",
+        help="Resume last Claude Code session",
+    )
+    claude_group.add_argument(
+        "--dev",
+        action="store_true",
+        help="Start in development mode with plugin loaded from packages/claude-plugin",
+    )
+    claude_parser.set_defaults(func=cmd_claude)
+
     args = parser.parse_args()
 
     if args.command == "serve":
@@ -5222,6 +5406,8 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
             sys.exit(1)
     elif args.command == "install-gemini-extension":
         cmd_install_gemini_extension(args)
+    elif args.command == "claude":
+        cmd_claude(args)
     else:
         parser.print_help()
         sys.exit(1)

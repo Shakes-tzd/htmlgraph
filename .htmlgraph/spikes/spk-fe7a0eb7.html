@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Lessons Learned: Incomplete query_one Migration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-fe7a0eb7"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T12:07:46.892877"
+             data-updated="2026-01-03T12:07:46.892883" data-spike-type="technical" data-timebox-hours="2">
+
+        <header>
+            <h1>Lessons Learned: Incomplete query_one Migration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>2 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Incident Summary
+
+**What Happened**: Commit bffc0f4 claimed to "replace query_one/query_all with query method" but only fixed 3 of 17 instances. The remaining 14 instances caused production errors in user projects.
+
+**Impact**:
+- Production error: AttributeError: 'ElementNode' object has no attribute 'query_one'
+- Affected all users with htmlgraph < 0.23.4
+- Required emergency bug fix and version bump
+
+## Root Cause Analysis
+
+**Why It Happened**:
+1. ❌ **No Verification** - Didn't search for ALL remaining instances after fix
+2. ❌ **Manual Search** - Relied on memory/assumptions instead of comprehensive grep
+3. ❌ **No Testing** - Tests didn't exercise all code paths that use query_one
+4. ❌ **No Process** - No documented workflow for systematic changes
+5. ❌ **No Guardrails** - No pre-commit hook to catch incomplete changes
+
+**What Should Have Happened** (Systematic Change Workflow):
+1. ✅ **DISCOVERY** - Find ALL instances: `grep -r "query_one" src/`
+2. ✅ **DOCUMENTATION** - List all 17 instances with line numbers
+3. ✅ **PLANNING** - Plan replacement order (no dependencies in this case)
+4. ✅ **EXECUTION** - Replace all 17 instances consistently
+5. ✅ **VERIFICATION** - Confirm zero instances remain: `grep -r "query_one" src/`
+6. ✅ **VALIDATION** - Run full test suite to catch any issues
+
+## Lessons Learned
+
+### 1. Never Trust Memory for Systematic Changes
+**Wrong**: "I fixed the error in converter.py, so I'm done"
+**Right**: "Let me search the entire codebase to find ALL instances"
+
+### 2. Verification is Mandatory
+**Always verify zero instances remain**:
+```bash
+# Before committing
+grep -r "query_one" src/
+# Should return: (no matches)
+```
+
+### 3. Commit Messages Must Be Accurate
+**Wrong**: "fix: replace query_one/query_all" (when only partial)
+**Right**: "fix: replace query_one in converter.py (3 instances)"
+
+### 4. Tests Should Catch Incomplete Changes
+Our tests didn't catch this because:
+- Limited code path coverage
+- No integration tests for session loading
+- Tests only ran on already-migrated code
+
+### 5. Automation > Manual Process
+Human error is inevitable. We need:
+- Pre-commit hooks for verification
+- Scripts for safe find-and-replace
+- Automated testing of all code paths
+
+## Prevention Measures
+
+Created epic to prevent future incidents: **epc-de85467f**
+
+**Immediate Actions**:
+1. feat-0de33d85: Pre-commit hook to detect incomplete changes (CRITICAL)
+2. feat-af04a486: Document systematic change workflow in RULES.md (HIGH)
+
+**Long-term Improvements**:
+3. feat-66d73d8c: Build automated refactoring scripts
+4. feat-6d31cdfa: Improve test coverage requirements
+5. feat-4d2a6e2f: Add PR template checklist
+
+## Related Work
+
+- **Bug Fixed**: bug-5b046f3d - Complete query_one migration
+- **Epic Created**: epc-de85467f - Prevent Incomplete Systematic Changes
+- **Commit**: Next commit will include all 17 instances fixed
+
+## References
+
+- Original incomplete commit: bffc0f4
+- Error location: converter.py:558, parser.py (multiple)
+- Pattern used: `results = obj.query("sel"); elem = results[0] if results else None`
+            </div>
+        </section>
+        <section data-decision>
+            <h3>Decision</h3>
+            <p>**Decision**: Implement mandatory systematic change workflow with automated verification.
+
+**Rationale**:
+- Manual processes are error-prone
+- Tests alone didn't catch this
+- Pre-commit hooks provide immediate feedback
+- Documentation establishes shared understanding
+
+**Implementation Order**:
+1. Pre-commit hook (immediate protection)
+2. Workflow documentation (establish process)
+3. Tooling and tests (long-term improvement)
+
+**Success Criteria**:
+- Zero incomplete migrations in next 6 months
+- All systematic changes follow documented workflow
+- Pre-commit hook catches violations before merge</p>
+        </section>
+    </article>
+</body>
+</html>

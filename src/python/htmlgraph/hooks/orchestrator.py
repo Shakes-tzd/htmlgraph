@@ -107,6 +107,23 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
         - reason_if_not: Explanation if blocked (empty if allowed)
         - category: Operation category for logging
     """
+    # Get enforcement level from manager
+    try:
+        cwd = Path.cwd()
+        graph_dir = cwd / ".htmlgraph"
+        if not graph_dir.exists():
+            for parent in [cwd.parent, cwd.parent.parent, cwd.parent.parent.parent]:
+                candidate = parent / ".htmlgraph"
+                if candidate.exists():
+                    graph_dir = candidate
+                    break
+        manager = OrchestratorModeManager(graph_dir)
+        enforcement_level = (
+            manager.get_enforcement_level() if manager.is_enabled() else "guidance"
+        )
+    except Exception:
+        enforcement_level = "guidance"
+
     # Use OrchestratorValidator for comprehensive validation
     validator = OrchestratorValidator()
     result, reason = validator.validate_tool_use(tool, params)
@@ -120,6 +137,10 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
     # Category 1: ALWAYS ALLOWED - Orchestrator core operations
     if tool in ["Task", "AskUserQuestion", "TodoWrite"]:
         return True, "", "orchestrator-core"
+
+    # FIX #2: Block Skills in strict mode (must be invoked via Task delegation)
+    if tool == "Skill" and enforcement_level == "strict":
+        return False, "Skills must be invoked via Task delegation", "skill-blocked"
 
     # Category 2: SDK Operations - Always allowed
     if tool == "Bash":
@@ -141,10 +162,50 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
         if "from htmlgraph import" in command or "import htmlgraph" in command:
             return True, "", "sdk-inline"
 
+        # FIX #3: Check if bash command is in allowed whitelist (strict mode only)
+        # If we've gotten here, it's not a whitelisted command above
+        # Block non-whitelisted bash commands in strict mode
+        if enforcement_level == "strict":
+            # Check if it's a blocked test/build pattern (handled below)
+            blocked_patterns = [
+                r"^npm (run|test|build)",
+                r"^pytest",
+                r"^uv run pytest",
+                r"^python -m pytest",
+                r"^cargo (build|test)",
+                r"^mvn (compile|test|package)",
+                r"^make (test|build)",
+            ]
+            is_blocked_pattern = any(
+                re.match(pattern, command) for pattern in blocked_patterns
+            )
+
+            if not is_blocked_pattern:
+                # Not a specifically blocked pattern, but also not whitelisted
+                # In strict mode, we should delegate
+                return (
+                    False,
+                    f"Bash command not in allowed list. Delegate to subagent.\n\n"
+                    f"Command: {command[:100]}",
+                    "bash-blocked",
+                )
+
     # Category 3: Quick Lookups - Single operations only
     if tool in ["Read", "Grep", "Glob"]:
         # Check tool history to see if this is a single lookup or part of a sequence
         history = load_tool_history()
+
+        # FIX #4: Check for mixed exploration pattern
+        exploration_count = sum(
+            1 for h in history[-5:] if h["tool"] in ["Read", "Grep", "Glob"]
+        )
+        if exploration_count >= 3 and enforcement_level == "strict":
+            return (
+                False,
+                "Multiple exploration calls detected. Delegate to Explorer agent.\n\n"
+                "Use Task tool with explorer subagent.",
+                "exploration-blocked",
+            )
 
         # Look at last 3 tool calls
         recent_same_tool = sum(1 for h in history[-3:] if h["tool"] == tool)
@@ -181,7 +242,7 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
         command = params.get("command", "")
 
         # Block compilation, testing, building (should be in subagent)
-        blocked_patterns = [
+        test_build_patterns: list[tuple[str, str]] = [
             (r"^npm (run|test|build)", "npm test/build"),
             (r"^pytest", "pytest"),
             (r"^uv run pytest", "pytest"),
@@ -191,7 +252,7 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
             (r"^make (test|build)", "make test/build"),
         ]
 
-        for pattern, name in blocked_patterns:
+        for pattern, name in test_build_patterns:
             if re.match(pattern, command):
                 return (
                     False,
@@ -200,8 +261,11 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
                     "test-build-blocked",
                 )
 
-    # Default: Allow with guidance
-    return True, "Allowed but consider if delegation would be better", "allowed-default"
+    # FIX #1: Remove "allowed-default" escape hatch in strict mode
+    if enforcement_level == "strict":
+        return False, "Not in allowed whitelist", "strict-blocked"
+    else:
+        return True, "Allowed in guidance mode", "guidance-allowed"
 
 
 def create_task_suggestion(tool: str, params: dict) -> str:

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestration module structure</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f25e63aa"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T12:40:34.327546"
+             data-updated="2026-01-03T12:40:34.327550" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Orchestration module structure</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Orchestration Modules Analysis
+
+## Module Overview
+
+The `src/python/htmlgraph/orchestration/` package contains 4 Python modules for multi-agent coordination and intelligent model selection.
+
+## 1. __init__.py
+**Purpose**: Package exports and public API
+
+**Exports**:
+- HeadlessSpawner, AIResult (from headless_spawner)
+- ModelSelection, TaskType, ComplexityLevel, BudgetMode, select_model, get_fallback_chain (from model_selection)
+- delegate_with_id, generate_task_id, get_results_by_task_id, parallel_delegate, save_task_results, validate_and_save (from task_coordination)
+
+---
+
+## 2. task_coordination.py
+**Purpose**: Reliable parallel task coordination with Task ID pattern
+
+**Key Functions**:
+- `generate_task_id()` → Unique task ID (e.g., "task-a3f8b29c")
+- `delegate_with_id(description, prompt, subagent_type)` → (task_id, enhanced_prompt) tuple
+- `get_results_by_task_id(sdk, task_id, timeout=60, poll_interval=2)` → Results dict with findings
+- `parallel_delegate(sdk, tasks, timeout=120)` → Dict mapping task_id to results
+- `save_task_results(sdk, task_id, description, results, feature_id=None, status="completed")` → Spike ID
+- `validate_and_save(sdk, task_id, description, results, validation_prompt=None, feature_id=None)` → Dict with validation status
+
+**Key Features**:
+- Task ID-based result retrieval for parallel delegations
+- Polling mechanism to wait for subagent results
+- Integration with HtmlGraph SDK for spike storage
+- Optional validation before saving
+- Feature linking support
+
+---
+
+## 3. headless_spawner.py
+**Purpose**: Spawn AI agents in headless CLI mode
+
+**Classes**:
+- `AIResult` (dataclass): Encapsulates spawner results
+  - success: bool
+  - response: str
+  - tokens_used: int | None
+  - error: str | None
+  - raw_output: dict | list | str | None
+
+**HeadlessSpawner Methods**:
+- `spawn_gemini(prompt, output_format="json", model=None, include_directories=None, color="auto", timeout=120)` → AIResult
+  - Supports Gemini models with JSON parsing
+  - Tracks token usage from stats.models
+
+- `spawn_codex(prompt, approval="never", output_json=True, model=None, sandbox=None, full_auto=False, images=None, color="auto", output_last_message=None, output_schema=None, skip_git_check=False, working_directory=None, use_oss=False, bypass_approvals=False, timeout=120)` → AIResult
+  - OpenAI Codex with JSONL event parsing
+  - Supports sandboxing, auto-approval, schema validation
+
+- `spawn_copilot(prompt, allow_tools=None, allow_all_tools=False, deny_tools=None, timeout=120)` → AIResult
+  - GitHub Copilot with tool permission control
+  - Parses tool usage stats
+
+- `spawn_claude(prompt, output_format="json", permission_mode="bypassPermissions", resume=None, verbose=False, timeout=300)` → AIResult
+  - Claude Code with isolated execution
+  - Uses same auth as Task() tool but fresh session
+  - Supports permission modes: bypassPermissions, acceptEdits, dontAsk, default, plan, delegate
+
+**Key Design Decision**:
+- spawn_claude() vs Task(): spawn_claude creates isolated sessions (no context sharing), while Task() leverages prompt caching for cheaper related work
+
+---
+
+## 4. model_selection.py
+**Purpose**: Intelligent model selection for task routing
+
+**Enums**:
+- `TaskType`: EXPLORATION, DEBUGGING, IMPLEMENTATION, QUALITY, GENERAL
+- `ComplexityLevel`: LOW, MEDIUM, HIGH
+- `BudgetMode`: FREE, BALANCED, QUALITY
+
+**ModelSelection Class**:
+- `DECISION_MATRIX`: 45 entries mapping (TaskType, ComplexityLevel, BudgetMode) → model name
+  - E.g., (EXPLORATION, HIGH, QUALITY) → claude-opus
+  - E.g., (IMPLEMENTATION, MEDIUM, BALANCED) → codex
+
+- `FALLBACK_CHAINS`: Fallback options if primary model unavailable
+  - gemini → [claude-haiku, claude-sonnet, claude-opus]
+  - codex → [claude-sonnet, claude-opus]
+  - copilot → [claude-sonnet, claude-opus]
+
+**Key Methods**:
+- `select_model(task_type, complexity="medium", budget="balanced")` → model name
+- `get_fallback_chain(primary_model)` → List[str]
+- `estimate_tokens(task_description, complexity="medium")` → int
+  - Low: ~500-1000 tokens
+  - Medium: ~1000-5000 tokens
+  - High: ~5000-20000 tokens
+- `is_model_available(model)` → bool
+
+**Convenience Functions** (module-level):
+- `select_model(task_type="general", complexity="medium", budget="balanced")`
+- `get_fallback_chain(model)`
+
+---
+
+## Integration Pattern
+
+```python
+# 1. Model selection
+from htmlgraph.orchestration import select_model
+model = select_model("implementation", "high", "balanced")  # → claude-opus
+
+# 2. Task coordination
+from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+task_id, prompt = delegate_with_id("Implement auth", "Add JWT...", "general-purpose")
+
+# 3. Spawning (if needed)
+from htmlgraph.orchestration import HeadlessSpawner
+spawner = HeadlessSpawner()
+result = spawner.spawn_claude(prompt)
+
+# 4. Saving results
+from htmlgraph.orchestration import save_task_results, sdk
+spike_id = save_task_results(sdk, task_id, "Implement auth", result.response)
+```
+
+---
+
+## Design Principles
+
+1. **Task ID Pattern**: Unique IDs enable result retrieval for parallel delegations
+2. **Model Selection**: Decision matrix provides intelligent routing based on task characteristics
+3. **Fallback Chains**: Graceful degradation when primary model unavailable
+4. **Headless Execution**: Multiple AI spawners with consistent interface
+5. **Integration**: Deep integration with HtmlGraph SDK for tracking and storage
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

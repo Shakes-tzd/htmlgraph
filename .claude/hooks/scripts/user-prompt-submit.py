@@ -60,6 +60,43 @@ CONTINUATION_PATTERNS = [
 ]
 
 
+def classify_task(prompt: str) -> str:
+    """Classify user request into category based on keywords."""
+    prompt_lower = prompt.lower()
+
+    if any(
+        word in prompt_lower
+        for word in ["explore", "find", "search", "analyze", "investigate", "research"]
+    ):
+        return "exploration"
+    elif any(
+        word in prompt_lower
+        for word in ["debug", "fix", "error", "bug", "broken", "failing"]
+    ):
+        return "debugging"
+    elif any(
+        word in prompt_lower
+        for word in ["implement", "add", "create", "build", "write", "develop"]
+    ):
+        return "implementation"
+    elif any(
+        word in prompt_lower for word in ["test", "quality", "lint", "format", "verify"]
+    ):
+        return "quality"
+    return "general"
+
+
+def recommend_skill(task_type: str) -> str | None:
+    """Recommend skill based on task type."""
+    skill_map = {
+        "exploration": "multi-ai-orchestration",
+        "debugging": "debugging-workflow",
+        "implementation": "htmlgraph-coder",
+        "quality": "code-quality",
+    }
+    return skill_map.get(task_type)
+
+
 def classify_prompt(prompt: str) -> dict:
     """Classify the user's prompt intent."""
     prompt_lower = prompt.lower().strip()
@@ -71,6 +108,8 @@ def classify_prompt(prompt: str) -> dict:
         "is_continuation": False,
         "confidence": 0.0,
         "matched_patterns": [],
+        "task_type": "general",
+        "recommended_skill": None,
     }
 
     # Check for continuation first (short prompts like "ok", "continue")
@@ -101,6 +140,10 @@ def classify_prompt(prompt: str) -> dict:
             result["is_bug_report"] = True
             result["confidence"] = max(result["confidence"], 0.75)
             result["matched_patterns"].append(f"bug: {pattern}")
+
+    # Classify task type and recommend skill
+    result["task_type"] = classify_task(prompt)
+    result["recommended_skill"] = recommend_skill(result["task_type"])
 
     return result
 
@@ -269,11 +312,20 @@ def main():
                     "bug_report": classification["is_bug_report"],
                     "continuation": classification["is_continuation"],
                     "confidence": classification["confidence"],
+                    "task_type": classification["task_type"],
+                    "recommended_skill": classification["recommended_skill"],
                 },
             }
             print(json.dumps(result))
         else:
-            print(json.dumps({}))
+            # Even without blocking guidance, include classification
+            result = {
+                "classification": {
+                    "task_type": classification["task_type"],
+                    "recommended_skill": classification["recommended_skill"],
+                }
+            }
+            print(json.dumps(result))
 
         # Always allow - this hook provides guidance, not blocking
         sys.exit(0)

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Imperative Cost-First Delegation Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-4d4e4768"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T04:40:18.471842"
+             data-updated="2026-01-03T04:40:18.471845" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Imperative Cost-First Delegation Design</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Imperative Cost-First Delegation Redesign
+
+### Problem Statement
+
+The current orchestrator was using Haiku as the default for ALL execution, which is:
+- WRONG: Haiku is expensive and consumes Claude Code quota
+- INEFFICIENT: FREE and cheap alternatives exist
+- WASTEFUL: Claude Code has usage limits that get exhausted quickly
+
+### Solution: Cost-First Routing (IMPERATIVE)
+
+#### Cost Hierarchy (Lowest to Highest)
+| Tier | Spawner | Cost | Use Case |
+|------|---------|------|----------|
+| FREE | spawn_gemini | $0 | Exploration, research, batch ops, multimodal |
+| $ | spawn_codex | Low | Code generation, fixes, tests, refactoring |
+| $ | spawn_copilot | Low | Git operations, GitHub workflows |
+| $$ | Task(haiku) | Medium | FALLBACK ONLY when above fail |
+| $$$ | Task(sonnet) | High | Multi-agent coordination |
+| $$$$ | spawn_claude | Very High | Strategic architecture only |
+
+#### Pre-Delegation Checklist (MUST EXECUTE)
+
+BEFORE delegating ANY task:
+
+1. Can Gemini do this? (exploration, research, batch)
+   -> YES = MUST use spawn_gemini (FREE)
+
+2. Is this code work? (implementation, fixes, tests)
+   -> YES = MUST use spawn_codex (cheap, specialized)
+
+3. Is this git/GitHub? (commits, PRs, issues)
+   -> YES = MUST use spawn_copilot (cheap, integrated)
+
+4. Does this require deep reasoning?
+   -> YES = Use Claude Opus (expensive, but needed)
+
+5. Is this multi-agent coordination?
+   -> YES = Use Claude Sonnet (mid-tier)
+
+6. ONLY if above fail -> Haiku (fallback)
+
+#### WRONG vs CORRECT Delegation
+
+WRONG (wastes Claude quota):
+- Implementation -> Haiku     # USE spawn_codex
+- Git commits -> Haiku        # USE spawn_copilot
+- Research -> Haiku           # USE spawn_gemini (FREE!)
+- File analysis -> Haiku      # USE spawn_gemini (FREE!)
+
+CORRECT (cost-optimized):
+- Implementation -> spawn_codex   # Cheap, sandboxed
+- Git commits -> spawn_copilot    # Cheap, GitHub-native
+- Research -> spawn_gemini        # FREE!
+- File analysis -> spawn_gemini   # FREE!
+- Strategic -> Opus               # Expensive, but needed
+- Haiku -> FALLBACK ONLY
+
+### Testing Scripts Specification
+
+Created two scripts for verification after spawning:
+
+#### scripts/test-quality.sh
+- Full quality check: ruff, mypy, pytest
+- Usage: ./scripts/test-quality.sh [path] [--quick|--full]
+- Exit codes: 0 = pass, 1 = fail
+- Integration: Run after Gemini/Codex generates code
+
+#### scripts/verify-code.sh
+- Lightweight verification for spawner output
+- Usage: ./scripts/verify-code.sh file.py [--auto-fix]
+- Fast syntax + lint + format check
+- If fails, iterate with SAME spawner (not Claude)
+
+### Updated Skill Files
+
+1. **multi-ai-orchestration-skill/SKILL.md**
+   - Added CRITICAL cost-first routing section
+   - Pre-delegation checklist with MUST directives
+   - WRONG vs CORRECT examples
+   - Task-to-AI routing table (IMPERATIVE)
+   - Cost awareness section
+   - Updated spawner selection matrix (cost-first)
+
+2. **multi-ai-orchestration-skill/REFERENCE.md**
+   - Cost-first routing decision tree
+   - Updated spawner API docs with cost tiers
+   - Enforcement mechanism with validation
+   - Cost tracking patterns
+   - Verification workflow
+
+3. **orchestrator-directives-skill/SKILL.md**
+   - CRITICAL cost-first delegation section
+   - Pre-delegation checklist (MUST EXECUTE)
+   - WRONG vs CORRECT examples
+   - Cost-first delegation patterns
+   - Verification after spawning section
+
+### Enforcement Mechanism
+
+```python
+def validate_spawner_selection(task_type: str, selected_spawner: str) -> bool:
+    cost_first_rules = {
+        "exploration": "spawn_gemini",
+        "research": "spawn_gemini",
+        "code_generation": "spawn_codex",
+        "git_commit": "spawn_copilot",
+        "architecture": "spawn_claude",
+    }
+    required = cost_first_rules.get(task_type)
+    if required and selected_spawner != required:
+        print(f"COST VIOLATION: {task_type} should use {required}")
+        return False
+    return True
+```
+
+### Cost Optimization Impact
+
+BEFORE (using Haiku everywhere):
+- 10 implementations x Haiku = $$$$
+- 5 git commits x Haiku = $$$
+- 20 file searches x Haiku = $$$$$
+
+AFTER (cost-first routing):
+- 10 implementations x Codex = $$
+- 5 git commits x Copilot = $
+- 20 file searches x Gemini = FREE
+
+SAVINGS: 80-90% reduction in Claude Code usage
+
+### Files Modified
+
+1. packages/claude-plugin/skills/multi-ai-orchestration-skill/SKILL.md
+2. packages/claude-plugin/skills/multi-ai-orchestration-skill/REFERENCE.md
+3. .claude/skills/orchestrator-directives-skill/SKILL.md
+4. scripts/test-quality.sh (NEW)
+5. scripts/verify-code.sh (NEW)
+
+### Key Principles
+
+1. IMPERATIVE language: "MUST" not "should" or "can"
+2. Cost-first routing: Gemini -> Codex -> Copilot -> Claude
+3. Haiku is FALLBACK ONLY: Not the default
+4. Verification required: Always verify spawner output
+5. Iterate before escalating: Try same spawner 3x before Claude
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

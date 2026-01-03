@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Opus: System Prompt & Skills Implementation - Phase 1-2</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-9277490b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-03T01:54:21.764560"
+             data-updated="2026-01-03T01:54:21.764565" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Opus: System Prompt & Skills Implementation - Phase 1-2</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Completed Work
+
+### 1. Reduced orchestrator-system-prompt-optimized.txt
+- **Before:** 1,760 tokens (314 lines)
+- **After:** 226 tokens (47 lines)
+- **Reduction:** 87.2%
+- Extracted spawner selection matrix to new skill
+- Kept only core delegation philosophy and skill pointers
+
+### 2. Reduced CLAUDE.md
+- **Before:** 2,193 tokens (789 lines)
+- **After:** 396 tokens (90 lines)
+- **Reduction:** 81.9%
+- Extracted code hygiene to new skill
+- Kept only project vision, quick commands, and skill references
+
+### 3. Created multi-ai-orchestration-skill/
+- **SKILL.md** (~534 tokens) - Spawner selection matrix, decision aids, cost optimization
+- **REFERENCE.md** - HeadlessSpawner API docs, permission modes, integration patterns
+- **EXAMPLES.md** - 6 real-world orchestration scenarios with code
+
+### 4. Created code-quality-skill/
+- **SKILL.md** (~512 tokens) - Quality gates, pre-commit workflow, tool reference
+
+### 5. Updated orchestrator-directives-skill/
+- **Before:** 800 tokens
+- **After:** 347 tokens
+- **Reduction:** 56.6%
+- Removed spawner selection (moved to multi-ai-orchestration)
+- Kept core delegation patterns and decision framework
+
+## Context Reduction Achieved
+
+### Core Files (Loaded at Startup)
+| File | Before | After | Reduction |
+|------|--------|-------|-----------|
+| orchestrator-system-prompt | 1,760 | 226 | 87.2% |
+| CLAUDE.md | 2,193 | 396 | 81.9% |
+| orchestrator-directives-skill | 800 | 347 | 56.6% |
+| **TOTAL** | **4,753** | **969** | **79.6%** |
+
+### New Skills (On-Demand Loading)
+- multi-ai-orchestration: ~534 tokens (loaded when spawner selection needed)
+- code-quality: ~512 tokens (loaded when quality workflow needed)
+- Total: ~1,046 tokens (only loaded when explicitly needed)
+
+## Quality Verification
+
+1. **Target: 75% reduction** - Achieved **79.6%** reduction in core files
+2. **Progressive disclosure** - Skills loaded on-demand, not at startup
+3. **Anthropic best practices** - Clear frontmatter, trigger keywords, layered resources
+4. **Functionality preserved** - All patterns and examples moved to appropriate skills
+
+## Files Modified/Created
+-  (reduced)
+-  (reduced)
+-  (reduced)
+-  (new)
+-  (new)
+-  (new)
+-  (new)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

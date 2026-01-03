@@ -1,10 +1,10 @@
 {
-  "enabled": true,
-  "activated_at": "2025-12-31T06:17:36.815929+00:00",
+  "enabled": false,
+  "activated_at": "2026-01-03T11:06:04.510669+00:00",
   "session_id": null,
   "enforcement_level": "strict",
   "auto_activated": false,
-  "disabled_by_user": false,
+  "disabled_by_user": true,
   "violations": 3,
   "last_violation_at": "2026-01-02T02:54:21.488660+00:00",
   "circuit_breaker_triggered": true

@@ -395,7 +395,8 @@ def html_to_session(filepath: Path | str) -> Session:
     parser = HtmlParser.from_file(filepath)
 
     # Get article element with session data
-    article = parser.query_one("article[data-type='session']")
+    article_results = parser.query("article[data-type='session']")
+    article = article_results[0] if article_results else None
     if not article:
         raise ValueError(f"No session article found in: {filepath}")
 
@@ -465,7 +466,8 @@ def html_to_session(filepath: Path | str) -> Session:
         data["transcript_git_branch"] = transcript_branch
 
     # Parse title
-    title_el = parser.query_one("h1")
+    title_el_results = parser.query("h1")
+    title_el = title_el_results[0] if title_el_results else None
     if title_el:
         data["title"] = title_el.to_text().strip()
 
@@ -482,24 +484,28 @@ def html_to_session(filepath: Path | str) -> Session:
     data["worked_on"] = worked_on
 
     # Parse continued_from edge
-    continued_link = parser.query_one(
+    continued_link_results = parser.query(
         "nav[data-graph-edges] section[data-edge-type='continued-from'] a"
     )
+    continued_link = continued_link_results[0] if continued_link_results else None
     if continued_link:
         href = continued_link.attrs.get("href") or ""
         data["continued_from"] = href.replace(".html", "")
 
     # Parse handoff context
-    handoff_section = parser.query_one("section[data-handoff]")
+    handoff_section_results = parser.query("section[data-handoff]")
+    handoff_section = handoff_section_results[0] if handoff_section_results else None
     if handoff_section:
-        notes_el = parser.query_one("section[data-handoff] [data-handoff-notes]")
+        notes_el_results = parser.query("section[data-handoff] [data-handoff-notes]")
+        notes_el = notes_el_results[0] if notes_el_results else None
         if notes_el:
             notes_text = notes_el.to_text().strip()
             if notes_text.lower().startswith("notes:"):
                 notes_text = notes_text.split(":", 1)[1].strip()
             data["handoff_notes"] = notes_text
 
-        next_el = parser.query_one("section[data-handoff] [data-recommended-next]")
+        next_el_results = parser.query("section[data-handoff] [data-recommended-next]")
+        next_el = next_el_results[0] if next_el_results else None
         if next_el:
             next_text = next_el.to_text().strip()
             if next_text.lower().startswith("recommended next:"):

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Add Node.to_dict() method as alias to model_dump()</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-839eb731"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-01-03T13:05:40.486665"
+             data-updated="2026-01-03T13:48:00.100133" data-agent-assigned="orchestrator" data-claimed-at="2026-01-03T13:41:26.552802" data-claimed-by-session="sess-422f9b54">
+
+        <header>
+            <h1>Add Node.to_dict() method as alias to model_dump()</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-0ceb50b7.html" data-relationship="implemented-in" data-since="2026-01-03T13:05:40.887530">sess-0ceb50b7</a></li>
+                    <li><a href="sess-422f9b54.html" data-relationship="implemented-in" data-since="2026-01-03T13:41:26.558461">sess-422f9b54</a></li>
+                    <li><a href="sess-39292fe4.html" data-relationship="implemented-in" data-since="2026-01-03T13:47:36.385410">sess-39292fe4</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-01-03T13:48:00.100155">2026-01-03T13:48:00.100155</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'sess-39292fe4', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 0.5, 'issues': ['High retry rate: 50%', 'Low tool diversity'], 'recommendations': ['Consider reading more context before acting', 'Consider using more specialized tools'], 'test_runs': [], 'test_summary': None, 'summary': '⚠️ Issues: low efficiency (50%)'}">{'session_id': 'sess-39292fe4', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 0.5, 'issues': ['High retry rate: 50%', 'Low tool diversity'], 'recommendations': ['Consider reading more context before acting', 'Consider using more specialized tools'], 'test_runs': [], 'test_summary': None, 'summary': '⚠️ Issues: low efficiency (50%)'}</dd>
+<dt>Insight Id</dt>
+                <dd data-key="insight_id" data-value="insi-997d0031">insi-997d0031</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Add to_dict() method to Node class in src/python/htmlgraph/models.py</li>
+                <li data-completed="false">⏳ Method should return self.model_dump() for compatibility</li>
+                <li data-completed="false">⏳ Add docstring explaining it is an alias to Pydantic model_dump()</li>
+                <li data-completed="false">⏳ Add unit test in tests/test_sdk_api_surface.py</li>
+                <li data-completed="false">⏳ Update AGENTS.md to mention both model_dump() and to_dict() options</li>
+                <li data-completed="false">⏳ Run quality gates: ruff, mypy, pytest</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Add to_dict() as a convenience alias to Pydantic's model_dump() method.
+
+**Why**: Improves API discoverability - developers expect to_dict() on objects.
+**Implementation**: Simple one-line method that delegates to model_dump()
+**Backwards compatible**: Yes - pure addition, no breaking changes
+
+Related bugs: bug-ba4cedc6
+        </section>
+    </article>
+</body>
+</html>

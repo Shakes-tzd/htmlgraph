@@ -65,6 +65,8 @@ for feat in high_priority_todos:
     print(f"- {feat.id}: {feat.title}")
 ```
 
+**New to HtmlGraph?** See [Architecture Guide](./docs/ARCHITECTURE.md) for design philosophy and common patterns.
+
 ---
 
 ## Core Principle: NEVER Edit HTML Directly
@@ -1330,8 +1332,8 @@ sdk._graph.update(feature)  # Manual save
 
 ## Documentation
 
+- **API Reference**: [docs/API_REFERENCE.md](docs/API_REFERENCE.md) - Complete SDK API reference with all methods, parameters, and examples
 - **SDK Guide**: `docs/SDK_FOR_AI_AGENTS.md`
-- **API Reference**: `docs/api-reference.md`
 - **Quickstart**: `docs/quickstart.md`
 - **Dashboard**: Run `uv run htmlgraph serve` and open http://localhost:8080
 

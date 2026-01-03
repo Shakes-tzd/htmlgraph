@@ -12,6 +12,7 @@ class TestHeadlessSpawner:
         spawner = HeadlessSpawner()
         assert spawner is not None
 
+    @pytest.mark.external_api
     def test_spawn_gemini_basic(self):
         """Test basic Gemini spawn."""
         spawner = HeadlessSpawner()
@@ -26,6 +27,7 @@ class TestHeadlessSpawner:
         assert result.error is None, f"Expected no error, got: {result.error}"
         assert result.raw_output is not None, "Expected raw output"
 
+    @pytest.mark.external_api
     def test_spawn_gemini_with_json_format(self):
         """Test Gemini spawn with explicit JSON format."""
         spawner = HeadlessSpawner()
@@ -41,6 +43,7 @@ class TestHeadlessSpawner:
             for color in ["red", "blue", "green", "yellow", "orange", "purple"]
         )
 
+    @pytest.mark.external_api
     def test_spawn_gemini_empty_prompt(self):
         """Test Gemini spawn with empty prompt."""
         spawner = HeadlessSpawner()
@@ -50,6 +53,7 @@ class TestHeadlessSpawner:
         # We just verify we get a result and don't crash
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_gemini_timeout(self):
         """Test timeout handling with very short timeout."""
         spawner = HeadlessSpawner()
@@ -65,6 +69,7 @@ class TestHeadlessSpawner:
                 "timeout" in result.error.lower() or "timed out" in result.error.lower()
             )
 
+    @pytest.mark.external_api
     def test_spawn_gemini_complex_prompt(self):
         """Test Gemini spawn with complex multi-line prompt."""
         prompt = """
@@ -84,6 +89,7 @@ class TestHeadlessSpawner:
         assert "paris" in response_lower
         assert "50" in result.response
 
+    @pytest.mark.external_api
     def test_spawn_gemini_with_model(self):
         """Test Gemini with specific model selection."""
         spawner = HeadlessSpawner()
@@ -96,6 +102,7 @@ class TestHeadlessSpawner:
         if result.success:
             assert "4" in result.response
 
+    @pytest.mark.external_api
     def test_spawn_gemini_with_include_directories(self):
         """Test Gemini with include directories for context."""
         spawner = HeadlessSpawner()
@@ -106,6 +113,7 @@ class TestHeadlessSpawner:
         assert isinstance(result, AIResult)
         # Just verify it doesn't crash with the option
 
+    @pytest.mark.external_api
     def test_spawn_gemini_color_control(self):
         """Test Gemini with color output control."""
         spawner = HeadlessSpawner()
@@ -115,6 +123,7 @@ class TestHeadlessSpawner:
         if result.success:
             assert "4" in result.response
 
+    @pytest.mark.external_api
     def test_spawn_gemini_multiple_options(self):
         """Test Gemini with multiple options combined."""
         spawner = HeadlessSpawner()
@@ -159,6 +168,7 @@ class TestHeadlessSpawner:
         assert result.error == "Test error"
         assert result.raw_output is None
 
+    @pytest.mark.external_api
     def test_spawn_codex_basic(self):
         """Test basic Codex spawn with JSONL output."""
         spawner = HeadlessSpawner()
@@ -174,6 +184,7 @@ class TestHeadlessSpawner:
         else:
             assert result.error is not None
 
+    @pytest.mark.external_api
     def test_spawn_codex_error_handling(self):
         """Test Codex error handling."""
         spawner = HeadlessSpawner()
@@ -184,6 +195,7 @@ class TestHeadlessSpawner:
         assert not result.success
         assert "Timed out" in result.error or "not found" in result.error
 
+    @pytest.mark.external_api
     def test_spawn_codex_plain_text(self):
         """Test Codex with plain text output (no JSON)."""
         spawner = HeadlessSpawner()
@@ -195,6 +207,7 @@ class TestHeadlessSpawner:
             assert result.response
             assert isinstance(result.raw_output, str)
 
+    @pytest.mark.external_api
     def test_spawn_codex_with_model(self):
         """Test Codex with specific model selection."""
         spawner = HeadlessSpawner()
@@ -204,6 +217,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_with_sandbox_mode(self):
         """Test Codex with sandbox mode."""
         spawner = HeadlessSpawner()
@@ -213,6 +227,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_full_auto_mode(self):
         """Test Codex with full auto mode enabled."""
         spawner = HeadlessSpawner()
@@ -220,6 +235,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_with_images(self):
         """Test Codex with image inputs."""
         spawner = HeadlessSpawner()
@@ -229,6 +245,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_color_output(self):
         """Test Codex with color output control."""
         spawner = HeadlessSpawner()
@@ -236,6 +253,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_output_last_message(self):
         """Test Codex with output last message file."""
         spawner = HeadlessSpawner()
@@ -245,6 +263,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_output_schema(self):
         """Test Codex with output schema validation."""
         spawner = HeadlessSpawner()
@@ -253,6 +272,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_skip_git_check(self):
         """Test Codex with git check skipped."""
         spawner = HeadlessSpawner()
@@ -260,6 +280,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_working_directory(self):
         """Test Codex with working directory option."""
         spawner = HeadlessSpawner()
@@ -267,6 +288,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_use_oss(self):
         """Test Codex with OSS flag for local Ollama."""
         spawner = HeadlessSpawner()
@@ -274,6 +296,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_bypass_approvals(self):
         """Test Codex with dangerous bypass approvals flag."""
         spawner = HeadlessSpawner()
@@ -281,6 +304,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_codex_multiple_options(self):
         """Test Codex with multiple options combined."""
         spawner = HeadlessSpawner()
@@ -295,6 +319,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_copilot_basic(self):
         """Test basic Copilot spawn."""
         spawner = HeadlessSpawner()
@@ -307,6 +332,7 @@ class TestHeadlessSpawner:
         else:
             assert result.error is not None
 
+    @pytest.mark.external_api
     def test_spawn_copilot_with_tools(self):
         """Test Copilot with tool permissions."""
         spawner = HeadlessSpawner()
@@ -319,6 +345,7 @@ class TestHeadlessSpawner:
         if not result.success:
             assert result.error is not None
 
+    @pytest.mark.external_api
     def test_spawn_copilot_error_handling(self):
         """Test Copilot error handling."""
         spawner = HeadlessSpawner()
@@ -328,6 +355,7 @@ class TestHeadlessSpawner:
         assert not result.success
         assert "Timed out" in result.error or "not found" in result.error
 
+    @pytest.mark.external_api
     def test_spawn_copilot_allow_all_tools(self):
         """Test Copilot with allow all tools flag."""
         spawner = HeadlessSpawner()
@@ -337,6 +365,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_copilot_deny_tools(self):
         """Test Copilot with denied tools."""
         spawner = HeadlessSpawner()
@@ -346,6 +375,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_copilot_combined_tool_options(self):
         """Test Copilot with combined allow and deny tool options."""
         spawner = HeadlessSpawner()
@@ -357,6 +387,7 @@ class TestHeadlessSpawner:
 
         assert isinstance(result, AIResult)
 
+    @pytest.mark.external_api
     def test_spawn_claude_basic(self):
         """Test basic Claude spawn with JSON output."""
         spawner = HeadlessSpawner()
@@ -374,6 +405,7 @@ class TestHeadlessSpawner:
         else:
             assert result.error is not None
 
+    @pytest.mark.external_api
     def test_spawn_claude_text_mode(self):
         """Test Claude with plain text output."""
         spawner = HeadlessSpawner()
@@ -386,6 +418,7 @@ class TestHeadlessSpawner:
             assert "4" in result.response
             assert isinstance(result.raw_output, str)
 
+    @pytest.mark.external_api
     def test_spawn_claude_permission_mode_bypass(self):
         """Test Claude with bypassPermissions mode (default)."""
         spawner = HeadlessSpawner()
@@ -398,6 +431,7 @@ class TestHeadlessSpawner:
         if result.success:
             assert result.response
 
+    @pytest.mark.external_api
     def test_spawn_claude_permission_mode_plan(self):
         """Test Claude with plan mode (no execution)."""
         spawner = HeadlessSpawner()
@@ -411,6 +445,7 @@ class TestHeadlessSpawner:
             # Should describe plan, not actually list files
             assert result.response
 
+    @pytest.mark.external_api
     def test_spawn_claude_error_handling(self):
         """Test Claude error handling."""
         spawner = HeadlessSpawner()
@@ -422,6 +457,7 @@ class TestHeadlessSpawner:
         assert not result.success
         assert "Timed out" in result.error or "not found" in result.error
 
+    @pytest.mark.external_api
     def test_spawn_claude_cost_tracking(self):
         """Test that cost information is captured."""
         spawner = HeadlessSpawner()
@@ -434,6 +470,7 @@ class TestHeadlessSpawner:
             assert result.raw_output["total_cost_usd"] >= 0
             assert "usage" in result.raw_output
 
+    @pytest.mark.external_api
     def test_spawn_claude_complex_prompt(self):
         """Test Claude with complex multi-line prompt."""
         prompt = """
@@ -452,6 +489,7 @@ class TestHeadlessSpawner:
             assert "paris" in response_lower
             assert "50" in result.response
 
+    @pytest.mark.external_api
     def test_spawn_claude_json_parse_error(self):
         """Test Claude handles JSON parse errors gracefully."""
         # This test verifies error handling, actual error conditions
@@ -465,6 +503,7 @@ class TestHeadlessSpawner:
             # Should have meaningful error message
             assert len(result.error) > 0
 
+    @pytest.mark.external_api
     def test_spawn_claude_with_resume(self):
         """Test Claude with session resume option."""
         spawner = HeadlessSpawner()
@@ -475,6 +514,7 @@ class TestHeadlessSpawner:
         assert isinstance(result, AIResult)
         # Resume may fail if session doesn't exist, just verify we handle it
 
+    @pytest.mark.external_api
     def test_spawn_claude_verbose_mode(self):
         """Test Claude with verbose output."""
         spawner = HeadlessSpawner()
@@ -484,6 +524,7 @@ class TestHeadlessSpawner:
         if result.success:
             assert "4" in result.response
 
+    @pytest.mark.external_api
     def test_spawn_claude_resume_and_verbose(self):
         """Test Claude with both resume and verbose options."""
         spawner = HeadlessSpawner()

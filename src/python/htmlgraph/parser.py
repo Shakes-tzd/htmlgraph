@@ -80,7 +80,8 @@ class HtmlParser:
 
     def get_article(self) -> Any | None:
         """Get the main article element (graph node root)."""
-        return self.query_one("article[id]")
+        results = self.query("article[id]")
+        return results[0] if results else None
 
     def get_node_id(self) -> str | None:
         """Extract node ID from article element."""
@@ -200,13 +201,15 @@ class HtmlParser:
     def get_title(self) -> str | None:
         """Get node title from h1 or title element."""
         # Try h1 in header first
-        h1 = self.query_one("article header h1")
+        h1_results = self.query("article header h1")
+        h1 = h1_results[0] if h1_results else None
         if h1:
             text: str = h1.to_text().strip()
             return text
 
         # Fall back to title element
-        title = self.query_one("title")
+        title_results = self.query("title")
+        title = title_results[0] if title_results else None
         if title:
             text2: str = title.to_text().strip()
             return text2
@@ -225,7 +228,8 @@ class HtmlParser:
         """
         edges: dict[str, list[dict[str, Any]]] = {}
 
-        edge_nav = self.query_one("nav[data-graph-edges]")
+        edge_nav_results = self.query("nav[data-graph-edges]")
+        edge_nav = edge_nav_results[0] if edge_nav_results else None
         if not edge_nav:
             return edges
 
@@ -363,7 +367,10 @@ class HtmlParser:
 
     def get_content(self) -> str:
         """Extract main content from section[data-content]."""
-        content_section = self.query_one("section[data-content]")
+        content_section_results = self.query("section[data-content]")
+        content_section = (
+            content_section_results[0] if content_section_results else None
+        )
         if not content_section:
             return ""
 
@@ -381,12 +388,16 @@ class HtmlParser:
 
     def get_findings(self) -> str | None:
         """Extract findings from section[data-findings] (Spike-specific)."""
-        findings_section = self.query_one("section[data-findings]")
+        findings_section_results = self.query("section[data-findings]")
+        findings_section = (
+            findings_section_results[0] if findings_section_results else None
+        )
         if not findings_section:
             return None
 
         # Look for findings-content div using full selector
-        content_div = self.query_one("section[data-findings] div.findings-content")
+        content_div_results = self.query("section[data-findings] div.findings-content")
+        content_div = content_div_results[0] if content_div_results else None
         if content_div:
             text = content_div.to_text().strip()
             return text if text else None
@@ -406,7 +417,10 @@ class HtmlParser:
 
     def get_decision(self) -> str | None:
         """Extract decision from section[data-decision] (Spike-specific)."""
-        decision_section = self.query_one("section[data-decision]")
+        decision_section_results = self.query("section[data-decision]")
+        decision_section = (
+            decision_section_results[0] if decision_section_results else None
+        )
         if not decision_section:
             return None
 
