@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Inject orchestration rules via CLI --append-system-prompt</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-0888e0f1"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-01-03T14:35:14.234128"
+             data-updated="2026-01-03T14:36:31.279856" data-agent-assigned="claude-orchestrator" data-claimed-at="2026-01-03T14:35:14.528380" data-claimed-by-session="sess-f1dbfc0f">
+
+        <header>
+            <h1>Inject orchestration rules via CLI --append-system-prompt</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-f1dbfc0f.html" data-relationship="implemented-in" data-since="2026-01-03T14:35:14.527915">sess-f1dbfc0f</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-01-03T14:36:31.279879">2026-01-03T14:36:31.279879</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'sess-f1dbfc0f', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 0.8333333333333334, 'issues': [], 'recommendations': [], 'test_runs': [], 'test_summary': None, 'summary': '✓ Session completed cleanly'}">{'session_id': 'sess-f1dbfc0f', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 0.8333333333333334, 'issues': [], 'recommendations': [], 'test_runs': [], 'test_summary': None, 'summary': '✓ Session completed cleanly'}</dd>
+<dt>Insight Id</dt>
+                <dd data-key="insight_id" data-value="insi-3f1ddbd7">insi-3f1ddbd7</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Read orchestration rules from packages/claude-plugin/rules/orchestration.md</li>
+                <li data-completed="false">⏳ Modify cmd_claude() to inject rules for all modes (--dev, --continue, --init, default)</li>
+                <li data-completed="false">⏳ Test that orchestration rules are applied in all modes</li>
+                <li data-completed="false">⏳ Verify HeadlessSpawner is prioritized over Task()</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

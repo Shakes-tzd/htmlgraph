@@ -1,14 +1,1 @@
-{
-  "spike-init-sess-8e4": {
-    "spike_subtype": "session-init",
-    "session_id": "sess-8e4b1dea"
-  },
-  "spike-init-sess-1df": {
-    "spike_subtype": "session-init",
-    "session_id": "sess-1df3ae6e"
-  },
-  "spk-1f7933d0": {
-    "spike_subtype": "transition",
-    "session_id": "sess-1df3ae6e"
-  }
-}
+{}

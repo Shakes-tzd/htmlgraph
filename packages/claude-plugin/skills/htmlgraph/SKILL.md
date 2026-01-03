@@ -249,7 +249,7 @@ Task(
 - Is this in the PERMITTED list? → If NO: **DELEGATE**
 - Am I rationalizing ("it's just one...")? → If YES: **DELEGATE**
 
-**See:** `.claude/rules/orchestration.md` for complete orchestrator directives and delegation patterns.
+**See:** `packages/claude-plugin/rules/orchestration.md` for complete orchestrator directives and delegation patterns.
 
 #### Parallel Workflow (6-Phase Process)
 

@@ -2,7 +2,7 @@
 
 This document contains the complete orchestration rules and patterns for HtmlGraph project.
 
-**Source:** `.claude/rules/orchestration.md`
+**Source:** `packages/claude-plugin/rules/orchestration.md`
 
 ---
 

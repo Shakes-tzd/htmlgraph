@@ -3590,6 +3590,19 @@ def cmd_claude(args: argparse.Namespace) -> None:
     """Start Claude Code with orchestrator prompt."""
     import textwrap
 
+    # Load orchestration rules from plugin
+    rules_file = (
+        Path(__file__).parent.parent.parent.parent
+        / "packages"
+        / "claude-plugin"
+        / "rules"
+        / "orchestration.md"
+    )
+
+    orchestration_rules = ""
+    if rules_file.exists():
+        orchestration_rules = rules_file.read_text(encoding="utf-8")
+
     try:
         if args.init:
             # Load optimized orchestrator system prompt
@@ -3623,9 +3636,14 @@ def cmd_claude(args: argparse.Namespace) -> None:
                     """
                 )
 
+            # Combine fallback prompt with orchestration rules
+            combined_prompt = system_prompt
+            if orchestration_rules:
+                combined_prompt = f"{system_prompt}\n\n---\n\n{orchestration_rules}"
+
             if args.quiet or args.format == "json":
                 # Non-interactive: directly launch Claude with system prompt
-                cmd = ["claude", "--append-system-prompt", system_prompt]
+                cmd = ["claude", "--append-system-prompt", combined_prompt]
             else:
                 # Interactive: show summary first
                 print("=" * 60)
@@ -3633,13 +3651,13 @@ def cmd_claude(args: argparse.Namespace) -> None:
                 print("=" * 60)
                 print("\nStarting Claude Code with orchestrator system prompt...")
                 print("Key directives:")
-                print("  ✓ Delegate implementation to subagents")
+                print("  ✓ Delegate to Gemini (FREE), Codex, Copilot first")
+                print("  ✓ Use Task() only as fallback")
                 print("  ✓ Create work items before delegating")
                 print("  ✓ Track all work in .htmlgraph/")
-                print("  ✓ Respect dependency chains")
                 print()
 
-                cmd = ["claude", "--append-system-prompt", system_prompt]
+                cmd = ["claude", "--append-system-prompt", combined_prompt]
 
             try:
                 subprocess.run(cmd, check=False)
@@ -3666,6 +3684,12 @@ def cmd_claude(args: argparse.Namespace) -> None:
             else:
                 print("Resuming last Claude Code session...")
                 cmd = ["claude", "--resume"]
+
+            # Add orchestration rules if available
+            if orchestration_rules:
+                cmd.extend(["--append-system-prompt", orchestration_rules])
+                if not (args.quiet or args.format == "json"):
+                    print("  ✓ Multi-AI delegation rules injected")
 
             # Add plugin directory if it exists
             if plugin_dir.exists():
@@ -3710,9 +3734,14 @@ def cmd_claude(args: argparse.Namespace) -> None:
                 print("=" * 60)
                 print(f"\nLoading plugin from: {plugin_dir}")
                 print("  ✓ Skills, agents, and hooks will be loaded from local files")
+                print("  ✓ Multi-AI delegation rules will be injected")
                 print("  ✓ Changes to plugin files will take effect after restart")
                 print()
                 cmd = ["claude", "--plugin-dir", str(plugin_dir)]
+
+            # Add orchestration rules if available
+            if orchestration_rules:
+                cmd.extend(["--append-system-prompt", orchestration_rules])
 
             try:
                 subprocess.run(cmd, check=False)
@@ -3726,8 +3755,16 @@ def cmd_claude(args: argparse.Namespace) -> None:
 
         else:
             # Default: start normal Claude Code session
+            cmd = ["claude"]
+
+            # Add orchestration rules if available
+            if orchestration_rules:
+                cmd.extend(["--append-system-prompt", orchestration_rules])
+                if not (args.quiet or args.format == "json"):
+                    print("Starting Claude Code with multi-AI delegation rules...")
+
             try:
-                subprocess.run(["claude"], check=False)
+                subprocess.run(cmd, check=False)
             except FileNotFoundError:
                 print("Error: 'claude' command not found.", file=sys.stderr)
                 print(
