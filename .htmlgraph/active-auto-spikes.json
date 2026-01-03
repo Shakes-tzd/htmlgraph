@@ -1,1 +1,10 @@
-{}
+{
+  "spk-637ea05f": {
+    "spike_subtype": "transition",
+    "session_id": "sess-f1dbfc0f"
+  },
+  "spk-7da7ecca": {
+    "spike_subtype": "transition",
+    "session_id": "sess-f1dbfc0f"
+  }
+}

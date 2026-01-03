@@ -65,7 +65,6 @@ class HeadlessSpawner:
         output_format: str = "json",
         model: str | None = None,
         include_directories: list[str] | None = None,
-        color: str = "auto",
         timeout: int = 120,
     ) -> AIResult:
         """
@@ -76,7 +75,6 @@ class HeadlessSpawner:
             output_format: "json" or "stream-json"
             model: Model selection (e.g., "gemini-2.0-flash"). Default: None (uses default)
             include_directories: List of directories to include for context. Default: None
-            color: Color output control ("auto", "on", "off"). Default: "auto"
             timeout: Max seconds to wait
 
         Returns:
@@ -95,8 +93,8 @@ class HeadlessSpawner:
                 for directory in include_directories:
                     cmd.extend(["--include-directories", directory])
 
-            # Add color option
-            cmd.extend(["--color", color])
+            # CRITICAL: Add --yolo for headless mode (auto-approve all tools)
+            cmd.append("--yolo")
 
             # Execute with timeout and stderr redirection
             # Note: Cannot use capture_output with stderr parameter
@@ -180,13 +178,11 @@ class HeadlessSpawner:
     def spawn_codex(
         self,
         prompt: str,
-        approval: str = "never",
         output_json: bool = True,
         model: str | None = None,
         sandbox: str | None = None,
-        full_auto: bool = False,
+        full_auto: bool = True,
         images: list[str] | None = None,
-        color: str = "auto",
         output_last_message: str | None = None,
         output_schema: str | None = None,
         skip_git_check: bool = False,
@@ -200,13 +196,11 @@ class HeadlessSpawner:
 
         Args:
             prompt: Task description for Codex
-            approval: Approval mode ("never", "always")
             output_json: Use --json flag for JSONL output
             model: Model selection (e.g., "gpt-4-turbo"). Default: None
             sandbox: Sandbox mode ("read-only", "workspace-write", "danger-full-access"). Default: None
-            full_auto: Enable full auto mode (--full-auto). Default: False
+            full_auto: Enable full auto mode (--full-auto). Default: True (required for headless)
             images: List of image paths (--image). Default: None
-            color: Color output control ("auto", "on", "off"). Default: "auto"
             output_last_message: Write last message to file (--output-last-message). Default: None
             output_schema: JSON schema for validation (--output-schema). Default: None
             skip_git_check: Skip git repo check (--skip-git-repo-check). Default: False
@@ -240,9 +234,6 @@ class HeadlessSpawner:
             for image in images:
                 cmd.extend(["--image", image])
 
-        # Add color option
-        cmd.extend(["--color", color])
-
         # Add output last message file if specified
         if output_last_message:
             cmd.extend(["--output-last-message", output_last_message])
@@ -267,7 +258,8 @@ class HeadlessSpawner:
         if bypass_approvals:
             cmd.append("--dangerously-bypass-approvals-and-sandbox")
 
-        cmd.extend(["--approval", approval, prompt])
+        # Add prompt as final argument
+        cmd.append(prompt)
 
         try:
             result = subprocess.run(
