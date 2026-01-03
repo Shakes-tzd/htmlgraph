@@ -39,56 +39,6 @@ class TestAgentDetection:
         )  # Fake home to avoid .claude detection
         assert detect_agent_name() == "gemini"
 
-    def test_detect_agent_with_opencode_version(self, monkeypatch):
-        """Test OpenCode detection via version environment variable."""
-        # Import the module to patch its internals
-        import htmlgraph.agent_detection as ad_module
-
-        # Mock psutil to prevent Claude Code parent process detection
-        mock_psutil = Mock()
-        mock_process = Mock()
-        mock_process.parent.return_value = None  # No parent process
-        mock_psutil.Process.return_value = mock_process
-        monkeypatch.setattr(ad_module, "psutil", mock_psutil)
-
-        # Mock Path.home() to hide .claude directory
-        mock_home = Mock()
-        mock_home.exists.return_value = False
-        mock_path_home = Mock(return_value=mock_home)
-        monkeypatch.setattr(ad_module.Path, "home", mock_path_home)
-
-        # Clear all agent detection vars
-        monkeypatch.delenv("HTMLGRAPH_AGENT", raising=False)
-        monkeypatch.delenv("CLAUDE_CODE_VERSION", raising=False)
-        monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-        monkeypatch.delenv("CLAUDE_SESSION_ID", raising=False)
-
-        monkeypatch.setenv("OPENCODE_VERSION", "1.0.0")
-        assert detect_agent_name() == "opencode"
-
-    def test_detect_agent_with_opencode_api_key(self, monkeypatch):
-        """Test OpenCode detection via API key."""
-        monkeypatch.delenv("HTMLGRAPH_AGENT", raising=False)
-        monkeypatch.delenv("CLAUDE_CODE_VERSION", raising=False)
-        monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-        # Also clear potential Claude detection from parent process
-        monkeypatch.delenv("CLAUDE_SESSION_ID", raising=False)
-        monkeypatch.setenv("OPENCODE_API_KEY", "sk-test-123")
-        assert detect_agent_name() == "opencode"
-
-    def test_detect_agent_with_opencode_session_id(self, monkeypatch):
-        """Test OpenCode detection via session ID."""
-        monkeypatch.delenv("HTMLGRAPH_AGENT", raising=False)
-        monkeypatch.delenv("CLAUDE_CODE_VERSION", raising=False)
-        monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
-        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-        # Also clear potential Claude detection from parent process
-        monkeypatch.delenv("CLAUDE_SESSION_ID", raising=False)
-        monkeypatch.setenv("OPENCODE_SESSION_ID", "session-abc123")
-        assert detect_agent_name() == "opencode"
-
     def test_detect_agent_defaults_to_cli(self, monkeypatch):
         """Test fallback to CLI when no specific environment detected."""
         # Clear all environment variables
@@ -110,10 +60,6 @@ class TestAgentDisplayNames:
         """Test Claude display name."""
         assert get_agent_display_name("claude") == "Claude"
         assert get_agent_display_name("claude-code") == "Claude"
-
-    def test_get_display_name_opencode(self):
-        """Test OpenCode display name."""
-        assert get_agent_display_name("opencode") == "OpenCode"
 
     def test_get_display_name_gemini(self):
         """Test Gemini display name."""

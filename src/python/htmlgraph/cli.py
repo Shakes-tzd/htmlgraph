@@ -171,7 +171,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         generate_docs = True  # Always generate in non-interactive mode
 
     def init_progress() -> tuple[Any | None, Any | None]:
-        if args.quiet or getattr(args, "format", "text") != "text":
+        if getattr(args, "quiet", False) or getattr(args, "format", "text") != "text":
             return None, None
         try:
             from rich.console import Console

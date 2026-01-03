@@ -20,8 +20,7 @@ def detect_agent_name() -> str:
         1. HTMLGRAPH_AGENT environment variable (explicit override)
         2. Claude Code detection (CLAUDE_CODE_VERSION, parent process)
         3. Gemini detection (GEMINI environment markers)
-        4. OpenCode detection (OPENCODE environment markers)
-        5. Fall back to "cli"
+        4. Fall back to "cli"
     """
     # 1. Explicit override
     explicit = os.environ.get("HTMLGRAPH_AGENT")
@@ -36,11 +35,7 @@ def detect_agent_name() -> str:
     if _is_gemini():
         return "gemini"
 
-    # 4. OpenCode detection
-    if _is_opencode():
-        return "opencode"
-
-    # 5. Default to CLI
+    # 4. Default to CLI
     return "cli"
 
 
@@ -93,39 +88,6 @@ def _is_gemini() -> bool:
     return False
 
 
-def _is_opencode() -> bool:
-    """Check if running in OpenCode environment."""
-    # Check for OpenCode-specific environment variables
-    if os.environ.get("OPENCODE_VERSION"):
-        return True
-
-    if os.environ.get("OPENCODE_API_KEY"):
-        return True
-
-    if os.environ.get("OPENCODE_SESSION_ID"):
-        return True
-
-    # Check for opencode in command line args
-    if any("opencode" in arg.lower() for arg in sys.argv):
-        return True
-
-    # Check for OpenCode configuration
-    try:
-        # Look for OpenCode config in common locations
-        opencode_config = Path.home() / ".opencode"
-        if opencode_config.exists():
-            return True
-
-        # Check project-level OpenCode config
-        project_config = Path.cwd() / ".opencode"
-        if project_config.exists():
-            return True
-    except Exception:
-        pass
-
-    return False
-
-
 def get_agent_display_name(agent: str) -> str:
     """
     Get a human-friendly display name for an agent.
@@ -140,7 +102,6 @@ def get_agent_display_name(agent: str) -> str:
         "claude": "Claude",
         "claude-code": "Claude",
         "gemini": "Gemini",
-        "opencode": "OpenCode",
         "cli": "CLI",
         "haiku": "Haiku",
         "opus": "Opus",
