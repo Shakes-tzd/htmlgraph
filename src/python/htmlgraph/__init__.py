@@ -84,7 +84,7 @@ from htmlgraph.types import (
 )
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 __all__ = [
     # Exceptions
     "HtmlGraphError",
