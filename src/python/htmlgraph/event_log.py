@@ -38,6 +38,22 @@ class EventRecord:
     session_status: str | None = None
     file_paths: list[str] | None = None
     payload: dict[str, Any] | None = None
+    # Phase 1: Enhanced Event Data Schema for multi-AI delegation tracking
+    delegated_to_ai: str | None = (
+        None  # "gemini", "codex", "copilot", "claude", or None
+    )
+    task_id: str | None = None  # Unique task ID for parallel tracking
+    task_status: str | None = (
+        None  # "pending", "running", "completed", "failed", "timeout"
+    )
+    model_selected: str | None = None  # Specific model (e.g., "gemini-2.0-flash")
+    complexity_level: str | None = None  # "low", "medium", "high", "very-high"
+    budget_mode: str | None = None  # "free", "balanced", "performance"
+    execution_duration_seconds: float | None = None  # How long delegation took
+    tokens_estimated: int | None = None  # Estimated token usage
+    tokens_actual: int | None = None  # Actual token usage
+    cost_usd: float | None = None  # Calculated cost
+    task_findings: str | None = None  # Results from delegated task
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -56,6 +72,18 @@ class EventRecord:
             "session_status": self.session_status,
             "file_paths": self.file_paths or [],
             "payload": self.payload,
+            # Delegation fields
+            "delegated_to_ai": self.delegated_to_ai,
+            "task_id": self.task_id,
+            "task_status": self.task_status,
+            "model_selected": self.model_selected,
+            "complexity_level": self.complexity_level,
+            "budget_mode": self.budget_mode,
+            "execution_duration_seconds": self.execution_duration_seconds,
+            "tokens_estimated": self.tokens_estimated,
+            "tokens_actual": self.tokens_actual,
+            "cost_usd": self.cost_usd,
+            "task_findings": self.task_findings,
         }
 
 
