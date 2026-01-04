@@ -1,3 +1,13 @@
+---
+description: Spawn Google Gemini 2.0-Flash for exploratory work, batch operations, and multimodal tasks with FREE tier optimization
+capabilities:
+  - Exploratory research with large context windows (1M tokens)
+  - Batch file analysis and processing
+  - Multimodal tasks (images, PDFs, documents)
+  - Cost-optimized workflows using FREE tier (2M tokens/minute)
+  - Automatic fallback to Haiku on failure or quota exceeded
+---
+
 # Gemini Spawner Agent
 
 Spawn Google Gemini 2.0-Flash for exploratory work, batch operations, and multimodal tasks with FREE tier optimization.

@@ -1,3 +1,13 @@
+---
+description: Spawn OpenAI Codex (GPT-4) for code generation, sandboxed execution, and structured outputs with automatic fallback to Sonnet
+capabilities:
+  - Code generation requiring GPT-4 reasoning
+  - Sandboxed execution (read-only, workspace-write, full-access modes)
+  - Structured JSON outputs with schema validation
+  - Isolated execution context for independent tasks
+  - Automatic fallback to Sonnet on failure or timeout
+---
+
 # Codex Spawner Agent
 
 Spawn OpenAI Codex (GPT-4) for code generation, sandboxed execution, and structured outputs with automatic fallback to Sonnet.
