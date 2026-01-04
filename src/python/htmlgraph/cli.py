@@ -3606,7 +3606,9 @@ def cmd_claude(args: argparse.Namespace) -> None:
     try:
         if args.init:
             # Load optimized orchestrator system prompt
-            prompt_file = Path(__file__).parent / "orchestrator_system_prompt.txt"
+            prompt_file = (
+                Path(__file__).parent / "orchestrator-system-prompt-optimized.txt"
+            )
 
             if prompt_file.exists():
                 system_prompt = prompt_file.read_text(encoding="utf-8")
