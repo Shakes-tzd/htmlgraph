@@ -17,9 +17,7 @@ import subprocess
 from unittest.mock import Mock, patch
 
 import pytest
-
 from htmlgraph.orchestration import AIResult, HeadlessSpawner
-
 
 # ==============================================================================
 # UNIT TESTS - Use mocks, run by default

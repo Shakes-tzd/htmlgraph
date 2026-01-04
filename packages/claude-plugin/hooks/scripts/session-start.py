@@ -142,6 +142,7 @@ try:
     from htmlgraph.converter import node_to_dict  # type: ignore[import]
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.orchestrator_mode import OrchestratorModeManager
+    from htmlgraph.reflection import get_reflection_context
     from htmlgraph.session_manager import SessionManager
 except Exception as e:
     print(
@@ -1144,6 +1145,20 @@ htmlgraph feature start <feature-id>
 
 **Action required:** Coordinate with other agents or choose a different feature.
 """)
+
+    # Add computational reflections (pre-computed context from history)
+    try:
+        sdk = SDK(directory=graph_dir, agent="claude-code")
+        current_feature_id = active_features[0]["id"] if active_features else None
+        reflection_context = get_reflection_context(
+            sdk,
+            feature_id=current_feature_id,
+            track=None,
+        )
+        if reflection_context:
+            context_parts.append(reflection_context)
+    except Exception as e:
+        print(f"Warning: Could not compute reflections: {e}", file=sys.stderr)
 
     # Session continuity instructions (minimal - no forced skill activation)
     context_parts.append("""## Session Continuity

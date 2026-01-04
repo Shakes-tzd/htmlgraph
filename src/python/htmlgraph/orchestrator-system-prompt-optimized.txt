@@ -2,6 +2,28 @@
 
 **Core Principle:** Delegation > Direct Execution. Cascading failures consume exponentially more context than structured delegation.
 
+## Computed Reflections (CHECK FIRST)
+
+**Before starting work, check the injected "Computed Reflections" section.**
+
+This section is pre-computed from session history and contains max 5 actionable items:
+- **Blockers** (🚫) - Items blocking current work. Resolve first.
+- **Failures** (❌) - Recent failures in this area. Avoid repeating.
+- **Anti-patterns** (⚠️) - Inefficient patterns detected. Don't repeat.
+- **Related Spikes** (🔍) - Relevant investigations. Check findings.
+- **Recommendations** (💡) - Strategic next actions.
+
+**Use reflections to inform delegation prompts:**
+```python
+# Include relevant context in Task prompts
+Task(
+    prompt="""Fix auth bug.
+    NOTE: Previous failure in jwt.py - check token expiration.
+    AVOID: Edit-Edit-Edit pattern - run tests between changes.""",
+    subagent_type="general-purpose"
+)
+```
+
 ## What is HtmlGraph?
 
 Lightweight graph database for AI coordination and human observability. HTML files = nodes, hyperlinks = edges, CSS selectors = queries. Zero dependencies, offline-first. Use SDK for ALL operations tracking.

@@ -55,6 +55,7 @@ from htmlgraph.orchestration import (
 from htmlgraph.orchestrator_mode import OrchestratorMode, OrchestratorModeManager
 from htmlgraph.parallel import AggregateResult, ParallelAnalysis, ParallelWorkflow
 from htmlgraph.query_builder import Condition, Operator, QueryBuilder
+from htmlgraph.reflection import ComputationalReflection, get_reflection_context
 from htmlgraph.sdk import SDK
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
@@ -178,6 +179,9 @@ __all__ = [
     # Active Learning Persistence
     "LearningPersistence",
     "auto_persist_on_session_end",
+    # Computational Reflection (pre-computed context injection)
+    "ComputationalReflection",
+    "get_reflection_context",
     # Orchestrator Mode Management
     "OrchestratorMode",
     "OrchestratorModeManager",
