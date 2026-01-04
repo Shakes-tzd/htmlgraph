@@ -1,0 +1,56 @@
+{
+  "wave": 2,
+  "timestamp": "2026-01-04T16:20:51.064586",
+  "agents": [
+    {
+      "id": "A2-1",
+      "name": "SessionStart Hook Enhancement",
+      "description": "Integrate CIGSSessionInitializer into session-start.py hook",
+      "prompt": "\nIntegrate CIGS into the SessionStart hook.\n\n**Component:** CIGSSessionInitializer\n\n**Files to modify:**\n- packages/claude-plugin/hooks/scripts/session-start.py\n\n**Requirements:**\n1. Import CIGS modules (ViolationTracker, PatternAnalyzer, AutonomyRecommender)\n2. Load violation history from last 5 sessions\n3. Detect patterns using PatternDetector\n4. Recommend autonomy level using AutonomyRecommender\n5. Generate personalized context injection based on history\n6. Return hookSpecificOutput with additionalContext\n\n**Output format:**\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"SessionStart\",\n    \"additionalContext\": \"## CIGS Status\\n\\nAutonomy Level: GUIDED\\n...\"\n  }\n}\n```\n\n**Reference:** See .htmlgraph/spikes/computational-imperative-guidance-system-design.md section 2.1\n\n**Testing:** Create test_session_start_cigs.py to verify context injection\n\nImplement the full SessionStart hook enhancement with CIGS integration.\n",
+      "subagent_type": "general-purpose"
+    },
+    {
+      "id": "B2-1",
+      "name": "UserPromptSubmit Hook Enhancement",
+      "description": "Integrate CIGSPromptInterceptor into user-prompt-submit.py hook",
+      "prompt": "\nIntegrate CIGS into the UserPromptSubmit hook.\n\n**Component:** CIGSPromptInterceptor\n\n**Files to modify:**\n- packages/claude-plugin/hooks/scripts/user-prompt-submit.py\n\n**Requirements:**\n1. Create PromptClassifier to detect intent (exploration, code changes, git)\n2. Load current session violation count\n3. Generate pre-response imperative guidance based on intent\n4. Include violation warnings if count > 0\n5. Return hookSpecificOutput with additionalContext\n\n**Detection logic:**\n- Exploration: Keywords like \"search\", \"find\", \"what files\", \"analyze\"\n- Code changes: Keywords like \"implement\", \"fix\", \"update\", \"refactor\"\n- Git: Keywords like \"commit\", \"push\", \"merge\", \"branch\"\n\n**Output format:**\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"UserPromptSubmit\",\n    \"additionalContext\": \"IMPERATIVE: This request involves exploration. YOU MUST use spawn_gemini()...\"\n  }\n}\n```\n\n**Reference:** See design doc section 2.2\n\n**Testing:** Create test_user_prompt_submit_cigs.py with various prompt types\n\nImplement the full UserPromptSubmit hook enhancement.\n",
+      "subagent_type": "general-purpose"
+    },
+    {
+      "id": "C2-1",
+      "name": "PreToolUse Hook Enhancement",
+      "description": "Integrate CIGSPreToolEnforcer into pretooluse.py hook",
+      "prompt": "\nIntegrate CIGS into the PreToolUse hook.\n\n**Component:** CIGSPreToolEnforcer\n\n**Files to modify:**\n- packages/claude-plugin/hooks/scripts/pretooluse.py (or create new orchestrator-pretooluse.py)\n\n**Requirements:**\n1. Use existing OrchestratorValidator for base classification\n2. Load session violation count from ViolationTracker\n3. Classify operation using OperationClassification\n4. Generate imperative message using ImperativeMessageGenerator\n5. Calculate cost prediction using CostCalculator\n6. Record violation if should_delegate=True\n7. Return hookSpecificOutput with imperative message\n\n**Tool categories:**\n- ALWAYS_ALLOWED: Task, AskUserQuestion, TodoWrite, SDK operations\n- EXPLORATION_TOOLS: Read, Grep, Glob\n- IMPLEMENTATION_TOOLS: Edit, Write, NotebookEdit\n\n**Escalation levels:**\n- Level 0: First occurrence (guidance)\n- Level 1: Second occurrence (imperative)\n- Level 2: Third occurrence (final warning)\n- Level 3: Circuit breaker (requires acknowledgment)\n\n**Output format:**\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PreToolUse\",\n    \"permissionDecision\": \"allow\",\n    \"additionalContext\": \"\ud83d\udd34 IMPERATIVE: YOU MUST delegate...\"\n  }\n}\n```\n\n**Reference:** See design doc section 2.3\n\n**Testing:** Create test_pretooluse_cigs.py with escalation scenarios\n\nImplement the full PreToolUse hook enhancement with escalation.\n",
+      "subagent_type": "general-purpose"
+    },
+    {
+      "id": "D2-1",
+      "name": "PostToolUse Hook Enhancement",
+      "description": "Integrate CIGSPostToolAnalyzer into posttooluse.py hook",
+      "prompt": "\nIntegrate CIGS into the PostToolUse hook.\n\n**Component:** CIGSPostToolAnalyzer\n\n**Files to modify:**\n- packages/claude-plugin/hooks/scripts/posttooluse.py (or create new orchestrator-posttooluse.py)\n\n**Requirements:**\n1. Calculate actual cost using CostCalculator\n2. Load prediction from ViolationTracker (if violation was recorded in PreToolUse)\n3. Determine if operation was delegation (Task, spawn_*)\n4. Generate positive reinforcement for delegations\n5. Generate cost accounting for direct executions\n6. Update violation tracker with actual costs\n7. Record ignored warnings for pattern detection\n\n**Two paths:**\n- **Delegation:** Positive reinforcement with savings calculation\n- **Direct execution:** Cost accounting with reflection\n\n**Output format (delegation):**\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PostToolUse\",\n    \"additionalContext\": \"\u2705 Correct delegation pattern used. Saved ~4500 tokens...\"\n  }\n}\n```\n\n**Output format (violation):**\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"PostToolUse\",\n    \"additionalContext\": \"\ud83d\udcca Direct execution completed. Cost Impact (Violation): ...\"\n  }\n}\n```\n\n**Reference:** See design doc section 2.4\n\n**Testing:** Create test_posttooluse_cigs.py with delegation and violation scenarios\n\nImplement the full PostToolUse hook enhancement.\n",
+      "subagent_type": "general-purpose"
+    },
+    {
+      "id": "E2-1",
+      "name": "Stop Hook Enhancement",
+      "description": "Integrate CIGSSessionSummarizer into stop.py hook",
+      "prompt": "\nIntegrate CIGS into the Stop hook.\n\n**Component:** CIGSSessionSummarizer\n\n**Files to modify:**\n- packages/claude-plugin/hooks/scripts/stop.py\n\n**Requirements:**\n1. Load session violations from ViolationTracker\n2. Analyze session patterns using PatternAnalyzer\n3. Calculate session costs\n4. Generate autonomy recommendation for next session\n5. Build comprehensive session summary\n6. Persist summary to .htmlgraph/cigs/session-summaries/{session_id}.json\n\n**Summary sections:**\n- Delegation Metrics (compliance rate, violations, circuit breaker)\n- Cost Analysis (total tokens, waste, efficiency score)\n- Detected Patterns (good patterns and anti-patterns)\n- Autonomy Recommendation (level for next session with reason)\n- Learning Applied (what was recorded for future sessions)\n\n**Output format:**\n```json\n{\n  \"hookSpecificOutput\": {\n    \"hookEventName\": \"Stop\",\n    \"additionalContext\": \"## \ud83d\udcca CIGS Session Summary\\n\\n### Delegation Metrics...\"\n  }\n}\n```\n\n**Reference:** See design doc section 2.5\n\n**Testing:** Create test_stop_cigs.py to verify summary generation\n\nImplement the full Stop hook enhancement with session summary.\n",
+      "subagent_type": "general-purpose"
+    },
+    {
+      "id": "F2-1",
+      "name": "CLI Commands",
+      "description": "Add CIGS CLI commands to htmlgraph CLI",
+      "prompt": "\nAdd CIGS CLI commands to the htmlgraph CLI.\n\n**Files to modify:**\n- src/python/htmlgraph/cli.py\n- src/python/htmlgraph/orchestrator_mode.py (add new methods)\n\n**Commands to add:**\n\n1. `htmlgraph cigs status`\n   - Show current session violations\n   - Show compliance rate\n   - Show autonomy level\n   - Show recent patterns\n\n2. `htmlgraph cigs summary [session-id]`\n   - Show detailed session summary\n   - Default to current session if no ID provided\n\n3. `htmlgraph cigs patterns`\n   - List all detected patterns (good and anti)\n   - Show occurrence counts\n   - Show remediation suggestions\n\n4. `htmlgraph cigs reset-violations`\n   - Reset violation count for current session\n   - Requires confirmation\n\n5. `htmlgraph orchestrator acknowledge-violation`\n   - Acknowledge circuit breaker violation\n   - Reset circuit breaker state\n   - Continue with current session\n\n**Implementation:**\n- Use Click for CLI commands\n- Integrate with existing OrchestratorMode class\n- Use ViolationTracker, PatternAnalyzer for data\n- Format output with rich/colored text\n\n**Reference:** See design doc Appendix B for message examples\n\n**Testing:** Create test_cigs_cli.py to verify all commands\n\nImplement all CIGS CLI commands with proper formatting.\n",
+      "subagent_type": "general-purpose"
+    },
+    {
+      "id": "G2-1",
+      "name": "Integration Tests",
+      "description": "Create comprehensive integration tests for CIGS system",
+      "prompt": "\nCreate comprehensive integration tests for the CIGS system.\n\n**Files to create:**\n- tests/integration/test_cigs_integration.py\n- tests/integration/test_cigs_hook_flow.py\n- tests/integration/test_cigs_learning.py\n\n**Test scenarios:**\n\n1. **Full Hook Flow Test:**\n   - SessionStart \u2192 load history\n   - UserPromptSubmit \u2192 detect exploration intent\n   - PreToolUse \u2192 generate imperative\n   - Tool execution\n   - PostToolUse \u2192 cost accounting\n   - Stop \u2192 session summary\n\n2. **Escalation Test:**\n   - First violation \u2192 Level 1 message\n   - Second violation \u2192 Level 2 message\n   - Third violation \u2192 Circuit breaker\n   - Acknowledgment \u2192 Reset\n\n3. **Pattern Detection Test:**\n   - Trigger exploration sequence\n   - Verify pattern detection\n   - Verify pattern persistence\n   - Verify pattern-based guidance\n\n4. **Cross-Session Learning:**\n   - Session 1: High violations \u2192 strict autonomy\n   - Session 2: Load strict context\n   - Session 3: Improved compliance \u2192 relax autonomy\n\n5. **Cost Calculation Test:**\n   - Direct execution vs delegation\n   - Verify waste calculation\n   - Verify efficiency score\n\n**Use pytest fixtures:**\n- Mock session context\n- Mock tool history\n- Mock violation records\n\n**Reference:** All design doc sections\n\nImplement comprehensive integration tests for CIGS.\n",
+      "subagent_type": "general-purpose"
+    }
+  ],
+  "status": "launched"
+}

@@ -6,18 +6,25 @@
 # ]
 # ///
 """
-UserPromptSubmit Hook - Analyze prompts and guide workflow.
+UserPromptSubmit Hook - Analyze prompts and guide workflow with CIGS integration.
 
 This hook fires when the user submits a prompt. It analyzes the intent
 and provides guidance to ensure proper HtmlGraph workflow:
 
-1. Implementation requests → Ensure work item exists
+1. Implementation requests → Ensure work item exists + CIGS imperative guidance
 2. Bug reports → Guide to create bug first
 3. Investigation requests → Guide to create spike first
 4. Continue/resume → Check for existing work context
+5. CIGS integration → Pre-response delegation reminders based on intent
 
 Hook Input (stdin): JSON with prompt details
 Hook Output (stdout): JSON with guidance (additionalContext)
+
+CIGS Integration:
+- Detects prompt intent (exploration, code changes, git)
+- Loads session violation count
+- Generates pre-response imperative guidance
+- Includes violation warnings if violations > 0
 """
 
 import json
@@ -57,6 +64,63 @@ CONTINUATION_PATTERNS = [
     r"^(continue|resume|proceed|go on|keep going|next)\b",
     r"\b(where we left off|from before|last time)\b",
     r"^(ok|okay|yes|sure|do it|go ahead)\b",
+]
+
+# CIGS: Patterns for delegation-critical operations
+EXPLORATION_KEYWORDS = [
+    "search",
+    "find",
+    "what files",
+    "which files",
+    "where is",
+    "locate",
+    "analyze",
+    "examine",
+    "inspect",
+    "review",
+    "check",
+    "look at",
+    "show me",
+    "list",
+    "grep",
+    "read",
+    "scan",
+    "explore",
+]
+
+CODE_CHANGE_KEYWORDS = [
+    "implement",
+    "fix",
+    "update",
+    "refactor",
+    "change",
+    "modify",
+    "edit",
+    "write",
+    "create file",
+    "add code",
+    "remove code",
+    "replace",
+    "rewrite",
+    "patch",
+    "add",
+]
+
+GIT_KEYWORDS = [
+    "commit",
+    "push",
+    "pull",
+    "merge",
+    "branch",
+    "checkout",
+    "git add",
+    "git commit",
+    "git push",
+    "git status",
+    "git diff",
+    "rebase",
+    "cherry-pick",
+    "stash",
 ]
 
 
@@ -103,6 +167,132 @@ def classify_prompt(prompt: str) -> dict:
             result["matched_patterns"].append(f"bug: {pattern}")
 
     return result
+
+
+def classify_cigs_intent(prompt: str) -> dict:
+    """Classify prompt for CIGS delegation guidance.
+
+    Returns:
+        dict with:
+            - involves_exploration: bool
+            - involves_code_changes: bool
+            - involves_git: bool
+            - intent_confidence: float (0.0-1.0)
+    """
+    prompt_lower = prompt.lower().strip()
+
+    result = {
+        "involves_exploration": False,
+        "involves_code_changes": False,
+        "involves_git": False,
+        "intent_confidence": 0.0,
+    }
+
+    # Check for exploration keywords
+    exploration_matches = sum(1 for kw in EXPLORATION_KEYWORDS if kw in prompt_lower)
+    if exploration_matches > 0:
+        result["involves_exploration"] = True
+        result["intent_confidence"] = min(1.0, exploration_matches * 0.3)
+
+    # Check for code change keywords
+    code_matches = sum(1 for kw in CODE_CHANGE_KEYWORDS if kw in prompt_lower)
+    if code_matches > 0:
+        result["involves_code_changes"] = True
+        result["intent_confidence"] = max(
+            result["intent_confidence"], min(1.0, code_matches * 0.35)
+        )
+
+    # Check for git keywords
+    git_matches = sum(1 for kw in GIT_KEYWORDS if kw in prompt_lower)
+    if git_matches > 0:
+        result["involves_git"] = True
+        result["intent_confidence"] = max(
+            result["intent_confidence"], min(1.0, git_matches * 0.4)
+        )
+
+    return result
+
+
+def get_session_violation_count() -> tuple[int, int]:
+    """Get violation count for current session using CIGS ViolationTracker.
+
+    Returns:
+        Tuple of (violation_count, total_waste_tokens)
+    """
+    try:
+        from htmlgraph.cigs import ViolationTracker
+
+        tracker = ViolationTracker()
+        summary = tracker.get_session_violations()
+        return summary.total_violations, summary.total_waste_tokens
+    except Exception:
+        # Graceful degradation if CIGS not available
+        return 0, 0
+
+
+def generate_cigs_guidance(
+    cigs_intent: dict, violation_count: int, waste_tokens: int
+) -> str:
+    """Generate pre-response CIGS imperative guidance.
+
+    Args:
+        cigs_intent: Intent classification from classify_cigs_intent()
+        violation_count: Number of violations this session
+        waste_tokens: Total wasted tokens this session
+
+    Returns:
+        Imperative guidance string (empty if no guidance needed)
+    """
+    imperatives = []
+
+    # Exploration guidance
+    if cigs_intent["involves_exploration"]:
+        imperatives.append(
+            "🔴 IMPERATIVE: This request involves exploration.\n"
+            "YOU MUST use spawn_gemini() for exploration (FREE cost).\n"
+            "DO NOT use Read/Grep/Glob directly - delegate to Explorer subagent."
+        )
+
+    # Code changes guidance
+    if cigs_intent["involves_code_changes"]:
+        imperatives.append(
+            "🔴 IMPERATIVE: This request involves code changes.\n"
+            "YOU MUST use spawn_codex() or Task() for implementation.\n"
+            "DO NOT use Edit/Write directly - delegate to Coder subagent."
+        )
+
+    # Git operations guidance
+    if cigs_intent["involves_git"]:
+        imperatives.append(
+            "🔴 IMPERATIVE: This request involves git operations.\n"
+            "YOU MUST use spawn_copilot() for git commands (60% cheaper).\n"
+            "DO NOT run git commands directly via Bash."
+        )
+
+    # Violation warning
+    if violation_count > 0:
+        warning_emoji = "⚠️" if violation_count < 3 else "🚨"
+        imperatives.append(
+            f"{warning_emoji} VIOLATION WARNING: You have {violation_count} delegation "
+            f"violations this session ({waste_tokens:,} tokens wasted).\n"
+            f"Circuit breaker triggers at 3 violations."
+        )
+
+    if not imperatives:
+        return ""
+
+    # Combine with header
+    guidance_parts = [
+        "═══════════════════════════════════════════════════════════",
+        "CIGS PRE-RESPONSE GUIDANCE (Computational Imperative Guidance System)",
+        "═══════════════════════════════════════════════════════════",
+        "",
+    ]
+    guidance_parts.extend(imperatives)
+    guidance_parts.append("")
+    guidance_parts.append("═══════════════════════════════════════════════════════════")
+
+    return "\n".join(guidance_parts)
 
 
 def get_active_work_item() -> dict | None:
@@ -239,7 +429,7 @@ def generate_guidance(
 
 
 def main():
-    """Main entry point."""
+    """Main entry point with CIGS integration."""
     try:
         # Read prompt input from stdin
         hook_input = json.load(sys.stdin)
@@ -250,25 +440,58 @@ def main():
             print(json.dumps({}))
             sys.exit(0)
 
-        # Classify the prompt
+        # 1. Classify the prompt (existing workflow guidance)
         classification = classify_prompt(prompt)
 
-        # Get active work item
+        # 2. CIGS: Classify for delegation guidance
+        cigs_intent = classify_cigs_intent(prompt)
+
+        # 3. CIGS: Get violation count
+        violation_count, waste_tokens = get_session_violation_count()
+
+        # 4. Get active work item
         active_work = get_active_work_item()
 
-        # Generate guidance
-        guidance = generate_guidance(classification, active_work, prompt)
+        # 5. Generate workflow guidance (existing)
+        workflow_guidance = generate_guidance(classification, active_work, prompt)
 
-        if guidance:
-            # Return guidance as additionalContext
+        # 6. CIGS: Generate imperative delegation guidance
+        cigs_guidance = generate_cigs_guidance(
+            cigs_intent, violation_count, waste_tokens
+        )
+
+        # 7. Combine both guidance types
+        combined_guidance = []
+
+        if cigs_guidance:
+            combined_guidance.append(cigs_guidance)
+
+        if workflow_guidance:
+            combined_guidance.append(workflow_guidance)
+
+        if combined_guidance:
+            # Return combined guidance as additionalContext
             result = {
-                "additionalContext": guidance,
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": "\n\n".join(combined_guidance),
+                },
                 "classification": {
                     "implementation": classification["is_implementation"],
                     "investigation": classification["is_investigation"],
                     "bug_report": classification["is_bug_report"],
                     "continuation": classification["is_continuation"],
                     "confidence": classification["confidence"],
+                },
+                "cigs_classification": {
+                    "involves_exploration": cigs_intent["involves_exploration"],
+                    "involves_code_changes": cigs_intent["involves_code_changes"],
+                    "involves_git": cigs_intent["involves_git"],
+                    "intent_confidence": cigs_intent["intent_confidence"],
+                },
+                "cigs_session_status": {
+                    "violation_count": violation_count,
+                    "waste_tokens": waste_tokens,
                 },
             }
             print(json.dumps(result))
@@ -280,7 +503,12 @@ def main():
 
     except Exception as e:
         # Graceful degradation
-        print(json.dumps({"error": str(e)}))
+        import traceback
+
+        error_detail = traceback.format_exc()
+        print(json.dumps({"error": str(e), "traceback": error_detail}), file=sys.stderr)
+        # Still return empty result to not block
+        print(json.dumps({}))
         sys.exit(0)
 
 

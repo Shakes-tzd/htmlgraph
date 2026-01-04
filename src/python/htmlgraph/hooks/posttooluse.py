@@ -8,6 +8,7 @@ in parallel using asyncio:
 3. Task validation - validates task results
 4. Error tracking - logs errors and auto-creates debug spikes
 5. Debugging suggestions - suggests resources when errors detected
+6. CIGS analysis - cost accounting and reinforcement for delegation
 
 Architecture:
 - All tasks run simultaneously via asyncio.gather()
@@ -25,8 +26,10 @@ import asyncio
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any
 
+from htmlgraph.cigs import CIGSPostToolAnalyzer
 from htmlgraph.hooks.event_tracker import track_event
 from htmlgraph.hooks.orchestrator_reflector import orchestrator_reflect
 from htmlgraph.hooks.post_tool_use_failure import run as track_error
@@ -233,11 +236,48 @@ async def suggest_debugging_resources(hook_input: dict[str, Any]) -> dict[str, A
         return {}
 
 
+async def run_cigs_analysis(hook_input: dict[str, Any]) -> dict[str, Any]:
+    """
+    Run CIGS cost accounting and reinforcement analysis.
+
+    Args:
+        hook_input: Hook input with tool execution details
+
+    Returns:
+        CIGS analysis response: {"hookSpecificOutput": {...}}
+    """
+    try:
+        loop = asyncio.get_event_loop()
+
+        # Extract tool info
+        tool_name = hook_input.get("name", "") or hook_input.get("tool_name", "")
+        tool_params = hook_input.get("input", {}) or hook_input.get("tool_input", {})
+        tool_response = hook_input.get("result", {}) or hook_input.get(
+            "tool_response", {}
+        )
+
+        # Initialize CIGS analyzer
+        graph_dir = Path.cwd() / ".htmlgraph"
+        analyzer = CIGSPostToolAnalyzer(graph_dir)
+
+        # Run analysis in executor (may involve I/O)
+        return await loop.run_in_executor(
+            None,
+            analyzer.analyze,
+            tool_name,
+            tool_params,
+            tool_response,
+        )
+    except Exception:
+        # Graceful degradation - allow on error
+        return {}
+
+
 async def posttooluse_hook(
     hook_type: str, hook_input: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Unified PostToolUse hook - runs tracking, reflection, validation, error tracking, and debugging suggestions in parallel.
+    Unified PostToolUse hook - runs tracking, reflection, validation, error tracking, debugging suggestions, and CIGS analysis in parallel.
 
     Args:
         hook_type: "PostToolUse" or "Stop"
@@ -254,19 +294,21 @@ async def posttooluse_hook(
             }
         }
     """
-    # Run all five in parallel using asyncio.gather
+    # Run all six in parallel using asyncio.gather
     (
         event_response,
         reflection_response,
         validation_response,
         error_tracking_response,
         debug_suggestions,
+        cigs_response,
     ) = await asyncio.gather(
         run_event_tracking(hook_type, hook_input),
         run_orchestrator_reflection(hook_input),
         run_task_validation(hook_input),
         run_error_tracking(hook_input),
         suggest_debugging_resources(hook_input),
+        run_cigs_analysis(hook_input),
     )
 
     # Combine responses (all should return continue=True)
@@ -304,6 +346,12 @@ async def posttooluse_hook(
     # Debugging suggestions
     if "hookSpecificOutput" in debug_suggestions:
         ctx = debug_suggestions["hookSpecificOutput"].get("additionalContext", "")
+        if ctx:
+            guidance_parts.append(ctx)
+
+    # CIGS analysis (cost accounting and reinforcement)
+    if "hookSpecificOutput" in cigs_response:
+        ctx = cigs_response["hookSpecificOutput"].get("additionalContext", "")
         if ctx:
             guidance_parts.append(ctx)
 

@@ -139,6 +139,11 @@ def install_git_hooks(project_dir: str) -> bool:
 
 try:
     from htmlgraph import SDK, generate_id
+    from htmlgraph.cigs import (
+        AutonomyRecommender,
+        PatternDetector,
+        ViolationTracker,
+    )
     from htmlgraph.converter import node_to_dict  # type: ignore[import]
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.orchestrator_mode import OrchestratorModeManager
@@ -564,6 +569,161 @@ After Task completes, retrieve results with SDK command above.
 
 **YOU ARE THE ARCHITECT. SUBAGENTS ARE BUILDERS. DELEGATE EVERYTHING.**
 """
+
+
+def get_cigs_context(graph_dir: Path, session_id: str) -> str:
+    """
+    Generate CIGS (Computational Imperative Guidance System) context.
+
+    Loads violation history, detects patterns, recommends autonomy level,
+    and generates personalized delegation reminders.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        session_id: Current session ID
+
+    Returns:
+        Formatted CIGS context string
+    """
+    try:
+        # Initialize CIGS components
+        tracker = ViolationTracker(graph_dir)
+        tracker.set_session_id(session_id)
+
+        # Load violation history from last 5 sessions
+        recent_violations = tracker.get_recent_violations(sessions=5)
+
+        # Get current session summary
+        session_summary = tracker.get_session_violations()
+
+        # Detect patterns from recent violations
+        # Convert violations to tool history format
+        history = [
+            {
+                "tool": v.tool,
+                "command": v.tool_params.get("command", ""),
+                "file_path": v.tool_params.get("file_path", ""),
+                "prompt": "",
+                "timestamp": v.timestamp,
+            }
+            for v in recent_violations
+        ]
+
+        detector = PatternDetector()
+        patterns = detector.detect_all_patterns(history)
+
+        # Calculate compliance history (last 5 sessions)
+        # For now, use a simple approximation from recent violations
+        # In future, this should be stored persistently
+        compliance_history = [
+            max(
+                0.0,
+                1.0
+                - (len([v for v in recent_violations if v.session_id == sid]) / 5.0),
+            )
+            for sid in set(v.session_id for v in recent_violations[-5:])
+        ]
+
+        # Recommend autonomy level
+        recommender = AutonomyRecommender()
+        autonomy = recommender.recommend(
+            violations=session_summary,
+            patterns=patterns,
+            compliance_history=compliance_history if compliance_history else None,
+        )
+
+        # Build CIGS context
+        context_parts = [
+            "## 🧠 CIGS Status (Computational Imperative Guidance System)",
+            "",
+            f"**Autonomy Level:** {autonomy.level.upper()}",
+            f"**Messaging Intensity:** {autonomy.messaging_intensity}",
+            f"**Enforcement Mode:** {autonomy.enforcement_mode}",
+            "",
+            f"**Reason:** {autonomy.reason}",
+        ]
+
+        # Add violation summary if there are any
+        if session_summary.total_violations > 0:
+            context_parts.extend(
+                [
+                    "",
+                    "### Session Violations",
+                    f"- Total violations: {session_summary.total_violations}",
+                    f"- Compliance rate: {session_summary.compliance_rate:.0%}",
+                    f"- Wasted tokens: {session_summary.total_waste_tokens}",
+                ]
+            )
+
+            if session_summary.circuit_breaker_triggered:
+                context_parts.append("- ⚠️ **Circuit breaker active** (3+ violations)")
+
+        # Add pattern warnings if detected
+        if patterns:
+            context_parts.extend(
+                [
+                    "",
+                    "### Detected Anti-Patterns",
+                ]
+            )
+            for pattern in patterns:
+                context_parts.append(f"- **{pattern.name}**: {pattern.description}")
+                if pattern.delegation_suggestion:
+                    context_parts.append(f"  - Fix: {pattern.delegation_suggestion}")
+
+        # Add personalized reminders based on autonomy level
+        context_parts.extend(
+            [
+                "",
+                "### Delegation Reminders",
+            ]
+        )
+
+        if autonomy.level == "operator":
+            context_parts.extend(
+                [
+                    "🚨 **STRICT MODE ACTIVE** - You MUST delegate ALL operations except:",
+                    "- Task() - Delegation itself",
+                    "- AskUserQuestion() - User clarification",
+                    "- TodoWrite() - Work tracking",
+                    "- SDK operations - Feature/session management",
+                    "",
+                    "**ALL other operations MUST be delegated to subagents.**",
+                ]
+            )
+        elif autonomy.level == "collaborator":
+            context_parts.extend(
+                [
+                    "⚠️ **ACTIVE GUIDANCE** - Focus on delegation:",
+                    "- Exploration: Use spawn_gemini() (FREE)",
+                    "- Code changes: Use spawn_codex() or Task()",
+                    "- Git operations: Use spawn_copilot()",
+                    "",
+                    "Direct tool use should be rare and well-justified.",
+                ]
+            )
+        elif autonomy.level == "consultant":
+            context_parts.extend(
+                [
+                    "🔴 **MODERATE GUIDANCE** - Remember delegation patterns:",
+                    "- Multi-file exploration → spawn_gemini()",
+                    "- Code changes with tests → Task() or spawn_codex()",
+                    "- Git operations → spawn_copilot()",
+                ]
+            )
+        else:  # observer
+            context_parts.extend(
+                [
+                    "💡 **MINIMAL GUIDANCE** - You're doing well!",
+                    "Continue delegating as appropriate. Guidance will escalate if patterns change.",
+                ]
+            )
+
+        return "\n".join(context_parts)
+
+    except Exception as e:
+        print(f"Warning: Could not generate CIGS context: {e}", file=sys.stderr)
+        return ""
 
 
 def _build_orchestrator_status(active: bool, level: str) -> str:
@@ -996,11 +1156,21 @@ Or create features manually in `.htmlgraph/features/`
         orchestrator_active, orchestrator_level
     )
 
+    # Get CIGS context (if HtmlGraph session exists)
+    cigs_context = ""
+    try:
+        if active and active.id:
+            cigs_context = get_cigs_context(graph_dir, active.id)
+    except Exception as e:
+        print(f"Warning: Could not load CIGS context: {e}", file=sys.stderr)
+
     # Build context (prepend version warning if outdated)
     context_parts = []
     if version_warning:
         context_parts.append(version_warning.strip())
     context_parts.append(HTMLGRAPH_PROCESS_NOTICE)
+    if cigs_context:
+        context_parts.append(cigs_context)
     context_parts.append(orchestrator_status)
     context_parts.append(ORCHESTRATOR_DIRECTIVES)
     context_parts.append(TRACKER_WORKFLOW)

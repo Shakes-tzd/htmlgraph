@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>CIGS UserPromptSubmit Hook Integration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-8b5ca2d9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T16:29:22.544548"
+             data-updated="2026-01-04T16:29:22.544552" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>CIGS UserPromptSubmit Hook Integration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# CIGS Integration into UserPromptSubmit Hook
+
+## Summary
+Successfully integrated the Computational Imperative Guidance System (CIGS) into the UserPromptSubmit hook. The hook now provides pre-response imperative guidance based on prompt intent classification and session violation tracking.
+
+## Implementation Details
+
+### Components Added
+
+1. **PromptClassifier (classify_cigs_intent)**
+   - Detects exploration intent (search, find, analyze, etc.)
+   - Detects code changes intent (implement, fix, update, refactor, add, etc.)
+   - Detects git operations intent (commit, push, merge, branch, etc.)
+   - Returns confidence score (0.0-1.0) based on keyword matches
+
+2. **Violation Tracker Integration (get_session_violation_count)**
+   - Loads current session violation count from CIGS ViolationTracker
+   - Returns violation count and total wasted tokens
+   - Gracefully degrades if CIGS not available
+
+3. **Imperative Message Generator (generate_cigs_guidance)**
+   - Generates pre-response guidance based on intent classification
+   - Includes violation warnings when count > 0
+   - Provides specific delegation commands (spawn_gemini, spawn_codex, spawn_copilot)
+   - Escalates warning severity at 3+ violations (circuit breaker threshold)
+
+4. **Combined Guidance Output**
+   - Merges CIGS imperative guidance with existing workflow guidance
+   - CIGS guidance appears first (higher priority)
+   - Workflow guidance follows (work item tracking)
+
+### Output Format
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "UserPromptSubmit",
+    "additionalContext": "<CIGS guidance>\n\n<Workflow guidance>"
+  },
+  "classification": {
+    "implementation": bool,
+    "investigation": bool,
+    "bug_report": bool,
+    "continuation": bool,
+    "confidence": float
+  },
+  "cigs_classification": {
+    "involves_exploration": bool,
+    "involves_code_changes": bool,
+    "involves_git": bool,
+    "intent_confidence": float
+  },
+  "cigs_session_status": {
+    "violation_count": int,
+    "waste_tokens": int
+  }
+}
+```
+
+### Guidance Examples
+
+**Exploration Request:**
+```
+═══════════════════════════════════════════════════════════
+CIGS PRE-RESPONSE GUIDANCE (Computational Imperative Guidance System)
+═══════════════════════════════════════════════════════════
+
+🔴 IMPERATIVE: This request involves exploration.
+YOU MUST use spawn_gemini() for exploration (FREE cost).
+DO NOT use Read/Grep/Glob directly - delegate to Explorer subagent.
+
+═══════════════════════════════════════════════════════════
+```
+
+**Code Changes Request:**
+```
+🔴 IMPERATIVE: This request involves code changes.
+YOU MUST use spawn_codex() or Task() for implementation.
+DO NOT use Edit/Write directly - delegate to Coder subagent.
+```
+
+**Git Operations Request:**
+```
+🔴 IMPERATIVE: This request involves git operations.
+YOU MUST use spawn_copilot() for git commands (60% cheaper).
+DO NOT run git commands directly via Bash.
+```
+
+**With Violations:**
+```
+⚠️ VIOLATION WARNING: You have 2 delegation violations this session (15,000 tokens wasted).
+Circuit breaker triggers at 3 violations.
+```
+
+## Test Coverage
+
+Created comprehensive test suite with 18 tests covering:
+
+1. **Intent Classification (5 tests)**
+   - Exploration keywords detection
+   - Code changes keywords detection
+   - Git keywords detection
+   - Multiple intents in single prompt
+   - No delegation intent (conversational)
+
+2. **Violation Warnings (2 tests)**
+   - No violations scenario
+   - Violation count structure validation
+
+3. **Guidance Generation (3 tests)**
+   - Exploration guidance format
+   - Code changes guidance format
+   - Git guidance format
+
+4. **Combined Guidance (2 tests)**
+   - Implementation without work item (both guidances)
+   - Exploration request
+
+5. **Edge Cases (4 tests)**
+   - Empty prompt handling
+   - Very short prompts
+   - Very long prompts
+   - Special characters
+
+6. **Output Structure (2 tests)**
+   - Hook output structure validation
+   - Classification structure validation
+
+**All 18 tests pass.**
+
+## Key Features
+
+1. **Intent Detection Keywords**
+   - Exploration: search, find, analyze, examine, review, check, list, grep, etc.
+   - Code changes: implement, fix, update, refactor, change, modify, edit, add, etc.
+   - Git: commit, push, pull, merge, branch, checkout, etc.
+
+2. **Violation Tracking**
+   - Integrates with CIGS ViolationTracker
+   - Shows violation count and waste tokens
+   - Escalates warning at circuit breaker threshold (3+ violations)
+
+3. **Graceful Degradation**
+   - Returns empty guidance if no strong intent detected
+   - Handles CIGS module unavailability
+   - Continues on errors (prints to stderr, returns empty result)
+
+4. **Combined Workflow**
+   - CIGS guidance for delegation enforcement
+   - Workflow guidance for work item tracking
+   - Both work together seamlessly
+
+## Files Modified
+
+1. **packages/claude-plugin/hooks/scripts/user-prompt-submit.py**
+   - Added CIGS keyword lists
+   - Added classify_cigs_intent() function
+   - Added get_session_violation_count() function
+   - Added generate_cigs_guidance() function
+   - Updated main() to integrate CIGS
+
+2. **tests/python/test_user_prompt_submit_cigs.py** (NEW)
+   - Comprehensive test suite for CIGS integration
+   - 18 tests covering all functionality
+
+## Integration with CIGS Architecture
+
+This implementation fulfills **Section 2.2** of the CIGS design document:
+
+- ✅ Pre-response guidance based on prompt intent
+- ✅ Violation count integration
+- ✅ Imperative message generation
+- ✅ Escalation based on violation history
+- ✅ Proper hook output format (hookSpecificOutput)
+
+## Next Steps
+
+1. Test in real Claude Code sessions
+2. Monitor effectiveness of imperative guidance
+3. Tune keyword lists based on real usage
+4. Consider adding pattern-based detection (beyond keywords)
+5. Integrate with PreToolUse hook for comprehensive CIGS coverage
+
+## Recommendations
+
+1. **Keyword Tuning**: Monitor false positives/negatives and adjust keyword lists
+2. **Confidence Threshold**: May want to require minimum confidence before showing guidance
+3. **Message Customization**: Consider varying message tone based on violation history
+4. **Analytics**: Track how often each guidance type is shown and effectiveness
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,62 @@
+{
+  "start_time": "2026-01-04T16:03:38.293426",
+  "agents": [
+    {
+      "id": "A1-1",
+      "name": "ViolationTracker",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "A1-2",
+      "name": "Data Models",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "A1-3",
+      "name": "Basic Messages",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "B1-1",
+      "name": "ImperativeMessageGenerator",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "B1-2",
+      "name": "CostCalculator",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "C1-1",
+      "name": "PatternDetector",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "C1-2",
+      "name": "Pattern Storage",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "D1-1",
+      "name": "AutonomyRecommender",
+      "status": "failed",
+      "error": "Command failed"
+    },
+    {
+      "id": "E0-1",
+      "name": "Documentation",
+      "status": "failed",
+      "error": "Command failed"
+    }
+  ],
+  "end_time": "2026-01-04T16:03:48.620835",
+  "success_count": 0,
+  "failed_count": 9
+}

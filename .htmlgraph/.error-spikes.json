@@ -13,5 +13,20 @@
     "spike_id": "spk-1475f8ec",
     "created": "2026-01-04T05:46:18.891660",
     "occurrences": 3
+  },
+  "Bash:Exit code 1\n\ud83d\udd0d Running pre-commit checks...\n  \u2192 ruff check...\nAll checks passed!\n  \u2192 ruff format --ch": {
+    "spike_id": "spk-90e72288",
+    "created": "2026-01-04T07:51:49.957246",
+    "occurrences": 3
+  },
+  "Read:EISDIR: illegal operation on a directory, read": {
+    "spike_id": "spk-c3a1bca6",
+    "created": "2026-01-04T16:05:24.379424",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1": {
+    "spike_id": "spk-4503e53a",
+    "created": "2026-01-04T16:05:42.704047",
+    "occurrences": 53
   }
 }

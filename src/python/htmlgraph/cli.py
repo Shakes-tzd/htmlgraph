@@ -3013,6 +3013,201 @@ def cmd_orchestrator_reset_violations(args: argparse.Namespace) -> None:
     print("You can now continue with delegation workflow")
 
 
+def cmd_orchestrator_acknowledge_violation(args: argparse.Namespace) -> None:
+    """Acknowledge circuit breaker violation and reset state."""
+    from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+    manager = OrchestratorModeManager(args.graph_dir)
+
+    # Check if circuit breaker is triggered
+    if not manager.is_circuit_breaker_triggered():
+        print("ℹ️  No circuit breaker to acknowledge")
+        print("Current violations:", manager.get_violation_count())
+        return
+
+    # Reset violations and circuit breaker
+    manager.reset_violations()
+
+    print("✓ Circuit breaker acknowledged and reset")
+    print("Violation counter: cleared")
+    print("You can now continue with delegation workflow")
+
+
+def cmd_cigs_status(args: argparse.Namespace) -> None:
+    """Show current session CIGS status."""
+    from pathlib import Path
+
+    from htmlgraph.cigs.autonomy import AutonomyRecommender
+    from htmlgraph.cigs.pattern_storage import PatternStorage
+    from htmlgraph.cigs.tracker import ViolationTracker
+
+    graph_dir = Path(args.graph_dir or ".htmlgraph")
+
+    # Get violation tracker
+    tracker = ViolationTracker(graph_dir)
+    summary = tracker.get_session_violations()
+
+    # Get pattern storage
+    pattern_storage = PatternStorage(graph_dir)
+    patterns = pattern_storage.get_anti_patterns()
+
+    # Get autonomy recommendation
+    recommender = AutonomyRecommender()
+    autonomy = recommender.recommend(summary, patterns)
+
+    # Print formatted status
+    print("=== CIGS Status ===\n")
+    print(f"Session: {summary.session_id}")
+    print(f"Violations: {summary.total_violations}/3")
+    print(f"Compliance Rate: {summary.compliance_rate:.1%}")
+    print(f"Total Waste: {summary.total_waste_tokens} tokens")
+    print(
+        f"Circuit Breaker: {'🚨 TRIGGERED' if summary.circuit_breaker_triggered else 'Not triggered'}"
+    )
+
+    if summary.violations_by_type:
+        print("\nViolation Breakdown:")
+        for vtype, count in summary.violations_by_type.items():
+            print(f"  • {vtype}: {count}")
+
+    print(f"\nAutonomy Level: {autonomy.level.upper()}")
+    print(f"Messaging Intensity: {autonomy.messaging_intensity}")
+    print(f"Enforcement Mode: {autonomy.enforcement_mode}")
+
+    if patterns:
+        print(f"\nAnti-Patterns Detected: {len(patterns)}")
+        for pattern in patterns[:3]:
+            print(f"  • {pattern.name} ({pattern.occurrence_count}x)")
+
+
+def cmd_cigs_summary(args: argparse.Namespace) -> None:
+    """Show detailed session summary."""
+    from pathlib import Path
+
+    from htmlgraph.cigs.tracker import ViolationTracker
+
+    graph_dir = Path(args.graph_dir or ".htmlgraph")
+    tracker = ViolationTracker(graph_dir)
+
+    # Get session ID (default to current)
+    session_id = args.session_id or tracker._session_id
+
+    if not session_id:
+        print("⚠️  No active session. Specify --session-id to view past sessions.")
+        return
+
+    summary = tracker.get_session_violations(session_id)
+
+    # Print detailed summary
+    print("=== CIGS Session Summary ===\n")
+    print(f"Session ID: {summary.session_id}")
+    print("─" * 50)
+    print(f"Total Violations: {summary.total_violations}")
+    print(f"Compliance Rate: {summary.compliance_rate:.1%}")
+    print(f"Total Waste: {summary.total_waste_tokens} tokens")
+    print(
+        f"Circuit Breaker: {'🚨 TRIGGERED' if summary.circuit_breaker_triggered else 'Not triggered'}"
+    )
+
+    if summary.violations_by_type:
+        print("\nViolation Breakdown:")
+        for vtype, count in summary.violations_by_type.items():
+            print(f"  • {vtype}: {count}")
+
+    if summary.violations:
+        print(f"\nRecent Violations ({len(summary.violations)}):")
+        for v in summary.violations[-5:]:
+            print(f"  • {v.tool} - {v.violation_type} - {v.waste_tokens} tokens wasted")
+            print(f"    Should have: {v.should_have_delegated_to}")
+
+
+def cmd_cigs_patterns(args: argparse.Namespace) -> None:
+    """List all detected patterns with occurrence counts."""
+    from pathlib import Path
+
+    from htmlgraph.cigs.pattern_storage import PatternStorage
+
+    graph_dir = Path(args.graph_dir or ".htmlgraph")
+    pattern_storage = PatternStorage(graph_dir)
+
+    # Get all patterns
+    anti_patterns = pattern_storage.get_anti_patterns()
+    good_patterns = pattern_storage.get_good_patterns()
+
+    # Print anti-patterns
+    print("=== CIGS Pattern Analysis ===\n")
+
+    if anti_patterns:
+        print("Anti-Patterns Detected:")
+        print("─" * 50)
+        for pattern in sorted(
+            anti_patterns, key=lambda p: p.occurrence_count, reverse=True
+        ):
+            print(f"\n{pattern.name}")
+            print(f"  Occurrences: {pattern.occurrence_count}")
+            print(f"  Description: {pattern.description}")
+            print(f"  Sessions Affected: {len(pattern.sessions_affected)}")
+
+            if pattern.correct_approach:
+                print(f"  ✓ Fix: {pattern.correct_approach}")
+
+            if pattern.delegation_suggestion:
+                print(f"  💡 Instead: {pattern.delegation_suggestion}")
+    else:
+        print("No anti-patterns detected yet.")
+
+    # Print good patterns
+    if good_patterns:
+        print("\n\nGood Patterns Observed:")
+        print("─" * 50)
+        for pattern in sorted(
+            good_patterns, key=lambda p: p.occurrence_count, reverse=True
+        ):
+            print(f"\n{pattern.name}")
+            print(f"  Occurrences: {pattern.occurrence_count}")
+            print(f"  Description: {pattern.description}")
+            print(f"  Sessions Affected: {len(pattern.sessions_affected)}")
+
+
+def cmd_cigs_reset_violations(args: argparse.Namespace) -> None:
+    """Reset violation count for current session."""
+    from pathlib import Path
+
+    from htmlgraph.cigs.tracker import ViolationTracker
+
+    graph_dir = Path(args.graph_dir or ".htmlgraph")
+    tracker = ViolationTracker(graph_dir)
+
+    # Get current session
+    session_id = tracker._session_id
+    if not session_id:
+        print("⚠️  No active session")
+        return
+
+    # Check current violations
+    summary = tracker.get_session_violations()
+
+    if summary.total_violations == 0:
+        print("ℹ️  No violations to reset")
+        return
+
+    # Confirm reset
+    if not args.yes:
+        print(f"Current violations: {summary.total_violations}")
+        print(f"Total waste: {summary.total_waste_tokens} tokens")
+        response = input("\nReset violations for current session? [y/N]: ")
+        if response.lower() not in ("y", "yes"):
+            print("Reset cancelled")
+            return
+
+    # Clear violations file
+    tracker.clear_session_file()
+
+    print("✓ Violations reset for current session")
+    print("Circuit breaker: cleared")
+    print("Starting fresh for this session")
+
+
 def cmd_publish(args: argparse.Namespace) -> None:
     """Build and publish the package to PyPI (Interoperable)."""
     import shutil
@@ -5227,6 +5422,61 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
     )
 
+    # orchestrator acknowledge-violation
+    orchestrator_acknowledge_violation = orchestrator_subparsers.add_parser(
+        "acknowledge-violation",
+        help="Acknowledge circuit breaker violation and reset state",
+    )
+    orchestrator_acknowledge_violation.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # cigs (Computational Imperative Guidance System) with subcommands
+    cigs_parser = subparsers.add_parser(
+        "cigs", help="CIGS (Computational Imperative Guidance System) management"
+    )
+    cigs_subparsers = cigs_parser.add_subparsers(
+        dest="cigs_command", help="CIGS command"
+    )
+
+    # cigs status
+    cigs_status = cigs_subparsers.add_parser(
+        "status", help="Show current session CIGS status"
+    )
+    cigs_status.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # cigs summary
+    cigs_summary = cigs_subparsers.add_parser(
+        "summary", help="Show detailed session summary"
+    )
+    cigs_summary.add_argument(
+        "--session-id", "-s", help="Session ID (defaults to current session)"
+    )
+    cigs_summary.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # cigs patterns
+    cigs_patterns = cigs_subparsers.add_parser(
+        "patterns", help="List all detected patterns"
+    )
+    cigs_patterns.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
+    # cigs reset-violations
+    cigs_reset_violations = cigs_subparsers.add_parser(
+        "reset-violations", help="Reset violation count for current session"
+    )
+    cigs_reset_violations.add_argument(
+        "--yes", "-y", action="store_true", help="Skip confirmation prompt"
+    )
+    cigs_reset_violations.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+
     # install-gemini-extension
     subparsers.add_parser(
         "install-gemini-extension",
@@ -5488,8 +5738,22 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
             cmd_orchestrator_set_level(args)
         elif args.orchestrator_command == "reset-violations":
             cmd_orchestrator_reset_violations(args)
+        elif args.orchestrator_command == "acknowledge-violation":
+            cmd_orchestrator_acknowledge_violation(args)
         else:
             orchestrator_parser.print_help()
+            sys.exit(1)
+    elif args.command == "cigs":
+        if args.cigs_command == "status":
+            cmd_cigs_status(args)
+        elif args.cigs_command == "summary":
+            cmd_cigs_summary(args)
+        elif args.cigs_command == "patterns":
+            cmd_cigs_patterns(args)
+        elif args.cigs_command == "reset-violations":
+            cmd_cigs_reset_violations(args)
+        else:
+            cigs_parser.print_help()
             sys.exit(1)
     elif args.command == "install-gemini-extension":
         cmd_install_gemini_extension(args)
