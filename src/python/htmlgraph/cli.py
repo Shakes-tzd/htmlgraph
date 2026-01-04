@@ -3728,22 +3728,69 @@ def cmd_claude(args: argparse.Namespace) -> None:
                 )
                 sys.exit(1)
 
+            # Load optimized orchestrator system prompt
+            prompt_file = (
+                Path(__file__).parent / "orchestrator-system-prompt-optimized.txt"
+            )
+
+            if prompt_file.exists():
+                system_prompt = prompt_file.read_text(encoding="utf-8")
+            else:
+                # Fallback: provide minimal orchestrator guidance
+                system_prompt = textwrap.dedent(
+                    """
+                    You are an AI orchestrator for HtmlGraph project development.
+
+                    CRITICAL DIRECTIVES:
+                    1. DELEGATE to subagents - do not implement directly
+                    2. CREATE work items before delegating (features, bugs, spikes)
+                    3. USE SDK for tracking - all work must be tracked in .htmlgraph/
+                    4. RESPECT dependencies - check blockers before starting
+
+                    Key Rules:
+                    - Implementation work → delegate to general-purpose subagent
+                    - Research/exploration → delegate to explorer subagent
+                    - Testing/validation → delegate to test-runner subagent
+                    - Complex analysis → delegate to appropriate specialist
+
+                    Always use:
+                        from htmlgraph import SDK
+                        sdk = SDK(agent='orchestrator')
+
+                    See CLAUDE.md for complete orchestrator directives.
+                    """
+                )
+
+            # Combine orchestrator prompt with orchestration rules
+            combined_prompt = system_prompt
+            if orchestration_rules:
+                combined_prompt = f"{system_prompt}\n\n---\n\n{orchestration_rules}"
+
             if args.quiet or args.format == "json":
-                cmd = ["claude", "--plugin-dir", str(plugin_dir)]
+                cmd = [
+                    "claude",
+                    "--plugin-dir",
+                    str(plugin_dir),
+                    "--append-system-prompt",
+                    combined_prompt,
+                ]
             else:
                 print("=" * 60)
                 print("🔧 HtmlGraph Development Mode")
                 print("=" * 60)
                 print(f"\nLoading plugin from: {plugin_dir}")
                 print("  ✓ Skills, agents, and hooks will be loaded from local files")
+                print("  ✓ Orchestrator system prompt will be appended")
                 print("  ✓ Multi-AI delegation rules will be injected")
                 print("  ✓ Changes to plugin files will take effect after restart")
                 print()
-                cmd = ["claude", "--plugin-dir", str(plugin_dir)]
-
-            # Add orchestration rules if available
-            if orchestration_rules:
-                cmd.extend(["--append-system-prompt", orchestration_rules])
+                cmd = [
+                    "claude",
+                    "--plugin-dir",
+                    str(plugin_dir),
+                    "--append-system-prompt",
+                    combined_prompt,
+                ]
 
             try:
                 subprocess.run(cmd, check=False)
