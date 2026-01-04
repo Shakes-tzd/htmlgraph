@@ -1209,16 +1209,17 @@ def cmd_session_start_info(args: argparse.Namespace) -> None:
         print(json.dumps(info, indent=2, default=str))
     else:
         # Human-readable format
-        status = info["status"]
+        status: dict = info["status"]  # type: ignore
         print("=" * 80)
         print("SESSION START INFO")
         print("=" * 80)
 
         # Project status
         print(f"\nProject: {status.get('project_name', 'HtmlGraph')}")
-        print(f"Total nodes: {status.get('total_nodes', 0)}")
-        print(f"In progress: {status.get('in_progress_count', 0)}")
-        print(f"Completed: {status.get('done_count', 0)}")
+        print(f"Total features: {status.get('total_features', 0)}")
+        print(f"In progress: {status.get('wip_count', 0)}")
+        by_status = status.get("by_status", {})
+        print(f"Completed: {by_status.get('done', 0)}")
 
         # Active work item (validation status)
         active_work = info.get("active_work")
