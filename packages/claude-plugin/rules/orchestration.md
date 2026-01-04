@@ -8,59 +8,62 @@
 
 Use this decision tree IN ORDER (check each before falling back):
 
-1. **Exploration/Research** → `spawn_gemini()` (FREE, 2M tokens/min)
-2. **Code Implementation** → `spawn_codex()` ($, specialized for code)
-3. **Git/GitHub Operations** → `spawn_copilot()` ($, GitHub integration)
+1. **Exploration/Research** → Gemini spawner (FREE, 2M tokens/min)
+2. **Code Implementation** → Codex spawner ($, specialized for code)
+3. **Git/GitHub Operations** → Copilot spawner ($, GitHub integration)
 4. **Deep Reasoning/Architecture** → Claude Opus ($$$$, via Task)
 5. **Multi-Agent Coordination** → Claude Sonnet ($$$, via Task)
 6. **FALLBACK ONLY** → Task() with Haiku ($$, when above unavailable)
 
-### Using HeadlessSpawner
+### Using Task() with Spawner Subagent Types
 
-**REQUIRED: Import and use HeadlessSpawner for multi-AI delegation.**
+**REQUIRED: Use Task() with spawner subagent types for multi-AI delegation.**
 
-```python
-from htmlgraph.orchestration import HeadlessSpawner
-
-spawner = HeadlessSpawner()
+```
+# ✅ CORRECT - Use Task with spawner subagent types
 
 # Exploration (FREE!)
-result = spawner.spawn_gemini(
-    prompt="Analyze codebase patterns for authentication...",
-    model="gemini-2.0-flash-exp"
+Task(
+    subagent_type="htmlgraph:gemini-spawner",
+    description="Analyze codebase patterns",
+    prompt="Analyze codebase patterns for authentication..."
 )
 
 # Code implementation (cheaper than Claude)
-result = spawner.spawn_codex(
-    prompt="Implement JWT authentication middleware...",
-    model="gpt-4"
+Task(
+    subagent_type="htmlgraph:codex-spawner",
+    description="Implement JWT middleware",
+    prompt="Implement JWT authentication middleware..."
 )
 
 # Git operations (specialized for GitHub)
-result = spawner.spawn_copilot(
-    prompt="Commit changes with message: 'feat: add auth'",
-    allow_all_tools=True
+Task(
+    subagent_type="htmlgraph:copilot-spawner",
+    description="Commit changes",
+    prompt="Commit changes with message: 'feat: add auth'"
 )
 ```
 
-### Why Not Task()?
+**Note:** HeadlessSpawner is the Python API for direct programmatic usage. As a Claude Code agent, use Task() with spawner subagent types as shown above.
 
-Task() is ONLY for Claude-specific work:
-- ❌ NOT for exploration (use Gemini FREE instead)
-- ❌ NOT for code implementation (use Codex, specialized)
-- ❌ NOT for git/GitHub operations (use Copilot)
+### Why Use Spawner Subagent Types?
+
+Generic Task() is ONLY for Claude-specific work:
+- ❌ NOT for exploration (use Gemini spawner FREE instead)
+- ❌ NOT for code implementation (use Codex spawner, specialized)
+- ❌ NOT for git/GitHub operations (use Copilot spawner)
 - ✅ YES for strategic coordination across models
 - ✅ YES for multi-agent orchestration
 - ✅ YES for architecture/design decisions
-- ✅ YES when other models unavailable
+- ✅ YES when spawner subagents unavailable
 
 **Cost Example**:
-- Exploring 100 files: Task($15-25) vs Gemini(FREE) = 100% savings
-- Code generation: Task($10) vs Codex($3) = 70% savings
-- Git operations: Task($5) vs Copilot($2) = 60% savings
+- Exploring 100 files: Generic Task($15-25) vs Gemini spawner(FREE) = 100% savings
+- Code generation: Generic Task($10) vs Codex spawner($3) = 70% savings
+- Git operations: Generic Task($5) vs Copilot spawner($2) = 60% savings
 
 **Token Cache Consideration**:
-Task() provides 5x cheaper prompt caching for RELATED sequential work within same conversation. However, for independent tasks or when other models are better suited, HeadlessSpawner saves more overall.
+Task() provides 5x cheaper prompt caching for RELATED sequential work within same conversation. However, for independent tasks or when spawner subagents are better suited, spawner delegation saves more overall.
 
 ## Model Selection Reference
 
@@ -76,7 +79,7 @@ For detailed model selection logic, see:
 ## Operations You MUST Delegate
 
 **ALL operations EXCEPT:**
-- `Task()` - Delegation itself (but prefer HeadlessSpawner when possible)
+- `Task()` - Delegation itself (use spawner subagent types when possible)
 - `AskUserQuestion()` - Clarifying requirements with user
 - `TodoWrite()` - Tracking work items
 - SDK operations - Creating features, spikes, bugs, analytics
@@ -85,11 +88,11 @@ For detailed model selection logic, see:
 
 ### 1. Git Operations - ALWAYS use Copilot
 
-**REQUIRED: MUST use spawn_copilot() for all git/GitHub operations.**
+**REQUIRED: MUST use Copilot spawner for all git/GitHub operations.**
 
 - ❌ NEVER run git commands directly (add, commit, push, branch, merge)
-- ❌ NEVER use Task() for git operations (expensive, not specialized)
-- ✅ ALWAYS use spawn_copilot() (cheaper, GitHub-specialized)
+- ❌ NEVER use generic Task() for git operations (expensive, not specialized)
+- ✅ ALWAYS use Copilot spawner (cheaper, GitHub-specialized)
 
 **Why Copilot?** Git operations cascade unpredictably + Copilot is specialized:
 - Commit hooks may fail (need fix + retry)
@@ -106,13 +109,11 @@ Direct execution: 7+ tool calls (context pollution)
 ```
 
 **IMPERATIVE Delegation pattern:**
-```python
-from htmlgraph.orchestration import HeadlessSpawner
-
-spawner = HeadlessSpawner()
-
-# ✅ CORRECT - Use Copilot for git
-result = spawner.spawn_copilot(
+```
+# ✅ CORRECT - Use Task with Copilot spawner for git
+Task(
+    subagent_type="htmlgraph:copilot-spawner",
+    description="Commit and push changes",
     prompt="""
     Commit and push changes to git:
 
@@ -129,63 +130,56 @@ result = spawner.spawn_copilot(
     4. Retry with fixes if needed
 
     Report final status: success or failure with details.
-    """,
-    allow_all_tools=True
+    """
 )
 
-# ❌ INCORRECT - Don't use Task() for git
+# ❌ INCORRECT - Don't use generic Task() for git
 Task(prompt="commit changes...", subagent_type="general-purpose")
 ```
 
 ### 2. Code Changes - ALWAYS use Codex
 
-**REQUIRED: MUST use spawn_codex() for code implementation (unless trivial).**
+**REQUIRED: MUST use Codex spawner for code implementation (unless trivial).**
 
-- ❌ NEVER use Task() for code generation (expensive, not specialized)
-- ❌ Multi-file edits → MUST use Codex
-- ❌ Implementation requiring research → MUST use Codex
-- ❌ Changes with testing requirements → MUST use Codex
+- ❌ NEVER use generic Task() for code generation (expensive, not specialized)
+- ❌ Multi-file edits → MUST use Codex spawner
+- ❌ Implementation requiring research → MUST use Codex spawner
+- ❌ Changes with testing requirements → MUST use Codex spawner
 - ✅ Single-line typo fixes (OK to do directly)
 
 **IMPERATIVE Delegation pattern:**
-```python
-from htmlgraph.orchestration import HeadlessSpawner
-
-spawner = HeadlessSpawner()
-
-# ✅ CORRECT - Use Codex for code
-result = spawner.spawn_codex(
-    prompt="Implement authentication middleware with JWT...",
-    model="gpt-4"
+```
+# ✅ CORRECT - Use Task with Codex spawner for code
+Task(
+    subagent_type="htmlgraph:codex-spawner",
+    description="Implement authentication middleware",
+    prompt="Implement authentication middleware with JWT..."
 )
 
-# ❌ INCORRECT - Don't use Task() for code
+# ❌ INCORRECT - Don't use generic Task() for code
 Task(prompt="implement feature...", subagent_type="general-purpose")
 ```
 
 ### 3. Research & Exploration - ALWAYS use Gemini
 
-**REQUIRED: MUST use spawn_gemini() for exploration (FREE!).**
+**REQUIRED: MUST use Gemini spawner for exploration (FREE!).**
 
-- ❌ NEVER use Task() for exploration (expensive)
-- ❌ Large codebase searches → MUST use Gemini (FREE)
-- ❌ Understanding unfamiliar systems → MUST use Gemini (FREE)
-- ❌ Documentation research → MUST use Gemini (FREE)
+- ❌ NEVER use generic Task() for exploration (expensive)
+- ❌ Large codebase searches → MUST use Gemini spawner (FREE)
+- ❌ Understanding unfamiliar systems → MUST use Gemini spawner (FREE)
+- ❌ Documentation research → MUST use Gemini spawner (FREE)
 - ✅ Single file quick lookup (OK to do directly)
 
 **IMPERATIVE Delegation pattern:**
-```python
-from htmlgraph.orchestration import HeadlessSpawner
-
-spawner = HeadlessSpawner()
-
-# ✅ CORRECT - Use Gemini for exploration (FREE!)
-result = spawner.spawn_gemini(
-    prompt="Analyze all authentication patterns in codebase...",
-    model="gemini-2.0-flash-exp"
+```
+# ✅ CORRECT - Use Task with Gemini spawner for exploration (FREE!)
+Task(
+    subagent_type="htmlgraph:gemini-spawner",
+    description="Analyze authentication patterns",
+    prompt="Analyze all authentication patterns in codebase..."
 )
 
-# ❌ INCORRECT - Don't use Task() for exploration (costs $15-25)
+# ❌ INCORRECT - Don't use generic Task() for exploration (costs $15-25)
 Task(prompt="analyze codebase...", subagent_type="explorer")
 ```
 
@@ -199,11 +193,12 @@ Task(prompt="analyze codebase...", subagent_type="explorer")
 - ✅ Checking test command exists (OK to do directly)
 
 **Delegation pattern:**
-```python
-# Use Codex for testing (specialized) or Task as fallback
-result = spawner.spawn_codex(
-    prompt="Run pytest suite and fix any failures...",
-    model="gpt-4"
+```
+# Use Task with Codex spawner for testing (specialized)
+Task(
+    subagent_type="htmlgraph:codex-spawner",
+    description="Run pytest and fix failures",
+    prompt="Run pytest suite and fix any failures..."
 )
 ```
 
@@ -222,10 +217,10 @@ result = spawner.spawn_codex(
 
 ### 7. Analysis & Computation - ALWAYS use Gemini
 
-**REQUIRED: MUST use spawn_gemini() for analysis (FREE!).**
+**REQUIRED: MUST use Gemini spawner for analysis (FREE!).**
 
-- ❌ Performance profiling → MUST use Gemini (FREE)
-- ❌ Large-scale analysis → MUST use Gemini (FREE)
+- ❌ Performance profiling → MUST use Gemini spawner (FREE)
+- ❌ Large-scale analysis → MUST use Gemini spawner (FREE)
 - ❌ Complex calculations → MUST delegate
 - ✅ Simple status checks (OK to do directly)
 
@@ -262,20 +257,20 @@ result = spawner.spawn_codex(
 
 Ask yourself IN ORDER:
 1. **Is this exploration/research?**
-   - If yes → MUST use spawn_gemini() (FREE)
+   - If yes → MUST use Gemini spawner (FREE)
 
 2. **Is this code implementation?**
-   - If yes → MUST use spawn_codex() (cheaper, specialized)
+   - If yes → MUST use Codex spawner (cheaper, specialized)
 
 3. **Is this git/GitHub operation?**
-   - If yes → MUST use spawn_copilot() (cheaper, specialized)
+   - If yes → MUST use Copilot spawner (cheaper, specialized)
 
 4. **Is this strategic coordination?**
-   - If yes → MAY use Task() with Opus/Sonnet
+   - If yes → MAY use generic Task() with Opus/Sonnet
 
 5. **Is this a trivial single tool call?**
    - If yes AND certain → MAY do directly
-   - If uncertain → MUST delegate to appropriate model
+   - If uncertain → MUST delegate to appropriate spawner
 
 ## Orchestrator Reflection System
 
@@ -285,11 +280,11 @@ When orchestrator mode is enabled (strict), you'll receive reflections after dir
 ORCHESTRATOR REFLECTION: You executed code directly.
 
 Ask yourself:
-- Could this have been delegated to Gemini (FREE)?
-- Could this have been delegated to Codex (70% cheaper)?
-- Could this have been delegated to Copilot (60% cheaper)?
+- Could this have been delegated to Gemini spawner (FREE)?
+- Could this have been delegated to Codex spawner (70% cheaper)?
+- Could this have been delegated to Copilot spawner (60% cheaper)?
 - What if this operation fails - how many retries will consume context?
-- Would parallel HeadlessSpawner calls have been faster?
+- Would parallel spawner Task() calls have been faster?
 ```
 
 Use these reflections to adjust your delegation habits.
@@ -300,10 +295,8 @@ Always use SDK to track orchestration activities:
 
 ```python
 from htmlgraph import SDK
-from htmlgraph.orchestration import HeadlessSpawner
 
 sdk = SDK(agent='orchestrator')
-spawner = HeadlessSpawner()
 
 # Track what you delegate
 feature = sdk.features.create("Implement authentication") \
@@ -315,21 +308,30 @@ feature = sdk.features.create("Implement authentication") \
         "Commit changes (delegated to Copilot)"
     ]) \
     .save()
+```
 
-# Spawn subagents with appropriate models
-research_result = spawner.spawn_gemini(
-    prompt="Find all auth-related code and analyze patterns",
-    model="gemini-2.0-flash-exp"
+Then delegate using Task() tool with spawner subagent types:
+
+```
+# Research (FREE!)
+Task(
+    subagent_type="htmlgraph:gemini-spawner",
+    description="Research auth patterns",
+    prompt="Find all auth-related code and analyze patterns"
 )
 
-code_result = spawner.spawn_codex(
-    prompt="Implement OAuth flow based on research findings",
-    model="gpt-4"
+# Implementation
+Task(
+    subagent_type="htmlgraph:codex-spawner",
+    description="Implement OAuth flow",
+    prompt="Implement OAuth flow based on research findings"
 )
 
-git_result = spawner.spawn_copilot(
-    prompt="Commit changes with message: 'feat: add OAuth'",
-    allow_all_tools=True
+# Git operations
+Task(
+    subagent_type="htmlgraph:copilot-spawner",
+    description="Commit changes",
+    prompt="Commit changes with message: 'feat: add OAuth'"
 )
 ```
 
@@ -399,15 +401,13 @@ docs_results = get_results_by_task_id(sdk, docs_id)
 
 ### Orchestrator Pattern (REQUIRED)
 
-When operating as orchestrator, ALWAYS use Copilot for git operations:
+When operating as orchestrator, ALWAYS use Copilot spawner for git operations:
 
-```python
-from htmlgraph.orchestration import HeadlessSpawner
-
-spawner = HeadlessSpawner()
-
-# ✅ CORRECT - Use Copilot for git workflow
-result = spawner.spawn_copilot(
+```
+# ✅ CORRECT - Use Task with Copilot spawner for git workflow
+Task(
+    subagent_type="htmlgraph:copilot-spawner",
+    description="Commit and push changes",
     prompt="""
     Commit and push changes to git:
 
@@ -427,11 +427,10 @@ result = spawner.spawn_copilot(
 
     🔴 CRITICAL - Track in HtmlGraph:
     After successful commit, update the active feature/spike with completion status.
-    """,
-    allow_all_tools=True
+    """
 )
 
-# ❌ INCORRECT - Don't use Task() for git (expensive)
+# ❌ INCORRECT - Don't use generic Task() for git (expensive)
 Task(
     prompt="commit changes...",
     subagent_type="general-purpose"

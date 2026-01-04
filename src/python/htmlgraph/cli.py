@@ -3782,6 +3782,88 @@ def create_default_index(path: Path) -> None:
     )
 
 
+def install_htmlgraph_plugin(args: argparse.Namespace) -> None:
+    """Install/upgrade HtmlGraph plugin using documented Claude Code commands."""
+    verbose = not (args.quiet or args.format == "json")
+
+    if verbose:
+        print("\n📦 Installing/upgrading HtmlGraph plugin...\n")
+
+    # Step 1: Update marketplace
+    try:
+        if verbose:
+            print("  Updating marketplace...")
+        result = subprocess.run(
+            ["claude", "plugin", "marketplace", "update", "htmlgraph"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            if verbose:
+                print("    ✓ Marketplace updated")
+        else:
+            # Marketplace errors are non-blocking
+            if (
+                "not found" in result.stderr.lower()
+                or "no marketplace" in result.stderr.lower()
+            ):
+                if verbose:
+                    print("    ℹ Marketplace not configured (OK, continuing)")
+            elif verbose:
+                print(f"    ⚠ Marketplace update: {result.stderr.strip()}")
+    except FileNotFoundError:
+        if verbose:
+            print("    ⚠ 'claude' command not found")
+    except Exception as e:
+        if verbose:
+            print(f"    ⚠ Error updating marketplace: {e}")
+
+    # Step 2: Try update first (documented command for latest version)
+    try:
+        if verbose:
+            print("  Updating plugin to latest version...")
+        result = subprocess.run(
+            ["claude", "plugin", "update", "htmlgraph"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            if verbose:
+                print("    ✓ Plugin updated successfully")
+        else:
+            # If update fails (plugin not installed), fallback to install
+            if (
+                "not installed" in result.stderr.lower()
+                or "not found" in result.stderr.lower()
+            ):
+                if verbose:
+                    print("    ℹ Plugin not yet installed, installing...")
+                install_result = subprocess.run(
+                    ["claude", "plugin", "install", "htmlgraph"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if install_result.returncode == 0:
+                    if verbose:
+                        print("    ✓ Plugin installed successfully")
+                elif verbose:
+                    print(f"    ⚠ Plugin install: {install_result.stderr.strip()}")
+            elif verbose:
+                print(f"    ⚠ Plugin update: {result.stderr.strip()}")
+    except FileNotFoundError:
+        if verbose:
+            print("    ⚠ 'claude' command not found")
+    except Exception as e:
+        if verbose:
+            print(f"    ⚠ Error updating plugin: {e}")
+
+    if verbose:
+        print("\n✓ Plugin installation complete\n")
+
+
 def cmd_claude(args: argparse.Namespace) -> None:
     """Start Claude Code with orchestrator prompt."""
     import textwrap
@@ -3801,6 +3883,9 @@ def cmd_claude(args: argparse.Namespace) -> None:
 
     try:
         if args.init:
+            # Install/upgrade plugin first
+            install_htmlgraph_plugin(args)
+
             # Load optimized orchestrator system prompt
             prompt_file = (
                 Path(__file__).parent / "orchestrator-system-prompt-optimized.txt"
@@ -3868,6 +3953,9 @@ def cmd_claude(args: argparse.Namespace) -> None:
                 sys.exit(1)
 
         elif args.continue_session:
+            # Install/upgrade plugin first
+            install_htmlgraph_plugin(args)
+
             # Resume last Claude Code session
             # Find plugin directory relative to project root
             plugin_dir = (
