@@ -107,7 +107,83 @@ feature = sdk.features.create("Title").save()
 Task(prompt="...", description="...")
 ```
 
+### SDK Help Discovery
+
+**Use `sdk.help()` to discover available operations and give better agent instructions:**
+
+```python
+# List all available topics
+print(sdk.help())
+
+# Get topic-specific help
+print(sdk.help('features'))      # Feature collection methods
+print(sdk.help('analytics'))     # Analytics & decision support
+print(sdk.help('sessions'))      # Session management
+print(sdk.help('orchestration')) # Subagent orchestration
+print(sdk.help('planning'))      # Planning workflow
+print(sdk.help('operations'))    # Server, hooks, events
+```
+
+**When delegating to agents, include relevant SDK patterns:**
+```python
+# Get help, then include in delegation prompt
+analytics_help = sdk.help('analytics')
+
+Task(
+    prompt=f"""Analyze project bottlenecks and recommend next work.
+
+    Use HtmlGraph SDK analytics:
+    {analytics_help}
+
+    Track findings in a spike.""",
+    subagent_type="general-purpose"
+)
+```
+
 For complete patterns: → Use `/orchestrator-directives` skill
+
+## Parent-Child Session Context (Automatic)
+
+**Your Task() delegations automatically create parent-child session links.**
+
+### How It Works
+
+When you call `Task()`, the system automatically:
+1. Sets environment variables for the child process:
+   - `HTMLGRAPH_PARENT_SESSION` - Your session ID
+   - `HTMLGRAPH_PARENT_AGENT` - Your agent name
+   - `HTMLGRAPH_PARENT_ACTIVITY` - The task invocation event ID
+   - `HTMLGRAPH_NESTING_DEPTH` - Current nesting level (0-3)
+
+2. Child agents inherit this context and can:
+   - Track activities that appear in YOUR session
+   - Link their work to your delegation event
+   - Enable full observability of the delegation chain
+
+### Practical Benefits
+
+**Before (no session context):**
+- Child agent activities lost in isolated session
+- No link between your Task() call and child's work
+- Hard to trace delegation chains
+
+**After (automatic session context):**
+- Child activities appear in your session summary
+- Full traceability: Task() → child session → findings
+- Dashboard shows complete delegation tree
+- Analytics understand cross-agent coordination
+
+### Nesting Depth
+
+**Recursion prevention:** System warns at depth >3 levels to prevent runaway delegation.
+
+Example depth levels:
+- Depth 0: You (orchestrator in main session)
+- Depth 1: Your Task() creates child agent
+- Depth 2: Child's Task() creates grandchild
+- Depth 3: Grandchild's Task() (warning triggered)
+
+**No action needed** - this is fully automatic. Just know that your delegations are tracked.
 
 ---
 
