@@ -34,11 +34,7 @@ class TestGeminiSpawnerUnit:
         # Mock successful JSON response
         mock_output = {
             "response": "2 + 2 = 4",
-            "stats": {
-                "models": {
-                    "gemini-2.0-flash": {"tokens": {"total": 100}}
-                }
-            },
+            "stats": {"models": {"gemini-2.0-flash": {"tokens": {"total": 100}}}},
         }
 
         with patch("subprocess.run") as mock_run:
@@ -291,6 +287,155 @@ class TestAIResult:
         assert result.tokens_used is None
         assert result.error == "Test error"
         assert result.raw_output is None
+
+    def test_air_result_with_tracked_events(self):
+        """Test AIResult with tracked events."""
+        tracked_events = [
+            {"type": "gemini_tool_call", "tool": "search"},
+            {"type": "gemini_tool_result", "status": "success"},
+        ]
+        result = AIResult(
+            success=True,
+            response="Test response",
+            tokens_used=100,
+            error=None,
+            raw_output={"test": "data"},
+            tracked_events=tracked_events,
+        )
+
+        assert result.tracked_events == tracked_events
+        assert len(result.tracked_events) == 2
+
+
+class TestActivityTracking:
+    """Test HtmlGraph activity tracking functionality."""
+
+    def test_gemini_event_parsing_with_mock_sdk(self):
+        """Test Gemini event parsing and tracking with mocked SDK."""
+        spawner = HeadlessSpawner()
+
+        # Mock SDK that captures track_activity calls
+        activity_calls = []
+
+        class MockSDK:
+            def track_activity(self, **kwargs):
+                activity_calls.append(kwargs)
+
+        mock_sdk = MockSDK()
+
+        # Test JSONL stream with various event types
+        jsonl_output = (
+            '{"type": "tool_use", "tool_name": "search", "parameters": {"query": "test"}}\n'
+            '{"type": "tool_result", "tool_id": "123", "status": "success"}\n'
+            '{"type": "message", "role": "assistant", "content": "Hello world"}\n'
+            '{"type": "result", "response": "Final answer", "stats": {"models": {"gemini-2.0-flash": {"tokens": {"total": 50}}}}}'
+        )
+
+        events = spawner._parse_and_track_gemini_events(jsonl_output, mock_sdk)
+
+        # Verify events were parsed
+        assert len(events) == 4
+        assert events[0]["type"] == "tool_use"
+        assert events[1]["type"] == "tool_result"
+        assert events[2]["type"] == "message"
+        assert events[3]["type"] == "result"
+
+        # Verify tracking calls were made
+        assert len(activity_calls) == 4
+        assert activity_calls[0]["tool"] == "gemini_tool_call"
+        assert activity_calls[0]["summary"] == "Gemini called search"
+        assert activity_calls[1]["tool"] == "gemini_tool_result"
+        assert activity_calls[1]["success"] is True
+        assert activity_calls[2]["tool"] == "gemini_message"
+        assert "Hello world" in activity_calls[2]["summary"]
+        assert activity_calls[3]["tool"] == "gemini_completion"
+
+    def test_codex_event_parsing_with_mock_sdk(self):
+        """Test Codex event parsing and tracking with mocked SDK."""
+        spawner = HeadlessSpawner()
+
+        activity_calls = []
+
+        class MockSDK:
+            def track_activity(self, **kwargs):
+                activity_calls.append(kwargs)
+
+        mock_sdk = MockSDK()
+
+        # Test JSONL stream with Codex events
+        jsonl_output = (
+            '{"type": "item.started", "item": {"type": "command_execution", "command": "ls -la"}}\n'
+            '{"type": "item.completed", "item": {"type": "file_change", "path": "src/main.py"}}\n'
+            '{"type": "item.completed", "item": {"type": "agent_message", "text": "Code generated successfully"}}\n'
+            '{"type": "turn.completed", "usage": {"input_tokens": 100, "output_tokens": 50}}'
+        )
+
+        events = spawner._parse_and_track_codex_events(jsonl_output, mock_sdk)
+
+        # Verify events were parsed
+        assert len(events) == 4
+        assert events[0]["type"] == "item.started"
+        assert events[1]["type"] == "item.completed"
+
+        # Verify tracking calls
+        assert len(activity_calls) == 4
+        assert activity_calls[0]["tool"] == "codex_command"
+        assert "ls -la" in activity_calls[0]["summary"]
+        assert activity_calls[1]["tool"] == "codex_file_change"
+        assert "src/main.py" in activity_calls[1]["summary"]
+        assert activity_calls[2]["tool"] == "codex_message"
+        assert activity_calls[3]["tool"] == "codex_completion"
+        assert "150 tokens" in activity_calls[3]["summary"]
+
+    def test_copilot_event_tracking_with_mock_sdk(self):
+        """Test Copilot event tracking with mocked SDK."""
+        spawner = HeadlessSpawner()
+
+        activity_calls = []
+
+        class MockSDK:
+            def track_activity(self, **kwargs):
+                activity_calls.append(kwargs)
+
+        mock_sdk = MockSDK()
+
+        prompt = "Write a hello world function"
+        response = "def hello(): print('Hello, World!')"
+
+        events = spawner._parse_and_track_copilot_events(prompt, response, mock_sdk)
+
+        # Verify synthetic events were created
+        assert len(events) == 2
+        assert events[0]["type"] == "copilot_start"
+        assert events[1]["type"] == "copilot_result"
+
+        # Verify tracking calls
+        assert len(activity_calls) == 2
+        assert activity_calls[0]["tool"] == "copilot_start"
+        assert activity_calls[1]["tool"] == "copilot_result"
+
+    def test_tracking_disabled_by_default_skips_tracking(self):
+        """Test that tracking can be disabled via parameter."""
+        spawner = HeadlessSpawner()
+
+        mock_output = {
+            "response": "2 + 2 = 4",
+            "stats": {"models": {"gemini-2.0-flash": {"tokens": {"total": 100}}}},
+        }
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = Mock(returncode=0, stdout=json.dumps(mock_output))
+
+            # Call with tracking disabled
+            result = spawner.spawn_gemini(
+                prompt="What is 2+2?",
+                output_format="json",
+                track_in_htmlgraph=False,
+                timeout=30,
+            )
+
+            assert result.success is True
+            assert result.tracked_events == []  # No events tracked
 
 
 class TestFallbackPatterns:

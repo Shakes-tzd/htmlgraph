@@ -3,6 +3,10 @@
 import json
 import subprocess
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from htmlgraph.sdk import SDK
 
 
 @dataclass
@@ -14,6 +18,7 @@ class AIResult:
     tokens_used: int | None
     error: str | None
     raw_output: dict | list | str | None
+    tracked_events: list[dict] | None = None  # Events tracked in HtmlGraph
 
 
 class HeadlessSpawner:
@@ -59,12 +64,232 @@ class HeadlessSpawner:
         """Initialize spawner."""
         pass
 
+    def _get_sdk(self) -> "SDK | None":
+        """Get SDK instance for HtmlGraph tracking. Returns None if SDK unavailable."""
+        try:
+            from htmlgraph.sdk import SDK
+
+            return SDK(agent="spawner")
+        except Exception:
+            # SDK unavailable or not properly initialized (optional dependency)
+            # This happens in test contexts without active sessions
+            return None
+
+    def _parse_and_track_gemini_events(
+        self, jsonl_output: str, sdk: "SDK"
+    ) -> list[dict]:
+        """
+        Parse Gemini stream-json events and track in HtmlGraph.
+
+        Args:
+            jsonl_output: JSONL output from Gemini CLI
+            sdk: HtmlGraph SDK instance for tracking
+
+        Returns:
+            Parsed events list
+        """
+        events = []
+
+        for line in jsonl_output.splitlines():
+            if not line.strip():
+                continue
+
+            try:
+                event = json.loads(line)
+                events.append(event)
+
+                # Track based on event type
+                event_type = event.get("type")
+
+                try:
+                    if event_type == "tool_use":
+                        tool_name = event.get("tool_name", "unknown_tool")
+                        parameters = event.get("parameters", {})
+                        sdk.track_activity(
+                            tool="gemini_tool_call",
+                            summary=f"Gemini called {tool_name}",
+                            payload={"tool_name": tool_name, "parameters": parameters},
+                        )
+
+                    elif event_type == "tool_result":
+                        status = event.get("status", "unknown")
+                        success = status == "success"
+                        tool_id = event.get("tool_id", "unknown")
+                        sdk.track_activity(
+                            tool="gemini_tool_result",
+                            summary=f"Gemini tool result: {status}",
+                            success=success,
+                            payload={"tool_id": tool_id, "status": status},
+                        )
+
+                    elif event_type == "message":
+                        role = event.get("role")
+                        if role == "assistant":
+                            content = event.get("content", "")
+                            # Truncate for summary
+                            summary = (
+                                content[:100] + "..." if len(content) > 100 else content
+                            )
+                            sdk.track_activity(
+                                tool="gemini_message",
+                                summary=f"Gemini: {summary}",
+                                payload={"role": role, "content_length": len(content)},
+                            )
+
+                    elif event_type == "result":
+                        stats = event.get("stats", {})
+                        sdk.track_activity(
+                            tool="gemini_completion",
+                            summary="Gemini task completed",
+                            payload={"stats": stats},
+                        )
+                except Exception:
+                    # Tracking failure should not break parsing
+                    pass
+
+            except json.JSONDecodeError:
+                # Skip malformed lines
+                continue
+
+        return events
+
+    def _parse_and_track_codex_events(
+        self, jsonl_output: str, sdk: "SDK"
+    ) -> list[dict]:
+        """
+        Parse Codex JSONL events and track in HtmlGraph.
+
+        Args:
+            jsonl_output: JSONL output from Codex CLI
+            sdk: HtmlGraph SDK instance for tracking
+
+        Returns:
+            Parsed events list
+        """
+        events = []
+        parse_errors = []
+
+        for line_num, line in enumerate(jsonl_output.splitlines(), start=1):
+            if not line.strip():
+                continue
+
+            try:
+                event = json.loads(line)
+                events.append(event)
+
+                event_type = event.get("type")
+
+                try:
+                    # Track item.started events
+                    if event_type == "item.started":
+                        item = event.get("item", {})
+                        item_type = item.get("type")
+
+                        if item_type == "command_execution":
+                            command = item.get("command", "")
+                            sdk.track_activity(
+                                tool="codex_command",
+                                summary=f"Codex executing: {command[:80]}",
+                                payload={"command": command},
+                            )
+
+                    # Track item.completed events
+                    elif event_type == "item.completed":
+                        item = event.get("item", {})
+                        item_type = item.get("type")
+
+                        if item_type == "file_change":
+                            path = item.get("path", "unknown")
+                            sdk.track_activity(
+                                tool="codex_file_change",
+                                summary=f"Codex modified: {path}",
+                                file_paths=[path],
+                                payload={"path": path},
+                            )
+
+                        elif item_type == "agent_message":
+                            text = item.get("text", "")
+                            summary = text[:100] + "..." if len(text) > 100 else text
+                            sdk.track_activity(
+                                tool="codex_message",
+                                summary=f"Codex: {summary}",
+                                payload={"text_length": len(text)},
+                            )
+
+                    # Track turn.completed for token usage
+                    elif event_type == "turn.completed":
+                        usage = event.get("usage", {})
+                        total_tokens = sum(usage.values())
+                        sdk.track_activity(
+                            tool="codex_completion",
+                            summary=f"Codex turn completed ({total_tokens} tokens)",
+                            payload={"usage": usage},
+                        )
+                except Exception:
+                    # Tracking failure should not break parsing
+                    pass
+
+            except json.JSONDecodeError as e:
+                parse_errors.append(
+                    {
+                        "line_number": line_num,
+                        "error": str(e),
+                        "content": line[:100],
+                    }
+                )
+                continue
+
+        return events
+
+    def _parse_and_track_copilot_events(
+        self, prompt: str, response: str, sdk: "SDK"
+    ) -> list[dict]:
+        """
+        Track Copilot execution (start and result only).
+
+        Args:
+            prompt: Original prompt
+            response: Response from Copilot
+            sdk: HtmlGraph SDK instance for tracking
+
+        Returns:
+            Synthetic events list for consistency
+        """
+        events = []
+
+        try:
+            # Track start
+            start_event = {"type": "copilot_start", "prompt": prompt[:100]}
+            events.append(start_event)
+            sdk.track_activity(
+                tool="copilot_start",
+                summary=f"Copilot started with prompt: {prompt[:80]}",
+                payload={"prompt_length": len(prompt)},
+            )
+        except Exception:
+            pass
+
+        try:
+            # Track result
+            result_event = {"type": "copilot_result", "response": response[:100]}
+            events.append(result_event)
+            sdk.track_activity(
+                tool="copilot_result",
+                summary=f"Copilot completed: {response[:80]}",
+                payload={"response_length": len(response)},
+            )
+        except Exception:
+            pass
+
+        return events
+
     def spawn_gemini(
         self,
         prompt: str,
-        output_format: str = "json",
+        output_format: str = "stream-json",
         model: str | None = None,
         include_directories: list[str] | None = None,
+        track_in_htmlgraph: bool = True,
         timeout: int = 120,
     ) -> AIResult:
         """
@@ -72,14 +297,21 @@ class HeadlessSpawner:
 
         Args:
             prompt: Task description for Gemini
-            output_format: "json" or "stream-json"
+            output_format: "json" or "stream-json" (default: "stream-json" for real-time tracking)
             model: Model selection (e.g., "gemini-2.0-flash"). Default: None (uses default)
             include_directories: List of directories to include for context. Default: None
+            track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
 
         Returns:
-            AIResult with response or error
+            AIResult with response or error and tracked events if tracking enabled
         """
+        # Initialize tracking if enabled
+        sdk: SDK | None = None
+        tracked_events: list[dict] = []
+        if track_in_htmlgraph:
+            sdk = self._get_sdk()
+
         try:
             # Build command based on tested pattern from spike spk-4029eef3
             cmd = ["gemini", "-p", prompt, "--output-format", output_format]
@@ -95,6 +327,18 @@ class HeadlessSpawner:
 
             # CRITICAL: Add --yolo for headless mode (auto-approve all tools)
             cmd.append("--yolo")
+
+            # Track spawner start if SDK available
+            if sdk:
+                try:
+                    sdk.track_activity(
+                        tool="gemini_spawn_start",
+                        summary=f"Spawning Gemini: {prompt[:80]}",
+                        payload={"prompt_length": len(prompt), "model": model},
+                    )
+                except Exception:
+                    # Tracking failure should not break execution
+                    pass
 
             # Execute with timeout and stderr redirection
             # Note: Cannot use capture_output with stderr parameter
@@ -114,9 +358,58 @@ class HeadlessSpawner:
                     tokens_used=None,
                     error=f"Gemini CLI failed with exit code {result.returncode}",
                     raw_output=None,
+                    tracked_events=tracked_events,
                 )
 
-            # Parse JSON response
+            # Handle stream-json format with real-time tracking
+            if output_format == "stream-json" and sdk:
+                try:
+                    tracked_events = self._parse_and_track_gemini_events(
+                        result.stdout, sdk
+                    )
+                    # Only use stream-json parsing if we got valid events
+                    if tracked_events:
+                        # For stream-json, we need to extract response differently
+                        # Look for the last message or result event
+                        response_text = ""
+                        for event in tracked_events:
+                            if event.get("type") == "result":
+                                response_text = event.get("response", "")
+                                break
+                            elif event.get("type") == "message":
+                                content = event.get("content", "")
+                                if content:
+                                    response_text = content
+
+                        # Token usage from stats in result event
+                        tokens = None
+                        for event in tracked_events:
+                            if event.get("type") == "result":
+                                stats = event.get("stats", {})
+                                if stats and "models" in stats:
+                                    total_tokens = 0
+                                    for model_stats in stats["models"].values():
+                                        model_tokens = model_stats.get(
+                                            "tokens", {}
+                                        ).get("total", 0)
+                                        total_tokens += model_tokens
+                                    tokens = total_tokens if total_tokens > 0 else None
+                                break
+
+                        return AIResult(
+                            success=True,
+                            response=response_text,
+                            tokens_used=tokens,
+                            error=None,
+                            raw_output={"events": tracked_events},
+                            tracked_events=tracked_events,
+                        )
+
+                except Exception:
+                    # Fall back to regular JSON parsing if tracking fails
+                    pass
+
+            # Parse JSON response (for json format or fallback)
             try:
                 output = json.loads(result.stdout)
             except json.JSONDecodeError as e:
@@ -126,6 +419,7 @@ class HeadlessSpawner:
                     tokens_used=None,
                     error=f"Failed to parse JSON output: {e}",
                     raw_output={"stdout": result.stdout},
+                    tracked_events=tracked_events,
                 )
 
             # Extract response and token usage from parsed output
@@ -148,6 +442,7 @@ class HeadlessSpawner:
                 tokens_used=tokens,
                 error=None,
                 raw_output=output,
+                tracked_events=tracked_events,
             )
 
         except subprocess.TimeoutExpired as e:
@@ -162,6 +457,7 @@ class HeadlessSpawner:
                 }
                 if e.stdout or e.stderr
                 else None,
+                tracked_events=tracked_events,
             )
         except FileNotFoundError:
             return AIResult(
@@ -170,6 +466,7 @@ class HeadlessSpawner:
                 tokens_used=None,
                 error="Gemini CLI not found. Ensure 'gemini' is installed and in PATH.",
                 raw_output=None,
+                tracked_events=tracked_events,
             )
         except Exception as e:
             return AIResult(
@@ -178,6 +475,7 @@ class HeadlessSpawner:
                 tokens_used=None,
                 error=f"Unexpected error: {type(e).__name__}: {e}",
                 raw_output=None,
+                tracked_events=tracked_events,
             )
 
     def spawn_codex(
@@ -194,6 +492,7 @@ class HeadlessSpawner:
         working_directory: str | None = None,
         use_oss: bool = False,
         bypass_approvals: bool = False,
+        track_in_htmlgraph: bool = True,
         timeout: int = 120,
     ) -> AIResult:
         """
@@ -201,7 +500,7 @@ class HeadlessSpawner:
 
         Args:
             prompt: Task description for Codex
-            output_json: Use --json flag for JSONL output
+            output_json: Use --json flag for JSONL output (enables real-time tracking)
             model: Model selection (e.g., "gpt-4-turbo"). Default: None
             sandbox: Sandbox mode ("read-only", "workspace-write", "danger-full-access"). Default: None
             full_auto: Enable full auto mode (--full-auto). Default: True (required for headless)
@@ -212,11 +511,18 @@ class HeadlessSpawner:
             working_directory: Workspace directory (--cd). Default: None
             use_oss: Use local Ollama provider (--oss). Default: False
             bypass_approvals: Dangerously bypass approvals (--dangerously-bypass-approvals-and-sandbox). Default: False
+            track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
 
         Returns:
-            AIResult with response or error
+            AIResult with response, error, and tracked events if tracking enabled
         """
+        # Initialize tracking if enabled
+        sdk: SDK | None = None
+        tracked_events: list[dict] = []
+        if track_in_htmlgraph and output_json:
+            sdk = self._get_sdk()
+
         cmd = ["codex", "exec"]
 
         if output_json:
@@ -266,6 +572,22 @@ class HeadlessSpawner:
         # Add prompt as final argument
         cmd.append(prompt)
 
+        # Track spawner start if SDK available
+        if sdk:
+            try:
+                sdk.track_activity(
+                    tool="codex_spawn_start",
+                    summary=f"Spawning Codex: {prompt[:80]}",
+                    payload={
+                        "prompt_length": len(prompt),
+                        "model": model,
+                        "sandbox": sandbox,
+                    },
+                )
+            except Exception:
+                # Tracking failure should not break execution
+                pass
+
         try:
             result = subprocess.run(
                 cmd,
@@ -283,24 +605,34 @@ class HeadlessSpawner:
                     tokens_used=None,
                     error=None if result.returncode == 0 else "Command failed",
                     raw_output=result.stdout,
+                    tracked_events=tracked_events,
                 )
 
             # Parse JSONL output
             events = []
             parse_errors = []
-            for line_num, line in enumerate(result.stdout.splitlines(), start=1):
-                if line.strip():
-                    try:
-                        events.append(json.loads(line))
-                    except json.JSONDecodeError as e:
-                        parse_errors.append(
-                            {
-                                "line_number": line_num,
-                                "error": str(e),
-                                "content": line[:100],  # First 100 chars for debugging
-                            }
-                        )
-                        continue
+
+            # Use tracking parser if SDK is available
+            if sdk:
+                tracked_events = self._parse_and_track_codex_events(result.stdout, sdk)
+                events = tracked_events
+            else:
+                # Fallback to regular parsing without tracking
+                for line_num, line in enumerate(result.stdout.splitlines(), start=1):
+                    if line.strip():
+                        try:
+                            events.append(json.loads(line))
+                        except json.JSONDecodeError as e:
+                            parse_errors.append(
+                                {
+                                    "line_number": line_num,
+                                    "error": str(e),
+                                    "content": line[
+                                        :100
+                                    ],  # First 100 chars for debugging
+                                }
+                            )
+                            continue
 
             # Extract agent message
             response = None
@@ -327,6 +659,7 @@ class HeadlessSpawner:
                     "events": events,
                     "parse_errors": parse_errors if parse_errors else None,
                 },
+                tracked_events=tracked_events,
             )
 
         except FileNotFoundError:
@@ -336,6 +669,7 @@ class HeadlessSpawner:
                 tokens_used=None,
                 error="Codex CLI not found. Install from: https://github.com/openai/codex",
                 raw_output=None,
+                tracked_events=tracked_events,
             )
         except subprocess.TimeoutExpired as e:
             return AIResult(
@@ -349,6 +683,7 @@ class HeadlessSpawner:
                 }
                 if e.stdout or e.stderr
                 else None,
+                tracked_events=tracked_events,
             )
         except Exception as e:
             return AIResult(
@@ -357,6 +692,7 @@ class HeadlessSpawner:
                 tokens_used=None,
                 error=f"Unexpected error: {type(e).__name__}: {e}",
                 raw_output=None,
+                tracked_events=tracked_events,
             )
 
     def spawn_copilot(
@@ -365,6 +701,7 @@ class HeadlessSpawner:
         allow_tools: list[str] | None = None,
         allow_all_tools: bool = False,
         deny_tools: list[str] | None = None,
+        track_in_htmlgraph: bool = True,
         timeout: int = 120,
     ) -> AIResult:
         """
@@ -375,11 +712,18 @@ class HeadlessSpawner:
             allow_tools: List of tools to auto-approve (e.g., ["shell(git)", "write(*.py)"])
             allow_all_tools: Auto-approve all tools (--allow-all-tools). Default: False
             deny_tools: List of tools to deny (--deny-tool). Default: None
+            track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
 
         Returns:
-            AIResult with response or error
+            AIResult with response, error, and tracked events if tracking enabled
         """
+        # Initialize tracking if enabled
+        sdk = None
+        tracked_events = []
+        if track_in_htmlgraph:
+            sdk = self._get_sdk()
+
         cmd = ["copilot", "-p", prompt]
 
         # Add allow all tools flag
@@ -395,6 +739,18 @@ class HeadlessSpawner:
         if deny_tools:
             for tool in deny_tools:
                 cmd.extend(["--deny-tool", tool])
+
+        # Track spawner start if SDK available
+        if sdk:
+            try:
+                sdk.track_activity(
+                    tool="copilot_spawn_start",
+                    summary=f"Spawning Copilot: {prompt[:80]}",
+                    payload={"prompt_length": len(prompt)},
+                )
+            except Exception:
+                # Tracking failure should not break execution
+                pass
 
         try:
             result = subprocess.run(
@@ -427,12 +783,19 @@ class HeadlessSpawner:
                     tokens = 0  # Placeholder
                     break
 
+            # Track Copilot execution if SDK available
+            if sdk:
+                tracked_events = self._parse_and_track_copilot_events(
+                    prompt, response, sdk
+                )
+
             return AIResult(
                 success=result.returncode == 0,
                 response=response,
                 tokens_used=tokens,
                 error=None if result.returncode == 0 else result.stderr,
                 raw_output=result.stdout,
+                tracked_events=tracked_events,
             )
 
         except FileNotFoundError:
@@ -442,6 +805,7 @@ class HeadlessSpawner:
                 tokens_used=None,
                 error="Copilot CLI not found. Install from: https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line",
                 raw_output=None,
+                tracked_events=tracked_events,
             )
         except subprocess.TimeoutExpired as e:
             return AIResult(
@@ -455,6 +819,7 @@ class HeadlessSpawner:
                 }
                 if e.stdout or e.stderr
                 else None,
+                tracked_events=tracked_events,
             )
         except Exception as e:
             return AIResult(
@@ -463,6 +828,7 @@ class HeadlessSpawner:
                 tokens_used=None,
                 error=f"Unexpected error: {type(e).__name__}: {e}",
                 raw_output=None,
+                tracked_events=tracked_events,
             )
 
     def spawn_claude(
