@@ -120,7 +120,7 @@ class ComputationalReflection:
 
         # Sort by priority (highest first) and limit to MAX_ITEMS
         items.sort(key=lambda x: x.priority, reverse=True)
-        items = items[:self.MAX_ITEMS]
+        items = items[: self.MAX_ITEMS]
 
         # Build summary string
         summary = self._build_summary(items)
@@ -147,13 +147,15 @@ class ComputationalReflection:
             bottlenecks = self.sdk.find_bottlenecks(top_n=3)
 
             for bn in bottlenecks[:2]:  # Max 2 blockers
-                items.append(ReflectionItem(
-                    category="blocker",
-                    priority=5,  # Highest priority
-                    title=f"Blocker: {bn.get('title', 'Unknown')[:40]}",
-                    detail=f"Blocks {bn.get('blocks_count', 0)} items. Resolve first.",
-                    source_id=bn.get("id"),
-                ))
+                items.append(
+                    ReflectionItem(
+                        category="blocker",
+                        priority=5,  # Highest priority
+                        title=f"Blocker: {bn.get('title', 'Unknown')[:40]}",
+                        detail=f"Blocks {bn.get('blocks_count', 0)} items. Resolve first.",
+                        source_id=bn.get("id"),
+                    )
+                )
         except Exception:
             pass
 
@@ -161,13 +163,15 @@ class ComputationalReflection:
         try:
             blocked = self.sdk.features.where(status="blocked")
             for feat in blocked[:1]:  # Max 1 blocked feature
-                items.append(ReflectionItem(
-                    category="blocker",
-                    priority=4,
-                    title=f"Blocked: {feat.title[:40]}",
-                    detail="Feature is blocked. Check dependencies.",
-                    source_id=feat.id,
-                ))
+                items.append(
+                    ReflectionItem(
+                        category="blocker",
+                        priority=4,
+                        title=f"Blocked: {feat.title[:40]}",
+                        detail="Feature is blocked. Check dependencies.",
+                        source_id=feat.id,
+                    )
+                )
         except Exception:
             pass
 
@@ -183,14 +187,14 @@ class ComputationalReflection:
             cutoff = datetime.now() - timedelta(hours=self.LOOKBACK_HOURS)
 
             recent_sessions = [
-                s for s in sessions
-                if hasattr(s, 'started_at') and s.started_at
-                and s.started_at > cutoff
+                s
+                for s in sessions
+                if hasattr(s, "started_at") and s.started_at and s.started_at > cutoff
             ]
 
             # Look for error patterns in session activity
             for session in recent_sessions[-3:]:  # Last 3 sessions
-                if hasattr(session, 'activity_log') and session.activity_log:
+                if hasattr(session, "activity_log") and session.activity_log:
                     for activity in session.activity_log:
                         success = (
                             activity.success
@@ -209,13 +213,17 @@ class ComputationalReflection:
                                 else activity.get("summary", "")
                             )
 
-                            items.append(ReflectionItem(
-                                category="failure",
-                                priority=4,
-                                title=f"Recent failure: {tool}",
-                                detail=summary[:60] if summary else "Check session log",
-                                source_id=session.id,
-                            ))
+                            items.append(
+                                ReflectionItem(
+                                    category="failure",
+                                    priority=4,
+                                    title=f"Recent failure: {tool}",
+                                    detail=summary[:60]
+                                    if summary
+                                    else "Check session log",
+                                    source_id=session.id,
+                                )
+                            )
                             break  # One failure per session max
         except Exception:
             pass
@@ -234,8 +242,7 @@ class ComputationalReflection:
 
             # Get active session for analysis
             active_sessions = [
-                s for s in self.sdk.sessions.all()
-                if s.status == "active"
+                s for s in self.sdk.sessions.all() if s.status == "active"
             ]
 
             if active_sessions:
@@ -247,22 +254,24 @@ class ComputationalReflection:
                 for pattern in analysis.get("anti_patterns", [])[:1]:
                     seq = pattern.get("sequence", [])
                     desc = pattern.get("description", "")
-                    items.append(ReflectionItem(
-                        category="anti_pattern",
-                        priority=3,
-                        title=f"Avoid: {' → '.join(seq)}",
-                        detail=desc[:60] if desc else "Detected inefficient pattern",
-                        source_id=session.id,
-                    ))
+                    items.append(
+                        ReflectionItem(
+                            category="anti_pattern",
+                            priority=3,
+                            title=f"Avoid: {' → '.join(seq)}",
+                            detail=desc[:60]
+                            if desc
+                            else "Detected inefficient pattern",
+                            source_id=session.id,
+                        )
+                    )
         except Exception:
             pass
 
         return items[:1]  # Max 1 anti-pattern
 
     def _get_related_spikes(
-        self,
-        feature_id: str | None,
-        track: str | None
+        self, feature_id: str | None, track: str | None
     ) -> list[ReflectionItem]:
         """Get related investigation spikes."""
         items = []
@@ -275,11 +284,11 @@ class ComputationalReflection:
 
             for spike in spikes:
                 # Check if spike has findings
-                if not hasattr(spike, 'findings') or not spike.findings:
+                if not hasattr(spike, "findings") or not spike.findings:
                     continue
 
                 # Check if spike is related to current feature
-                if feature_id and hasattr(spike, 'edges') and spike.edges:
+                if feature_id and hasattr(spike, "edges") and spike.edges:
                     for edge_type, edges in spike.edges.items():
                         for edge in edges:
                             if edge.target_id == feature_id:
@@ -292,7 +301,7 @@ class ComputationalReflection:
 
                 # Check for recent completed spikes with findings
                 if spike.status == "done" and spike.findings:
-                    if hasattr(spike, 'updated') and spike.updated:
+                    if hasattr(spike, "updated") and spike.updated:
                         cutoff = datetime.now() - timedelta(hours=24)
                         if spike.updated > cutoff:
                             relevant_spikes.append((spike, 2))  # Lower relevance
@@ -302,13 +311,15 @@ class ComputationalReflection:
 
             for spike, relevance in relevant_spikes[:1]:
                 findings_preview = spike.findings[:60] if spike.findings else ""
-                items.append(ReflectionItem(
-                    category="spike",
-                    priority=2,
-                    title=f"Related: {spike.title[:35]}",
-                    detail=findings_preview or "See spike for details",
-                    source_id=spike.id,
-                ))
+                items.append(
+                    ReflectionItem(
+                        category="spike",
+                        priority=2,
+                        title=f"Related: {spike.title[:35]}",
+                        detail=findings_preview or "See spike for details",
+                        source_id=spike.id,
+                    )
+                )
         except Exception:
             pass
 
@@ -326,13 +337,15 @@ class ComputationalReflection:
                 reasons = rec.get("reasons", [])
                 reason_str = reasons[0] if reasons else "Recommended next"
 
-                items.append(ReflectionItem(
-                    category="recommendation",
-                    priority=2,
-                    title=f"Next: {rec.get('title', 'Unknown')[:35]}",
-                    detail=reason_str[:60],
-                    source_id=rec.get("id"),
-                ))
+                items.append(
+                    ReflectionItem(
+                        category="recommendation",
+                        priority=2,
+                        title=f"Next: {rec.get('title', 'Unknown')[:35]}",
+                        detail=reason_str[:60],
+                        source_id=rec.get("id"),
+                    )
+                )
         except Exception:
             pass
 
@@ -355,7 +368,9 @@ class ComputationalReflection:
             parts.append(f"{len(blockers)} blocker{'s' if len(blockers) > 1 else ''}")
 
         if failures:
-            parts.append(f"{len(failures)} recent failure{'s' if len(failures) > 1 else ''}")
+            parts.append(
+                f"{len(failures)} recent failure{'s' if len(failures) > 1 else ''}"
+            )
 
         if anti_patterns:
             pattern = anti_patterns[0]
