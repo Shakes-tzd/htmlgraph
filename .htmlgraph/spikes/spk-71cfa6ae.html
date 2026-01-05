@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Hybrid Error Handling Design - Token Efficiency & HtmlGraph Integration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-71cfa6ae"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T01:36:07.488516"
+             data-updated="2026-01-05T01:36:07.488523" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Hybrid Error Handling Design - Token Efficiency & HtmlGraph Integration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Hybrid Error Handling Design - Implementation Plan
+
+## Problem Statement
+Rich.Traceback with show_locals=True generates 794 tokens per error (excessive for token-constrained environments). Need to reduce token consumption by 80% while maintaining error information availability.
+
+## Solution Architecture
+
+### Three-Tier Error Display System
+1. **Minimal (163 tokens)**: Error type + message + debug hint (DEFAULT)
+2. **Verbose (300 tokens)**: Type + message + stack trace (--verbose flag)
+3. **Debug (794 tokens)**: Full Rich traceback with locals (--debug flag)
+
+### Persistent Error Storage
+- Full tracebacks stored in HtmlGraph sessions (error_log[])
+- Searchable via: `htmlgraph session debug SESSION_ID`
+- Filter by error type: `htmlgraph session debug --filter ValueError`
+- Recent errors: `htmlgraph session debug --recent 5`
+
+## System Components
+
+### 1. Error Handler Module (error_handler.py) - NEW
+- ErrorRecord class: Structured exception representation
+- ErrorHandler: Capture, format, serialize exceptions
+- LocalsSanitizer: Safely extract locals (exclude secrets, truncate large objects)
+- Three formatters: minimal/verbose/debug output
+
+### 2. Session Integration
+- Extend ErrorEntry model with: locals_dump, stack_frames, command_args, model_name
+- Add search_errors() method to SessionManager
+- Enhance log_error() to handle ErrorRecord structures
+
+### 3. CLI Integration Points
+- Add --debug flag to all commands (show full traceback)
+- Add --verbose flag to all commands (show traceback without locals)
+- Wrap main() execution in try/except
+- Implement `htmlgraph session debug` command
+
+### 4. Console Output Strategy
+DEFAULT (minimal): "ERROR ValueError: invalid literal...\n\nRun with --debug for full traceback"
+--verbose: Error type + stack trace (no locals)
+--debug: Full Rich traceback with sanitized locals
+
+## Key Design Decisions
+
+### Error Safety
+1. Recursive error prevention: Wrap logging in try/except, never propagate
+2. Session availability: Gracefully handle missing sessions
+3. Locals size limits: 500 char strings, 10 item dicts/lists
+4. Secret leakage prevention: Exclude password/token/secret/api_key patterns
+
+### Implementation Sequence
+Phase 1 (Days 1-2): Create error_handler.py, extend SessionManager
+Phase 2 (Days 3-4): CLI integration, add debug command
+Phase 3 (Days 5-6): Testing, token measurement, documentation
+Phase 4 (Day 7): Edge cases, final quality gates
+
+## Success Criteria
+- [x] Architecture designed
+- [ ] Error handler module created (100% type coverage)
+- [ ] Session integration complete
+- [ ] CLI flags implemented
+- [ ] Token reduction verified (794 → 163 = 80%)
+- [ ] All quality gates pass (ruff, mypy, pytest)
+- [ ] Backward compatible
+- [ ] Zero impact on error-free paths
+
+## Token Efficiency Gains
+
+| Scenario | Current | Proposed | Reduction |
+|----------|---------|----------|-----------|
+| Normal error (default) | 794 tokens | 163 tokens | 80% ✓ |
+| Debugging error | 794 tokens | 794 tokens | 0% (opt-in) |
+| Error-free execution | 0 tokens | 0 tokens | 0% (no impact) |
+
+## Integration Points
+- error_handler.py: NEW (300-400 lines)
+- models.py: EXTEND ErrorEntry (+8 fields)
+- session_manager.py: EXTEND (+30 lines)
+- cli.py: main() wrap (+20 lines) + parser (+10 lines) + command (+40-50 lines)
+
+Total: ~500 new lines, ~80 modified lines, 100% backward compatible
+
+## Dependencies
+All from Python standard library (traceback, sys, re, json, datetime)
+No new external dependencies required ✓
+
+## Next Steps
+1. Review design document (HYBRID_ERROR_HANDLING_DESIGN.md)
+2. Create error_handler.py module
+3. Run quality gates: ruff, mypy, pytest
+4. Integrate into cli.py
+5. Implement session debug command
+6. Measure token reduction
+7. Document in DEBUGGING.md
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

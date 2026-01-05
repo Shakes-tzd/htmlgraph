@@ -83,5 +83,10 @@
     "spike_id": "spk-7e53b685",
     "created": "2026-01-05T00:26:06.861791",
     "occurrences": 4
+  },
+  "Read:File content (35735 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-38528a33",
+    "created": "2026-01-05T01:33:56.908146",
+    "occurrences": 4
   }
 }

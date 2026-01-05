@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>error_handler.py Linting Fixes - COMPLETED</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-35b12e94"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T01:42:54.013352"
+             data-updated="2026-01-05T01:42:54.013357" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>error_handler.py Linting Fixes - COMPLETED</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Summary
+Successfully fixed all ruff linting errors and mypy type issues in `src/python/htmlgraph/error_handler.py`.
+
+## Errors Fixed
+
+### 1. Type Annotation Issues (MyPy Errors)
+- **Issue**: `sys.exc_info()` returns `BaseException | None`, not `Exception`
+- **Fix**: Updated method signature and dataclass field from `Exception` to `BaseException`
+  - Line 387: Changed parameter type from `Exception | None` to `BaseException | None`
+  - Line 40: Changed dataclass field from `Exception` to `BaseException`
+- **Result**: All type checking errors resolved
+
+### 2. Code Quality Improvements
+- Properly initialized `exc_traceback = None` before conditional assignment
+- Fixed variable scope issues in `capture_exception` method
+- Ensured proper type narrowing after `sys.exc_info()` calls
+
+## Quality Checks - ALL PASSED
+
+✅ **Ruff Linting**: All checks passed
+✅ **Ruff Formatting**: File formatted correctly (1 file left unchanged)
+✅ **MyPy Type Checking**: Success - no issues found in 1 source file
+✅ **Pytest Tests**: 14/14 tests passed
+   - TestSessionManagement: 6/6 passed
+   - TestActivityTracking: 4/4 passed
+   - TestSessionErrors: 2/2 passed
+   - TestSessionRelationships: 2/2 passed
+
+## Files Modified
+- `src/python/htmlgraph/error_handler.py` - Type annotations and exception handling
+
+## Verification
+All quality gates passed:
+- No ruff lint errors
+- No ruff format issues
+- No mypy type errors
+- All pytest tests passing
+
+## Status
+**COMPLETED** - All linting errors fixed and verified with comprehensive test coverage.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

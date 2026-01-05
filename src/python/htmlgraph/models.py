@@ -861,6 +861,12 @@ class ErrorEntry(BaseModel):
     tool: str | None = None  # Tool that caused the error (Edit, Bash, etc.)
     context: str | None = None  # Additional context information
     session_id: str | None = None  # Session ID for cross-referencing
+    locals_dump: str | None = None  # JSON-serialized local variables at error point
+    stack_frames: list[dict[str, Any]] | None = (
+        None  # Structured stack frame information
+    )
+    command_args: dict[str, Any] | None = None  # Command arguments being executed
+    display_level: str = "minimal"  # Display level: minimal, verbose, or debug
 
     def to_html(self) -> str:
         """Convert error to HTML details element."""

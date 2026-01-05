@@ -846,6 +846,75 @@ class SessionManager:
             return []
         return [error.model_dump() for error in session.error_log]
 
+    def search_errors(
+        self,
+        session_id: str,
+        error_type: str | None = None,
+        pattern: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Search errors in a session by type and/or pattern.
+
+        Args:
+            session_id: Session ID to search
+            error_type: Filter by exception type (e.g., "ValueError")
+            pattern: Regex pattern to match in error message
+
+        Returns:
+            List of matching error records
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return []
+
+        errors = [error.model_dump() for error in session.error_log]
+
+        # Filter by error type
+        if error_type:
+            errors = [e for e in errors if e.get("error_type") == error_type]
+
+        # Filter by pattern in message
+        if pattern:
+            compiled_pattern = re.compile(pattern, re.IGNORECASE)
+            errors = [
+                e for e in errors if compiled_pattern.search(e.get("message", ""))
+            ]
+
+        return errors
+
+    def get_error_summary(self, session_id: str) -> dict[str, Any]:
+        """
+        Get summary statistics of errors in a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Dictionary with error summary statistics
+        """
+        session = self.get_session(session_id)
+        if not session or not session.error_log:
+            return {
+                "total_errors": 0,
+                "error_types": {},
+                "first_error": None,
+                "last_error": None,
+            }
+
+        errors = session.error_log
+        error_types: dict[str, int] = {}
+
+        for error in errors:
+            error_type = error.error_type
+            error_types[error_type] = error_types.get(error_type, 0) + 1
+
+        return {
+            "total_errors": len(errors),
+            "error_types": error_types,
+            "first_error": errors[0].model_dump() if errors else None,
+            "last_error": errors[-1].model_dump() if errors else None,
+        }
+
     # =========================================================================
     # Activity Tracking
     # =========================================================================
