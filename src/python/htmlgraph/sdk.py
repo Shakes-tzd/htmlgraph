@@ -64,6 +64,7 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.session_warning import check_and_show_warning
+from htmlgraph.system_prompts import SystemPromptManager
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.types import (
     ActiveWorkItem,
@@ -92,6 +93,16 @@ class SDK:
         - patterns: Workflow patterns (optimal/anti-pattern)
         - insights: Session health insights
         - metrics: Aggregated time-series metrics
+
+    System Prompt Management:
+        sdk.system_prompts - Manage system prompts
+            .get_active() - Get active prompt (project override OR plugin default)
+            .get_default() - Get plugin default system prompt
+            .get_project() - Get project-level override if exists
+            .create(template) - Create project-level override
+            .validate() - Validate prompt token count
+            .delete() - Delete project override (fall back to default)
+            .get_stats() - Get prompt statistics
 
     Analytics & Decision Support:
         sdk.dep_analytics - Dependency analysis
@@ -285,7 +296,10 @@ class SDK:
         self.context = ContextAnalytics(self)
 
         # Lazy-loaded orchestrator for subagent management
-        self._orchestrator = None
+        self._orchestrator: Any = None
+
+        # System prompt manager (lazy-loaded)
+        self._system_prompts: SystemPromptManager | None = None
 
         # Session warning system (workaround for Claude Code hook bug #10373)
         # Shows orchestrator instructions on first SDK usage per session
@@ -320,6 +334,43 @@ class SDK:
     def agent(self) -> str | None:
         """Get current agent ID."""
         return self._agent_id
+
+    @property
+    def system_prompts(self) -> SystemPromptManager:
+        """
+        Access system prompt management.
+
+        Provides methods to:
+        - Get active prompt (project override OR plugin default)
+        - Create/delete project-level overrides
+        - Validate token counts
+        - Get prompt statistics
+
+        Lazy-loaded on first access.
+
+        Returns:
+            SystemPromptManager instance
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+
+            # Get active prompt
+            >>> prompt = sdk.system_prompts.get_active()
+
+            # Create project override
+            >>> sdk.system_prompts.create("## Custom prompt\\n...")
+
+            # Validate token count
+            >>> result = sdk.system_prompts.validate()
+            >>> print(result['message'])
+
+            # Get statistics
+            >>> stats = sdk.system_prompts.get_stats()
+            >>> print(f"Source: {stats['source']}")
+        """
+        if self._system_prompts is None:
+            self._system_prompts = SystemPromptManager(self._directory)
+        return self._system_prompts
 
     def dismiss_session_warning(self) -> bool:
         """
