@@ -582,34 +582,72 @@ After Task completes, retrieve results with SDK command above.
 
 def load_system_prompt(project_dir: Path) -> str | None:
     """
-    Load system prompt from .claude/system-prompt.md.
+    Load system prompt from plugin default or project override.
+
+    Uses two-tier system:
+    1. Project override: .claude/system-prompt.md (takes precedence)
+    2. Plugin default: Included with HtmlGraph plugin
 
     Args:
         project_dir: Root directory of the project
 
     Returns:
-        System prompt content, or None if file doesn't exist or on error
+        System prompt content (from override or default), or None if neither available
     """
-    prompt_file = Path(project_dir) / ".claude" / "system-prompt.md"
-
-    if not prompt_file.exists():
-        logger.warning(f"System prompt not found: {prompt_file}")
-        return None
-
     try:
-        content = prompt_file.read_text(encoding="utf-8")
-        logger.info(f"Loaded system prompt ({len(content)} chars)")
-        return content
+        from htmlgraph.system_prompts import SystemPromptManager
+
+        graph_dir = Path(project_dir) / ".htmlgraph"
+        manager = SystemPromptManager(graph_dir)
+        prompt = manager.get_active()
+
+        if prompt:
+            logger.info(f"Loaded system prompt ({len(prompt)} chars)")
+            return prompt
+        else:
+            logger.warning(
+                "System prompt not found (no project override or plugin default)"
+            )
+            return None
+
+    except ImportError:
+        logger.warning("HtmlGraph SDK not available, falling back to legacy loading")
+        # Fallback for when SDK is not available
+        prompt_file = Path(project_dir) / ".claude" / "system-prompt.md"
+        if not prompt_file.exists():
+            logger.warning(f"System prompt not found: {prompt_file}")
+            return None
+
+        try:
+            content = prompt_file.read_text(encoding="utf-8")
+            logger.info(f"Loaded system prompt ({len(content)} chars)")
+            return content
+        except Exception as e:
+            logger.error(f"Failed to load system prompt: {e}")
+            return None
+
     except Exception as e:
-        logger.error(f"Failed to load system prompt: {e}")
+        logger.error(f"Failed to load system prompt via SDK: {e}")
+        # Fallback to legacy loading
+        prompt_file = Path(project_dir) / ".claude" / "system-prompt.md"
+        if prompt_file.exists():
+            try:
+                content = prompt_file.read_text(encoding="utf-8")
+                logger.info(f"Loaded system prompt via fallback ({len(content)} chars)")
+                return content
+            except Exception:
+                pass
+
         return None
 
 
 def validate_token_count(prompt: str, max_tokens: int = 500) -> tuple[bool, int]:
     """
-    Validate prompt token count.
+    Validate prompt token count using SDK validator.
 
-    Uses simple estimation (1 token ≈ 4 chars) since tiktoken may not be available.
+    Uses SDK's SystemPromptValidator which supports:
+    - Accurate tiktoken counting (if available)
+    - Fallback character-based estimation (1 token ≈ 4 chars)
 
     Args:
         prompt: Text to count tokens for
@@ -619,22 +657,47 @@ def validate_token_count(prompt: str, max_tokens: int = 500) -> tuple[bool, int]
         (is_valid, token_count) tuple
     """
     try:
-        # Try to use tiktoken if available
-        import tiktoken
+        from htmlgraph.system_prompts import SystemPromptValidator
 
-        encoding = tiktoken.encoding_for_model("gpt-4")
-        tokens = len(encoding.encode(prompt))
-    except Exception:
-        # Fallback: rough estimation (1 token ≈ 4 chars)
+        result = SystemPromptValidator.validate(prompt, max_tokens=max_tokens)
+        tokens = result["tokens"]
+        is_valid = result["is_valid"]
+
+        if not is_valid:
+            logger.warning(f"Prompt exceeds budget: {tokens} > {max_tokens}")
+            for warning in result.get("warnings", []):
+                logger.warning(f"  {warning}")
+        else:
+            logger.info(f"Prompt tokens: {tokens}/{max_tokens}")
+
+        return is_valid, tokens
+
+    except ImportError:
+        logger.debug("SDK validator not available, using fallback estimation")
+        # Fallback: manual token counting
+        try:
+            import tiktoken
+
+            encoding = tiktoken.encoding_for_model("gpt-4")
+            tokens = len(encoding.encode(prompt))
+        except Exception:
+            # Fallback: rough estimation (1 token ≈ 4 chars)
+            tokens = max(1, len(prompt) // 4)
+
+        is_valid = tokens <= max_tokens
+        if not is_valid:
+            logger.warning(f"Prompt exceeds budget: {tokens} > {max_tokens}")
+        else:
+            logger.info(f"Prompt tokens: {tokens}/{max_tokens}")
+
+        return is_valid, tokens
+
+    except Exception as e:
+        logger.error(f"Token validation failed: {e}")
+        # Fallback to simple estimation
         tokens = max(1, len(prompt) // 4)
-
-    is_valid = tokens <= max_tokens
-    if not is_valid:
-        logger.warning(f"Prompt exceeds budget: {tokens} > {max_tokens}")
-    else:
-        logger.info(f"Prompt tokens: {tokens}/{max_tokens}")
-
-    return is_valid, tokens
+        is_valid = tokens <= max_tokens
+        return is_valid, tokens
 
 
 def inject_prompt_via_additionalcontext(prompt: str, source: str) -> dict:
