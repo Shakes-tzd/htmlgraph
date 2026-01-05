@@ -18,11 +18,20 @@ Architecture:
 """
 
 import json
+import logging
 import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+    stream=sys.stderr,
+)
+logger = logging.getLogger(__name__)
 
 if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     print(json.dumps({}))
@@ -571,6 +580,97 @@ After Task completes, retrieve results with SDK command above.
 """
 
 
+def load_system_prompt(project_dir: Path) -> str | None:
+    """
+    Load system prompt from .claude/system-prompt.md.
+
+    Args:
+        project_dir: Root directory of the project
+
+    Returns:
+        System prompt content, or None if file doesn't exist or on error
+    """
+    prompt_file = Path(project_dir) / ".claude" / "system-prompt.md"
+
+    if not prompt_file.exists():
+        logger.warning(f"System prompt not found: {prompt_file}")
+        return None
+
+    try:
+        content = prompt_file.read_text(encoding="utf-8")
+        logger.info(f"Loaded system prompt ({len(content)} chars)")
+        return content
+    except Exception as e:
+        logger.error(f"Failed to load system prompt: {e}")
+        return None
+
+
+def validate_token_count(prompt: str, max_tokens: int = 500) -> tuple[bool, int]:
+    """
+    Validate prompt token count.
+
+    Uses simple estimation (1 token ≈ 4 chars) since tiktoken may not be available.
+
+    Args:
+        prompt: Text to count tokens for
+        max_tokens: Maximum allowed tokens
+
+    Returns:
+        (is_valid, token_count) tuple
+    """
+    try:
+        # Try to use tiktoken if available
+        import tiktoken
+
+        encoding = tiktoken.encoding_for_model("gpt-4")
+        tokens = len(encoding.encode(prompt))
+    except Exception:
+        # Fallback: rough estimation (1 token ≈ 4 chars)
+        tokens = max(1, len(prompt) // 4)
+
+    is_valid = tokens <= max_tokens
+    if not is_valid:
+        logger.warning(f"Prompt exceeds budget: {tokens} > {max_tokens}")
+    else:
+        logger.info(f"Prompt tokens: {tokens}/{max_tokens}")
+
+    return is_valid, tokens
+
+
+def inject_prompt_via_additionalcontext(prompt: str, source: str) -> dict:
+    """
+    Create SessionStart hook output with system prompt injection.
+
+    Args:
+        prompt: The system prompt to inject
+        source: Source of injection (e.g., 'compact', 'resume', 'startup')
+
+    Returns:
+        Hook output dict with additionalContext field
+    """
+    context = f"""## SYSTEM PROMPT RESTORED (via SessionStart)
+
+This system prompt was injected at session {source} to maintain context across compacts and session transitions.
+
+---
+
+{prompt}
+
+---
+
+*This prompt persists across tool executions and survives compact/resume cycles.*
+"""
+
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": context,
+        }
+    }
+
+    return output
+
+
 def get_cigs_context(graph_dir: Path, session_id: str) -> str:
     """
     Generate CIGS (Computational Imperative Guidance System) context.
@@ -937,22 +1037,48 @@ def get_recent_commits(project_dir: str, count: int = 5) -> list[str]:
     return []
 
 
-def output_response(context: str, status_summary: str | None = None) -> None:
-    """Output JSON response with context."""
+def output_response(
+    context: str,
+    status_summary: str | None = None,
+    system_prompt_injection: dict | None = None,
+) -> None:
+    """
+    Output JSON response with context.
+
+    If system_prompt_injection is provided, it takes precedence as the hook output
+    (ensuring system prompt is injected first before other context).
+    """
     if status_summary:
         print(f"\n{status_summary}\n", file=sys.stderr)
 
-    print(
-        json.dumps(
-            {
-                "continue": True,
-                "hookSpecificOutput": {
-                    "hookEventName": "SessionStart",
-                    "additionalContext": context,
-                },
-            }
+    # If we have a system prompt injection, use it as the base output
+    # This ensures the system prompt is injected as the primary additionalContext
+    if system_prompt_injection:
+        # Merge the main context into the system prompt context
+        hook_output = system_prompt_injection.copy()
+        # Append main context after the system prompt
+        if (
+            "hookSpecificOutput" in hook_output
+            and "additionalContext" in hook_output["hookSpecificOutput"]
+        ):
+            hook_output["hookSpecificOutput"]["additionalContext"] += (
+                f"\n\n---\n\n{context}"
+            )
+        hook_output["continue"] = True
+        print(json.dumps(hook_output))
+    else:
+        # Standard output without system prompt injection
+        print(
+            json.dumps(
+                {
+                    "continue": True,
+                    "hookSpecificOutput": {
+                        "hookEventName": "SessionStart",
+                        "additionalContext": context,
+                    },
+                }
+            )
         )
-    )
 
 
 def main():
@@ -960,6 +1086,30 @@ def main():
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:
         hook_input = {}
+
+    # Layer 1: Load and inject system prompt (non-blocking)
+    system_prompt_injection = None
+    try:
+        cwd = hook_input.get("cwd")
+        project_dir_for_prompt = resolve_project_path(cwd if cwd else None)
+        system_prompt = load_system_prompt(Path(project_dir_for_prompt))
+
+        if system_prompt:
+            # Validate token count
+            is_valid, token_count = validate_token_count(system_prompt, max_tokens=500)
+            logger.info(
+                f"System prompt validation: {token_count} tokens (valid: {is_valid})"
+            )
+
+            # Inject via additionalContext
+            source = hook_input.get("source", "startup")
+            system_prompt_injection = inject_prompt_via_additionalcontext(
+                system_prompt, source
+            )
+            logger.info("System prompt injection prepared")
+    except Exception as e:
+        logger.warning(f"System prompt injection failed (non-blocking): {e}")
+        # Continue without prompt injection
 
     # Check for version updates (non-blocking, best-effort)
     version_warning = ""
@@ -1134,7 +1284,11 @@ htmlgraph init
 
 Or create features manually in `.htmlgraph/features/`
 """
-        output_response(context, "No features found. Run 'htmlgraph init' to set up.")
+        output_response(
+            context,
+            "No features found. Run 'htmlgraph init' to set up.",
+            system_prompt_injection,
+        )
         return
 
     # Find active feature(s)
@@ -1363,7 +1517,7 @@ Greet the user with a brief status update:
     else:
         status_summary = f"No active feature | Progress: {stats['done']}/{stats['total']} ({stats['percentage']}%) | {len(pending_features)} pending"
 
-    output_response(context, status_summary)
+    output_response(context, status_summary, system_prompt_injection)
 
 
 if __name__ == "__main__":
