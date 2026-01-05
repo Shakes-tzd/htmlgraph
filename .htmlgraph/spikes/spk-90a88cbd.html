@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 1A/1B: Rich Maximization - Immediate Action Plan</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-90a88cbd"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T23:55:20.455926"
+             data-updated="2026-01-04T23:55:20.455931" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Phase 1A/1B: Rich Maximization - Immediate Action Plan</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Phase 1A/1B: Rich Maximization - Immediate Action Plan
+
+**Current Status:** Phase 1A is IN PROGRESS (33% complete)  
+**Objective:** Complete Rich library maximization before Phase 1 (Rich + Pydantic)  
+**Timeline:** This week + next week (4-5 days total work)
+
+---
+
+## Phase 1A: Rich Console Maximization (IN PROGRESS)
+
+### Current Work: feat-4d5b889e
+**Status:** 🔄 IN PROGRESS | **Priority:** HIGH | **Started:** 2026-01-04
+
+### Deliverables Breakdown
+
+#### 1. Rich Progress Bars (DONE ✅)
+- **Feature:** feat-f5c6f757
+- **Status:** COMPLETE
+- **Implementation:** Already in codebase
+- **Usage:** Long-running operations show progress
+
+#### 2. Rich Tables for List Commands (TODO ○)
+- **Feature:** feat-64467b2c
+- **Status:** TODO - MEDIUM PRIORITY
+- **Objective:** Format feature/track/spike lists as Rich tables
+- **Scope:**
+  - Implement Rich.Table for feature listings
+  - Add column formatting (ID, Title, Status, Priority, Created)
+  - Support sorting by column
+  - Add pagination for large result sets
+  - Integrate with existing `htmlgraph feature list` command
+  - Integrate with `htmlgraph track list` command
+  - Integrate with `htmlgraph spike list` command
+- **Estimated Effort:** 1 day
+- **Acceptance Criteria:**
+  - Tables display correctly in terminal
+  - Status symbols (✓, ●, ○) show correctly
+  - Colors are consistent with theme
+  - All required columns present
+  - Tests verify table output formatting
+
+#### 3. Rich Error Panels with Context (TODO ○)
+- **Feature:** feat-8532669a
+- **Status:** TODO - MEDIUM PRIORITY
+- **Objective:** Display errors with Rich panels for better context
+- **Scope:**
+  - Implement Rich.Panel for error display
+  - Add error title, description, and context
+  - Format traceback with syntax highlighting
+  - Add suggestion section for recovery
+  - Integrate with existing error handling
+  - Support both SDK and CLI error flows
+- **Estimated Effort:** 1 day
+- **Acceptance Criteria:**
+  - Errors display in formatted panels
+  - Traceback is readable and highlighted
+  - Context is preserved and shown
+  - Suggestions are helpful
+  - Tests verify error panel output
+
+**Phase 1A Total Effort:** 2 days of implementation + 0.5 days testing = ~2.5 days
+
+---
+
+## Phase 1B: Intelligent Error Handling (PENDING)
+
+### Work Item: feat-56ece4e5
+**Status:** ⏳ TODO | **Priority:** HIGH | **Depends On:** Phase 1A completion
+
+### Objective
+Intelligent traceback management with Rich formatting
+
+### Key Features
+1. **Structured Error Context**
+   - Preserve full error context (stacktrace, variables, state)
+   - Attach relevant HtmlGraph metadata (feature IDs, session info)
+   - Support context recovery for retries
+
+2. **Rich Panel-Based Display**
+   - Leverage new Rich error panels from Phase 1A
+   - Format traceback with syntax highlighting
+   - Display error title, message, and context separately
+   - Add suggestions for common errors
+
+3. **Traceback Filtering**
+   - Hide internal HtmlGraph frames (reduce noise)
+   - Show only relevant application frames
+   - Option to show full traceback with --verbose
+
+4. **Contextual Suggestions**
+   - Common error detection
+   - Automatic suggestion generation
+   - Links to documentation
+   - Recovery command suggestions
+
+### Implementation Plan
+```
+Phase 1B Work (2-3 days):
+├─ Day 1: Error context preservation
+│  ├─ Extend exception classes with metadata
+│  ├─ Implement context capture in operations layer
+│  └─ Add traceback filtering logic
+├─ Day 2: Rich panel integration
+│  ├─ Implement error panel renderer
+│  ├─ Add syntax highlighting
+│  └─ Integrate with SDK error flows
+└─ Day 3: Suggestions + testing
+   ├─ Implement suggestion generator
+   ├─ Add CLI --verbose flag handling
+   └─ Comprehensive error handling tests
+```
+
+### Integration with Phase 1A
+- **Rich Tables:** Use for displaying error context tables
+- **Rich Panels:** Core error display mechanism
+- **Syntax Highlighting:** For traceback display
+
+---
+
+## Critical Success Factors
+
+### Phase 1A Success
+1. **Rich tables must work with existing CLI commands**
+   - No breaking changes to command output
+   - Backward compatibility with scripts
+   - Flag to control table vs. JSON output
+
+2. **Error panels must be universal**
+   - Apply to all error types (validation, runtime, etc.)
+   - Work in all output modes (JSON, table, tree)
+   - Support CLI and SDK usage
+
+3. **Testing must be comprehensive**
+   - Unit tests for panel rendering
+   - Integration tests for CLI commands
+   - Manual testing in real terminal
+
+### Phase 1B Success
+1. **Error suggestions must be accurate**
+   - Avoid false positives
+   - Test with real error scenarios
+   - Gather user feedback
+
+2. **Traceback filtering must be safe**
+   - Never hide critical information
+   - Allow --verbose to show full traces
+   - Test with complex stack traces
+
+3. **Context preservation must work**
+   - Attach HtmlGraph metadata
+   - Support re-running with same context
+   - Test with parallel operations
+
+---
+
+## Dependency: Foundation for Phase 1
+
+### Why Phase 1A/1B Are Critical Blockers
+
+Phase 1 (Rich + Pydantic) requires:
+- Rich tables: For displaying Pydantic model instances
+- Error panels: For validation error feedback
+- Traceback filtering: For Pydantic validation errors
+
+Without Phase 1A/1B complete:
+- Cannot implement Rich tree for Pydantic models
+- Cannot display validation errors clearly
+- Cannot provide contextual error recovery
+
+### Why Phase 1 Blocks Phase 2+
+
+Phase 2 (NetworkX) requires:
+- Pydantic graph models (from Phase 1)
+- Rich tree visualization (from Phase 1)
+- Intelligent error handling (from Phase 1B)
+
+Without Phase 1:
+- Cannot model graph nodes/edges
+- Cannot visualize graph structures
+- Cannot handle graph validation errors
+
+---
+
+## Expected Outcomes After Phase 1A/1B
+
+### User Experience Improvements
+- List commands show results in formatted tables
+- Errors display with clear context and suggestions
+- Tracebacks are readable and filterable
+- Better terminal UX overall
+
+### Technical Foundation
+- Rich library usage patterns established
+- Error handling framework ready for Pydantic
+- CLI output formatting standards defined
+- Traceback filtering reusable for Phase 2
+
+### Project Progress
+- 82% complete feature set (vs. 64.6% now)
+- Rich library 60% utilized (vs. 40% now)
+- Phase 1 can begin with confidence
+- Phase 2 has clear path forward
+
+---
+
+## Implementation Checklist
+
+### Phase 1A: Rich Tables (feat-64467b2c)
+- [ ] Design Rich table layout
+- [ ] Implement table renderer component
+- [ ] Integrate with feature list command
+- [ ] Integrate with track list command
+- [ ] Integrate with spike list command
+- [ ] Add sorting/filtering options
+- [ ] Write unit tests
+- [ ] Write integration tests
+- [ ] Manual terminal testing
+- [ ] Update documentation
+- [ ] Mark feature DONE
+
+### Phase 1A: Rich Error Panels (feat-8532669a)
+- [ ] Design error panel layout
+- [ ] Implement panel renderer component
+- [ ] Add traceback formatting
+- [ ] Add context section formatting
+- [ ] Add syntax highlighting
+- [ ] Integrate with SDK error handling
+- [ ] Integrate with CLI error handling
+- [ ] Write unit tests
+- [ ] Write integration tests
+- [ ] Manual error scenario testing
+- [ ] Update documentation
+- [ ] Mark feature DONE
+
+### Phase 1B: Error Handling (feat-56ece4e5)
+- [ ] Design error context structure
+- [ ] Extend exception classes
+- [ ] Implement context capture
+- [ ] Implement traceback filtering
+- [ ] Implement suggestion generator
+- [ ] Common error detection
+- [ ] Rich panel integration
+- [ ] --verbose flag support
+- [ ] Write comprehensive tests
+- [ ] Manual testing with real errors
+- [ ] Update documentation
+- [ ] Mark feature DONE
+
+---
+
+## Success Metrics
+
+### Phase 1A Completion
+- All tables render correctly in terminal
+- No breaking changes to existing CLI commands
+- Tests pass (unit + integration)
+- Documentation updated
+- Feature marked DONE in HtmlGraph
+
+### Phase 1B Completion
+- Errors display with context
+- Suggestions are helpful (user feedback)
+- Traceback filtering works (--verbose works)
+- Tests pass (unit + integration)
+- Documentation updated
+- Feature marked DONE in HtmlGraph
+
+### Project Progress
+- Ready to start Phase 1 (Rich + Pydantic)
+- 82% of features complete
+- Rich library 60% utilized
+- Solid foundation for Phase 2
+
+---
+
+## Timeline Summary
+
+```
+THIS WEEK:
+├─ Phase 1A: Rich Tables (1 day)
+├─ Phase 1A: Rich Error Panels (1 day)
+├─ Phase 1A: Testing + Integration (0.5 days)
+└─ Phase 1B: Start Error Handling (begin Thursday)
+
+NEXT WEEK:
+├─ Phase 1B: Complete Error Handling (1-2 days)
+├─ Phase 1: Start Rich + Pydantic (3-4 days) [CRITICAL]
+└─ CLI: Parallel modernization work (2-3 days)
+
+WEEK 3+:
+└─ Phase 2: NetworkX Integration (4-5 days)
+```
+
+**Total Work:** ~4-5 days to complete Phase 1A/1B
+**Blocker Cleared:** Phase 1 can begin next week
+**Downstream Unlocked:** Phase 2, 3, 4 can follow
+
+---
+
+## Next Immediate Actions
+
+1. **TODAY:** Finalize Phase 1A scope
+   - Review Rich table requirements
+   - Design error panel layout
+   - Create detailed implementation tasks
+
+2. **TOMORROW:** Start Phase 1A implementation
+   - Rich tables for feature list
+   - Begin error panel component
+
+3. **THIS WEEK:** Complete Phase 1A
+   - Finish tables and panels
+   - Comprehensive testing
+   - Documentation
+
+4. **NEXT WEEK:** Phase 1B + Phase 1 start
+   - Complete error handling
+   - Begin Rich + Pydantic foundation
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

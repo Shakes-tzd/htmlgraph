@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>CLI Structure Analysis - Command Pattern Migration Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-3f204617"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T19:40:19.502058"
+             data-updated="2026-01-04T19:40:19.502063" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>CLI Structure Analysis - Command Pattern Migration Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# HtmlGraph CLI Structure Analysis - Complete Report
+
+**Analysis Date:** 2026-01-04
+**Analyzer:** Claude Sonnet 4.5
+**Scope:** Complete CLI codebase examination for Command Pattern migration
+
+---
+
+## Executive Summary
+
+The HtmlGraph CLI is a **6,178-line monolithic file** with **79 command functions** and **massive separation of concerns violations**.
+
+### Critical Findings
+
+1. **MASSIVE MONOLITH**: Single 6,178-line file contains ALL CLI logic
+2. **NO ABSTRACTIONS**: Zero classes, zero base patterns, pure procedural code
+3. **SEVERE DRY VIOLATIONS**: 103+ JSON duplications, 159+ error handling duplications, 40+ SDK init patterns
+4. **TIGHT COUPLING**: Direct imports of 15+ modules, no dependency injection
+5. **MINIMAL TESTING**: Only 5 CLI test files, ~30% command coverage
+
+---
+
+## 1. CLI STRUCTURE
+
+**File**: `src/python/htmlgraph/cli.py`
+- **Lines**: 6,178
+- **Commands**: 79 functions
+- **Framework**: argparse
+- **Pattern**: No abstractions, procedural code
+
+**Command Groups**:
+- session (9), feature (11), track (6), transcript (12)
+- orchestrator (6), archive (5), docs (5), CIGS (4)
+- Total: 14 root + 65 nested = 79 commands
+
+---
+
+## 2. SEPARATION OF CONCERNS - SEVERE VIOLATIONS
+
+**32 commands (40%)** have >70% business logic embedded:
+
+**cmd_init** (555 LOC, 81% business logic):
+- Embeds 300+ lines of shell scripts
+- Direct file operations
+- Mixed UI and logic
+
+**cmd_claude** (245 LOC, 82% business logic):
+- Plugin installation
+- Prompt loading
+- Multiple execution modes
+
+**cmd_session_start_info** (125 LOC, 88% business logic):
+- Analytics aggregation
+- Git parsing
+- Strategic planning
+
+---
+
+## 3. CODE DUPLICATION
+
+- SDK init: 40+ duplications
+- JSON output: 103+ duplications
+- Error handling: 159+ sys.exit(1) calls
+- Rich console: 50+ duplications
+- Collection access: 25+ duplications
+
+**Potential savings**: 1,197 lines (19.4% reduction)
+
+---
+
+## 4. DEPENDENCY COUPLING
+
+**Framework**: SEVERE
+- 100% argparse.Namespace coupling
+- No abstraction layer
+- Migration difficulty: 8/10
+
+**Internal**: HIGH
+- 15+ direct module imports
+- Zero dependency injection
+- Hard to test
+
+---
+
+## 5. COMPLEXITY METRICS
+
+- Total LOC: 6,178
+- Functions: 99 (79 commands + 20 helpers)
+- Cyclomatic Complexity: ~300+
+- Max Nesting: 5-6 levels
+- Maintainability Index: 45-55 (needs improvement)
+
+**Distribution**:
+- Simple (<30 LOC): 20 commands (25%)
+- Medium (30-100 LOC): 40 commands (51%)  
+- Complex (>100 LOC): 19 commands (24%)
+
+---
+
+## 6. TESTING
+
+- Test files: 5
+- Strategy: Integration (subprocess)
+- Coverage: ~30% of commands
+- Gaps: No unit tests, no mocking
+
+---
+
+## 7. CURRENT ABSTRACTIONS
+
+**Good**:
+- SDK layer provides clean API
+- operations.start_server() separates logic
+- analytics/cli.py is separate file
+
+**Missing**:
+- No BaseCommand class
+- No OutputFormatter
+- No CommandRegistry
+- No ValidationLayer
+- No ErrorHandler
+
+---
+
+## 8. REFACTORING PRIORITY MATRIX
+
+### 🔴 HIGH IMPACT / QUICK WINS
+
+**1. Extract Output Formatters**
+- Impact: 9/10, Effort: 3/10
+- Eliminate 103+ duplications
+- 2-3 days, LOW risk
+
+**2. Create BaseCommand Class**
+- Impact: 8/10, Effort: 4/10
+- Standardize patterns
+- 3-4 days, MEDIUM risk
+
+**3. Extract SDK Init**
+- Impact: 7/10, Effort: 2/10
+- Remove 40+ duplications
+- 1-2 days, LOW risk
+
+### 🟡 HIGH IMPACT / MEDIUM EFFORT
+
+**4. Refactor cmd_init**
+- Impact: 8/10, Effort: 7/10
+- 555 → ~50 LOC
+- 5-7 days, HIGH risk
+
+**5. Refactor cmd_claude**
+- Impact: 7/10, Effort: 6/10
+- 245 → ~40 LOC
+- 4-5 days, MEDIUM risk
+
+**6. Command Registry**
+- Impact: 9/10, Effort: 8/10
+- Enable plugins
+- 7-10 days, HIGH risk
+
+### 🟢 MEDIUM IMPACT / LOW EFFORT
+
+**7. Split Files**
+- Impact: 5/10, Effort: 4/10
+- Organize commands/
+- 3-4 days, LOW risk
+
+**8. Error Handling**
+- Impact: 7/10, Effort: 3/10
+- Replace 159+ sys.exit()
+- 2-3 days, MEDIUM risk
+
+---
+
+## 9. MIGRATION ROADMAP
+
+### Phase 1: Foundation (Weeks 1-2)
+- OutputFormatter abstraction
+- BaseCommand class
+- SDK init helper
+- **Result**: 1,000 line reduction
+
+### Phase 2: Extraction (Weeks 3-6)
+- Refactor cmd_init, cmd_claude
+- Migrate feature/session commands
+- **Result**: 50% to Command Pattern
+
+### Phase 3: Architecture (Weeks 7-10)
+- Command registry
+- Plugin system
+- Module split
+- **Result**: Extensible CLI
+
+### Phase 4: Testing (Weeks 11-12)
+- Unit test suite
+- 80%+ coverage
+- **Result**: Production-ready
+
+**Total**: 60-80 developer days
+
+**Success Metrics**:
+- LOC: 6,178 → 2,500 (60% reduction)
+- Duplication: 103+ → 0
+- Complexity: 300+ → <100
+- Coverage: 30% → 80%+
+- MI: 45-55 → 75+
+
+---
+
+## 10. RECOMMENDATIONS
+
+**Proceed with Phase 1** to:
+1. Prove Command Pattern viability
+2. Build refactoring momentum
+3. Reduce duplication immediately
+4. Improve testability
+
+**Key Risks**:
+- cmd_init complexity (555 LOC)
+- Breaking changes
+- Test coverage gaps
+
+**Mitigation**:
+- Incremental migration
+- Backward compatibility
+- Test suite first
+
+---
+
+## APPENDIX: Detailed Findings
+
+### Command Inventory (79 total)
+
+**Complex Commands (>100 LOC)**:
+1. cmd_init (555 LOC)
+2. cmd_claude (245 LOC)
+3. cmd_session_validate_attribution (128 LOC)
+4. cmd_session_start_info (125 LOC)
+5. cmd_install_hooks (123 LOC)
+6. cmd_session_link (96 LOC)
+7. cmd_feature_list (83 LOC)
+8. cmd_feature_step_complete (82 LOC)
+
+**Medium Commands (30-100 LOC)**: 40 commands
+**Simple Commands (<30 LOC)**: 20 commands
+
+### Duplication Examples
+
+**SDK Init (40+ times)**:
+```python
+from htmlgraph.sdk import SDK
+sdk = SDK(directory=args.graph_dir, agent=args.agent)
+```
+
+**JSON Output (103+ times)**:
+```python
+if args.format == "json":
+    print(json.dumps(data, indent=2))
+else:
+    # text formatting
+```
+
+**Error Handling (159+ times)**:
+```python
+print(f"Error: {msg}", file=sys.stderr)
+sys.exit(1)
+```
+
+### Target Architecture
+
+```python
+# Future: Clean Command Pattern
+class FeatureCreateCommand(BaseCommand):
+    def validate(self) -> None:
+        # Input validation
+        
+    def execute(self) -> CommandResult:
+        # Business logic
+        
+    def format_output(self, result: CommandResult) -> None:
+        # Output formatting
+
+# CLI becomes thin wrapper
+def cmd_feature_create(args):
+    command = FeatureCreateCommand(args.title, args.description)
+    result = command.run(args.graph_dir, args.agent, args.format)
+    get_formatter(args.format).output(result)
+```
+
+---
+
+**END OF ANALYSIS**
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

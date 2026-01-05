@@ -847,6 +847,42 @@ class ContextSnapshot(BaseModel):
         )
 
 
+class ErrorEntry(BaseModel):
+    """
+    An error record for session error tracking and debugging.
+
+    Stored inline within Session nodes for error analysis and debugging.
+    """
+
+    timestamp: datetime = Field(default_factory=datetime.now)
+    error_type: str  # Exception class name (ValueError, FileNotFoundError, etc.)
+    message: str  # Error message
+    traceback: str | None = None  # Full traceback for debugging
+    tool: str | None = None  # Tool that caused the error (Edit, Bash, etc.)
+    context: str | None = None  # Additional context information
+    session_id: str | None = None  # Session ID for cross-referencing
+
+    def to_html(self) -> str:
+        """Convert error to HTML details element."""
+        attrs = [
+            f'data-ts="{self.timestamp.isoformat()}"',
+            f'data-error-type="{self.error_type}"',
+        ]
+        if self.tool:
+            attrs.append(f'data-tool="{self.tool}"')
+
+        summary = f"<span class='error-type'>{self.error_type}</span>: {self.message}"
+        details = ""
+        if self.traceback:
+            details = f"<pre class='traceback'>{self.traceback}</pre>"
+
+        return f"<details class='error-item' {' '.join(attrs)}><summary>{summary}</summary>{details}</details>"
+
+    def to_context(self) -> str:
+        """Lightweight context for AI agents."""
+        return f"[{self.timestamp.strftime('%H:%M:%S')}] ERROR {self.error_type}: {self.message}"
+
+
 class ActivityEntry(BaseModel):
     """
     A lightweight activity log entry for high-frequency events.
@@ -975,6 +1011,10 @@ class Session(BaseModel):
     }
     """
 
+    # Error handling (Phase 1B)
+    error_log: list[ErrorEntry] = Field(default_factory=list)
+    """Error records for this session with full tracebacks for debugging."""
+
     def add_activity(self, entry: ActivityEntry) -> None:
         """Add an activity entry to the log."""
         self.activity_log.append(entry)
@@ -984,6 +1024,34 @@ class Session(BaseModel):
         # Track features worked on
         if entry.feature_id and entry.feature_id not in self.worked_on:
             self.worked_on.append(entry.feature_id)
+
+    def add_error(
+        self,
+        error_type: str,
+        message: str,
+        traceback: str | None = None,
+        tool: str | None = None,
+        context: str | None = None,
+    ) -> None:
+        """
+        Add an error entry to the error log.
+
+        Args:
+            error_type: Exception class name (ValueError, FileNotFoundError, etc.)
+            message: Error message
+            traceback: Full traceback for debugging
+            tool: Tool that caused the error (Edit, Bash, etc.)
+            context: Additional context information
+        """
+        error = ErrorEntry(
+            error_type=error_type,
+            message=message,
+            traceback=traceback,
+            tool=tool,
+            context=context,
+            session_id=self.id,
+        )
+        self.error_log.append(error)
 
     def end(self) -> None:
         """Mark session as ended."""
@@ -1461,6 +1529,25 @@ class Session(BaseModel):
             </table>
         </section>"""
 
+        # Build error log section
+        error_html = ""
+        if self.error_log:
+            error_items = "\n                ".join(
+                error.to_html() for error in self.error_log
+            )
+            error_html = f"""
+        <section data-error-log>
+            <h3>Errors ({len(self.error_log)})</h3>
+            <div class="error-log">
+                {error_items}
+            </div>
+            <style>
+                .error-item {{ margin: 10px 0; padding: 10px; border-left: 3px solid #ff6b6b; }}
+                .error-type {{ font-weight: bold; color: #ff6b6b; }}
+                .traceback {{ background: #f5f5f5; padding: 10px; overflow-x: auto; font-size: 0.9em; margin-top: 5px; }}
+            </style>
+        </section>"""
+
         title = self.title or f"Session {self.id}"
 
         return f'''<!DOCTYPE html>
@@ -1489,7 +1576,7 @@ class Session(BaseModel):
                 <span class="badge">{self.event_count} events</span>
             </div>
         </header>
-{edges_html}{handoff_html}{context_html}{patterns_html}{activity_html}
+{edges_html}{handoff_html}{context_html}{error_html}{patterns_html}{activity_html}
     </article>
 </body>
 </html>

@@ -5,6 +5,8 @@ Version checking and interactive upgrade workflows.
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rich.prompt import Prompt
+
 from htmlgraph.docs.docs_version import get_current_doc_version, is_compatible
 from htmlgraph.docs.metadata import DocsMetadata
 from htmlgraph.docs.migrations import get_migration
@@ -78,7 +80,7 @@ def upgrade_docs_interactive(htmlgraph_dir: Path) -> None:
   """
     )
 
-    choice = input("Choose option (1-4): ").strip()
+    choice = Prompt.ask("Choose option", choices=["1", "2", "3", "4"], default="4")
 
     if choice == "1":
         _auto_migrate(htmlgraph_dir, migration)

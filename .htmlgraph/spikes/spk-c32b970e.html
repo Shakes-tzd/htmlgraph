@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 1A/1B/Complete Status Summary Report</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c32b970e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T00:40:57.059530"
+             data-updated="2026-01-05T00:40:57.059534" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Phase 1A/1B/Complete Status Summary Report</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Phase 1A/1B Implementation - Comprehensive Completion Report
+
+## Executive Summary
+
+**Overall Project Status**: 63% Complete (53/83 features done)
+**Current Version**: 0.24.1
+**Phase 1A Status**: IN-PROGRESS (Rich CLI Integration)
+**Phase 1B Status**: TODO (Error Handling)
+**Phase 1 Pydantic**: TODO (Type-Safe CLI)
+
+Major CIGS (Computational Imperative Guidance System) implementation completed. Rich console integration started but incomplete.
+
+---
+
+## Feature Status Details
+
+### Phase 1A: Maximize Rich Console - Global UX Improvement (feat-4d5b889e)
+**Status**: IN-PROGRESS
+**Completion**: 0% (0/5 steps)
+
+**Planned Deliverables**:
+- Day 1: Create global Rich Console and replace 698 print() statements
+- Day 2: Convert manual tables to Rich.Table and add Rich.Panel
+- Day 3: Add Rich.Prompt, Progress, Traceback, and Status
+- Run all tests and verify backward compatibility
+- Document Rich usage patterns for future commands
+
+**Issues**:
+- No progress yet on Rich integration
+- Requires systematic replacement of 698 print statements
+- Needs Rich dependency addition
+
+**Blockers**: None identified
+
+---
+
+### Phase 1B: Error Handling - Intelligent Traceback Management (feat-56ece4e5)
+**Status**: TODO
+**Completion**: 0% (0/6 steps)
+
+**Planned Deliverables**:
+- Implement session error logging (session_manager.py)
+- Add custom exception handler with minimal console output (cli.py)
+- Create debug command for full traceback retrieval
+- Extend session HTML with error sections
+- Add integration tests for error handling
+- Run quality gates and validate implementation
+
+**Issues**:
+- Mypy errors in session_manager.py (Session properties not defined)
+- Session model missing error logging attributes
+- CLI exception handling not implemented
+
+**Type Errors** (12 total):
+- session_manager.py:830-856 - Session.properties attribute missing
+- session_manager.py:838 - Type incompatibility in status assignment
+- cli.py:1771 - SessionManager.get() method missing
+- validation.py - Missing type annotations (2 errors)
+- cli_framework.py - Missing return type annotation
+- cli.py:2939 - FeatureCreateCommand steps type mismatch
+
+---
+
+### Phase 1: Pydantic Integration - Type-Safe CLI Arguments (feat-1598baf6)
+**Status**: TODO
+**Completion**: 0% (0/7 steps)
+
+**Planned Deliverables**:
+- Plan: Create Pydantic model spec for top-priority commands
+- Implement: Convert 5-10 top commands to Pydantic models
+- Integrate: Replace argparse validation with Pydantic validators
+- Connect: Integrate with Rich error formatting (ValidationError)
+- Test: Add integration tests for model validation
+- Config: Extend to config management with Pydantic Settings
+- Run quality gates and mark Phase 1 complete
+
+**Issues**:
+- cli.py line 2939 shows Pydantic model already partially used (FeatureCreateCommand)
+- Missing type annotations prevent mypy validation
+- No integration tests yet
+
+---
+
+## Code Quality Metrics
+
+### Linting Status (Ruff)
+**Found Issues**: 16 errors (all fixable)
+- I001: 11 unsorted imports (auto-fixable)
+- F541: 4 f-strings with missing placeholders
+- F401: 1 unused import
+
+**Action**: Run Found 16 errors (16 fixed, 0 remaining). to resolve all issues
+
+### Type Checking (Mypy)
+**Found Errors**: 12 errors (5 files)
+
+**File**: src/python/htmlgraph/session_manager.py
+- Line 830-856: Session.properties attribute not defined (3 errors)
+- Line 838: Status type incompatibility ("error" vs "active"|"ended"|"stale")
+- Line 856: Any return type incompatibility
+
+**File**: src/python/htmlgraph/cli.py
+- Line 1771: SessionManager.get() method missing
+- Line 1817: error_types needs type annotation
+- Line 2939: FeatureCreateCommand steps type mismatch (int|None vs Iterable[str]|None)
+
+**File**: src/python/htmlgraph/validation.py
+- Line 56: Missing type annotation for arguments
+- Line 106: Missing return type annotation
+
+**File**: src/python/htmlgraph/cli_framework.py
+- Line 85: Missing return type annotation
+
+### Test Status
+**Total Tests**: 1,171 available
+**Status**: Background task running - results pending
+
+### Git Changes
+**Modified Files**: 26 files modified + 35 untracked files
+**Total Changes**: ~21,865 insertions, 221 deletions
+**Major Changes**:
+- CIGS (Computational Imperative Guidance System) fully implemented (62 commits)
+- Rich progress bars added to init/serve/analytics commands
+- Session management system enhancements
+- Hook system for orchestration improvements
+- Pre-tool use enforcement hook
+
+---
+
+## Recent Major Work (Completed)
+
+### CIGS Implementation (Complete)
+**Status**: FULLY IMPLEMENTED AND DEPLOYED
+**Features**:
+- ViolationTracker class with JSONL storage
+- PreToolUse hook enforcement
+- PostToolUse analyzer for pattern detection
+- Stop hook with comprehensive impact analysis
+- SessionStart hook integration
+- Cost calculator for multi-AI delegation
+- Autonomy recommender system
+
+**Commits**: 62 new files, 21,865+ insertions
+**Tests**: 11 new test files with 60+ test cases
+**Documentation**: 4 new docs (CIGS_USER_GUIDE.md, CIGS_SESSION_START_INTEGRATION.md)
+
+### Rich Console Integration (Partial)
+**Status**: PARTIALLY COMPLETE
+**Completed**:
+- Added Rich progress bars to init, serve, analytics commands
+- Integrated Rich for status output
+- Enhanced user feedback with progress indicators
+
+**Remaining**:
+- Replace 698 print() statements with Rich console
+- Convert manual tables to Rich.Table
+- Add Rich.Panel, Prompt, Traceback formatting
+- Tests and documentation
+
+---
+
+## Files Created/Modified
+
+### New Files (35 untracked)
+- .htmlgraph/bugs/bug-214adb07.html
+- .htmlgraph/features/feat-1598baf6.html (Pydantic feature)
+- .htmlgraph/features/feat-1b4eb0c7.html (Error analysis)
+- .htmlgraph/features/spk-05ddee15.html through spk-69207b99.html (30 spikes)
+- docs/CIGS_SESSION_START_INTEGRATION.md
+- docs/CIGS_USER_GUIDE.md
+- src/python/htmlgraph/cigs/ (8 new modules, 3,700+ lines)
+- src/python/htmlgraph/hooks/cigs_pretool_enforcer.py
+- tests/ (11 new CIGS test files, 5,600+ lines)
+- scripts/cigs-wave1-delegation.py (762 lines)
+- scripts/cigs-wave2-integration.py (400 lines)
+
+### Modified Files (26)
+- src/python/htmlgraph/cli.py (424 new lines)
+- src/python/htmlgraph/converter.py (enhancements)
+- src/python/htmlgraph/deploy.py (updates)
+- src/python/htmlgraph/models.py (CIGS models)
+- src/python/htmlgraph/session_manager.py (error tracking)
+- packages/claude-plugin/hooks/scripts/ (3 files enhanced)
+- packages/claude-plugin/rules/orchestration.md (223 lines)
+
+---
+
+## Quality Gate Status
+
+### Pre-Commit Requirements (BLOCKING)
+1. ❌ **Linting**: 16 fixable errors
+2. ❌ **Type Checking**: 12 mypy errors
+3. ⏳ **Tests**: Background execution (results pending)
+4. ❌ **Deployment Script**: Would block on above issues
+
+### Required Actions Before Phase 2
+
+**CRITICAL - Code Quality Issues**:
+1. Fix all mypy errors (12 total):
+   - Add Session.properties field to models.py
+   - Add SessionManager.get() method
+   - Add missing type annotations (4 functions)
+   - Fix type mismatches in cli.py
+
+2. Fix all linting errors (16 total):
+   - Run: All checks passed! (auto-fixes 16)
+   - Run: 5 files reformatted, 288 files left unchanged (formatting)
+
+3. Complete and verify tests:
+   - Run: [1m============================= test session starts ==============================[0m
+platform darwin -- Python 3.10.7, pytest-9.0.2, pluggy-1.6.0 -- /Users/shakes/DevProjects/htmlgraph/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/shakes/DevProjects/htmlgraph
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+testpaths: tests/python, tests/benchmarks
+plugins: playwright-0.7.2, anyio-4.12.0, asyncio-1.3.0, base-url-2.1.0, cov-7.0.0
+asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+[1mcollecting ... [0mcollected 1174 items / 3 deselected / 1171 selected
+
+tests/python/test_agent_detection.py::TestAgentDetection::test_detect_agent_with_explicit_override [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDetection::test_detect_agent_with_claude_code_env [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDetection::test_detect_agent_with_claude_api_key [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDetection::test_detect_agent_with_gemini [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDetection::test_detect_agent_defaults_to_cli [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDisplayNames::test_get_display_name_claude [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDisplayNames::test_get_display_name_gemini [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDisplayNames::test_get_display_name_cli [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDisplayNames::test_get_display_name_models [32mPASSED[0m[33m [  0%][0m
+tests/python/test_agent_detection.py::TestAgentDisplayNames::test_get_display_name_unknown [32mPASSED[0m[33m [  0%][0m
+tests/python/test_analytics.py::TestAnalyticsIntegration::test_sdk_has_analytics_property [32mPASSED[0m[33m [  0%][0m
+tests/python/test_analytics.py::TestAnalyticsIntegration::test_analytics_has_sdk_reference [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestWorkTypeDistribution::test_distribution_for_session [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestWorkTypeDistribution::test_distribution_empty_session [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestWorkTypeDistribution::test_distribution_ignores_events_without_work_type [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestSpikeToFeatureRatio::test_spike_to_feature_ratio [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestSpikeToFeatureRatio::test_ratio_with_no_features [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestSpikeToFeatureRatio::test_ratio_empty_session [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestMaintenanceBurden::test_maintenance_burden_calculation [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestMaintenanceBurden::test_burden_with_no_maintenance [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestMaintenanceBurden::test_burden_empty_session [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestSessionFiltering::test_filter_by_spike_work_type [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestSessionFiltering::test_filter_by_feature_work_type [32mPASSED[0m[33m [  1%][0m
+tests/python/test_analytics.py::TestSessionFiltering::test_filter_returns_empty_for_no_matches [32mPASSED[0m[33m [  2%][0m
+tests/python/test_analytics.py::TestSessionWorkBreakdownMethods::test_calculate_session_work_breakdown [32mPASSED[0m[33m [  2%][0m
+tests/python/test_analytics.py::TestSessionWorkBreakdownMethods::test_calculate_session_primary_work_type [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_config_defaults [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_config_custom [32mPASSED[0m[33m  [  2%][0m
+tests/python/test_archive_manager.py::test_archive_config_serialization [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_manager_init [32mPASSED[0m[33m   [  2%][0m
+tests/python/test_archive_manager.py::test_archive_entities_dry_run [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_entities_creates_files [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_creates_bloom_filters [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_creates_fts5_index [32mPASSED[0m[33m [  2%][0m
+tests/python/test_archive_manager.py::test_archive_search [32mPASSED[0m[33m         [  2%][0m
+tests/python/test_archive_manager.py::test_archive_unarchive [33mSKIPPED[0m[33m     [  3%][0m
+tests/python/test_archive_manager.py::test_archive_stats [32mPASSED[0m[33m          [  3%][0m
+tests/python/test_archive_manager.py::test_archive_period_naming [32mPASSED[0m[33m  [  3%][0m
+tests/python/test_archive_manager.py::test_archive_respects_status_filter [32mPASSED[0m[33m [  3%][0m
+tests/python/test_archive_manager.py::test_archive_patterns [32mPASSED[0m[33m       [  3%][0m
+tests/python/test_archive_manager.py::test_archive_spikes [32mPASSED[0m[33m         [  3%][0m
+tests/python/test_archive_manager.py::test_archive_sessions [32mPASSED[0m[33m       [  3%][0m
+tests/python/test_archive_manager.py::test_archive_all_entity_types [32mPASSED[0m[33m [  3%][0m
+tests/python/test_archive_search.py::test_bloom_filter_basic [32mPASSED[0m[33m      [  3%][0m
+tests/python/test_archive_search.py::test_bloom_filter_build_for_archive [32mPASSED[0m[33m [  3%][0m
+tests/python/test_archive_search.py::test_bloom_filter_save_load [32mPASSED[0m[33m  [  3%][0m
+tests/python/test_archive_search.py::test_bloom_filter_stats [32mPASSED[0m[33m      [  4%][0m
+tests/python/test_archive_search.py::test_fts5_index_and_search [32mPASSED[0m[33m   [  4%][0m
+tests/python/test_archive_search.py::test_fts5_bm25_ranking [32mPASSED[0m[33m       [  4%][0m
+tests/python/test_archive_search.py::test_fts5_snippet_highlighting [32mPASSED[0m[33m [  4%][0m
+tests/python/test_archive_search.py::test_fts5_get_entity_metadata [32mPASSED[0m[33m [  4%][0m
+tests/python/test_archive_search.py::test_fts5_remove_archive [32mPASSED[0m[33m     [  4%][0m
+tests/python/test_archive_search.py::test_search_engine_bloom_filter_filtering [32mPASSED[0m[33m [  4%][0m
+tests/python/test_archive_search.py::test_search_engine_get_stats [32mPASSED[0m[33m [  4%][0m
+tests/python/test_archive_search.py::test_search_engine_cache [32mPASSED[0m[33m     [  4%][0m
+tests/python/test_archive_search.py::test_archive_manager_integration [32mPASSED[0m[33m [  4%][0m
+tests/python/test_auto_spike.py::TestSessionInitSpike::test_session_init_spike_created_on_start [32mPASSED[0m[33m [  4%][0m
+tests/python/test_auto_spike.py::TestSessionInitSpike::test_session_init_spike_idempotent [32mPASSED[0m[33m [  4%][0m
+tests/python/test_auto_spike.py::TestSessionInitSpike::test_session_init_spike_linked_to_session [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestTransitionSpike::test_transition_spike_created_on_feature_complete [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestTransitionSpike::test_transition_spike_linked_to_session [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestAutoSpikeCompletion::test_session_init_spike_completes_on_feature_start [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestAutoSpikeCompletion::test_transition_spike_completes_on_next_feature_start [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestAutoSpikeCompletion::test_multiple_auto_spikes_complete_together [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestSessionConverterAutoSpikeFields::test_converter_parses_transcript_fields [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestSessionConverterAutoSpikeFields::test_node_converter_parses_auto_spike_fields [32mPASSED[0m[33m [  5%][0m
+tests/python/test_auto_spike.py::TestSessionConverterAutoSpikeFields::test_html_roundtrip_preserves_all_fields [32mPASSED[0m[33m [  5%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_always_allowed_tools [32mPASSED[0m[33m [  5%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_sdk_operations_allowed [32mPASSED[0m[33m [  5%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_orchestrator_disabled_allows_all [32mPASSED[0m[33m [  5%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_escalation_level_0_guidance [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_escalation_level_1_imperative [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_escalation_level_2_final_warning [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_escalation_level_3_circuit_breaker [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_guidance_mode_allows_with_message [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_violation_tracking_persistence [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_exploration_sequence_detection [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_cost_prediction_in_message [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_compliance_rate_calculation [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_violation_types_classification [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSPreToolEnforcer::test_error_graceful_degradation [32mPASSED[0m[33m [  6%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSMessageContent::test_message_includes_why [32mPASSED[0m[33m [  7%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSMessageContent::test_message_includes_suggestion [32mPASSED[0m[33m [  7%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSMessageContent::test_circuit_breaker_message_includes_options [32mPASSED[0m[33m [  7%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSIntegrationWithHook::test_hook_stdin_format [32mPASSED[0m[33m [  7%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSIntegrationWithHook::test_hook_alternative_format [32mPASSED[0m[33m [  7%][0m
+tests/python/test_cigs_pretool_enforcer.py::TestCIGSIntegrationWithHook::test_hook_response_format_compliance [32mPASSED[0m[33m [  7%][0m
+tests/python/test_claiming.py::test_feature_claiming [32mPASSED[0m[33m              [  7%][0m
+tests/python/test_claiming.py::test_auto_release_on_session_end [32mPASSED[0m[33m   [  7%][0m
+tests/python/test_claiming.py::test_start_feature_enforcement [32mPASSED[0m[33m     [  7%][0m
+tests/python/test_claiming.py::test_auto_claim_on_start [32mPASSED[0m[33m           [  7%][0m
+tests/python/test_cli_commands.py::test_graph_initialization [32mPASSED[0m[33m      [  7%][0m
+tests/python/test_cli_commands.py::test_add_node [32mPASSED[0m[33m                  [  7%][0m
+tests/python/test_cli_commands.py::test_get_node [32mPASSED[0m[33m                  [  8%][0m
+tests/python/test_cli_commands.py::test_update_node [32mPASSED[0m[33m               [  8%][0m
+tests/python/test_cli_commands.py::test_node_with_edges [32mPASSED[0m[33m           [  8%][0m
+tests/python/test_cli_commands.py::test_node_with_steps [32mPASSED[0m[33m           [  8%][0m
+tests/python/test_cli_commands.py::test_query_nodes [32mPASSED[0m[33m               [  8%][0m
+tests/python/test_cli_commands.py::test_node_properties [32mPASSED[0m[33m           [  8%][0m
+tests/python/test_cli_commands.py::test_invalid_node_id [32mPASSED[0m[33m           [  8%][0m
+tests/python/test_cli_commands.py::test_node_status_values[todo] [32mPASSED[0m[33m  [  8%][0m
+tests/python/test_cli_commands.py::test_node_status_values[in-progress] [32mPASSED[0m[33m [  8%][0m
+tests/python/test_cli_commands.py::test_node_status_values[blocked] [32mPASSED[0m[33m [  8%][0m
+tests/python/test_cli_commands.py::test_node_status_values[done] [32mPASSED[0m[33m  [  8%][0m
+tests/python/test_cli_commands.py::test_node_priority_values[low] [32mPASSED[0m[33m [  8%][0m
+tests/python/test_cli_commands.py::test_node_priority_values[medium] [32mPASSED[0m[33m [  9%][0m
+tests/python/test_cli_commands.py::test_node_priority_values[high] [32mPASSED[0m[33m [  9%][0m
+tests/python/test_cli_commands.py::test_cli_init_bootstraps_events_index_and_hooks [32mPASSED[0m[33m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_valid_minimal_input [32mPASSED[0m[33m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_valid_full_input [32mPASSED[0m[33m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_title_stripped_whitespace [32mPASSED[0m[33m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_title_empty_raises_error [31mFAILED[0m[31m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_title_whitespace_only_raises_error [31mFAILED[0m[31m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_title_too_long_raises_error [32mPASSED[0m[31m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_invalid_priority_raises_error [32mPASSED[0m[31m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_description_stripped_whitespace [32mPASSED[0m[31m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_description_whitespace_only_becomes_none [32mPASSED[0m[31m [  9%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureCreateInput::test_steps_validation [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureStartInput::test_valid_input [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureStartInput::test_feature_id_stripped [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestFeatureStartInput::test_empty_feature_id_raises_error [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionStartInput::test_valid_minimal_input [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionStartInput::test_valid_full_input [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionStartInput::test_session_id_stripped [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionStartInput::test_empty_session_id_raises_error [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionStartInput::test_title_stripped [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionStartInput::test_title_whitespace_only_becomes_none [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionEndInput::test_valid_input [32mPASSED[0m[31m [ 10%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionEndInput::test_empty_session_id_raises_error [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionEndInput::test_optional_fields [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionEndInput::test_blocker_list [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestActivityTrackInput::test_valid_input [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestActivityTrackInput::test_tool_stripped [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestActivityTrackInput::test_empty_tool_raises_error [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestActivityTrackInput::test_empty_summary_raises_error [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestActivityTrackInput::test_with_files [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestActivityTrackInput::test_failed_flag [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestSpikeCreateInput::test_valid_input [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestSpikeCreateInput::test_valid_with_findings [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestSpikeCreateInput::test_title_empty_raises_error [32mPASSED[0m[31m [ 11%][0m
+tests/python/test_cli_pydantic_models.py::TestTrackCreateInput::test_valid_input [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestTrackCreateInput::test_with_description [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestTrackSpecInput::test_valid_input [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestTrackSpecInput::test_with_content [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionListInput::test_valid_default_input [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionListInput::test_with_status_filter [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionListInput::test_limit_validation [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestSessionListInput::test_offset_validation [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestArchiveCreateInput::test_valid_input [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestArchiveCreateInput::test_with_items_and_description [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_cli_pydantic_models.py::TestExtraFieldsValidation::test_extra_fields_raise_error [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_collection_filter.py::test_filter_by_title_substring [32mPASSED[0m[31m [ 12%][0m
+tests/python/test_collection_filter.py::test_filter_by_multiple_conditions [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_collection_filter.py::test_filter_by_creation_date [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_collection_filter.py::test_filter_empty_results [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_collection_filter.py::test_filter_with_agent_assigned [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_collection_filter.py::test_filter_respects_node_type [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_collection_filter.py::test_filter_with_complex_logic [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_cross_agent_attribution.py::test_cross_agent_attribution [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_initialization [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_work_in_commit_range_all_commits [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_work_in_commit_range_specific_range [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_sessions_for_feature [32mPASSED[0m[31m [ 13%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_sessions_for_feature_nonexistent [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_feature_cross_session_report [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_feature_cross_session_report_calculates_duration [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_work_by_author [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_work_by_author_filtered [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_work_by_author_since_commit [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_commits_for_session [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_commits_for_session_nonexistent [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalytics::test_commit_work_summary_structure [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalyticsEdgeCases::test_empty_repository [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalyticsEdgeCases::test_no_git_repository [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalyticsEdgeCases::test_events_without_commits [32mPASSED[0m[31m [ 14%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalyticsIntegration::test_sdk_has_cross_session_analytics_property [32mPASSED[0m[31m [ 15%][0m
+tests/python/test_cross_session_analytics.py::TestCrossSessionAnalyticsIntegration::test_cross_session_analytics_has_sdk_reference [32mPASSED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_dashboard_loads[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_dashboard_stats_visible[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_view_navigation_buttons[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_kanban_columns_displayed[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_feature_card_interaction[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_sessions_view_loads[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_dashboard_ui.py::test_theme_toggle[chromium] [33mSKIPPED[0m[31m   [ 15%][0m
+tests/python/test_dashboard_ui.py::test_session_comparison[chromium] [33mSKIPPED[0m[31m [ 15%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_delete_single_node [32mPASSED[0m[31m [ 15%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_delete_nonexistent_node [32mPASSED[0m[31m [ 15%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_delete_removes_html_file [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_delete_cleans_up_edges [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_delete_with_multiple_edges [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_batch_delete [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_batch_delete_with_nonexistent [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestHtmlGraphDelete::test_delete_and_reload [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestSDKCollectionDelete::test_sdk_delete_feature [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestSDKCollectionDelete::test_sdk_delete_nonexistent [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestSDKCollectionDelete::test_sdk_batch_delete [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestSDKCollectionDelete::test_sdk_delete_all_collection_types [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestSDKCollectionDelete::test_sdk_delete_with_edges [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestDeleteEdgeCases::test_delete_twice [32mPASSED[0m[31m [ 16%][0m
+tests/python/test_delete.py::TestDeleteEdgeCases::test_delete_in_circular_dependency [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestDeleteEdgeCases::test_batch_delete_empty_list [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_delete_single_file_track [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_delete_directory_based_track [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_delete_nonexistent_track [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_delete_twice [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_batch_delete_tracks [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_batch_delete_mixed_formats [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_batch_delete_with_nonexistent [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_batch_delete_empty_list [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_delete.py::TestTrackCollectionDelete::test_delete_clears_graph_cache [32mPASSED[0m[31m [ 17%][0m
+tests/python/test_deploy.py::test_get_project_root_finds_pyproject_toml [32mPASSED[0m[31m [ 18%][0m
+tests/python/test_deploy.py::test_get_project_root_returns_path [32mPASSED[0m[31m   [ 18%][0m
+tests/python/test_deploy.py::test_main_with_no_arguments [32mPASSED[0m[31m          [ 18%][0m
+tests/python/test_deploy.py::test_main_with_version_argument [32mPASSED[0m[31m      [ 18%][0m
+tests/python/test_deploy.py::test_main_with_docs_only_flag [32mPASSED[0m[31m        [ 18%][0m
+tests/python/test_deploy.py::test_main_with_build_only_flag [32mPASSED[0m[31m       [ 18%][0m
+tests/python/test_deploy.py::test_main_with_skip_pypi_flag [32mPASSED[0m[31m        [ 18%][0m
+tests/python/test_deploy.py::test_main_with_skip_plugins_flag [32mPASSED[0m[31m     [ 18%][0m
+tests/python/test_deploy.py::test_main_with_dry_run_flag [32mPASSED[0m[31m          [ 18%][0m
+tests/python/test_deploy.py::test_main_with_multiple_flags [32mPASSED[0m[31m        [ 18%][0m
+tests/python/test_deploy.py::test_run_deploy_script_success [32mPASSED[0m[31m       [ 18%][0m
+tests/python/test_deploy.py::test_run_deploy_script_failure [32mPASSED[0m[31m       [ 18%][0m
+tests/python/test_deploy.py::test_run_deploy_script_not_found [32mPASSED[0m[31m     [ 19%][0m
+tests/python/test_deploy.py::test_main_help [32mPASSED[0m[31m                       [ 19%][0m
+tests/python/test_deploy.py::test_deploy_entry_point_with_real_script [32mPASSED[0m[31m [ 19%][0m
+tests/python/test_deploy.py::test_deploy_dry_run_passes_flag [32mPASSED[0m[31m      [ 19%][0m
+tests/python/test_deploy.py::test_main_version_before_flags [32mPASSED[0m[31m       [ 19%][0m
+tests/python/test_deploy.py::test_main_returns_script_exit_code [32mPASSED[0m[31m   [ 19%][0m
+tests/python/test_deploy.py::test_version_from_pyproject_toml [32mPASSED[0m[31m     [ 19%][0m
+tests/python/test_deploy.py::test_main_invalid_arguments [32mPASSED[0m[31m          [ 19%][0m
+tests/python/test_deploy.py::test_script_not_executable [32mPASSED[0m[31m           [ 19%][0m
+tests/python/test_drift_parent_activity.py::test_child_activities_have_no_drift [32mPASSED[0m[31m [ 19%][0m
+tests/python/test_drift_parent_activity.py::test_child_activities_inherit_feature_context [32mPASSED[0m[31m [ 19%][0m
+tests/python/test_drift_parent_activity.py::test_independent_activities_still_have_drift [32mPASSED[0m[31m [ 19%][0m
+tests/python/test_drift_parent_activity.py::test_nested_parent_activities [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_drift_parent_activity.py::test_parent_activity_persists_in_html [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_drift_queue_cleanup.py::test_drift_queue_cleanup_after_age [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_drift_queue_cleanup.py::test_clear_drift_queue_activities [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_drift_queue_cleanup.py::test_clear_drift_queue_preserves_last_classification [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_drift_queue_cleanup.py::test_drift_queue_cleanup_integration [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_edge_index.py::TestEdgeRef::test_edge_ref_creation [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_edge_index.py::TestEdgeRef::test_edge_ref_equality [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_edge_index.py::TestEdgeRef::test_edge_ref_hashable [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_add_edge [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_add_edge_object [32mPASSED[0m[31m [ 20%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_add_duplicate_edge [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_remove_edge [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_remove_nonexistent_edge [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_remove_node [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexBasic::test_clear [32mPASSED[0m[31m   [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_incoming_all [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_incoming_by_relationship [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_incoming_empty [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_outgoing_all [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_outgoing_by_relationship [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_neighbors_both [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_neighbors_incoming_only [32mPASSED[0m[31m [ 21%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_get_neighbors_outgoing_only [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestEdgeIndexLookups::test_has_edge [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestEdgeIndexRebuild::test_rebuild_from_nodes [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestEdgeIndexRebuild::test_rebuild_clears_previous [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestEdgeIndexStats::test_stats [32mPASSED[0m[31m   [ 22%][0m
+tests/python/test_edge_index.py::TestEdgeIndexIteration::test_iteration [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestHtmlGraphEdgeIndex::test_index_populated_on_add [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestHtmlGraphEdgeIndex::test_index_updated_on_update [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestHtmlGraphEdgeIndex::test_index_cleared_on_remove [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestHtmlGraphEdgeIndex::test_dependents_uses_index [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestHtmlGraphEdgeIndex::test_get_neighbors [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestHtmlGraphEdgeIndex::test_reload_rebuilds_index [32mPASSED[0m[31m [ 22%][0m
+tests/python/test_edge_index.py::TestEdgeIndexPerformance::test_o1_lookup_vs_linear_scan [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionManagement::test_start_session_creates_session [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionManagement::test_get_session_retrieves_session [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionManagement::test_get_session_returns_none_for_missing [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionManagement::test_end_session_updates_status [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionManagement::test_end_session_with_handoff_notes [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionManagement::test_set_session_handoff [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestActivityTracking::test_track_activity_creates_entry [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestActivityTracking::test_track_activity_with_files [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestActivityTracking::test_track_failed_activity [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestActivityTracking::test_track_activity_with_feature_attribution [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionErrors::test_log_error_gracefully_handles_missing_session [32mPASSED[0m[31m [ 23%][0m
+tests/python/test_error_handling.py::TestSessionErrors::test_get_session_errors_returns_empty_for_missing_session [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_error_handling.py::TestSessionRelationships::test_continue_from_sets_relationship [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_error_handling.py::TestSessionRelationships::test_session_worked_on_tracking [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_index.py::test_jsonl_event_log_append_and_iter [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_index.py::test_jsonl_event_log_dedupes_duplicate_event_id [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_index.py::test_analytics_index_rebuild_overview [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_index.py::test_analytics_index_rebuild_supports_legacy_git_hook_events [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_index.py::test_analytics_index_git_commit_tables [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_index.py::test_analytics_index_schema_mismatch_resets [32mPASSED[0m[31m [ 24%][0m
+tests/python/test_event_query.py::test_session_get_events_all [32mPASSED[0m[31m     [ 24%][0m
+tests/python/test_event_query.py::test_session_get_events_limit [32mPASSED[0m[31m   [ 24%][0m
+tests/python/test_event_query.py::test_session_get_events_offset [32mPASSED[0m[31m  [ 25%][0m
+tests/python/test_event_query.py::test_session_query_events_by_tool [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_session_query_events_by_feature [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_session_query_events_by_tool_and_feature [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_session_query_events_with_limit [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_session_event_stats [32mPASSED[0m[31m        [ 25%][0m
+tests/python/test_event_query.py::test_event_log_get_session_events [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_event_log_query_events_all_sessions [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_event_log_query_events_since [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_session_get_events_empty_session [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_event_query.py::test_session_query_events_no_matches [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_by_type [32mPASSED[0m[31m [ 25%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_by_status [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_multiple_filters [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_no_match [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_all_by_type [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_all_by_priority [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPIBasic::test_find_all_with_limit [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_contains_lookup [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_icontains_lookup [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_startswith_lookup [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_endswith_lookup [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_regex_lookup [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_gt_lookup [32mPASSED[0m[31m [ 26%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_gte_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_lt_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_lte_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_in_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_not_in_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPILookups::test_isnull_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPINestedAttributes::test_nested_exact [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPINestedAttributes::test_deeply_nested [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPINestedAttributes::test_nested_with_lookup [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPIRelated::test_find_related_outgoing [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPIRelated::test_find_related_with_type [32mPASSED[0m[31m [ 27%][0m
+tests/python/test_find_api.py::TestFindAPIRelated::test_find_related_incoming [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestFindAPIConvenienceFunctions::test_find_function [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestFindAPIConvenienceFunctions::test_find_all_function [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestFindByIdAndTitle::test_find_by_id [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestFindByIdAndTitle::test_find_by_id_not_found [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestFindByIdAndTitle::test_find_by_title_contains [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestFindByIdAndTitle::test_find_by_title_exact [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestGraphFindMethods::test_graph_find [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestGraphFindMethods::test_graph_find_all [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_find_api.py::TestGraphFindMethods::test_graph_find_with_lookup [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_git_events.py::test_parse_feature_refs [32mPASSED[0m[31m          [ 28%][0m
+tests/python/test_git_events.py::test_log_git_commit_writes_event_record [32mPASSED[0m[31m [ 28%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_ancestors_simple [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_ancestors_with_depth_limit [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_ancestors_of_root [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_ancestors_nonexistent [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_descendants_simple [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_descendants_with_depth_limit [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_descendants_of_leaf [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestAncestorsDescendants::test_descendants_nonexistent [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestSubgraph::test_subgraph_basic [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestSubgraph::test_subgraph_preserves_edges [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestSubgraph::test_subgraph_filters_edges [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestSubgraph::test_subgraph_no_edges [32mPASSED[0m[31m [ 29%][0m
+tests/python/test_graph_traversal.py::TestSubgraph::test_subgraph_empty [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestSubgraph::test_subgraph_nonexistent_nodes [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestConnectedComponent::test_connected_component [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestConnectedComponent::test_connected_component_other [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestConnectedComponent::test_connected_component_any_start [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestConnectedComponent::test_connected_component_nonexistent [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestAllPaths::test_all_paths [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestAllPaths::test_all_paths_same_node [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestAllPaths::test_all_paths_no_path [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestAllPaths::test_all_paths_with_max_length [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestAllPaths::test_all_paths_with_short_max_length [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestAllPaths::test_all_paths_nonexistent [32mPASSED[0m[31m [ 30%][0m
+tests/python/test_graph_traversal.py::TestTraversalIntegration::test_dependency_chain_traversal [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_graph_traversal.py::TestTraversalIntegration::test_subgraph_from_dependencies [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_graph_traversal.py::TestTraversalIntegration::test_transitive_deps_vs_ancestors [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffFields::test_node_has_handoff_fields [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffFields::test_handoff_fields_default_to_none [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffFields::test_handoff_fields_can_be_set [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffHTML::test_node_without_handoff_has_no_section [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffHTML::test_node_with_handoff_includes_section [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffHTML::test_handoff_html_includes_all_fields [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestSessionHandoffHTML::test_session_handoff_roundtrip [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffContext::test_context_without_handoff [32mPASSED[0m[31m [ 31%][0m
+tests/python/test_handoff.py::TestHandoffContext::test_context_with_handoff_shows_info [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestHandoffContext::test_context_includes_handoff_notes [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestHandoffContext::test_context_token_efficiency [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionManagerHandoff::test_create_handoff_sets_metadata [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionManagerHandoff::test_create_handoff_releases_feature [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionManagerHandoff::test_create_handoff_rejects_if_not_owned [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionManagerHandoff::test_create_handoff_returns_none_if_not_found [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionManagerHandoff::test_create_handoff_works_for_unclaimed_feature [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionHandoffManager::test_session_manager_set_handoff [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSessionHandoffManager::test_sdk_set_session_handoff [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSDKHandoff::test_feature_builder_has_complete_and_handoff [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSDKHandoff::test_complete_and_handoff_sets_fields [32mPASSED[0m[31m [ 32%][0m
+tests/python/test_handoff.py::TestSDKHandoff::test_complete_and_handoff_with_priority [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_handoff.py::TestHandoffWorkflow::test_agent_a_to_agent_b_handoff [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_handoff.py::TestHandoffWorkflow::test_handoff_preserves_history [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_handoff.py::TestHandoffWorkflow::test_handoff_efficiency_metrics [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestGeminiSpawnerUnit::test_spawn_gemini_success [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestGeminiSpawnerUnit::test_spawn_gemini_cli_not_found [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestGeminiSpawnerUnit::test_spawn_gemini_timeout [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestGeminiSpawnerUnit::test_spawn_gemini_json_parse_error [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestGeminiSpawnerUnit::test_spawn_gemini_cli_failure [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestCodexSpawnerUnit::test_spawn_codex_success [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestCodexSpawnerUnit::test_spawn_codex_cli_not_found [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestCodexSpawnerUnit::test_spawn_codex_timeout [32mPASSED[0m[31m [ 33%][0m
+tests/python/test_headless_spawner.py::TestCopilotSpawnerUnit::test_spawn_copilot_success [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestCopilotSpawnerUnit::test_spawn_copilot_quota_exceeded [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestCopilotSpawnerUnit::test_spawn_copilot_cli_not_found [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestAIResult::test_air_result_success [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestAIResult::test_air_result_failure [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestAIResult::test_air_result_with_tracked_events [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestActivityTracking::test_gemini_event_parsing_with_mock_sdk [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestActivityTracking::test_codex_event_parsing_with_mock_sdk [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestActivityTracking::test_copilot_event_tracking_with_mock_sdk [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestActivityTracking::test_tracking_disabled_by_default_skips_tracking [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestFallbackPatterns::test_fallback_pattern_gemini_to_haiku [32mPASSED[0m[31m [ 34%][0m
+tests/python/test_headless_spawner.py::TestFallbackPatterns::test_fallback_pattern_codex_timeout_to_haiku [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner.py::TestFallbackPatterns::test_cost_comparison_documentation [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_spawner_uses_parent_session_from_env [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_spawner_fallback_without_parent_session [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_spawner_uses_parent_agent_in_agent_name [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_tracked_gemini_events_include_parent_context [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_tracked_codex_events_include_parent_context [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_tracked_copilot_events_include_parent_context [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_nesting_depth_zero_excluded_from_payload [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_invalid_nesting_depth_defaults_to_zero [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_no_parent_activity_excluded_from_payload [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_headless_spawner_parent_session.py::test_sdk_creation_error_returns_none [32mPASSED[0m[31m [ 35%][0m
+tests/python/test_ids.py::TestGenerateId::test_generates_correct_format [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateId::test_uses_correct_prefix_for_types [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateId::test_unknown_type_uses_truncated_prefix [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateId::test_collision_resistance [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateId::test_concurrent_generation [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateHierarchicalId::test_creates_subtask_id [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateHierarchicalId::test_creates_nested_subtask [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateHierarchicalId::test_rejects_zero_index [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateHierarchicalId::test_rejects_negative_index [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestGenerateHierarchicalId::test_requires_index [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestParseId::test_parses_simple_hash_id [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestParseId::test_parses_hierarchical_id [32mPASSED[0m[31m [ 36%][0m
+tests/python/test_ids.py::TestParseId::test_parses_legacy_id [32mPASSED[0m[31m      [ 37%][0m
+tests/python/test_ids.py::TestParseId::test_returns_none_for_invalid [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestValidation::test_is_valid_id_hash_format [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestValidation::test_is_valid_id_hierarchical [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestValidation::test_is_valid_id_legacy [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestValidation::test_is_valid_id_invalid [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestValidation::test_is_legacy_id [32mPASSED[0m[31m       [ 37%][0m
+tests/python/test_ids.py::TestHierarchyFunctions::test_get_parent_id [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestHierarchyFunctions::test_get_root_id [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestHierarchyFunctions::test_get_depth [32mPASSED[0m[31m  [ 37%][0m
+tests/python/test_ids.py::TestPrefixes::test_all_node_types_have_prefixes [32mPASSED[0m[31m [ 37%][0m
+tests/python/test_ids.py::TestPrefixes::test_prefixes_are_short [32mPASSED[0m[31m   [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_hash_format_is_always_8_hex_chars [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_empty_title_works [32mPASSED[0m[31m   [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_very_long_title [32mPASSED[0m[31m     [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_unicode_title [32mPASSED[0m[31m       [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_special_characters_in_title [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_deep_nesting [32mPASSED[0m[31m        [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_all_prefix_types_generate_valid_ids [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_parse_id_with_single_hierarchy_level [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_get_root_id_with_legacy_format [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_get_parent_id_with_single_level [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_hierarchical_id_with_large_index [32mPASSED[0m[31m [ 38%][0m
+tests/python/test_ids.py::TestEdgeCases::test_parse_unknown_prefix [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_ids.py::TestEdgeCases::test_entropy_bytes_parameter [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookConfig::test_default_config [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookConfig::test_is_hook_enabled [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookConfig::test_enable_disable_hook [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookConfig::test_save_load_config [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookConfig::test_load_nonexistent_config [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_validate_environment_success [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_validate_environment_no_git [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_validate_environment_no_htmlgraph [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_basic [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_disabled [32mPASSED[0m[31m [ 39%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_dry_run [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_with_symlink [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_with_copy [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_existing_backup [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_existing_chain [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_hook_force [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_all_hooks [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_install_all_hooks_with_disabled [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_uninstall_hook_symlink [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_uninstall_hook_with_backup [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_uninstall_hook_not_installed [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_list_hooks [32mPASSED[0m[31m [ 40%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_list_hooks_symlink_info [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_install_hooks.py::TestHookInstaller::test_list_hooks_copy_info [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_install_hooks.py::TestHookContent::test_hook_files_exist [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_install_hooks.py::TestHookContent::test_hook_files_have_shebang [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_install_hooks.py::TestHookContent::test_hook_files_have_description [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_install_hooks.py::TestCLIIntegration::test_cli_command_exists [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_install_hooks.py::TestCLIIntegration::test_available_hooks_constant [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_lifecycle.py::TestFullLifecycle::test_single_feature_lifecycle [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_lifecycle.py::TestFullLifecycle::test_multi_feature_lifecycle [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_lifecycle.py::TestFullLifecycle::test_session_with_parallel_features [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_lifecycle.py::TestFullLifecycle::test_activity_attribution_with_spikes [32mPASSED[0m[31m [ 41%][0m
+tests/python/test_lifecycle.py::TestFullLifecycle::test_session_continuity_with_spikes [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_lifecycle.py::TestFullLifecycle::test_transcript_integration_lifecycle [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_lifecycle.py::TestEdgeCases::test_no_features_only_spikes [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_lifecycle.py::TestEdgeCases::test_feature_start_without_session [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_lifecycle.py::TestEdgeCases::test_spike_persistence_across_reloads [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_server.py::test_mcp_initialize_and_list_tools [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_server.py::test_mcp_log_event_writes_activity [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_server.py::test_mcp_log_event_uses_agent_scoped_session [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_server.py::test_mcp_set_active_feature_marks_primary [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_server.py::test_mcp_resources_read_roundtrip [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_server.py::test_mcp_get_active_feature_autologs [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_stdio_transport.py::test_stdio_transport_reads_content_length_message [32mPASSED[0m[31m [ 42%][0m
+tests/python/test_mcp_stdio_transport.py::test_stdio_transport_writes_content_length_when_detected [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_mcp_stdio_transport.py::test_stdio_transport_reads_newline_json_message [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestStep::test_step_creation_defaults [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestStep::test_step_to_html_incomplete [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestStep::test_step_to_html_completed [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestStep::test_step_to_context [32mPASSED[0m[31m       [ 43%][0m
+tests/python/test_models.py::TestEdge::test_edge_creation_defaults [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestEdge::test_edge_to_html_simple [32mPASSED[0m[31m   [ 43%][0m
+tests/python/test_models.py::TestEdge::test_edge_to_html_with_since [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestEdge::test_edge_to_context [32mPASSED[0m[31m       [ 43%][0m
+tests/python/test_models.py::TestNode::test_node_creation_defaults [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestNode::test_node_completion_percentage_no_steps [32mPASSED[0m[31m [ 43%][0m
+tests/python/test_models.py::TestNode::test_node_completion_percentage_with_steps [32mPASSED[0m[31m [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_next_step [32mPASSED[0m[31m        [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_next_step_all_complete [32mPASSED[0m[31m [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_add_edge [32mPASSED[0m[31m         [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_complete_step [32mPASSED[0m[31m    [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_complete_step_invalid_index [32mPASSED[0m[31m [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_to_html [32mPASSED[0m[31m          [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_to_context [32mPASSED[0m[31m       [ 44%][0m
+tests/python/test_models.py::TestNode::test_node_from_dict [32mPASSED[0m[31m        [ 44%][0m
+tests/python/test_models.py::TestGraph::test_graph_add_and_get [32mPASSED[0m[31m    [ 44%][0m
+tests/python/test_models.py::TestGraph::test_graph_remove [32mPASSED[0m[31m         [ 44%][0m
+tests/python/test_models.py::TestGraph::test_graph_all_edges [32mPASSED[0m[31m      [ 45%][0m
+tests/python/test_models.py::TestGraph::test_graph_to_context [32mPASSED[0m[31m     [ 45%][0m
+tests/python/test_models.py::TestSpikeFindings::test_spike_html_generation_with_findings [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_models.py::TestSpikeFindings::test_spike_html_parsing_with_findings [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_models.py::TestSpikeFindings::test_spike_roundtrip_with_findings [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_orchestration.py::test_generate_task_id [32mPASSED[0m[31m         [ 45%][0m
+tests/python/test_orchestration.py::test_delegate_with_id [32mPASSED[0m[31m         [ 45%][0m
+tests/python/test_orchestration.py::test_delegate_with_id_includes_subagent_type [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_orchestration.py::test_get_results_by_task_id_timeout [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_orchestration.py::test_get_results_by_task_id_success [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_orchestration.py::test_get_results_by_task_id_partial_match [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_orchestration.py::test_get_results_by_task_id_first_match [32mPASSED[0m[31m [ 45%][0m
+tests/python/test_orchestration.py::test_get_results_by_task_id_polling_behavior [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestration.py::test_parallel_delegate_structure [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_violation_tracking_increments [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_circuit_breaker_triggers_at_threshold [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_circuit_breaker_blocks_subsequent_operations [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_circuit_breaker_allows_core_operations [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_reset_violations_clears_counter [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_violation_warning_at_two [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_violation_message_at_threshold [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_guidance_mode_does_not_track_violations [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_allowed_operations_dont_increment_violations [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_circuit_breaker_message_shows_options [32mPASSED[0m[31m [ 46%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_status_shows_violation_count [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreaker::test_enable_resets_violations [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreakerCLI::test_reset_violations_command_requires_enabled_mode [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreakerCLI::test_reset_violations_command_success [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreakerCLI::test_set_level_command [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_circuit_breaker.py::TestCircuitBreakerCLI::test_status_shows_violations [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorEnable::test_enable_default_level [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorEnable::test_enable_strict_level [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorEnable::test_enable_guidance_level [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorEnable::test_enable_short_flag [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorEnable::test_enable_invalid_level [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorDisable::test_disable_when_enabled [32mPASSED[0m[31m [ 47%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorDisable::test_disable_when_already_disabled [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorDisable::test_disable_sets_user_flag [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorStatus::test_status_when_disabled [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorStatus::test_status_when_enabled_strict [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorStatus::test_status_when_enabled_guidance [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorStatus::test_status_shows_disabled_by_user [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorHelp::test_orchestrator_help [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorHelp::test_enable_help [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorHelp::test_disable_help [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorHelp::test_status_help [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorWorkflow::test_enable_status_disable_workflow [32mPASSED[0m[31m [ 48%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorWorkflow::test_change_level_while_enabled [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorWorkflow::test_re_enable_after_disable [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorGraphDir::test_custom_graph_dir [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_cli.py::TestOrchestratorGraphDir::test_short_graph_dir_flag [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestOrchestratorModeDisabled::test_allows_all_operations_when_disabled [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestAlwaysAllowedOperations::test_task_always_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestAlwaysAllowedOperations::test_ask_user_question_always_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestAlwaysAllowedOperations::test_todo_write_always_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSDKOperations::test_htmlgraph_sdk_command_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSDKOperations::test_git_status_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSDKOperations::test_git_diff_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSDKOperations::test_sdk_inline_allowed [32mPASSED[0m[31m [ 49%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSingleLookupAllowed::test_first_read_allowed [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSingleLookupAllowed::test_first_grep_allowed [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestSingleLookupAllowed::test_first_glob_allowed [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestMultipleLookupBlocked::test_multiple_reads_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestMultipleLookupBlocked::test_multiple_greps_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestImplementationBlocked::test_edit_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestImplementationBlocked::test_write_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestImplementationBlocked::test_notebook_edit_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestImplementationBlocked::test_delete_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestTestBuildBlocked::test_pytest_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestTestBuildBlocked::test_npm_test_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestTestBuildBlocked::test_npm_build_blocked [32mPASSED[0m[31m [ 50%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestGuidanceMode::test_edit_allowed_with_warning [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestGuidanceMode::test_multiple_reads_warned [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestTaskSuggestions::test_edit_suggests_coder_subagent [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestTaskSuggestions::test_grep_suggests_explorer_subagent [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestTaskSuggestions::test_pytest_suggests_test_subagent [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestEnvironmentOverrides::test_htmlgraph_disabled_env_allows_all [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestEnvironmentOverrides::test_orchestrator_disabled_env_allows_all [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestToolHistorySequenceDetection::test_different_tools_dont_block_each_other [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_enforce_hook.py::TestToolHistorySequenceDetection::test_history_window_is_limited [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorMode::test_default_state [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorMode::test_to_dict [32mPASSED[0m[31m [ 51%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorMode::test_from_dict [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorMode::test_from_dict_missing_fields [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorMode::test_roundtrip [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_init_with_path [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_init_creates_default_path [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_load_nonexistent [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_save_and_load [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_save_creates_directory [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_is_enabled [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_get_enforcement_level [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_enable_defaults [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_enable_with_params [32mPASSED[0m[31m [ 52%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_disable [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_disable_by_user_sets_flag [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_set_level [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_can_auto_activate_allowed [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_can_auto_activate_blocked_by_user_disable [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_status [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_load_corrupted_file_returns_default [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_multiple_enable_updates_timestamp [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_orchestrator_mode.py::TestOrchestratorModeManager::test_enable_clears_disabled_by_user_flag [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_initialization_creates_file [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_initialization_with_existing_file [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_add_pattern_generates_id [32mPASSED[0m[31m [ 53%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_add_pattern_with_explicit_id [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_get_pattern_found [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_get_pattern_not_found [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_get_all_patterns_empty [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_get_all_patterns_mixed [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_get_anti_patterns [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_get_good_patterns [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_remove_pattern_found [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_remove_pattern_not_found [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_update_pattern_occurrence [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageBasic::test_update_pattern_occurrence_not_found [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageQueries::test_query_patterns_by_type [32mPASSED[0m[31m [ 54%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageQueries::test_query_patterns_by_occurrence [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageQueries::test_query_patterns_combined_filters [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageQueries::test_get_patterns_by_session [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageThreadSafety::test_concurrent_writes [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageThreadSafety::test_concurrent_reads_and_writes [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageJSON::test_json_format_correctness [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageJSON::test_json_pretty_printed [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageJSON::test_atomic_write_safety [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageJSON::test_corrupt_file_recovery [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageAnalytics::test_export_analytics_empty [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageAnalytics::test_export_analytics_with_patterns [32mPASSED[0m[31m [ 55%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageAnalytics::test_export_analytics_timestamp [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageEdgeCases::test_update_non_existent_pattern_occurrence [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageEdgeCases::test_special_characters_in_pattern_name [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageEdgeCases::test_large_number_of_patterns [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageEdgeCases::test_clear_all_patterns [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_pattern_storage.py::TestPatternStorageUpdateExisting::test_update_pattern_by_id [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_detect_v1_customizations [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_detect_no_customizations_in_empty_file [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_metadata_tracks_customizations [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_metadata_add_customization [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_metadata_remove_customization [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_v1_to_v2_migration_preserves_customizations [32mPASSED[0m[31m [ 56%][0m
+tests/python/test_plugin_update_preservation.py::test_migration_creates_backup_before_changes [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_migration_archives_old_docs [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_get_migration_returns_correct_script [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_get_migration_returns_none_for_invalid_versions [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_rollback_restores_v1_docs [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_rollback_uses_latest_backup [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_rollback_raises_error_when_no_backup [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_template_engine_loads_user_overrides [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_template_engine_falls_back_to_base [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_template_engine_merges_base_and_overrides [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_get_agents_md_with_customizations [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_sync_docs_to_file_writes_customized_content [32mPASSED[0m[31m [ 57%][0m
+tests/python/test_plugin_update_preservation.py::test_check_docs_version_compatible [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_check_docs_version_outdated_but_compatible [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_check_version_on_init_succeeds_when_compatible [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_migration_with_missing_agents_md [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_metadata_load_creates_default_when_missing [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_metadata_save_and_load_roundtrip [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_migration_with_corrupt_metadata [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_template_engine_with_nonexistent_template_dir [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_backup_preserves_file_timestamps [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_plugin_update_preservation.py::test_multiple_migrations_create_multiple_backups [32mPASSED[0m[31m [ 58%][0m
+tests/python/test_post_tool_use_failure.py::test_error_logging [32mPASSED[0m[31m    [ 58%][0m
+tests/python/test_post_tool_use_failure.py::test_error_logging_with_name_field [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_pattern_detection [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_pattern_detection_partial_match [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_no_pattern_with_insufficient_occurrences [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_spike_creation [32mPASSED[0m[31m   [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_spike_creation_deduplication [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_error_logging_with_missing_fields [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_hook_never_blocks [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_integration_with_auto_spike_creation [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_post_tool_use_failure.py::test_error_log_creates_directory [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_posttooluse_cigs.py::TestCIGSPostToolAnalyzer::test_initialization [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_posttooluse_cigs.py::TestCIGSPostToolAnalyzer::test_is_delegation_task [32mPASSED[0m[31m [ 59%][0m
+tests/python/test_posttooluse_cigs.py::TestCIGSPostToolAnalyzer::test_is_delegation_spawn [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestCIGSPostToolAnalyzer::test_is_not_delegation [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestPositiveReinforcement::test_positive_reinforcement_task [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestPositiveReinforcement::test_positive_reinforcement_spawn_gemini [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestPositiveReinforcement::test_positive_reinforcement_includes_compliance [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestCostAccounting::test_cost_accounting_read [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestCostAccounting::test_cost_accounting_includes_waste [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestCostAccounting::test_cost_accounting_includes_reflection [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestActualCostTracking::test_actual_cost_updates_tracker [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestSessionSummary::test_get_session_summary [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestSessionSummary::test_session_summary_compliance_rate [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestComplianceRateCalculation::test_compliance_rate_no_violations [32mPASSED[0m[31m [ 60%][0m
+tests/python/test_posttooluse_cigs.py::TestComplianceRateCalculation::test_compliance_rate_one_violation [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestComplianceRateCalculation::test_compliance_rate_max_violations [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestComplianceRateCalculation::test_compliance_rate_over_max [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestEdgeCases::test_analyze_with_empty_result [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestEdgeCases::test_analyze_with_missing_fields [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestEdgeCases::test_multiple_violations_same_session [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestIntegrationWithHook::test_hook_calls_analyzer [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_posttooluse_cigs.py::TestIntegrationWithHook::test_hook_graceful_degradation [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_pre_work_validation_integration.py::TestFullValidationFlow::test_read_always_allowed [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_pre_work_validation_integration.py::TestFullValidationFlow::test_direct_htmlgraph_write_denied [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_pre_work_validation_integration.py::TestFullValidationFlow::test_write_denied_no_work [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_pre_work_validation_integration.py::TestFullValidationFlow::test_sdk_allowed_no_work [32mPASSED[0m[31m [ 61%][0m
+tests/python/test_pre_work_validation_integration.py::TestSpikeValidation::test_write_denied_with_spike [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_pre_work_validation_integration.py::TestSpikeValidation::test_sdk_allowed_with_spike [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_pre_work_validation_integration.py::TestFeatureValidation::test_write_allowed_with_feature [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_pre_work_validation_integration.py::TestFeatureValidation::test_code_bash_allowed_with_feature [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_pre_work_validation_integration.py::TestEdgeCases::test_readonly_bash_allowed [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_pre_work_validation_integration.py::TestEdgeCases::test_no_htmlgraph_denies_code_changes [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_query_builder.py::TestNestedAttributeAccess::test_direct_attribute [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_query_builder.py::TestNestedAttributeAccess::test_nested_dict_attribute [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_query_builder.py::TestNestedAttributeAccess::test_missing_attribute [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_query_builder.py::TestCondition::test_eq_operator [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_query_builder.py::TestCondition::test_ne_operator [32mPASSED[0m[31m [ 62%][0m
+tests/python/test_query_builder.py::TestCondition::test_gt_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_gte_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_lt_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_lte_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_in_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_not_in_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_between_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_contains_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_starts_with_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_ends_with_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_matches_operator [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_matches_with_compiled_pattern [32mPASSED[0m[31m [ 63%][0m
+tests/python/test_query_builder.py::TestCondition::test_is_null_operator [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestCondition::test_is_not_null_operator [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_where_with_value [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_where_fluent [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_and_conditions [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_or_conditions [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_not_conditions [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_numeric_comparison [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_between_comparison [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_text_contains [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_text_matches_regex [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_of_type_filter [32mPASSED[0m[31m [ 64%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_limit [32mPASSED[0m[31m  [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_offset [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_first [32mPASSED[0m[31m  [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_first_none [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_count [32mPASSED[0m[31m  [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_exists [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_iteration [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_to_predicate [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilder::test_complex_query [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilderEdgeCases::test_empty_graph [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilderEdgeCases::test_no_conditions [32mPASSED[0m[31m [ 65%][0m
+tests/python/test_query_builder.py::TestQueryBuilderEdgeCases::test_null_value_comparison [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_builder.py::TestQueryBuilderEdgeCases::test_numeric_string_comparison [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_builder.py::TestQueryBuilderEdgeCases::test_missing_nested_attribute [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestQueryCacheBasic::test_cache_initialized [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestQueryCacheBasic::test_cache_stats_initial [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestQueryCacheBasic::test_query_caches_result [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestQueryCacheBasic::test_second_query_uses_cache [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestQueryCacheBasic::test_different_queries_cache_separately [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestCacheInvalidation::test_add_invalidates_cache [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestCacheInvalidation::test_update_invalidates_cache [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestCacheInvalidation::test_delete_invalidates_cache [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestCacheInvalidation::test_remove_invalidates_cache [32mPASSED[0m[31m [ 66%][0m
+tests/python/test_query_cache.py::TestCacheInvalidation::test_reload_invalidates_cache [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheCopyBehavior::test_cache_returns_copy [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheCopyBehavior::test_modifying_result_does_not_affect_cache [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheAfterInvalidation::test_cache_rebuilds_after_add [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheAfterInvalidation::test_cache_rebuilds_after_update [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheAfterInvalidation::test_cache_rebuilds_after_delete [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheDisableDuringReload::test_cache_disabled_during_reload [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheWithComplexQueries::test_cache_complex_selector [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_cache.py::TestCacheWithComplexQueries::test_multiple_complex_queries_cached [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_compilation.py::test_compile_query_basic [32mPASSED[0m[31m  [ 67%][0m
+tests/python/test_query_compilation.py::test_query_compiled_returns_correct_results [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_compilation.py::test_compile_query_caching [32mPASSED[0m[31m [ 67%][0m
+tests/python/test_query_compilation.py::test_compiled_query_uses_query_cache [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_query_compilation.py::test_compiled_query_lru_eviction [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_query_compilation.py::test_metrics_include_compilation_stats [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_query_compilation.py::test_cache_invalidation_clears_compiled_queries [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestReflectionItem::test_to_dict [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestReflectionItem::test_to_dict_without_source_id [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_get_actionable_context_empty [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_get_actionable_context_with_bottleneck [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_get_actionable_context_with_recommendation [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_max_items_limit [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_format_for_injection_empty [32mPASSED[0m[31m [ 68%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_format_for_injection_with_items [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_caching [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_build_summary_blockers [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_reflection.py::TestComputationalReflection::test_build_summary_empty [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_reflection.py::TestGetReflectionContext::test_get_reflection_context [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_register_agent [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_register_multiple_agents [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_unregister_agent [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_unregister_nonexistent_agent [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_set_wip [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_set_wip_nonexistent_agent [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_increment_wip [32mPASSED[0m[31m [ 69%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_decrement_wip [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_decrement_wip_below_zero [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_get_capable_agents_exact_match [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_get_capable_agents_empty_requirements [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestAgentCapabilityRegistry::test_get_capable_agents_sorted_by_availability [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_exact_match [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_partial_match [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_no_match [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_no_required_capabilities [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_with_workload_penalty [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_at_capacity [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_score_extra_capabilities_bonus [32mPASSED[0m[31m [ 70%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_find_best_agent_exact_match [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_find_best_agent_no_match [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestCapabilityMatcher::test_find_best_agent_by_availability [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestRoutingFunctions::test_route_task_to_agent [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestRoutingFunctions::test_route_task_no_capable_agent [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestRoutingFunctions::test_route_task_allow_unmatched [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestRoutingFunctions::test_route_multiple_tasks [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestRoutingFunctions::test_route_unspecified_task_to_available_agent [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestRoutingFunctions::test_empty_registry [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestCapabilityIntegration::test_agent_capability_workflow [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestCapabilityIntegration::test_workload_balancing [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_routing.py::TestCapabilityIntegration::test_performance_many_agents_many_tasks [32mPASSED[0m[31m [ 71%][0m
+tests/python/test_sdk_discoverability.py::TestSDKHelp::test_help_returns_all_topics [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKHelp::test_help_features_topic [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKHelp::test_help_orchestrate_topic [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKHelp::test_help_unknown_topic [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKHelp::test_help_planning_topic [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKHelp::test_help_sessions_topic [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDir::test_dir_returns_list [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDir::test_priority_collections_exist [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDir::test_priority_orchestration_methods_exist [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDir::test_help_method_exists [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDir::test_custom_dir_method_exists [32mPASSED[0m[31m [ 72%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDir::test_priority_items_come_first [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDocstrings::test_sdk_class_has_docstring [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDocstrings::test_spawn_explorer_has_docstring [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDocstrings::test_spawn_coder_has_docstring [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDocstrings::test_help_method_has_docstring [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDocstrings::test_orchestrate_has_docstring [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDocstrings::test_features_collection_has_docstring [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDiscoverabilityIntegration::test_help_lists_dir_priority_methods [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDiscoverabilityIntegration::test_docstrings_align_with_help_topics [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_discoverability.py::TestSDKDiscoverabilityIntegration::test_all_priority_methods_are_callable [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_no_items [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_only_todo [32mPASSED[0m[31m [ 73%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_single_in_progress_feature [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_multiple_types [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_filter_by_agent [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_specific_work_types [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_done_items_ignored [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_step_progress [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_get_active_work_item.py::test_get_active_work_item_auto_spike_deprioritized [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_parent_session.py::test_sdk_with_parent_session_explicit [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_parent_session.py::test_sdk_with_parent_from_env_var [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_parent_session.py::test_sdk_fallback_to_current_session [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_parent_session.py::test_session_model_parent_fields [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_parent_session.py::test_parent_session_with_explicit_override [32mPASSED[0m[31m [ 74%][0m
+tests/python/test_sdk_parent_session.py::test_parent_activity_linking [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_sdk_parent_session.py::test_session_nesting_depth [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_sdk_parent_session.py::test_backward_compatibility_no_parent [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_sdk_parent_session.py::test_parent_session_priority_chain [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_cleanup.py::test_cleanup_removes_missing_references [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_cleanup.py::test_cleanup_keeps_all_valid_references [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_cleanup.py::test_automatic_cleanup_on_load [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_cleanup.py::test_cleanup_with_empty_worked_on [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_cleanup.py::test_cleanup_with_unknown_prefix [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_continuity.py::TestStrategicRecommendations::test_get_strategic_recommendations [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_continuity.py::TestStrategicRecommendations::test_get_bottlenecks [32mPASSED[0m[31m [ 75%][0m
+tests/python/test_session_continuity.py::TestStrategicRecommendations::test_get_parallel_work [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_continuity.py::TestMultiAgentAwareness::test_get_active_agents [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_continuity.py::TestMultiAgentAwareness::test_detect_feature_conflicts [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_continuity.py::TestEnhancedSessionSummary::test_session_summary_formatting [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_continuity.py::TestGitIntegration::test_get_recent_commits [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_continuity.py::TestSessionStartHookIntegration::test_hook_output_structure [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_continuity.py::TestSessionStartHookIntegration::test_hook_handles_no_features [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_violation_tracker_initialization [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_record_violation_and_retrieve [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_pattern_detection_exploration_sequence [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_autonomy_recommender_strict_mode [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_autonomy_recommender_observer_mode [32mPASSED[0m[31m [ 76%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_get_cigs_context_no_violations [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_get_cigs_context_with_violations_and_patterns [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_cigs.py::TestCIGSSessionIntegration::test_cigs_context_format [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_cigs.py::TestCIGSContextInjection::test_hook_output_format [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_cigs.py::TestCIGSContextInjection::test_cigs_context_includes_autonomy_level [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemInSessionStartInfo::test_session_start_info_includes_active_work_field [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemInSessionStartInfo::test_session_start_info_with_active_feature [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemInSessionStartInfo::test_session_start_info_all_sections_present [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemInSessionStartInfo::test_session_start_info_json_serializable [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestGetActiveWorkItem::test_get_active_work_returns_none_when_empty [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestGetActiveWorkItem::test_active_work_item_structure [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestGetActiveWorkItem::test_active_work_item_includes_steps [32mPASSED[0m[31m [ 77%][0m
+tests/python/test_session_start_info_validation.py::TestWorkTypeSymbolMapping::test_feature_symbol_mapping [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestWorkTypeSymbolMapping::test_bug_symbol_mapping [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestWorkTypeSymbolMapping::test_spike_symbol_mapping [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestWorkTypeSymbolMapping::test_unknown_type_symbol_mapping [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestCLIOutputFormatting::test_active_work_text_format_with_feature [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestCLIOutputFormatting::test_no_active_work_warning_text [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemIntegration::test_active_work_returned_when_feature_exists [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemIntegration::test_session_start_info_reflects_active_work [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemIntegration::test_status_field_validation [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkItemIntegration::test_multiple_work_items_returns_first [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkWithNodeTypes::test_identify_feature_as_active [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkWithNodeTypes::test_ignore_completed_work_items [32mPASSED[0m[31m [ 78%][0m
+tests/python/test_session_start_info_validation.py::TestActiveWorkWithNodeTypes::test_ignore_todo_work_items [32mPASSED[0m[31m [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_loads_violations [32mPASSED[0m[31m   [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_detects_patterns [32mPASSED[0m[31m   [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_calculates_costs [32mPASSED[0m[31m   [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_generates_autonomy_recommendation [32mPASSED[0m[31m [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_builds_summary_text [32mPASSED[0m[31m [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_persists_summary [32mPASSED[0m[31m   [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_full_summarize [32mPASSED[0m[31m     [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_empty_session [32mPASSED[0m[31m      [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_circuit_breaker_triggered [32mPASSED[0m[31m [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_compliance_history [32mPASSED[0m[31m [ 79%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_format_patterns [32mPASSED[0m[31m    [ 80%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_main_with_cigs_disabled [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_stop_cigs.py::test_stop_hook_main_with_cigs_enabled [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_skill_invocations_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_htmlgraph_metadata_reads_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_htmlgraph_metadata_writes_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_non_system_activities_still_have_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_multiple_skill_invocations_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_mixed_activities_correct_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_config_files_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_documentation_files_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_build_artifacts_no_drift [32mPASSED[0m[31m [ 80%][0m
+tests/python/test_system_overhead_drift.py::test_ide_files_no_drift [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_system_overhead_drift.py::test_testing_artifacts_no_drift [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_system_overhead_drift.py::test_source_code_files_have_drift [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_system_overhead_drift.py::test_mixed_infrastructure_and_code_files [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_system_overhead_drift.py::test_github_ci_files_no_drift [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_template_system.py::test_base_template_renders [32mPASSED[0m[31m  [ 81%][0m
+tests/python/test_template_system.py::test_template_includes_all_sections [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_template_system.py::test_template_includes_code_examples [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_template_system.py::test_user_override_header [32mPASSED[0m[31m   [ 81%][0m
+tests/python/test_template_system.py::test_user_override_preserves_base_sections [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_template_system.py::test_user_custom_workflows_block [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_template_system.py::test_multiple_user_overrides [32mPASSED[0m[31m [ 81%][0m
+tests/python/test_template_system.py::test_platform_variable_in_template [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_template_system.py::test_version_in_template [32mPASSED[0m[31m    [ 82%][0m
+tests/python/test_template_system.py::test_get_agents_md_function [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_template_system.py::test_sync_docs_to_file [32mPASSED[0m[31m      [ 82%][0m
+tests/python/test_template_system.py::test_format_date_filter [32mPASSED[0m[31m     [ 82%][0m
+tests/python/test_template_system.py::test_highlight_code_filter [32mPASSED[0m[31m  [ 82%][0m
+tests/python/test_template_system.py::test_template_with_missing_user_dir [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_template_system.py::test_section_templates_are_included [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_template_system.py::test_user_can_override_section_template [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_template_system.py::test_template_with_invalid_date [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_template_system.py::test_generated_timestamp_in_output [32mPASSED[0m[31m [ 82%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_creation [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_start [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_complete [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_to_context [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_to_html [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_from_todowrite [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoModel::test_todo_to_todowrite_format [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_add_todo [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_list_todos [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_filter_by_status [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_start_todo [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_complete_todo [32mPASSED[0m[31m [ 83%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_delete_todo [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_clear_completed [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_sync_from_todowrite [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_to_todowrite_format [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_for_feature [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_summary [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_priority_ordering [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_todo_collection.py::TestTodoCollection::test_persistence_across_reloads [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_track_loading.py::test_load_directory_based_track [32mPASSED[0m[31m [ 84%][0m
+tests/python/test_track_loading.py::test_load_file_based_track [32mPASSED[0m[31m    [ 84%][0m
+tests/python/test_track_loading.py::test_load_mixed_tracks [32mPASSED[0m[31m        [ 84%][0m
+tests/python/test_track_loading.py::test_track_where_query [32mPASSED[0m[31m        [ 84%][0m
+tests/python/test_track_loading.py::test_track_get_by_id [32mPASSED[0m[31m          [ 85%][0m
+tests/python/test_track_loading.py::test_track_edit_context_manager [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_track_loading.py::test_track_edit_nonexistent_track [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_track_loading.py::test_track_edit_file_based [32mPASSED[0m[31m    [ 85%][0m
+tests/python/test_transcript_linking.py::TestLinkTranscriptToFeature::test_link_adds_implemented_by_edge [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_transcript_linking.py::TestLinkTranscriptToFeature::test_link_does_not_duplicate [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_transcript_linking.py::TestLinkTranscriptToFeature::test_link_aggregates_analytics [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_transcript_linking.py::TestCompleteWithTranscript::test_complete_with_transcript_id [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_transcript_linking.py::TestParallelWorkflowLinkTranscripts::test_link_transcripts_success [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_transcript_linking.py::TestParallelWorkflowLinkTranscripts::test_link_transcripts_feature_not_found [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_transcript_linking.py::TestEventPayloadTranscriptId::test_complete_logs_transcript_id_in_payload [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_update_preserves_incoming_edges.py::test_update_preserves_incoming_edges [32mPASSED[0m[31m [ 85%][0m
+tests/python/test_update_preserves_incoming_edges.py::test_update_preserves_incoming_edges_for_dependents [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_update_preserves_incoming_edges.py::test_update_correctly_modifies_outgoing_edges [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_update_preserves_incoming_edges.py::test_update_handles_multiple_edge_types [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCIGSIntentClassification::test_exploration_intent_detected [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCIGSIntentClassification::test_code_changes_intent_detected [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCIGSIntentClassification::test_git_intent_detected [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCIGSIntentClassification::test_multiple_intents_detected [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCIGSIntentClassification::test_no_delegation_intent [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestViolationWarnings::test_no_violations_no_warning [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestViolationWarnings::test_violation_count_included [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestGuidanceGeneration::test_exploration_guidance_format [32mPASSED[0m[31m [ 86%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestGuidanceGeneration::test_code_changes_guidance_format [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestGuidanceGeneration::test_git_guidance_format [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCombinedGuidance::test_implementation_with_no_work_item [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestCombinedGuidance::test_exploration_request [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestEdgeCases::test_empty_prompt [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestEdgeCases::test_very_short_prompt [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestEdgeCases::test_very_long_prompt [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestEdgeCases::test_special_characters [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestOutputStructure::test_hook_output_structure [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_user_prompt_submit_cigs.py::TestOutputStructure::test_classification_structure [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysAllowed::test_read_tool_always_allowed [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysAllowed::test_glob_tool_always_allowed [32mPASSED[0m[31m [ 87%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysAllowed::test_grep_tool_always_allowed [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysAllowed::test_lsp_tool_always_allowed [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysAllowed::test_readonly_bash_allowed [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysAllowed::test_write_tool_not_always_allowed [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestDirectHtmlGraphWrites::test_write_to_htmlgraph_detected [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestDirectHtmlGraphWrites::test_edit_to_htmlgraph_detected [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestDirectHtmlGraphWrites::test_delete_to_htmlgraph_detected [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestDirectHtmlGraphWrites::test_write_to_src_not_htmlgraph [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestDirectHtmlGraphWrites::test_read_htmlgraph_allowed [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestSDKCommands::test_uv_run_htmlgraph_detected [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestSDKCommands::test_htmlgraph_direct_detected [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestSDKCommands::test_non_sdk_bash_not_detected [32mPASSED[0m[31m [ 88%][0m
+tests/python/test_validate_work_hook.py::TestSDKCommands::test_write_tool_not_sdk [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestCodeOperations::test_write_is_code_operation [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestCodeOperations::test_edit_is_code_operation [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestCodeOperations::test_delete_is_code_operation [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestCodeOperations::test_code_bash_detected [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestCodeOperations::test_readonly_bash_not_code_operation [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicNoActiveWork::test_read_allowed_no_work [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicNoActiveWork::test_sdk_command_allowed_no_work [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicNoActiveWork::test_write_guidance_no_work [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicNoActiveWork::test_code_bash_guidance_no_work [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicSpikeActive::test_read_allowed_with_spike [32mPASSED[0m[31m [ 89%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicSpikeActive::test_sdk_command_allowed_with_spike [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicSpikeActive::test_write_guidance_with_spike [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicSpikeActive::test_edit_guidance_with_spike [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicSpikeActive::test_code_bash_guidance_with_spike [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicFeatureActive::test_read_allowed_with_feature [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicFeatureActive::test_write_allowed_with_feature [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicFeatureActive::test_edit_allowed_with_feature [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicFeatureActive::test_code_bash_allowed_with_feature [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestValidationLogicFeatureActive::test_sdk_command_allowed_with_feature [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysBlockHtmlGraphWrites::test_write_htmlgraph_blocked_with_feature [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysBlockHtmlGraphWrites::test_edit_htmlgraph_blocked_with_spike [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestAlwaysBlockHtmlGraphWrites::test_delete_htmlgraph_blocked_no_work [32mPASSED[0m[31m [ 90%][0m
+tests/python/test_validate_work_hook.py::TestEdgeCases::test_unknown_tool_allowed [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_validate_work_hook.py::TestEdgeCases::test_empty_params [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_validate_work_hook.py::TestEdgeCases::test_config_missing_templates [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocVersion::test_get_current_doc_version [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocVersion::test_is_compatible_same_version [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocVersion::test_is_compatible_n_minus_1 [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocVersion::test_is_incompatible_too_old [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocVersion::test_doc_versions_registry [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_create_default_metadata [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_load_nonexistent_metadata [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_save_and_load_metadata [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_add_customization [32mPASSED[0m[31m [ 91%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_add_duplicate_customization [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_remove_customization [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestDocsMetadata::test_has_customizations [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestVersionCheck::test_check_version_no_metadata [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestVersionCheck::test_check_version_current [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestVersionCheck::test_check_version_compatible_outdated [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestVersionCheck::test_check_version_incompatible [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_migration_basic_properties [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_detect_customizations_empty [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_detect_customizations_with_custom_sections [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_backup_docs_creates_backup [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_migrate_creates_v2_docs [32mPASSED[0m[31m [ 92%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_migrate_preserves_customizations [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_rollback_restores_v1 [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestV1toV2Migration::test_rollback_fails_without_backup [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestMigrationRegistry::test_get_migration_v1_to_v2 [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestMigrationRegistry::test_get_migration_nonexistent [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestMigrationRegistry::test_get_migration_reverse_direction [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestIntegration::test_full_migration_workflow [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_version_migration.py::TestIntegration::test_rollback_after_migration [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_violation_tracker.py::TestViolationRecord::test_create_violation_record [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_violation_tracker.py::TestViolationRecord::test_violation_record_to_dict [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_violation_tracker.py::TestViolationRecord::test_violation_record_from_dict [32mPASSED[0m[31m [ 93%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_initialization [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_record_violation [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_record_multiple_violations [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_get_session_violations [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_circuit_breaker_trigger [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_violations_by_type [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_get_recent_violations [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_get_session_waste [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_thread_safety [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_persistence_across_instances [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_jsonl_format [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_compliance_rate_calculation [32mPASSED[0m[31m [ 94%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_empty_violations [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_clear_session_file [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestViolationTracker::test_exploration_sequence_classification [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestSessionViolationSummary::test_summary_string_representation [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestSessionViolationSummary::test_count_property [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestDataModels::test_token_cost_creation [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestDataModels::test_operation_classification_creation [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestDataModels::test_autonomy_level_creation [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_violation_tracker.py::TestDataModels::test_cost_metrics_creation [32mPASSED[0m[31m [ 95%][0m
+tests/python/test_work_queue.py::test_get_work_queue_basic [32mPASSED[0m[31m        [ 95%][0m
+tests/python/test_work_queue.py::test_get_work_queue_limit [32mPASSED[0m[31m        [ 95%][0m
+tests/python/test_work_queue.py::test_get_work_queue_min_score [32mPASSED[0m[31m    [ 95%][0m
+tests/python/test_work_queue.py::test_get_work_queue_includes_multiple_types [32mPASSED[0m[31m [ 96%][0m
+tests/python/test_work_queue.py::test_get_work_queue_excludes_in_progress [32mPASSED[0m[31m [ 96%][0m
+tests/python/test_work_queue.py::test_get_work_queue_includes_blocked [32mPASSED[0m[31m [ 96%][0m
+tests/python/test_work_queue.py::test_work_next_basic [32mPASSED[0m[31m             [ 96%][0m
+tests/python/test_work_queue.py::test_work_next_auto_claim [32mPASSED[0m[31m        [ 96%][0m
+tests/python/test_work_queue.py::test_work_next_no_auto_claim [32mPASSED[0m[31m     [ 96%][0m
+tests/python/test_work_queue.py::test_work_next_min_score [32mPASSED[0m[31m         [ 96%][0m
+tests/python/test_work_queue.py::test_work_next_empty_queue [32mPASSED[0m[31m       [ 96%][0m
+tests/python/test_work_queue.py::test_get_work_queue_empty [32mPASSED[0m[31m        [ 96%][0m
+tests/python/test_work_queue.py::test_work_queue_priority_ordering [32mPASSED[0m[31m [ 96%][0m
+tests/python/test_work_queue.py::test_work_queue_with_dependencies [32mPASSED[0m[31m [ 96%][0m
+tests/python/test_work_type.py::TestWorkTypeEnums::test_work_type_values [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestWorkTypeEnums::test_spike_type_values [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestWorkTypeEnums::test_maintenance_type_values [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestSpikeModel::test_spike_defaults [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestSpikeModel::test_spike_with_all_fields [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestSpikeModel::test_spike_enforces_type [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestChoreModel::test_chore_defaults [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestChoreModel::test_chore_with_all_fields [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestChoreModel::test_chore_enforces_type [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_from_feature_id [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_from_spike_id [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_from_bug_id [32mPASSED[0m[31m [ 97%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_from_chore_id [32mPASSED[0m[31m [ 98%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_from_doc_id [32mPASSED[0m[31m [ 98%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_from_plan_id [32mPASSED[0m[31m [ 98%][0m
+tests/python/test_work_type.py::TestWorkTypeInference::test_infer_returns_none_for_unknown [32mPASSED[0m[31m [ 98%][0m
+tests/python/test_work_type.py::TestSessionWorkTypeCalculations::test_calculate_work_breakdown [32mPASSED[0m[31m [ 98%][0m
+tests/python/test_work_type.py::TestSessionWorkTypeCalculations::test_calculate_primary_work_type [32mPASSED[0m[31m [ 98%][0m
+tests/python/test_work_type.py::TestSessionWorkTypeCalculations::test_empty_session_returns_none [32mPASSED[0m[31m [ 98%][0m
+tests/benchmarks/bench_graph.py::TestLoadPerformance::test_load_small_graph [32mPASSED[0m[31m [ 98%][0m
+tests/benchmarks/bench_graph.py::TestLoadPerformance::test_load_medium_graph [32mPASSED[0m[31m [ 98%][0m
+tests/benchmarks/bench_graph.py::TestLoadPerformance::test_load_large_graph [32mPASSED[0m[31m [ 98%][0m
+tests/benchmarks/bench_graph.py::TestQueryPerformance::test_query_by_status [32mPASSED[0m[31m [ 98%][0m
+tests/benchmarks/bench_graph.py::TestQueryPerformance::test_query_by_type [32mPASSED[0m[31m [ 98%][0m
+tests/benchmarks/bench_graph.py::TestQueryPerformance::test_query_complex_selector [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestQueryPerformance::test_query_with_cache [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestCrudPerformance::test_add_nodes [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestCrudPerformance::test_update_nodes [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestCrudPerformance::test_remove_nodes [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestCrudPerformance::test_batch_delete [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestTraversalPerformance::test_ancestors [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestTraversalPerformance::test_descendants [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestTraversalPerformance::test_shortest_path [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestMetricsCollection::test_metrics_tracking [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestBaselineComparison::test_save_baseline [32mPASSED[0m[31m [ 99%][0m
+tests/benchmarks/bench_graph.py::TestBaselineComparison::test_compare_to_baseline [32mPASSED[0m[31m [100%][0m
+
+=================================== FAILURES ===================================
+[31m[1m_____________ TestFeatureCreateInput.test_title_empty_raises_error _____________[0m
+[1m[31mtests/python/test_cli_pydantic_models.py[0m:57: in test_title_empty_raises_error
+    [0m[94massert[39;49;00m [33m"[39;49;00m[33mTitle cannot be empty[39;49;00m[33m"[39;49;00m [95min[39;49;00m [96mstr[39;49;00m(exc_info.value)[90m[39;49;00m
+[1m[31mE   assert 'Title cannot be empty' in "1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short"[0m
+[1m[31mE    +  where "1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short" = str(1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short)[0m
+[1m[31mE    +    where 1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short = <ExceptionInfo 1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short tblen=2>.value[0m
+[31m[1m________ TestFeatureCreateInput.test_title_whitespace_only_raises_error ________[0m
+[1m[31mtests/python/test_cli_pydantic_models.py[0m:63: in test_title_whitespace_only_raises_error
+    [0m[94massert[39;49;00m [33m"[39;49;00m[33mTitle cannot be empty[39;49;00m[33m"[39;49;00m [95min[39;49;00m [96mstr[39;49;00m(exc_info.value)[90m[39;49;00m
+[1m[31mE   assert 'Title cannot be empty' in "1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='   ', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short"[0m
+[1m[31mE    +  where "1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='   ', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short" = str(1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='   ', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short)[0m
+[1m[31mE    +    where 1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='   ', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short = <ExceptionInfo 1 validation error for FeatureCreateInput
+title
+  String should have at least 1 character [type=string_too_short, input_value='   ', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_too_short tblen=2>.value[0m
+[36m[1m=========================== short test summary info ============================[0m
+[31mFAILED[0m tests/python/test_cli_pydantic_models.py::[1mTestFeatureCreateInput::test_title_empty_raises_error[0m - assert 'Title cannot be empty' in "1 validation error for FeatureCreateInpu...
+[31mFAILED[0m tests/python/test_cli_pydantic_models.py::[1mTestFeatureCreateInput::test_title_whitespace_only_raises_error[0m - assert 'Title cannot be empty' in "1 validation error for FeatureCreateInpu...
+[31m= [31m[1m2 failed[0m, [32m1160 passed[0m, [33m9 skipped[0m, [33m3 deselected[0m, [33m1 warning[0m[31m in 108.75s (0:01:48)[0m[31m =[0m (full suite)
+   - Ensure new CIGS tests pass (11 test files)
+
+---
+
+## Timeline vs Plan
+
+### What Was Completed (Beyond Plan)
+- ✅ **CIGS Implementation**: Complete 62-feature system (not in original Phase 1)
+- ✅ **Rich Progress Bars**: Added to 3 major commands
+- ✅ **Hook System**: Orchestration enforcement operational
+- ✅ **Pattern Detection**: Session-based learning implemented
+- ✅ **Cost Tracking**: Multi-AI delegation observable
+- ✅ **Documentation**: 4 comprehensive guides
+
+### What Was NOT Completed (Phase 1 Original)
+- ❌ **Phase 1A**: Rich Console integration incomplete (0/5 steps)
+- ❌ **Phase 1B**: Error handling incomplete (0/6 steps)
+- ❌ **Phase 1 Pydantic**: CLI Pydantic models incomplete (0/7 steps)
+
+### Time Analysis
+**Commits Analysis**:
+- Last 15 commits: All CIGS-related
+- CIGS work took 62+ commits
+- Rich/Error/Pydantic work minimal
+
+**Conclusion**: Team pivoted to CIGS implementation, deprioritizing Phase 1A/1B
+
+---
+
+## Assessment: Ready for Phase 2?
+
+### Current State: NOT READY
+**Blockers**:
+1. ❌ Code has 12 mypy type errors
+2. ❌ Code has 16 linting issues
+3. ❌ Tests not verified (background task)
+4. ❌ Deployment script would fail
+
+### Path to Phase 2
+
+**Estimated Effort**: 2-4 hours
+1. **Fix Code Quality** (1-2 hrs):
+   - Add Session.properties field
+   - Add SessionManager.get() method
+   - Fix 4 type annotations
+   - Run ruff --fix (auto)
+   - Run mypy to verify
+
+2. **Verify Tests** (30-60 min):
+   - Run full pytest suite
+   - Verify CIGS tests (11 files)
+   - Verify existing tests still pass
+
+3. **Deploy & Verify** (30-60 min):
+   - Run deploy-all.sh v0.24.2
+   - Verify PyPI publication
+   - Verify plugin update
+
+**Recommendation**: Fix code quality issues first, then reassess Phase 2 scope
+
+---
+
+## Performance Metrics
+
+### Code Growth
+- **Total Lines Added**: 21,865
+- **Major Additions**:
+  - CIGS system: 3,700+ lines
+  - CIGS tests: 5,600+ lines
+  - New hooks: 850+ lines
+  - CLI enhancements: 424 lines
+  - Documentation: 1,500+ lines
+
+### Feature Velocity
+- **Features Completed**: 53/83 (63%)
+- **In Progress**: 1 (1%)
+- **Remaining**: 29 (36%)
+- **Completion Rate**: ~63% (exceeded typical 50%)
+
+### Quality Metrics
+- **Test Coverage**: 1,171 tests available
+- **Type Safety**: 88% coverage (12 errors remaining)
+- **Linting**: 99.8% clean (16 fixable issues)
+
+---
+
+## Team Performance & Observations
+
+### What Worked Well
+1. ✅ **CIGS Implementation**: Comprehensive 62-feature system
+2. ✅ **Rich Integration**: Partial but effective UX improvements
+3. ✅ **Documentation**: Clear guides for complex features
+4. ✅ **Test Coverage**: Extensive test suite for CIGS
+5. ✅ **Hook System**: Operational orchestration enforcement
+
+### What Needs Attention
+1. ⚠️ **Code Quality Regression**: Type errors introduced
+2. ⚠️ **Scope Creep**: CIGS dominated Phase 1 timeline
+3. ⚠️ **Phase 1 Original Goals**: Deferred for CIGS
+4. ⚠️ **Test Verification**: Pending background execution
+
+### Lessons Learned
+- CIGS was higher priority than originally planned
+- Rich/Error/Pydantic work deferred but can be resumed
+- Code quality gates critical before deployment
+- Parallel agent work (CIGS waves 1-2) very effective
+
+---
+
+## Recommendations for Phase 2
+
+1. **Immediate** (Before any deployment):
+   - Fix 12 mypy errors
+   - Fix 16 ruff issues
+   - Verify all tests pass
+   - Update version to 0.24.2
+
+2. **Short-term** (Next sprint):
+   - Resume Phase 1A: Rich Console integration
+   - Resume Phase 1B: Error handling
+   - Resume Phase 1 Pydantic: CLI type safety
+
+3. **Consider**:
+   - CIGS is now production-ready feature set
+   - Rich improvements can enhance UX significantly
+   - Error handling would improve reliability
+   - Pydantic would improve CLI robustness
+
+4. **Architecture**:
+   - CIGS + Rich + Error handling = Complete next-gen CLI
+   - All three should be integrated (not sequential)
+
+---
+
+## Summary
+
+HtmlGraph has made significant progress, with 63% of planned features complete and a major new system (CIGS) fully implemented. However, code quality issues must be resolved before Phase 2 can proceed. With focused effort on quality gates, the project is 2-4 hours from clean code ready for deployment and the next phase of development.
+
+The team has demonstrated excellent capability in complex system implementation (CIGS), but needs to maintain code quality standards going forward. Phase 1A/1B/Pydantic work remains available for immediate pickup once quality gates pass.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

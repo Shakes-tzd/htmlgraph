@@ -51,6 +51,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+from rich.traceback import install as install_traceback
+
+# Install Rich traceback globally for better error display
+install_traceback(show_locals=True)
+
+# Global Rich Console for beautiful CLI output
+console = Console()
+
 
 def create_json_response(
     command: str,
@@ -84,14 +98,15 @@ def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
     extension_dir = package_dir / "extensions" / "gemini"
 
     if not extension_dir.exists():
-        print(f"Error: Gemini extension not found at {extension_dir}", file=sys.stderr)
-        print(
-            "The extension may not be bundled with this version of htmlgraph.",
-            file=sys.stderr,
+        console.print(
+            f"[red]Error: Gemini extension not found at {extension_dir}[/red]"
+        )
+        console.print(
+            "[red]The extension may not be bundled with this version of htmlgraph.[/red]"
         )
         sys.exit(1)
 
-    print(f"Installing Gemini extension from: {extension_dir}")
+    console.print(f"[cyan]Installing Gemini extension from:[/cyan] {extension_dir}")
 
     # Run gemini extensions install with the bundled path
     try:
@@ -101,17 +116,17 @@ def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
             text=True,
             check=True,
         )
-        print(result.stdout)
-        print("\n✅ Gemini extension installed successfully!")
-        print("\nTo verify installation:")
-        print("  gemini extensions list")
+        console.print(result.stdout)
+        console.print("\n[green]✅ Gemini extension installed successfully![/green]")
+        console.print("\nTo verify installation:")
+        console.print("  gemini extensions list", style="dim")
     except subprocess.CalledProcessError as e:
-        print(f"Error installing extension: {e.stderr}", file=sys.stderr)
+        console.print(f"[red]Error installing extension: {e.stderr}[/red]", style="red")
         sys.exit(1)
     except FileNotFoundError:
-        print("Error: 'gemini' command not found.", file=sys.stderr)
-        print("Please install Gemini CLI first:", file=sys.stderr)
-        print("  npm install -g @google/gemini-cli", file=sys.stderr)
+        console.print("[red]Error: 'gemini' command not found.[/red]")
+        console.print("Please install Gemini CLI first:")
+        console.print("  npm install -g @google/gemini-cli", style="dim")
         sys.exit(1)
 
 
@@ -142,28 +157,26 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     # Interactive setup wizard
     if args.interactive:
-        print("=== HtmlGraph Interactive Setup ===\n")
+        console.print("\n[bold cyan]=== HtmlGraph Interactive Setup ===[/bold cyan]\n")
 
         # Get project name
         default_name = Path(args.dir).resolve().name
-        project_name = input(f"Project name [{default_name}]: ").strip() or default_name
+        project_name = Prompt.ask("Project name", default=default_name)
 
         # Get agent name
-        agent_name = input("Your agent name [claude]: ").strip() or "claude"
+        agent_name = Prompt.ask("Your agent name", default="claude")
 
         # Ask about git hooks
-        install_hooks_response = (
-            input("Install git hooks for automatic tracking? [Y/n]: ").strip().lower()
+        args.install_hooks = Confirm.ask(
+            "Install git hooks for automatic tracking?", default=True
         )
-        args.install_hooks = install_hooks_response != "n"
 
         # Ask about documentation generation
-        gen_docs_response = (
-            input("Generate AGENTS.md, CLAUDE.md, GEMINI.md? [Y/n]: ").strip().lower()
+        generate_docs = Confirm.ask(
+            "Generate AGENTS.md, CLAUDE.md, GEMINI.md?", default=True
         )
-        generate_docs = gen_docs_response != "n"
 
-        print()
+        console.print()
     else:
         # Non-interactive defaults
         project_name = Path(args.dir).resolve().name
@@ -548,7 +561,7 @@ exit 0
             content = render_template(agents_template, replacements)
             if content:
                 agents_dest.write_text(content, encoding="utf-8")
-                print(f"✓ Generated: {agents_dest}")
+                console.print(f"[green]✓ Generated:[/green] {agents_dest}")
 
         # Generate CLAUDE.md
         claude_template = templates_dir / "CLAUDE.md.template"
@@ -557,7 +570,7 @@ exit 0
             content = render_template(claude_template, replacements)
             if content:
                 claude_dest.write_text(content, encoding="utf-8")
-                print(f"✓ Generated: {claude_dest}")
+                console.print(f"[green]✓ Generated:[/green] {claude_dest}")
 
         # Generate GEMINI.md
         gemini_template = templates_dir / "GEMINI.md.template"
@@ -566,15 +579,17 @@ exit 0
             content = render_template(gemini_template, replacements)
             if content:
                 gemini_dest.write_text(content, encoding="utf-8")
-                print(f"✓ Generated: {gemini_dest}")
+                console.print(f"[green]✓ Generated:[/green] {gemini_dest}")
 
     def install_hooks_step() -> None:
         if not args.install_hooks:
             return
         git_dir = Path(args.dir) / ".git"
         if not git_dir.exists():
-            print("\n⚠️  Warning: No .git directory found. Git hooks not installed.")
-            print("   Initialize git first: git init")
+            console.print(
+                "\n[yellow]⚠️  Warning: No .git directory found. Git hooks not installed.[/yellow]"
+            )
+            console.print("[dim]Initialize git first: git init[/dim]")
             return
 
         def install_hook(
@@ -607,11 +622,11 @@ exit 0
             git_hook_path = git_dir / "hooks" / hook_name
 
             if git_hook_path.exists():
-                print(f"\n⚠️  Existing {hook_name} hook found")
+                console.print(f"\n[yellow]⚠️  Existing {hook_name} hook found[/yellow]")
                 backup_path = git_hook_path.with_suffix(".existing")
                 if not backup_path.exists():
                     shutil.copy(git_hook_path, backup_path)
-                    print(f"   Backed up to: {backup_path}")
+                    console.print(f"[dim]Backed up to: {backup_path}[/dim]")
 
                 chain_content = f'''#!/bin/bash
 # Chained hook - runs existing hook then HtmlGraph hook
@@ -626,18 +641,18 @@ fi
 '''
                 git_hook_path.write_text(chain_content)
                 git_hook_path.chmod(0o755)
-                print(f"   Installed chained hook at: {git_hook_path}")
+                console.print(f"[dim]Installed chained hook at: {git_hook_path}[/dim]")
                 return
 
             try:
                 git_hook_path.symlink_to(hook_dest.resolve())
-                print("\n✓ Git hooks installed")
-                print(f"  {hook_name}: {git_hook_path} -> {hook_dest}")
+                console.print("\n[green]✓ Git hooks installed[/green]")
+                console.print(f"[dim]{hook_name}: {git_hook_path} -> {hook_dest}[/dim]")
             except OSError:
                 shutil.copy(hook_dest, git_hook_path)
                 git_hook_path.chmod(0o755)
-                print("\n✓ Git hooks installed")
-                print(f"  {hook_name}: {git_hook_path}")
+                console.print("\n[green]✓ Git hooks installed[/green]")
+                console.print(f"[dim]{hook_name}: {git_hook_path}[/dim]")
 
         install_hook("pre-commit", hook_files["pre-commit"], pre_commit)
         install_hook("post-commit", hook_files["post-commit"], post_commit)
@@ -645,7 +660,9 @@ fi
         install_hook("post-merge", hook_files["post-merge"], post_merge)
         install_hook("pre-push", hook_files["pre-push"], pre_push)
 
-        print("\nGit events will now be logged to HtmlGraph automatically.")
+        console.print(
+            "\n[cyan]Git events will now be logged to HtmlGraph automatically.[/cyan]"
+        )
 
     steps: list[tuple[str, Any]] = [
         ("Create .htmlgraph directories", create_graph_dirs),
@@ -678,14 +695,19 @@ fi
 
     run_steps(steps)
 
-    print(f"\nInitialized HtmlGraph in {graph_dir}")
-    print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
-    print("\nStart server with: htmlgraph serve")
+    console.print()
+    console.print(f"[green]✓ Initialized HtmlGraph in[/green] {graph_dir}")
+    console.print(
+        f"[cyan]Collections:[/cyan] {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}"
+    )
+    console.print()
+    console.print("[bold cyan]Start server with:[/bold cyan]")
+    console.print("  htmlgraph serve", style="dim")
     if not args.no_index:
-        print(
-            f"Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)"
+        console.print(
+            f"[dim]Analytics cache: {graph_dir / 'index.sqlite'} (rebuildable; typically gitignored)[/dim]"
         )
-    print(f"Events: {events_dir}/ (append-only JSONL)")
+    console.print(f"[dim]Events: {events_dir}/ (append-only JSONL)[/dim]")
 
 
 def cmd_install_hooks(args: argparse.Namespace) -> None:
@@ -704,22 +726,24 @@ def cmd_install_hooks(args: argparse.Namespace) -> None:
     # Handle configuration changes
     if args.enable:
         if args.enable not in AVAILABLE_HOOKS:
-            print(f"Error: Unknown hook '{args.enable}'")
-            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            console.print(f"[red]Error: Unknown hook '{args.enable}'[/red]")
+            console.print(f"[cyan]Available hooks:[/cyan] {', '.join(AVAILABLE_HOOKS)}")
             return
         config.enable_hook(args.enable)
         config.save()
-        print(f"✓ Enabled hook '{args.enable}' in configuration")
+        console.print(f"[green]✓ Enabled hook '{args.enable}' in configuration[/green]")
         return
 
     if args.disable:
         if args.disable not in AVAILABLE_HOOKS:
-            print(f"Error: Unknown hook '{args.disable}'")
-            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            console.print(f"[red]Error: Unknown hook '{args.disable}'[/red]")
+            console.print(f"[cyan]Available hooks:[/cyan] {', '.join(AVAILABLE_HOOKS)}")
             return
         config.disable_hook(args.disable)
         config.save()
-        print(f"✓ Disabled hook '{args.disable}' in configuration")
+        console.print(
+            f"[green]✓ Disabled hook '{args.disable}' in configuration[/green]"
+        )
         return
 
     # Override symlink preference if --use-copy is set
@@ -732,84 +756,116 @@ def cmd_install_hooks(args: argparse.Namespace) -> None:
     # Validate environment
     is_valid, error_msg = installer.validate_environment()
     if not is_valid:
-        print(f"❌ {error_msg}")
+        console.print(f"[red]❌ {error_msg}[/red]")
         return
 
     # List hooks status
     if args.list:
-        print("\nGit Hooks Installation Status")
-        print("=" * 60)
+        console.print()
+        table = Table(title="Git Hooks Installation Status", border_style="cyan")
+        table.add_column("Hook", style="cyan", no_wrap=True)
+        table.add_column("Enabled", justify="center", style="green")
+        table.add_column("Installed", justify="center", style="green")
+        table.add_column("Type", style="dim")
+        table.add_column("Status", style="dim")
 
         status = installer.list_hooks()
         for hook_name, info in status.items():
             status_icon = "✓" if info["installed"] else "✗"
             enabled_icon = "🟢" if info["enabled"] else "🔴"
+            type_str = "Symlink" if info["is_symlink"] else "Copied"
+            our_hook = (
+                "✓"
+                if info.get("our_hook", False)
+                else "✗"
+                if info["is_symlink"]
+                else ""
+            )
 
-            print(f"\n{enabled_icon} {hook_name} ({status_icon} installed)")
-            print(f"  Enabled in config: {info['enabled']}")
-            print(f"  Versioned (.htmlgraph/hooks/): {info['versioned']}")
-            print(f"  Installed (.git/hooks/): {info['installed']}")
+            status_str = (
+                f"{type_str} {our_hook}".strip() if type_str == "Symlink" else type_str
+            )
 
-            if info["is_symlink"]:
-                our_hook = "✓" if info.get("our_hook", False) else "✗"
-                print(f"  Type: Symlink ({our_hook} ours)")
-                print(f"  Target: {info.get('symlink_target', 'unknown')}")
-            elif info["installed"]:
-                print("  Type: Copied file")
+            table.add_row(hook_name, enabled_icon, status_icon, type_str, status_str)
 
-        print("\n" + "=" * 60)
-        print(f"\nConfiguration: {config_path}")
-        print("Use 'htmlgraph install-hooks --enable <hook>' to enable")
-        print("Use 'htmlgraph install-hooks --disable <hook>' to disable")
+        console.print(table)
+        console.print()
+        console.print(f"[dim]Configuration: {config_path}[/dim]")
+        console.print(
+            "[dim]Use 'htmlgraph install-hooks --enable <hook>' to enable[/dim]"
+        )
+        console.print(
+            "[dim]Use 'htmlgraph install-hooks --disable <hook>' to disable[/dim]"
+        )
         return
 
     # Uninstall a hook
     if args.uninstall:
         if args.uninstall not in AVAILABLE_HOOKS:
-            print(f"Error: Unknown hook '{args.uninstall}'")
-            print(f"Available hooks: {', '.join(AVAILABLE_HOOKS)}")
+            console.print(f"[red]Error: Unknown hook '{args.uninstall}'[/red]")
+            console.print(f"[cyan]Available hooks:[/cyan] {', '.join(AVAILABLE_HOOKS)}")
             return
 
         success, message = installer.uninstall_hook(args.uninstall)
         if success:
-            print(f"✓ {message}")
+            console.print(f"[green]✓ {message}[/green]")
         else:
-            print(f"❌ {message}")
+            console.print(f"[red]❌ {message}[/red]")
         return
 
     # Install hooks
-    print("\n🔧 Installing Git hooks for HtmlGraph\n")
-    print(f"Project: {project_dir}")
-    print(f"Configuration: {config_path}")
+    console.print("\n[cyan]🔧 Installing Git hooks for HtmlGraph[/cyan]\n")
+    console.print(f"[dim]Project: {project_dir}[/dim]")
+    console.print(f"[dim]Configuration: {config_path}[/dim]")
 
     if args.dry_run:
-        print("\n[DRY RUN MODE - No changes will be made]\n")
+        console.print("\n[yellow][DRY RUN MODE - No changes will be made][/yellow]\n")
 
     results = installer.install_all_hooks(force=args.force, dry_run=args.dry_run)
 
-    # Display results
+    # Display results in a table
+    result_table = Table(title="Installation Results", border_style="cyan")
+    result_table.add_column("Hook", style="cyan", no_wrap=True)
+    result_table.add_column("Status", justify="center")
+    result_table.add_column("Message", style="dim")
+
     success_count = 0
     failure_count = 0
 
     for hook_name, (success, message) in results.items():
         if success:
             success_count += 1
-            print(f"✓ {message}")
+            result_table.add_row(hook_name, "[green]✓ Success[/green]", message)
         else:
             failure_count += 1
-            print(f"❌ {message}")
+            result_table.add_row(hook_name, "[red]❌ Failed[/red]", message)
 
-    print("\n" + "=" * 60)
-    print(f"Summary: {success_count} installed, {failure_count} failed")
+    console.print(result_table)
+    console.print()
+    console.print(
+        f"[cyan]Summary:[/cyan] {success_count} installed, {failure_count} failed"
+    )
 
     if not args.dry_run:
-        print(f"\nConfiguration saved to: {config_path}")
-        print("\nGit events will now be logged to HtmlGraph automatically.")
-        print("\nManagement commands:")
-        print("  htmlgraph install-hooks --list          # Show status")
-        print("  htmlgraph install-hooks --uninstall <hook>  # Remove hook")
-        print("  htmlgraph install-hooks --enable <hook>     # Enable hook")
-        print("  htmlgraph install-hooks --disable <hook>    # Disable hook")
+        console.print()
+        console.print(f"[green]Configuration saved to: {config_path}[/green]")
+        console.print(
+            "[cyan]Git events will now be logged to HtmlGraph automatically.[/cyan]"
+        )
+        console.print()
+        console.print("[bold cyan]Management commands:[/bold cyan]")
+        console.print(
+            "[dim]  htmlgraph install-hooks --list          # Show status[/dim]"
+        )
+        console.print(
+            "[dim]  htmlgraph install-hooks --uninstall <hook>  # Remove hook[/dim]"
+        )
+        console.print(
+            "[dim]  htmlgraph install-hooks --enable <hook>     # Enable hook[/dim]"
+        )
+        console.print(
+            "[dim]  htmlgraph install-hooks --disable <hook>    # Disable hook[/dim]"
+        )
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -819,8 +875,9 @@ def cmd_status(args: argparse.Namespace) -> None:
 
     from htmlgraph.sdk import SDK
 
-    # Use SDK to query all collections
-    sdk = SDK(directory=args.graph_dir)
+    # Use SDK to query all collections with status spinner
+    with console.status("[blue]Initializing SDK...", spinner="dots"):
+        sdk = SDK(directory=args.graph_dir)
 
     total = 0
     by_status: Counter[str] = Counter()
@@ -839,22 +896,34 @@ def cmd_status(args: argparse.Namespace) -> None:
         "agents",
     ]
 
-    for coll_name in collections:
-        coll = getattr(sdk, coll_name)
-        try:
-            nodes = coll.all()
-            count = len(nodes)
-            if count > 0:
-                by_collection[coll_name] = count
-                total += count
+    # Use progress bar for scanning collections
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True,
+    ) as progress:
+        task = progress.add_task("Scanning collections...", total=len(collections))
 
-                # Count by status
-                for node in nodes:
-                    status = getattr(node, "status", "unknown")
-                    by_status[status] += 1
-        except Exception:
-            # Collection might not exist yet
-            pass
+        for coll_name in collections:
+            progress.update(task, description=f"Scanning {coll_name}...")
+            coll = getattr(sdk, coll_name)
+            try:
+                nodes = coll.all()
+                count = len(nodes)
+                if count > 0:
+                    by_collection[coll_name] = count
+                    total += count
+
+                    # Count by status
+                    for node in nodes:
+                        status = getattr(node, "status", "unknown")
+                        by_status[status] += 1
+            except Exception:
+                # Collection might not exist yet
+                pass
+
+            progress.update(task, advance=1)
 
     # Output based on format flag
     if args.format == "json":
@@ -998,14 +1067,18 @@ def cmd_query(args: argparse.Namespace) -> None:
         print(f"Error: {graph_dir} not found.", file=sys.stderr)
         sys.exit(1)
 
-    results = []
-    for collection_dir in graph_dir.iterdir():
-        if collection_dir.is_dir() and not collection_dir.name.startswith("."):
-            graph = HtmlGraph(collection_dir, auto_load=True)
-            for node in graph.query(args.selector):
-                data = node_to_dict(node)
-                data["_collection"] = collection_dir.name
-                results.append(data)
+    # Query with status spinner
+    with console.status(
+        f"[blue]Querying with selector '{args.selector}'...", spinner="dots"
+    ):
+        results = []
+        for collection_dir in graph_dir.iterdir():
+            if collection_dir.is_dir() and not collection_dir.name.startswith("."):
+                graph = HtmlGraph(collection_dir, auto_load=True)
+                for node in graph.query(args.selector):
+                    data = node_to_dict(node)
+                    data["_collection"] = collection_dir.name
+                    results.append(data)
 
     if args.format == "json":
         print(json.dumps(results, indent=2, default=str))
@@ -1027,10 +1100,31 @@ def cmd_session_start(args: argparse.Namespace) -> None:
     """Start a new session."""
     import json
 
-    from htmlgraph.sdk import SDK
+    from pydantic import ValidationError
 
-    sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    session = sdk.start_session(session_id=args.id, title=args.title, agent=args.agent)
+    from htmlgraph.pydantic_models import SessionStartInput
+    from htmlgraph.sdk import SDK
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = SessionStartInput(
+            session_id=args.id,
+            title=args.title,
+            agent=args.agent,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
+
+    with console.status(
+        "[blue]Initializing SDK and starting session...", spinner="dots"
+    ):
+        sdk = SDK(directory=args.graph_dir, agent=input_data.agent)
+        session = sdk.start_session(
+            session_id=input_data.session_id,
+            title=input_data.title,
+            agent=input_data.agent,
+        )
 
     if args.format == "json":
         from htmlgraph.converter import session_to_dict
@@ -1048,19 +1142,33 @@ def cmd_session_end(args: argparse.Namespace) -> None:
     """End a session."""
     import json
 
+    from pydantic import ValidationError
+
+    from htmlgraph.pydantic_models import SessionEndInput
     from htmlgraph.sdk import SDK
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = SessionEndInput(
+            session_id=args.id,
+            notes=args.notes,
+            recommend=args.recommend,
+            blocker=args.blocker if args.blocker else None,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
 
     sdk = SDK(directory=args.graph_dir)
-    blockers = args.blocker if args.blocker else None
     session = sdk.end_session(
-        args.id,
-        handoff_notes=args.notes,
-        recommended_next=args.recommend,
-        blockers=blockers,
+        input_data.session_id,
+        handoff_notes=input_data.notes,
+        recommended_next=input_data.recommend,
+        blockers=input_data.blocker,
     )
 
     if session is None:
-        print(f"Error: Session '{args.id}' not found.", file=sys.stderr)
+        print(f"Error: Session '{input_data.session_id}' not found.", file=sys.stderr)
         sys.exit(1)
 
     if args.format == "json":
@@ -1079,18 +1187,30 @@ def cmd_session_handoff(args: argparse.Namespace) -> None:
     """Set or show session handoff context."""
     import json
 
+    from pydantic import ValidationError
+
+    from htmlgraph.pydantic_models import SessionHandoffInput
     from htmlgraph.sdk import SDK
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = SessionHandoffInput(
+            session_id=args.session_id,
+            notes=args.notes,
+            recommend=args.recommend,
+            blocker=args.blocker if args.blocker else None,
+            show=args.show,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
-    if args.show:
-        # For showing, we might still need direct manager access or add more methods to SDK
-        # But for now, let's keep using SessionManager logic via SDK property if needed
-        # or implement show logic here using SDK collections
-
+    if input_data.show:
         # Use session_manager.get_session() to get Session objects (not Node)
-        if args.session_id:
-            session = sdk.session_manager.get_session(args.session_id)
+        if input_data.session_id:
+            session = sdk.session_manager.get_session(input_data.session_id)
         else:
             # Need "last ended session" - SDK doesn't expose this yet.
             # Fallback to session_manager logic exposed on SDK
@@ -1118,7 +1238,7 @@ def cmd_session_handoff(args: argparse.Namespace) -> None:
         return
 
     # Setting handoff
-    if not (args.notes or args.recommend or args.blocker):
+    if not (input_data.notes or input_data.recommend or input_data.blocker):
         print(
             "Error: Provide --notes, --recommend, or --blocker (or use --show).",
             file=sys.stderr,
@@ -1126,15 +1246,17 @@ def cmd_session_handoff(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     handoff_result = sdk.set_session_handoff(
-        session_id=args.session_id,  # Optional, defaults to active
-        handoff_notes=args.notes,
-        recommended_next=args.recommend,
-        blockers=args.blocker if args.blocker else None,
+        session_id=input_data.session_id,  # Optional, defaults to active
+        handoff_notes=input_data.notes,
+        recommended_next=input_data.recommend,
+        blockers=input_data.blocker,
     )
 
     if handoff_result is None:
-        if args.session_id:
-            print(f"Error: Session '{args.session_id}' not found.", file=sys.stderr)
+        if input_data.session_id:
+            print(
+                f"Error: Session '{input_data.session_id}' not found.", file=sys.stderr
+            )
         else:
             print(
                 "Error: No active session found. Provide --session-id.",
@@ -1160,17 +1282,20 @@ def cmd_session_list(args: argparse.Namespace) -> None:
         return
 
     converter = SessionConverter(sessions_dir)
-    sessions = converter.load_all()
 
-    # Sort by started_at descending (handle mixed tz-aware/naive datetimes)
-    def sort_key(s: Any) -> Any:
-        ts = s.started_at
-        # Make naive datetimes comparable by assuming UTC
-        if ts.tzinfo is None:
-            return ts.replace(tzinfo=None)
-        return ts.replace(tzinfo=None)  # Compare as naive for sorting
+    # Load sessions with status spinner
+    with console.status("[blue]Loading sessions...", spinner="dots"):
+        sessions = converter.load_all()
 
-    sessions.sort(key=sort_key, reverse=True)
+        # Sort by started_at descending (handle mixed tz-aware/naive datetimes)
+        def sort_key(s: Any) -> Any:
+            ts = s.started_at
+            # Make naive datetimes comparable by assuming UTC
+            if ts.tzinfo is None:
+                return ts.replace(tzinfo=None)
+            return ts.replace(tzinfo=None)  # Compare as naive for sorting
+
+        sessions.sort(key=sort_key, reverse=True)
 
     if args.format == "json":
         from htmlgraph.converter import session_to_dict
@@ -1178,16 +1303,33 @@ def cmd_session_list(args: argparse.Namespace) -> None:
         print(json.dumps([session_to_dict(s) for s in sessions], indent=2))
     else:
         if not sessions:
-            print("No sessions found.")
+            console.print("[yellow]No sessions found.[/yellow]")
             return
 
-        print(f"{'ID':<30} {'Status':<10} {'Agent':<15} {'Events':<8} {'Started'}")
-        print("=" * 90)
+        # Create Rich table
+        table = Table(
+            title="Sessions",
+            show_header=True,
+            header_style="bold magenta",
+            box=box.ROUNDED,
+        )
+        table.add_column("ID", style="cyan", no_wrap=False, max_width=30)
+        table.add_column("Status", style="green", width=10)
+        table.add_column("Agent", style="blue", width=15)
+        table.add_column("Events", justify="right", style="yellow", width=8)
+        table.add_column("Started", style="white")
+
         for session in sessions:
             started = session.started_at.strftime("%Y-%m-%d %H:%M")
-            print(
-                f"{session.id:<30} {session.status:<10} {session.agent:<15} {session.event_count:<8} {started}"
+            table.add_row(
+                session.id,
+                session.status,
+                session.agent,
+                str(session.event_count),
+                started,
             )
+
+        console.print(table)
 
 
 def cmd_session_start_info(args: argparse.Namespace) -> None:
@@ -1210,16 +1352,18 @@ def cmd_session_start_info(args: argparse.Namespace) -> None:
     else:
         # Human-readable format
         status: dict = info["status"]  # type: ignore
-        print("=" * 80)
-        print("SESSION START INFO")
-        print("=" * 80)
 
-        # Project status
-        print(f"\nProject: {status.get('project_name', 'HtmlGraph')}")
-        print(f"Total features: {status.get('total_features', 0)}")
-        print(f"In progress: {status.get('wip_count', 0)}")
+        # Project status panel
         by_status = status.get("by_status", {})
-        print(f"Completed: {by_status.get('done', 0)}")
+        project_info = (
+            f"Project: {status.get('project_name', 'HtmlGraph')}\n"
+            f"Total features: {status.get('total_features', 0)}\n"
+            f"In progress: {status.get('wip_count', 0)}\n"
+            f"Completed: {by_status.get('done', 0)}"
+        )
+        console.print(
+            Panel(project_info, title="SESSION START INFO", border_style="cyan")
+        )
 
         # Active work item (validation status)
         active_work = info.get("active_work")
@@ -1382,13 +1526,17 @@ def cmd_session_dedupe(args: argparse.Namespace) -> None:
     """Move low-signal session files out of the main sessions directory."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=args.graph_dir)
-    result = sdk.dedupe_sessions(
-        max_events=args.max_events,
-        move_dir_name=args.move_dir,
-        dry_run=args.dry_run,
-        stale_extra_active=not args.no_stale_active,
-    )
+    with console.status("[blue]Initializing SDK...", spinner="dots"):
+        sdk = SDK(directory=args.graph_dir)
+
+    operation = "Analyzing" if args.dry_run else "Deduplicating"
+    with console.status(f"[blue]{operation} sessions...", spinner="dots"):
+        result = sdk.dedupe_sessions(
+            max_events=args.max_events,
+            move_dir_name=args.move_dir,
+            dry_run=args.dry_run,
+            stale_extra_active=not args.no_stale_active,
+        )
 
     print(f"Scanned: {result['scanned']}")
     print(f"Moved:   {result['moved']}")
@@ -1618,6 +1766,70 @@ def cmd_session_validate_attribution(args: argparse.Namespace) -> None:
                 print(
                     f"  - {event['timestamp']}: {event['tool']} (drift: {event['drift']:.2f})"
                 )
+
+
+def cmd_session_debug(args: argparse.Namespace) -> None:
+    """Show full error traceback and debugging information for a session."""
+    from htmlgraph.session_manager import SessionManager
+
+    manager = SessionManager(args.graph_dir)
+
+    try:
+        session = manager.get_session(args.session_id)
+    except Exception:
+        session = None
+
+    if not session:
+        console.print(f"[red]✗ Session not found:[/red] {args.session_id}")
+        sys.exit(1)
+
+    # Display session header
+    console.print("\n[bold cyan]Session Debug Information[/bold cyan]")
+    console.print(f"[dim]Session ID:[/dim] {session.id}")
+    console.print(f"[dim]Agent:[/dim] {session.agent}")
+    console.print(f"[dim]Status:[/dim] {session.status}")
+    console.print(
+        f"[dim]Started:[/dim] {session.started_at.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    # Check for errors
+    errors = session.error_log
+    if not errors:
+        console.print("\n[green]✓ No errors in session[/green]")
+        return
+
+    console.print(f"\n[bold yellow]Errors ({len(errors)})[/bold yellow]")
+
+    for i, error in enumerate(errors, 1):
+        # Error header
+        console.print(
+            f"\n[bold]Error {i}[/bold] [{error.timestamp.strftime('%H:%M:%S')}]"
+        )
+        console.print(f"[red]{error.error_type}[/red]: {error.message}")
+
+        # Tool information
+        if error.tool:
+            console.print(f"[dim]Tool:[/dim] {error.tool}")
+
+        # Context information
+        if error.context:
+            console.print(f"[dim]Context:[/dim] {error.context}")
+
+        # Full traceback
+        if error.traceback:
+            console.print("\n[dim]Traceback:[/dim]")
+            console.print(f"[dim]{error.traceback}[/dim]")
+
+        console.print("[dim]─" * 80 + "[/dim]")
+
+    # Summary
+    console.print("\n[bold cyan]Summary[/bold cyan]")
+    console.print(f"[dim]Total errors:[/dim] {len(errors)}")
+    error_types: dict[str, int] = {}
+    for error in errors:
+        error_types[error.error_type] = error_types.get(error.error_type, 0) + 1
+    for error_type, count in sorted(error_types.items()):
+        console.print(f"[dim]  - {error_type}:[/dim] {count}")
 
 
 # =========================================================================
@@ -1974,27 +2186,33 @@ def cmd_transcript_patterns(args: argparse.Namespace) -> None:
             )
         )
     else:
-        print("Workflow Patterns Detected")
-        print("=" * 50)
-
         optimal = [p for p in patterns if p.category == "optimal"]
         anti = [p for p in patterns if p.category == "anti-pattern"]
         neutral = [p for p in patterns if p.category == "neutral"][:10]
 
+        content = ""
         if optimal:
-            print("\n✅ Optimal Patterns:")
+            content += "✅ Optimal Patterns:\n"
             for p in optimal:
-                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+                content += f"   {' → '.join(p.sequence)} ({p.count}x)\n"
 
         if anti:
-            print("\n⚠️ Anti-Patterns:")
+            content += "\n⚠️  Anti-Patterns:\n"
             for p in anti:
-                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+                content += f"   {' → '.join(p.sequence)} ({p.count}x)\n"
 
         if neutral:
-            print("\n📊 Common Patterns:")
+            content += "\n📊 Common Patterns:\n"
             for p in neutral:
-                print(f"   {' → '.join(p.sequence)} ({p.count}x)")
+                content += f"   {' → '.join(p.sequence)} ({p.count}x)\n"
+
+        console.print(
+            Panel(
+                content.strip(),
+                title="Workflow Patterns Detected",
+                border_style="green",
+            )
+        )
 
 
 def cmd_transcript_transitions(args: argparse.Namespace) -> None:
@@ -2009,11 +2227,6 @@ def cmd_transcript_transitions(args: argparse.Namespace) -> None:
     if args.format == "json":
         print(json.dumps(transitions, indent=2))
     else:
-        print("Tool Transition Matrix")
-        print("=" * 50)
-        print("(from_tool → to_tool: count)")
-        print()
-
         # Flatten and sort
         flat = []
         for from_tool, tos in transitions.items():
@@ -2022,9 +2235,23 @@ def cmd_transcript_transitions(args: argparse.Namespace) -> None:
 
         flat.sort(key=lambda x: -x[2])
 
+        # Create Rich table
+        table = Table(
+            title="Tool Transition Matrix",
+            show_header=True,
+            header_style="bold magenta",
+            box=box.ROUNDED,
+        )
+        table.add_column("From Tool", style="cyan", width=12)
+        table.add_column("To Tool", style="blue", width=12)
+        table.add_column("Count", justify="right", style="yellow", width=6)
+        table.add_column("Visual", style="green")
+
         for from_t, to_t, count in flat[:20]:
             bar = "█" * min(count, 20)
-            print(f"  {from_t:12} → {to_t:12} {count:4} {bar}")
+            table.add_row(from_t, to_t, str(count), bar)
+
+        console.print(table)
 
 
 def cmd_transcript_recommendations(args: argparse.Namespace) -> None:
@@ -2041,10 +2268,10 @@ def cmd_transcript_recommendations(args: argparse.Namespace) -> None:
     if args.format == "json":
         print(json.dumps({"recommendations": recommendations}, indent=2))
     else:
-        print("Workflow Recommendations")
-        print("=" * 50)
-        for rec in recommendations:
-            print(f"  {rec}")
+        content = "\n".join([f"  • {rec}" for rec in recommendations])
+        console.print(
+            Panel(content, title="Workflow Recommendations", border_style="yellow")
+        )
 
 
 def cmd_transcript_insights(args: argparse.Namespace) -> None:
@@ -2071,24 +2298,43 @@ def cmd_transcript_insights(args: argparse.Namespace) -> None:
             )
         )
     else:
-        print("📊 Transcript Insights")
-        print("=" * 50)
-        print(f"Sessions Analyzed: {insights.total_sessions}")
-        print(f"Total User Messages: {insights.total_user_messages}")
-        print(f"Total Tool Calls: {insights.total_tool_calls}")
-        print(f"Avg Session Health: {insights.avg_session_health:.0%}")
-        print()
+        # Summary panel
+        summary = (
+            f"Sessions Analyzed: {insights.total_sessions}\n"
+            f"Total User Messages: {insights.total_user_messages}\n"
+            f"Total Tool Calls: {insights.total_tool_calls}\n"
+            f"Avg Session Health: {insights.avg_session_health:.0%}"
+        )
+        console.print(
+            Panel(summary, title="📊 Transcript Insights", border_style="cyan")
+        )
 
+        # Top tools table
         if insights.tool_frequency:
-            print("🔧 Top Tools:")
+            table = Table(
+                title="🔧 Top Tools",
+                show_header=True,
+                header_style="bold magenta",
+                box=box.ROUNDED,
+            )
+            table.add_column("Tool", style="cyan", width=15)
+            table.add_column("Count", justify="right", style="yellow", width=6)
+            table.add_column("Visual", style="green")
+
             for tool, count in list(insights.tool_frequency.items())[:8]:
                 bar = "█" * min(count // 5, 15)
-                print(f"   {tool:15} {count:4} {bar}")
+                table.add_row(tool, str(count), bar)
 
-        print()
-        print("💡 Recommendations:")
-        for rec in insights.recommendations[:5]:
-            print(f"   {rec}")
+            console.print(table)
+
+        # Recommendations panel
+        if insights.recommendations:
+            rec_content = "\n".join(
+                [f"   {rec}" for rec in insights.recommendations[:5]]
+            )
+            console.print(
+                Panel(rec_content, title="💡 Recommendations", border_style="yellow")
+            )
 
 
 def cmd_transcript_export(args: argparse.Namespace) -> None:
@@ -2210,18 +2456,34 @@ def cmd_track(args: argparse.Namespace) -> None:
     """Track an activity in the current session."""
     import json
 
+    from pydantic import ValidationError
+
     from htmlgraph import SDK
+    from htmlgraph.pydantic_models import ActivityTrackInput
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = ActivityTrackInput(
+            tool=args.tool,
+            summary=args.summary,
+            files=args.files,
+            session=args.session,
+            failed=args.failed,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
 
     agent = os.environ.get("HTMLGRAPH_AGENT")
     sdk = SDK(directory=args.graph_dir, agent=agent)
 
     try:
         entry = sdk.track_activity(
-            tool=args.tool,
-            summary=args.summary,
-            file_paths=args.files,
-            success=not args.failed,
-            session_id=args.session,  # None if not specified, SDK will find active session
+            tool=input_data.tool,
+            summary=input_data.summary,
+            file_paths=input_data.files,
+            success=not input_data.failed,
+            session_id=input_data.session,  # None if not specified, SDK will find active session
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -2664,160 +2926,120 @@ def cmd_agent_list(args: argparse.Namespace) -> None:
 
 def cmd_feature_create(args: argparse.Namespace) -> None:
     """Create a new feature."""
-    import json
+    from pydantic import ValidationError
 
-    from htmlgraph.sdk import SDK
-
-    # Use SDK for feature creation (which now handles logging)
-    sdk = SDK(directory=args.graph_dir, agent=args.agent)
+    from htmlgraph.cli_commands.feature import FeatureCreateCommand
+    from htmlgraph.pydantic_models import FeatureCreateInput
+    from htmlgraph.validation import display_validation_error
 
     try:
-        # Determine collection (features -> create builder, others -> manual create?)
-        # For now, only 'features' has a builder in SDK.features.create()
-        # But BaseCollection doesn't have create().
-
-        # If collection is 'features', use builder
-        if args.collection == "features":
-            builder = sdk.features.create(
-                title=args.title,
-                description=args.description or "",
-                priority=args.priority,
-            )
-            if args.steps:
-                builder.add_steps(args.steps)
-            node = builder.save()
-        else:
-            # Fallback to SessionManager directly for non-feature collections
-            # (or extend SDK to support create on all collections)
-            # For consistency with old CLI, we use SessionManager here if not features.
-            # But wait, SDK initializes SessionManager.
-
-            # Creating bugs/chores via SDK isn't fully fluent yet.
-            # Let's use the low-level SessionManager.create_feature logic for now via SDK's session_manager
-            # IF we want to strictly use SDK. But SDK.session_manager IS exposed now.
-            node = sdk.session_manager.create_feature(
-                title=args.title,
-                collection=args.collection,
-                description=args.description or "",
-                priority=args.priority,
-                steps=args.steps,
-                agent=args.agent,
-            )
-
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        input_data = FeatureCreateInput(
+            title=args.title,
+            description=args.description,
+            priority=args.priority,
+            steps=args.steps,
+            collection=args.collection,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
         sys.exit(1)
 
-    if args.format == "json":
-        from htmlgraph.converter import node_to_dict
+    # Convert steps count to list of step names (e.g., 3 -> ["Step 1", "Step 2", "Step 3"])
+    step_names = None
+    if input_data.steps:
+        step_names = [f"Step {i + 1}" for i in range(input_data.steps)]
 
-        print(json.dumps(node_to_dict(node), indent=2))
-    else:
-        print(f"Created: {node.id}")
-        print(f"  Title: {node.title}")
-        print(f"  Status: {node.status}")
-        print(f"  Path: {args.graph_dir}/{args.collection}/{node.id}.html")
+    command = FeatureCreateCommand(
+        collection=input_data.collection,
+        title=input_data.title,
+        description=input_data.description or "",
+        priority=input_data.priority,
+        steps=step_names,
+    )
+    command.run(graph_dir=args.graph_dir, agent=args.agent, output_format=args.format)
 
 
 def cmd_feature_start(args: argparse.Namespace) -> None:
     """Start working on a feature."""
-    import json
+    from pydantic import ValidationError
 
-    from htmlgraph.sdk import SDK
-
-    sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    collection = getattr(sdk, args.collection, None)
-
-    if not collection:
-        print(
-            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
-        )
-        sys.exit(1)
+    from htmlgraph.cli_commands.feature import FeatureStartCommand
+    from htmlgraph.pydantic_models import FeatureStartInput
+    from htmlgraph.validation import display_validation_error
 
     try:
-        node = collection.start(args.id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    if node is None:
-        print(
-            f"Error: Feature '{args.id}' not found in {args.collection}.",
-            file=sys.stderr,
+        input_data = FeatureStartInput(
+            feature_id=args.id,
+            collection=args.collection,
         )
+    except ValidationError as e:
+        display_validation_error(e)
         sys.exit(1)
 
-    if args.format == "json":
-        from htmlgraph.converter import node_to_dict
-
-        print(json.dumps(node_to_dict(node), indent=2))
-    else:
-        print(f"Started: {node.id}")
-        print(f"  Title: {node.title}")
-        print(f"  Status: {node.status}")
-
-        # Show WIP status
-        status = sdk.session_manager.get_status()
-        print(f"  WIP: {status['wip_count']}/{status['wip_limit']}")
+    command = FeatureStartCommand(
+        collection=input_data.collection,
+        feature_id=input_data.feature_id,
+    )
+    command.run(graph_dir=args.graph_dir, agent=args.agent, output_format=args.format)
 
 
 def cmd_feature_complete(args: argparse.Namespace) -> None:
     """Mark a feature as complete."""
-    import json
+    from pydantic import ValidationError
 
-    from htmlgraph.sdk import SDK
-
-    sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    collection = getattr(sdk, args.collection, None)
-
-    if not collection:
-        print(
-            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
-        )
-        sys.exit(1)
+    from htmlgraph.cli_commands.feature import FeatureCompleteCommand
+    from htmlgraph.pydantic_models import FeatureCompleteInput
+    from htmlgraph.validation import display_validation_error
 
     try:
-        node = collection.complete(args.id)
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    if node is None:
-        print(
-            f"Error: Feature '{args.id}' not found in {args.collection}.",
-            file=sys.stderr,
+        input_data = FeatureCompleteInput(
+            feature_id=args.id,
+            collection=args.collection,
         )
+    except ValidationError as e:
+        display_validation_error(e)
         sys.exit(1)
 
-    if args.format == "json":
-        from htmlgraph.converter import node_to_dict
-
-        print(json.dumps(node_to_dict(node), indent=2))
-    else:
-        print(f"Completed: {node.id}")
-        print(f"  Title: {node.title}")
+    command = FeatureCompleteCommand(
+        collection=input_data.collection,
+        feature_id=input_data.feature_id,
+    )
+    command.run(graph_dir=args.graph_dir, agent=args.agent, output_format=args.format)
 
 
 def cmd_feature_primary(args: argparse.Namespace) -> None:
     """Set the primary feature for attribution."""
     import json
 
+    from pydantic import ValidationError
+
+    from htmlgraph.pydantic_models import FeaturePrimaryInput
     from htmlgraph.sdk import SDK
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = FeaturePrimaryInput(
+            feature_id=args.id,
+            collection=args.collection,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
 
     # Only FeatureCollection has set_primary currently
-    if args.collection == "features":
-        node = sdk.features.set_primary(args.id)
+    if input_data.collection == "features":
+        node = sdk.features.set_primary(input_data.feature_id)
     else:
         # Fallback to direct session manager for other collections
         node = sdk.session_manager.set_primary_feature(
-            args.id, collection=args.collection, agent=args.agent
+            input_data.feature_id, collection=input_data.collection, agent=args.agent
         )
 
     if node is None:
         print(
-            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            f"Error: Feature '{input_data.feature_id}' not found in {input_data.collection}.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -2835,26 +3057,40 @@ def cmd_feature_claim(args: argparse.Namespace) -> None:
     """Claim a feature."""
     import json
 
+    from pydantic import ValidationError
+
+    from htmlgraph.pydantic_models import FeatureClaimInput
     from htmlgraph.sdk import SDK
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = FeatureClaimInput(
+            feature_id=args.id,
+            collection=args.collection,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    collection = getattr(sdk, args.collection, None)
+    collection = getattr(sdk, input_data.collection, None)
 
     if not collection:
         print(
-            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
+            f"Error: Collection '{input_data.collection}' not found in SDK.",
+            file=sys.stderr,
         )
         sys.exit(1)
 
     try:
-        node = collection.claim(args.id)
+        node = collection.claim(input_data.feature_id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     if node is None:
         print(
-            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            f"Error: Feature '{input_data.feature_id}' not found in {input_data.collection}.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -2873,26 +3109,40 @@ def cmd_feature_release(args: argparse.Namespace) -> None:
     """Release a feature."""
     import json
 
+    from pydantic import ValidationError
+
+    from htmlgraph.pydantic_models import FeatureReleaseInput
     from htmlgraph.sdk import SDK
+    from htmlgraph.validation import display_validation_error
+
+    try:
+        input_data = FeatureReleaseInput(
+            feature_id=args.id,
+            collection=args.collection,
+        )
+    except ValidationError as e:
+        display_validation_error(e)
+        sys.exit(1)
 
     sdk = SDK(directory=args.graph_dir, agent=args.agent)
-    collection = getattr(sdk, args.collection, None)
+    collection = getattr(sdk, input_data.collection, None)
 
     if not collection:
         print(
-            f"Error: Collection '{args.collection}' not found in SDK.", file=sys.stderr
+            f"Error: Collection '{input_data.collection}' not found in SDK.",
+            file=sys.stderr,
         )
         sys.exit(1)
 
     try:
-        node = collection.release(args.id)
+        node = collection.release(input_data.feature_id)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     if node is None:
         print(
-            f"Error: Feature '{args.id}' not found in {args.collection}.",
+            f"Error: Feature '{input_data.feature_id}' not found in {input_data.collection}.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -3193,11 +3443,10 @@ def cmd_cigs_reset_violations(args: argparse.Namespace) -> None:
 
     # Confirm reset
     if not args.yes:
-        print(f"Current violations: {summary.total_violations}")
-        print(f"Total waste: {summary.total_waste_tokens} tokens")
-        response = input("\nReset violations for current session? [y/N]: ")
-        if response.lower() not in ("y", "yes"):
-            print("Reset cancelled")
+        console.print(f"Current violations: {summary.total_violations}")
+        console.print(f"Total waste: {summary.total_waste_tokens} tokens")
+        if not Confirm.ask("\nReset violations for current session?", default=False):
+            console.print("Reset cancelled")
             return
 
     # Clear violations file
@@ -3228,14 +3477,14 @@ def cmd_publish(args: argparse.Namespace) -> None:
         shutil.rmtree(dist_dir)
 
     # 2. Build
-    print("Building package with uv...")
+    console.print("Building package with uv...", style="blue")
     try:
         subprocess.run(["uv", "build"], check=True)
     except subprocess.CalledProcessError:
-        print("Error: Build failed.", file=sys.stderr)
+        console.print("[red]Error: Build failed.[/red]")
         sys.exit(1)
     except FileNotFoundError:
-        print("Error: 'uv' command not found.", file=sys.stderr)
+        console.print("[red]Error: 'uv' command not found.[/red]")
         sys.exit(1)
 
     # 3. Publish
@@ -3316,39 +3565,61 @@ def cmd_feature_list(args: argparse.Namespace) -> None:
     else:
         if not nodes:
             if not args.quiet:
-                print(
-                    f"No features found with status '{args.status}'."
+                console.print(
+                    f"[yellow]No features found with status '{args.status}'.[/yellow]"
                     if args.status
-                    else "No features found."
+                    else "[yellow]No features found.[/yellow]"
                 )
             return
 
-        # Header (skip if quiet)
+        # Create Rich table (skip if quiet)
         if not args.quiet:
-            print(f"{'ID':<25} {'Status':<12} {'Priority':<10} {'Title'}")
-            print("=" * 80)
+            table = Table(
+                title="Features",
+                show_header=True,
+                header_style="bold magenta",
+                box=box.ROUNDED,
+            )
+            table.add_column("ID", style="cyan", no_wrap=True, width=25)
+            table.add_column("Status", style="green", width=12)
+            table.add_column("Priority", style="yellow", width=10)
+            table.add_column("Title", style="white")
 
-        # List features
-        for node in nodes:
-            title = node.title[:35] + "..." if len(node.title) > 38 else node.title
-            print(f"{node.id:<25} {node.status:<12} {node.priority:<10} {title}")
+            # List features
+            for node in nodes:
+                title = node.title[:35] + "..." if len(node.title) > 38 else node.title
+                table.add_row(node.id, node.status, node.priority or "-", title)
 
-        # Verbose output
+            console.print(table)
+        else:
+            # Quiet mode - simple output without table
+            for node in nodes:
+                print(f"{node.id}\t{node.status}\t{node.priority}\t{node.title}")
+
+        # Verbose output with Rich.Panel
         if args.verbose >= 1:
-            print("\n--- Verbose Details ---")
-            print(f"Total features: {len(nodes)}")
-            print(f"Graph directory: {args.graph_dir}")
+            details = f"Total features: {len(nodes)}\nGraph directory: {args.graph_dir}"
             if args.status:
-                print(f"Filtered by status: {args.status}")
+                details += f"\nFiltered by status: {args.status}"
+
+            console.print(Panel(details, title="Verbose Details", border_style="cyan"))
 
         if args.verbose >= 2:
-            print("\nFeature breakdown by status:")
             from collections import Counter
 
             status_counts = Counter(n.status for n in sdk.features.all())
-            for status, count in sorted(status_counts.items()):
-                marker = "→" if status == args.status else " "
-                print(f"  {marker} {status}: {count}")
+            breakdown = "\n".join(
+                [
+                    f"  {'→' if status == args.status else ' '} {status}: {count}"
+                    for status, count in sorted(status_counts.items())
+                ]
+            )
+
+            console.print(
+                Panel(
+                    breakdown, title="Feature Breakdown by Status", border_style="blue"
+                )
+            )
 
 
 # =============================================================================
@@ -3377,7 +3648,7 @@ def cmd_feature_step_complete(args: argparse.Namespace) -> None:
     step_indices = sorted(set(step_indices))
 
     if not step_indices:
-        print("Error: No step indices provided", file=sys.stderr)
+        console.print("[red]Error: No step indices provided[/red]")
         sys.exit(1)
 
     # Make API requests for each step
@@ -3463,14 +3734,13 @@ def cmd_feature_delete(args: argparse.Namespace) -> None:
 
     # Confirmation prompt (unless --yes flag)
     if not args.yes:
-        print(f"Delete {args.collection.rstrip('s')} '{args.id}'?")
-        print(f"  Title: {feature.title}")
-        print(f"  Status: {feature.status}")
-        print("\nThis cannot be undone. Continue? [y/N] ", end="")
+        console.print(f"Delete {args.collection.rstrip('s')} '{args.id}'?")
+        console.print(f"  Title: {feature.title}")
+        console.print(f"  Status: {feature.status}")
+        console.print("\n[bold red]This cannot be undone.[/bold red]")
 
-        response = input().strip().lower()
-        if response not in ("y", "yes"):
-            print("Cancelled")
+        if not Confirm.ask("Continue?", default=False):
+            console.print("Cancelled")
             sys.exit(0)
 
     # Delete
@@ -3545,12 +3815,23 @@ def cmd_track_list(args: argparse.Namespace) -> None:
         print(json.dumps({"tracks": track_ids}, indent=2))
     else:
         if not track_ids:
-            print("No tracks found.")
-            print("\nCreate a track with: htmlgraph track new 'Track Title'")
+            console.print("[yellow]No tracks found.[/yellow]")
+            console.print(
+                "\n[dim]Create a track with: htmlgraph track new 'Track Title'[/dim]"
+            )
             return
 
-        print(f"Tracks in {args.graph_dir}/tracks/:")
-        print("=" * 60)
+        # Create Rich table
+        table = Table(
+            title=f"Tracks in {args.graph_dir}/tracks/",
+            show_header=True,
+            header_style="bold magenta",
+            box=box.ROUNDED,
+        )
+        table.add_column("Track ID", style="cyan", no_wrap=True)
+        table.add_column("Components", style="green")
+        table.add_column("Format", style="blue")
+
         for track_id in track_ids:
             # Check for both consolidated (single file) and directory-based formats
             track_file = Path(args.graph_dir) / "tracks" / f"{track_id}.html"
@@ -3564,12 +3845,12 @@ def cmd_track_list(args: argparse.Namespace) -> None:
                     or 'data-section="requirements"' in content
                 )
                 has_plan = 'data-section="plan"' in content
-                format_indicator = " (consolidated)"
+                format_type = "consolidated"
             else:
                 # Directory format
                 has_spec = (track_dir / "spec.html").exists()
                 has_plan = (track_dir / "plan.html").exists()
-                format_indicator = ""
+                format_type = "directory"
 
             components = []
             if has_spec:
@@ -3577,8 +3858,11 @@ def cmd_track_list(args: argparse.Namespace) -> None:
             if has_plan:
                 components.append("plan")
 
-            components_str = f" [{', '.join(components)}]" if components else " [empty]"
-            print(f"  {track_id}{components_str}{format_indicator}")
+            components_str = ", ".join(components) if components else "empty"
+
+            table.add_row(track_id, components_str, format_type)
+
+        console.print(table)
 
 
 def cmd_track_spec(args: argparse.Namespace) -> None:
@@ -4486,6 +4770,17 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
     session_validate.add_argument(
         "--format", "-f", choices=["text", "json"], default="text", help="Output format"
     )
+    session_validate.set_defaults(func=cmd_session_validate_attribution)
+
+    # session debug
+    session_debug = session_subparsers.add_parser(
+        "debug", help="Show error tracebacks and debug information for a session"
+    )
+    session_debug.add_argument("session_id", help="Session ID to debug")
+    session_debug.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    session_debug.set_defaults(func=cmd_session_debug)
 
     # activity (legacy: was "track")
     activity_parser = subparsers.add_parser(
@@ -6016,14 +6311,17 @@ def cmd_archive_create(args: argparse.Namespace) -> None:
         print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
         sys.exit(1)
 
-    manager = ArchiveManager(htmlgraph_dir)
+    with console.status("[blue]Initializing archive manager...", spinner="dots"):
+        manager = ArchiveManager(htmlgraph_dir)
 
-    # Run archive operation
-    result = manager.archive_entities(
-        older_than_days=args.older_than,
-        period=args.period,
-        dry_run=args.dry_run,
-    )
+    # Run archive operation with status spinner
+    operation = "Previewing" if args.dry_run else "Archiving"
+    with console.status(f"[blue]{operation} entities...", spinner="dots"):
+        result = manager.archive_entities(
+            older_than_days=args.older_than,
+            period=args.period,
+            dry_run=args.dry_run,
+        )
 
     if result["dry_run"]:
         print("\n🔍 DRY RUN - Preview (no changes made)\n")
@@ -6055,26 +6353,55 @@ def cmd_archive_search(args: argparse.Namespace) -> None:
         print(f"Error: Directory not found: {htmlgraph_dir}", file=sys.stderr)
         sys.exit(1)
 
-    manager = ArchiveManager(htmlgraph_dir)
+    with console.status("[blue]Initializing archive manager...", spinner="dots"):
+        manager = ArchiveManager(htmlgraph_dir)
 
-    # Search archives
-    results = manager.search(args.query, limit=args.limit)
+    # Search archives with status spinner
+    with console.status(
+        f"[blue]Searching archives for '{args.query}'...", spinner="dots"
+    ):
+        results = manager.search(args.query, limit=args.limit)
 
     if args.format == "json":
         print(json.dumps({"query": args.query, "results": results}, indent=2))
     else:
-        print(f"\n🔍 Search results for: '{args.query}'\n")
-        print(f"Found {len(results)} result(s):\n")
+        console.print(f"\n🔍 Search results for: '{args.query}'\n")
+        console.print(f"Found {len(results)} result(s):\n")
 
-        for i, result in enumerate(results, 1):
-            print(f"{i}. {result['entity_id']} ({result['entity_type']})")
-            print(f"   Archive: {result['archive_file']}")
-            print(f"   Status: {result['status']}")
-            print(f"   Title: {result['title_snippet']}")
-            if result["description_snippet"]:
-                print(f"   Description: {result['description_snippet']}")
-            print(f"   Relevance: {result['rank']:.2f}")
-            print()
+        # Use progress bar for large result sets
+        if len(results) > 10:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+                transient=True,
+            ) as progress:
+                task = progress.add_task("Displaying results...", total=len(results))
+                for i, result in enumerate(results, 1):
+                    console.print(
+                        f"{i}. {result['entity_id']} ({result['entity_type']})"
+                    )
+                    console.print(f"   Archive: {result['archive_file']}")
+                    console.print(f"   Status: {result['status']}")
+                    console.print(f"   Title: {result['title_snippet']}")
+                    if result["description_snippet"]:
+                        console.print(
+                            f"   Description: {result['description_snippet']}"
+                        )
+                    console.print(f"   Relevance: {result['rank']:.2f}")
+                    console.print()
+                    progress.update(task, advance=1)
+        else:
+            # No progress bar for small result sets
+            for i, result in enumerate(results, 1):
+                console.print(f"{i}. {result['entity_id']} ({result['entity_type']})")
+                console.print(f"   Archive: {result['archive_file']}")
+                console.print(f"   Status: {result['status']}")
+                console.print(f"   Title: {result['title_snippet']}")
+                if result["description_snippet"]:
+                    console.print(f"   Description: {result['description_snippet']}")
+                console.print(f"   Relevance: {result['rank']:.2f}")
+                console.print()
 
     manager.close()
 

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix: Use documented Claude Code plugin commands</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a19e2489"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T18:25:49.335770"
+             data-updated="2026-01-04T18:25:49.335774" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Fix: Use documented Claude Code plugin commands</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Problem
+Plugin installation workflow used undocumented `@latest` syntax:
+- ❌ `claude plugin install htmlgraph@latest` (not documented)
+- ❌ Unnecessary uninstall/cache clearing steps
+- ❌ Complex 4-step process prone to errors
+
+## Research
+Spike spk-d7026270 confirmed:
+- ✅ `claude plugin update` is documented as "Update to latest version"
+- ✅ Simpler, more reliable workflow
+- ❌ `@latest` syntax not found in official docs
+
+## Solution
+Simplified workflow to 2 steps:
+1. `claude plugin marketplace update htmlgraph` - Update marketplace index
+2. `claude plugin update htmlgraph` - Update to latest (or fallback to install if not present)
+
+## Implementation
+**File**: `src/python/htmlgraph/cli.py`
+**Function**: `install_htmlgraph_plugin()`
+
+**Changes**:
+- Removed: Uninstall step (unnecessary)
+- Removed: Cache clearing step (unnecessary)
+- Removed: `htmlgraph@latest` syntax (undocumented)
+- Added: Try `update` first, fallback to `install` if needed
+- Improved: Error handling for both paths
+
+**New workflow**:
+```python
+# Step 1: Update marketplace
+subprocess.run(["claude", "plugin", "marketplace", "update", "htmlgraph"])
+
+# Step 2: Try update (documented), fallback to install
+result = subprocess.run(["claude", "plugin", "update", "htmlgraph"])
+if result.returncode != 0 and "not installed" in result.stderr:
+    subprocess.run(["claude", "plugin", "install", "htmlgraph"])
+```
+
+## Benefits
+- ✅ Uses only documented commands
+- ✅ Simpler 2-step process (was 4 steps)
+- ✅ More reliable (no cache manipulation)
+- ✅ Graceful fallback if plugin not yet installed
+- ✅ Better error messages
+
+## Testing
+- All plugin-related tests pass (31 tests)
+- Code quality checks pass (ruff, mypy)
+- Ready for deployment
+
+## Impact
+This fix makes plugin installation:
+- More reliable (uses official API)
+- Easier to maintain (fewer steps)
+- Better UX (clearer messages)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

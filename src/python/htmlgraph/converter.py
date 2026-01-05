@@ -595,6 +595,47 @@ def html_to_session(filepath: Path | str) -> Session:
 
     data["detected_patterns"] = detected_patterns
 
+    # Parse error log from error section (if present)
+    error_log = []
+    for details in parser.query("section[data-error-log] details"):
+        error_data = {
+            "error_type": details.attrs.get("data-error-type", "Unknown"),
+            "message": "",
+            "traceback": None,
+        }
+
+        ts = details.attrs.get("data-ts")
+        if ts:
+            error_data["timestamp"] = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+        tool = details.attrs.get("data-tool")
+        if tool:
+            error_data["tool"] = tool
+
+        # Parse summary text (first line of details)
+        summary_el_results = details.query("summary")
+        summary_el = summary_el_results[0] if summary_el_results else None
+        if summary_el:
+            summary_text = summary_el.to_text().strip()
+            # Extract message from "ErrorType: message" format
+            if ": " in summary_text:
+                error_data["message"] = summary_text.split(": ", 1)[1]
+            else:
+                error_data["message"] = summary_text
+
+        # Parse traceback (if present)
+        traceback_el_results = details.query("pre.traceback")
+        traceback_el = traceback_el_results[0] if traceback_el_results else None
+        if traceback_el:
+            error_data["traceback"] = traceback_el.to_text().strip()
+
+        if error_data.get("message") or error_data.get("traceback"):
+            from htmlgraph.models import ErrorEntry
+
+            error_log.append(ErrorEntry(**error_data))
+
+    data["error_log"] = error_log
+
     return Session(**data)
 
 

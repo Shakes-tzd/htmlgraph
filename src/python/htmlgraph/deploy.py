@@ -16,14 +16,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
+from rich.console import Console
+from rich.prompt import Confirm
 
-# ANSI color codes
-class Colors:
-    RED = "\033[0;31m"
-    GREEN = "\033[0;32m"
-    YELLOW = "\033[1;33m"
-    BLUE = "\033[0;34m"
-    NC = "\033[0m"  # No Color
+# Global Rich Console for beautiful CLI output
+console = Console()
 
 
 @dataclass
@@ -157,27 +154,25 @@ class Deployer:
 
     def log_section(self, message: str) -> None:
         """Log a section header."""
-        print()
-        print(f"{Colors.BLUE}{'=' * 60}{Colors.NC}")
-        print(f"{Colors.BLUE}{message}{Colors.NC}")
-        print(f"{Colors.BLUE}{'=' * 60}{Colors.NC}")
-        print()
+        console.print()
+        console.print(f"[bold blue]{message}[/bold blue]")
+        console.print()
 
     def log_success(self, message: str) -> None:
         """Log a success message."""
-        print(f"{Colors.GREEN}✅ {message}{Colors.NC}")
+        console.print(f"[green]✅ {message}[/green]")
 
     def log_error(self, message: str) -> None:
         """Log an error message."""
-        print(f"{Colors.RED}❌ {message}{Colors.NC}")
+        console.print(f"[red]❌ {message}[/red]")
 
     def log_warning(self, message: str) -> None:
         """Log a warning message."""
-        print(f"{Colors.YELLOW}⚠️  {message}{Colors.NC}")
+        console.print(f"[yellow]⚠️  {message}[/yellow]")
 
     def log_info(self, message: str) -> None:
         """Log an info message."""
-        print(f"ℹ️  {message}")
+        console.print(f"[cyan]ℹ️  {message}[/cyan]")
 
     def run_command(
         self,
@@ -205,6 +200,7 @@ class Deployer:
         except subprocess.CalledProcessError as e:
             self.log_error(f"Command failed: {' '.join(cmd)}")
             if e.stderr:
+                # Print error to stderr directly (console.print doesn't support file parameter)
                 print(e.stderr, file=sys.stderr)
             raise
 
@@ -242,8 +238,7 @@ class Deployer:
         if result.returncode != 0:
             self.log_warning("You have uncommitted changes")
             if not self.dry_run:
-                response = input("Continue anyway? (y/n) ")
-                if response.lower() != "y":
+                if not Confirm.ask("Continue anyway?", default=False):
                     sys.exit(1)
 
         # Push to remote
@@ -286,7 +281,7 @@ class Deployer:
             if dist_dir.exists():
                 self.log_info("Build artifacts:")
                 for file in dist_dir.iterdir():
-                    print(f"  - {file.name}")
+                    console.print(f"[dim]  - {file.name}[/dim]")
 
     def _step_pypi_publish(self) -> None:
         """Publish to PyPI."""
@@ -324,8 +319,7 @@ class Deployer:
                 f"PyPI token not found (looking for {token_var} or UV_PUBLISH_TOKEN)"
             )
             if not self.dry_run:
-                response = input("Continue anyway? (y/n) ")
-                if response.lower() != "y":
+                if not Confirm.ask("Continue anyway?", default=False):
                     sys.exit(1)
 
         # Publish
@@ -464,7 +458,7 @@ class Deployer:
         # Summary
         self.log_section("Deployment Complete! 🎉")
         self.log_success("All deployment steps completed successfully!")
-        print()
+        console.print()
 
 
 def create_deployment_config_template(output_path: Path) -> None:
@@ -526,7 +520,12 @@ post_publish = []
 """
 
     output_path.write_text(template)
-    print(f"✅ Created deployment config template: {output_path}")
-    print("\nNext steps:")
-    print("1. Edit htmlgraph-deploy.toml to customize your deployment")
-    print("2. Run: htmlgraph deploy run")
+    console.print(
+        f"[green]✅ Created deployment config template: {output_path}[/green]"
+    )
+    console.print()
+    console.print("[bold cyan]Next steps:[/bold cyan]")
+    console.print(
+        "[dim]1. Edit htmlgraph-deploy.toml to customize your deployment[/dim]"
+    )
+    console.print("[dim]2. Run: htmlgraph deploy run[/dim]")

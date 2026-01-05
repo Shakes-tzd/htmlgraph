@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Claude Code Plugin Installation Syntax Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-66f060a0"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T18:22:35.693032"
+             data-updated="2026-01-04T18:22:35.693037" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Claude Code Plugin Installation Syntax Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Claude Code Plugin Installation Syntax Verification
+
+## CORRECT SYNTAX
+
+Based on CLI help output and existing documentation:
+
+### Install Plugin
+```bash
+# Install from marketplace (no version specifier supported in help)
+claude plugin install htmlgraph
+
+# Install from specific marketplace
+claude plugin install htmlgraph@marketplace-name
+
+# Install with specific version (example in deployment.md)
+claude plugin install htmlgraph@0.3.0
+```
+
+### Update Plugin
+```bash
+# Update to latest version
+claude plugin update htmlgraph
+```
+
+### Update Marketplace
+```bash
+# Update all marketplaces
+claude plugin marketplace update
+
+# Update specific marketplace
+claude plugin marketplace update marketplace-name
+```
+
+## FINDINGS
+
+### 1. Version Specifiers
+- **@latest is NOT documented** in the CLI help output
+- The help shows: `plugin@marketplace` syntax for marketplace selection
+- Example in deployment.md shows: `claude plugin install htmlgraph@0.3.0`
+- **Conclusion**: Version specifiers appear to work (e.g., @0.3.0), but @latest is unconfirmed
+
+### 2. Default Behavior
+- `claude plugin install htmlgraph` (no version) likely installs latest from marketplace
+- `claude plugin update htmlgraph` explicitly states "Update a plugin to the latest version"
+
+### 3. CLI Command Structure
+From `claude plugin install --help`:
+```
+Usage: claude plugin install|i [options] <plugin>
+
+Install a plugin from available marketplaces (use plugin@marketplace for
+specific marketplace)
+
+Options:
+  -s, --scope <scope>  Installation scope: user, project, or local (default: "user")
+```
+
+From `claude plugin update --help`:
+```
+Usage: claude plugin update [options] <plugin>
+
+Update a plugin to the latest version (restart required to apply)
+```
+
+### 4. Marketplace Commands
+```bash
+claude plugin marketplace update [name]  # Updates all if no name specified
+```
+
+## RECOMMENDATION
+
+**CORRECT SYNTAX FOR LATEST VERSION:**
+```bash
+# Option 1: Install (gets latest from marketplace)
+claude plugin install htmlgraph
+
+# Option 2: Update existing plugin to latest
+claude plugin update htmlgraph
+
+# Option 3: Update marketplace first, then install
+claude plugin marketplace update
+claude plugin install htmlgraph
+```
+
+**AVOID:**
+```bash
+# Unconfirmed - @latest not documented
+claude plugin install htmlgraph@latest  # May or may not work
+```
+
+## DOCUMENTATION REFERENCES
+
+- CLI Help: `claude plugin --help`, `claude plugin install --help`
+- GitHub: https://github.com/anthropics/claude-code/blob/main/plugins/README.md
+- Official Docs: https://code.claude.com/docs/en/plugins
+- Community Registry: https://claude-plugins.dev/
+
+## CONCLUSION
+
+The @ syntax is primarily used for **marketplace selection**, not version specification.
+However, deployment.md shows @version working (e.g., @0.3.0).
+
+**SAFEST APPROACH**: Use `claude plugin update htmlgraph` for latest version.
+**ALTERNATIVE**: Use `claude plugin install htmlgraph` (no version = latest from marketplace)
+**UNCONFIRMED**: `claude plugin install htmlgraph@latest` (not in official help)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

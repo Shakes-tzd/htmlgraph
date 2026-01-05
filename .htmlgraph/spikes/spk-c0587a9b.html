@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>CLI Refactoring - Dependency Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c0587a9b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T22:29:51.588613"
+             data-updated="2026-01-04T22:29:51.588617" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>CLI Refactoring - Dependency Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# CLI Refactoring - Dependency Research
+
+## Executive Summary
+
+**Current State:** 6,072-line CLI with argparse + minimal Rich usage
+**Key Finding:** We already have Rich (14.2.0) and Pydantic (2.12.5) installed but severely underutilized
+**Recommendation:** Maximize existing dependencies BEFORE considering framework migration
+
+---
+
+## Installed Dependencies
+
+### CLI-Related Packages (from uv pip list)
+- **Rich 14.2.0** - Terminal formatting, UI components
+  - Currently used: Console (sparingly), Progress, Panel, Table
+  - NOT used: Prompt, Syntax, Tree, Layout, Columns, Markdown, Traceback, Rule, Status (partially)
+  - **Impact potential: HIGH** - Can eliminate 100+ manual formatting lines
+
+- **Pydantic 2.12.5** - Data validation and settings
+  - Currently used: Extensively in models.py (15+ files use BaseModel)
+  - NOT used in CLI: Zero usage for command validation
+  - **Impact potential: MEDIUM** - Could replace manual arg validation (196 `if args.` checks)
+
+- **Click 8.3.1** - WAIT, WE HAVE CLICK INSTALLED!
+  - Currently used: NOWHERE in CLI code
+  - This is a transient dependency (probably from another package)
+  - **Impact potential: MEDIUM** - Already available if we want to migrate
+
+### Other Dependencies
+- justhtml 0.6.0 - HTML generation
+- watchdog 3.0.0 - File system watching
+- jinja2 3.1.0 - Templating
+
+---
+
+## Current CLI Analysis
+
+### File Metrics
+- **Main CLI:** 212,947 bytes (6,072 lines, 79 command functions)
+- **Analytics CLI:** 14,771 bytes (434 lines)
+- **Total parsers:** 101 argparse add_parser/ArgumentParser calls
+- **Print statements:** 698 total print() calls
+- **Manual validations:** 196 `if args.` validation checks
+- **Complex f-strings:** 16 complex formatted print statements
+- **Manual table borders:** 3 instances of manual ─│┌└ characters
+
+### Current Rich Usage
+
+**analytics/cli.py** (EXEMPLARY - shows what we SHOULD do):
+```python
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, BarColumn, etc.
+
+# Beautiful output:
+console = Console()
+table = Table(title="Work Type Distribution", box=box.ROUNDED)
+panel = Panel(f"...", title="📊 Analytics", border_style="cyan")
+with console.status("Computing..."):
+    # work here
+```
+
+**cli.py** (MINIMAL - needs improvement):
+```python
+# Only imports Rich conditionally in 2 places:
+if not quiet:
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, etc.
+    
+# Rest of file: 698 plain print() statements
+```
+
+### Rich Features NOT Used (But Should Be)
+
+**High Value Additions:**
+1. **console.print()** - Replace all 698 print() with Rich formatting
+2. **console.rule()** - Replace manual "─" * 50 separators
+3. **Rich.Prompt** - Replace input() calls (currently 5 instances)
+4. **console.status()** - Already used in analytics, expand usage
+5. **Rich.Syntax** - Code highlighting for errors/examples
+6. **Rich.Traceback** - Better error formatting
+7. **Rich.Markdown** - Render help text beautifully
+
+**Medium Value:**
+8. **Rich.Tree** - Hierarchical data (feature dependencies)
+9. **Rich.Columns** - Multi-column layouts
+10. **Rich.Layout** - Complex dashboard-style UIs
+
+### Pydantic Usage Analysis
+
+**Currently used (extensively):**
+- models.py: Node, Edge, Step, WorkType, SpikeType, MaintenanceType (all BaseModel)
+- 15 files import BaseModel/Field
+- Validation working great for data models
+
+**NOT used in CLI:**
+- Zero Pydantic models for command input validation
+- Could create: SessionStartArgs, FeatureCreateArgs, etc.
+- Would replace manual `if not args.xyz` checks
+
+**Example opportunity:**
+```python
+# Current (manual validation):
+if args.format not in ["text", "json"]:
+    print("Error: format must be text or json")
+    sys.exit(1)
+
+# With Pydantic:
+class AnalyticsArgs(BaseModel):
+    format: Literal["text", "json"] = "text"
+    session_id: str | None = None
+    recent: int = Field(default=10, gt=0, le=100)
+    
+# Automatic validation + better errors!
+```
+
+---
+
+## Previous Research Findings
+
+### Tracks Mentioning CLI
+Found 11 tracks with CLI/framework mentions:
+- trk-6676a644.html - "Progressive Disclosure System"
+- trk-62c9a0fa.html, trk-46d512ab.html, etc.
+
+**Key insight:** No dedicated CLI refactoring track found
+**Action:** This research should spawn a new track
+
+### Spikes
+No spikes specifically about CLI frameworks, argparse alternatives, or Rich/Typer evaluation
+
+**Key insight:** This is the FIRST comprehensive CLI research
+**Action:** Document findings here for future reference
+
+---
+
+## CLI Framework Comparison
+
+### Option 1: Maximize Rich + Argparse (RECOMMENDED)
+
+**What to do:**
+1. Replace all print() with console.print() (698 replacements)
+2. Use Rich.Table everywhere (eliminate manual formatting)
+3. Use Rich.Panel for grouped output
+4. Use Rich.Prompt for user input
+5. Use Rich.Traceback for errors
+6. Keep argparse (stdlib, works fine)
+
+**Effort:** LOW (2-3 days)
+**Risk:** LOW (additive changes, backward compatible)
+**Benefits:**
+- ✅ Better UX immediately
+- ✅ No new dependencies
+- ✅ Leverage existing Rich 14.2.0
+- ✅ Zero breaking changes
+- ✅ Can do incrementally
+
+**Example transformation:**
+```python
+# Before (66 lines of manual table):
+print("Session ID          | Agent  | Status")
+print("-" * 50)
+for session in sessions:
+    print(f"{session.id:20} | {session.agent:6} | {session.status}")
+
+# After (10 lines with Rich):
+table = Table(title="Sessions")
+table.add_column("Session ID")
+table.add_column("Agent")
+table.add_column("Status")
+for session in sessions:
+    table.add_row(session.id, session.agent, session.status)
+console.print(table)
+```
+
+### Option 2: Migrate to Click (MODERATE EFFORT)
+
+**What to do:**
+1. Replace argparse with Click decorators
+2. Still use Rich for output
+3. Get Click features (groups, auto-help, etc.)
+
+**Effort:** MEDIUM (1-2 weeks)
+**Risk:** MEDIUM (breaking changes to CLI structure)
+**Benefits:**
+- ✅ Click already installed (transient dep)
+- ✅ Less boilerplate than argparse
+- ✅ Better help text
+- ⚠️ Requires refactoring all 79 commands
+- ❌ Not type-safe (still need manual validation)
+
+**Why NOT recommended now:**
+- argparse works fine
+- Real problem is output formatting, not arg parsing
+- Can revisit later if needed
+
+### Option 3: Migrate to Typer (LARGER EFFORT)
+
+**What to do:**
+1. Add Typer dependency (built on Click)
+2. Type-safe CLI with Python type hints
+3. Rich integration built-in
+4. Auto-completion support
+
+**Effort:** HIGH (2-3 weeks)
+**Risk:** MEDIUM-HIGH (major refactoring)
+**Benefits:**
+- ✅ Type safety (catches errors at definition time)
+- ✅ Rich integration included
+- ✅ Auto-completion
+- ✅ Less boilerplate
+- ❌ New dependency
+- ❌ Requires rewriting all commands
+- ❌ Team needs to learn Typer patterns
+
+**Example:**
+```python
+# Typer version:
+import typer
+app = typer.Typer()
+
+@app.command()
+def analytics(
+    session_id: str = None,
+    recent: int = 10,
+    format: Literal["text", "json"] = "text"
+):
+    # Type validation automatic!
+    # Rich output automatic!
+```
+
+**Why NOT recommended now:**
+- Maximize existing deps first
+- Can migrate later if needed
+- Typer is great but overkill for current problem
+
+### Option 4: Pydantic for Validation (EXPERIMENTAL)
+
+**What to do:**
+1. Create Pydantic models for command args
+2. Parse argparse Namespace → Pydantic model
+3. Get validation + better errors
+
+**Effort:** LOW-MEDIUM (3-5 days)
+**Risk:** LOW (additive, can coexist with argparse)
+**Benefits:**
+- ✅ Pydantic already installed
+- ✅ Type-safe validation
+- ✅ Better error messages
+- ✅ Can do incrementally
+- ⚠️ Unconventional pattern
+- ⚠️ May confuse contributors
+
+**Example:**
+```python
+class SessionStartArgs(BaseModel):
+    id: str | None = None
+    agent: str = "claude"
+    format: Literal["text", "json"] = "text"
+    
+def cmd_session_start(args: argparse.Namespace):
+    # Validate with Pydantic:
+    try:
+        validated = SessionStartArgs(**vars(args))
+    except ValidationError as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+```
+
+---
+
+## Cost Analysis
+
+### Manual Formatting Duplication
+
+**Current waste:**
+- 698 print() statements (could be console.print with colors/formatting)
+- 3 manual table borders (should be Rich.Table)
+- 16 complex f-strings (could be Rich markup)
+- 196 manual validations (could be Pydantic)
+
+**Estimated impact:**
+- Remove ~200 lines of manual table formatting
+- Improve UX for all 79 commands
+- Better error messages
+- Consistent styling
+
+### Development Time Comparison
+
+**Option 1 (Rich + Argparse):**
+- Phase 1: Global console.print() - 1 day
+- Phase 2: Replace tables/panels - 1 day
+- Phase 3: Better prompts/errors - 1 day
+- **Total: 3 days, incremental value**
+
+**Option 2 (Click):**
+- Rewrite 79 commands - 5 days
+- Test all commands - 2 days
+- Update docs - 1 day
+- **Total: 8 days, big bang**
+
+**Option 3 (Typer):**
+- Learn Typer patterns - 1 day
+- Rewrite 79 commands - 7 days
+- Test all commands - 3 days
+- Update docs - 1 day
+- **Total: 12 days, big bang**
+
+---
+
+## Recommendations
+
+### Priority 1: Maximize Rich (IMMEDIATE - Zero New Deps)
+
+**Phase 1A: Global Console (1 day)**
+1. Create global `console = Console()` instance
+2. Replace all `print()` with `console.print()`
+3. Add colors: `[red]Error[/red]`, `[green]Success[/green]`, etc.
+
+**Impact:** Better UX across all commands, zero breaking changes
+
+**Phase 1B: Tables & Panels (1 day)**
+1. Replace manual table formatting with Rich.Table
+2. Use Rich.Panel for grouped output
+3. Use Rich.Rule instead of "─" * 50
+
+**Impact:** Eliminate ~200 lines of duplication, professional appearance
+
+**Phase 1C: Better Interactions (1 day)**
+1. Replace input() with Rich.Prompt
+2. Add Rich.Traceback for errors
+3. Use console.status() for long operations
+
+**Impact:** Better error messages, progress feedback
+
+### Priority 2: Selective Pydantic Validation (OPTIONAL)
+
+**For complex commands only:**
+1. Create Pydantic models for analytics, session commands
+2. Validate after argparse parsing
+3. Get better error messages
+
+**Impact:** Catch validation errors earlier, better UX
+
+### Priority 3: Consider Framework Migration (FUTURE)
+
+**When to migrate to Click/Typer:**
+- ✅ After maximizing Rich (see full value first)
+- ✅ If team wants type safety
+- ✅ If adding many new commands
+- ✅ If auto-completion is critical
+
+**NOT before:** Proving Rich solves the UX problem
+
+---
+
+## Updated Refactoring Plan
+
+### New Phase 1: Maximize Existing Dependencies (3 days)
+
+**Day 1: Global Rich Console**
+- Create cli_utils.py with global console
+- Replace all print() → console.print()
+- Add basic color coding (errors, success, warnings)
+- **Benefit:** Immediate UX improvement, zero risk
+
+**Day 2: Rich Tables & Panels**
+- Identify all manual table formatting (list, status, analytics)
+- Replace with Rich.Table
+- Use Panel for grouped sections
+- Use Rule for separators
+- **Benefit:** Professional appearance, ~200 lines removed
+
+**Day 3: Rich Prompts & Errors**
+- Replace input() with Rich.Prompt
+- Add Rich.Traceback install
+- Expand console.status() usage
+- Add Rich.Syntax for code examples
+- **Benefit:** Better errors, better interactions
+
+**After Phase 1:** Reassess
+- Measure UX improvement
+- Gather user feedback
+- Decide if framework migration needed
+
+### Phase 2: Selective Pydantic (Optional, 2 days)
+
+**If validation is still painful:**
+- Add Pydantic models for complex commands
+- Parse argparse → Pydantic
+- Better error messages
+
+### Phase 3: Framework Migration (Future, TBD)
+
+**Only if needed:**
+- Evaluate Click vs Typer
+- Pilot with 5 commands
+- Measure impact
+- Full migration if valuable
+
+---
+
+## Success Metrics
+
+**Phase 1 Success Criteria:**
+- ✅ Zero plain print() statements (all console.print)
+- ✅ Zero manual table formatting (all Rich.Table)
+- ✅ All errors use Rich formatting
+- ✅ Consistent color scheme across commands
+- ✅ No breaking changes to command interface
+
+**Measurement:**
+- User feedback on CLI appearance
+- Time to implement (target: 3 days)
+- Lines of code removed (target: 200+)
+- Bugs introduced (target: 0)
+
+---
+
+## Key Insights
+
+1. **We already have Click installed** (transient dep) - migration easier than expected
+2. **Rich severely underutilized** - analytics/cli.py shows the potential
+3. **No previous CLI research** - this is the baseline
+4. **Argparse not the problem** - output formatting is the real issue
+5. **Pydantic already working great** - just not in CLI layer
+
+## Next Steps
+
+1. ✅ Save this spike (documenting research)
+2. Create track: "CLI UX Improvements"
+3. Create feature: "Phase 1A - Global Rich Console"
+4. Start implementation with safeguards:
+   - Work in feature branch
+   - Test each command after conversion
+   - Keep print() fallback if Rich import fails
+
+## References
+
+- Rich docs: https://rich.readthedocs.io/
+- Pydantic docs: https://docs.pydantic.dev/
+- Click docs: https://click.palletsprojects.com/
+- Typer docs: https://typer.tiangolo.com/
+- Current CLI: src/python/htmlgraph/cli.py (6,072 lines)
+- Good example: src/python/htmlgraph/analytics/cli.py (Rich done right)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

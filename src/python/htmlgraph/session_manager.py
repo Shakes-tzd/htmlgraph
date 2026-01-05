@@ -27,7 +27,7 @@ from htmlgraph.event_log import EventRecord, JsonlEventLog
 from htmlgraph.exceptions import SessionNotFoundError
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.ids import generate_id
-from htmlgraph.models import ActivityEntry, Node, Session
+from htmlgraph.models import ActivityEntry, ErrorEntry, Node, Session
 from htmlgraph.services import ClaimingService
 from htmlgraph.spike_index import ActiveAutoSpikeIndex
 
@@ -794,6 +794,57 @@ class SessionManager:
             List of released feature IDs
         """
         return self.claiming_service.release_session_features(session_id)
+
+    def log_error(
+        self,
+        session_id: str,
+        error: Exception,
+        traceback_str: str,
+        context: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Log error with full traceback to session.
+
+        Stores complete error details for later retrieval via debug command.
+        Minimizes console output for better token efficiency.
+
+        Args:
+            session_id: Session ID to log error to
+            error: The exception object
+            traceback_str: Full traceback string
+            context: Optional context dict (e.g. current file, line number)
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return
+
+        error_entry = ErrorEntry(
+            timestamp=datetime.now(),
+            error_type=error.__class__.__name__,
+            message=str(error),
+            traceback=traceback_str,
+        )
+
+        # Append error record to error_log
+        session.error_log.append(error_entry)
+
+        # Save updated session
+        self.session_converter.save(session)
+
+    def get_session_errors(self, session_id: str) -> list[dict[str, Any]]:
+        """
+        Retrieve all errors logged for a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            List of error records, or empty list if none
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return []
+        return [error.model_dump() for error in session.error_log]
 
     # =========================================================================
     # Activity Tracking

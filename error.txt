@@ -1,0 +1,1838 @@
+╰─ uv run htmlgraph analytics                                                        ─╯
+╭─────────────────────────── 📊 HtmlGraph Project Analytics ───────────────────────────╮
+│ Project-Wide Analytics                                                               │
+│ Analyzing 29 total sessions                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+
+╭───────────────────────── Traceback (most recent call last) ──────────────────────────╮
+│ /Users/shakes/DevProjects/htmlgraph/.venv/bin/htmlgraph:10 in <module>               │
+│                                                                                      │
+│    7 │   │   sys.argv[0] = sys.argv[0][:-11]                                         │
+│    8 │   elif sys.argv[0].endswith(".exe"):                                          │
+│    9 │   │   sys.argv[0] = sys.argv[0][:-4]                                          │
+│ ❱ 10 │   sys.exit(main())                                                            │
+│   11                                                                                 │
+│                                                                                      │
+│ ╭──────────── locals ─────────────╮                                                  │
+│ │ sys = <module 'sys' (built-in)> │                                                  │
+│ ╰─────────────────────────────────╯                                                  │
+│                                                                                      │
+│ /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/cli.py:5766 in main         │
+│                                                                                      │
+│   5763 │   elif args.command == "analytics":                                         │
+│   5764 │   │   from htmlgraph.analytics.cli import cmd_analytics                     │
+│   5765 │   │                                                                         │
+│ ❱ 5766 │   │   cmd_analytics(args)                                                   │
+│   5767 │   elif args.command == "docs":                                              │
+│   5768 │   │   if args.docs_command == "version":                                    │
+│   5769 │   │   │   cmd_docs_version(args)                                            │
+│                                                                                      │
+│ ╭───────────────────────────────────── locals ─────────────────────────────────────╮ │
+│ │                    activity_parser = ArgumentParser(prog='htmlgraph activity',   │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         agent_list = ArgumentParser(prog='htmlgraph agent list', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       agent_parser = ArgumentParser(prog='htmlgraph agent',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   agent_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='agent_command', nargs='A...',         │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'list':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph agent list', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Agent command',       │ │
+│ │                                      metavar=None)                               │ │
+│ │                   analytics_parser = ArgumentParser(prog='htmlgraph analytics',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     archive_create = ArgumentParser(prog='htmlgraph archive      │ │
+│ │                                      create', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       archive_list = ArgumentParser(prog='htmlgraph archive      │ │
+│ │                                      list', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     archive_parser = ArgumentParser(prog='htmlgraph archive',    │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    archive_restore = ArgumentParser(prog='htmlgraph archive      │ │
+│ │                                      restore', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     archive_search = ArgumentParser(prog='htmlgraph archive      │ │
+│ │                                      search', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      archive_stats = ArgumentParser(prog='htmlgraph archive      │ │
+│ │                                      stats', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                 archive_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='archive_command', nargs='A...',       │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'create':                          │ │
+│ │                                      ArgumentParser(prog='htmlgraph archive      │ │
+│ │                                      create', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'search': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      archive search', usage=None,                │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'stats': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      archive stats', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'restore': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      archive restore', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'list': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      archive list', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Archive command',     │ │
+│ │                                      metavar=None)                               │ │
+│ │                               args = Namespace(format='text', quiet=False,       │ │
+│ │                                      verbose=0, command='analytics',             │ │
+│ │                                      session_id=None, recent=None, agent='cli',  │ │
+│ │                                      graph_dir='.htmlgraph')                     │ │
+│ │                        cigs_parser = ArgumentParser(prog='htmlgraph cigs',       │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      cigs_patterns = ArgumentParser(prog='htmlgraph cigs         │ │
+│ │                                      patterns', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │              cigs_reset_violations = ArgumentParser(prog='htmlgraph cigs         │ │
+│ │                                      reset-violations', usage=None,              │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                        cigs_status = ArgumentParser(prog='htmlgraph cigs         │ │
+│ │                                      status', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    cigs_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='cigs_command', nargs='A...',          │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'status':                          │ │
+│ │                                      ArgumentParser(prog='htmlgraph cigs         │ │
+│ │                                      status', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'summary': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      cigs summary', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'patterns': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      cigs patterns', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'reset-violations':                         │ │
+│ │                                      ArgumentParser(prog='htmlgraph cigs         │ │
+│ │                                      reset-violations', usage=None,              │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='CIGS command',        │ │
+│ │                                      metavar=None)                               │ │
+│ │                       cigs_summary = ArgumentParser(prog='htmlgraph cigs         │ │
+│ │                                      summary', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       claude_group = <argparse._MutuallyExclusiveGroup object at │ │
+│ │                                      0x1034bfa00>                                │ │
+│ │                      claude_parser = ArgumentParser(prog='htmlgraph claude',     │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       debug_parser = ArgumentParser(prog='htmlgraph debug',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                        deploy_init = ArgumentParser(prog='htmlgraph deploy       │ │
+│ │                                      init', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      deploy_parser = ArgumentParser(prog='htmlgraph deploy',     │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         deploy_run = ArgumentParser(prog='htmlgraph deploy run', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                  deploy_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='deploy_command', nargs='A...',        │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'init':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph deploy       │ │
+│ │                                      init', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'run': ArgumentParser(prog='htmlgraph       │ │
+│ │                                      deploy run', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Deploy command',      │ │
+│ │                                      metavar=None)                               │ │
+│ │                          docs_diff = ArgumentParser(prog='htmlgraph docs diff',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      docs_generate = ArgumentParser(prog='htmlgraph docs         │ │
+│ │                                      generate', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                        docs_parser = ArgumentParser(prog='htmlgraph docs',       │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      docs_rollback = ArgumentParser(prog='htmlgraph docs         │ │
+│ │                                      rollback', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    docs_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='docs_command', nargs='A...',          │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'version':                         │ │
+│ │                                      ArgumentParser(prog='htmlgraph docs         │ │
+│ │                                      version', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'upgrade': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      docs upgrade', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'diff': ArgumentParser(prog='htmlgraph docs │ │
+│ │                                      diff', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'rollback': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      docs rollback', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'generate': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      docs generate', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Docs command',        │ │
+│ │                                      metavar=None)                               │ │
+│ │                       docs_upgrade = ArgumentParser(prog='htmlgraph docs         │ │
+│ │                                      upgrade', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       docs_version = ArgumentParser(prog='htmlgraph docs         │ │
+│ │                                      version', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      events_export = ArgumentParser(prog='htmlgraph events       │ │
+│ │                                      export-sessions', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      events_parser = ArgumentParser(prog='htmlgraph events',     │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                  events_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='events_command', nargs='A...',        │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'export-sessions':                 │ │
+│ │                                      ArgumentParser(prog='htmlgraph events       │ │
+│ │                                      export-sessions', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Events command',      │ │
+│ │                                      metavar=None)                               │ │
+│ │               feature_auto_release = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      auto-release', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      feature_claim = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      claim', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   feature_complete = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      complete', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     feature_create = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      create', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     feature_delete = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      delete', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       feature_list = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      list', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     feature_parser = ArgumentParser(prog='htmlgraph feature',    │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    feature_primary = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      primary', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    feature_release = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      release', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      feature_start = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      start', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │              feature_step_complete = ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      step-complete', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                 feature_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='feature_command', nargs='A...',       │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'create':                          │ │
+│ │                                      ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      create', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'start': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      feature start', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'complete': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      feature complete', usage=None,              │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'primary': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      feature primary', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'claim': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      feature claim', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'release': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      feature release', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'auto-release':                             │ │
+│ │                                      ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      auto-release', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'list': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      feature list', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'step-complete':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph feature      │ │
+│ │                                      step-complete', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'delete': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      feature delete', usage=None,                │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Feature command',     │ │
+│ │                                      metavar=None)                               │ │
+│ │                   git_event_parser = ArgumentParser(prog='htmlgraph git-event',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       hooks_parser = ArgumentParser(prog='htmlgraph              │ │
+│ │                                      install-hooks', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       index_parser = ArgumentParser(prog='htmlgraph index',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      index_rebuild = ArgumentParser(prog='htmlgraph index        │ │
+│ │                                      rebuild', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   index_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='index_command', nargs='A...',         │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'rebuild':                         │ │
+│ │                                      ArgumentParser(prog='htmlgraph index        │ │
+│ │                                      rebuild', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Index command',       │ │
+│ │                                      metavar=None)                               │ │
+│ │                        init_parser = ArgumentParser(prog='htmlgraph init',       │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         mcp_parser = ArgumentParser(prog='htmlgraph mcp',        │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                          mcp_serve = ArgumentParser(prog='htmlgraph mcp serve',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     mcp_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='mcp_command', nargs='A...',           │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'serve':                           │ │
+│ │                                      ArgumentParser(prog='htmlgraph mcp serve',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='MCP command',         │ │
+│ │                                      metavar=None)                               │ │
+│ │ orchestrator_acknowledge_violation = ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      acknowledge-violation', usage=None,         │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │               orchestrator_disable = ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      disable', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                orchestrator_enable = ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      enable', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                orchestrator_parser = ArgumentParser(prog='htmlgraph              │ │
+│ │                                      orchestrator', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │      orchestrator_reset_violations = ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      reset-violations', usage=None,              │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │             orchestrator_set_level = ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      set-level', usage=None, description=None,   │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                orchestrator_status = ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      status', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │            orchestrator_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='orchestrator_command', nargs='A...',  │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'enable':                          │ │
+│ │                                      ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      enable', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'disable': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      orchestrator disable', usage=None,          │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'status': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      orchestrator status', usage=None,           │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'set-level': ArgumentParser(prog='htmlgraph │ │
+│ │                                      orchestrator set-level', usage=None,        │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'reset-violations':                         │ │
+│ │                                      ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      reset-violations', usage=None,              │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'acknowledge-violation':                    │ │
+│ │                                      ArgumentParser(prog='htmlgraph orchestrator │ │
+│ │                                      acknowledge-violation', usage=None,         │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Orchestrator          │ │
+│ │                                      command', metavar=None)                     │ │
+│ │                             parser = ArgumentParser(prog='htmlgraph',            │ │
+│ │                                      usage=None, description='HtmlGraph - HTML   │ │
+│ │                                      is All You Need', formatter_class=<class    │ │
+│ │                                      'argparse.RawDescriptionHelpFormatter'>,    │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     publish_parser = ArgumentParser(prog='htmlgraph publish',    │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       query_parser = ArgumentParser(prog='htmlgraph query',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       serve_parser = ArgumentParser(prog='htmlgraph serve',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     session_dedupe = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      dedupe', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                        session_end = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      end', usage=None, description=None,         │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    session_handoff = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      handoff', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       session_link = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      link', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       session_list = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      list', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     session_parser = ArgumentParser(prog='htmlgraph session',    │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     session_report = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      status-report', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                     session_resume = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      resume', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                      session_start = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      start', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                 session_start_info = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      start-info', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                 session_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='session_command', nargs='A...',       │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'start':                           │ │
+│ │                                      ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      start', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'end': ArgumentParser(prog='htmlgraph       │ │
+│ │                                      session end', usage=None, description=None, │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'handoff': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      session handoff', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'list': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      session list', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'start-info':                               │ │
+│ │                                      ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      start-info', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'status-report':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      status-report', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'resume': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      session resume', usage=None,                │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'dedupe': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      session dedupe', usage=None,                │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'link': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      session link', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'validate-attribution':                     │ │
+│ │                                      ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      validate-attribution', usage=None,          │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Session command',     │ │
+│ │                                      metavar=None)                               │ │
+│ │                   session_validate = ArgumentParser(prog='htmlgraph session      │ │
+│ │                                      validate-attribution', usage=None,          │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   setup_all_parser = ArgumentParser(prog='htmlgraph setup all',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       setup_claude = ArgumentParser(prog='htmlgraph setup        │ │
+│ │                                      claude', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                        setup_codex = ArgumentParser(prog='htmlgraph setup        │ │
+│ │                                      codex', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       setup_gemini = ArgumentParser(prog='htmlgraph setup        │ │
+│ │                                      gemini', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       setup_parser = ArgumentParser(prog='htmlgraph setup',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   setup_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='setup_command', nargs='A...',         │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'claude':                          │ │
+│ │                                      ArgumentParser(prog='htmlgraph setup        │ │
+│ │                                      claude', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'codex': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      setup codex', usage=None, description=None, │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'gemini': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      setup gemini', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'all': ArgumentParser(prog='htmlgraph setup │ │
+│ │                                      all', usage=None, description=None,         │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Platform to set up',  │ │
+│ │                                      metavar=None)                               │ │
+│ │                      status_parser = ArgumentParser(prog='htmlgraph status',     │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='command', nargs='A...', const=None,   │ │
+│ │                                      default=None, type=None, choices={'serve':  │ │
+│ │                                      ArgumentParser(prog='htmlgraph serve',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'init': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      init', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'install-hooks':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph              │ │
+│ │                                      install-hooks', usage=None,                 │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'status': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      status', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'debug': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      debug', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'query': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      query', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'session': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      session', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'activity': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      activity', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'transcript':                               │ │
+│ │                                      ArgumentParser(prog='htmlgraph transcript', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'work': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      work', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'agent': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      agent', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'feature': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      feature', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'track': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      track', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'archive': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      archive', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'analytics': ArgumentParser(prog='htmlgraph │ │
+│ │                                      analytics', usage=None, description=None,   │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'docs': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      docs', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'events': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      events', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'index': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      index', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'watch': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      watch', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'git-event': ArgumentParser(prog='htmlgraph │ │
+│ │                                      git-event', usage=None, description=None,   │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'mcp': ArgumentParser(prog='htmlgraph mcp', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'setup': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      setup', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'publish': ArgumentParser(prog='htmlgraph   │ │
+│ │                                      publish', usage=None, description=None,     │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'sync-docs': ArgumentParser(prog='htmlgraph │ │
+│ │                                      sync-docs', usage=None, description=None,   │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'deploy': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      deploy', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'orchestrator':                             │ │
+│ │                                      ArgumentParser(prog='htmlgraph              │ │
+│ │                                      orchestrator', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'cigs': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      cigs', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'install-gemini-extension':                 │ │
+│ │                                      ArgumentParser(prog='htmlgraph              │ │
+│ │                                      install-gemini-extension', usage=None,      │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'claude': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      claude', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Command to run',      │ │
+│ │                                      metavar=None)                               │ │
+│ │                   sync_docs_parser = ArgumentParser(prog='htmlgraph sync-docs',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       track_delete = ArgumentParser(prog='htmlgraph track        │ │
+│ │                                      delete', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         track_list = ArgumentParser(prog='htmlgraph track list', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                          track_new = ArgumentParser(prog='htmlgraph track new',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       track_parser = ArgumentParser(prog='htmlgraph track',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         track_plan = ArgumentParser(prog='htmlgraph track plan', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         track_show = ArgumentParser(prog='htmlgraph track show', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         track_spec = ArgumentParser(prog='htmlgraph track spec', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   track_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='track_command', nargs='A...',         │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'new':                             │ │
+│ │                                      ArgumentParser(prog='htmlgraph track new',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'list': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      track list', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'spec': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      track spec', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'plan': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      track plan', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'show': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      track show', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'delete': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      track delete', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Track command',       │ │
+│ │                                      metavar=None)                               │ │
+│ │               transcript_auto_link = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      auto-link', usage=None, description=None,   │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                  transcript_export = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      export', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                  transcript_health = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      health', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                  transcript_import = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      import', usage=None, description=None,      │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                transcript_insights = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      insights', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    transcript_link = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      link', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │            transcript_link_feature = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      link-feature', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    transcript_list = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      list', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                  transcript_parser = ArgumentParser(prog='htmlgraph transcript', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                transcript_patterns = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      patterns', usage=None, description=None,    │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    transcript_recs = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      recommendations', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                   transcript_stats = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      stats', usage=None, description=None,       │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │              transcript_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='transcript_command', nargs='A...',    │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'list':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      list', usage=None, description=None,        │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'import': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      transcript import', usage=None,             │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'link': ArgumentParser(prog='htmlgraph      │ │
+│ │                                      transcript link', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'stats': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      transcript stats', usage=None,              │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'auto-link': ArgumentParser(prog='htmlgraph │ │
+│ │                                      transcript auto-link', usage=None,          │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'health': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      transcript health', usage=None,             │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'patterns': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      transcript patterns', usage=None,           │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'transitions':                              │ │
+│ │                                      ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      transitions', usage=None, description=None, │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'recommendations':                          │ │
+│ │                                      ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      recommendations', usage=None,               │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'insights': ArgumentParser(prog='htmlgraph  │ │
+│ │                                      transcript insights', usage=None,           │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'export': ArgumentParser(prog='htmlgraph    │ │
+│ │                                      transcript export', usage=None,             │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'track-stats':                              │ │
+│ │                                      ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      track-stats', usage=None, description=None, │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'link-feature':                             │ │
+│ │                                      ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      link-feature', usage=None,                  │ │
+│ │                                      description=None, formatter_class=<class    │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Transcript command',  │ │
+│ │                                      metavar=None)                               │ │
+│ │                   transcript_track = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      track-stats', usage=None, description=None, │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │             transcript_transitions = ArgumentParser(prog='htmlgraph transcript   │ │
+│ │                                      transitions', usage=None, description=None, │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                       watch_parser = ArgumentParser(prog='htmlgraph watch',      │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                          work_next = ArgumentParser(prog='htmlgraph work next',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                        work_parser = ArgumentParser(prog='htmlgraph work',       │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                         work_queue = ArgumentParser(prog='htmlgraph work queue', │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)    │ │
+│ │                    work_subparsers = _SubParsersAction(option_strings=[],        │ │
+│ │                                      dest='work_command', nargs='A...',          │ │
+│ │                                      const=None, default=None, type=None,        │ │
+│ │                                      choices={'next':                            │ │
+│ │                                      ArgumentParser(prog='htmlgraph work next',  │ │
+│ │                                      usage=None, description=None,               │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True),   │ │
+│ │                                      'queue': ArgumentParser(prog='htmlgraph     │ │
+│ │                                      work queue', usage=None, description=None,  │ │
+│ │                                      formatter_class=<class                      │ │
+│ │                                      'argparse.HelpFormatter'>,                  │ │
+│ │                                      conflict_handler='error', add_help=True)},  │ │
+│ │                                      required=False, help='Work command',        │ │
+│ │                                      metavar=None)                               │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                      │
+│ /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/analytics/cli.py:62 in      │
+│ cmd_analytics                                                                        │
+│                                                                                      │
+│    59 │   │   )                                                                      │
+│    60 │   else:                                                                      │
+│    61 │   │   # Project-wide overview                                                │
+│ ❱  62 │   │   _display_project_analytics(                                            │
+│    63 │   │   │   console, sdk, session_files, args.graph_dir, quiet=quiet           │
+│    64 │   │   )                                                                      │
+│    65                                                                                │
+│                                                                                      │
+│ ╭───────────────────────────────────── locals ─────────────────────────────────────╮ │
+│ │          args = Namespace(format='text', quiet=False, verbose=0,                 │ │
+│ │                 command='analytics', session_id=None, recent=None, agent='cli',  │ │
+│ │                 graph_dir='.htmlgraph')                                          │ │
+│ │       console = <console width=88 ColorSystem.TRUECOLOR>                         │ │
+│ │         quiet = False                                                            │ │
+│ │           sdk = <htmlgraph.sdk.SDK object at 0x103482890>                        │ │
+│ │ session_files = [                                                                │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-fd50862f.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-3d9ec350.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-529faa2c.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-40ed8a68.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-422f9b54.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-654f7347.html'),         │ │
+│ │                 │                                                                │ │
+│ │                 PosixPath('.htmlgraph/sessions/session-20251217-084026.html'),   │ │
+│ │                 │                                                                │ │
+│ │                 PosixPath('.htmlgraph/sessions/session-20251216-200428.html'),   │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-f1dbfc0f.html'),         │ │
+│ │                 │                                                                │ │
+│ │                 PosixPath('.htmlgraph/sessions/session-20251217-092958.html'),   │ │
+│ │                 │   ... +19                                                      │ │
+│ │                 ]                                                                │ │
+│ │  sessions_dir = PosixPath('.htmlgraph/sessions')                                 │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                      │
+│ /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/analytics/cli.py:310 in     │
+│ _display_project_analytics                                                           │
+│                                                                                      │
+│   307 │   │   all_dist = sdk.analytics.work_type_distribution()                      │
+│   308 │   │   all_ratio = sdk.analytics.spike_to_feature_ratio()                     │
+│   309 │   │   all_burden = sdk.analytics.maintenance_burden()                        │
+│ ❱ 310 │   │   all_transition = sdk.analytics.transition_time_metrics()               │
+│   311 │                                                                              │
+│   312 │   # Work distribution table                                                  │
+│   313 │   if all_dist:                                                               │
+│                                                                                      │
+│ ╭───────────────────────────────────── locals ─────────────────────────────────────╮ │
+│ │    all_burden = 6.4471403812824954                                               │ │
+│ │      all_dist = {                                                                │ │
+│ │                 │   'feature-implementation': 91.78509532062392,                 │ │
+│ │                 │   'bug-fix': 6.4471403812824954,                               │ │
+│ │                 │   'documentation': 1.7677642980935875                          │ │
+│ │                 }                                                                │ │
+│ │     all_ratio = 0.0                                                              │ │
+│ │       console = <console width=88 ColorSystem.TRUECOLOR>                         │ │
+│ │     graph_dir = '.htmlgraph'                                                     │ │
+│ │         quiet = False                                                            │ │
+│ │           sdk = <htmlgraph.sdk.SDK object at 0x103482890>                        │ │
+│ │ session_files = [                                                                │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-fd50862f.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-3d9ec350.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-529faa2c.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-40ed8a68.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-422f9b54.html'),         │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-654f7347.html'),         │ │
+│ │                 │                                                                │ │
+│ │                 PosixPath('.htmlgraph/sessions/session-20251217-084026.html'),   │ │
+│ │                 │                                                                │ │
+│ │                 PosixPath('.htmlgraph/sessions/session-20251216-200428.html'),   │ │
+│ │                 │   PosixPath('.htmlgraph/sessions/sess-f1dbfc0f.html'),         │ │
+│ │                 │                                                                │ │
+│ │                 PosixPath('.htmlgraph/sessions/session-20251217-092958.html'),   │ │
+│ │                 │   ... +19                                                      │ │
+│ │                 ]                                                                │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                      │
+│ /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/analytics/work_type.py:430  │
+│ in transition_time_metrics                                                           │
+│                                                                                      │
+│   427 │   │   │   │   end_time = spike.updated if spike.updated else datetime.now()  │
+│   428 │   │   │                                                                      │
+│   429 │   │   │   duration = (                                                       │
+│ ❱ 430 │   │   │   │   end_time - start_time                                          │
+│   431 │   │   │   ).total_seconds() / 60  # Convert to minutes                       │
+│   432 │   │   │                                                                      │
+│   433 │   │   │   # Categorize as transition or feature work                         │
+│                                                                                      │
+│ ╭───────────────────────────────────── locals ─────────────────────────────────────╮ │
+│ │         all_spikes = [                                                           │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-bd3cb872',                                  │ │
+│ │                      │   │   title='Transition from feat-1851368',               │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='low',                                     │ │
+│ │                      │   │   created=datetime.datetime(2025, 12, 30, 5, 9, 11,   │ │
+│ │                      288949),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2025, 12, 30, 8, 0, 56,   │ │
+│ │                      984218),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='Auto-generated transition                  │ │
+│ │                      spike.\n\nCaptures post-completion activities:\n-           │ │
+│ │                      Cleanup'+118,                                               │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype='transition',                         │ │
+│ │                      │   │   auto_generated=True,                                │ │
+│ │                      │   │   session_id='sess-fd50862f',                         │ │
+│ │                      │   │   from_feature_id='feat-18513688',                    │ │
+│ │                      │   │   to_feature_id='feat-79bba74f',                      │ │
+│ │                      │   │   model_name='cli',                                   │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-38018c62',                                  │ │
+│ │                      │   │   title='Conversation 21:58',                         │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='low',                                     │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 1, 21, 58, 32,   │ │
+│ │                      423138),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 1, 21, 59, 28,   │ │
+│ │                      586610),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='Auto-generated spike for conversation      │ │
+│ │                      startup.\n\nCaptures:\n- Context review\n- Pla'+88,         │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype='conversation-init',                  │ │
+│ │                      │   │   auto_generated=True,                                │ │
+│ │                      │   │   session_id='sess-3d9ec350',                         │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name='claude-code',                           │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-cf47038a',                                  │ │
+│ │                      │   │   title='Conversation 23:12',                         │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='low',                                     │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 2, 23, 12, 1,    │ │
+│ │                      526126),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 2, 23, 12, 2,    │ │
+│ │                      254971),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='Auto-generated spike for conversation      │ │
+│ │                      startup.\n\nCaptures:\n- Context review\n- Pla'+88,         │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype='conversation-init',                  │ │
+│ │                      │   │   auto_generated=True,                                │ │
+│ │                      │   │   session_id='sess-3d9ec350',                         │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name='claude-code',                           │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-7ef5001e',                                  │ │
+│ │                      │   │   title='Fix: Feature Reference Parsing Regression',  │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='todo',                                      │ │
+│ │                      │   │   priority='medium',                                  │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 2, 13, 19, 48,   │ │
+│ │                      146814),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 2, 13, 19, 48,   │ │
+│ │                      146819),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='',                                         │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype=None,                                 │ │
+│ │                      │   │   auto_generated=False,                               │ │
+│ │                      │   │   session_id=None,                                    │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name=None,                                    │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings='## Problem\n\nThe git continuity spine    │ │
+│ │                      feature had a regression in `parse_feature_'+4290,          │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-664c6222',                                  │ │
+│ │                      │   │   title='Transition from feat-6768293',               │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='low',                                     │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 1, 23, 2, 52,    │ │
+│ │                      825172),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 1, 23, 18, 33,   │ │
+│ │                      310454),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='Auto-generated transition                  │ │
+│ │                      spike.\n\nCaptures post-completion activities:\n-           │ │
+│ │                      Cleanup'+118,                                               │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype='transition',                         │ │
+│ │                      │   │   auto_generated=True,                                │ │
+│ │                      │   │   session_id='sess-529faa2c',                         │ │
+│ │                      │   │   from_feature_id='feat-6768293f',                    │ │
+│ │                      │   │   to_feature_id='feat-2994c2c3',                      │ │
+│ │                      │   │   model_name='claude',                                │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-5b9608d5',                                  │ │
+│ │                      │   │   title='Deployment script plugin hook update         │ │
+│ │                      investigation',                                             │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='todo',                                      │ │
+│ │                      │   │   priority='medium',                                  │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 1, 23, 23, 2,    │ │
+│ │                      618248),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 1, 23, 23, 2,    │ │
+│ │                      618252),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='',                                         │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype=None,                                 │ │
+│ │                      │   │   auto_generated=False,                               │ │
+│ │                      │   │   session_id=None,                                    │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name=None,                                    │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings='## Investigation Summary\n\n**Finding**:  │ │
+│ │                      The deployment script IS working correctl'+3431,            │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-b409621c',                                  │ │
+│ │                      │   │   title='Transition from feat-70333fa',               │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='low',                                     │ │
+│ │                      │   │   created=datetime.datetime(2025, 12, 31, 12, 9, 11,  │ │
+│ │                      354315),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2025, 12, 31, 12, 14, 4,  │ │
+│ │                      101265),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='Auto-generated transition                  │ │
+│ │                      spike.\n\nCaptures post-completion activities:\n-           │ │
+│ │                      Cleanup'+118,                                               │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype='transition',                         │ │
+│ │                      │   │   auto_generated=True,                                │ │
+│ │                      │   │   session_id='sess-fd50862f',                         │ │
+│ │                      │   │   from_feature_id='feat-70333faf',                    │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name='cli',                                   │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-2844f430',                                  │ │
+│ │                      │   │   title='Conversation 02:31',                         │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='low',                                     │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 3, 2, 31, 32,    │ │
+│ │                      584738),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 3, 2, 49, 20,    │ │
+│ │                      531560),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='Auto-generated spike for conversation      │ │
+│ │                      startup.\n\nCaptures:\n- Context review\n- Pla'+88,         │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype='conversation-init',                  │ │
+│ │                      │   │   auto_generated=True,                                │ │
+│ │                      │   │   session_id='sess-3d9ec350',                         │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name='claude-code',                           │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-e2c65995',                                  │ │
+│ │                      │   │   title='Documentation: Packageable Docs Pattern for  │ │
+│ │                      Developers',                                                │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='todo',                                      │ │
+│ │                      │   │   priority='medium',                                  │ │
+│ │                      │   │   created=datetime.datetime(2026, 1, 2, 12, 48, 1,    │ │
+│ │                      316420),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2026, 1, 2, 12, 48, 1,    │ │
+│ │                      316425),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[],                                           │ │
+│ │                      │   │   content='',                                         │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id=None,                                      │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype=None,                                 │ │
+│ │                      │   │   auto_generated=False,                               │ │
+│ │                      │   │   session_id=None,                                    │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name=None,                                    │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings='## Documentation Created\n\n**File:**     │ │
+│ │                      docs/PACKAGEABLE_DOCS_PATTERN.md\n**Word Coun'+3321,        │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   Spike(                                                  │ │
+│ │                      │   │   id='spk-dfcf2dd4',                                  │ │
+│ │                      │   │   title='Session Management with Auto-Generated       │ │
+│ │                      Transition Spikes',                                         │ │
+│ │                      │   │   type='spike',                                       │ │
+│ │                      │   │   status='done',                                      │ │
+│ │                      │   │   priority='medium',                                  │ │
+│ │                      │   │   created=datetime.datetime(2025, 12, 25, 3, 12, 33,  │ │
+│ │                      601559),                                                    │ │
+│ │                      │   │   updated=datetime.datetime(2025, 12, 25, 3, 12, 33,  │ │
+│ │                      601562),                                                    │ │
+│ │                      │   │   properties={},                                      │ │
+│ │                      │   │   edges={},                                           │ │
+│ │                      │   │   steps=[                                             │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Research current session       │ │
+│ │                      lifecycle and event tracking',                              │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   ),                                              │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Design auto-spike generation   │ │
+│ │                      mechanism for session transitions',                         │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   ),                                              │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Define spike metadata (model   │ │
+│ │                      info, timestamps, session context)',                        │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   ),                                              │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Plan feature                   │ │
+│ │                      activation/deactivation workflow',                          │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   ),                                              │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Design transition spike        │ │
+│ │                      creation (feature complete → spike)',                       │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   ),                                              │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Document activity attribution  │ │
+│ │                      rules (feature vs transition)',                             │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   ),                                              │ │
+│ │                      │   │   │   Step(                                           │ │
+│ │                      │   │   │   │   description='Create implementation plan     │ │
+│ │                      with effort estimates',                                     │ │
+│ │                      │   │   │   │   completed=True,                             │ │
+│ │                      │   │   │   │   agent=None,                                 │ │
+│ │                      │   │   │   │   timestamp=None                              │ │
+│ │                      │   │   │   )                                               │ │
+│ │                      │   │   ],                                                  │ │
+│ │                      │   │   content='# Session Management with Auto-Generated   │ │
+│ │                      Transition Spikes\n\n## Problem Statement'+3603,            │ │
+│ │                      │   │   agent_assigned=None,                                │ │
+│ │                      │   │   claimed_at=None,                                    │ │
+│ │                      │   │   claimed_by_session=None,                            │ │
+│ │                      │   │   track_id='trk-20d8c147',                            │ │
+│ │                      │   │   plan_task_id=None,                                  │ │
+│ │                      │   │   spec_requirements=[],                               │ │
+│ │                      │   │   handoff_required=False,                             │ │
+│ │                      │   │   previous_agent=None,                                │ │
+│ │                      │   │   handoff_reason=None,                                │ │
+│ │                      │   │   handoff_notes=None,                                 │ │
+│ │                      │   │   handoff_timestamp=None,                             │ │
+│ │                      │   │   required_capabilities=[],                           │ │
+│ │                      │   │   capability_tags=[],                                 │ │
+│ │                      │   │   context_tokens_used=0,                              │ │
+│ │                      │   │   context_peak_tokens=0,                              │ │
+│ │                      │   │   context_cost_usd=0.0,                               │ │
+│ │                      │   │   context_sessions=[],                                │ │
+│ │                      │   │   spike_subtype=None,                                 │ │
+│ │                      │   │   auto_generated=False,                               │ │
+│ │                      │   │   session_id=None,                                    │ │
+│ │                      │   │   from_feature_id=None,                               │ │
+│ │                      │   │   to_feature_id=None,                                 │ │
+│ │                      │   │   model_name=None,                                    │ │
+│ │                      │   │   spike_type=<SpikeType.GENERAL: 'general'>,          │ │
+│ │                      │   │   timebox_hours=None,                                 │ │
+│ │                      │   │   findings=None,                                      │ │
+│ │                      │   │   decision=None                                       │ │
+│ │                      │   ),                                                      │ │
+│ │                      │   ... +540                                                │ │
+│ │                      ]                                                           │ │
+│ │           duration = 5.0000000000000004e-08                                      │ │
+│ │           end_date = None                                                        │ │
+│ │           end_time = datetime.datetime(2025, 12, 25, 2, 49, 35, 590383)          │ │
+│ │    feature_minutes = 91.2349801166666                                            │ │
+│ │      is_transition = False                                                       │ │
+│ │               self = <htmlgraph.analytics.work_type.Analytics object at          │ │
+│ │                      0x103514970>                                                │ │
+│ │         session_id = None                                                        │ │
+│ │              spike = Spike(                                                      │ │
+│ │                      │   id='spike-repeated-tracker',                            │ │
+│ │                      │   title='Investigate Repeated Tracker Skill Calls',       │ │
+│ │                      │   type='spike',                                           │ │
+│ │                      │   status='done',                                          │ │
+│ │                      │   priority='high',                                        │ │
+│ │                      │   created=datetime.datetime(2024, 12, 16, 20, 5,          │ │
+│ │                      tzinfo=datetime.timezone.utc),                              │ │
+│ │                      │   updated=datetime.datetime(2025, 12, 25, 2, 49, 35,      │ │
+│ │                      590383),                                                    │ │
+│ │                      │   properties={                                            │ │
+│ │                      │   │   'classification': 'None',                           │ │
+│ │                      │   │   'drift_score': 0.71,                                │ │
+│ │                      │   │   'pattern': 'None'                                   │ │
+│ │                      │   },                                                      │ │
+│ │                      │   edges={                                                 │ │
+│ │                      │   │   'related': [                                        │ │
+│ │                      │   │   │   Edge(                                           │ │
+│ │                      │   │   │   │   target_id='feature-self-tracking',          │ │
+│ │                      │   │   │   │   relationship='related',                     │ │
+│ │                      │   │   │   │   title='Feature: Self-Tracking',             │ │
+│ │                      │   │   │   │   since=None,                                 │ │
+│ │                      │   │   │   │   properties={}                               │ │
+│ │                      │   │   │   )                                               │ │
+│ │                      │   │   ]                                                   │ │
+│ │                      │   },                                                      │ │
+│ │                      │   steps=[                                                 │ │
+│ │                      │   │   Step(                                               │ │
+│ │                      │   │   │   description='Review htmlgraph-tracker skill     │ │
+│ │                      implementation',                                            │ │
+│ │                      │   │   │   completed=False,                                │ │
+│ │                      │   │   │   agent=None,                                     │ │
+│ │                      │   │   │   timestamp=None                                  │ │
+│ │                      │   │   ),                                                  │ │
+│ │                      │   │   Step(                                               │ │
+│ │                      │   │   │   description='Check for hook loops or recursive  │ │
+│ │                      calls in feature-self-tracking',                            │ │
+│ │                      │   │   │   completed=False,                                │ │
+│ │                      │   │   │   agent=None,                                     │ │
+│ │                      │   │   │   timestamp=None                                  │ │
+│ │                      │   │   ),                                                  │ │
+│ │                      │   │   Step(                                               │ │
+│ │                      │   │   │   description='Analyze drift calculation          │ │
+│ │                      algorithm',                                                 │ │
+│ │                      │   │   │   completed=False,                                │ │
+│ │                      │   │   │   agent=None,                                     │ │
+│ │                      │   │   │   timestamp=None                                  │ │
+│ │                      │   │   ),                                                  │ │
+│ │                      │   │   Step(                                               │ │
+│ │                      │   │   │   description='Examine event logs for pattern     │ │
+│ │                      context',                                                   │ │
+│ │                      │   │   │   completed=False,                                │ │
+│ │                      │   │   │   agent=None,                                     │ │
+│ │                      │   │   │   timestamp=None                                  │ │
+│ │                      │   │   ),                                                  │ │
+│ │                      │   │   Step(                                               │ │
+│ │                      │   │   │   description='Document findings and recommend    │ │
+│ │                      fixes',                                                     │ │
+│ │                      │   │   │   completed=False,                                │ │
+│ │                      │   │   │   agent=None,                                     │ │
+│ │                      │   │   │   timestamp=None                                  │ │
+│ │                      │   │   )                                                   │ │
+│ │                      │   ],                                                      │ │
+│ │                      │   content='The tracking system is exhibiting high-drift   │ │
+│ │                      activity with repeated invocations\n'+734,                  │ │
+│ │                      │   agent_assigned=None,                                    │ │
+│ │                      │   claimed_at=None,                                        │ │
+│ │                      │   claimed_by_session=None,                                │ │
+│ │                      │   track_id=None,                                          │ │
+│ │                      │   plan_task_id=None,                                      │ │
+│ │                      │   spec_requirements=[],                                   │ │
+│ │                      │   handoff_required=False,                                 │ │
+│ │                      │   previous_agent=None,                                    │ │
+│ │                      │   handoff_reason=None,                                    │ │
+│ │                      │   handoff_notes=None,                                     │ │
+│ │                      │   handoff_timestamp=None,                                 │ │
+│ │                      │   required_capabilities=[],                               │ │
+│ │                      │   capability_tags=[],                                     │ │
+│ │                      │   context_tokens_used=0,                                  │ │
+│ │                      │   context_peak_tokens=0,                                  │ │
+│ │                      │   context_cost_usd=0.0,                                   │ │
+│ │                      │   context_sessions=[],                                    │ │
+│ │                      │   spike_subtype=None,                                     │ │
+│ │                      │   auto_generated=False,                                   │ │
+│ │                      │   session_id=None,                                        │ │
+│ │                      │   from_feature_id=None,                                   │ │
+│ │                      │   to_feature_id=None,                                     │ │
+│ │                      │   model_name=None,                                        │ │
+│ │                      │   spike_type=<SpikeType.GENERAL: 'general'>,              │ │
+│ │                      │   timebox_hours=None,                                     │ │
+│ │                      │   findings=None,                                          │ │
+│ │                      │   decision=None                                           │ │
+│ │                      )                                                           │ │
+│ │    spike_converter = <htmlgraph.converter.NodeConverter object at 0x10345f0a0>   │ │
+│ │         spikes_dir = PosixPath('/Users/shakes/DevProjects/htmlgraph/.htmlgraph/… │ │
+│ │         start_date = None                                                        │ │
+│ │         start_time = datetime.datetime(2024, 12, 16, 20, 5,                      │ │
+│ │                      tzinfo=datetime.timezone.utc)                               │ │
+│ │ transition_minutes = 9333.456846550002                                           │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────╯ │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+TypeError: can't subtract offset-naive and offset-aware datetimes

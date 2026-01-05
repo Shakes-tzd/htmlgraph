@@ -28,5 +28,60 @@
     "spike_id": "spk-4503e53a",
     "created": "2026-01-04T16:05:42.704047",
     "occurrences": 53
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"/Users/shakes/DevProjects/htmlgraph/src/pytho": {
+    "spike_id": "spk-c86397a1",
+    "created": "2026-01-04T17:42:44.975607",
+    "occurrences": 3
+  },
+  "Bash:Exit code 2": {
+    "spike_id": "spk-ead5e716",
+    "created": "2026-01-04T17:45:41.032688",
+    "occurrences": 8
+  },
+  "Bash:Exit code 1\n   Building htmlgraph @ file:///Users/shakes/DevProjects/htmlgraph\n      Built htmlgraph": {
+    "spike_id": "spk-8f6c43ef",
+    "created": "2026-01-04T19:05:35.655218",
+    "occurrences": 3
+  },
+  "Read:File content (61230 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-b76569df",
+    "created": "2026-01-04T19:27:52.703552",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 7, in <module>\nAttributeError": {
+    "spike_id": "spk-88143ce4",
+    "created": "2026-01-04T19:30:01.822913",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 8, in <module>\nAttributeError": {
+    "spike_id": "spk-fe90985b",
+    "created": "2026-01-04T19:31:51.257661",
+    "occurrences": 4
+  },
+  "Read:File content (60352 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-34cc9599",
+    "created": "2026-01-04T22:37:02.371744",
+    "occurrences": 4
+  },
+  "Read:File content (60398 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-c1243d9d",
+    "created": "2026-01-04T22:38:48.333488",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nsrc/python/htmlgraph/cli_framework.py:84: error: Function is missing a return type annot": {
+    "spike_id": "spk-a892f842",
+    "created": "2026-01-04T22:46:44.437526",
+    "occurrences": 4
+  },
+  "Read:File content (61904 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-bdab6aa8",
+    "created": "2026-01-04T23:27:08.941492",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nsrc/python/htmlgraph/config.py:14: error: Class cannot subclass \"BaseSettings\" (has type": {
+    "spike_id": "spk-7e53b685",
+    "created": "2026-01-05T00:26:06.861791",
+    "occurrences": 4
   }
 }

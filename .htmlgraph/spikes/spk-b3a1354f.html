@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Add marketplace update to plugin installation workflow</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b3a1354f"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-04T18:17:08.252444"
+             data-updated="2026-01-04T18:17:08.252447" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Add marketplace update to plugin installation workflow</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Problem
+The `install_htmlgraph_plugin()` function in CLI was missing a critical step:
+updating the marketplace cache BEFORE installing the plugin.
+
+Without this step, users would install stale plugin versions even when newer
+versions were available in the GitHub marketplace.
+
+## Solution Implemented
+Added marketplace update as the FIRST step in the installation workflow:
+
+**New sequence:**
+1. `claude plugin marketplace update htmlgraph` - Pull latest from GitHub
+2. `claude plugin uninstall htmlgraph` - Uninstall old version
+3. `rm -rf ~/.claude/plugins/cache/htmlgraph` - Clear cache
+4. `claude plugin install htmlgraph@latest` - Install latest version
+
+**Error handling:**
+- Marketplace update failures are non-blocking (graceful degradation)
+- Handles first-time users who don't have marketplace configured yet
+- Shows informational message: "Marketplace not configured (OK, continuing)"
+
+## Changes Made
+**File:** `src/python/htmlgraph/cli.py`
+**Function:** `install_htmlgraph_plugin()` (lines 3785-3850)
+
+1. Added marketplace update step to steps list
+2. Enhanced error handling to detect marketplace-related failures
+3. Made marketplace failures non-blocking with clear messaging
+
+## Testing
+✅ All existing tests pass (1626 tests)
+✅ Code quality checks pass:
+   - ruff check --fix (all checks passed)
+   - ruff format (1 file reformatted)
+   - mypy (no issues found)
+
+## Expected Output
+
+
+**Or with no marketplace configured:**
+
+
+## Impact
+- Users now get the latest plugin version reliably
+- Eliminates confusion from stale marketplace cache
+- Maintains backward compatibility with users who don't have marketplace configured
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -376,7 +376,14 @@ class TestEdgeCases:
                 capture_output=True,
             )
             subprocess.run(
-                ["git", "merge", "multi-feature", "--no-ff"],
+                [
+                    "git",
+                    "merge",
+                    "multi-feature",
+                    "--no-ff",
+                    "-m",
+                    f"Merge multi-feature branch\n\n{feat1.id}\n{feat2.id}",
+                ],
                 check=True,
                 capture_output=True,
             )
@@ -524,9 +531,9 @@ def git_repo_fixture(tmp_path):
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
 
-    # Initialize git repo
+    # Initialize git repo with main branch
     subprocess.run(
-        ["git", "init"],
+        ["git", "init", "-b", "main"],
         cwd=repo_path,
         check=True,
         capture_output=True,
