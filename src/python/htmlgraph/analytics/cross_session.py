@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from htmlgraph import SDK
 
 from htmlgraph.event_log import JsonlEventLog
+from htmlgraph.models import utc_now
 
 
 @dataclass
@@ -598,7 +599,7 @@ class CrossSessionAnalytics:
     def _parse_timestamp(self, timestamp: str | datetime | None) -> datetime:
         """Parse timestamp from various formats."""
         if timestamp is None:
-            return datetime.now()
+            return utc_now()
 
         if isinstance(timestamp, datetime):
             return timestamp
@@ -607,6 +608,6 @@ class CrossSessionAnalytics:
             try:
                 return datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             except (ValueError, AttributeError):
-                return datetime.now()
+                return utc_now()
 
-        return datetime.now()
+        return utc_now()

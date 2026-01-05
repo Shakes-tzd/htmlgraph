@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Debug SDK Spike Retrieval Failure</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bbce1204"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T01:54:20.185788"
+             data-updated="2026-01-05T01:54:20.185789" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Debug SDK Spike Retrieval Failure</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# SDK Spike Retrieval Failure Investigation
+
+## Error Category
+**Integration Error** - SDK API returning empty results despite files existing
+
+## Problem Statement
+The HtmlGraph SDK's `spikes.get_latest()` method fails to retrieve spike files that clearly exist in the .htmlgraph/spikes/ directory.
+
+### Observable Symptoms
+1. **File Existence:** Spike files visible via `ls -l .htmlgraph/spikes/`
+   - Example: spk-e0c26f95.html (1.2 KB, created 2026-01-05 01:50:55)
+   - Example: spk-b7f83709.html (2.7 KB, created 2026-01-05 01:45:23)
+
+2. **SDK Query Failure:** `SDK().spikes.get_latest(agent='gemini')` returns empty
+   - Expected: List with spike objects
+   - Actual: []
+
+3. **Direct File Read Works:** Using Read tool successfully reads spike HTML files
+   - Confirms files are accessible and properly formatted
+   - Confirms HTML structure is valid
+
+4. **Task ID Retrieval Also Fails:** TaskOutput returns "No task found" for valid agent IDs
+   - Suggests broader issue with agent output retrieval
+
+## Investigation Checklist
+
+### 1. SDK Implementation
+- [ ] Check spikes.get_latest() implementation in SDK
+- [ ] Verify file discovery logic (glob pattern for .htmlgraph/spikes/)
+- [ ] Check HTML parsing code
+- [ ] Verify agent filter logic
+- [ ] Check limit parameter handling
+
+### 2. File Format
+- [ ] Verify spike HTML files have correct structure
+  - [ ] `<article id="spk-xxxxx">` element exists
+  - [ ] `data-type="spike"` attribute present
+  - [ ] HTML well-formed and parseable
+- [ ] Check for encoding issues
+- [ ] Verify file permissions (readable)
+
+### 3. Query Logic
+- [ ] Test spikes.get_latest() with no filter
+- [ ] Test spikes.get_latest() with agent filter
+- [ ] Test spikes.get_latest() with limit parameter
+- [ ] Check if agent name matching is case-sensitive
+- [ ] Verify agent names in spike files match query
+
+### 4. Directory Structure
+- [ ] Confirm .htmlgraph/spikes/ directory exists
+- [ ] Verify no symlink issues
+- [ ] Check if glob pattern correctly matches .html files
+- [ ] Check for hidden files or special characters
+
+### 5. Code Changes Recent
+- [ ] Review recent changes to SDK spike retrieval code
+- [ ] Check if Phase 1 implementation affected spike storage
+- [ ] Verify models.py changes didn't break parsing
+
+## Debugging Commands
+
+```bash
+# 1. Verify files exist
+ls -la .htmlgraph/spikes/
+file .htmlgraph/spikes/spk-e0c26f95.html
+
+# 2. Check HTML structure
+grep "data-type="spike"" .htmlgraph/spikes/*.html
+grep "agent=" .htmlgraph/spikes/*.html  # Check for agent metadata
+
+# 3. Test SDK directly
+python3 << 'PYTHON'
+from htmlgraph import SDK
+sdk = SDK()
+print("All spikes:", len(sdk.spikes.get_latest(limit=100)))
+print("Latest spikes:", sdk.spikes.get_latest(limit=5))
+print("Gemini spikes:", sdk.spikes.get_latest(agent='gemini', limit=5))
+PYTHON
+
+# 4. Check Python path and imports
+python3 -c "from htmlgraph import SDK; print(SDK.__file__)"
+
+# 5. Inspect spike parsing
+python3 << 'PYTHON'
+import os
+import json
+from pathlib import Path
+spikes_dir = Path('.htmlgraph/spikes')
+for f in spikes_dir.glob('*.html'):
+    print(f"File: {f.name}")
+    content = f.read_text()
+    print(f"  Size: {len(content)} bytes")
+    print(f"  Has spike type: {'spike' in content}")
+    print(f"  Has findings: {'data-findings' in content}")
+PYTHON
+```
+
+## Hypotheses
+
+### Hypothesis 1: Agent Name Mismatch
+- Spike files store agent as 'claude' or 'claude-code'
+- Query uses 'gemini' or different agent names
+- **Test:** Check actual agent values in spike HTML
+
+### Hypothesis 2: Glob Pattern Issue
+- SDK uses incorrect glob pattern to find files
+- Files exist but pattern doesn't match
+- **Test:** Manually glob .htmlgraph/spikes/*.html
+
+### Hypothesis 3: HTML Parsing Failure
+- Spike HTML missing required metadata attributes
+- SDK expects different HTML structure
+- **Test:** Compare working spike with failing spike
+
+### Hypothesis 4: Directory Path Issue
+- SDK uses relative path that fails in some contexts
+- .htmlgraph/spikes/ not found from current working directory
+- **Test:** Check working directory during SDK queries
+
+### Hypothesis 5: Recent Code Change
+- Phase 1 implementation modified spike storage format
+- ErrorEntry changes affected spike serialization
+- **Test:** Compare spike HTML before/after Phase 1
+
+## Next Steps
+
+1. **Immediate:** Run debugging commands above
+2. **Investigation:** Inspect SDK spike retrieval source code
+3. **Root Cause:** Identify mismatch between file format and query logic
+4. **Fix:** Update either:
+   - Spike storage format (models.py)
+   - SDK query logic (spikes.get_latest())
+5. **Validation:** Test with multiple spike queries
+6. **Prevention:** Add integration tests for spike retrieval
+
+## Related Features
+- feat-6b120fe6: Phase 1 error handler (might have affected spike format)
+- Session tracking uses spikes (affected by this bug)
+- Agent delegation relies on spike output retrieval (blocked by this bug)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

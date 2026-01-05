@@ -48,6 +48,9 @@ class SpikeBuilder(BaseBuilder["SpikeBuilder"]):
             self._data["spike_type"] = SpikeType.GENERAL
         if "timebox_hours" not in self._data:
             self._data["timebox_hours"] = 4
+        # Auto-assign agent if not explicitly provided and SDK has an agent
+        if "agent_assigned" not in self._data and sdk._agent_id:
+            self._data["agent_assigned"] = sdk._agent_id
 
     def set_spike_type(self, spike_type: SpikeType) -> SpikeBuilder:
         """

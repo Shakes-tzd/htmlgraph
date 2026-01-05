@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Datetime Mismatch - Root Cause Location</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-03fe92d6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T01:54:49.048646"
+             data-updated="2026-01-05T01:54:49.048655" data-spike-type="general" data-timebox-hours="4">
+
+        <header>
+            <h1>Datetime Mismatch - Root Cause Location</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause: Timezone-Aware vs Naive Datetime Comparisons
+
+### Location: src/python/htmlgraph/analytics/work_type.py
+
+**Lines with Problematic Comparisons:**
+- Line 273: `if start_date and session.started_at < start_date:`
+- Line 275: `if end_date and session.started_at > end_date:`
+- Line 416: `if start_date and spike.created < start_date:`
+- Line 418: `if end_date and spike.created > end_date:`
+- Line 463: `if start_date and node.created < start_date:`
+- Line 465: `if end_date and node.created > end_date:`
+
+### The Mismatch Pattern
+
+**Session datetime fields (models.py lines 959-961):**
+```python
+started_at: datetime = Field(default_factory=datetime.now)
+ended_at: datetime | None = None
+last_activity: datetime = Field(default_factory=datetime.now)
+```
+
+Problem: These are created with `datetime.now()` which returns NAIVE datetimes (no timezone info).
+
+**Analytics comparison (work_type.py lines 273-275):**
+```python
+if start_date and session.started_at < start_date:
+    continue
+if end_date and session.started_at > end_date:
+    continue
+```
+
+Problem: When `start_date` and `end_date` parameters are passed in, they may be AWARE datetimes (timezone-aware). Comparing aware with naive datetimes raises `TypeError: '>' not supported between instances of 'datetime.datetime'`.
+
+### Node datetime fields (models.py lines 1573, 2249, 2288)
+
+Similar pattern in Node classes:
+- `node.created` - set with `datetime.now()` (naive)
+- `node.updated` - set with `datetime.now()` (naive)
+- Node datetime comparisons at lines 416-418, 463-465 in work_type.py
+
+### Cross-Session Analytics (cross_session.py lines 598-612)
+
+The `_parse_timestamp()` helper returns AWARE datetimes:
+```python
+def _parse_timestamp(self, timestamp: str | datetime | None) -> datetime:
+    if timestamp is None:
+        return datetime.now()  # NAIVE
+
+    if isinstance(timestamp, datetime):
+        return timestamp
+
+    if isinstance(timestamp, str):
+        try:
+            # This creates AWARE datetime with timezone
+            return datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return datetime.now()  # NAIVE
+
+    return datetime.now()  # NAIVE
+```
+
+Line 594: `return datetime.fromisoformat(result.stdout.strip())` returns AWARE datetime from Git (ISO format with timezone).
+
+### Summary of Mismatch
+
+1. **Session/Node Creation:** Uses `datetime.now()` → NAIVE datetimes
+2. **Analytics Date Filters:** May receive AWARE datetimes from callers
+3. **Comparison Operations:** Comparing NAIVE with AWARE datetimes raises TypeError
+4. **Cross-Session Timestamps:** Mix of AWARE (from Git) and NAIVE (from datetime.now())
+
+### Impact on Code
+
+- `work_type.py:273-276`: Crashes if start_date is timezone-aware
+- `work_type.py:416-419`: Crashes if start_date is timezone-aware
+- `work_type.py:463-466`: Crashes if start_date is timezone-aware
+- `analytics/cli.py:146, 275`: Calls strftime() on datetime objects that may be timezone-aware
+- Cross-session analytics mixes timezones without normalization
+
+### Root Cause
+
+Global Pattern: The codebase inconsistently uses `datetime.now()` (naive) while some functions return timezone-aware datetimes. This creates a timezone "ticking time bomb" where comparisons fail silently in some code paths but explode in analytics.
+
+### Files Affected
+
+1. **src/python/htmlgraph/models.py** (lines 959-961, 1573, 2249, 2288)
+   - All datetime fields use `datetime.now()` (naive)
+
+2. **src/python/htmlgraph/analytics/work_type.py** (lines 273-276, 416-419, 463-466)
+   - Datetime comparisons without timezone normalization
+
+3. **src/python/htmlgraph/analytics/cross_session.py** (lines 598-612)
+   - Mixes aware and naive datetimes in _parse_timestamp()
+
+4. **src/python/htmlgraph/analytics/cli.py** (lines 146, 275)
+   - strftime() calls on potentially timezone-aware datetimes
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -27,15 +27,33 @@ Example:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from htmlgraph import SDK
 
 from htmlgraph.converter import html_to_session
-from htmlgraph.models import Session, WorkType
+from htmlgraph.models import Session, WorkType, utc_now
 from htmlgraph.session_manager import SessionManager
+
+
+def normalize_datetime(dt: datetime | None) -> datetime | None:
+    """
+    Normalize datetime to UTC-aware format for safe comparisons.
+
+    Handles three cases:
+    - None: returns None
+    - Naive (no timezone): assumes UTC and adds timezone
+    - Aware (has timezone): converts to UTC
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Naive datetime - assume UTC
+        return dt.replace(tzinfo=timezone.utc)
+    # Already aware - convert to UTC
+    return dt.astimezone(timezone.utc)
 
 
 class Analytics:
@@ -270,9 +288,11 @@ class Analytics:
                 continue
 
             # Check date range
-            if start_date and session.started_at < start_date:
+            start_normalized = normalize_datetime(start_date)
+            end_normalized = normalize_datetime(end_date)
+            if start_normalized and session.started_at < start_normalized:
                 continue
-            if end_date and session.started_at > end_date:
+            if end_normalized and session.started_at > end_normalized:
                 continue
 
             # Check primary work type
@@ -413,18 +433,26 @@ class Analytics:
         # Calculate time for each spike
         for spike in all_spikes:
             # Apply date filters
-            if start_date and spike.created < start_date:
+            start_normalized = normalize_datetime(start_date)
+            end_normalized = normalize_datetime(end_date)
+            if start_normalized and spike.created < start_normalized:
                 continue
-            if end_date and spike.created > end_date:
+            if end_normalized and spike.created > end_normalized:
                 continue
 
-            # Calculate duration
-            start_time = spike.created
+            # Calculate duration (normalize datetimes for safe comparison)
+            start_time = normalize_datetime(spike.created)
+            if not start_time:
+                continue  # Skip if spike creation date is missing
             if spike.status == "done" and spike.updated:
-                end_time = spike.updated
+                end_time = normalize_datetime(spike.updated)
             else:
                 # If still in progress, use last updated time
-                end_time = spike.updated if spike.updated else datetime.now()
+                end_time = normalize_datetime(
+                    spike.updated if spike.updated else utc_now()
+                )
+            if not end_time:
+                end_time = start_time  # Fallback to start time if end time missing
 
             duration = (
                 end_time - start_time
@@ -460,17 +488,25 @@ class Analytics:
 
             for node in nodes:
                 # Apply date filters
-                if start_date and node.created < start_date:
+                start_normalized = normalize_datetime(start_date)
+                end_normalized = normalize_datetime(end_date)
+                if start_normalized and node.created < start_normalized:
                     continue
-                if end_date and node.created > end_date:
+                if end_normalized and node.created > end_normalized:
                     continue
 
-                # Calculate duration
-                start_time = node.created
+                # Calculate duration (normalize datetimes for safe comparison)
+                start_time = normalize_datetime(node.created)
+                if not start_time:
+                    continue  # Skip if node creation date is missing
                 if node.status == "done" and node.updated:
-                    end_time = node.updated
+                    end_time = normalize_datetime(node.updated)
                 else:
-                    end_time = node.updated if node.updated else datetime.now()
+                    end_time = normalize_datetime(
+                        node.updated if node.updated else utc_now()
+                    )
+                if not end_time:
+                    end_time = start_time  # Fallback to start time if end time missing
 
                 duration = (end_time - start_time).total_seconds() / 60
                 feature_minutes += duration

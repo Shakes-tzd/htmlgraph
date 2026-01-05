@@ -82,8 +82,14 @@ class SpikeCollection(BaseCollection["SpikeCollection"]):
         all_spikes = self.all()
 
         # Filter by agent if specified
+        # Check both agent_assigned and model_name fields
         if agent:
-            all_spikes = [s for s in all_spikes if s.agent_assigned == agent]
+            all_spikes = [
+                s
+                for s in all_spikes
+                if s.agent_assigned == agent
+                or (s.model_name and agent in s.model_name.lower())
+            ]
 
         # Normalize to UTC for comparison
         def to_comparable(dt: datetime) -> datetime:

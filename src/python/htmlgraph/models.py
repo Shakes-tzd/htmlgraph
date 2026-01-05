@@ -7,12 +7,17 @@ These models provide:
 - Lightweight context generation for AI agents
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+
+def utc_now() -> datetime:
+    """Return current time as UTC-aware datetime."""
+    return datetime.now(timezone.utc)
 
 
 class WorkType(str, Enum):
@@ -264,15 +269,15 @@ class Node(BaseModel):
         if edge.relationship not in self.edges:
             self.edges[edge.relationship] = []
         self.edges[edge.relationship].append(edge)
-        self.updated = datetime.now()
+        self.updated = utc_now()
 
     def complete_step(self, index: int, agent: str | None = None) -> bool:
         """Mark a step as completed."""
         if 0 <= index < len(self.steps):
             self.steps[index].completed = True
             self.steps[index].agent = agent
-            self.steps[index].timestamp = datetime.now()
-            self.updated = datetime.now()
+            self.steps[index].timestamp = utc_now()
+            self.updated = utc_now()
             return True
         return False
 
@@ -300,7 +305,7 @@ class Node(BaseModel):
         self.context_tokens_used += tokens_used
         self.context_peak_tokens = max(self.context_peak_tokens, peak_tokens)
         self.context_cost_usd += cost_usd
-        self.updated = datetime.now()
+        self.updated = utc_now()
 
     def context_stats(self) -> dict:
         """
@@ -831,9 +836,7 @@ class ContextSnapshot(BaseModel):
     def from_dict(cls, data: dict) -> "ContextSnapshot":
         """Create from dictionary."""
         return cls(
-            timestamp=datetime.fromisoformat(data["ts"])
-            if "ts" in data
-            else datetime.now(),
+            timestamp=datetime.fromisoformat(data["ts"]) if "ts" in data else utc_now(),
             input_tokens=data.get("in", 0),
             output_tokens=data.get("out", 0),
             cache_creation_tokens=data.get("cache_create", 0),
@@ -1025,7 +1028,7 @@ class Session(BaseModel):
         """Add an activity entry to the log."""
         self.activity_log.append(entry)
         self.event_count += 1
-        self.last_activity = datetime.now()
+        self.last_activity = utc_now()
 
         # Track features worked on
         if entry.feature_id and entry.feature_id not in self.worked_on:
@@ -1062,7 +1065,7 @@ class Session(BaseModel):
     def end(self) -> None:
         """Mark session as ended."""
         self.status = "ended"
-        self.ended_at = datetime.now()
+        self.ended_at = utc_now()
 
     def record_context(
         self, snapshot: ContextSnapshot, sample_interval: int = 10
@@ -2234,16 +2237,16 @@ class Todo(BaseModel):
     def start(self) -> "Todo":
         """Mark todo as in progress."""
         self.status = "in_progress"
-        self.started_at = datetime.now()
-        self.updated = datetime.now()
+        self.started_at = utc_now()
+        self.updated = utc_now()
         return self
 
     def complete(self, agent: str | None = None) -> "Todo":
         """Mark todo as completed."""
         self.status = "completed"
-        self.completed_at = datetime.now()
+        self.completed_at = utc_now()
         self.completed_by = agent
-        self.updated = datetime.now()
+        self.updated = utc_now()
 
         # Calculate duration if started
         if self.started_at:
