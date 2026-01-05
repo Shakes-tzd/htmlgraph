@@ -314,7 +314,7 @@ class TestCIGSResetViolations:
         from htmlgraph.cli import cmd_cigs_reset_violations
 
         # Mock user input to confirm
-        monkeypatch.setattr("builtins.input", lambda _: "y")
+        monkeypatch.setattr("builtins.input", lambda *_, **__: "y")
 
         args = type(
             "obj", (object,), {"graph_dir": str(temp_graph_dir), "yes": False}
@@ -344,7 +344,7 @@ class TestCIGSResetViolations:
         from htmlgraph.cli import cmd_cigs_reset_violations
 
         # Mock user input to cancel
-        monkeypatch.setattr("builtins.input", lambda _: "n")
+        monkeypatch.setattr("builtins.input", lambda *_, **__: "n")
 
         args = type(
             "obj", (object,), {"graph_dir": str(temp_graph_dir), "yes": False}

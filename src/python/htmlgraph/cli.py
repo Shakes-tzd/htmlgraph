@@ -1064,7 +1064,7 @@ def cmd_query(args: argparse.Namespace) -> None:
 
     graph_dir = Path(args.graph_dir)
     if not graph_dir.exists():
-        print(f"Error: {graph_dir} not found.", file=sys.stderr)
+        console.print(f"[red]Error: {graph_dir} not found.[/red]")
         sys.exit(1)
 
     # Query with status spinner
@@ -1168,7 +1168,7 @@ def cmd_session_end(args: argparse.Namespace) -> None:
     )
 
     if session is None:
-        print(f"Error: Session '{input_data.session_id}' not found.", file=sys.stderr)
+        console.print(f"[red]Error: Session '{input_data.session_id}' not found.[/red]")
         sys.exit(1)
 
     if args.format == "json":
@@ -1572,15 +1572,14 @@ def cmd_session_link(args: argparse.Namespace) -> None:
     session_graph = HtmlGraph(sessions_dir)
     session = session_graph.get(args.session_id)
     if not session:
-        print(f"Error: Failed to load session '{args.session_id}'", file=sys.stderr)
+        console.print(f"[red]Error: Failed to load session '{args.session_id}'[/red]")
         sys.exit(1)
 
     # Load feature
     feature_file = feature_dir / f"{args.feature_id}.html"
     if not feature_file.exists():
-        print(
-            f"Error: Feature '{args.feature_id}' not found at {feature_file}",
-            file=sys.stderr,
+        console.print(
+            f"[red]Error: Feature '{args.feature_id}' not found at {feature_file}[/red]"
         )
         sys.exit(1)
 

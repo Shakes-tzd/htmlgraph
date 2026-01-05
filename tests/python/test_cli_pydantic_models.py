@@ -54,13 +54,13 @@ class TestFeatureCreateInput:
         """Test that empty title raises ValidationError."""
         with pytest.raises(ValidationError) as exc_info:
             FeatureCreateInput(title="")
-        assert "Title cannot be empty" in str(exc_info.value)
+        assert "String should have at least 1 character" in str(exc_info.value)
 
     def test_title_whitespace_only_raises_error(self):
         """Test that whitespace-only title raises ValidationError."""
         with pytest.raises(ValidationError) as exc_info:
             FeatureCreateInput(title="   ")
-        assert "Title cannot be empty" in str(exc_info.value)
+        assert "String should have at least 1 character" in str(exc_info.value)
 
     def test_title_too_long_raises_error(self):
         """Test that title exceeding max length raises ValidationError."""

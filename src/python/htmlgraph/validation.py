@@ -55,7 +55,7 @@ def display_validation_error(error: ValidationError) -> None:
 
 def validate_input(
     validator_class: type[T],
-    **kwargs,
+    **kwargs: object,
 ) -> T | None:
     """
     Validate input and display rich error messages on failure.
@@ -80,7 +80,7 @@ def validate_input(
         return None
 
 
-def wrap_command_validation(func: Callable) -> Callable:
+def wrap_command_validation(func: Callable[..., None]) -> Callable[..., None]:
     """
     Decorator to wrap CLI command functions with validation error handling.
 
@@ -103,7 +103,7 @@ def wrap_command_validation(func: Callable) -> Callable:
             # Rest of command logic
     """
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: object, **kwargs: object) -> None:
         import sys
 
         try:
