@@ -200,8 +200,8 @@ class Deployer:
         except subprocess.CalledProcessError as e:
             self.log_error(f"Command failed: {' '.join(cmd)}")
             if e.stderr:
-                # Print error to stderr directly (console.print doesn't support file parameter)
-                print(e.stderr, file=sys.stderr)
+                # Print error to stderr using console (Rich supports stderr output)
+                console.print(e.stderr, style="red")
             raise
 
     def run_hook(self, hook_commands: list[str], hook_name: str) -> None:
