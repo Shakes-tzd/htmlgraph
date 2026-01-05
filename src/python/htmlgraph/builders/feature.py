@@ -7,10 +7,10 @@ capability management.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
 
@@ -33,6 +33,21 @@ class FeatureBuilder(BaseBuilder["FeatureBuilder"]):
     """
 
     node_type = "feature"
+
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
+        """Initialize feature builder with agent attribution."""
+        super().__init__(sdk, title, **kwargs)
+        # Auto-assign agent from SDK for work tracking
+        if sdk._agent_id:
+            self._data["agent_assigned"] = sdk._agent_id
+        elif "agent_assigned" not in self._data:
+            # Log warning if agent not assigned (defensive check)
+            import logging
+
+            logging.warning(
+                f"Creating feature '{self._data.get('title', 'Unknown')}' without agent attribution. "
+                "Pass agent='name' to SDK() initialization."
+            )
 
     def set_required_capabilities(self, capabilities: list[str]) -> FeatureBuilder:
         """

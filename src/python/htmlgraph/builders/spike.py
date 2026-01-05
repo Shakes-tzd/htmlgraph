@@ -48,9 +48,18 @@ class SpikeBuilder(BaseBuilder["SpikeBuilder"]):
             self._data["spike_type"] = SpikeType.GENERAL
         if "timebox_hours" not in self._data:
             self._data["timebox_hours"] = 4
-        # Auto-assign agent if not explicitly provided and SDK has an agent
-        if "agent_assigned" not in self._data and sdk._agent_id:
+        # Auto-assign agent from SDK (critical for work tracking)
+        if sdk._agent_id:
             self._data["agent_assigned"] = sdk._agent_id
+        elif "agent_assigned" not in self._data:
+            # This should never happen now because SDK enforces agent parameter,
+            # but log warning if it does occur (for debugging)
+            import logging
+
+            logging.warning(
+                f"Creating spike '{self._data.get('title', 'Unknown')}' without agent attribution. "
+                "This will make work tracking impossible. Pass agent='name' to SDK() initialization."
+            )
 
     def set_spike_type(self, spike_type: SpikeType) -> SpikeBuilder:
         """

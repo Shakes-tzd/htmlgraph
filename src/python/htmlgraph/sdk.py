@@ -59,6 +59,7 @@ from htmlgraph.collections import (
 from htmlgraph.collections.insight import InsightCollection
 from htmlgraph.collections.metric import MetricCollection
 from htmlgraph.collections.pattern import PatternCollection
+from htmlgraph.collections.session import SessionCollection
 from htmlgraph.context_analytics import ContextAnalytics
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
@@ -224,14 +225,36 @@ class SDK:
 
         Args:
             directory: Path to .htmlgraph directory (auto-discovered if not provided)
-            agent: Agent identifier for operations
+            agent: REQUIRED - Agent identifier for operations.
+                Used to attribute work items (features, spikes, bugs, etc) to the agent.
+                Examples: agent='explorer', agent='coder', agent='tester'
+                Critical for: Work attribution, result retrieval, orchestrator tracking
+                Falls back to: CLAUDE_AGENT_NAME env var, then detect_agent_name()
+                Raises ValueError if not provided and cannot be detected
             parent_session: Parent session ID to log activities to (for nested contexts)
         """
         if directory is None:
             directory = self._discover_htmlgraph()
 
         if agent is None:
-            agent = detect_agent_name()
+            # Try environment variable fallback
+            agent = os.getenv("CLAUDE_AGENT_NAME")
+
+        if agent is None:
+            # Try automatic detection
+            detected = detect_agent_name()
+            if detected and detected != "cli":
+                # Only accept detected if it's not the default fallback
+                agent = detected
+            else:
+                # No valid agent found - fail fast with helpful error message
+                raise ValueError(
+                    "Agent identifier is required for work attribution. "
+                    "Pass agent='name' to SDK() initialization. "
+                    "Examples: SDK(agent='explorer'), SDK(agent='coder'), SDK(agent='tester')\n"
+                    "Alternatively, set CLAUDE_AGENT_NAME environment variable.\n"
+                    "Critical for: Work attribution, result retrieval, orchestrator tracking"
+                )
 
         self._directory = Path(directory)
         self._agent_id = agent
@@ -263,7 +286,7 @@ class SDK:
         self.phases = PhaseCollection(self)
 
         # Non-work collections
-        self.sessions: BaseCollection = BaseCollection(self, "sessions", "session")
+        self.sessions: SessionCollection = SessionCollection(self)
         self.tracks: TrackCollection = TrackCollection(
             self
         )  # Use specialized collection with builder support

@@ -794,11 +794,43 @@ def output_response(context: str, status_summary: str | None = None) -> None:
     )
 
 
+def setup_session_state_and_environment() -> dict[str, str] | None:
+    """
+    Automatically set up session state and environment variables.
+
+    Returns:
+        Dict of environment variables that were set, or None if setup failed
+    """
+    try:
+        from htmlgraph import SDK
+
+        sdk = SDK(agent="claude-code")
+
+        # Get current session state (auto-detects post-compact, delegation status, etc.)
+        state = sdk.sessions.get_current_state()
+
+        # Automatically set up environment variables
+        env_vars = sdk.sessions.setup_environment_variables(state)
+
+        return env_vars
+    except Exception as e:
+        print(f"Warning: Could not set up session state: {e}", file=sys.stderr)
+        return None
+
+
 def main():
     try:
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:
         hook_input = {}
+
+    # Set up session state and environment variables automatically
+    env_vars = setup_session_state_and_environment()
+    if env_vars:
+        print(
+            f"Session state configured: {env_vars.get('CLAUDE_SESSION_ID', 'unknown')[:12]}...",
+            file=sys.stderr,
+        )
 
     # Check for version updates (non-blocking, best-effort)
     version_warning = ""

@@ -7,10 +7,10 @@ severity and reproduction steps.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from htmlgraph.sdk import SDK
 
 from htmlgraph.builders.base import BaseBuilder
 
@@ -36,6 +36,21 @@ class BugBuilder(BaseBuilder["BugBuilder"]):
     """
 
     node_type = "bug"
+
+    def __init__(self, sdk: SDK, title: str, **kwargs: Any):
+        """Initialize bug builder with agent attribution."""
+        super().__init__(sdk, title, **kwargs)
+        # Auto-assign agent from SDK for work tracking
+        if sdk._agent_id:
+            self._data["agent_assigned"] = sdk._agent_id
+        elif "agent_assigned" not in self._data:
+            # Log warning if agent not assigned (defensive check)
+            import logging
+
+            logging.warning(
+                f"Creating bug '{self._data.get('title', 'Unknown')}' without agent attribution. "
+                "Pass agent='name' to SDK() initialization."
+            )
 
     def set_severity(self, severity: str) -> BugBuilder:
         """
