@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
+from rich.console import Console
+
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
+
+_console = Console()
 
 
 class CommandError(Exception):
@@ -49,19 +53,19 @@ def _serialize_json(value: Any) -> Any:
 class JsonFormatter:
     def output(self, result: CommandResult) -> None:
         payload = result.json_data if result.json_data is not None else result.data
-        print(json.dumps(_serialize_json(payload), indent=2))
+        _console.print(json.dumps(_serialize_json(payload), indent=2))
 
 
 class TextFormatter:
     def output(self, result: CommandResult) -> None:
         if result.text is None:
             if result.data is not None:
-                print(result.data)
+                _console.print(result.data)
             return
         if isinstance(result.text, str):
-            print(result.text)
+            _console.print(result.text)
             return
-        print("\n".join(str(line) for line in result.text))
+        _console.print("\n".join(str(line) for line in result.text))
 
 
 def get_formatter(format_name: str) -> Formatter:
@@ -102,8 +106,10 @@ class BaseCommand:
             formatter = get_formatter(output_format)
             formatter.output(result)
         except CommandError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
+            error_console = Console(file=sys.stderr)
+            error_console.print(f"[red]Error: {exc}[/red]")
             sys.exit(exc.exit_code)
         except ValueError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
+            error_console = Console(file=sys.stderr)
+            error_console.print(f"[red]Error: {exc}[/red]")
             sys.exit(1)

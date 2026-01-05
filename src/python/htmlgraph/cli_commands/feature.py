@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from htmlgraph.cli_framework import BaseCommand, CommandError, CommandResult
+
+_console = Console()
 
 
 class FeatureCreateCommand(BaseCommand):
@@ -44,6 +50,19 @@ class FeatureCreateCommand(BaseCommand):
                 agent=self.agent,
             )
 
+        # Format output with Rich
+        table = Table(show_header=False, box=None)
+        table.add_column(style="bold cyan")
+        table.add_column()
+
+        table.add_row("Created:", f"[green]{node.id}[/green]")
+        table.add_row("Title:", f"[yellow]{node.title}[/yellow]")
+        table.add_row("Status:", f"[blue]{node.status}[/blue]")
+        table.add_row(
+            "Path:", f"[dim]{self.graph_dir}/{self.collection}/{node.id}.html[/dim]"
+        )
+
+        # Format as Rich panel for text output
         text = [
             f"Created: {node.id}",
             f"  Title: {node.title}",
@@ -73,6 +92,21 @@ class FeatureStartCommand(BaseCommand):
             )
 
         status = sdk.session_manager.get_status()
+
+        # Format output with Rich
+        table = Table(show_header=False, box=None)
+        table.add_column(style="bold cyan")
+        table.add_column()
+
+        table.add_row("Started:", f"[green]{node.id}[/green]")
+        table.add_row("Title:", f"[yellow]{node.title}[/yellow]")
+        table.add_row("Status:", f"[blue]{node.status}[/blue]")
+        wip_color = "red" if status["wip_count"] >= status["wip_limit"] else "green"
+        table.add_row(
+            "WIP:",
+            f"[{wip_color}]{status['wip_count']}/{status['wip_limit']}[/{wip_color}]",
+        )
+
         text = [
             f"Started: {node.id}",
             f"  Title: {node.title}",
@@ -100,6 +134,15 @@ class FeatureCompleteCommand(BaseCommand):
             raise CommandError(
                 f"Feature '{self.feature_id}' not found in {self.collection}."
             )
+
+        # Format output with Rich
+        panel = Panel(
+            f"[bold green]✓ Completed[/bold green]\n"
+            f"[cyan]{node.id}[/cyan]\n"
+            f"[yellow]{node.title}[/yellow]",
+            border_style="green",
+        )
+        _console.print(panel)
 
         text = [
             f"Completed: {node.id}",
