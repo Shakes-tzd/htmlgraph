@@ -22,8 +22,7 @@ from pathlib import Path
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -34,19 +33,19 @@ def main():
         description="Initialize SQLite database for HTMX dashboard"
     )
     parser.add_argument(
-        '--db-path',
+        "--db-path",
         default=None,
-        help='Path to SQLite database (default: ~/.htmlgraph/htmlgraph.db)',
+        help="Path to SQLite database (default: ~/.htmlgraph/htmlgraph.db)",
     )
     parser.add_argument(
-        '--htmlgraph-dir',
+        "--htmlgraph-dir",
         default=None,
-        help='Path to .htmlgraph directory (default: ~/.htmlgraph)',
+        help="Path to .htmlgraph directory (default: ~/.htmlgraph)",
     )
     parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable debug logging',
+        "--verbose",
+        action="store_true",
+        help="Enable debug logging",
     )
 
     args = parser.parse_args()
@@ -125,9 +124,7 @@ def main():
             "SELECT COUNT(*) FROM sessions"
         ).fetchone()[0]
 
-        track_count = db.connection.execute(
-            "SELECT COUNT(*) FROM tracks"
-        ).fetchone()[0]
+        track_count = db.connection.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
 
         collaboration_count = db.connection.execute(
             "SELECT COUNT(*) FROM agent_collaboration"
@@ -145,6 +142,7 @@ def main():
         logger.info("Step 4: Verifying FastAPI can connect...")
         try:
             from htmlgraph.api.main import create_app
+
             create_app(str(db_path))
             logger.info("✅ FastAPI app created successfully")
             logger.info("")
@@ -180,6 +178,6 @@ def main():
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)

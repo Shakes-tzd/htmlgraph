@@ -27,17 +27,19 @@ def run_cmd(cmd: str, description: str) -> bool:
     print(f"\n[EXEC] {description}")
     print(f"       Command: {cmd}")
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=30
+        )
         if result.returncode == 0:
-            print(f"       Status: SUCCESS")
+            print("       Status: SUCCESS")
             return True
         else:
-            print(f"       Status: FAILED")
+            print("       Status: FAILED")
             if result.stderr:
                 print(f"       Error: {result.stderr[:200]}")
             return False
     except subprocess.TimeoutExpired:
-        print(f"       Status: TIMEOUT")
+        print("       Status: TIMEOUT")
         return False
     except Exception as e:
         print(f"       Status: ERROR - {e}")
@@ -75,18 +77,20 @@ def main():
         # Use existing track for Dashboard UI Redesign
         builder1 = sdk.features.create(
             title="Dashboard Activity Feed Real-Time Streaming",
-            description="Implement WebSocket support for real-time activity updates on the HtmlGraph dashboard. This enables agents to see work events as they happen."
+            description="Implement WebSocket support for real-time activity updates on the HtmlGraph dashboard. This enables agents to see work events as they happen.",
         )
         builder1.set_track("trk-46716045")  # Dashboard UI Redesign track
         builder1.set_priority("high")
         builder1.set_status("in-progress")
-        builder1.add_steps([
-            "Research WebSocket libraries and integration patterns",
-            "Implement WebSocket server in dashboard backend",
-            "Add client-side event streaming",
-            "Test real-time event delivery",
-            "Document streaming API"
-        ])
+        builder1.add_steps(
+            [
+                "Research WebSocket libraries and integration patterns",
+                "Implement WebSocket server in dashboard backend",
+                "Add client-side event streaming",
+                "Test real-time event delivery",
+                "Document streaming API",
+            ]
+        )
         feature1 = builder1.save()
         print(f"       Created: {feature1.id}")
         event_count += 1
@@ -107,7 +111,7 @@ def main():
 
     files_to_read = [
         "/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/server.py",
-        "/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/models.py"
+        "/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/models.py",
     ]
 
     for file_path in files_to_read:
@@ -117,7 +121,7 @@ def main():
                 print(f"\n[READ] Analyzing {path.name}...")
                 with open(path) as f:
                     content = f.read()
-                    lines = len(content.split('\n'))
+                    lines = len(content.split("\n"))
                     size = len(content)
                 print(f"       Size: {size} bytes, {lines} lines")
                 event_count += 1
@@ -133,9 +137,18 @@ def main():
 
     # Search for feature-related patterns
     patterns = [
-        ("SDK usage", "grep -r 'sdk\\.features\\.' src/python --include='*.py' | head -5"),
-        ("API endpoints", "grep -r '@app\\.route\\|@router\\.' src/python --include='*.py' | head -5"),
-        ("WebSocket imports", "grep -r 'websocket\\|asyncio' src/python --include='*.py' | head -3"),
+        (
+            "SDK usage",
+            "grep -r 'sdk\\.features\\.' src/python --include='*.py' | head -5",
+        ),
+        (
+            "API endpoints",
+            "grep -r '@app\\.route\\|@router\\.' src/python --include='*.py' | head -5",
+        ),
+        (
+            "WebSocket imports",
+            "grep -r 'websocket\\|asyncio' src/python --include='*.py' | head -3",
+        ),
     ]
 
     for pattern_name, grep_cmd in patterns:
@@ -152,17 +165,19 @@ def main():
         print("\n[CREATE] Creating Feature 2...")
         builder2 = sdk.features.create(
             title="Activity Feed Event Persistence",
-            description="Persist activity feed events to disk for dashboard history and recovery. Implement efficient event storage with compression and rotation."
+            description="Persist activity feed events to disk for dashboard history and recovery. Implement efficient event storage with compression and rotation.",
         )
         builder2.set_track("trk-86a32984")  # Live Activity Feed Test track
         builder2.set_priority("medium")
         builder2.set_status("todo")
-        builder2.add_steps([
-            "Design event storage schema",
-            "Implement event log rotation",
-            "Add event compression",
-            "Create recovery mechanisms"
-        ])
+        builder2.add_steps(
+            [
+                "Design event storage schema",
+                "Implement event log rotation",
+                "Add event compression",
+                "Create recovery mechanisms",
+            ]
+        )
         feature2 = builder2.save()
         print(f"       Created: {feature2.id}")
         event_count += 1
@@ -175,9 +190,18 @@ def main():
     print("=" * 70)
 
     test_commands = [
-        ("Linting check", "uv run ruff check src/python/htmlgraph --select E,W --quiet | head -10"),
-        ("Type checking sample", "uv run mypy src/python/htmlgraph/sdk.py --no-error-summary 2>&1 | head -5"),
-        ("Test discovery", "uv run pytest src/python/htmlgraph --collect-only -q 2>&1 | head -10"),
+        (
+            "Linting check",
+            "uv run ruff check src/python/htmlgraph --select E,W --quiet | head -10",
+        ),
+        (
+            "Type checking sample",
+            "uv run mypy src/python/htmlgraph/sdk.py --no-error-summary 2>&1 | head -5",
+        ),
+        (
+            "Test discovery",
+            "uv run pytest src/python/htmlgraph --collect-only -q 2>&1 | head -10",
+        ),
     ]
 
     for test_name, test_cmd in test_commands:
@@ -194,18 +218,20 @@ def main():
         print("\n[CREATE] Creating Feature 3...")
         builder3 = sdk.features.create(
             title="Multi-Agent Activity Tracking & Visualization",
-            description="Track concurrent work across multiple agents with visual timeline and dependency graph on the Activity Feed."
+            description="Track concurrent work across multiple agents with visual timeline and dependency graph on the Activity Feed.",
         )
         builder3.set_track("trk-46716045")  # Dashboard UI Redesign track
         builder3.set_priority("high")
         builder3.set_status("todo")
-        builder3.add_steps([
-            "Implement agent activity aggregation",
-            "Create timeline visualization",
-            "Add dependency graph rendering",
-            "Optimize for real-time updates",
-            "Add filtering and search"
-        ])
+        builder3.add_steps(
+            [
+                "Implement agent activity aggregation",
+                "Create timeline visualization",
+                "Add dependency graph rendering",
+                "Optimize for real-time updates",
+                "Add filtering and search",
+            ]
+        )
         feature3 = builder3.save()
         print(f"       Created: {feature3.id}")
         event_count += 1

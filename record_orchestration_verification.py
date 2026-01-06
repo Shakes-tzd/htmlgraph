@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Record orchestration verification findings to HtmlGraph."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src" / "python"))
 
 from htmlgraph import SDK
+
 
 def main():
     """Record verification findings."""
@@ -139,7 +140,8 @@ The Orchestration tab is **fully functional and ready for production use**. The 
 
     print("✅ Spike saved successfully!")
     print(f"Spike ID: {spike.id}")
-    print(f"Location: .htmlgraph/spikes/")
+    print("Location: .htmlgraph/spikes/")
+
 
 if __name__ == "__main__":
     main()

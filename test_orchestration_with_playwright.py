@@ -27,7 +27,9 @@ async def verify_orchestration_tab():
 
         # Look for the view buttons (Orchestration might be under different name)
         print("2. Looking for view/tab buttons...")
-        buttons = await page.locator("button[class*='view'], button[data-view], [class*='tab']").all()
+        buttons = await page.locator(
+            "button[class*='view'], button[data-view], [class*='tab']"
+        ).all()
 
         button_labels = []
         for btn in buttons:
@@ -52,7 +54,9 @@ async def verify_orchestration_tab():
             print("   Checking if endpoint is available via HTTP...")
 
             # Test API endpoint directly
-            orchestration_html = await page.request.get("http://localhost:8000/views/orchestration")
+            orchestration_html = await page.request.get(
+                "http://localhost:8000/views/orchestration"
+            )
             if orchestration_html.ok:
                 content = await orchestration_html.text()
                 print("   ✓ /views/orchestration endpoint is working")
@@ -95,23 +99,27 @@ async def verify_orchestration_tab():
         print("\n5. Attempting to load orchestration view directly...")
         try:
             # Navigate directly to orchestration via endpoint
-            await page.goto("http://localhost:8000/views/orchestration", wait_until="networkidle")
+            await page.goto(
+                "http://localhost:8000/views/orchestration", wait_until="networkidle"
+            )
             await asyncio.sleep(1)
 
             # Take screenshot of orchestration view
             orchestration_screenshot = "/tmp/orchestration_view.png"
             await page.screenshot(path=orchestration_screenshot, full_page=True)
-            print(f"   ✓ Orchestration view loaded")
+            print("   ✓ Orchestration view loaded")
             print(f"   Screenshot saved to: {orchestration_screenshot}")
 
             # Check for delegation counters
             body_content = await page.locator("body").text_content()
             print("\n6. Orchestration View Results:")
-            print("   " + "="*50)
+            print("   " + "=" * 50)
 
             if "Total Delegations" in body_content:
                 # Extract counter value
-                counter_match = body_content.split("Total Delegations")[1].split("\n")[0:3]
+                counter_match = body_content.split("Total Delegations")[1].split("\n")[
+                    0:3
+                ]
                 counter_text = " ".join(counter_match)
                 print(f"   ✓ Total Delegations: {counter_text.strip()}")
             else:

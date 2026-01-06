@@ -9,7 +9,6 @@ This test verifies that:
 4. Multiple delegations can be recorded without issues
 """
 
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -86,7 +85,9 @@ class TestDelegationFKFix(unittest.TestCase):
 
         # Verify session still exists
         cursor = self.db.connection.cursor()  # type: ignore[union-attr]
-        cursor.execute("SELECT COUNT(*) FROM sessions WHERE session_id = ?", ("sess-existing",))
+        cursor.execute(
+            "SELECT COUNT(*) FROM sessions WHERE session_id = ?", ("sess-existing",)
+        )
         count = cursor.fetchone()[0]
         self.assertEqual(count, 1)
 
@@ -159,7 +160,9 @@ class TestDelegationFKFix(unittest.TestCase):
 
         # Should still have only one session
         cursor = self.db.connection.cursor()  # type: ignore[union-attr]
-        cursor.execute("SELECT COUNT(*) FROM sessions WHERE session_id = ?", (session_id,))
+        cursor.execute(
+            "SELECT COUNT(*) FROM sessions WHERE session_id = ?", (session_id,)
+        )
         count = cursor.fetchone()[0]
         self.assertEqual(count, 1)
 

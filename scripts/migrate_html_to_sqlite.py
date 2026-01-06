@@ -36,8 +36,7 @@ from typing import Any
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -58,37 +57,39 @@ class HtmlMetadataParser(HTMLParser):
         attrs_dict = dict(attrs)
 
         # Extract node info from article/section tags
-        if tag in ('article', 'section'):
-            self.current_node_id = attrs_dict.get('id')
+        if tag in ("article", "section"):
+            self.current_node_id = attrs_dict.get("id")
             for key, value in attrs_dict.items():
-                if key.startswith('data-'):
+                if key.startswith("data-"):
                     # Convert data-attribute to metadata
                     attr_name = key[5:]  # Remove 'data-' prefix
                     self.metadata[attr_name] = value
 
         # Extract hyperlinks as edges
-        if tag == 'a':
-            href = attrs_dict.get('href', '')
-            relationship = attrs_dict.get('data-relationship', 'related')
+        if tag == "a":
+            href = attrs_dict.get("href", "")
+            relationship = attrs_dict.get("data-relationship", "related")
             if href and self.current_node_id:
                 # Parse target ID from href
-                target_id = href.replace('.html', '').split('/')[-1]
-                self.edges.append({
-                    'from_id': self.current_node_id,
-                    'to_id': target_id,
-                    'relationship': relationship,
-                })
+                target_id = href.replace(".html", "").split("/")[-1]
+                self.edges.append(
+                    {
+                        "from_id": self.current_node_id,
+                        "to_id": target_id,
+                        "relationship": relationship,
+                    }
+                )
 
         # Extract title
-        if tag == 'title':
+        if tag == "title":
             self.in_title = True
 
-        if tag == 'h1' and not self.title:
+        if tag == "h1" and not self.title:
             self.in_title = True
 
     def handle_endtag(self, tag: str):
         """Handle closing tags."""
-        if tag in ('title', 'h1'):
+        if tag in ("title", "h1"):
             self.in_title = False
 
     def handle_data(self, data: str):
@@ -124,11 +125,11 @@ class HtmlGraphMigrator:
 
         # Statistics
         self.stats = {
-            'features_parsed': 0,
-            'sessions_parsed': 0,
-            'edges_parsed': 0,
-            'errors': 0,
-            'warnings': 0,
+            "features_parsed": 0,
+            "sessions_parsed": 0,
+            "edges_parsed": 0,
+            "errors": 0,
+            "warnings": 0,
         }
 
     def backup_html_files(self):
@@ -136,7 +137,7 @@ class HtmlGraphMigrator:
         if not self.create_backup:
             return
 
-        backup_dir = self.htmlgraph_dir / '.backup'
+        backup_dir = self.htmlgraph_dir / ".backup"
         if backup_dir.exists():
             logger.warning(f"Backup directory already exists: {backup_dir}")
             return
@@ -145,22 +146,22 @@ class HtmlGraphMigrator:
 
         try:
             # Backup features
-            features_src = self.htmlgraph_dir / 'features'
+            features_src = self.htmlgraph_dir / "features"
             if features_src.exists():
-                features_backup = backup_dir / 'features'
+                features_backup = backup_dir / "features"
                 shutil.copytree(features_src, features_backup)
                 logger.info(f"Backed up features: {features_backup}")
 
             # Backup sessions
-            sessions_src = self.htmlgraph_dir / 'sessions'
+            sessions_src = self.htmlgraph_dir / "sessions"
             if sessions_src.exists():
-                sessions_backup = backup_dir / 'sessions'
+                sessions_backup = backup_dir / "sessions"
                 shutil.copytree(sessions_src, sessions_backup)
                 logger.info(f"Backed up sessions: {sessions_backup}")
 
         except Exception as e:
             logger.error(f"Backup error: {e}")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
 
     def parse_feature_html(self, html_file: Path) -> dict[str, Any] | None:
         """
@@ -173,7 +174,7 @@ class HtmlGraphMigrator:
             Feature dictionary with parsed data
         """
         try:
-            with open(html_file, encoding='utf-8') as f:
+            with open(html_file, encoding="utf-8") as f:
                 html_content = f.read()
 
             parser = HtmlMetadataParser()
@@ -181,24 +182,28 @@ class HtmlGraphMigrator:
 
             # Map HTML attributes to feature schema
             feature = {
-                'id': parser.metadata.get('id') or html_file.stem,
-                'type': parser.metadata.get('type', 'feature'),
-                'title': parser.title or parser.metadata.get('title', 'Untitled'),
-                'status': parser.metadata.get('status', 'todo'),
-                'priority': parser.metadata.get('priority', 'medium'),
-                'assigned_to': parser.metadata.get('assigned', None),
-                'created_at': parser.metadata.get('created', datetime.now().isoformat()),
-                'updated_at': parser.metadata.get('updated', datetime.now().isoformat()),
-                'edges': parser.edges,
+                "id": parser.metadata.get("id") or html_file.stem,
+                "type": parser.metadata.get("type", "feature"),
+                "title": parser.title or parser.metadata.get("title", "Untitled"),
+                "status": parser.metadata.get("status", "todo"),
+                "priority": parser.metadata.get("priority", "medium"),
+                "assigned_to": parser.metadata.get("assigned", None),
+                "created_at": parser.metadata.get(
+                    "created", datetime.now().isoformat()
+                ),
+                "updated_at": parser.metadata.get(
+                    "updated", datetime.now().isoformat()
+                ),
+                "edges": parser.edges,
             }
 
             logger.debug(f"Parsed feature: {feature['id']}")
-            self.stats['features_parsed'] += 1
+            self.stats["features_parsed"] += 1
             return feature
 
         except Exception as e:
             logger.error(f"Error parsing {html_file}: {e}")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
             return None
 
     def parse_session_html(self, html_file: Path) -> dict[str, Any] | None:
@@ -212,7 +217,7 @@ class HtmlGraphMigrator:
             Session dictionary with parsed data
         """
         try:
-            with open(html_file, encoding='utf-8') as f:
+            with open(html_file, encoding="utf-8") as f:
                 html_content = f.read()
 
             parser = HtmlMetadataParser()
@@ -220,25 +225,28 @@ class HtmlGraphMigrator:
 
             # Map HTML attributes to session schema
             session = {
-                'session_id': parser.metadata.get('id') or html_file.stem,
-                'agent_assigned': parser.metadata.get('agent', 'unknown'),
-                'created_at': parser.metadata.get('started-at', datetime.now().isoformat()),
-                'completed_at': parser.metadata.get('ended-at'),
-                'total_events': int(parser.metadata.get('event-count', 0)),
-                'is_subagent': parser.metadata.get('is-subagent', 'false').lower() == 'true',
-                'transcript_id': parser.metadata.get('transcript-id'),
-                'transcript_path': parser.metadata.get('transcript-path'),
-                'status': parser.metadata.get('status', 'active'),
-                'edges': parser.edges,
+                "session_id": parser.metadata.get("id") or html_file.stem,
+                "agent_assigned": parser.metadata.get("agent", "unknown"),
+                "created_at": parser.metadata.get(
+                    "started-at", datetime.now().isoformat()
+                ),
+                "completed_at": parser.metadata.get("ended-at"),
+                "total_events": int(parser.metadata.get("event-count", 0)),
+                "is_subagent": parser.metadata.get("is-subagent", "false").lower()
+                == "true",
+                "transcript_id": parser.metadata.get("transcript-id"),
+                "transcript_path": parser.metadata.get("transcript-path"),
+                "status": parser.metadata.get("status", "active"),
+                "edges": parser.edges,
             }
 
             logger.debug(f"Parsed session: {session['session_id']}")
-            self.stats['sessions_parsed'] += 1
+            self.stats["sessions_parsed"] += 1
             return session
 
         except Exception as e:
             logger.error(f"Error parsing {html_file}: {e}")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
             return None
 
     def collect_features(self) -> list[dict[str, Any]]:
@@ -248,7 +256,7 @@ class HtmlGraphMigrator:
         Returns:
             List of feature dictionaries
         """
-        features_dir = self.htmlgraph_dir / 'features'
+        features_dir = self.htmlgraph_dir / "features"
         features = []
 
         if not features_dir.exists():
@@ -257,7 +265,7 @@ class HtmlGraphMigrator:
 
         logger.info(f"Scanning features directory: {features_dir}")
 
-        for html_file in sorted(features_dir.glob('*.html')):
+        for html_file in sorted(features_dir.glob("*.html")):
             feature = self.parse_feature_html(html_file)
             if feature:
                 features.append(feature)
@@ -272,7 +280,7 @@ class HtmlGraphMigrator:
         Returns:
             List of session dictionaries
         """
-        sessions_dir = self.htmlgraph_dir / 'sessions'
+        sessions_dir = self.htmlgraph_dir / "sessions"
         sessions = []
 
         if not sessions_dir.exists():
@@ -281,7 +289,7 @@ class HtmlGraphMigrator:
 
         logger.info(f"Scanning sessions directory: {sessions_dir}")
 
-        for html_file in sorted(sessions_dir.glob('*.html')):
+        for html_file in sorted(sessions_dir.glob("*.html")):
             session = self.parse_session_html(html_file)
             if session:
                 sessions.append(session)
@@ -303,24 +311,24 @@ class HtmlGraphMigrator:
         logger.info("Validating collected data...")
 
         # Check for duplicates
-        feature_ids = [f['id'] for f in features]
+        feature_ids = [f["id"] for f in features]
         if len(feature_ids) != len(set(feature_ids)):
             logger.error("Duplicate feature IDs detected!")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
             return False
 
-        session_ids = [s['session_id'] for s in sessions]
+        session_ids = [s["session_id"] for s in sessions]
         if len(session_ids) != len(set(session_ids)):
             logger.error("Duplicate session IDs detected!")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
             return False
 
         # Check for invalid references
         for feature in features:
-            for edge in feature.get('edges', []):
-                if edge['to_id'] not in feature_ids:
+            for edge in feature.get("edges", []):
+                if edge["to_id"] not in feature_ids:
                     logger.warning(f"Dangling edge reference: {edge['to_id']}")
-                    self.stats['warnings'] += 1
+                    self.stats["warnings"] += 1
 
         logger.info("Data validation complete")
         return True
@@ -346,39 +354,39 @@ class HtmlGraphMigrator:
             logger.info("Importing features...")
             for feature in features:
                 success = db.insert_feature(
-                    feature_id=feature['id'],
-                    feature_type=feature['type'],
-                    title=feature['title'],
-                    status=feature['status'],
-                    priority=feature['priority'],
-                    assigned_to=feature.get('assigned_to'),
+                    feature_id=feature["id"],
+                    feature_type=feature["type"],
+                    title=feature["title"],
+                    status=feature["status"],
+                    priority=feature["priority"],
+                    assigned_to=feature.get("assigned_to"),
                 )
                 if not success:
                     logger.warning(f"Failed to import feature: {feature['id']}")
-                    self.stats['errors'] += 1
+                    self.stats["errors"] += 1
 
             logger.info("Importing sessions...")
             for session in sessions:
                 success = db.insert_session(
-                    session_id=session['session_id'],
-                    agent_assigned=session['agent_assigned'],
-                    is_subagent=session['is_subagent'],
-                    transcript_id=session.get('transcript_id'),
-                    transcript_path=session.get('transcript_path'),
+                    session_id=session["session_id"],
+                    agent_assigned=session["agent_assigned"],
+                    is_subagent=session["is_subagent"],
+                    transcript_id=session.get("transcript_id"),
+                    transcript_path=session.get("transcript_path"),
                 )
                 if not success:
                     logger.warning(f"Failed to import session: {session['session_id']}")
-                    self.stats['errors'] += 1
+                    self.stats["errors"] += 1
 
             logger.info("Importing graph edges...")
             all_edges = []
             for feature in features:
-                all_edges.extend(feature.get('edges', []))
+                all_edges.extend(feature.get("edges", []))
             for session in sessions:
-                all_edges.extend(session.get('edges', []))
+                all_edges.extend(session.get("edges", []))
 
             # TODO: Insert edges into graph_edges table
-            self.stats['edges_parsed'] = len(all_edges)
+            self.stats["edges_parsed"] = len(all_edges)
 
             db.disconnect()
             logger.info("Migration complete!")
@@ -386,7 +394,7 @@ class HtmlGraphMigrator:
 
         except Exception as e:
             logger.error(f"Import error: {e}")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
             return False
 
     def run(self) -> bool:
@@ -442,29 +450,29 @@ def main():
         description="Migrate HtmlGraph from HTML files to SQLite backend"
     )
     parser.add_argument(
-        '--htmlgraph-dir',
-        default='.htmlgraph',
-        help='Path to .htmlgraph directory (default: .htmlgraph)',
+        "--htmlgraph-dir",
+        default=".htmlgraph",
+        help="Path to .htmlgraph directory (default: .htmlgraph)",
     )
     parser.add_argument(
-        '--db-path',
-        default='.htmlgraph/htmlgraph.db',
-        help='Path to SQLite database (default: .htmlgraph/htmlgraph.db)',
+        "--db-path",
+        default=".htmlgraph/htmlgraph.db",
+        help="Path to SQLite database (default: .htmlgraph/htmlgraph.db)",
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Preview migration without making changes',
+        "--dry-run",
+        action="store_true",
+        help="Preview migration without making changes",
     )
     parser.add_argument(
-        '--no-backup',
-        action='store_true',
-        help='Skip backup of HTML files',
+        "--no-backup",
+        action="store_true",
+        help="Skip backup of HTML files",
     )
     parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable debug logging',
+        "--verbose",
+        action="store_true",
+        help="Enable debug logging",
     )
 
     args = parser.parse_args()
@@ -483,5 +491,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

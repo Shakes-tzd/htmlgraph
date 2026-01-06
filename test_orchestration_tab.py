@@ -53,9 +53,6 @@ async def verify_orchestration_tab():
         # Check for delegation counters
         print("\n4. Checking for delegation metrics...")
 
-        # Look for delegation-related elements
-        page_text = await page.content()
-
         # Extract text content
         body_text = await page.locator("body").text_content()
 
@@ -79,7 +76,9 @@ async def verify_orchestration_tab():
         # Look for numbers that might be counters
         delegation_card = page.locator('[class*="delegation"], [class*="Delegation"]')
         if await delegation_card.count() > 0:
-            print(f"✓ Found {await delegation_card.count()} delegation-related elements")
+            print(
+                f"✓ Found {await delegation_card.count()} delegation-related elements"
+            )
             findings["delegation_details"] = await delegation_card.nth(0).text_content()
 
         # Check for SVG/arrows
@@ -104,9 +103,9 @@ async def verify_orchestration_tab():
             section_text = await orchestration_section.nth(0).text_content()
             print(section_text[:500] if section_text else "No content found")
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("VERIFICATION RESULTS")
-        print("="*60)
+        print("=" * 60)
         print(f"Screenshot: {screenshot_path}")
         print(f"Delegations Visible: {findings['delegation_chains']}")
         print(f"Agent Arrows: {findings['agent_arrows']}")

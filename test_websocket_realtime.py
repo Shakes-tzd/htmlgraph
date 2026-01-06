@@ -21,14 +21,14 @@ import aiosqlite
 from playwright.async_api import async_playwright
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
-async def create_test_event(db_path: str, agent_id: str = "websocket-test",
-                           event_type: str = "tool_call") -> dict:
+async def create_test_event(
+    db_path: str, agent_id: str = "websocket-test", event_type: str = "tool_call"
+) -> dict:
     """Create a test event and return its details."""
     db = await aiosqlite.connect(db_path)
     try:
@@ -62,7 +62,7 @@ async def create_test_event(db_path: str, agent_id: str = "websocket-test",
             "session_id": session_id,
             "timestamp": timestamp,
             "event_type": event_type,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
     finally:
         await db.close()
@@ -99,15 +99,17 @@ async def test_realtime_streaming():
             async def on_message(msg):
                 try:
                     data = json.loads(msg)
-                    ws_events.append({
-                        "data": data,
-                        "received_at": datetime.utcnow()
-                    })
-                    logger.info(f"  WebSocket message: {data.get('event_id')} ({data.get('event_type')})")
+                    ws_events.append({"data": data, "received_at": datetime.utcnow()})
+                    logger.info(
+                        f"  WebSocket message: {data.get('event_id')} ({data.get('event_type')})"
+                    )
                 except json.JSONDecodeError:
                     logger.warning(f"Invalid JSON: {msg}")
 
-            ws.on("framereceived", lambda frame: asyncio.create_task(on_message(frame.payload)))
+            ws.on(
+                "framereceived",
+                lambda frame: asyncio.create_task(on_message(frame.payload)),
+            )
 
         page.on("websocket", handle_websocket_connect)
 
@@ -140,12 +142,14 @@ async def test_realtime_streaming():
             # Create test events in sequence and monitor for WebSocket delivery
             event_types = ["tool_call", "tool_result", "completion", "error"]
             for i, event_type in enumerate(event_types):
-                logger.info(f"\n--- Creating test event {i+1}/{len(event_types)} ---")
+                logger.info(f"\n--- Creating test event {i + 1}/{len(event_types)} ---")
 
                 # Create event
                 created_event = await create_test_event(db_path, event_type=event_type)
                 test_results["events_created"].append(created_event)
-                logger.info(f"Event created: {created_event['event_id']} ({event_type})")
+                logger.info(
+                    f"Event created: {created_event['event_id']} ({event_type})"
+                )
 
                 # Wait for WebSocket delivery (polling interval is 1 second)
                 start_wait = datetime.utcnow()
@@ -154,15 +158,20 @@ async def test_realtime_streaming():
                 while (datetime.utcnow() - start_wait).total_seconds() < max_wait:
                     # Check if our event appeared in WebSocket messages
                     for ws_event in ws_events:
-                        if ws_event["data"].get("event_id") == created_event["event_id"]:
+                        if (
+                            ws_event["data"].get("event_id")
+                            == created_event["event_id"]
+                        ):
                             latency = (
                                 ws_event["received_at"] - created_event["created_at"]
                             ).total_seconds()
-                            test_results["events_delivered"].append({
-                                "event_id": created_event["event_id"],
-                                "latency_seconds": latency,
-                                "delivered_at": ws_event["received_at"]
-                            })
+                            test_results["events_delivered"].append(
+                                {
+                                    "event_id": created_event["event_id"],
+                                    "latency_seconds": latency,
+                                    "delivered_at": ws_event["received_at"],
+                                }
+                            )
                             logger.info(
                                 f"✓ Event delivered via WebSocket in {latency:.2f}s"
                             )
@@ -188,18 +197,26 @@ async def test_realtime_streaming():
             logger.info("\n" + "=" * 70)
             logger.info("WEBSOCKET REAL-TIME STREAMING TEST RESULTS")
             logger.info("=" * 70)
-            logger.info(f"WebSocket connection established: {test_results['connection_established']}")
+            logger.info(
+                f"WebSocket connection established: {test_results['connection_established']}"
+            )
             logger.info(f"Live updates enabled: {test_results['live_updates_enabled']}")
             logger.info(f"Events created: {len(test_results['events_created'])}")
-            logger.info(f"Events delivered via WebSocket: {len(test_results['events_delivered'])}")
+            logger.info(
+                f"Events delivered via WebSocket: {len(test_results['events_delivered'])}"
+            )
 
-            if test_results['events_delivered']:
-                latencies = [e['latency_seconds'] for e in test_results['events_delivered']]
-                logger.info(f"Average WebSocket latency: {sum(latencies)/len(latencies):.2f}s")
+            if test_results["events_delivered"]:
+                latencies = [
+                    e["latency_seconds"] for e in test_results["events_delivered"]
+                ]
+                logger.info(
+                    f"Average WebSocket latency: {sum(latencies) / len(latencies):.2f}s"
+                )
                 logger.info(f"Min latency: {min(latencies):.2f}s")
                 logger.info(f"Max latency: {max(latencies):.2f}s")
 
-                for event in test_results['events_delivered']:
+                for event in test_results["events_delivered"]:
                     logger.info(
                         f"  - {event['event_id']}: {event['latency_seconds']:.2f}s"
                     )
@@ -208,9 +225,9 @@ async def test_realtime_streaming():
 
             # Overall success
             success = (
-                test_results['connection_established'] and
-                test_results['live_updates_enabled'] and
-                len(test_results['events_delivered']) > 0
+                test_results["connection_established"]
+                and test_results["live_updates_enabled"]
+                and len(test_results["events_delivered"]) > 0
             )
 
             if success:
@@ -232,12 +249,14 @@ async def test_realtime_streaming():
 if __name__ == "__main__":
     results = asyncio.run(test_realtime_streaming())
     print("\n\nTest Results Summary:")
-    print(json.dumps(
-        {
-            "connection_established": results.get("connection_established"),
-            "live_updates_enabled": results.get("live_updates_enabled"),
-            "events_created": len(results.get("events_created", [])),
-            "events_delivered": len(results.get("events_delivered", [])),
-        },
-        indent=2
-    ))
+    print(
+        json.dumps(
+            {
+                "connection_established": results.get("connection_established"),
+                "live_updates_enabled": results.get("live_updates_enabled"),
+                "events_created": len(results.get("events_created", [])),
+                "events_delivered": len(results.get("events_delivered", [])),
+            },
+            indent=2,
+        )
+    )

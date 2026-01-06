@@ -83,14 +83,15 @@ def main():
 
         # Test 1: Create a feature
         print("\nTest 1: Creating feature...")
-        track = sdk.tracks.create(
-            title="Test Track for Event Tracking"
-        ).save()
+        track = sdk.tracks.create(title="Test Track for Event Tracking").save()
         print(f"  ✓ Track created: {track.id}")
 
-        feature = sdk.features.create(
-            title="Test Feature - Event Tracking"
-        ).set_priority("high").set_track(track.id).save()
+        feature = (
+            sdk.features.create(title="Test Feature - Event Tracking")
+            .set_priority("high")
+            .set_track(track.id)
+            .save()
+        )
         print(f"  ✓ Feature created: {feature.id}")
 
         # Test 2: Mark feature as done
@@ -100,9 +101,11 @@ def main():
 
         # Test 3: Create a bug
         print("\nTest 3: Creating bug...")
-        bug = sdk.bugs.create(
-            title="Test Bug - Event Tracking"
-        ).set_priority("medium").save()
+        bug = (
+            sdk.bugs.create(title="Test Bug - Event Tracking")
+            .set_priority("medium")
+            .save()
+        )
         print(f"  ✓ Bug created: {bug.id}")
 
         print("\n✓ All test operations completed successfully")
@@ -110,6 +113,7 @@ def main():
     except Exception as e:
         print(f"\n✗ Error during test: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -131,7 +135,15 @@ def main():
     if after["recent_events"]:
         print("\nRecent events in database:")
         for evt in after["recent_events"][:5]:
-            event_id, agent_id, event_type, timestamp, tool_name, input_sum, output_sum = evt
+            (
+                event_id,
+                agent_id,
+                event_type,
+                timestamp,
+                tool_name,
+                input_sum,
+                output_sum,
+            ) = evt
             print(f"  - {event_id[:8]}: {agent_id} / {tool_name}")
             print(f"    Input:  {input_sum[:60]}")
             if output_sum:

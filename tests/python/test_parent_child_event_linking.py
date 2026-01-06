@@ -50,7 +50,9 @@ def temp_htmlgraph_dir(tmp_path):
 class TestParentChildEventLinking:
     """Test parent-child event linking functionality."""
 
-    def test_event_captures_parent_activity_env_var(self, temp_db, temp_htmlgraph_dir, tmp_path):
+    def test_event_captures_parent_activity_env_var(
+        self, temp_db, temp_htmlgraph_dir, tmp_path
+    ):
         """Test that _log_event captures HTMLGRAPH_PARENT_ACTIVITY env var."""
         db_path = str(tmp_path / "test.db")
         sdk = SDK(directory=temp_htmlgraph_dir, agent="test-agent", db_path=db_path)
@@ -203,7 +205,9 @@ class TestParentChildEventLinking:
         # Verify parent_event_id is captured
         assert event_model.parent_event_id == parent_id
 
-    def test_api_events_query_includes_parent_event_id(self, temp_htmlgraph_dir, tmp_path):
+    def test_api_events_query_includes_parent_event_id(
+        self, temp_htmlgraph_dir, tmp_path
+    ):
         """Test that /api/events endpoint returns parent_event_id."""
         db_path = str(tmp_path / "test.db")
         sdk = SDK(directory=temp_htmlgraph_dir, agent="test-agent", db_path=db_path)
@@ -246,7 +250,9 @@ class TestParentChildEventLinking:
             child_event = rows[0]  # Most recent (child)
             parent_event = rows[1]  # Older (parent)
 
-            assert child_event[1] == parent_event[0]  # child.parent_event_id == parent.event_id
+            assert (
+                child_event[1] == parent_event[0]
+            )  # child.parent_event_id == parent.event_id
         finally:
             if "HTMLGRAPH_PARENT_ACTIVITY" in os.environ:
                 del os.environ["HTMLGRAPH_PARENT_ACTIVITY"]
@@ -314,7 +320,9 @@ class TestParentChildEventLinking:
 
         try:
             # Create parent event
-            sdk._log_event(event_type="delegation", tool_name="Task", input_summary="Parent")
+            sdk._log_event(
+                event_type="delegation", tool_name="Task", input_summary="Parent"
+            )
 
             cursor = sdk._db.connection.cursor()
             cursor.execute("SELECT event_id FROM agent_events WHERE tool_name = 'Task'")

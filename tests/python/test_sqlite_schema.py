@@ -52,13 +52,13 @@ class TestSchemaCreation:
         tables = [row[0] for row in cursor.fetchall()]
 
         required_tables = [
-            'agent_events',
-            'features',
-            'sessions',
-            'tracks',
-            'agent_collaboration',
-            'graph_edges',
-            'event_log_archive',
+            "agent_events",
+            "features",
+            "sessions",
+            "tracks",
+            "agent_collaboration",
+            "graph_edges",
+            "event_log_archive",
         ]
 
         for table in required_tables:
@@ -71,13 +71,13 @@ class TestSchemaCreation:
         columns = {row[1]: row[2] for row in cursor.fetchall()}
 
         required_columns = {
-            'event_id': 'TEXT',
-            'agent_id': 'TEXT',
-            'event_type': 'TEXT',
-            'session_id': 'TEXT',
-            'timestamp': 'DATETIME',
-            'tool_name': 'TEXT',
-            'cost_tokens': 'INTEGER',
+            "event_id": "TEXT",
+            "agent_id": "TEXT",
+            "event_type": "TEXT",
+            "session_id": "TEXT",
+            "timestamp": "DATETIME",
+            "tool_name": "TEXT",
+            "cost_tokens": "INTEGER",
         }
 
         for col, col_type in required_columns.items():
@@ -90,12 +90,12 @@ class TestSchemaCreation:
         columns = {row[1]: row[2] for row in cursor.fetchall()}
 
         required_columns = {
-            'id': 'TEXT',
-            'type': 'TEXT',
-            'title': 'TEXT',
-            'status': 'TEXT',
-            'priority': 'TEXT',
-            'assigned_to': 'TEXT',
+            "id": "TEXT",
+            "type": "TEXT",
+            "title": "TEXT",
+            "status": "TEXT",
+            "priority": "TEXT",
+            "assigned_to": "TEXT",
         }
 
         for col, col_type in required_columns.items():
@@ -108,11 +108,11 @@ class TestSchemaCreation:
         columns = {row[1]: row[2] for row in cursor.fetchall()}
 
         required_columns = {
-            'session_id': 'TEXT',
-            'agent_assigned': 'TEXT',
-            'created_at': 'DATETIME',
-            'total_events': 'INTEGER',
-            'total_tokens_used': 'INTEGER',
+            "session_id": "TEXT",
+            "agent_assigned": "TEXT",
+            "created_at": "DATETIME",
+            "total_events": "INTEGER",
+            "total_tokens_used": "INTEGER",
         }
 
         for col, col_type in required_columns.items():
@@ -125,10 +125,10 @@ class TestSchemaCreation:
         indexes = [row[0] for row in cursor.fetchall()]
 
         required_indexes = [
-            'idx_agent_events_session',
-            'idx_agent_events_agent',
-            'idx_features_status',
-            'idx_sessions_created',
+            "idx_agent_events_session",
+            "idx_agent_events_agent",
+            "idx_features_status",
+            "idx_sessions_created",
         ]
 
         for index in required_indexes:
@@ -179,8 +179,8 @@ class TestEventInsertion:
         # Verify context was stored as JSON
         events = temp_db.get_session_events(session_id)
         assert len(events) > 0
-        stored_context = json.loads(events[0]['context'])
-        assert stored_context['file_path'] == "/tmp/test.py"
+        stored_context = json.loads(events[0]["context"])
+        assert stored_context["file_path"] == "/tmp/test.py"
 
     def test_insert_delegation_event(self, temp_db):
         """Test insertion of delegation events."""
@@ -277,8 +277,8 @@ class TestFeatureOperations:
 
         # Verify update
         feature = temp_db.get_feature_by_id("feat-002")
-        assert feature['status'] == "in_progress"
-        assert feature['steps_completed'] == 2
+        assert feature["status"] == "in_progress"
+        assert feature["steps_completed"] == 2
 
     def test_complete_feature_sets_completed_at(self, temp_db):
         """Test that completing a feature sets completed_at timestamp."""
@@ -291,8 +291,8 @@ class TestFeatureOperations:
         temp_db.update_feature_status("feat-003", "done")
 
         feature = temp_db.get_feature_by_id("feat-003")
-        assert feature['status'] == "done"
-        assert feature['completed_at'] is not None
+        assert feature["status"] == "done"
+        assert feature["completed_at"] is not None
 
     def test_get_features_by_status(self, temp_db):
         """Test querying features by status."""
@@ -543,7 +543,7 @@ class TestQueryExecution:
 
         assert result is not None
         # Result should contain progress_percent field
-        assert 'progress_percent' in result.keys() or len(result) >= 8
+        assert "progress_percent" in result.keys() or len(result) >= 8
 
 
 class TestPerformance:

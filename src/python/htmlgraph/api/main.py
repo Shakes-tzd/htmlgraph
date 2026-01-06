@@ -210,7 +210,7 @@ def get_app(db_path: str) -> FastAPI:
 
             # Execute query
             cursor = await db.execute(query, params)
-            rows = await cursor.fetchall()
+            rows = list(await cursor.fetchall())
 
             events = [
                 {
@@ -244,6 +244,8 @@ def get_app(db_path: str) -> FastAPI:
                 else:
                     # This is a root-level event
                     root_events.append(event)
+
+            # Query returns DESC order which is preserved by iteration
 
             # Structure for template: list of parent events with children
             hierarchical_events = []
@@ -539,7 +541,8 @@ def get_app(db_path: str) -> FastAPI:
                 try:
                     # Query for new events since last message with explicit column selection
                     query = """
-                        SELECT event_id, agent_id, event_type, timestamp, tool_name, session_id
+                        SELECT event_id, agent_id, event_type, timestamp, tool_name,
+                               input_summary, output_summary, session_id, status, parent_event_id
                         FROM agent_events WHERE 1=1
                     """
                     params: list = []
@@ -568,7 +571,11 @@ def get_app(db_path: str) -> FastAPI:
                                 "event_type": row[2],
                                 "timestamp": row[3],
                                 "tool_name": row[4],
-                                "session_id": row[5],
+                                "input_summary": row[5],
+                                "output_summary": row[6],
+                                "session_id": row[7],
+                                "status": row[8],
+                                "parent_event_id": row[9],
                             }
                             await websocket.send_json(event_data)
                 finally:

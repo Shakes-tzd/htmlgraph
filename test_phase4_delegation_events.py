@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src/python"))
 
 from htmlgraph import SDK
 
+
 def main():
     """Create test features and mark them as in_progress."""
 
@@ -28,7 +29,7 @@ def main():
 
     # Initialize SDK with agent attribution
     sdk = SDK(agent="codex-phase4-final-test")
-    print(f"SDK initialized with agent: codex-phase4-final-test")
+    print("SDK initialized with agent: codex-phase4-final-test")
     print(f"Working directory: {sdk._graph.root_directory}")
     print()
 
@@ -40,11 +41,13 @@ def main():
     feature1 = (
         sdk.features.create("Phase 4 Final Test Feature 1")
         .set_priority("high")
-        .add_steps([
-            "Step 1: Initial setup and validation",
-            "Step 2: Core implementation",
-            "Step 3: Testing and verification"
-        ])
+        .add_steps(
+            [
+                "Step 1: Initial setup and validation",
+                "Step 2: Core implementation",
+                "Step 3: Testing and verification",
+            ]
+        )
         .save()
     )
 
@@ -63,10 +66,12 @@ def main():
     feature2 = (
         sdk.features.create("Phase 4 Final Test Feature 2")
         .set_priority("medium")
-        .add_steps([
-            "Step 1: Requirements gathering",
-            "Step 2: Implementation and documentation"
-        ])
+        .add_steps(
+            [
+                "Step 1: Requirements gathering",
+                "Step 2: Implementation and documentation",
+            ]
+        )
         .save()
     )
 
@@ -98,14 +103,14 @@ def main():
     print()
     print("FEATURES CREATED:")
     print(f"  1. {feature1.id}: {feature1.title}")
-    print(f"     - Status: in_progress")
-    print(f"     - Steps: 3")
-    print(f"     - Priority: high")
+    print("     - Status: in_progress")
+    print("     - Steps: 3")
+    print("     - Priority: high")
     print()
     print(f"  2. {feature2.id}: {feature2.title}")
-    print(f"     - Status: in_progress")
-    print(f"     - Steps: 2")
-    print(f"     - Priority: medium")
+    print("     - Status: in_progress")
+    print("     - Steps: 2")
+    print("     - Priority: medium")
     print()
 
     print("DELEGATION EVENT TESTING:")
@@ -148,5 +153,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

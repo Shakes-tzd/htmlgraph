@@ -249,10 +249,18 @@
                         </div>
                         ` : ''}
                         <div class="activity-item-content">
+                            ${eventData.input_summary ? `
                             <div class="event-input">
-                                <span class="summary-label">New Event</span>
-                                <span class="summary-text">Real-time event streamed via WebSocket</span>
+                                <span class="summary-label">Input:</span>
+                                <span class="summary-text">${escapeHtml(eventData.input_summary.substring(0, 150))}${eventData.input_summary.length > 150 ? '...' : ''}</span>
                             </div>
+                            ` : ''}
+                            ${eventData.output_summary ? `
+                            <div class="event-output">
+                                <span class="summary-label">Output:</span>
+                                <span class="summary-text">${escapeHtml(eventData.output_summary.substring(0, 150))}${eventData.output_summary.length > 150 ? '...' : ''}</span>
+                            </div>
+                            ` : ''}
                         </div>
                         <div class="activity-item-footer">
                             <span class="event-id" title="${escapeHtml(eventData.event_id)}">${escapeHtml(eventData.event_id.substring(0, 8))}</span>

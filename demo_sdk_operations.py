@@ -14,16 +14,14 @@ sdk = SDK(agent="demo-agent")
 # Track events with timestamps
 events = []
 
+
 def log_event(event_type: str, details: str):
     """Log event with timestamp"""
     timestamp = datetime.now().isoformat()
-    event_entry = {
-        "timestamp": timestamp,
-        "type": event_type,
-        "details": details
-    }
+    event_entry = {"timestamp": timestamp, "type": event_type, "details": details}
     events.append(event_entry)
     print(f"[{timestamp}] {event_type}: {details}")
+
 
 # ============================================================================
 # STEP 1: Create a track
@@ -32,9 +30,7 @@ print("\n" + "=" * 80)
 print("STEP 1: Creating Track 'Agent Orchestration Demo'")
 print("=" * 80)
 
-track = sdk.tracks.create("Agent Orchestration Demo") \
-    .priority("high") \
-    .save()
+track = sdk.tracks.create("Agent Orchestration Demo").priority("high").save()
 
 log_event("TRACK_CREATED", f"Track created: {track.id} - 'Agent Orchestration Demo'")
 time.sleep(2)  # Wait for event to propagate
@@ -50,11 +46,13 @@ features = []
 for i in range(1, 6):
     feature = sdk.features.create(f"Demo Feature {i}")
     feature.set_track(track.id)
-    feature.add_steps([
-        "Step 1: Setup component",
-        "Step 2: Implement functionality",
-        "Step 3: Run tests"
-    ])
+    feature.add_steps(
+        [
+            "Step 1: Setup component",
+            "Step 2: Implement functionality",
+            "Step 3: Run tests",
+        ]
+    )
     feature.save()
 
     features.append(feature)
@@ -79,13 +77,17 @@ time.sleep(2)
 # Update Feature 2 status to in-progress
 features[1].status = "in-progress"
 sdk.features._ensure_graph().update(features[1])
-log_event("FEATURE_STATUS_CHANGED", f"Feature 2 ({features[1].id}) marked as IN_PROGRESS")
+log_event(
+    "FEATURE_STATUS_CHANGED", f"Feature 2 ({features[1].id}) marked as IN_PROGRESS"
+)
 time.sleep(2)
 
 # Update Feature 3 status to in-progress
 features[2].status = "in-progress"
 sdk.features._ensure_graph().update(features[2])
-log_event("FEATURE_STATUS_CHANGED", f"Feature 3 ({features[2].id}) marked as IN_PROGRESS")
+log_event(
+    "FEATURE_STATUS_CHANGED", f"Feature 3 ({features[2].id}) marked as IN_PROGRESS"
+)
 time.sleep(2)
 
 # Update Feature 4 status to done
@@ -106,15 +108,21 @@ print("STEP 4: Creating Spikes")
 print("=" * 80)
 
 spike1 = sdk.spikes.create("Investigate Performance")
-spike1.set_findings("Performance is excellent with WebSocket updates - achieved 50ms latency")
+spike1.set_findings(
+    "Performance is excellent with WebSocket updates - achieved 50ms latency"
+)
 spike1.save()
 log_event("SPIKE_CREATED", f"Spike 1 created: {spike1.id} - 'Investigate Performance'")
 time.sleep(2)
 
 spike2 = sdk.spikes.create("Research Dashboard Integration")
-spike2.set_findings("Dashboard integration pattern verified - real-time event streaming works")
+spike2.set_findings(
+    "Dashboard integration pattern verified - real-time event streaming works"
+)
 spike2.save()
-log_event("SPIKE_CREATED", f"Spike 2 created: {spike2.id} - 'Research Dashboard Integration'")
+log_event(
+    "SPIKE_CREATED", f"Spike 2 created: {spike2.id} - 'Research Dashboard Integration'"
+)
 time.sleep(2)
 
 spike3 = sdk.spikes.create("Evaluate Scalability")

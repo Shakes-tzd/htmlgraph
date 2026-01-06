@@ -27,11 +27,7 @@ class TestSDKDatabaseInitialization:
     def test_sdk_initializes_database(self):
         """Test that SDK initializes SQLite database on creation."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Verify database was created
             assert sdk._db is not None
@@ -43,21 +39,23 @@ class TestSDKDatabaseInitialization:
             tables = {row[0] for row in cursor.fetchall()}
 
             expected_tables = {
-                'agent_events', 'features', 'sessions', 'tracks',
-                'agent_collaboration', 'graph_edges', 'event_log_archive'
+                "agent_events",
+                "features",
+                "sessions",
+                "tracks",
+                "agent_collaboration",
+                "graph_edges",
+                "event_log_archive",
             }
             assert expected_tables.issubset(tables)
 
     def test_sdk_db_path_defaults(self):
         """Test that SDK uses default db_path when not provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch('pathlib.Path.home') as mock_home:
+            with patch("pathlib.Path.home") as mock_home:
                 mock_home.return_value = Path(tmpdir)
 
-                sdk = SDK(
-                    directory=tmpdir,
-                    agent="test-agent"
-                )
+                sdk = SDK(directory=tmpdir, agent="test-agent")
 
                 # Should use ~/.htmlgraph/htmlgraph.db by default
                 assert str(tmpdir) in str(sdk._db.db_path)
@@ -66,11 +64,7 @@ class TestSDKDatabaseInitialization:
         """Test that SDK respects custom db_path."""
         with tempfile.TemporaryDirectory() as tmpdir:
             custom_db = f"{tmpdir}/custom.db"
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=custom_db
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=custom_db)
 
             assert str(sdk._db.db_path) == custom_db
 
@@ -81,11 +75,7 @@ class TestSDKDatabaseMethods:
     def test_sdk_db_method(self):
         """Test sdk.db() returns database instance."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             db = sdk.db()
             assert isinstance(db, HtmlGraphDB)
@@ -94,25 +84,18 @@ class TestSDKDatabaseMethods:
     def test_sdk_query_method(self):
         """Test sdk.query() executes SQL queries."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Insert test data
             sdk._db.insert_feature(
                 feature_id="feat-001",
                 feature_type="feature",
                 title="Test Feature",
-                status="todo"
+                status="todo",
             )
 
             # Query data
-            results = sdk.query(
-                "SELECT * FROM features WHERE id = ?",
-                ("feat-001",)
-            )
+            results = sdk.query("SELECT * FROM features WHERE id = ?", ("feat-001",))
 
             assert len(results) == 1
             assert results[0]["title"] == "Test Feature"
@@ -120,24 +103,17 @@ class TestSDKDatabaseMethods:
     def test_sdk_query_builder_method(self):
         """Test sdk.execute_query_builder() with Queries."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Insert test data
             sdk._db.insert_feature(
                 feature_id="feat-001",
                 feature_type="feature",
                 title="Feature 1",
-                status="todo"
+                status="todo",
             )
             sdk._db.insert_feature(
-                feature_id="feat-002",
-                feature_type="bug",
-                title="Bug 1",
-                status="done"
+                feature_id="feat-002", feature_type="bug", title="Bug 1", status="done"
             )
 
             # Use query builder
@@ -154,11 +130,7 @@ class TestSDKEventLogging:
     def test_sdk_log_event(self):
         """Test sdk._log_event() logs events to SQLite."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Create session first (foreign key constraint)
             sdk._db.insert_session("cli-session", "test-agent")
@@ -169,24 +141,22 @@ class TestSDKEventLogging:
                 tool_name="Edit",
                 input_summary="Edit file.py",
                 output_summary="File edited successfully",
-                cost_tokens=100
+                cost_tokens=100,
             )
 
             assert success is True
 
             # Verify event was recorded
-            results = sdk.query("SELECT * FROM agent_events WHERE tool_name = ?", ("Edit",))
+            results = sdk.query(
+                "SELECT * FROM agent_events WHERE tool_name = ?", ("Edit",)
+            )
             assert len(results) == 1
             assert results[0]["agent_id"] == "test-agent"
 
     def test_sdk_log_event_with_context(self):
         """Test sdk._log_event() with context metadata."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Create session first (foreign key constraint)
             sdk._db.insert_session("cli-session", "test-agent")
@@ -197,7 +167,7 @@ class TestSDKEventLogging:
                 tool_name="Read",
                 input_summary="Read file",
                 context=context,
-                cost_tokens=50
+                cost_tokens=50,
             )
 
             assert success is True
@@ -209,25 +179,19 @@ class TestSDKExportToHtml:
     def test_export_features_to_html(self):
         """Test exporting features from SQLite to HTML."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Insert test features
             sdk._db.insert_feature(
                 feature_id="feat-001",
                 feature_type="feature",
                 title="Test Feature",
-                status="todo"
+                status="todo",
             )
 
             # Export to HTML
             result = sdk.export_to_html(
-                output_dir=tmpdir,
-                include_features=True,
-                include_sessions=False
+                output_dir=tmpdir, include_features=True, include_sessions=False
             )
 
             assert result["features"] == 1
@@ -236,23 +200,14 @@ class TestSDKExportToHtml:
     def test_export_sessions_to_html(self):
         """Test exporting sessions from SQLite to HTML."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Insert test session
-            sdk._db.insert_session(
-                session_id="sess-001",
-                agent_assigned="test-agent"
-            )
+            sdk._db.insert_session(session_id="sess-001", agent_assigned="test-agent")
 
             # Export to HTML
             result = sdk.export_to_html(
-                output_dir=tmpdir,
-                include_features=False,
-                include_sessions=True
+                output_dir=tmpdir, include_features=False, include_sessions=True
             )
 
             assert result["sessions"] == 1
@@ -265,11 +220,7 @@ class TestSDKDualWrite:
     def test_feature_creation_writes_to_sqlite(self):
         """Test that feature creation writes to SQLite."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Create track first (required by feature creation)
             track = sdk.tracks.create("Test Track").save()
@@ -285,23 +236,13 @@ class TestSDKDualWrite:
     def test_session_creation_writes_to_sqlite(self):
         """Test that session creation writes to SQLite."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Create session
-            sdk.start_session(
-                session_id="sess-test-001",
-                title="Test Session"
-            )
+            sdk.start_session(session_id="sess-test-001", title="Test Session")
 
             # Verify in SQLite
-            sdk.query(
-                "SELECT * FROM sessions WHERE session_id = ?",
-                ("sess-test-001",)
-            )
+            sdk.query("SELECT * FROM sessions WHERE session_id = ?", ("sess-test-001",))
             # May or may not find it depending on implementation
             # This test ensures no errors occur
 
@@ -312,11 +253,7 @@ class TestSDKQueryBuilders:
     def test_queries_get_features_by_status(self):
         """Test Queries.get_features_by_status() with SDK."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Insert test data
             for i in range(3):
@@ -324,7 +261,7 @@ class TestSDKQueryBuilders:
                     feature_id=f"feat-{i:03d}",
                     feature_type="feature",
                     title=f"Feature {i}",
-                    status="todo" if i < 2 else "done"
+                    status="todo" if i < 2 else "done",
                 )
 
             # Query using builder
@@ -336,24 +273,15 @@ class TestSDKQueryBuilders:
     def test_queries_get_session_metrics(self):
         """Test Queries.get_session_metrics() with SDK."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Insert test session
-            sdk._db.insert_session(
-                session_id="sess-001",
-                agent_assigned="test-agent"
-            )
+            sdk._db.insert_session(session_id="sess-001", agent_assigned="test-agent")
 
             # Log some events
             for i in range(3):
                 sdk._log_event(
-                    event_type="tool_call",
-                    tool_name=f"Tool{i}",
-                    cost_tokens=100
+                    event_type="tool_call", tool_name=f"Tool{i}", cost_tokens=100
                 )
 
             # Query metrics
@@ -369,11 +297,7 @@ class TestSDKBackwardCompatibility:
     def test_sdk_still_works_without_db_calls(self):
         """Test that existing SDK code still works."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Should work as before
             assert sdk.agent == "test-agent"
@@ -386,11 +310,7 @@ class TestSDKBackwardCompatibility:
     def test_sdk_collections_still_save_to_html(self):
         """Test that collections still save to HTML (backward compat)."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Create track first (required)
             track = sdk.tracks.create("Test Track").save()
@@ -409,11 +329,7 @@ class TestSDKDatabaseCleanup:
     def test_database_connection_cleanup(self):
         """Test that database connections are properly managed."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            sdk = SDK(
-                directory=tmpdir,
-                agent="test-agent",
-                db_path=f"{tmpdir}/test.db"
-            )
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=f"{tmpdir}/test.db")
 
             # Verify connection is active
             assert sdk._db.connection is not None

@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 import aiosqlite
-from playwright.async_api import async_playwright, Page, BrowserContext
+from playwright.async_api import async_playwright
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,8 +36,9 @@ async def get_event_count(db_path: str) -> int:
         await db.close()
 
 
-async def create_test_event(db_path: str, agent_id: str = "test-agent",
-                           event_type: str = "tool_call") -> str:
+async def create_test_event(
+    db_path: str, agent_id: str = "test-agent", event_type: str = "tool_call"
+) -> str:
     """Create a test event in the database."""
     from uuid import uuid4
 
@@ -96,13 +97,18 @@ async def test_websocket_streaming():
             try:
                 data = json.loads(msg)
                 ws_messages.append(data)
-                logger.info(f"WebSocket message received: {data.get('event_id')} ({data.get('event_type')})")
+                logger.info(
+                    f"WebSocket message received: {data.get('event_id')} ({data.get('event_type')})"
+                )
             except json.JSONDecodeError:
                 logger.warning(f"Invalid JSON in WebSocket message: {msg}")
 
         # Setup WebSocket listener
         page.on("websocket", lambda ws: logger.info(f"WebSocket connected: {ws.url}"))
-        page.on("framereceived", lambda frame: logger.debug(f"Frame received: {frame.payload}"))
+        page.on(
+            "framereceived",
+            lambda frame: logger.debug(f"Frame received: {frame.payload}"),
+        )
 
         try:
             # Navigate to dashboard
@@ -114,7 +120,9 @@ async def test_websocket_streaming():
             logger.info("Waiting for Activity Feed view...")
             activity_feed = await page.query_selector(".activity-feed-view")
             if not activity_feed:
-                logger.warning("Activity Feed view not found, checking available elements...")
+                logger.warning(
+                    "Activity Feed view not found, checking available elements..."
+                )
                 views = await page.query_selector_all(".view-container")
                 logger.info(f"Found {len(views)} view containers")
 
@@ -173,7 +181,9 @@ async def test_websocket_streaming():
                         text = await elem.text_content()
                         if text and event_id.startswith(text.strip()):
                             events_found += 1
-                            logger.info(f"Found test event in UI (by ID match): {event_id}")
+                            logger.info(
+                                f"Found test event in UI (by ID match): {event_id}"
+                            )
                             break
 
             # Check connection indicator
@@ -183,10 +193,15 @@ async def test_websocket_streaming():
                 logger.info(f"Connection status: {indicator_text}")
 
                 # Check if it shows "Live updates enabled"
-                if "Live updates enabled" in indicator_text or "WebSocket" in indicator_text:
+                if (
+                    "Live updates enabled" in indicator_text
+                    or "WebSocket" in indicator_text
+                ):
                     logger.info("✓ WebSocket connection indicator shows active")
                 else:
-                    logger.warning("✗ Connection indicator doesn't show WebSocket active")
+                    logger.warning(
+                        "✗ Connection indicator doesn't show WebSocket active"
+                    )
 
             # Verify event count increased
             final_count = await get_event_count(db_path)
@@ -207,8 +222,8 @@ async def test_websocket_streaming():
             logger.info(f"WebSocket messages captured: {len(ws_messages)}")
 
             success = (
-                final_count > initial_count and
-                final_count - initial_count == len(test_event_ids)
+                final_count > initial_count
+                and final_count - initial_count == len(test_event_ids)
             )
 
             if success:
@@ -217,7 +232,9 @@ async def test_websocket_streaming():
                 logger.warning("✗ WebSocket streaming test FAILED")
 
             # Keep browser open for manual inspection
-            logger.info("Browser will stay open for 10 seconds for manual inspection...")
+            logger.info(
+                "Browser will stay open for 10 seconds for manual inspection..."
+            )
             await asyncio.sleep(10)
 
         finally:
