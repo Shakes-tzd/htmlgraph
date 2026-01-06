@@ -145,14 +145,20 @@ def enforce_task_saving(tool_name: str, tool_params: dict[str, Any]) -> dict[str
         to_agent = tool_params.get("subagent_type", "unknown")
         task_description = tool_params.get("description", "Unnamed task")
 
+        # Determine session ID, using current > parent > auto-generated
+        session_id = (
+            current_session or parent_session or f"session-{uuid.uuid4().hex[:8]}"
+        )
+
+        # Ensure session exists before recording delegation (handles FK constraints)
+        db._ensure_session_exists(session_id, parent_agent)
+
         # Record the delegation event
         db.record_delegation_event(
             from_agent=parent_agent,
             to_agent=to_agent,
             task_description=task_description,
-            session_id=current_session
-            or parent_session
-            or f"session-{uuid.uuid4().hex[:8]}",
+            session_id=session_id,
             context={
                 "nesting_depth": nesting_depth,
                 "prompt_preview": prompt[:200] if prompt else "",

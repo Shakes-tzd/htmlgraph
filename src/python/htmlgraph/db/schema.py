@@ -626,6 +626,51 @@ class HtmlGraphDB:
             logger.error(f"Error querying features: {e}")
             return []
 
+    def _ensure_session_exists(
+        self, session_id: str, agent_id: str | None = None
+    ) -> bool:
+        """
+        Ensure a session record exists in the database.
+
+        Creates a placeholder session if it doesn't exist. Useful for
+        handling foreign key constraints when recording delegations
+        before the session is explicitly created.
+
+        Args:
+            session_id: Session ID to ensure exists
+            agent_id: Agent assigned to session (optional, defaults to 'system')
+
+        Returns:
+            True if session exists or was created, False on error
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+
+            # Check if session already exists
+            cursor.execute("SELECT 1 FROM sessions WHERE session_id = ?", (session_id,))
+            if cursor.fetchone():
+                return True
+
+            # Session doesn't exist, create placeholder
+            cursor.execute(
+                """
+                INSERT INTO sessions
+                (session_id, agent_assigned, status)
+                VALUES (?, ?, 'active')
+            """,
+                (session_id, agent_id or "system"),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return True
+
+        except sqlite3.Error as e:
+            # Session might exist but check failed, continue anyway
+            logger.debug(f"Session creation warning: {e}")
+            return False
+
     def record_collaboration(
         self,
         handoff_id: str,
@@ -687,7 +732,7 @@ class HtmlGraphDB:
         from_agent: str,
         to_agent: str,
         task_description: str,
-        session_id: str,
+        session_id: str | None = None,
         feature_id: str | None = None,
         context: dict[str, Any] | None = None,
     ) -> str | None:
@@ -697,11 +742,14 @@ class HtmlGraphDB:
         This is a convenience method that wraps record_collaboration
         with sensible defaults for Task() delegation tracking.
 
+        Handles foreign key constraints by creating placeholder session
+        if it doesn't exist.
+
         Args:
             from_agent: Agent delegating work
             to_agent: Agent receiving work
             task_description: Description of the delegated task
-            session_id: Session this delegation occurs in
+            session_id: Session this delegation occurs in (optional, auto-creates if missing)
             feature_id: Feature being delegated (optional)
             context: Additional metadata (optional)
 
@@ -712,6 +760,13 @@ class HtmlGraphDB:
 
         if not self.connection:
             self.connect()
+
+        # Auto-create session if not provided or doesn't exist
+        if not session_id:
+            session_id = f"session-{uuid.uuid4().hex[:8]}"
+
+        # Ensure session exists (create placeholder if needed)
+        self._ensure_session_exists(session_id, from_agent)
 
         handoff_id = f"hand-{uuid.uuid4().hex[:8]}"
 

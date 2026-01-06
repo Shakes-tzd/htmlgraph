@@ -193,5 +193,25 @@
     "spike_id": "spk-42c62a66",
     "created": "2026-01-06T09:31:38.963960",
     "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"/Users/shakes/DevProjects/htmlgraph/create_de": {
+    "spike_id": "spk-ca2e4711",
+    "created": "2026-01-06T09:48:21.791966",
+    "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_navigate:Not connected": {
+    "spike_id": "spk-fb075047",
+    "created": "2026-01-06T09:57:49.601872",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nError: in prepare, no such table: agent_collaboration": {
+    "spike_id": "spk-5108177e",
+    "created": "2026-01-06T09:59:30.909667",
+    "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_run_code:Not connected": {
+    "spike_id": "spk-70ac1c16",
+    "created": "2026-01-06T10:01:28.636773",
+    "occurrences": 4
   }
 }

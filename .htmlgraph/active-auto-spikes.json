@@ -22,5 +22,13 @@
   "spike-init-sess-bfd": {
     "spike_subtype": "session-init",
     "session_id": "sess-bfd9f064"
+  },
+  "spike-init-sess-27f": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-27ff53eb"
+  },
+  "spike-init-sess-a58": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-a58ab735"
   }
 }
