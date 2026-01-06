@@ -236,6 +236,11 @@
                 }, 2000);
             }
 
+            // Convert new event timestamp to local timezone
+            if (typeof convertTimestampsToLocal === 'function') {
+                convertTimestampsToLocal();
+            }
+
             // Keep only last 100 events in feed to prevent memory issues
             const allRows = tbody.querySelectorAll('tr');
             if (allRows.length > 100) {
@@ -274,7 +279,7 @@
                         <span class="event-type-badge" title="${escapeHtml(eventData.event_type)}">
                             ${eventEmoji}
                         </span>
-                        <span class="timestamp-text">${escapeHtml(eventData.timestamp)}</span>
+                        <span class="timestamp-text" data-utc-time="${escapeHtml(eventData.timestamp)}">${escapeHtml(eventData.timestamp)}</span>
                     </td>
                     <td class="col-agent">
                         <span class="agent-badge">${escapeHtml(eventData.agent_id)}</span>
