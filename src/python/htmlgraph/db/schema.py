@@ -205,7 +205,7 @@ class HtmlGraphDB:
                 to_agent TEXT NOT NULL,
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 feature_id TEXT,
-                session_id TEXT NOT NULL,
+                session_id TEXT,
                 handoff_type TEXT CHECK(
                     handoff_type IN ('delegation', 'parallel', 'sequential', 'fallback')
                 ),
