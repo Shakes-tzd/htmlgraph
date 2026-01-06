@@ -385,6 +385,7 @@ def record_event_to_sqlite(
     is_error: bool,
     file_paths: list[str] | None = None,
     parent_event_id: str | None = None,
+    agent_id: str | None = None,
 ) -> str | None:
     """
     Record a tool call event to SQLite database for dashboard queries.
@@ -431,7 +432,7 @@ def record_event_to_sqlite(
         # Insert event to SQLite
         success = db.insert_event(
             event_id=event_id,
-            agent_id="claude-code",
+            agent_id=agent_id or "claude-code",
             event_type="tool_call",
             session_id=session_id,
             tool_name=tool_name,
@@ -561,6 +562,17 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
             # Record to SQLite if available
             if db:
+                # Get agent from environment first, then session, then default
+                agent_from_env = os.environ.get("HTMLGRAPH_AGENT")
+                agent_id_to_use = (
+                    agent_from_env
+                    or (
+                        getattr(active_session, "agent", None)
+                        if active_session
+                        else None
+                    )
+                    or "claude-code"
+                )
                 record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
@@ -568,6 +580,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     tool_input={},
                     tool_response={"content": "Agent stopped"},
                     is_error=False,
+                    agent_id=agent_id_to_use,
                 )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
@@ -587,6 +600,17 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
             # Record to SQLite if available
             if db:
+                # Get agent from environment first, then session, then default
+                agent_from_env = os.environ.get("HTMLGRAPH_AGENT")
+                agent_id_to_use = (
+                    agent_from_env
+                    or (
+                        getattr(active_session, "agent", None)
+                        if active_session
+                        else None
+                    )
+                    or "claude-code"
+                )
                 record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
@@ -594,6 +618,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     tool_input={"prompt": prompt},
                     tool_response={"content": "Query received"},
                     is_error=False,
+                    agent_id=agent_id_to_use,
                 )
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
@@ -677,6 +702,17 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
             # Record to SQLite if available
             if db:
+                # Get agent from environment first, then session, then default to claude-code
+                agent_from_env = os.environ.get("HTMLGRAPH_AGENT")
+                agent_id_to_use = (
+                    agent_from_env
+                    or (
+                        getattr(active_session, "agent", None)
+                        if active_session
+                        else None
+                    )
+                    or "claude-code"
+                )
                 record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
@@ -686,6 +722,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     is_error=is_error,
                     file_paths=file_paths if file_paths else None,
                     parent_event_id=None,  # Parent linking handled after result
+                    agent_id=agent_id_to_use,
                 )
 
             # If this was a Task() delegation, also record to agent_collaboration

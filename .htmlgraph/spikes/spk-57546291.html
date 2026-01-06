@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Ordering Regression - FIXED</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-57546291"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T12:17:04.022987"
+             data-updated="2026-01-06T12:17:04.022995" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder">
+
+        <header>
+            <h1>Activity Feed Ordering Regression - FIXED</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Activity Feed Ordering Regression - Fixed
+
+### Problem
+The Activity Feed was displaying events in reverse chronological order (oldest first instead of newest first):
+- Query returned: `ORDER BY timestamp DESC` (newest first) ✓
+- But then called: `root_events.reverse()` (flip to oldest first) ✗
+- **Result**: Oldest test data at TOP, recent work at BOTTOM (backwards!)
+
+### Root Cause
+In `/src/python/htmlgraph/api/main.py` line 250:
+```python
+# WRONG:
+root_events.reverse()  # This flipped the DESC order backwards
+```
+
+The query with `ORDER BY DESC` already returns newest-first. Iterating through the result preserves that order. The `reverse()` call was unnecessary and caused the regression.
+
+### Solution
+Removed the `root_events.reverse()` call entirely. The DESC order from the database query is now preserved through to the template.
+
+**File Modified**: `src/python/htmlgraph/api/main.py`
+**Line Removed**: 250
+
+### Result
+✓ Newest events now appear at TOP (your recent work) - 16:57
+✓ Oldest events now appear at BOTTOM (test data) - 15:46
+✓ Standard activity feed UX (newest-first)
+✓ All quality checks pass (ruff, mypy, pytest)
+
+### Bonus Fixes
+Also fixed pre-existing linting error in `test_orchestration_tab.py`:
+- Removed unused `page_text` variable assignment
+
+### Verification
+- All tests passing
+- Code quality checks: PASS
+- Git hooks: PASS
+- Commit: `3b2027a`
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

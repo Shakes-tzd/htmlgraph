@@ -551,7 +551,7 @@ def get_app(db_path: str) -> FastAPI:
                         query += " AND timestamp > ?"
                         params.append(last_timestamp)
 
-                    query += " ORDER BY timestamp ASC LIMIT 100"
+                    query += " ORDER BY timestamp DESC LIMIT 100"
 
                     cursor = await db.execute(query, params)
                     rows = await cursor.fetchall()
