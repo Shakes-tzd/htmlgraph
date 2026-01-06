@@ -325,12 +325,12 @@ def get_app(db_path: str) -> FastAPI:
         """Get delegation chains and agent handoffs as HTMX partial."""
         db = await get_db()
         try:
-            # Query delegation events with explicit column selection
+            # Query from agent_collaboration table which stores delegations
             query = """
-                SELECT event_id, agent_id, timestamp, input_summary, output_summary,
-                       parent_agent_id, session_id
-                FROM agent_events
-                WHERE event_type = 'delegation'
+                SELECT handoff_id, from_agent, to_agent, timestamp, reason,
+                       session_id, status, context
+                FROM agent_collaboration
+                WHERE handoff_type = 'delegation'
                 ORDER BY timestamp DESC
                 LIMIT 50
             """
@@ -340,16 +340,16 @@ def get_app(db_path: str) -> FastAPI:
 
             delegations = [
                 {
-                    "event_id": row[0],
+                    "handoff_id": row[0],
                     "from_agent": row[1],
-                    "to_agent": row[5],
-                    "timestamp": row[2],
-                    "task": row[3],
-                    "result": row[4],
-                    "session_id": row[6],
+                    "to_agent": row[2],
+                    "timestamp": row[3],
+                    "reason": row[4],
+                    "session_id": row[5],
+                    "status": row[6],
+                    "context": row[7],
                 }
                 for row in rows
-                if row[5]  # Only include if parent_agent_id exists
             ]
 
             return templates.TemplateResponse(
