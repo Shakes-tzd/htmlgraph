@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard UI Redesign - Multi-Agent Focus</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        .spike-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .section-divider {
+            border-top: 2px solid var(--border-strong);
+            margin: 2rem 0;
+            padding-top: 1rem;
+        }
+        .mockup-block {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-strong);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .agent-color-swatch {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.25rem 0.5rem 0.25rem 0;
+            font-size: 0.85rem;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+        }
+        .priority-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--accent);
+            color: var(--accent-text);
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <article id="spk-dashboard-redesign"
+             data-type="spike"
+             data-status="completed"
+             data-priority="high"
+             data-created="2026-01-06T15:30:00Z"
+             data-updated="2026-01-06T15:30:00Z">
+
+        <header>
+            <h1>Dashboard UI Redesign - Multi-Agent Focus</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related-to">
+                <h3>Related Features:</h3>
+                <ul>
+                    <li><a href="#" data-relationship="related-to">feat-agents-tab</a> - Implement Agents Tab</li>
+                    <li><a href="#" data-relationship="related-to">feat-analytics-redesign</a> - Redesign Analytics View</li>
+                    <li><a href="#" data-relationship="related-to">feat-remove-graph-tab</a> - Remove Graph Visualization</li>
+                </ul>
+            </section>
+        </nav>
+
+        <div class="spike-content">
+            <section>
+                <h2>Executive Summary</h2>
+                <p>
+                    This spike completes comprehensive research and design for transforming the HtmlGraph dashboard
+                    from a confusing multi-tab experience to a <strong>clear, visual representation of multi-agent orchestration</strong>.
+                </p>
+                <p>
+                    <strong>Key Finding:</strong> Users cannot easily answer "Who did what work?" despite HtmlGraph having
+                    perfect data to answer this question. The current UI hides multi-agent collaboration behind confusing
+                    tabs and table-heavy analytics.
+                </p>
+                <div class="priority-badges">
+                    <span class="priority-badge">Remove Graph Tab</span>
+                    <span class="priority-badge">Add Agents View</span>
+                    <span class="priority-badge">Redesign Analytics</span>
+                    <span class="priority-badge">Multi-Agent Focus</span>
+                </div>
+            </section>
+
+            <section class="section-divider">
+                <h2>Current Problems Identified</h2>
+                <ol>
+                    <li><strong>Graph Tab Wastes Space:</strong> Vis.js visualization shelved but still visible, confusing UX</li>
+                    <li><strong>Agent Attribution Buried:</strong> Features show agent badges but don't highlight multi-agent collaboration</li>
+                    <li><strong>Analytics Table-Heavy:</strong> 5+ tables for metrics, visual insights hidden</li>
+                    <li><strong>Multi-Agent Handoffs Not Visible:</strong> Can't trace feature evolution across sessions</li>
+                    <li><strong>Sessions View Minimal:</strong> Doesn't leverage agent attribution data</li>
+                    <li><strong>Visual Hierarchy Broken:</strong> All tabs given equal weight, no clear entry point</li>
+                </ol>
+            </section>
+
+            <section class="section-divider">
+                <h2>Design Goals</h2>
+                <h3>Primary Goals</h3>
+                <ol>
+                    <li>Make multi-agent work immediately obvious (first thing visible)</li>
+                    <li>Show agent contributions and handoffs visually (timeline)</li>
+                    <li>Display cost and effort per agent at a glance (charts)</li>
+                    <li>Enable filtering/navigation by agent (cross-tab filtering)</li>
+                    <li>Show timeline of who worked when (temporal relationships)</li>
+                </ol>
+                <h3>Secondary Goals</h3>
+                <ul>
+                    <li>Reduce page load time (eliminate vis.js)</li>
+                    <li>Improve mobile responsiveness</li>
+                    <li>Maintain existing kanban functionality</li>
+                    <li>Preserve theme switching</li>
+                    <li>Keep analytics accessible without overwhelming</li>
+                </ul>
+            </section>
+
+            <section class="section-divider">
+                <h2>Proposed Navigation Structure</h2>
+                <div class="mockup-block">HtmlGraph Dashboard
+═══════════════════════════════════════════════════════════════
+
+[📊 Work]  [👥 Agents]  [⚡ Analytics]  [💬 Sessions]  [🌙 Theme]
+
+Changes:
+- Remove: Graph tab (vis.js, shelved functionality)
+- Promote: Work tab (primary, leftmost)
+- Add: Agents tab (first-class citizen for multi-agent metrics)
+- Keep: Analytics (redesigned with collaboration focus)
+- Keep: Sessions (enhanced with agent attribution)</div>
+            </section>
+
+            <section class="section-divider">
+                <h2>Agent Color & Icon System</h2>
+                <p>Consistent visual identification across all views:</p>
+                <div style="margin: 1rem 0;">
+                    <div class="agent-color-swatch">
+                        <div class="color-box" style="background: #2979FF;"></div>
+                        <strong>claude</strong> - #2979FF (Blue) - Primary reasoning
+                    </div>
+                    <div class="agent-color-swatch">
+                        <div class="color-box" style="background: #00C853;"></div>
+                        <strong>codex</strong> - #00C853 (Green) - Exploratory/batch
+                    </div>
+                    <div class="agent-color-swatch">
+                        <div class="color-box" style="background: #7C4DFF;"></div>
+                        <strong>orchestrator</strong> - #7C4DFF (Purple) - Coordination
+                    </div>
+                    <div class="agent-color-swatch">
+                        <div class="color-box" style="background: #FBC02D;"></div>
+                        <strong>gemini</strong> - #FBC02D (Amber) - Analysis (FREE)
+                    </div>
+                    <div class="agent-color-swatch">
+                        <div class="color-box" style="background: #FF9100;"></div>
+                        <strong>gemini-2.0</strong> - #FF9100 (Orange) - Multimodal (FREE)
+                    </div>
+                </div>
+                <p><em>All combinations include both color AND icon (e.g., 🔵 claude) for accessibility</em></p>
+            </section>
+
+            <section class="section-divider">
+                <h2>View Mockups</h2>
+
+                <h3>Work View (Enhanced Kanban)</h3>
+                <div class="mockup-block">WORK VIEW - Track-Grouped Kanban with Agent Attribution
+─────────────────────────────────────────────────────
+
+[Status: All ▼] [Priority: All ▼] [Agent: All ▼] [Search: ___]
+
+PHASE 1: FOUNDATION
+├─ Feature: System Prompt Persistence          Status: ✓ Done
+│  ┌──────────────────────────────────────────────────┐
+│  │ System Prompt Persistence                        │
+│  │ Add persistent system prompt across sessions     │
+│  │ Status: ✓ Done  Priority: High                   │
+│  │                                                  │
+│  │ Agents:  🔵 claude  🟣 orchestrator  🟠 codex  │
+│  │                                                  │
+│  │ Timeline (click to expand):                      │
+│  │ ├─ 🔵 Jan 5, 12:30-15:45 (3.25h)               │
+│  │ ├─ 🟣 Jan 5, 18:00-20:15 (2.25h) [Handoff]     │
+│  │ └─ 🔵 Jan 6, 08:00-15:20 (7.2h)                │
+│  │                                                  │
+│  │ Cost: $2.34  |  Events: 2,847  |  Completed    │
+│  └──────────────────────────────────────────────────┘</div>
+
+                <h3>Agents View (New Tab)</h3>
+                <div class="mockup-block">AGENTS VIEW - Multi-Agent Metrics
+──────────────────────────────────
+
+AGENT WORKLOAD DISTRIBUTION (Last 30 Days)
+┌──────────────────────────────┐
+│ claude          ████████░░ 67% │ 16,234 events
+│ codex           ██████░░░░ 45% │ 10,892 events
+│ orchestrator    ████░░░░░░ 30% │  7,234 events
+│ gemini          ██░░░░░░░░ 12% │  2,891 events
+│ gemini-2.0      ░░░░░░░░░░  5% │  1,200 events
+└──────────────────────────────┘
+
+COST BREAKDOWN
+┌─────────────────────────────────┐
+│ 🔵 claude      $4.23 (58%)      │
+│ 🟢 codex       $2.15 (29%)      │
+│ 🟣 orchestr.   $0.78 (11%)      │
+│ 🟡 gemini      $0.34 (5%)       │
+│ 🟠 gemini-2.0  FREE (0%)        │
+└─────────────────────────────────┘
+Total: $7.50
+
+TIME ALLOCATION (Hours)
+claude          48h  [████████████]
+codex           32h  [██████████░░]
+orchestrator    18h  [█████░░░░░░░]
+gemini           8h  [██░░░░░░░░░░]
+gemini-2.0       4h  [█░░░░░░░░░░░]</div>
+
+                <h3>Analytics View (Redesigned)</h3>
+                <div class="mockup-block">ANALYTICS VIEW - Collaboration Timeline
+─────────────────────────────────────
+
+spk-abc123: System Prompt Persistence
+──────────────────────────────────────
+
+Session 1 (Jan 5, 12:30 - 15:45)
+🔵 claude       [████████████████] 2,100 events (3.25h)
+   └─ Cost: $1.45
+
+Session 2 (Jan 5, 18:00 - 20:15)  [Agent Handoff ↓]
+🟣 orchestrator [██████] 450 events (2.25h)
+   └─ Cost: $0.12
+
+Session 3 (Jan 6, 08:00 - 15:20)  [Agent Handoff ↓]
+🔵 claude       [████████████████████] 2,847 events (7.2h)
+🟢 codex        [████] 234 events (0.5h) [Parallel]
+   └─ Cost: $1.89
+
+FINAL STATE: ✓ Complete
+
+───────────────────────────────
+
+COLLABORATION PATTERNS
+Feature Handoffs (Sequential):    87 (↑ from 64)
+Parallel Agent Work:              23 (↑ from 15)
+Single-Agent Features:            18 (↓ from 31)
+Average Agents per Feature:       2.4 (↑ from 1.8)</div>
+
+                <h3>Sessions View (Enhanced)</h3>
+                <div class="mockup-block">SESSIONS VIEW - Agent Attribution
+──────────────────────────────────
+
+sess-3d9ec350 | Jan 6, 02:19 | Duration: 45 min
+┌────────────────────────────────────────────────┐
+│ Agent: 🔵 claude                               │
+│ Events: 2,847  |  Cost: $1.89  |  Status: ✓   │
+│                                                │
+│ Timeline:                                      │
+│ ├─ 02:19 Session start                        │
+│ ├─ 02:35 Implement core (2,100 events)        │
+│ ├─ 03:10 Tests passing (347 events)           │
+│ ├─ 03:45 Documentation (400 events)           │
+│ └─ 04:20 Session complete                     │
+│                                                │
+│ Related Sessions:                              │
+│ ├─ sess-529faa2c (Follow-up: 🟣 orchestr.)  │
+│ └─ sess-40ed8a68 (Parallel: 🟢 codex)       │
+└────────────────────────────────────────────────┘</div>
+            </section>
+
+            <section class="section-divider">
+                <h2>Implementation Roadmap</h2>
+                <h3>Phase 1: Foundation (1-2 Days)</h3>
+                <ul>
+                    <li>Remove vis.js dependency and graph tab</li>
+                    <li>Simplify navigation to 4 tabs</li>
+                    <li>Enhance work cards with agent timeline</li>
+                    <li>Run tests and verify kanban</li>
+                </ul>
+
+                <h3>Phase 2: Agents Tab (2-3 Days)</h3>
+                <ul>
+                    <li>Design and implement agent badge color system</li>
+                    <li>Build workload distribution charts</li>
+                    <li>Create cost breakdown visualization</li>
+                    <li>Add skills matrix and activity status</li>
+                </ul>
+
+                <h3>Phase 3: Analytics Redesign (3-4 Days)</h3>
+                <ul>
+                    <li>Design feature continuity timeline component</li>
+                    <li>Replace 5 tables with 3-4 visual cards</li>
+                    <li>Add collaboration metrics and patterns</li>
+                    <li>Implement drill-down capability</li>
+                </ul>
+
+                <h3>Phase 4: Sessions Enhancement (1-2 Days)</h3>
+                <ul>
+                    <li>Add agent attribution to session cards</li>
+                    <li>Implement handoff chain visualization</li>
+                    <li>Build session timeline with agent context</li>
+                    <li>Add related sessions linking</li>
+                </ul>
+
+                <h3>Phase 5: Polish & Optimization (1-2 Days)</h3>
+                <ul>
+                    <li>Performance testing with large datasets</li>
+                    <li>Accessibility audit (WCAG 2.1 AA)</li>
+                    <li>Mobile responsiveness testing</li>
+                    <li>Documentation and user guide</li>
+                </ul>
+
+                <p><strong>Total Effort:</strong> 8-13 days (target: 2-week sprint)</p>
+            </section>
+
+            <section class="section-divider">
+                <h2>Success Metrics</h2>
+                <h3>User Experience</h3>
+                <ul>
+                    <li>Dashboard loads in &lt;2s (improved from current)</li>
+                    <li>New users understand multi-agent work within 30s</li>
+                    <li>Can answer "Who did what?" without opening feature details</li>
+                    <li>Find agent metrics in &lt;1 click</li>
+                </ul>
+                <h3>Performance</h3>
+                <ul>
+                    <li>Remove 50KB of vis.js code</li>
+                    <li>Reduce CSS by 15%</li>
+                    <li>Page load time &lt;2s on 4G</li>
+                </ul>
+                <h3>Feature Adoption</h3>
+                <ul>
+                    <li>Analytics view clicked 3x more</li>
+                    <li>Agents tab used in &gt;80% of sessions</li>
+                    <li>Agent filtering used in &gt;50% of sessions</li>
+                </ul>
+            </section>
+
+            <section class="section-divider">
+                <h2>Key Deliverables</h2>
+                <ul>
+                    <li><strong>DASHBOARD_UI_REDESIGN.md</strong> - 500+ line detailed design specification
+                        <ul>
+                            <li>Current state analysis</li>
+                            <li>Visual mockups (ASCII + descriptions)</li>
+                            <li>Component specifications</li>
+                            <li>Implementation roadmap (5 phases)</li>
+                            <li>Technical architecture notes</li>
+                            <li>Risk assessment and mitigation</li>
+                        </ul>
+                    </li>
+                    <li><strong>Agent Color System</strong> - 5 colors + accessibility guidelines</li>
+                    <li><strong>Component Designs</strong> - Agent badges, work cards, timelines, charts</li>
+                    <li><strong>Mockups</strong> - All 4 views redesigned with agent focus</li>
+                    <li><strong>Implementation Plan</strong> - 5 phases with task breakdowns</li>
+                </ul>
+            </section>
+
+            <section class="section-divider">
+                <h2>Research Conducted</h2>
+                <h3>Industry Best Practices</h3>
+                <ul>
+                    <li><strong>GitHub Projects:</strong> Kanban with assignee badges, timeline milestones</li>
+                    <li><strong>Jira:</strong> Multiple views (board, timeline), assignee metrics</li>
+                    <li><strong>Linear:</strong> Clean UI design, issue assignment focus</li>
+                    <li><strong>DevOps Dashboards:</strong> Visual metrics, time-series data, multi-agent monitoring</li>
+                </ul>
+                <h3>Analyzed Current Code</h3>
+                <ul>
+                    <li>dashboard.html (52KB, 4000+ lines)</li>
+                    <li>Current tab structure (Work, Graph, Analytics, Agents stub, Sessions)</li>
+                    <li>Track-grouped kanban implementation</li>
+                    <li>vis.js graph visualization (to be removed)</li>
+                    <li>Feature and session data structure</li>
+                </ul>
+            </section>
+
+            <section class="section-divider">
+                <h2>Recommendations</h2>
+                <h3>Immediate Actions</h3>
+                <ol>
+                    <li>Approve this design specification</li>
+                    <li>Create visual mockups (Figma or prototype)</li>
+                    <li>Get team feedback on agent color system</li>
+                    <li>Estimate effort and prioritize phases</li>
+                </ol>
+                <h3>Implementation Strategy</h3>
+                <ol>
+                    <li>Start with Phase 1 (remove graph, minimal changes)</li>
+                    <li>Get team feedback after Phase 2</li>
+                    <li>Iterate on analytics redesign (Phase 3) based on usage</li>
+                    <li>Polish and optimize (Phase 5) before release</li>
+                </ol>
+                <h3>Risk Mitigation</h3>
+                <ul>
+                    <li>Keep old code commented during implementation</li>
+                    <li>Test thoroughly with real .htmlgraph data</li>
+                    <li>Maintain backward compatibility with session files</li>
+                    <li>Have rollback plan ready for each phase</li>
+                </ul>
+            </section>
+
+            <section class="section-divider">
+                <h2>Conclusion</h2>
+                <p>
+                    The current dashboard inadvertently obscures HtmlGraph's greatest strength:
+                    clear visibility into multi-agent orchestration. This research provides a
+                    comprehensive blueprint for transforming the UI to make agent collaboration
+                    the visual centerpiece.
+                </p>
+                <p>
+                    <strong>Key Insight:</strong> Users don't want better tables or more graphs—they
+                    want to understand "Who did what work and when?" The proposed design makes this
+                    the primary question answered by every view.
+                </p>
+                <p>
+                    The 5-phase roadmap is achievable in 2-3 weeks with focused effort. Starting
+                    with Phase 1 (removing graph tab) provides immediate improvement with minimal
+                    risk, then building out the Agents view makes the value proposition explicit.
+                </p>
+            </section>
+        </div>
+
+        <section data-steps>
+            <h3>Research Deliverables Completed</h3>
+            <ol>
+                <li data-completed="true">✓ Analyzed current dashboard structure and problems</li>
+                <li data-completed="true">✓ Researched modern dashboard and multi-agent patterns</li>
+                <li data-completed="true">✓ Designed new layout with multi-agent focus</li>
+                <li data-completed="true">✓ Created agent color and icon system</li>
+                <li data-completed="true">✓ Designed all four views (Work, Agents, Analytics, Sessions)</li>
+                <li data-completed="true">✓ Specified visual components and patterns</li>
+                <li data-completed="true">✓ Created detailed implementation roadmap (5 phases)</li>
+                <li data-completed="true">✓ Documented technical architecture</li>
+                <li data-completed="true">✓ Identified success metrics</li>
+                <li data-completed="true">✓ Assessed risks and mitigation strategies</li>
+                <li data-completed="true">✓ Created comprehensive design spike document</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>
