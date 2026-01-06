@@ -2677,6 +2677,287 @@
             margin-left: 0.5rem;
         }
 
+        /* Activity Feed Table View */
+        .activity-list.table-view {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8125rem;
+            background: var(--bg-secondary);
+        }
+
+        .activity-table thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg-tertiary);
+            border-bottom: 2px solid var(--border-strong);
+            z-index: 10;
+        }
+
+        .activity-table th {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            border-right: 1px solid var(--border);
+            user-select: none;
+        }
+
+        .activity-table th:last-child {
+            border-right: none;
+        }
+
+        .activity-table th.col-timestamp {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .activity-table th.col-timestamp:hover {
+            background: var(--bg-secondary);
+            color: var(--accent);
+        }
+
+        .activity-table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.2s;
+        }
+
+        .activity-table tbody tr:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Alternating row colors for readability */
+        .activity-table tbody tr:nth-child(even) {
+            background-color: var(--bg-primary);
+        }
+
+        .activity-table tbody tr:nth-child(even):hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Parent rows slightly emphasized */
+        .activity-table tbody tr.parent-row {
+            font-weight: 500;
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Child rows with visual indent marker */
+        .activity-table tbody tr.child-row {
+            background-color: rgba(205, 255, 0, 0.02);
+            border-left: 3px solid var(--text-muted);
+        }
+
+        .activity-table tbody tr.child-row:hover {
+            background-color: rgba(205, 255, 0, 0.05);
+        }
+
+        /* Status-based row coloring */
+        .activity-table tbody tr.event-recorded {
+            border-left-color: var(--status-done);
+        }
+
+        .activity-table tbody tr.event-pending {
+            border-left-color: var(--priority-medium);
+        }
+
+        .activity-table tbody tr.event-error {
+            border-left-color: var(--status-blocked);
+        }
+
+        .activity-table td {
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            border-right: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .activity-table td:last-child {
+            border-right: none;
+        }
+
+        /* Column widths */
+        .activity-table .col-timestamp {
+            width: 180px;
+            min-width: 180px;
+        }
+
+        .activity-table .col-agent {
+            width: 120px;
+            min-width: 120px;
+        }
+
+        .activity-table .col-tool {
+            width: 100px;
+            min-width: 100px;
+        }
+
+        .activity-table .col-input {
+            width: 180px;
+            min-width: 180px;
+        }
+
+        .activity-table .col-output {
+            width: 180px;
+            min-width: 180px;
+        }
+
+        .activity-table .col-status {
+            width: 90px;
+            min-width: 90px;
+        }
+
+        .activity-table .col-id {
+            width: 80px;
+            min-width: 80px;
+        }
+
+        /* Table cell content styling */
+        .activity-table .event-type-badge {
+            font-size: 1rem;
+            margin-right: 0.5rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .activity-table .timestamp-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .activity-table .agent-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+            margin-right: 0.25rem;
+        }
+
+        .activity-table .parent-indicator {
+            font-size: 0.875rem;
+            margin-left: 0.25rem;
+            opacity: 0.7;
+        }
+
+        .activity-table .child-indicator {
+            font-size: 0.875rem;
+            margin-left: 0.25rem;
+            opacity: 0.6;
+            color: var(--text-muted);
+        }
+
+        .activity-table .tool-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 2px;
+            color: var(--status-active);
+            word-break: break-all;
+        }
+
+        .activity-table .truncate {
+            display: inline-block;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .activity-table .text-muted {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .activity-table .status-badge {
+            display: inline-block;
+            padding: 0.375rem 0.625rem;
+            border-radius: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .activity-table .status-badge.status-recorded {
+            background: rgba(0, 200, 83, 0.15);
+            color: var(--status-done);
+            border: 1px solid var(--status-done);
+        }
+
+        .activity-table .status-badge.status-pending {
+            background: rgba(41, 121, 255, 0.15);
+            color: var(--priority-medium);
+            border: 1px solid var(--priority-medium);
+        }
+
+        .activity-table .status-badge.status-error {
+            background: rgba(255, 23, 68, 0.15);
+            color: var(--status-blocked);
+            border: 1px solid var(--status-blocked);
+        }
+
+        .activity-table .event-id-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+            word-break: break-all;
+        }
+
+        .activity-table .event-id-code:hover {
+            color: var(--accent);
+        }
+
+        /* Responsive table scrolling */
+        @media (max-width: 1200px) {
+            .activity-table .col-input,
+            .activity-table .col-output {
+                width: 120px;
+                min-width: 120px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .activity-table {
+                font-size: 0.75rem;
+            }
+
+            .activity-table th,
+            .activity-table td {
+                padding: 0.5rem 0.75rem;
+            }
+
+            .activity-table .col-timestamp {
+                width: 140px;
+                min-width: 140px;
+            }
+
+            .activity-table .col-input,
+            .activity-table .col-output {
+                width: 100px;
+                min-width: 100px;
+            }
+        }
+
         /* Content */
         .panel-content {
             line-height: 1.7;

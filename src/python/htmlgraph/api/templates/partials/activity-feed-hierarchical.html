@@ -2,7 +2,7 @@
     <div class="view-header">
         <h2>Agent Activity Feed</h2>
         <div class="view-info">
-            <small>Hierarchical view showing Task delegations with nested subagent activity</small>
+            <small>Table view of all agent activity - most recent events at top</small>
         </div>
         <div class="view-filters">
             <input type="text"
@@ -15,122 +15,132 @@
         </div>
     </div>
 
-    <div class="activity-list hierarchical">
+    <div class="activity-list table-view">
         {% if hierarchical_events %}
-            {% for group in hierarchical_events %}
-                <!-- Parent Event (Task Delegation or Root Activity) -->
-                <div class="activity-group" data-parent-id="{{ group.parent.event_id }}">
-                    <div class="activity-item parent-event event-{{ group.parent.status }}">
-                        <div class="activity-item-header">
-                            <span class="parent-indicator">📌</span>
-                            <span class="event-type-badge" title="Parent: {{ group.parent.event_type }}">
-                                {% if group.parent.event_type == 'delegation' %}
-                                    🔗
-                                {% elif group.parent.event_type == 'tool_call' %}
-                                    🔨
-                                {% elif group.parent.event_type == 'completion' %}
-                                    🎉
-                                {% else %}
-                                    📋
-                                {% endif %}
-                            </span>
-                            <span class="agent-name">{{ group.parent.agent_id }}</span>
-                            <span class="parent-type-label">
-                                {% if group.has_children %}
-                                    <span class="badge badge-delegation">Task</span>
-                                {% endif %}
-                            </span>
-                            <span class="event-timestamp">{{ group.parent.timestamp }}</span>
-                        </div>
-
-                        {% if group.parent.tool_name %}
-                        <div class="activity-item-tool">
-                            <code class="tool-name">{{ group.parent.tool_name }}</code>
-                        </div>
-                        {% endif %}
-
-                        <div class="activity-item-content">
-                            {% if group.parent.input_summary %}
-                            <div class="event-input">
-                                <span class="summary-label">Input:</span>
-                                <span class="summary-text">{{ group.parent.input_summary[:150] }}{% if group.parent.input_summary|length > 150 %}...{% endif %}</span>
-                            </div>
-                            {% endif %}
-
-                            {% if group.parent.output_summary %}
-                            <div class="event-output">
-                                <span class="summary-label">Output:</span>
-                                <span class="summary-text">{{ group.parent.output_summary[:150] }}{% if group.parent.output_summary|length > 150 %}...{% endif %}</span>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="activity-item-footer">
-                            <span class="event-id" title="{{ group.parent.event_id }}">{{ group.parent.event_id[:8] }}</span>
-                            <span class="session-id" title="{{ group.parent.session_id }}">{{ group.parent.session_id[:8] }}</span>
-                        </div>
-                    </div>
-
-                    <!-- Child Events (Subagent Work) -->
-                    {% if group.has_children %}
-                    <div class="activity-children">
-                        {% for child in group.children %}
-                        <div class="activity-item child-event event-{{ child.status }}">
-                            <div class="child-indent-marker"></div>
-
-                            <div class="activity-item-header">
-                                <span class="child-indicator">↳</span>
-                                <span class="event-type-badge" title="Child: {{ child.event_type }}">
-                                    {% if child.event_type == 'tool_call' %}
-                                        🔨
-                                    {% elif child.event_type == 'tool_result' %}
-                                        ✅
-                                    {% elif child.event_type == 'error' %}
-                                        ❌
-                                    {% elif child.event_type == 'delegation' %}
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th class="col-timestamp" title="Click to sort">Timestamp</th>
+                        <th class="col-agent">Agent</th>
+                        <th class="col-tool">Tool</th>
+                        <th class="col-input">Input</th>
+                        <th class="col-output">Output</th>
+                        <th class="col-status">Status</th>
+                        <th class="col-id">ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in hierarchical_events %}
+                        <!-- Parent Event -->
+                        <tr class="activity-row parent-row event-{{ group.parent.status }}" data-event-id="{{ group.parent.event_id }}">
+                            <td class="col-timestamp">
+                                <span class="event-type-badge" title="{{ group.parent.event_type }}">
+                                    {% if group.parent.event_type == 'delegation' %}
                                         🔗
-                                    {% elif child.event_type == 'completion' %}
+                                    {% elif group.parent.event_type == 'tool_call' %}
+                                        🔨
+                                    {% elif group.parent.event_type == 'completion' %}
                                         🎉
                                     {% else %}
-                                        📌
+                                        📋
                                     {% endif %}
                                 </span>
-                                <span class="agent-name">{{ child.agent_id }}</span>
-                                <span class="event-timestamp">{{ child.timestamp }}</span>
-                            </div>
-
-                            {% if child.tool_name %}
-                            <div class="activity-item-tool">
-                                <code class="tool-name">{{ child.tool_name }}</code>
-                            </div>
-                            {% endif %}
-
-                            <div class="activity-item-content">
-                                {% if child.input_summary %}
-                                <div class="event-input">
-                                    <span class="summary-label">Input:</span>
-                                    <span class="summary-text">{{ child.input_summary[:150] }}{% if child.input_summary|length > 150 %}...{% endif %}</span>
-                                </div>
+                                <span class="timestamp-text">{{ group.parent.timestamp }}</span>
+                            </td>
+                            <td class="col-agent">
+                                <span class="agent-badge">{{ group.parent.agent_id }}</span>
+                                {% if group.has_children %}
+                                    <span class="parent-indicator" title="Parent task with {{ group.children|length }} child event(s)">📌</span>
                                 {% endif %}
-
-                                {% if child.output_summary %}
-                                <div class="event-output">
-                                    <span class="summary-label">Output:</span>
-                                    <span class="summary-text">{{ child.output_summary[:150] }}{% if child.output_summary|length > 150 %}...{% endif %}</span>
-                                </div>
+                            </td>
+                            <td class="col-tool">
+                                {% if group.parent.tool_name %}
+                                    <code class="tool-name">{{ group.parent.tool_name }}</code>
+                                {% else %}
+                                    <span class="text-muted">—</span>
                                 {% endif %}
-                            </div>
+                            </td>
+                            <td class="col-input">
+                                {% if group.parent.input_summary %}
+                                    <span class="truncate" title="{{ group.parent.input_summary }}">{{ group.parent.input_summary[:100] }}{% if group.parent.input_summary|length > 100 %}…{% endif %}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="col-output">
+                                {% if group.parent.output_summary %}
+                                    <span class="truncate" title="{{ group.parent.output_summary }}">{{ group.parent.output_summary[:100] }}{% if group.parent.output_summary|length > 100 %}…{% endif %}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="col-status">
+                                <span class="status-badge status-{{ group.parent.status }}">{{ group.parent.status }}</span>
+                            </td>
+                            <td class="col-id">
+                                <code class="event-id-code" title="{{ group.parent.event_id }}">{{ group.parent.event_id[:8] }}</code>
+                            </td>
+                        </tr>
 
-                            <div class="activity-item-footer">
-                                <span class="event-id" title="{{ child.event_id }}">{{ child.event_id[:8] }}</span>
-                                <span class="parent-ref" title="Parent: {{ child.parent_event_id }}">← {{ child.parent_event_id[:8] }}</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-            {% endfor %}
+                        <!-- Child Events (if any) -->
+                        {% if group.has_children %}
+                            {% for child in group.children %}
+                            <tr class="activity-row child-row event-{{ child.status }}" data-event-id="{{ child.event_id }}" data-parent-id="{{ group.parent.event_id }}">
+                                <td class="col-timestamp">
+                                    <span class="event-type-badge" title="{{ child.event_type }}">
+                                        {% if child.event_type == 'tool_call' %}
+                                            🔨
+                                        {% elif child.event_type == 'tool_result' %}
+                                            ✅
+                                        {% elif child.event_type == 'error' %}
+                                            ❌
+                                        {% elif child.event_type == 'delegation' %}
+                                            🔗
+                                        {% elif child.event_type == 'completion' %}
+                                            🎉
+                                        {% else %}
+                                            📌
+                                        {% endif %}
+                                    </span>
+                                    <span class="timestamp-text">{{ child.timestamp }}</span>
+                                </td>
+                                <td class="col-agent">
+                                    <span class="agent-badge">{{ child.agent_id }}</span>
+                                    <span class="child-indicator" title="Child of {{ child.parent_event_id[:8] }}">↳</span>
+                                </td>
+                                <td class="col-tool">
+                                    {% if child.tool_name %}
+                                        <code class="tool-name">{{ child.tool_name }}</code>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="col-input">
+                                    {% if child.input_summary %}
+                                        <span class="truncate" title="{{ child.input_summary }}">{{ child.input_summary[:100] }}{% if child.input_summary|length > 100 %}…{% endif %}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="col-output">
+                                    {% if child.output_summary %}
+                                        <span class="truncate" title="{{ child.output_summary }}">{{ child.output_summary[:100] }}{% if child.output_summary|length > 100 %}…{% endif %}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="col-status">
+                                    <span class="status-badge status-{{ child.status }}">{{ child.status }}</span>
+                                </td>
+                                <td class="col-id">
+                                    <code class="event-id-code" title="{{ child.event_id }}">{{ child.event_id[:8] }}</code>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
         {% else %}
             <div class="empty-state">
                 <p>No events found</p>

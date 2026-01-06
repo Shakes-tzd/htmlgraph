@@ -180,43 +180,74 @@
             // Check if there's an empty state message
             const emptyState = activityList.querySelector('.empty-state');
             if (emptyState) {
-                // Replace empty state with first event
+                // Replace empty state with table
                 emptyState.remove();
+                // Create table if it doesn't exist
+                if (!activityList.querySelector('.activity-table')) {
+                    const table = `
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-timestamp">Timestamp</th>
+                                    <th class="col-agent">Agent</th>
+                                    <th class="col-tool">Tool</th>
+                                    <th class="col-input">Input</th>
+                                    <th class="col-output">Output</th>
+                                    <th class="col-status">Status</th>
+                                    <th class="col-id">ID</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    `;
+                    activityList.insertAdjacentHTML('afterbegin', table);
+                }
             }
 
-            // Create new activity item HTML
-            const eventItem = createActivityItemHTML(eventData);
+            // Get or create tbody
+            const table = activityList.querySelector('.activity-table');
+            if (!table) {
+                return;
+            }
 
-            // Insert at the top of the activity list
-            const firstItem = activityList.querySelector('.activity-group');
-            if (firstItem) {
-                firstItem.insertAdjacentHTML('beforebegin', eventItem);
+            const tbody = table.querySelector('tbody');
+            if (!tbody) {
+                return;
+            }
+
+            // Create new table row HTML
+            const eventRow = createActivityRowHTML(eventData);
+
+            // Insert at the top of tbody
+            const firstRow = tbody.querySelector('tr');
+            if (firstRow) {
+                firstRow.insertAdjacentHTML('beforebegin', eventRow);
             } else {
-                activityList.insertAdjacentHTML('afterbegin', eventItem);
+                tbody.insertAdjacentHTML('afterbegin', eventRow);
             }
 
-            // Highlight the new item
-            const newItem = activityList.querySelector('.activity-group:first-child');
-            if (newItem) {
-                newItem.classList.add('new-event-highlight');
+            // Highlight the new row
+            const newRow = tbody.querySelector('tr:first-child');
+            if (newRow) {
+                newRow.classList.add('new-event-highlight');
                 // Remove highlight after animation
                 setTimeout(() => {
-                    newItem.classList.remove('new-event-highlight');
+                    newRow.classList.remove('new-event-highlight');
                 }, 2000);
             }
 
             // Keep only last 100 events in feed to prevent memory issues
-            const allItems = activityList.querySelectorAll('.activity-group');
-            if (allItems.length > 100) {
+            const allRows = tbody.querySelectorAll('tr');
+            if (allRows.length > 100) {
                 // Remove oldest items from bottom
-                const itemsToRemove = allItems.length - 100;
+                const itemsToRemove = allRows.length - 100;
                 for (let i = 0; i < itemsToRemove; i++) {
-                    allItems[allItems.length - 1 - i].remove();
+                    allRows[allRows.length - 1 - i].remove();
                 }
             }
         }
 
-        function createActivityItemHTML(eventData) {
+        function createActivityRowHTML(eventData) {
             // Determine event type emoji
             let eventEmoji = '📋';
             if (eventData.event_type === 'delegation') {
@@ -231,43 +262,39 @@
                 eventEmoji = '❌';
             }
 
-            // Create activity group HTML
+            const inputSummary = eventData.input_summary ? eventData.input_summary.substring(0, 100) : '';
+            const inputTruncated = eventData.input_summary && eventData.input_summary.length > 100 ? '…' : '';
+            const outputSummary = eventData.output_summary ? eventData.output_summary.substring(0, 100) : '';
+            const outputTruncated = eventData.output_summary && eventData.output_summary.length > 100 ? '…' : '';
+
+            // Create table row HTML
             const html = `
-                <div class="activity-group" data-parent-id="${escapeHtml(eventData.event_id)}">
-                    <div class="activity-item parent-event event-${eventData.status || 'pending'}">
-                        <div class="activity-item-header">
-                            <span class="parent-indicator">📌</span>
-                            <span class="event-type-badge" title="${escapeHtml(eventData.event_type)}">
-                                ${eventEmoji}
-                            </span>
-                            <span class="agent-name">${escapeHtml(eventData.agent_id)}</span>
-                            <span class="event-timestamp">${escapeHtml(eventData.timestamp)}</span>
-                        </div>
-                        ${eventData.tool_name ? `
-                        <div class="activity-item-tool">
-                            <code class="tool-name">${escapeHtml(eventData.tool_name)}</code>
-                        </div>
-                        ` : ''}
-                        <div class="activity-item-content">
-                            ${eventData.input_summary ? `
-                            <div class="event-input">
-                                <span class="summary-label">Input:</span>
-                                <span class="summary-text">${escapeHtml(eventData.input_summary.substring(0, 150))}${eventData.input_summary.length > 150 ? '...' : ''}</span>
-                            </div>
-                            ` : ''}
-                            ${eventData.output_summary ? `
-                            <div class="event-output">
-                                <span class="summary-label">Output:</span>
-                                <span class="summary-text">${escapeHtml(eventData.output_summary.substring(0, 150))}${eventData.output_summary.length > 150 ? '...' : ''}</span>
-                            </div>
-                            ` : ''}
-                        </div>
-                        <div class="activity-item-footer">
-                            <span class="event-id" title="${escapeHtml(eventData.event_id)}">${escapeHtml(eventData.event_id.substring(0, 8))}</span>
-                            <span class="session-id" title="${escapeHtml(eventData.session_id)}">${escapeHtml(eventData.session_id.substring(0, 8))}</span>
-                        </div>
-                    </div>
-                </div>
+                <tr class="activity-row parent-row event-${eventData.status || 'pending'}" data-event-id="${escapeHtml(eventData.event_id)}">
+                    <td class="col-timestamp">
+                        <span class="event-type-badge" title="${escapeHtml(eventData.event_type)}">
+                            ${eventEmoji}
+                        </span>
+                        <span class="timestamp-text">${escapeHtml(eventData.timestamp)}</span>
+                    </td>
+                    <td class="col-agent">
+                        <span class="agent-badge">${escapeHtml(eventData.agent_id)}</span>
+                    </td>
+                    <td class="col-tool">
+                        ${eventData.tool_name ? `<code class="tool-name">${escapeHtml(eventData.tool_name)}</code>` : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="col-input">
+                        ${inputSummary ? `<span class="truncate" title="${escapeHtml(eventData.input_summary)}">${escapeHtml(inputSummary)}${inputTruncated}</span>` : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="col-output">
+                        ${outputSummary ? `<span class="truncate" title="${escapeHtml(eventData.output_summary)}">${escapeHtml(outputSummary)}${outputTruncated}</span>` : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="col-status">
+                        <span class="status-badge status-${eventData.status || 'pending'}">${escapeHtml(eventData.status || 'pending')}</span>
+                    </td>
+                    <td class="col-id">
+                        <code class="event-id-code" title="${escapeHtml(eventData.event_id)}">${escapeHtml(eventData.event_id.substring(0, 8))}</code>
+                    </td>
+                </tr>
             `;
             return html;
         }
