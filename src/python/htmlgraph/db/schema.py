@@ -53,6 +53,10 @@ class HtmlGraphDB:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.connection: sqlite3.Connection | None = None
 
+        # Auto-initialize schema on first instantiation
+        self.connect()
+        self.create_tables()
+
     def connect(self) -> sqlite3.Connection:
         """
         Connect to SQLite database, creating it if needed.
