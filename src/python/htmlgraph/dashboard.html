@@ -2096,13 +2096,49 @@
 
         .analytics-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
         }
 
-        @media (max-width: 1100px) {
+        /* Timeline is always full width and first */
+        .analytics-grid > #analytics-timeline {
+            grid-column: 1 / -1;
+            order: -10;
+        }
+
+        /* Summary metrics grid: 3 columns */
+        .analytics-grid > #analytics-summary {
+            grid-column: 1 / -1;
+            order: -9;
+        }
+
+        /* Collaboration metrics: 2 columns */
+        .analytics-grid > #analytics-collaboration {
+            grid-column: 1 / -1;
+            order: -8;
+        }
+
+        /* Feature and tool analysis: 2 columns each */
+        .analytics-grid > #analytics-features,
+        .analytics-grid > #analytics-tools {
+            order: -7;
+        }
+
+        /* Commit DAG: full width */
+        .analytics-grid > #analytics-commit-dag {
+            grid-column: 1 / -1;
+            order: -6;
+        }
+
+        @media (max-width: 1200px) {
             .analytics-grid {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .analytics-grid {
+                gap: 1rem;
             }
         }
 
@@ -2124,6 +2160,205 @@
 
         .analytics-card-wide {
             grid-column: 1 / -1;
+        }
+
+        /* Timeline Section */
+        .analytics-timeline {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .timeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .timeline-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .timeline-header .timeline-legend {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .timeline-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .timeline-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .timeline-entry {
+            display: flex;
+            gap: 1rem;
+            padding: 0.875rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.2s var(--ease-out-expo);
+            cursor: pointer;
+        }
+
+        .timeline-entry:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(205, 255, 0, 0.1);
+        }
+
+        .timeline-entry-marker {
+            flex-shrink: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-top: 3px;
+            border: 2px solid var(--border-strong);
+        }
+
+        .timeline-entry-marker.session { background: var(--status-active); }
+        .timeline-entry-marker.feature { background: var(--accent); }
+        .timeline-entry-marker.commit { background: var(--status-done); }
+        .timeline-entry-marker.error { background: var(--status-blocked); }
+
+        .timeline-entry-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .timeline-entry-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .timeline-entry-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Summary/Health Indicators */
+        .analytics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .health-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .health-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .health-card.health-good::before { background: var(--status-done); }
+        .health-card.health-ok::before { background: var(--priority-high); }
+        .health-card.health-poor::before { background: var(--status-blocked); }
+
+        .health-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .health-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .health-detail {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Collaboration Metrics */
+        .collaboration-metrics {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+        }
+
+        .collaboration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .collab-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .collab-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .collab-stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
         }
 
         /* Commit DAG Visualization */
@@ -2232,26 +2467,44 @@
 
         .analytics-kpis {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
         }
 
         @media (max-width: 700px) {
             .analytics-kpis {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
         .kpi {
-            border: 1px solid var(--border);
-            background: var(--bg-tertiary);
-            padding: 0.75rem;
+            border: 2px solid var(--border-strong);
+            background: var(--bg-secondary);
+            padding: 1.25rem;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
         }
+
+        .kpi::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent);
+        }
+
+        .kpi.healthy::before { background: var(--status-done); }
+        .kpi.warning::before { background: var(--priority-high); }
+        .kpi.critical::before { background: var(--priority-critical); }
 
         .kpi .kpi-value {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 1.25rem;
+            font-size: 2rem;
             font-weight: 700;
+            color: var(--text-primary);
         }
 
         .kpi .kpi-label {
@@ -2260,7 +2513,7 @@
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--text-muted);
-            margin-top: 0.25rem;
+            margin-top: 0.5rem;
         }
 
         .table {
@@ -3085,22 +3338,76 @@
             </div>
 
             <div class="analytics-grid">
-                <div class="analytics-card" id="analytics-overview">
-                    <div class="loading">Loading overview…</div>
+                <!-- Timeline: Primary Focus -->
+                <div class="analytics-timeline" id="analytics-timeline">
+                    <div class="timeline-header">
+                        <h3>Activity Timeline</h3>
+                        <div class="timeline-legend">
+                            <div class="timeline-legend-item">
+                                <div class="timeline-legend-dot" style="background: var(--status-active);"></div>
+                                <span>Sessions</span>
+                            </div>
+                            <div class="timeline-legend-item">
+                                <div class="timeline-legend-dot" style="background: var(--accent);"></div>
+                                <span>Features</span>
+                            </div>
+                            <div class="timeline-legend-item">
+                                <div class="timeline-legend-dot" style="background: var(--status-done);"></div>
+                                <span>Commits</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-container" id="timeline-content">
+                        <div class="loading">Loading timeline…</div>
+                    </div>
                 </div>
+
+                <!-- Summary Section: Key Metrics & Health -->
+                <div class="analytics-card analytics-card-wide" id="analytics-summary">
+                    <h3>Summary & Health</h3>
+                    <div class="analytics-summary" id="summary-content">
+                        <div class="loading">Loading summary…</div>
+                    </div>
+                </div>
+
+                <!-- Collaboration Metrics -->
+                <div class="analytics-card analytics-card-wide" id="analytics-collaboration">
+                    <div class="collaboration-metrics">
+                        <h3>Collaboration & Handoff Metrics</h3>
+                        <div class="collaboration-grid" id="collaboration-content">
+                            <div class="loading">Loading collaboration metrics…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overview KPIs -->
+                <div class="analytics-card" id="analytics-overview">
+                    <h3>Overview</h3>
+                    <div id="overview-kpis" class="loading">Loading overview…</div>
+                </div>
+
+                <!-- Tool Patterns -->
                 <div class="analytics-card" id="analytics-tools">
                     <div class="loading">Loading tool patterns…</div>
                 </div>
+
+                <!-- Feature Analysis -->
                 <div class="analytics-card" id="analytics-features">
                     <div class="loading">Loading top features…</div>
                 </div>
-                <div class="analytics-card" id="analytics-continuity">
+
+                <!-- Feature Continuity (hidden until feature selected) -->
+                <div class="analytics-card analytics-card-wide" id="analytics-continuity" style="display: none;">
                     <div class="loading">Select a feature to see continuity…</div>
                 </div>
-                <div class="analytics-card" id="analytics-commits">
+
+                <!-- Feature Commits (hidden until feature selected) -->
+                <div class="analytics-card analytics-card-wide" id="analytics-commits" style="display: none;">
                     <div class="loading">Select a feature to see commits…</div>
                 </div>
-                <div class="analytics-card analytics-card-wide" id="analytics-commit-dag">
+
+                <!-- Commit DAG (hidden until feature selected) -->
+                <div class="analytics-card analytics-card-wide" id="analytics-commit-dag" style="display: none;">
                     <div class="loading">Select a feature to see commit graph…</div>
                 </div>
             </div>
@@ -3398,6 +3705,131 @@
         function formatFloat(value) {
             if (value === null || value === undefined || Number.isNaN(value)) return '—';
             return Number(value).toFixed(2);
+        }
+
+        function renderTimeline(overview, features, transitions) {
+            const el = document.getElementById('timeline-content');
+            if (!overview) {
+                el.innerHTML = '<p class="analytics-note">No timeline data available.</p>';
+                return;
+            }
+
+            // Build timeline entries from overview data
+            const entries = [];
+
+            // Add overview entry (summary event)
+            if (overview.events > 0) {
+                entries.push({
+                    type: 'session',
+                    title: `${overview.events} events recorded`,
+                    meta: `Failure rate: ${formatPercent(overview.failure_rate)}, Avg drift: ${formatFloat(overview.avg_drift)}`
+                });
+            }
+
+            // Add top features as timeline entries
+            if (features && features.length > 0) {
+                features.slice(0, 5).forEach(f => {
+                    entries.push({
+                        type: 'feature',
+                        title: f.feature_id,
+                        meta: `${f.count} events, ${f.failures} failures`
+                    });
+                });
+            }
+
+            // Add top transitions as timeline entries
+            if (transitions && transitions.length > 0) {
+                transitions.slice(0, 3).forEach(t => {
+                    entries.push({
+                        type: 'session',
+                        title: `${t.tool} → ${t.next_tool}`,
+                        meta: `${t.count} transitions`
+                    });
+                });
+            }
+
+            if (entries.length === 0) {
+                el.innerHTML = '<p class="analytics-note">No timeline events to display.</p>';
+                return;
+            }
+
+            el.innerHTML = entries.map(e => `
+                <div class="timeline-entry" title="${escapeHtml(e.meta)}">
+                    <div class="timeline-entry-marker ${e.type}"></div>
+                    <div class="timeline-entry-content">
+                        <div class="timeline-entry-title">${escapeHtml(e.title)}</div>
+                        <div class="timeline-entry-meta">${escapeHtml(e.meta)}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderAnalyticsSummary(overview) {
+            const el = document.getElementById('summary-content');
+            if (!overview) {
+                el.innerHTML = '<p class="analytics-note">No summary data available.</p>';
+                return;
+            }
+
+            const failureRate = overview.failure_rate || 0;
+            const avgDrift = overview.avg_drift || 0;
+            const eventCount = overview.events || 0;
+
+            // Determine health status
+            const failureHealth = failureRate < 0.05 ? 'health-good' : failureRate < 0.15 ? 'health-ok' : 'health-poor';
+            const driftHealth = avgDrift < 1.0 ? 'health-good' : avgDrift < 2.0 ? 'health-ok' : 'health-poor';
+            const activityHealth = eventCount > 100 ? 'health-good' : eventCount > 20 ? 'health-ok' : 'health-poor';
+
+            el.innerHTML = `
+                <div class="health-card ${failureHealth}">
+                    <div class="health-label">Failure Rate</div>
+                    <div class="health-value">${formatPercent(failureRate)}</div>
+                    <div class="health-detail">${failureRate < 0.05 ? '✓ Excellent' : failureRate < 0.15 ? '⚠ Acceptable' : '✗ Needs attention'}</div>
+                </div>
+                <div class="health-card ${driftHealth}">
+                    <div class="health-label">Avg Context Drift</div>
+                    <div class="health-value">${formatFloat(avgDrift)}</div>
+                    <div class="health-detail">${avgDrift < 1.0 ? '✓ Clean' : avgDrift < 2.0 ? '⚠ Acceptable' : '✗ High drift'}</div>
+                </div>
+                <div class="health-card ${activityHealth}">
+                    <div class="health-label">Total Events</div>
+                    <div class="health-value">${eventCount}</div>
+                    <div class="health-detail">${eventCount > 100 ? '✓ Active' : eventCount > 20 ? '⚠ Some data' : '✗ Minimal activity'}</div>
+                </div>
+            `;
+        }
+
+        function renderCollaborationMetrics(overview) {
+            const el = document.getElementById('collaboration-content');
+            if (!overview) {
+                el.innerHTML = '<p class="analytics-note">No collaboration data available.</p>';
+                return;
+            }
+
+            // Extract or calculate collaboration metrics
+            const handoffCount = overview.handoffs || 0;
+            const parallelWorkPct = overview.parallel_work_pct || 0;
+            const agentCount = overview.agent_count || 1;
+            const avgSessionDuration = overview.avg_session_duration || 0;
+
+            el.innerHTML = `
+                <div class="collab-stat">
+                    <div class="collab-stat-value">${handoffCount}</div>
+                    <div class="collab-stat-label">Handoffs</div>
+                </div>
+                <div class="collab-stat">
+                    <div class="collab-stat-value">${formatPercent(parallelWorkPct)}</div>
+                    <div class="collab-stat-label">Parallel Work</div>
+                </div>
+                <div class="collab-stat">
+                    <div class="collab-stat-value">${agentCount}</div>
+                    <div class="collab-stat-label">Active Agents</div>
+                </div>
+                <div class="collab-stat">
+                    <div class="collab-stat-value">${formatFloat(avgSessionDuration)}</div>
+                    <div class="collab-stat-label">Avg Session (min)</div>
+                </div>
+            `;
         }
 
         function renderAnalyticsOverview(overview) {
@@ -3820,6 +4252,12 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             analyticsCache.transitions = transitions;
             analyticsLoadedAt = Date.now();
 
+            // Render primary analytics views (new card-based layout)
+            renderTimeline(overview, features, transitions);
+            renderAnalyticsSummary(overview);
+            renderCollaborationMetrics(overview);
+
+            // Render detail cards
             renderAnalyticsOverview(overview);
             renderAnalyticsTools(transitions);
             renderAnalyticsFeatures(features);
@@ -3838,6 +4276,12 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
 
         async function loadFeatureAnalytics(featureId) {
             analyticsCache.selectedFeatureId = featureId;
+
+            // Show the detail sections for selected feature
+            document.getElementById('analytics-continuity').style.display = 'block';
+            document.getElementById('analytics-commits').style.display = 'block';
+            document.getElementById('analytics-commit-dag').style.display = 'block';
+
             await Promise.all([
                 loadAndRenderContinuity(featureId),
                 loadAndRenderCommits(featureId),

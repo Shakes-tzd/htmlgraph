@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from htmlgraph import SDK
 from htmlgraph.event_log import EventRecord, JsonlEventLog
 
@@ -230,7 +229,9 @@ class TestAgentAnalyticsView:
         assert "codex" in orch_agents
         assert "gemini" in orch_agents
 
-    def test_agent_cost_calculation(self, tmp_htmlgraph: Path, event_log: JsonlEventLog):
+    def test_agent_cost_calculation(
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+    ):
         """Analytics should calculate total cost per agent."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
         track = sdk.tracks.create("Cost Track").save()
@@ -371,7 +372,9 @@ class TestSDKAgentQuerying:
 class TestEventToFeatureLinking:
     """Test linking events to features."""
 
-    def test_event_includes_feature_id(self, tmp_htmlgraph: Path, event_log: JsonlEventLog):
+    def test_event_includes_feature_id(
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+    ):
         """Event should include feature_id for attribution."""
         feature_id = "feat-test-001"
         session_id = "sess-test-001"
@@ -396,7 +399,9 @@ class TestEventToFeatureLinking:
         assert len(events) == 1
         assert events[0]["feature_id"] == feature_id
 
-    def test_query_events_by_feature(self, tmp_htmlgraph: Path, event_log: JsonlEventLog):
+    def test_query_events_by_feature(
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+    ):
         """Should query all events for a specific feature."""
         feature_id = "feat-test-002"
         session_id = "sess-test-002"
@@ -424,7 +429,9 @@ class TestEventToFeatureLinking:
         assert len(events) == 5
         assert all(e["feature_id"] == feature_id for e in events)
 
-    def test_recent_agent_work_query(self, tmp_htmlgraph: Path, event_log: JsonlEventLog):
+    def test_recent_agent_work_query(
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+    ):
         """Should query recent work by agents on a feature."""
         feature_id = "feat-test-003"
         session_id = "sess-test-003"
@@ -471,7 +478,9 @@ class TestDashboardPerformance:
 
         assert len(all_features) >= 100
 
-    def test_event_query_performance(self, tmp_htmlgraph: Path, event_log: JsonlEventLog):
+    def test_event_query_performance(
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+    ):
         """Event queries should be efficient with many events."""
         feature_id = "feat-perf-test"
         session_id = "sess-perf-test"
@@ -509,7 +518,9 @@ class TestMultiAgentCollaboration:
         """Feature should show when multiple agents have worked on it."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
         track = sdk.tracks.create("Collaboration Track").save()
-        feature = sdk.features.create("Collaboration Feature").set_track(track.id).save()
+        feature = (
+            sdk.features.create("Collaboration Feature").set_track(track.id).save()
+        )
         feature_id = feature.id
 
         # Multiple agents work on it
@@ -547,7 +558,9 @@ class TestMultiAgentCollaboration:
         """Should track total effort hours across agents."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
         track = sdk.tracks.create("Effort Track").save()
-        feature = sdk.features.create("Effort Tracking Feature").set_track(track.id).save()
+        feature = (
+            sdk.features.create("Effort Tracking Feature").set_track(track.id).save()
+        )
 
         session_id = "test-session-effort"
         # Simulate effort duration
@@ -578,9 +591,7 @@ class TestMultiAgentCollaboration:
 
         # Verify effort tracking
         events = event_log.query_events(feature_id=feature.id)
-        total_seconds = sum(
-            e.get("execution_duration_seconds") or 0 for e in events
-        )
+        total_seconds = sum(e.get("execution_duration_seconds") or 0 for e in events)
 
         # 30min + 1h + 1.5h = 3h = 10800 seconds
         assert total_seconds == pytest.approx(10800, rel=1e-2)

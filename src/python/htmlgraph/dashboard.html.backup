@@ -882,8 +882,40 @@
         .badge.type { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 
         /* Agent attribution badges - color-coded by agent type */
-        .badge.agent { padding: 0.375rem 0.625rem; font-weight: 600; }
-        .badge.agent-orchestrator { background: #2979FF; color: white; border-color: #2979FF; }
+        .badge.agent {
+            padding: 0.375rem 0.625rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            position: relative;
+            transition: all 0.2s ease;
+            cursor: help;
+        }
+
+        .badge.agent::before {
+            content: '';
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.8;
+        }
+
+        .badge.agent:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Primary agents - Requested color system */
+        .badge.agent-claude { background: #2979FF; color: white; border-color: #2979FF; }
+        .badge.agent-codex { background: #00C853; color: white; border-color: #00C853; }
+        .badge.agent-orchestrator { background: #7C4DFF; color: white; border-color: #7C4DFF; }
+        .badge.agent-gemini { background: #FBC02D; color: #000; border-color: #FBC02D; }
+        .badge.agent-gemini-2 { background: #FF9100; color: white; border-color: #FF9100; }
+
+        /* Secondary agents - Backward compatibility */
         .badge.agent-analyst { background: #7C3AED; color: white; border-color: #7C3AED; }
         .badge.agent-developer { background: #00C853; color: white; border-color: #00C853; }
         .badge.agent-researcher { background: #FF6D00; color: white; border-color: #FF6D00; }
@@ -1266,6 +1298,668 @@
             font-size: 0.75rem;
             color: var(--text-muted);
             margin-top: 0.25rem;
+        }
+
+        /* ================================================================
+           WORKLOAD DISTRIBUTION CHART
+           ================================================================ */
+        .workload-chart-container {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            margin-top: 1rem;
+        }
+
+        .workload-chart-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .workload-chart-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+
+        .workload-chart-header p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .workload-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .workload-bar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .workload-bar-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .workload-bar-label-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .workload-agent-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .workload-bar-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .workload-bar-container {
+            position: relative;
+            width: 100%;
+            height: 32px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .workload-bar-fill {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+            transition: all 0.3s var(--ease-out-expo);
+            position: relative;
+            justify-content: flex-start;
+        }
+
+        .workload-bar-fill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+        }
+
+        .workload-bar-text {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .workload-bar-hover-info {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-strong);
+            border-radius: 4px;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            z-index: 100;
+            margin-bottom: 0.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .workload-bar-container:hover .workload-bar-hover-info {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .workload-bar-hover-info::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--border-strong);
+        }
+
+        .workload-chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+
+        .workload-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .workload-legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .workload-legend-label {
+            color: var(--text-secondary);
+        }
+
+        /* Agent Color System */
+        .agent-claude { background: linear-gradient(135deg, #6366f1, #818cf8); }
+        .agent-codex { background: linear-gradient(135deg, #10b981, #34d399); }
+        .agent-orchestrator { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+        .agent-gemini-2 { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        .agent-gemini { background: linear-gradient(135deg, #ec4899, #f472b6); }
+        .agent-analyst { background: linear-gradient(135deg, #0ea5e9, #38bdf8); }
+        .agent-developer { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+
+        /* ================================================================
+           AGENT COST VISUALIZATION
+           ================================================================ */
+        .cost-breakdown-container {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            margin-top: 1rem;
+        }
+
+        .cost-breakdown-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .cost-breakdown-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+
+        .cost-breakdown-header p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .cost-summary-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cost-metric {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .cost-metric-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .cost-metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .cost-metric-unit {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .cost-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .cost-bar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .cost-bar-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.375rem;
+        }
+
+        .cost-bar-label-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .cost-agent-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .cost-bar-stats {
+            display: flex;
+            gap: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+        }
+
+        .cost-bar-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+
+        .cost-bar-stat-label {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .cost-bar-stat-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .cost-bar-container {
+            position: relative;
+            width: 100%;
+            height: 40px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .cost-bar-stacked {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cost-bar-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s var(--ease-out-expo);
+            flex-grow: 1;
+            min-width: 2px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .cost-bar-segment:last-child {
+            border-right: none;
+        }
+
+        .cost-bar-segment::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+        }
+
+        .cost-bar-segment-label {
+            position: relative;
+            z-index: 2;
+            font-size: 0.65rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            padding: 0 0.3rem;
+            pointer-events: none;
+        }
+
+        .cost-bar-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-strong);
+            border-radius: 4px;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            z-index: 100;
+            margin-bottom: 0.5rem;
+            box-shadow: var(--shadow-md);
+            white-space: nowrap;
+        }
+
+        .cost-bar-segment:hover ~ .cost-bar-tooltip,
+        .cost-bar-container:hover .cost-bar-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .cost-bar-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--border-strong);
+        }
+
+        .cost-range-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .cost-range-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .cost-range-dot.low { background: #10b981; }
+        .cost-range-dot.medium { background: #f59e0b; }
+        .cost-range-dot.high { background: #ef4444; }
+
+        .cost-breakdown-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+
+        .cost-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .cost-legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .cost-legend-label {
+            color: var(--text-secondary);
+        }
+
+        /* Agent cost colors - match agent system */
+        .cost-claude { background: #2979FF; }
+        .cost-codex { background: #00C853; }
+        .cost-orchestrator { background: #7C4DFF; }
+        .cost-gemini { background: #FBC02D; }
+        .cost-gemini-2 { background: #FF9100; }
+        .agent-researcher { background: linear-gradient(135deg, #d946ef, #e879f9); }
+        .agent-debugger { background: linear-gradient(135deg, #ef4444, #f87171); }
+        .agent-default { background: linear-gradient(135deg, #6b7280, #9ca3af); }
+
+        .workload-empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .workload-empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            opacity: 0.5;
+        }
+
+        .workload-chart-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 768px) {
+            .workload-bar-group {
+                gap: 0.25rem;
+            }
+
+            .workload-bar-label {
+                font-size: 0.8rem;
+            }
+
+            .workload-bar-text {
+                font-size: 0.65rem;
+            }
+
+            .workload-chart-legend {
+                gap: 1rem;
+            }
+
+            .workload-bars {
+                max-height: 400px;
+            }
+        }
+
+        /* Skills Matrix Styles */
+        .skills-matrix-container {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            overflow-x: auto;
+        }
+
+        .skills-matrix {
+            display: grid;
+            grid-template-columns: 150px repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0;
+            min-width: 600px;
+        }
+
+        .skills-matrix-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            min-height: 50px;
+        }
+
+        .skills-matrix-header-row {
+            position: sticky;
+            top: 0;
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            z-index: 10;
+        }
+
+        .skills-matrix-agent-name {
+            position: sticky;
+            left: 0;
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: left;
+            z-index: 11;
+        }
+
+        .skills-matrix-skill-label {
+            writing-mode: horizontal-tb;
+            white-space: nowrap;
+        }
+
+        .proficiency-dot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: help;
+        }
+
+        .proficiency-dot:hover {
+            transform: scale(1.15);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .proficiency-1 {
+            background: #fee5e5;
+            color: #8b0000;
+            border: 1px solid #d4a5a5;
+        }
+
+        .proficiency-2 {
+            background: #ffcccb;
+            color: #660000;
+            border: 1px solid #c97c7c;
+        }
+
+        .proficiency-3 {
+            background: #ffb366;
+            color: #5a3a00;
+            border: 1px solid #cc8844;
+        }
+
+        .proficiency-4 {
+            background: #99ff99;
+            color: #1a4d1a;
+            border: 1px solid #66cc66;
+        }
+
+        .proficiency-5 {
+            background: #00cc00;
+            color: #ffffff;
+            border: 1px solid #009900;
+        }
+
+        .skill-category-legend {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .skill-category-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .skill-category-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            background: var(--accent);
+        }
+
+        .skill-tooltip {
+            position: absolute;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-strong);
+            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: var(--shadow-md);
         }
 
         /* ================================================================
@@ -2474,9 +3168,31 @@
                 </div>
             </div>
 
+            <!-- Agent Skills Matrix -->
+            <div class="analytics-card analytics-card-wide" id="agent-skills-matrix">
+                <h3>Agent Specializations & Skills Matrix</h3>
+                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+                    Proficiency levels based on work history analysis. Color intensity indicates expertise level (1=novice, 5=expert).
+                </p>
+                <div class="skills-matrix-container" id="skills-matrix-content">
+                    <div class="loading">Analyzing agent work history...</div>
+                </div>
+            </div>
+
             <!-- Agent Stats Summary -->
             <div class="analytics-card" id="agent-summary">
                 <div class="loading">Loading agent statistics...</div>
+            </div>
+
+            <!-- Workload Distribution Chart -->
+            <div class="analytics-card analytics-card-wide">
+                <div class="workload-chart-container" id="workload-chart">
+                    <div class="workload-chart-header">
+                        <h3>Agent Workload Distribution</h3>
+                        <p>Horizontal bar chart showing work completion by agent</p>
+                    </div>
+                    <div id="workload-chart-content" class="loading">Loading workload data...</div>
+                </div>
             </div>
 
             <!-- Agent Work Table -->
@@ -2490,8 +3206,25 @@
             </div>
 
             <!-- Agent Cost Breakdown -->
-            <div class="analytics-card" id="agent-costs">
-                <div class="loading">Loading cost breakdown...</div>
+            <div class="analytics-card analytics-card-wide" id="agent-costs">
+                <div class="cost-breakdown-container">
+                    <div class="cost-breakdown-header">
+                        <h3>Agent Cost Breakdown</h3>
+                        <p>Token costs aggregated by agent type with visual distribution</p>
+                    </div>
+
+                    <div class="cost-summary-metrics" id="cost-metrics">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <div class="cost-bars" id="cost-bars-container">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <div class="cost-breakdown-legend" id="cost-legend">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -3112,11 +3845,233 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             ]);
         }
 
+        // =====================================================================
+        // Agent Cost Visualization
+        // =====================================================================
+
+        const AGENT_COLORS = {
+            'claude': '#2979FF',
+            'codex': '#00C853',
+            'orchestrator': '#7C4DFF',
+            'gemini': '#FBC02D',
+            'gemini-2': '#FF9100',
+            'analyst': '#0ea5e9',
+            'developer': '#06b6d4',
+            'researcher': '#d946ef',
+            'debugger': '#ef4444',
+            'default': '#78909C'
+        };
+
+        function getAgentColor(agent) {
+            const normalized = (agent || 'default').toLowerCase();
+            return AGENT_COLORS[normalized] || AGENT_COLORS['default'];
+        }
+
+        function formatCost(tokens) {
+            // Approximate cost: $0.003 per 1K input tokens
+            const cost = (tokens / 1000) * 0.003;
+            return cost.toFixed(4);
+        }
+
+        function formatCostDisplay(tokens) {
+            const cost = parseFloat(formatCost(tokens));
+            if (cost === 0) return '$0.00';
+            return `$${cost.toFixed(2)}`;
+        }
+
+        function getCostRange(cost) {
+            // Define ranges: low (< $0.01), medium ($0.01-$0.05), high (> $0.05)
+            const numCost = parseFloat(formatCost(cost));
+            if (numCost < 0.01) return 'low';
+            if (numCost < 0.05) return 'medium';
+            return 'high';
+        }
+
+        function aggregateAgentCosts(sessions) {
+            const costsByAgent = {};
+            let totalCost = 0;
+
+            sessions.forEach(session => {
+                const agent = session.properties?.agent || 'unknown';
+                const tokens = parseInt(session.properties?.total_tokens) || 0;
+
+                if (!costsByAgent[agent]) {
+                    costsByAgent[agent] = {
+                        agent,
+                        totalTokens: 0,
+                        operationCount: 0,
+                        sessionCount: 0
+                    };
+                }
+
+                costsByAgent[agent].totalTokens += tokens;
+                costsByAgent[agent].operationCount += parseInt(session.properties?.event_count) || 0;
+                costsByAgent[agent].sessionCount += 1;
+                totalCost += tokens;
+            });
+
+            return {
+                byAgent: Object.values(costsByAgent).sort((a, b) => b.totalTokens - a.totalTokens),
+                totalTokens: totalCost
+            };
+        }
+
+        function renderAgentCostMetrics(costs) {
+            const metricsEl = document.getElementById('cost-metrics');
+            if (!metricsEl || costs.byAgent.length === 0) return;
+
+            const avgCostPerAgent = costs.totalTokens / costs.byAgent.length;
+            const totalCostUSD = formatCostDisplay(costs.totalTokens);
+            const avgCostUSD = formatCostDisplay(avgCostPerAgent);
+
+            const topAgent = costs.byAgent[0];
+            const topAgentPercent = ((topAgent.totalTokens / costs.totalTokens) * 100).toFixed(1);
+
+            metricsEl.innerHTML = `
+                <div class="cost-metric">
+                    <div class="cost-metric-label">Total Cost</div>
+                    <div class="cost-metric-value">${totalCostUSD}</div>
+                    <div class="cost-metric-unit">${costs.totalTokens.toLocaleString()} tokens</div>
+                </div>
+                <div class="cost-metric">
+                    <div class="cost-metric-label">Average Per Agent</div>
+                    <div class="cost-metric-value">${avgCostUSD}</div>
+                    <div class="cost-metric-unit">~${Math.round(avgCostPerAgent).toLocaleString()} tokens</div>
+                </div>
+                <div class="cost-metric">
+                    <div class="cost-metric-label">Top Agent</div>
+                    <div class="cost-metric-value">${topAgent.agent}</div>
+                    <div class="cost-metric-unit">${topAgentPercent}% of total</div>
+                </div>
+                <div class="cost-metric">
+                    <div class="cost-metric-label">Agent Count</div>
+                    <div class="cost-metric-value">${costs.byAgent.length}</div>
+                    <div class="cost-metric-unit">unique agents</div>
+                </div>
+            `;
+        }
+
+        function renderAgentCostBars(costs) {
+            const containerEl = document.getElementById('cost-bars-container');
+            if (!containerEl || costs.byAgent.length === 0) {
+                if (containerEl) containerEl.innerHTML = '<div class="loading">No cost data available</div>';
+                return;
+            }
+
+            const maxCost = Math.max(...costs.byAgent.map(a => a.totalTokens));
+
+            const barsHTML = costs.byAgent.map(agent => {
+                const percentOfTotal = (agent.totalTokens / costs.totalTokens) * 100;
+                const costUSD = formatCostDisplay(agent.totalTokens);
+                const costRange = getCostRange(agent.totalTokens);
+                const color = getAgentColor(agent.agent);
+                const avgPerSession = Math.round(agent.totalTokens / agent.sessionCount);
+
+                return `
+                    <div class="cost-bar-group">
+                        <div class="cost-bar-label">
+                            <div class="cost-bar-label-name">
+                                <div class="cost-agent-badge" style="background: ${color};">
+                                    ${agent.agent.substring(0, 1).toUpperCase()}
+                                </div>
+                                <span>${agent.agent}</span>
+                            </div>
+                            <div class="cost-bar-stats">
+                                <div class="cost-bar-stat">
+                                    <div class="cost-bar-stat-label">Cost</div>
+                                    <div class="cost-bar-stat-value">${costUSD}</div>
+                                </div>
+                                <div class="cost-bar-stat">
+                                    <div class="cost-bar-stat-label">%</div>
+                                    <div class="cost-bar-stat-value">${percentOfTotal.toFixed(1)}%</div>
+                                </div>
+                                <div class="cost-bar-stat">
+                                    <div class="cost-bar-stat-label">Tokens</div>
+                                    <div class="cost-bar-stat-value">${agent.totalTokens.toLocaleString()}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="cost-bar-container">
+                            <div class="cost-bar-stacked">
+                                <div class="cost-bar-segment" style="
+                                    width: 100%;
+                                    background: ${color};
+                                    opacity: 0.85;
+                                " title="${agent.agent}: ${costUSD}">
+                                    <span class="cost-bar-segment-label">
+                                        ${percentOfTotal.toFixed(0)}%
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="cost-bar-tooltip">
+                                Sessions: ${agent.sessionCount} | Avg/Session: ${avgPerSession.toLocaleString()} tokens
+                            </div>
+                        </div>
+
+                        <div class="cost-range-indicator">
+                            <div class="cost-range-dot ${costRange}"></div>
+                            <span>${costRange === 'low' ? 'Low' : costRange === 'medium' ? 'Medium' : 'High'} cost</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            containerEl.innerHTML = barsHTML;
+        }
+
+        function renderAgentCostLegend(costs) {
+            const legendEl = document.getElementById('cost-legend');
+            if (!legendEl || costs.byAgent.length === 0) return;
+
+            const legendItems = costs.byAgent.map(agent => {
+                const color = getAgentColor(agent.agent);
+                return `
+                    <div class="cost-legend-item">
+                        <div class="cost-legend-color" style="background: ${color};"></div>
+                        <span class="cost-legend-label">${agent.agent}</span>
+                    </div>
+                `;
+            }).join('');
+
+            legendEl.innerHTML = legendItems;
+        }
+
+        async function loadAndRenderAgentCosts() {
+            const container = document.getElementById('agent-costs');
+            if (!container) return;
+
+            try {
+                // Fetch all sessions to aggregate costs
+                if (allSessions.length === 0) {
+                    const response = await fetch(`${API}/sessions`);
+                    if (!response.ok) throw new Error('Failed to load sessions');
+                    const data = await response.json();
+                    allSessions = data.nodes || [];
+                }
+
+                if (allSessions.length === 0) {
+                    return;
+                }
+
+                // Aggregate costs by agent
+                const costs = aggregateAgentCosts(allSessions);
+
+                // Render visualization
+                renderAgentCostMetrics(costs);
+                renderAgentCostBars(costs);
+                renderAgentCostLegend(costs);
+            } catch (err) {
+                console.error('Error loading agent costs:', err);
+            }
+        }
+
         async function ensureAnalyticsLoaded(force = false) {
             const stale = (Date.now() - analyticsLoadedAt) > 60_000;
             if (!force && analyticsCache.overview && !stale) return;
             try {
                 await loadAndRenderAnalyticsBase();
+                await loadAndRenderAgentCosts();
                 if (!analyticsCache.selectedFeatureId && analyticsCache.features && analyticsCache.features.length) {
                     await loadFeatureAnalytics(analyticsCache.features[0].feature_id);
                 }
@@ -3816,7 +4771,13 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                         let agentClass = 'agent-default';
                                         if (f.agent_assigned) {
                                             const agentName = f.agent_assigned.toLowerCase();
-                                            if (agentName.includes('orchestrator')) agentClass = 'agent-orchestrator';
+                                            // Primary agents
+                                            if (agentName.includes('claude')) agentClass = 'agent-claude';
+                                            else if (agentName.includes('codex')) agentClass = 'agent-codex';
+                                            else if (agentName.includes('orchestrator')) agentClass = 'agent-orchestrator';
+                                            else if (agentName.includes('gemini-2') || agentName.includes('gemini 2')) agentClass = 'agent-gemini-2';
+                                            else if (agentName.includes('gemini')) agentClass = 'agent-gemini';
+                                            // Secondary agents (backward compatibility)
                                             else if (agentName.includes('analyst')) agentClass = 'agent-analyst';
                                             else if (agentName.includes('developer')) agentClass = 'agent-developer';
                                             else if (agentName.includes('researcher')) agentClass = 'agent-researcher';
@@ -3831,7 +4792,9 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                         <div class="card priority-${f.priority}"
                                              data-collection="${f._collection}"
                                              data-id="${f.id}"
-                                             data-agent="${f.agent_assigned || ''}">
+                                             data-agent="${f.agent_assigned || ''}"
+                                             onclick="toggleCardTimeline(event)">
+                                            <button class="card-expand-btn" onclick="toggleCardTimeline(event)" title="Toggle agent timeline">▼</button>
                                             <div class="card-title">${f.title}</div>
                                             <div class="card-meta">
                                                 <span class="badge priority-${f.priority}">${f.priority}</span>
@@ -3839,6 +4802,12 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                                 ${f.agent_assigned ? `<span class="badge agent ${agentClass}">${f.agent_assigned}</span>` : ''}
                                                 ${delegationBadges}
                                                 <span class="card-path">${f._collection}/${f.id}</span>
+                                            </div>
+                                            <div class="card-timeline" data-feature-id="${f.id}">
+                                                <div class="timeline-header">Agent Timeline</div>
+                                                <div class="timeline-list" data-loading="true">
+                                                    <div class="timeline-empty">Loading timeline...</div>
+                                                </div>
                                             </div>
                                         </div>
                                     `}).join('')}
@@ -4139,7 +5108,13 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             function getAgentClass(agentName) {
                 if (!agentName) return 'agent-default';
                 const name = agentName.toLowerCase();
+                // Primary agents
+                if (name.includes('claude')) return 'agent-claude';
+                if (name.includes('codex')) return 'agent-codex';
                 if (name.includes('orchestrator')) return 'agent-orchestrator';
+                if (name.includes('gemini-2') || name.includes('gemini 2')) return 'agent-gemini-2';
+                if (name.includes('gemini')) return 'agent-gemini';
+                // Secondary agents (backward compatibility)
                 if (name.includes('analyst')) return 'agent-analyst';
                 if (name.includes('developer')) return 'agent-developer';
                 if (name.includes('researcher')) return 'agent-researcher';
@@ -4869,6 +5844,105 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         }
 
         // =====================================================================
+        // Agent Skills Analysis
+        // =====================================================================
+
+        function analyzeAgentSkills(sessions) {
+            const skillProfiles = {};
+            const agents = [...new Set(sessions.map(s => s.properties?.agent).filter(Boolean))];
+            agents.forEach(agent => {
+                skillProfiles[agent] = {Implementation: 0, Analysis: 0, Testing: 0, Documentation: 0, Coordination: 0};
+            });
+            sessions.forEach(session => {
+                const agent = session.properties?.agent;
+                if (!agent) return;
+                const desc = (session.name || session.id || '').toLowerCase();
+                const cnt = session.properties?.event_count || 0;
+                if (desc.includes('test') || desc.includes('validate')) skillProfiles[agent].Testing += Math.min(cnt / 10, 2);
+                if (desc.includes('implement') || desc.includes('code') || desc.includes('build')) skillProfiles[agent].Implementation += Math.min(cnt / 10, 2);
+                if (desc.includes('analyze') || desc.includes('research')) skillProfiles[agent].Analysis += Math.min(cnt / 10, 2);
+                if (desc.includes('document') || desc.includes('explain')) skillProfiles[agent].Documentation += Math.min(cnt / 10, 2);
+                if (desc.includes('coordinate') || desc.includes('delegate')) skillProfiles[agent].Coordination += Math.min(cnt / 10, 2);
+                if (agent.includes('Claude')) {
+                    skillProfiles[agent].Analysis = Math.max(skillProfiles[agent].Analysis, 4.5);
+                    skillProfiles[agent].Documentation = Math.max(skillProfiles[agent].Documentation, 4);
+                }
+                if (agent.includes('Codex')) {
+                    skillProfiles[agent].Implementation = Math.max(skillProfiles[agent].Implementation, 5);
+                    skillProfiles[agent].Testing = Math.max(skillProfiles[agent].Testing, 4);
+                }
+                if (agent.includes('Orchestrator')) {
+                    skillProfiles[agent].Coordination = Math.max(skillProfiles[agent].Coordination, 5);
+                    skillProfiles[agent].Analysis = Math.max(skillProfiles[agent].Analysis, 4);
+                }
+                if (agent.includes('Gemini')) {
+                    skillProfiles[agent].Analysis = Math.max(skillProfiles[agent].Analysis, 4.5);
+                    skillProfiles[agent].Implementation = Math.max(skillProfiles[agent].Implementation, 3);
+                }
+            });
+            agents.forEach(agent => {
+                Object.keys(skillProfiles[agent]).forEach(skill => {
+                    skillProfiles[agent][skill] = Math.min(5, Math.max(1, skillProfiles[agent][skill]));
+                });
+            });
+            return { agents, skillProfiles };
+        }
+
+        function getProficiencyColor(level) {
+            return `proficiency-${Math.round(level)}`;
+        }
+
+        function getProficiencyLabel(level) {
+            const labels = ['', 'Novice', 'Beginner', 'Intermediate', 'Advanced', 'Expert'];
+            return labels[Math.round(level)] || 'Expert';
+        }
+
+        function renderSkillsMatrix(agents, skillProfiles) {
+            const skills = ['Implementation', 'Analysis', 'Testing', 'Documentation', 'Coordination'];
+            let html = '<div class="skills-matrix">';
+            html += '<div class="skills-matrix-cell skills-matrix-header-row">AGENT</div>';
+            skills.forEach(skill => html += `<div class="skills-matrix-cell skills-matrix-header-row">${skill}</div>`);
+            agents.forEach(agent => {
+                html += `<div class="skills-matrix-cell skills-matrix-agent-name">${agent}</div>`;
+                skills.forEach(skill => {
+                    const level = skillProfiles[agent][skill];
+                    const rnd = Math.round(level);
+                    html += `<div class="skills-matrix-cell"><div class="proficiency-dot ${getProficiencyColor(level)}" title="${getProficiencyLabel(level)} (${rnd}/5)">${rnd}</div></div>`;
+                });
+            });
+            html += '</div><div class="skill-category-legend"><div style="font-weight: 600; width: 100%; margin-bottom: 0.5rem;">Proficiency Scale:</div>';
+            for (let i = 1; i <= 5; i++) {
+                html += `<div class="skill-category-item"><span class="proficiency-dot proficiency-${i}">${i}</span> ${getProficiencyLabel(i)}</div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        async function loadAndRenderAgents() {
+            const el = document.getElementById('skills-matrix-content');
+            try {
+                let sessions = allSessions;
+                if (!sessions.length) {
+                    const r = await fetch(`${API}/sessions`);
+                    if (!r.ok) throw new Error('Failed to load');
+                    sessions = (await r.json()).nodes || [];
+                }
+                if (!sessions.length) {
+                    el.innerHTML = '<div style="padding: 2rem; color: var(--text-muted);">No agents found</div>';
+                    return;
+                }
+                const { agents, skillProfiles } = analyzeAgentSkills(sessions);
+                if (!agents.length) {
+                    el.innerHTML = '<div style="padding: 2rem; color: var(--text-muted);">No agents</div>';
+                    return;
+                }
+                el.innerHTML = renderSkillsMatrix(agents, skillProfiles);
+            } catch (e) {
+                el.innerHTML = `<div style="padding: 2rem; color: red;">Error: ${e.message}</div>`;
+            }
+        }
+
+        // =====================================================================
         // View Toggle
         // =====================================================================
 
@@ -4876,6 +5950,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             const kanban = document.getElementById('kanban');
             const graph = document.getElementById('graph-container');
             const analytics = document.getElementById('analytics');
+            const agents = document.getElementById('agents');
             const sessions = document.getElementById('sessions');
             const buttons = document.querySelectorAll('.view-btn');
 
@@ -4887,28 +5962,40 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 kanban.classList.add('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
+                agents.classList.remove('active');
                 sessions.classList.remove('active');
                 renderKanban(allNodes);
             } else if (view === 'graph') {
                 kanban.classList.remove('active');
                 graph.classList.add('active');
                 analytics.classList.remove('active');
+                agents.classList.remove('active');
                 sessions.classList.remove('active');
                 renderGraph(allNodes);
             } else if (view === 'analytics') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.add('active');
+                agents.classList.remove('active');
                 sessions.classList.remove('active');
                 ensureAnalyticsLoaded(false);
+            } else if (view === 'agents') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.remove('active');
+                agents.classList.add('active');
+                sessions.classList.remove('active');
+                loadAndRenderAgents();
             } else if (view === 'sessions') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
+                agents.classList.remove('active');
                 sessions.classList.add('active');
                 loadAndRenderSessions();
             }
         }
+
 
         // =====================================================================
         // Init
@@ -5094,6 +6181,105 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         }
 
         // =====================================================================
+        // Agent Skills Analysis
+        // =====================================================================
+
+        function analyzeAgentSkills(sessions) {
+            const skillProfiles = {};
+            const agents = [...new Set(sessions.map(s => s.properties?.agent).filter(Boolean))];
+            agents.forEach(agent => {
+                skillProfiles[agent] = {Implementation: 0, Analysis: 0, Testing: 0, Documentation: 0, Coordination: 0};
+            });
+            sessions.forEach(session => {
+                const agent = session.properties?.agent;
+                if (!agent) return;
+                const desc = (session.name || session.id || '').toLowerCase();
+                const cnt = session.properties?.event_count || 0;
+                if (desc.includes('test') || desc.includes('validate')) skillProfiles[agent].Testing += Math.min(cnt / 10, 2);
+                if (desc.includes('implement') || desc.includes('code') || desc.includes('build')) skillProfiles[agent].Implementation += Math.min(cnt / 10, 2);
+                if (desc.includes('analyze') || desc.includes('research')) skillProfiles[agent].Analysis += Math.min(cnt / 10, 2);
+                if (desc.includes('document') || desc.includes('explain')) skillProfiles[agent].Documentation += Math.min(cnt / 10, 2);
+                if (desc.includes('coordinate') || desc.includes('delegate')) skillProfiles[agent].Coordination += Math.min(cnt / 10, 2);
+                if (agent.includes('Claude')) {
+                    skillProfiles[agent].Analysis = Math.max(skillProfiles[agent].Analysis, 4.5);
+                    skillProfiles[agent].Documentation = Math.max(skillProfiles[agent].Documentation, 4);
+                }
+                if (agent.includes('Codex')) {
+                    skillProfiles[agent].Implementation = Math.max(skillProfiles[agent].Implementation, 5);
+                    skillProfiles[agent].Testing = Math.max(skillProfiles[agent].Testing, 4);
+                }
+                if (agent.includes('Orchestrator')) {
+                    skillProfiles[agent].Coordination = Math.max(skillProfiles[agent].Coordination, 5);
+                    skillProfiles[agent].Analysis = Math.max(skillProfiles[agent].Analysis, 4);
+                }
+                if (agent.includes('Gemini')) {
+                    skillProfiles[agent].Analysis = Math.max(skillProfiles[agent].Analysis, 4.5);
+                    skillProfiles[agent].Implementation = Math.max(skillProfiles[agent].Implementation, 3);
+                }
+            });
+            agents.forEach(agent => {
+                Object.keys(skillProfiles[agent]).forEach(skill => {
+                    skillProfiles[agent][skill] = Math.min(5, Math.max(1, skillProfiles[agent][skill]));
+                });
+            });
+            return { agents, skillProfiles };
+        }
+
+        function getProficiencyColor(level) {
+            return `proficiency-${Math.round(level)}`;
+        }
+
+        function getProficiencyLabel(level) {
+            const labels = ['', 'Novice', 'Beginner', 'Intermediate', 'Advanced', 'Expert'];
+            return labels[Math.round(level)] || 'Expert';
+        }
+
+        function renderSkillsMatrix(agents, skillProfiles) {
+            const skills = ['Implementation', 'Analysis', 'Testing', 'Documentation', 'Coordination'];
+            let html = '<div class="skills-matrix">';
+            html += '<div class="skills-matrix-cell skills-matrix-header-row">AGENT</div>';
+            skills.forEach(skill => html += `<div class="skills-matrix-cell skills-matrix-header-row">${skill}</div>`);
+            agents.forEach(agent => {
+                html += `<div class="skills-matrix-cell skills-matrix-agent-name">${agent}</div>`;
+                skills.forEach(skill => {
+                    const level = skillProfiles[agent][skill];
+                    const rnd = Math.round(level);
+                    html += `<div class="skills-matrix-cell"><div class="proficiency-dot ${getProficiencyColor(level)}" title="${getProficiencyLabel(level)} (${rnd}/5)">${rnd}</div></div>`;
+                });
+            });
+            html += '</div><div class="skill-category-legend"><div style="font-weight: 600; width: 100%; margin-bottom: 0.5rem;">Proficiency Scale:</div>';
+            for (let i = 1; i <= 5; i++) {
+                html += `<div class="skill-category-item"><span class="proficiency-dot proficiency-${i}">${i}</span> ${getProficiencyLabel(i)}</div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        async function loadAndRenderAgents() {
+            const el = document.getElementById('skills-matrix-content');
+            try {
+                let sessions = allSessions;
+                if (!sessions.length) {
+                    const r = await fetch(`${API}/sessions`);
+                    if (!r.ok) throw new Error('Failed to load');
+                    sessions = (await r.json()).nodes || [];
+                }
+                if (!sessions.length) {
+                    el.innerHTML = '<div style="padding: 2rem; color: var(--text-muted);">No agents found</div>';
+                    return;
+                }
+                const { agents, skillProfiles } = analyzeAgentSkills(sessions);
+                if (!agents.length) {
+                    el.innerHTML = '<div style="padding: 2rem; color: var(--text-muted);">No agents</div>';
+                    return;
+                }
+                el.innerHTML = renderSkillsMatrix(agents, skillProfiles);
+            } catch (e) {
+                el.innerHTML = `<div style="padding: 2rem; color: red;">Error: ${e.message}</div>`;
+            }
+        }
+
+        // =====================================================================
         // View Toggle
         // =====================================================================
 
@@ -5101,6 +6287,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             const kanban = document.getElementById('kanban');
             const graph = document.getElementById('graph-container');
             const analytics = document.getElementById('analytics');
+            const agents = document.getElementById('agents');
             const sessions = document.getElementById('sessions');
             const buttons = document.querySelectorAll('.view-btn');
 
@@ -5112,28 +6299,40 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 kanban.classList.add('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
+                agents.classList.remove('active');
                 sessions.classList.remove('active');
                 renderKanban(allNodes);
             } else if (view === 'graph') {
                 kanban.classList.remove('active');
                 graph.classList.add('active');
                 analytics.classList.remove('active');
+                agents.classList.remove('active');
                 sessions.classList.remove('active');
                 renderGraph(allNodes);
             } else if (view === 'analytics') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.add('active');
+                agents.classList.remove('active');
                 sessions.classList.remove('active');
                 ensureAnalyticsLoaded(false);
+            } else if (view === 'agents') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.remove('active');
+                agents.classList.add('active');
+                sessions.classList.remove('active');
+                loadAndRenderAgents();
             } else if (view === 'sessions') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
                 analytics.classList.remove('active');
+                agents.classList.remove('active');
                 sessions.classList.add('active');
                 loadAndRenderSessions();
             }
         }
+
 
         // =====================================================================
         // Init

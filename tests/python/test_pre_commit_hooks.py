@@ -13,8 +13,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-import pytest
-
 # Handle Python 3.10 compatibility for TOML parsing
 if sys.version_info >= (3, 11):
     pass  # tomllib imported at top
@@ -35,7 +33,7 @@ class TestPreCommitConfig:
         import yaml
 
         config_file = Path(".pre-commit-config.yaml")
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.safe_load(f)
 
         assert config is not None, "Invalid YAML in .pre-commit-config.yaml"
@@ -46,7 +44,7 @@ class TestPreCommitConfig:
         import yaml
 
         config_file = Path(".pre-commit-config.yaml")
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.safe_load(f)
 
         # Check for ruff repo
@@ -58,7 +56,7 @@ class TestPreCommitConfig:
         import yaml
 
         config_file = Path(".pre-commit-config.yaml")
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.safe_load(f)
 
         # Check for mypy repo
@@ -70,7 +68,7 @@ class TestPreCommitConfig:
         import yaml
 
         config_file = Path(".pre-commit-config.yaml")
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.safe_load(f)
 
         # Check for pytest in local hooks
@@ -79,7 +77,9 @@ class TestPreCommitConfig:
 
         # Check for pytest hook
         local_repo = local_repos[0]
-        pytest_hooks = [h for h in local_repo.get("hooks", []) if "pytest" in h.get("id", "")]
+        pytest_hooks = [
+            h for h in local_repo.get("hooks", []) if "pytest" in h.get("id", "")
+        ]
         assert len(pytest_hooks) > 0, "Pytest hook not configured"
 
 
@@ -154,7 +154,9 @@ class TestMypyConfiguration:
             text=True,
         )
 
-        assert result.returncode == 0, f"Mypy check failed:\n{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, (
+            f"Mypy check failed:\n{result.stdout}\n{result.stderr}"
+        )
 
     def test_untyped_function_fails_mypy(self) -> None:
         """Test that untyped functions are caught by mypy."""
@@ -207,7 +209,9 @@ def typed_function(x: int) -> int:
             )
 
             # Should pass because function is properly typed
-            assert result.returncode == 0, f"Mypy should accept typed functions: {result.stdout}"
+            assert result.returncode == 0, (
+                f"Mypy should accept typed functions: {result.stdout}"
+            )
         finally:
             Path(temp_file).unlink(missing_ok=True)
 
@@ -246,7 +250,9 @@ class TestPytestConfiguration:
 
         pytest_config = config["tool"]["pytest"]["ini_options"]
         assert "testpaths" in pytest_config, "testpaths not configured"
-        assert "tests/python" in pytest_config["testpaths"], "tests/python not in testpaths"
+        assert "tests/python" in pytest_config["testpaths"], (
+            "tests/python not in testpaths"
+        )
 
 
 class TestQualityGatesIntegration:
@@ -264,7 +270,7 @@ class TestQualityGatesIntegration:
         import yaml
 
         config_file = Path(".pre-commit-config.yaml")
-        with open(config_file, "r") as f:
+        with open(config_file) as f:
             config = yaml.safe_load(f)
 
         for repo in config["repos"]:
@@ -288,7 +294,9 @@ class TestQualityGatesIntegration:
         assert script_file.exists(), "Missing scripts/setup-quality-gates.sh"
 
         # Check if executable
-        assert (script_file.stat().st_mode & 0o111) != 0, "Setup script is not executable"
+        assert (script_file.stat().st_mode & 0o111) != 0, (
+            "Setup script is not executable"
+        )
 
 
 class TestCodeQualityMarkers:
@@ -317,9 +325,9 @@ class TestCodeQualityMarkers:
 
         for file_path in critical_files:
             if Path(file_path).exists():
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     content = f.read()
                     # Should have a docstring at the start
-                    assert content.startswith('"""') or content.startswith(
-                        "'''"
-                    ), f"{file_path} missing module docstring"
+                    assert content.startswith('"""') or content.startswith("'''"), (
+                        f"{file_path} missing module docstring"
+                    )

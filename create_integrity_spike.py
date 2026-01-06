@@ -8,7 +8,9 @@ from datetime import datetime
 from pathlib import Path
 
 # Read the analysis report
-analysis_report = Path("/Users/shakes/DevProjects/htmlgraph/FEATURE_INTEGRITY_ANALYSIS.md").read_text()
+analysis_report = Path(
+    "/Users/shakes/DevProjects/htmlgraph/FEATURE_INTEGRITY_ANALYSIS.md"
+).read_text()
 
 # Create spike HTML
 spike_id = f"spk-{uuid.uuid4().hex[:8]}"
@@ -287,7 +289,7 @@ spike_html = f"""<!DOCTYPE html>
             <h2>Analysis Metadata</h2>
             <dl>
                 <dt>Analysis Date</dt>
-                <dd>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</dd>
+                <dd>{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</dd>
                 <dt>Total Features Analyzed</dt>
                 <dd>89</dd>
                 <dt>Issues Found</dt>
@@ -303,7 +305,9 @@ spike_html = f"""<!DOCTYPE html>
 """
 
 # Save spike
-spike_path = Path(f"/Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/{spike_id}.html")
+spike_path = Path(
+    f"/Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/{spike_id}.html"
+)
 spike_path.write_text(spike_html)
 
 print(f"Spike created: {spike_id}")

@@ -118,5 +118,40 @@
     "spike_id": "spk-cb800421",
     "created": "2026-01-06T03:24:48.903217",
     "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_navigate:### Result\nError: Browser is already in use for /Users/shakes/Library/Caches/ms-playwright/mcp-chrom": {
+    "spike_id": "spk-9e6ef877",
+    "created": "2026-01-06T03:56:36.362211",
+    "occurrences": 4
+  },
+  "Read:File content (52321 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-957fb8d2",
+    "created": "2026-01-06T04:05:50.733369",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 13, in <module>\n  File \"/User": {
+    "spike_id": "spk-f64758d3",
+    "created": "2026-01-06T05:35:03.331982",
+    "occurrences": 4
+  },
+  "Read:File content (54290 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-8291a7a6",
+    "created": "2026-01-06T05:35:47.633163",
+    "occurrences": 8
+  },
+  "Bash:Exit code 1\nF841 Local variable `steps_pct` is assigned to but never used\n   --> analyze_features.py": {
+    "spike_id": "spk-d1a8998e",
+    "created": "2026-01-06T05:38:12.028347",
+    "occurrences": 4
+  },
+  "Read:File content (53031 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-a7574821",
+    "created": "2026-01-06T05:47:47.847763",
+    "occurrences": 6
+  },
+  "Read:File content (64644 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-9def0eac",
+    "created": "2026-01-06T06:09:16.777652",
+    "occurrences": 7
   }
 }
