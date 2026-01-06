@@ -33,7 +33,7 @@
                         {% endif %}
                     </span>
                     <span class="agent-name">{{ event.agent_id }}</span>
-                    <span class="event-timestamp">{{ event.timestamp }}</span>
+                    <span class="event-timestamp" data-utc-time="{{ event.timestamp }}">{{ event.timestamp }}</span>
                 </div>
 
                 {% if event.tool_name %}

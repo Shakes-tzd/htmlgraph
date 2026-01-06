@@ -18,7 +18,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -103,7 +103,7 @@ def save_parent_activity(
                     {
                         "parent_id": parent_id,
                         "tool": tool,
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                     f,
                 )
@@ -205,7 +205,7 @@ def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
 
     queue["activities"].append(
         {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "tool": activity.get("tool"),
             "summary": activity.get("summary"),
             "file_paths": activity.get("file_paths", []),
@@ -824,7 +824,9 @@ Task tool with subagent_type="general-purpose", model="haiku", prompt:
 Or manually create a work item in .htmlgraph/ (bug, feature, spike, or chore)."""
 
                         # Mark classification as triggered
-                        queue["last_classification"] = datetime.now().isoformat()
+                        queue["last_classification"] = datetime.now(
+                            timezone.utc
+                        ).isoformat()
                         save_drift_queue(graph_dir, queue)
                     else:
                         nudge = f"Drift detected ({drift_score:.2f}): Activity queued for classification ({len(queue['activities'])}/{drift_settings.get('min_activities_before_classify', 3)} needed)."
