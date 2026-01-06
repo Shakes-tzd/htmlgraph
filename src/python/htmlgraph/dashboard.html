@@ -882,8 +882,40 @@
         .badge.type { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 
         /* Agent attribution badges - color-coded by agent type */
-        .badge.agent { padding: 0.375rem 0.625rem; font-weight: 600; }
-        .badge.agent-orchestrator { background: #2979FF; color: white; border-color: #2979FF; }
+        .badge.agent {
+            padding: 0.375rem 0.625rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            position: relative;
+            transition: all 0.2s ease;
+            cursor: help;
+        }
+
+        .badge.agent::before {
+            content: '';
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.8;
+        }
+
+        .badge.agent:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Primary agents - Requested color system */
+        .badge.agent-claude { background: #2979FF; color: white; border-color: #2979FF; }
+        .badge.agent-codex { background: #00C853; color: white; border-color: #00C853; }
+        .badge.agent-orchestrator { background: #7C4DFF; color: white; border-color: #7C4DFF; }
+        .badge.agent-gemini { background: #FBC02D; color: #000; border-color: #FBC02D; }
+        .badge.agent-gemini-2 { background: #FF9100; color: white; border-color: #FF9100; }
+
+        /* Secondary agents - Backward compatibility */
         .badge.agent-analyst { background: #7C3AED; color: white; border-color: #7C3AED; }
         .badge.agent-developer { background: #00C853; color: white; border-color: #00C853; }
         .badge.agent-researcher { background: #FF6D00; color: white; border-color: #FF6D00; }
@@ -3816,7 +3848,13 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                         let agentClass = 'agent-default';
                                         if (f.agent_assigned) {
                                             const agentName = f.agent_assigned.toLowerCase();
-                                            if (agentName.includes('orchestrator')) agentClass = 'agent-orchestrator';
+                                            // Primary agents
+                                            if (agentName.includes('claude')) agentClass = 'agent-claude';
+                                            else if (agentName.includes('codex')) agentClass = 'agent-codex';
+                                            else if (agentName.includes('orchestrator')) agentClass = 'agent-orchestrator';
+                                            else if (agentName.includes('gemini-2') || agentName.includes('gemini 2')) agentClass = 'agent-gemini-2';
+                                            else if (agentName.includes('gemini')) agentClass = 'agent-gemini';
+                                            // Secondary agents (backward compatibility)
                                             else if (agentName.includes('analyst')) agentClass = 'agent-analyst';
                                             else if (agentName.includes('developer')) agentClass = 'agent-developer';
                                             else if (agentName.includes('researcher')) agentClass = 'agent-researcher';
@@ -3831,7 +3869,9 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                         <div class="card priority-${f.priority}"
                                              data-collection="${f._collection}"
                                              data-id="${f.id}"
-                                             data-agent="${f.agent_assigned || ''}">
+                                             data-agent="${f.agent_assigned || ''}"
+                                             onclick="toggleCardTimeline(event)">
+                                            <button class="card-expand-btn" onclick="toggleCardTimeline(event)" title="Toggle agent timeline">▼</button>
                                             <div class="card-title">${f.title}</div>
                                             <div class="card-meta">
                                                 <span class="badge priority-${f.priority}">${f.priority}</span>
@@ -3839,6 +3879,12 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                                 ${f.agent_assigned ? `<span class="badge agent ${agentClass}">${f.agent_assigned}</span>` : ''}
                                                 ${delegationBadges}
                                                 <span class="card-path">${f._collection}/${f.id}</span>
+                                            </div>
+                                            <div class="card-timeline" data-feature-id="${f.id}">
+                                                <div class="timeline-header">Agent Timeline</div>
+                                                <div class="timeline-list" data-loading="true">
+                                                    <div class="timeline-empty">Loading timeline...</div>
+                                                </div>
                                             </div>
                                         </div>
                                     `}).join('')}
@@ -4139,7 +4185,13 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             function getAgentClass(agentName) {
                 if (!agentName) return 'agent-default';
                 const name = agentName.toLowerCase();
+                // Primary agents
+                if (name.includes('claude')) return 'agent-claude';
+                if (name.includes('codex')) return 'agent-codex';
                 if (name.includes('orchestrator')) return 'agent-orchestrator';
+                if (name.includes('gemini-2') || name.includes('gemini 2')) return 'agent-gemini-2';
+                if (name.includes('gemini')) return 'agent-gemini';
+                // Secondary agents (backward compatibility)
                 if (name.includes('analyst')) return 'agent-analyst';
                 if (name.includes('developer')) return 'agent-developer';
                 if (name.includes('researcher')) return 'agent-researcher';
