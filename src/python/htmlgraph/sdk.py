@@ -54,6 +54,7 @@ from htmlgraph.collections import (
     FeatureCollection,
     PhaseCollection,
     SpikeCollection,
+    TaskDelegationCollection,
     TodoCollection,
 )
 from htmlgraph.collections.insight import InsightCollection
@@ -300,11 +301,15 @@ class SDK:
         # Todo collection (persistent task tracking)
         self.todos = TodoCollection(self)
 
+        # Task delegation collection (observability for spawned agents)
+        self.task_delegations = TaskDelegationCollection(self)
+
         # Create learning directories if needed
         (self._directory / "patterns").mkdir(exist_ok=True)
         (self._directory / "insights").mkdir(exist_ok=True)
         (self._directory / "metrics").mkdir(exist_ok=True)
         (self._directory / "todos").mkdir(exist_ok=True)
+        (self._directory / "task-delegations").mkdir(exist_ok=True)
 
         # Analytics interface (Phase 2: Work Type Analytics)
         self.analytics = Analytics(self)

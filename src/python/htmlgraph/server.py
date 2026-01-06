@@ -49,6 +49,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         "sessions",
         "agents",
         "tracks",
+        "task-delegations",
     ]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -259,6 +260,10 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         # GET /api/analytics/... - Analytics endpoints backed by SQLite index
         if collection == "analytics":
             return self._handle_analytics(node_id, params)
+
+        # GET /api/task-delegations/stats - Get aggregated delegation statistics
+        if collection == "task-delegations" and params.get("stats") == "true":
+            return self._handle_task_delegations_stats()
 
         # GET /api/tracks/{track_id}/features - Get features for a track
         if collection == "tracks" and node_id and params.get("features") == "true":
@@ -1042,6 +1047,109 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             )
         except Exception as e:
             self._send_error_json(f"Failed to generate features: {str(e)}", 500)
+
+    def _handle_task_delegations_stats(self) -> None:
+        """Get aggregated statistics about task delegations."""
+        try:
+            delegations_graph = self._get_graph("task-delegations")
+
+            # Get all delegations
+            all_delegations = list(delegations_graph)
+
+            if not all_delegations:
+                self._send_json(
+                    {
+                        "total_delegations": 0,
+                        "by_agent_type": {},
+                        "by_status": {},
+                        "total_tokens": 0,
+                        "total_cost": 0.0,
+                        "average_duration": 0.0,
+                        "agent_stats": [],
+                    }
+                )
+                return
+
+            # Aggregate by agent type
+            agent_stats: dict = {}
+            by_status: dict[str, int] = {}
+            total_tokens = 0
+            total_cost = 0.0
+            durations = []
+
+            for delegation in all_delegations:
+                agent_type = str(getattr(delegation, "agent_type", "unknown"))
+                status = str(getattr(delegation, "status", "unknown"))
+                tokens_val = getattr(delegation, "tokens_used", 0)
+                tokens = int(tokens_val) if tokens_val else 0
+                cost_val = getattr(delegation, "cost_usd", 0)
+                cost = float(cost_val) if cost_val else 0.0
+                duration_val = getattr(delegation, "duration_seconds", 0)
+                duration = int(duration_val) if duration_val else 0
+
+                # Track by agent
+                if agent_type not in agent_stats:
+                    agent_stats[agent_type] = {
+                        "agent_type": agent_type,
+                        "tasks_completed": 0,
+                        "total_duration": 0,
+                        "total_tokens": 0,
+                        "total_cost": 0.0,
+                        "success_count": 0,
+                        "failure_count": 0,
+                    }
+
+                agent_stats[agent_type]["tasks_completed"] += 1
+                agent_stats[agent_type]["total_duration"] += duration
+                agent_stats[agent_type]["total_tokens"] += tokens
+                agent_stats[agent_type]["total_cost"] += cost
+
+                if status == "success":
+                    agent_stats[agent_type]["success_count"] += 1
+                else:
+                    agent_stats[agent_type]["failure_count"] += 1
+
+                # Track by status
+                by_status[status] = by_status.get(status, 0) + 1
+
+                # Aggregate totals
+                total_tokens += tokens
+                total_cost += cost
+                if duration:
+                    durations.append(duration)
+
+            # Calculate success rate for each agent
+            for agent_stats_item in agent_stats.values():
+                total = agent_stats_item["tasks_completed"]
+                if total > 0:
+                    agent_stats_item["success_rate"] = (
+                        agent_stats_item["success_count"] / total
+                    )
+                else:
+                    agent_stats_item["success_rate"] = 0.0
+
+            average_duration = sum(durations) / len(durations) if durations else 0.0
+
+            self._send_json(
+                {
+                    "total_delegations": len(all_delegations),
+                    "by_agent_type": {
+                        agent: stats["tasks_completed"]
+                        for agent, stats in agent_stats.items()
+                    },
+                    "by_status": by_status,
+                    "total_tokens": total_tokens,
+                    "total_cost": round(total_cost, 4),
+                    "average_duration": round(average_duration, 2),
+                    "agent_stats": sorted(
+                        agent_stats.values(),
+                        key=lambda x: x["total_cost"],
+                        reverse=True,
+                    ),
+                }
+            )
+        except Exception as e:
+            self._send_error_json(f"Failed to get delegation stats: {str(e)}", 500)
 
     def _handle_sync_track(self, track_id: str) -> None:
         """Sync task and spec completion based on features."""

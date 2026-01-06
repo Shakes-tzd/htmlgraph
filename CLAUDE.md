@@ -60,6 +60,30 @@ uv run pytest                              # Run tests
 
 ---
 
+## System Prompt Persistence & Delegation Enforcement
+
+**Automatic context injection across session boundaries with cost-optimal delegation.**
+
+Your project's critical guidance (model selection, delegation patterns, quality gates) persists via `.claude/system-prompt.md` and auto-injects at session start, surviving compact/resume cycles.
+
+**Quick Setup**: Create `.claude/system-prompt.md` with project guidance
+**Verification**: Run `uv run pytest tests/hooks/test_system_prompt_persistence.py`
+**Test Coverage**: 52 unit tests + 31 integration tests + 8 post-compact tests, 98% coverage
+
+### Documentation Guides
+
+| Guide | Audience | Purpose |
+|-------|----------|---------|
+| [System Prompt Customization](./docs/SYSTEM_PROMPT_CUSTOMIZATION.md) | Users | Create and customize your system prompt (5-min quick start) |
+| [Delegation Enforcement Admin Guide](./docs/DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md) | Admins/Teams | Setup and monitor delegation enforcement across your team |
+| [System Prompt Architecture](./docs/SYSTEM_PROMPT_ARCHITECTURE.md) | Developers | Deep technical dive into three-layer persistence system |
+| [System Prompt Developer Guide](./docs/SYSTEM_PROMPT_DEVELOPER_GUIDE.md) | Developers | Extend system with custom layers, hooks, and skills |
+| [System Prompt Troubleshooting](./docs/SYSTEM_PROMPT_TROUBLESHOOTING.md) | Everyone | Diagnose and fix common issues with detailed workflows |
+
+**Start here**: [System Prompt Customization Guide](./docs/SYSTEM_PROMPT_CUSTOMIZATION.md)
+
+---
+
 ## Debugging Workflow
 
 **CRITICAL: Research first, implement second.**

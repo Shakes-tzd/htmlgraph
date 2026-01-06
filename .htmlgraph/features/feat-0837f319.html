@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implement Task Delegation Observability - Record Spawned Agent Work in Event Log</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-0837f319"
+             data-type="feature"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-05T05:05:42.710480"
+             data-updated="2026-01-05T10:05:43.270699+00:00">
+
+        <header>
+            <h1>Implement Task Delegation Observability - Record Spawned Agent Work in Event Log</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-529faa2c.html" data-relationship="implemented-in" data-since="2026-01-05T05:05:43.270681">sess-529faa2c</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Priority 1: Record Task() delegations in event log with task_id, model_selected, complexity_level (2-3h)</li>
+                <li data-completed="false">⏳ Priority 2: Link subagent sessions to parent session via parent_session_id (3-4h)</li>
+                <li data-completed="false">⏳ Priority 3: Track which executor actually did work (external CLI vs Claude fallback) (2-3h)</li>
+                <li data-completed="false">⏳ Priority 4: Complete dashboard delegation timeline view - feat-b3573ae4 steps 5-7 (4-6h)</li>
+                <li data-completed="false">⏳ Priority 5: Auto-calculate cost/token tracking per delegation (2-3h)</li>
+                <li data-completed="false">⏳ Priority 6: Hook orchestrator.py and parallel.py into event recording (3-4h)</li>
+                <li data-completed="false">⏳ Verify: Test with real orchestrated work, validate attribution visible on dashboard</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Plugin Architecture Review - System Prompt Persistence Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1fbdf2f7"
+             data-type="spike"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-05T03:44:05.029741"
+             data-updated="2026-01-05T03:44:05.029747" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="plugin-architecture-researcher">
+
+        <header>
+            <h1>Plugin Architecture Review - System Prompt Persistence Design</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Plugin Architecture Review - System Prompt Persistence Design
+
+## Executive Summary
+
+Research completed on Claude Code plugin architecture and hooks system. HtmlGraph demonstrates sophisticated patterns for dynamic system prompt persistence through SessionStart hooks.
+
+## Key Findings
+
+### 1. System Prompts Are NOT Static Files
+- System prompts in plugins are dynamically generated conversation context
+- Injected via `additionalContext` field in SessionStart hook output JSON
+- Context persists throughout session (not per-tool call)
+- Multiple hooks' outputs are merged in parallel execution
+
+### 2. Hook-SDK Partnership Pattern
+```
+Hook (Plugin infrastructure) + SDK (Python library) = Dynamic project-aware context
+```
+
+Without SDK: Hooks can only read static files
+Without hooks: SDK features aren't integrated into Claude workflow
+Together: Powerful plugin capability
+
+### 3. HtmlGraph Reference Implementation
+
+SessionStart hook flow:
+1. Receive hook input (session_id, cwd, transcript_path, source)
+2. Discover project capabilities (SDK available? .htmlgraph/ exists?)
+3. Query project state (features, sessions, analytics via SDK)
+4. Generate context dynamically (templates + dynamic data)
+5. Return JSON with additionalContext field
+6. Context injected into Claude's conversation
+
+### 4. Cross-Session Persistence Pattern
+
+Session End:
+- Saves handoff notes, blockers, recommendations
+- Writes to .htmlgraph/sessions/ (HTML files)
+- Writes to .htmlgraph/events/ (JSONL files)
+
+Session Start (next):
+- Reads previous session summary
+- Includes in generated context
+- System prompt adapts based on previous work
+
+### 5. Graceful Degradation Strategy
+
+Level 1: SDK + .htmlgraph/ = Full features
+Level 2: SDK only = Minimal features  
+Level 3: No SDK = Fallback (static only)
+Level 4: No .claude/ = Edge case (log warning)
+
+## Design Patterns Discovered
+
+### Pattern 1: Template Strings + Dynamic Data
+- Fixed templates (HTMLGRAPH_PROCESS_NOTICE, ORCHESTRATOR_DIRECTIVES)
+- Dynamic data (feature status, analytics, session summary)
+- Combined at hook execution time
+- Result: Context adapts while templates remain stable
+
+### Pattern 2: Hook Output JSON Contract
+```json
+{
+  "continue": true,
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "Injected to Claude's conversation"
+  }
+}
+```
+
+### Pattern 3: SDK Integration in Hooks
+Hooks are Python scripts that:
+1. Import SDK classes
+2. Query .htmlgraph/ state
+3. Run business logic
+4. Return hook output JSON
+
+### Pattern 4: Plugin Capability Discovery
+Plugins DON'T pre-declare capabilities:
+- Runtime discovery at hook execution
+- Check if SDK importable
+- Check if .htmlgraph/ exists
+- Adapt behavior accordingly
+
+## Critical Implementation Details
+
+### Hook Execution Timing
+- Triggered: Session start (fresh or resumed)
+- Timeout: 60 seconds default (configurable)
+- Execution: Synchronous
+- Failures: Non-blocking (session continues)
+
+### Environment Variables Available in Hooks
+- ${CLAUDE_PROJECT_DIR} - Project root
+- ${CLAUDE_ENV_FILE} - Persist env vars (SessionStart only)
+- All standard bash environment variables
+
+### Context Injection Points (Ordered by Coverage)
+1. SessionStart (Most comprehensive)
+2. UserPromptSubmit (Optional, user-prompt-based)
+3. PostToolUse (Optional, tool-result-based)
+4. PreToolUse (Optional, validation)
+
+SessionStart covers entire session (best bang for buck).
+
+## Plugin File Organization
+
+```
+claude-plugin/
+├── .claude-plugin/
+│   ├── plugin.json (metadata)
+│   └── marketplace.json
+├── hooks/
+│   ├── hooks.json (configuration)
+│   └── scripts/
+│       ├── session-start.py (PRIMARY system prompt injection)
+│       ├── session-end.py (save session context)
+│       ├── posttooluse-integrator.py (optional feedback)
+│       ├── pretooluse-integrator.py (optional validation)
+│       └── user-prompt-submit.py (optional context)
+├── commands/ (slash commands using SDK)
+├── agents/ (subagents using SDK)
+└── rules/ (documentation)
+```
+
+## Recommended Architecture for System Prompt Persistence
+
+1. SessionStart hook script receives session context
+2. Load project configuration (.claude/system-prompt-config.json)
+3. Query project state via SDK (with fallback)
+4. Generate dynamic context from templates + data
+5. Return JSON with additionalContext field
+6. Optional: SessionEnd hook saves context for next session
+7. Optional: PostToolUse hook provides real-time feedback
+
+## Configuration Pattern
+
+```json
+.claude/system-prompt-config.json
+{
+  "version": "1.0",
+  "enabled": true,
+  "persistence": {
+    "inject_at_session_start": true,
+    "update_on_tool_use": false,
+    "cross_session_memory": true
+  },
+  "templates": {
+    "process_notice": true,
+    "orchestrator_directives": true,
+    "project_status": true,
+    "active_features": true,
+    "strategic_insights": true
+  }
+}
+```
+
+## Key Insights
+
+### 1. Context != Static File
+- System prompt "persistence" = context persistence in conversation
+- Not written to disk during session
+- Persists via conversation history + tool call context
+
+### 2. Multiple Hooks Can Contribute
+- Plugin hooks + user hooks + project hooks all execute
+- Outputs merged in parallel
+- Final context = concatenated contributions
+
+### 3. Plugin Hooks Are NOT System Prompts
+- Hooks execute code (bash, Python)
+- Can access environment, files, SDK
+- Return context string injected to conversation
+- This is more powerful than static system prompts
+
+### 4. SDK Enables Dynamic Behavior
+- Hooks query .htmlgraph/ files
+- SDK provides abstractions (HtmlGraph, SessionManager, etc.)
+- Hooks can adapt based on project state
+- Enables project-aware, context-sensitive behavior
+
+## Research Deliverables
+
+1. PLUGIN_ARCHITECTURE_RESEARCH.md (comprehensive 300+ line document)
+   - Part 1: Claude Code Plugin Architecture
+   - Part 2: HtmlGraph Plugin Implementation Patterns
+   - Part 3: System Prompt Persistence Design
+   - Part 4: Plugin-to-SDK Feature Exposure
+   - Part 5: Critical Findings
+   - Part 6: Implementation Recommendations
+   - Part 7: Design Patterns
+   - Part 8: Reference Implementation
+   - Part 9: Future Directions
+
+2. Key Questions Answered
+   - How do hooks deliver system prompts?
+   - How does HtmlGraph persist context across sessions?
+   - How do plugins access project state?
+   - How should system prompts be configured?
+   - What's the hook-SDK partnership?
+
+3. Implementation Checklist
+   - Hook input/output contract documented
+   - Configuration schema designed
+   - Graceful degradation strategy outlined
+   - Performance requirements identified
+
+## Next Steps for Implementation
+
+1. Create SessionStart hook script
+2. Implement configuration loading
+3. Build context generation logic
+4. Add SDK integration with error handling
+5. Test with/without SDK (fallback)
+6. Test multi-hook merging
+7. Document configuration options
+8. Create troubleshooting guide
+
+## Impact & Value
+
+This research enables:
+- Dynamic system prompt persistence in plugin context
+- Cross-session memory for system prompts
+- Adaptive system prompts based on project state
+- Configuration-driven prompt customization
+- Multi-plugin context composition
+- Graceful degradation for unreliable environments
+
+HtmlGraph plugin serves as proven reference implementation for all patterns.
+
+## Research Status
+
+Complete. Ready for implementation phase.
+All deliverables documented in:
+/Users/shakes/DevProjects/htmlgraph/.claude/PLUGIN_ARCHITECTURE_RESEARCH.md
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Agent Observability Analysis - Current State Review</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-30e60808"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T04:48:27.811230"
+             data-updated="2026-01-05T04:48:27.811235" data-spike-type="general" data-timebox-hours="8" data-agent-assigned="analyst">
+
+        <header>
+            <h1>Agent Observability Analysis - Current State Review</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>8 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Agent Observability Analysis - Current State Review
+
+## Executive Summary
+
+HtmlGraph has FOUNDATIONAL INFRASTRUCTURE for agent observability but KEY GAPS exist between what SHOULD be recorded (per orchestrator directives) vs what IS CURRENTLY RECORDED for spawned agent work.
+
+### Quick Status Overview
+- **Event Recording Foundation**: ✅ DONE (event_log.py, timestamps, session tracking)
+- **Session Tracking**: ✅ DONE (automatic via hooks)
+- **Agent Attribution**: ✅ PARTIAL (agent name tracked, but not for spawned agents)
+- **Delegation Architecture**: ⚠️ PRESENT (event schema has fields) but UNUSED
+- **Delegation Recording**: 🔴 MISSING (no code populates task fields during Task() execution)
+- **Dashboard Visibility**: ⏳ INCOMPLETE (feat-b3573ae4 marked done but implementation 0/3 steps)
+
+---
+
+## 1. Current Observability Implementation
+
+### Event Recording Pipeline (WORKING)
+
+**Location**: `src/python/htmlgraph/event_log.py`
+
+**EventRecord supports delegation tracking**:
+- ✅ delegated_to_ai: "gemini", "codex", "copilot", "claude"
+- ✅ task_id: Unique identifier for parallel tasks
+- ✅ task_status: "pending", "running", "completed", "failed", "timeout"
+- ✅ model_selected: Specific model like "gemini-2.0-flash"
+- ✅ complexity_level: "low", "medium", "high", "very-high"
+- ✅ tokens_estimated/actual: Token usage tracking
+- ✅ cost_usd: Cost calculation
+- ✅ task_findings: Results from delegated work
+
+**But**: 🔴 NO CODE populates these fields when Task() is called
+
+### Session Tracking (WORKING)
+
+**Sessions automatically created and tracked**:
+- SessionStart hook creates session entry
+- All activities logged to session-specific JSONL
+- SessionEnd hook generates summary
+- Previous session context available via environment
+
+**But**: 🔴 Spawned subagent sessions have NO LINK to parent orchestrator session
+
+### Dashboard Status (INCOMPLETE)
+
+**Feature**: feat-b3573ae4 "Multi-AI Delegation Observability Dashboard"
+- Status: MARKED DONE (but incomplete)
+- Design: COMPLETE (4/4 steps)
+- Implementation: NOT STARTED (0/3 steps pending)
+
+**Missing from dashboard**:
+- Delegation timeline view
+- AI cost/performance metrics
+- Real-time delegation tracking visualization
+
+---
+
+## 2. The Core Gap: Task Delegation Recording
+
+### What SHOULD Happen
+
+When orchestrator calls `Task(prompt="...", model="gemini")`:
+
+1. Event recorded: "TaskDelegation" with task_id=XYZ
+2. task_status set to "running"
+3. model_selected captured
+4. complexity_level inferred
+5. Subagent session created with parent_session_id=parent
+6. Subagent work logged under task_id
+7. Results aggregated when task completes
+8. task_status updated to "completed"
+9. task_findings captured
+10. Cost calculated and stored
+
+### What ACTUALLY Happens
+
+1. ✅ Orchestrator calls Task() function
+2. ❓ Task tool executes in HtmlGraph context
+3. ✅ Results appear in orchestrator's conversation
+4. 🔴 **NOTHING RECORDED IN EVENT LOG**
+5. 🔴 **NO TASK_ID LINKING**
+6. 🔴 **NO COST TRACKING**
+7. 🔴 **NO PARENT-CHILD SESSION LINK**
+
+---
+
+## 3. Impact: Orchestrator Directives Unfulfilled
+
+From project instructions (ORCHESTRATOR_MODE_GUIDE):
+
+> "ORCHESTRATOR REFLECTION: You executed code directly. Ask yourself:
+> - Could this have been delegated to a subagent?
+> - Would parallel Task() calls have been faster?
+> - Is a work item tracking this effort?"
+
+**Current Reality**: 
+- When orchestrator delegates via Task(), NO RECORD EXISTS
+- Cannot answer: "Did I actually delegate or just do it locally?"
+- Cannot track cost savings from orchestration
+- Cannot measure speedup from parallelization
+
+---
+
+## 4. Related Work Items
+
+### Features
+- **feat-b3573ae4**: Multi-AI Delegation Observability Dashboard (DONE/INCOMPLETE)
+- **feat-4d5b889e**: Rich Console Integration (IN-PROGRESS)
+- **feat-56ece4e5**: Error Handling (TODO)
+- **feat-1598baf6**: Pydantic Integration (TODO)
+
+### Spikes
+- **spk-5e6a2db0**: Plugin Architecture Review (TODO, HIGH PRIORITY)
+- **spk-c32b970e**: Phase 1A/1B Status Report (TODO)
+
+### Tracks
+- **htmlgraph-dev**: Main development track (53/83 features done, 63% complete)
+
+---
+
+## 5. Implementation Recommendations
+
+### Priority 1: Record Task() Delegations (2-3 hours)
+- Add event creation when Task() called
+- Populate: task_id, model_selected, complexity_level
+- Update task_status when results return
+
+### Priority 2: Link Subagent Sessions (3-4 hours)
+- Add parent_session_id to spawned session metadata
+- SessionStart hook detects parent context
+- Enable parent-child queries in dashboard
+
+### Priority 3: Complete Dashboard View (4-6 hours)
+- Finish feat-b3573ae4 (steps 5-7)
+- Timeline view showing delegations
+- Cost breakdown per task
+
+### Priority 4: Cost/Token Tracking (2-3 hours)
+- Auto-calculate costs from token usage
+- Aggregate costs per session/feature/model
+
+### Priority 5: Orchestrator Integration (3-4 hours)
+- Hook orchestrator.py into recording
+- Parallel.py link to event pipeline
+
+**Total Effort**: 14-20 hours
+
+---
+
+## 6. Success Metrics
+
+### Before Implementation
+- Task delegation recording: 0%
+- Subagent session linking: 0%
+- Dashboard delegation view: 0%
+- Cost tracking: 0%
+
+### After Implementation
+- Task delegation recording: 100%
+- Subagent session linking: 100%
+- Dashboard delegation view: 100%
+- Cost tracking: 100%
+- Full observability of orchestrated work
+
+---
+
+## 7. Blocked Feature
+
+**feat-b3573ae4** cannot complete until:
+1. Task delegation events are recorded
+2. Subagent sessions are linked to parent
+3. Cost/token tracking is implemented
+4. Dashboard endpoints provide aggregated data
+
+**Recommendations**:
+- Create subtasks for each priority
+- Link to feat-b3573ae4
+- Track progress in main development track
+- Measure metrics pre/post
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

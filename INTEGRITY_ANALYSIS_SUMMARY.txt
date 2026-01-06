@@ -1,0 +1,258 @@
+================================================================================
+FEATURE TRACKING DATA INTEGRITY ANALYSIS - INVESTIGATION COMPLETE
+================================================================================
+
+INVESTIGATION SCOPE:
+- Total features analyzed: 89
+- Features in .htmlgraph/features/ directory
+- Analysis method: Python regex extraction of HTML metadata and step completion
+- Date: 2026-01-05
+
+================================================================================
+KEY FINDINGS
+================================================================================
+
+CRITICAL ISSUE DISCOVERED: 65 of 89 features (73.0%) have data integrity problems
+
+Status Distribution:
+  - Done: 54 features (60.7%)
+  - Todo: 34 features (38.2%)
+  - In-progress: 1 feature (1.1%)
+
+Agent Attribution:
+  - Features WITH agent assigned: 25 (28.1%)
+  - Features WITHOUT agent assigned: 64 (71.9%)
+  
+Agents who created features:
+  - claude: 6 features
+  - claude-code: 5 features
+  - cli: 5 features
+  - orchestrator: 4 features
+  - claude-orchestrator: 3 features
+  - test: 1 feature
+  - test-agent: 1 feature
+
+================================================================================
+ISSUE CATEGORIES (All with specific counts and examples)
+================================================================================
+
+CATEGORY 1: ABANDONED FEATURES (33 features, 37.1% of total)
+  Status: todo
+  Steps completed: 0
+  Examples:
+    - feat-2e724483: Add CLI integration tests for output modes
+    - feat-48b88f74: Add PreCompact Workarounds for Work Preservation
+    - feat-4d2a6e2f: Add Systematic Change Checklist to PR Template
+    - feat-385e17e2: Add htmlgraph claude --init/--continue CLI commands
+    - feat-c3d11521: Auto-sync dashboard.html to index.html in serve command
+    - feat-64467b2c: Convert list commands to Rich tables
+    - feat-66d73d8c: Create Systematic Refactoring Scripts
+    - feat-e75b27e2: Document Current Orchestrator Approach as Best Practice
+    - feat-af04a486: Document Systematic Change Workflow in RULES.md
+    - ... and 24 more
+
+CATEGORY 2: STATUS MISMATCH (14 features, 15.7% of total)
+  Status: done
+  But: Have incomplete steps (0 steps completed)
+  Examples:
+    - feat-2fb22d44: Deploy HtmlGraph with CLI orchestration injection (0/3 steps)
+    - feat-0a49152e: Add SDK wrappers for operations layer (0/3 steps)
+    - feat-c00bc6c0: Commit CLI orchestration rules injection (0/3 steps)
+    - feat-dca81f7c: Refactor CLI to use SDK/operations backend (0/3 steps)
+    - feat-0888e0f1: Inject orchestration rules via CLI --append-system-prompt (0/4 steps)
+    - feat-9b60c0a9: Test Orchestration Workflow Demo (0/4 steps)
+    - feat-839eb731: Add Node.to_dict() method as alias to model_dump() (0/6 steps)
+    - feat-1b4eb0c7: Add /error-analysis slash command (0/7 steps)
+    - feat-08b7bf72: Add comprehensive docstrings to BaseCollection methods (0/8 steps)
+    - feat-977c5400: Agent Delegation & Parallel Execution System (0/8 steps)
+    - ... and 4 more
+
+CATEGORY 3: UNTRACKED WORK (18 features, 20.2% of total)
+  Status: done
+  Steps: ALL completed (100%)
+  But: NO agent_assigned metadata
+  Examples:
+    - feat-bda2afc3: Packageable auto-updating agent documentation system (10/10 steps)
+    - feat-d50a0e5e: Restore project-specific knowledge to CLAUDE.md (10/10 steps)
+    - feat-23928549: Enhance system prompt with HtmlGraph, layered planning, and testing (8/8 steps)
+    - feat-3b3acc91: Fix orchestrator delegation: Make imperatives cost-first, add testing scripts (8/8 steps)
+    - feat-71a3be23: Deploy enhanced system prompt and updated SessionStart hook (v0.23.1) (8/8 steps)
+    - feat-150b5351: Publish orchestrator system to plugin (7/7 steps)
+    - feat-e9f7d60b: Fix orchestrator enforcement bypasses (7/7 steps)
+    - feat-1c910b0d: Phase 1: Enhanced Event Data Schema for Delegation Tracking (6/6 steps)
+    - feat-8c539996: Fix SessionStart hook - remove forced skill activation (6/6 steps)
+    - feat-aa5530bd: Update orchestrator directives: strict git delegation (6/6 steps)
+    - ... and 8 more
+
+CATEGORY 4: UNTRACKED FEATURES (64 features, 71.9% of total)
+  Missing: agent_assigned attribute entirely
+  Distribution:
+    - Status=done: 31 features
+    - Status=todo: 33 features
+
+================================================================================
+ROOT CAUSE ANALYSIS
+================================================================================
+
+ROOT CAUSE 1: Features created WITHOUT SDK
+  Impact: 64 features (71.9%) lack agent_assigned metadata
+  Evidence:
+    - Most features missing data-agent-assigned attribute entirely
+    - Only 25 features (28.1%) have agent attribution
+    - Agent-attributed features have valid data-agent-assigned attribute
+  Likely Origin:
+    - Features created before agent attribution feature was implemented
+    - Features created via manual HTML instead of SDK.features.create()
+    - Features created in bulk planning sessions without SDK
+
+ROOT CAUSE 2: No enforcement of status/step alignment
+  Impact: 14 features (15.7%) marked 'done' despite incomplete steps
+  Evidence:
+    - feat-2fb22d44 is marked 'done' but has 0/3 steps completed
+    - Multiple features with 0 steps marked 'done'
+    - No validation preventing this mismatch
+  Likely Origin:
+    - Features marked done without checking step completion
+    - Steps added after feature marked done
+    - No workflow to sync status with step progress
+
+ROOT CAUSE 3: Large abandoned backlog
+  Impact: 33 features (37.1%) in 'todo' with 0 progress
+  Evidence:
+    - 33 features created but never started
+    - Mix of old (pre-SDK) and recent features
+    - No prioritization/triage of backlog
+  Likely Origin:
+    - Bulk feature creation during planning sessions
+    - Features created but then deprioritized
+    - No regular backlog grooming
+    - No assignment of features to agents
+
+ROOT CAUSE 4: Untracked work (work done, metadata lost)
+  Impact: 18 features (20.2%) with all steps done but no agent
+  Evidence:
+    - feat-bda2afc3 has 10/10 steps but NO agent_assigned
+    - feat-d50a0e5e has 10/10 steps but NO agent_assigned
+    - These represent substantial completed work
+  Likely Origin:
+    - Work completed before feature was created
+    - Feature added retroactively without agent context
+    - SDK not called with agent parameter
+
+================================================================================
+WORKFLOW GAPS IDENTIFIED
+================================================================================
+
+GAP 1: No agent attribution requirement
+  Currently: agent_assigned is optional
+  Result: 71.9% of features lack this tracking field
+  Fix: Make agent_assigned mandatory in SDK
+
+GAP 2: No status/step sync
+  Currently: status and step completion are independent
+  Result: 14 features marked 'done' despite incomplete steps
+  Fix: Create hook that auto-syncs status when all steps complete
+
+GAP 3: No feature validation tests
+  Currently: No tests prevent invalid feature states
+  Result: Drift accumulates silently
+  Fix: Add validation tests to CI/CD
+
+GAP 4: No backlog triage workflow
+  Currently: Todo backlog grows unchecked
+  Result: 33 abandoned features (37.1%)
+  Fix: Implement regular backlog review process
+
+================================================================================
+REPAIR STRATEGY
+================================================================================
+
+PRIORITY 1 - FIX EXISTING DATA (Target: This Week)
+==========================================
+
+Task 1.1: Fix 14 Status Mismatch Features
+  Steps:
+    1. Review each of the 14 features marked 'done' with incomplete steps
+    2. For each feature, EITHER:
+       a) Complete the missing steps (mark data-completed="true")
+       b) Change status to 'todo' or 'in-progress'
+    3. Update HTML files and commit
+  Effort: 1-2 hours
+  Files affected: 14 feature HTML files
+
+Task 1.2: Triage 33 Abandoned Features
+  Steps:
+    1. Review each 'todo' feature with 0 steps completed
+    2. For each feature, EITHER:
+       a) Start work (mark status='in-progress', add first step)
+       b) Archive/delete if obsolete
+    3. Update HTML files and commit
+  Effort: 2-3 hours
+  Files affected: 33 feature HTML files
+
+PRIORITY 2 - ADD MISSING AGENT ATTRIBUTION (Target: 1-2 Weeks)
+==============================================================
+
+Task 2.1: Identify agents for 18 untracked work items
+  Steps:
+    1. For each of the 18 complete features without agent
+    2. Check git log to find who created/completed it
+    3. Add data-agent-assigned="<agent-name>"
+  Effort: 1-2 hours
+  Files affected: 18 feature HTML files
+
+PRIORITY 3 - PREVENT RECURRENCE (Target: 2-4 Weeks)
+==================================================
+
+Task 3.1: Implement agent attribution requirement
+  Change: Update SDK.features.create() to capture agent from context
+  Make: agent_assigned a required field
+  Add: Validation to reject features without agent
+  Impact: Prevents new untracked features
+
+Task 3.2: Create status/step sync hook
+  Create: New hook that listens to step completion events
+  Auto-sync: When all steps complete, promote feature status to 'done'
+  Impact: Prevents status drift
+
+Task 3.3: Add validation tests
+  Test: Status/step mismatches don't occur
+  Test: All features have agent_assigned
+  Test: No features stuck in 'todo' > 1 month old
+  Impact: CI/CD catches issues immediately
+
+Task 3.4: Document feature creation workflow
+  Document: How to properly create features with SDK
+  Document: When to mark steps complete
+  Document: When/how to mark features done
+  Impact: Educates team on correct process
+
+================================================================================
+DELIVERABLES CREATED
+================================================================================
+
+1. HtmlGraph Spike: spk-49db2a13
+   Location: /Users/shakes/DevProjects/htmlgraph/.htmlgraph/spikes/spk-49db2a13.html
+   Status: Completed
+   Priority: High
+   Contains: Full analysis findings, root causes, action plan
+
+2. Full Analysis Report: FEATURE_INTEGRITY_ANALYSIS.md
+   Location: /Users/shakes/DevProjects/htmlgraph/FEATURE_INTEGRITY_ANALYSIS.md
+   Format: Markdown
+   Contains: Detailed breakdown of all issue categories
+
+3. Analysis Scripts (for future audits):
+   - analyze_features.py: Python script to extract and analyze feature data
+   - create_integrity_spike.py: Script to generate spike with findings
+
+================================================================================
+IMMEDIATE NEXT STEPS
+================================================================================
+
+1. Review spike spk-49db2a13 for full details
+2. Prioritize which 33 abandoned features to archive vs keep
+3. Start fixing the 14 status mismatch features
+4. Plan implementation of prevention mechanisms
+
+================================================================================

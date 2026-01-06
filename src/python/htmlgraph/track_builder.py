@@ -113,6 +113,25 @@ class TrackCollection:
         # Auto-save on exit
         graph.update(node)
 
+    def create(self, title: str) -> TrackBuilder:
+        """
+        Create a new track with fluent interface.
+
+        Args:
+            title: Track title
+
+        Returns:
+            TrackBuilder for method chaining
+
+        Example:
+            track = sdk.tracks.create("Multi-Agent Collaboration") \\
+                .set_priority("high") \\
+                .save()
+        """
+        builder = TrackBuilder(self._sdk)
+        builder._title = title
+        return builder
+
     def builder(self) -> TrackBuilder:
         """
         Create a new track builder with fluent interface.

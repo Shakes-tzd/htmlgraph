@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HtmlGraph Dashboard</title>
-    <!-- d3-force for graph layout simulation -->
-    <script src="https://d3js.org/d3-dispatch.v3.min.js"></script>
-    <script src="https://d3js.org/d3-quadtree.v3.min.js"></script>
-    <script src="https://d3js.org/d3-timer.v3.min.js"></script>
-    <script src="https://d3js.org/d3-force.v3.min.js"></script>
+    <!-- Vis.js for graph visualization -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
     <!-- Typography: JetBrains Mono + Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,9 +104,11 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.5;
-            min-height: 100vh;
+            height: 100vh;
             position: relative;
-            overflow-x: hidden;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Subtle grain texture overlay */
@@ -126,6 +126,12 @@
             max-width: 1440px;
             margin: 0 auto;
             padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+            overflow: hidden;
         }
 
         /* ================================================================
@@ -211,6 +217,7 @@
             margin-bottom: 1rem;
             border: 2px solid var(--border-strong);
             width: fit-content;
+            flex-shrink: 0;
         }
 
         .view-btn {
@@ -252,8 +259,11 @@
         }
 
         .kanban.active {
-            display: block;
+            display: grid;
             width: 100%;
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
         }
 
         /* Dynamic grid: expanded columns grow, collapsed stay fixed */
@@ -871,6 +881,21 @@
         .badge.priority-high { background: var(--priority-high); color: white; border-color: var(--priority-high); }
         .badge.type { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 
+        /* Agent attribution badges - color-coded by agent type */
+        .badge.agent { padding: 0.375rem 0.625rem; font-weight: 600; }
+        .badge.agent-orchestrator { background: #2979FF; color: white; border-color: #2979FF; }
+        .badge.agent-analyst { background: #7C3AED; color: white; border-color: #7C3AED; }
+        .badge.agent-developer { background: #00C853; color: white; border-color: #00C853; }
+        .badge.agent-researcher { background: #FF6D00; color: white; border-color: #FF6D00; }
+        .badge.agent-debugger { background: #E91E63; color: white; border-color: #E91E63; }
+        .badge.agent-default { background: #78909C; color: white; border-color: #78909C; }
+
+        /* Delegation badges */
+        .badge.delegation { padding: 0.25rem 0.5rem; font-size: 0.55rem; }
+        .badge.delegation-external { background: #00C853; color: white; }
+        .badge.delegation-fallback { background: #FF9100; color: white; }
+        .badge.delegation-direct { background: #2979FF; color: white; }
+
         .card-path {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.625rem;
@@ -895,18 +920,127 @@
             background: var(--bg-secondary);
             border: 2px solid var(--border-strong);
             box-shadow: var(--shadow-md);
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .graph-container.active {
-            display: block;
+            display: flex;
+        }
+
+        /* Graph Controls */
+        .graph-controls {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 2px solid var(--border-strong);
+            background: var(--bg-tertiary);
+            flex-wrap: wrap;
+        }
+
+        .graph-control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .graph-filter-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .graph-filters {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .graph-filter-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            user-select: none;
+        }
+
+        .graph-filter-checkbox input {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+        }
+
+        .graph-search {
+            padding: 0.5rem 0.75rem;
+            border: 2px solid var(--border-strong);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            border-radius: 0;
+            min-width: 150px;
+        }
+
+        .graph-search::placeholder {
+            color: var(--text-muted);
+        }
+
+        .graph-search:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px var(--accent);
+        }
+
+        .graph-control-buttons {
+            margin-left: auto;
+        }
+
+        /* Graph Viewport */
+        .graph-viewport {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-secondary);
+            width: 100%;
         }
 
         .graph-svg {
             width: 100%;
-            height: 600px;
+            height: 100%;
             display: block;
         }
 
+        /* Vis.js Network Container */
+        .graph-network {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Vis.js Node Styling */
+        .vis-network {
+            border: none;
+            background: var(--bg-secondary);
+        }
+
+        /* Vis.js Label Styling */
+        .vis-label {
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Node Status Classes */
         .graph-node {
             cursor: pointer;
         }
@@ -915,10 +1049,39 @@
             stroke: var(--border-strong);
             stroke-width: 2;
             transition: all 0.2s var(--ease-out-expo);
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
         }
 
         .graph-node:hover circle {
             stroke-width: 4;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+        }
+
+        .graph-node.node-hidden {
+            display: none;
+        }
+
+        .graph-node.node-search-highlight circle {
+            stroke: var(--accent);
+            stroke-width: 3;
+        }
+
+        /* Status-based sizing */
+        .graph-node.node-done circle {
+            opacity: 0.6;
+            r: 15;
+        }
+
+        .graph-node.node-in-progress circle {
+            r: 25;
+        }
+
+        .graph-node.node-todo circle {
+            r: 22;
+        }
+
+        .graph-node.node-blocked circle {
+            r: 22;
         }
 
         .graph-node text {
@@ -932,8 +1095,9 @@
 
         .graph-edge {
             stroke: var(--border);
-            stroke-width: 2;
+            stroke-width: 1.5;
             fill: none;
+            transition: stroke-width 0.2s var(--ease-out-expo);
         }
 
         .graph-edge.blocked_by {
@@ -945,17 +1109,47 @@
             stroke: var(--status-active);
         }
 
+        .graph-edge.hidden {
+            display: none;
+        }
+
         .graph-arrowhead {
             fill: var(--border);
         }
 
-        .graph-legend {
+        .graph-edge.blocked_by .graph-arrowhead {
+            fill: var(--status-blocked);
+        }
+
+        .graph-edge.related .graph-arrowhead {
+            fill: var(--status-active);
+        }
+
+        /* Graph Footer */
+        .graph-footer {
             display: flex;
-            gap: 2rem;
-            justify-content: center;
+            justify-content: space-between;
+            align-items: center;
             padding: 1rem;
             border-top: 2px solid var(--border-strong);
             background: var(--bg-tertiary);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .graph-stats {
+            display: flex;
+            gap: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .graph-legend-item {
@@ -963,20 +1157,29 @@
             align-items: center;
             gap: 0.5rem;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.6875rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: var(--text-muted);
         }
 
         .graph-legend-item span {
-            width: 24px;
+            width: 20px;
             height: 3px;
         }
 
+        .graph-legend-item span.legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .legend-done { background: var(--status-done); }
+        .legend-active { background: var(--status-active); }
+        .legend-todo { background: var(--status-todo); }
         .legend-blocked { background: var(--status-blocked); }
         .legend-related { background: var(--status-active); }
-        .legend-default { background: var(--border); }
+        .legend-blocked-edge { background: var(--status-blocked); }
 
         /* ================================================================
            ANALYTICS VIEW
@@ -987,7 +1190,11 @@
         }
 
         .analytics.active {
-            display: block;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
         }
 
         /* ================================================================
@@ -999,7 +1206,11 @@
         }
 
         .sessions.active {
-            display: block;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
         }
 
         /* ================================================================
@@ -1592,6 +1803,47 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
+        /* Delegations */
+        .delegations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .delegation-item {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+        }
+
+        .delegation-meta {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .delegation-task {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.375rem;
+        }
+
+        .delegation-time {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
         /* Session Activity Preview */
         .session-preview {
             background: var(--bg-tertiary);
@@ -2015,19 +2267,58 @@
 
         <!-- Graph View -->
         <div class="graph-container" id="graph-container">
-            <svg class="graph-svg" id="graph-svg">
-                <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="55" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" class="graph-arrowhead"/>
-                    </marker>
-                </defs>
-                <g id="graph-edges"></g>
-                <g id="graph-nodes"></g>
-            </svg>
-            <div class="graph-legend">
-                <div class="graph-legend-item"><span class="legend-blocked"></span> Blocked by</div>
-                <div class="graph-legend-item"><span class="legend-related"></span> Related</div>
-                <div class="graph-legend-item"><span class="legend-default"></span> Other</div>
+            <!-- Graph Controls -->
+            <div class="graph-controls">
+                <div class="graph-control-group">
+                    <label class="graph-filter-label">Filter by Status:</label>
+                    <div class="graph-filters">
+                        <label class="graph-filter-checkbox">
+                            <input type="checkbox" data-status="todo" checked>
+                            <span>To Do</span>
+                        </label>
+                        <label class="graph-filter-checkbox">
+                            <input type="checkbox" data-status="in-progress" checked>
+                            <span>In Progress</span>
+                        </label>
+                        <label class="graph-filter-checkbox">
+                            <input type="checkbox" data-status="blocked" checked>
+                            <span>Blocked</span>
+                        </label>
+                        <label class="graph-filter-checkbox">
+                            <input type="checkbox" data-status="done">
+                            <span>Done</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="graph-control-group">
+                    <input type="text" id="graph-search" class="graph-search" placeholder="Search nodes..." />
+                </div>
+
+                <div class="graph-control-group graph-control-buttons">
+                    <button id="graph-reset" class="btn btn-secondary">Reset View</button>
+                    <button id="graph-show-all" class="btn btn-secondary">Show All</button>
+                </div>
+            </div>
+
+            <!-- Graph Container for Vis.js -->
+            <div class="graph-viewport">
+                <div id="graph-network" class="graph-network"></div>
+            </div>
+
+            <div class="graph-footer">
+                <div class="graph-stats">
+                    <span id="graph-node-count">0 nodes</span>
+                    <span id="graph-edge-count">0 edges</span>
+                </div>
+                <div class="graph-legend">
+                    <div class="graph-legend-item"><span class="legend-done"></span> Done</div>
+                    <div class="graph-legend-item"><span class="legend-active"></span> In Progress</div>
+                    <div class="graph-legend-item"><span class="legend-todo"></span> To Do</div>
+                    <div class="graph-legend-item"><span class="legend-blocked"></span> Blocked</div>
+                    <div class="graph-legend-item"><span class="legend-related"></span> Related edge</div>
+                    <div class="graph-legend-item"><span class="legend-blocked-edge"></span> Blocked by</div>
+                </div>
             </div>
         </div>
 
@@ -3240,7 +3531,9 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             // Sort tracks by feature completion (incomplete first), then by priority
             const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
             const sortedTracks = Array.from(tracked.values())
-                .filter(t => t.track !== null)
+                // FIXED: Do NOT filter out tracks with null metadata - they still have features to show!
+                // Only filter if there are no features for this track
+                .filter(t => t.features && t.features.length > 0)
                 .sort((a, b) => {
                     // Calculate completion percentage for each track
                     const aTotal = a.features.length;
@@ -3257,7 +3550,10 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     }
 
                     // Within same completion status, sort by priority
-                    return priorityOrder[a.track.priority] - priorityOrder[b.track.priority];
+                    // Use track priority if available, otherwise default to 'medium'
+                    const aPriority = (a.track && a.track.priority) || 'medium';
+                    const bPriority = (b.track && b.track.priority) || 'medium';
+                    return (priorityOrder[aPriority] || 2) - (priorityOrder[bPriority] || 2);
                 });
 
             // Render
@@ -3426,18 +3722,37 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                             <div class="track-column-cards">
                                 ${byStatus[status].length === 0
                                     ? '<div class="empty-column">No items</div>'
-                                    : byStatus[status].map(f => `
+                                    : byStatus[status].map(f => {
+                                        // Determine agent badge color based on agent name
+                                        let agentClass = 'agent-default';
+                                        if (f.agent_assigned) {
+                                            const agentName = f.agent_assigned.toLowerCase();
+                                            if (agentName.includes('orchestrator')) agentClass = 'agent-orchestrator';
+                                            else if (agentName.includes('analyst')) agentClass = 'agent-analyst';
+                                            else if (agentName.includes('developer')) agentClass = 'agent-developer';
+                                            else if (agentName.includes('researcher')) agentClass = 'agent-researcher';
+                                            else if (agentName.includes('debugger')) agentClass = 'agent-debugger';
+                                        }
+                                        // Check if feature has delegations
+                                        const delegations = (f.properties && f.properties.delegations) || [];
+                                        const delegationBadges = delegations.length > 0
+                                            ? `<span class="badge delegation" title="Delegated to ${delegations.length} spawner(s)">Delegated: ${delegations.length}</span>`
+                                            : '';
+                                        return `
                                         <div class="card priority-${f.priority}"
                                              data-collection="${f._collection}"
-                                             data-id="${f.id}">
+                                             data-id="${f.id}"
+                                             data-agent="${f.agent_assigned || ''}">
                                             <div class="card-title">${f.title}</div>
                                             <div class="card-meta">
                                                 <span class="badge priority-${f.priority}">${f.priority}</span>
                                                 ${f.type !== 'feature' ? `<span class="badge type">${f.type}</span>` : ''}
+                                                ${f.agent_assigned ? `<span class="badge agent ${agentClass}">${f.agent_assigned}</span>` : ''}
+                                                ${delegationBadges}
                                                 <span class="card-path">${f._collection}/${f.id}</span>
                                             </div>
                                         </div>
-                                    `).join('')}
+                                    `}).join('')}
                             </div>
                         </div>
                     `).join('')}
@@ -3731,6 +4046,18 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
 
             let bodyHtml = '';
 
+            // Helper function to get agent badge class
+            function getAgentClass(agentName) {
+                if (!agentName) return 'agent-default';
+                const name = agentName.toLowerCase();
+                if (name.includes('orchestrator')) return 'agent-orchestrator';
+                if (name.includes('analyst')) return 'agent-analyst';
+                if (name.includes('developer')) return 'agent-developer';
+                if (name.includes('researcher')) return 'agent-researcher';
+                if (name.includes('debugger')) return 'agent-debugger';
+                return 'agent-default';
+            }
+
             // Meta section
             bodyHtml += `
                 <div class="panel-section">
@@ -3739,7 +4066,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                         <span class="badge priority-${node.priority}">${node.priority}</span>
                         <span class="badge type">${node.type}</span>
                         <span class="badge">${node.status}</span>
-                        ${node.agent_assigned ? `<span class="badge">Agent: ${node.agent_assigned}</span>` : ''}
+                        ${node.agent_assigned ? `<span class="badge agent ${getAgentClass(node.agent_assigned)}">Agent: ${node.agent_assigned}</span>` : ''}
                     </div>
                 </div>
             `;
@@ -3766,6 +4093,43 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                         </ul>
                     </div>
                 `;
+            }
+
+            // Delegation information section (if delegation data exists in properties)
+            if (node.properties && (node.properties.delegated_tasks || node.properties.delegations)) {
+                const delegations = node.properties.delegations || node.properties.delegated_tasks || [];
+                if (delegations && delegations.length > 0) {
+                    bodyHtml += `
+                        <div class="panel-section">
+                            <h3>Delegations (${delegations.length})</h3>
+                            <div class="delegations-list">
+                                ${delegations.map((d, idx) => {
+                                    const spawner = d.spawner || d.executor || 'unknown';
+                                    const executorType = d.executor_type || 'direct';
+                                    let executorBadge = 'delegation-direct';
+                                    if (executorType === 'external_cli') executorBadge = 'delegation-external';
+                                    else if (executorType === 'fallback') executorBadge = 'delegation-fallback';
+
+                                    const tokens = d.tokens_used ? ` (${d.tokens_used} tokens)` : '';
+                                    const cost = d.cost ? ` - $${d.cost.toFixed(2)}` : '';
+
+                                    return `
+                                        <div class="delegation-item">
+                                            <div class="delegation-meta">
+                                                <span class="badge delegation ${executorBadge}">${spawner}</span>
+                                                <span class="badge delegation">${executorType}</span>
+                                                ${tokens ? `<span class="mono">${tokens}</span>` : ''}
+                                                ${cost ? `<span class="mono">${cost}</span>` : ''}
+                                            </div>
+                                            ${d.task_id ? `<div class="delegation-task">Task: ${d.task_id}</div>` : ''}
+                                            ${d.timestamp ? `<div class="delegation-time">${new Date(d.timestamp).toLocaleString()}</div>` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
             }
 
             // Edges section (excluding implemented-in which gets special handling)
@@ -4093,7 +4457,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         // Graph Visualization
         // =====================================================================
 
-        let simulation = null;
+        let visNetwork = null;  // Vis.js network instance
 
         function getNodeColor(node) {
             const colors = {
@@ -4106,9 +4470,13 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         }
 
         function getNodeRadius(node) {
-            const edgeCount = Object.values(node.edges || {})
-                .reduce((sum, edges) => sum + edges.length, 0);
-            return Math.min(45 + edgeCount * 3, 60);
+            const statusSizes = {
+                'done': 20,
+                'in-progress': 35,
+                'blocked': 30,
+                'todo': 28
+            };
+            return statusSizes[node.status] || 25;
         }
 
         function wrapText(text, maxCharsPerLine = 10) {
@@ -4134,7 +4502,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 lines[2] = lines[2].substring(0, lines[2].length - 1) + '…';
             }
 
-            return lines;
+            return lines.join('\n');
         }
 
         function buildGraphData(nodes) {
@@ -4145,9 +4513,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 type: n.type,
                 priority: n.priority,
                 edges: n.edges || {},
-                _collection: n._collection,
-                x: null,
-                y: null
+                _collection: n._collection
             }));
 
             const nodeIds = new Set(nodes.map(n => n.id));
@@ -4158,8 +4524,8 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     edges.forEach(edge => {
                         if (nodeIds.has(edge.target_id)) {
                             graphEdges.push({
-                                source: node.id,
-                                target: edge.target_id,
+                                from: node.id,
+                                to: edge.target_id,
                                 type: edgeType
                             });
                         }
@@ -4170,133 +4536,247 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             return { nodes: graphNodes, edges: graphEdges };
         }
 
+        // Graph State Management
+        let graphState = {
+            allNodes: [],
+            allEdges: [],
+            visibleNodeIds: new Set(),
+            searchQuery: '',
+            filters: {
+                todo: true,
+                'in-progress': true,
+                blocked: true,
+                done: false
+            }
+        };
+
+        function applyGraphFilters() {
+            const filters = {};
+            document.querySelectorAll('.graph-filter-checkbox input').forEach(cb => {
+                filters[cb.dataset.status] = cb.checked;
+            });
+
+            graphState.filters = filters;
+            graphState.searchQuery = (document.getElementById('graph-search')?.value || '').toLowerCase();
+
+            // Determine visible nodes
+            graphState.visibleNodeIds = new Set();
+            graphState.allNodes.forEach(node => {
+                const statusMatch = filters[node.status] || false;
+                const searchMatch = !graphState.searchQuery || node.title.toLowerCase().includes(graphState.searchQuery);
+                if (statusMatch && searchMatch) {
+                    graphState.visibleNodeIds.add(node.id);
+                }
+            });
+
+            // Update Vis.js network with visible nodes and edges
+            if (visNetwork) {
+                const visibleNodes = graphState.allNodes.filter(n => graphState.visibleNodeIds.has(n.id));
+                const visibleEdges = graphState.allEdges.filter(e => 
+                    graphState.visibleNodeIds.has(e.from) && graphState.visibleNodeIds.has(e.to)
+                );
+
+                const nodesDataset = new vis.DataSet(visibleNodes.map(n => ({
+                    id: n.id,
+                    label: wrapText(n.title),
+                    title: n.title + '\nStatus: ' + n.status,
+                    color: {
+                        background: getNodeColor(n),
+                        border: getComputedStyle(document.documentElement).getPropertyValue('--border-strong').trim(),
+                        highlight: {
+                            background: getNodeColor(n),
+                            border: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+                        }
+                    },
+                    size: getNodeRadius(n),
+                    font: {
+                        size: 12,
+                        face: "'JetBrains Mono', monospace",
+                        color: 'white',
+                        strokeWidth: 0
+                    },
+                    physics: true,
+                    borderWidth: 2,
+                    status: n.status,
+                    _collection: n._collection,
+                    x: undefined,  // Let physics handle positioning
+                    y: undefined
+                })));
+
+                const edgesDataset = new vis.DataSet(visibleEdges.map(e => ({
+                    from: e.from,
+                    to: e.to,
+                    arrows: 'to',
+                    smooth: { type: 'continuous' },
+                    color: e.type === 'blocked_by' 
+                        ? { color: getComputedStyle(document.documentElement).getPropertyValue('--status-blocked').trim(), highlight: getComputedStyle(document.documentElement).getPropertyValue('--status-blocked').trim() }
+                        : { color: getComputedStyle(document.documentElement).getPropertyValue('--status-active').trim(), highlight: getComputedStyle(document.documentElement).getPropertyValue('--status-active').trim() },
+                    dashes: e.type === 'blocked_by' ? [6, 4] : false,
+                    width: 1.5
+                })));
+
+                visNetwork.setData({ nodes: nodesDataset, edges: edgesDataset });
+            }
+
+            updateGraphStats();
+            localStorage.setItem('graphFilters', JSON.stringify(graphState.filters));
+        }
+
+        function updateGraphStats() {
+            const visibleNodeCount = graphState.visibleNodeIds.size;
+            const visibleEdgeCount = graphState.allEdges.filter(e => 
+                graphState.visibleNodeIds.has(e.from) && graphState.visibleNodeIds.has(e.to)
+            ).length;
+            const nodeCountEl = document.getElementById('graph-node-count');
+            const edgeCountEl = document.getElementById('graph-edge-count');
+            if (nodeCountEl) nodeCountEl.textContent = `${visibleNodeCount} nodes`;
+            if (edgeCountEl) edgeCountEl.textContent = `${visibleEdgeCount} edges`;
+        }
+
+        function resetGraphView() {
+            const searchEl = document.getElementById('graph-search');
+            if (searchEl) searchEl.value = '';
+            graphState.searchQuery = '';
+            applyGraphFilters();
+            if (visNetwork) visNetwork.fit();
+        }
+
+        function showAllNodes() {
+            document.querySelectorAll('.graph-filter-checkbox input').forEach(cb => {
+                cb.checked = true;
+            });
+            graphState.filters = { todo: true, 'in-progress': true, blocked: true, done: true };
+            applyGraphFilters();
+            if (visNetwork) visNetwork.fit();
+        }
+
         function renderGraph(nodes) {
-            const svg = document.getElementById('graph-svg');
-            const edgesGroup = document.getElementById('graph-edges');
-            const nodesGroup = document.getElementById('graph-nodes');
-
-            edgesGroup.innerHTML = '';
-            nodesGroup.innerHTML = '';
-
-            if (nodes.length === 0) return;
-
-            const rect = svg.getBoundingClientRect();
-            const width = rect.width || 800;
-            const height = rect.height || 500;
+            if (nodes.length === 0) {
+                if (visNetwork) visNetwork.destroy();
+                visNetwork = null;
+                return;
+            }
 
             const { nodes: graphNodes, edges: graphEdges } = buildGraphData(nodes);
-            const nodeById = new Map(graphNodes.map(n => [n.id, n]));
 
-            graphNodes.forEach((n, i) => {
-                const angle = (2 * Math.PI * i) / graphNodes.length;
-                n.x = width / 2 + Math.cos(angle) * 150;
-                n.y = height / 2 + Math.sin(angle) * 150;
+            graphState.allNodes = graphNodes;
+            graphState.allEdges = graphEdges;
+
+            // FILTER FIRST: Apply default filters before rendering
+            // Default: show todo, in-progress, blocked (exclude done items)
+            graphState.visibleNodeIds = new Set();
+            graphState.allNodes.forEach(node => {
+                if (graphState.filters[node.status] !== false) {
+                    graphState.visibleNodeIds.add(node.id);
+                }
             });
 
-            if (simulation) simulation.stop();
+            // Only render visible nodes and edges
+            const visibleNodes = graphState.allNodes.filter(n => graphState.visibleNodeIds.has(n.id));
+            const visibleEdges = graphState.allEdges.filter(e =>
+                graphState.visibleNodeIds.has(e.from) && graphState.visibleNodeIds.has(e.to)
+            );
 
-            simulation = d3.forceSimulation(graphNodes)
-                .force('link', d3.forceLink(graphEdges)
-                    .id(d => d.id)
-                    .distance(120)
-                    .strength(0.5))
-                .force('charge', d3.forceManyBody()
-                    .strength(-400))
-                .force('center', d3.forceCenter(width / 2, height / 2))
-                .force('collision', d3.forceCollide().radius(70))
-                .on('tick', updatePositions);
-
-            graphEdges.forEach(edge => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.classList.add('graph-edge', edge.type);
-                line.setAttribute('marker-end', 'url(#arrowhead)');
-                line.dataset.source = edge.source.id || edge.source;
-                line.dataset.target = edge.target.id || edge.target;
-                edgesGroup.appendChild(line);
-            });
-
-            graphNodes.forEach(node => {
-                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                g.classList.add('graph-node');
-                g.dataset.id = node.id;
-                g.dataset.collection = node._collection;
-
-                const radius = getNodeRadius(node);
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('r', radius);
-                circle.setAttribute('fill', getNodeColor(node));
-
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                const lines = wrapText(node.title);
-                const lineHeight = 11;
-                const startY = -((lines.length - 1) * lineHeight) / 2;
-
-                lines.forEach((line, i) => {
-                    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-                    tspan.setAttribute('x', '0');
-                    tspan.setAttribute('dy', i === 0 ? `${startY}px` : `${lineHeight}px`);
-                    tspan.textContent = line;
-                    text.appendChild(tspan);
-                });
-
-                g.appendChild(circle);
-                g.appendChild(text);
-                nodesGroup.appendChild(g);
-
-                g.addEventListener('click', () => {
-                    openPanel(node._collection, node.id);
-                });
-
-                let isDragging = false;
-                let dragOffset = { x: 0, y: 0 };
-
-                g.addEventListener('mousedown', (e) => {
-                    isDragging = true;
-                    dragOffset = { x: e.clientX - node.x, y: e.clientY - node.y };
-                    simulation.alphaTarget(0.3).restart();
-                    e.preventDefault();
-                });
-
-                document.addEventListener('mousemove', (e) => {
-                    if (isDragging) {
-                        node.fx = e.clientX - dragOffset.x;
-                        node.fy = e.clientY - dragOffset.y;
+            // Create Vis.js nodes dataset with FILTERED nodes only
+            const nodesData = new vis.DataSet(visibleNodes.map(n => ({
+                id: n.id,
+                label: wrapText(n.title),
+                title: n.title + '\nStatus: ' + n.status,
+                color: {
+                    background: getNodeColor(n),
+                    border: getComputedStyle(document.documentElement).getPropertyValue('--border-strong').trim(),
+                    highlight: {
+                        background: getNodeColor(n),
+                        border: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
                     }
-                });
+                },
+                size: getNodeRadius(n),
+                font: {
+                    size: 12,
+                    face: "'JetBrains Mono', monospace",
+                    color: 'white',
+                    strokeWidth: 0
+                },
+                physics: true,
+                borderWidth: 2,
+                status: n.status,
+                _collection: n._collection
+            })));
 
-                document.addEventListener('mouseup', () => {
-                    if (isDragging) {
-                        isDragging = false;
-                        node.fx = null;
-                        node.fy = null;
-                        simulation.alphaTarget(0);
-                    }
-                });
-            });
+            // Create Vis.js edges dataset with FILTERED edges only
+            const edgesData = new vis.DataSet(visibleEdges.map(e => ({
+                from: e.from,
+                to: e.to,
+                arrows: 'to',
+                smooth: { type: 'continuous' },
+                color: e.type === 'blocked_by'
+                    ? { color: getComputedStyle(document.documentElement).getPropertyValue('--status-blocked').trim(), highlight: getComputedStyle(document.documentElement).getPropertyValue('--status-blocked').trim() }
+                    : { color: getComputedStyle(document.documentElement).getPropertyValue('--status-active').trim(), highlight: getComputedStyle(document.documentElement).getPropertyValue('--status-active').trim() },
+                dashes: e.type === 'blocked_by' ? [6, 4] : false,
+                width: 1.5
+            })));
 
-            function updatePositions() {
-                const nodeElements = nodesGroup.querySelectorAll('.graph-node');
-                nodeElements.forEach(g => {
-                    const node = nodeById.get(g.dataset.id);
-                    if (node) {
-                        node.x = Math.max(30, Math.min(width - 30, node.x));
-                        node.y = Math.max(30, Math.min(height - 30, node.y));
-                        g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
-                    }
-                });
-
-                const edgeElements = edgesGroup.querySelectorAll('.graph-edge');
-                edgeElements.forEach(line => {
-                    const source = nodeById.get(line.dataset.source);
-                    const target = nodeById.get(line.dataset.target);
-                    if (source && target) {
-                        line.setAttribute('x1', source.x);
-                        line.setAttribute('y1', source.y);
-                        line.setAttribute('x2', target.x);
-                        line.setAttribute('y2', target.y);
-                    }
-                });
+            // Destroy existing network if it exists
+            if (visNetwork) {
+                visNetwork.destroy();
             }
+
+            // Create new Vis.js network
+            const container = document.getElementById('graph-network');
+            const data = {
+                nodes: nodesData,
+                edges: edgesData
+            };
+
+            // Optimize physics based on node count
+            const nodeCount = visibleNodes.length;
+            const stabilizationIterations = nodeCount > 300 ? 100 : (nodeCount > 150 ? 150 : 200);
+
+            const options = {
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        iterations: stabilizationIterations,
+                        fit: true
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -30000,
+                        centralGravity: 0.3,
+                        springLength: 200,
+                        springConstant: 0.04
+                    },
+                    maxVelocity: 50
+                },
+                interaction: {
+                    navigationButtons: true,
+                    keyboard: true,
+                    zoomView: true,
+                    dragView: true
+                },
+                nodes: {
+                    shape: 'circle',
+                    scaling: {
+                        min: 10,
+                        max: 50
+                    }
+                }
+            };
+
+            visNetwork = new vis.Network(container, data, options);
+
+            // Handle node clicks
+            visNetwork.on('click', (params) => {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = graphState.allNodes.find(n => n.id === nodeId);
+                    if (node) {
+                        openPanel(node._collection, node.id);
+                    }
+                }
+            });
+
+            // Apply filters after network is initialized
+            applyGraphFilters();
         }
 
         // =====================================================================
@@ -4374,6 +4854,236 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
         // Session comparison modal
         document.getElementById('comparison-close').addEventListener('click', closeComparison);
         document.getElementById('comparison-overlay').addEventListener('click', closeComparison);
+
+        // Graph filter event listeners
+        document.querySelectorAll('.graph-filter-checkbox input').forEach(cb => {
+            cb.addEventListener('change', applyGraphFilters);
+        });
+
+        const graphSearchEl = document.getElementById('graph-search');
+        if (graphSearchEl) {
+            graphSearchEl.addEventListener('input', applyGraphFilters);
+        }
+
+        const graphResetBtn = document.getElementById('graph-reset');
+        if (graphResetBtn) {
+            graphResetBtn.addEventListener('click', resetGraphView);
+        }
+
+        const graphShowAllBtn = document.getElementById('graph-show-all');
+        if (graphShowAllBtn) {
+            graphShowAllBtn.addEventListener('click', showAllNodes);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePanel();
+        });
+
+        loadData().then(async ({ status, nodes }) => {
+            await renderKanban(nodes);
+            updateKanbanGrid();
+        }).catch(err => {
+            console.error('Error loading dashboard data:', err);
+        });
+
+        function showAllNodes() {
+            document.querySelectorAll('.graph-filter-checkbox input').forEach(cb => {
+                cb.checked = true;
+            });
+            graphState.filters = { todo: true, 'in-progress': true, blocked: true, done: true };
+            applyGraphFilters();
+        }
+
+        function renderGraph(nodes) {
+            if (nodes.length === 0) {
+                if (visNetwork) visNetwork.destroy();
+                visNetwork = null;
+                return;
+            }
+
+            const { nodes: graphNodes, edges: graphEdges } = buildGraphData(nodes);
+
+            graphState.allNodes = graphNodes;
+            graphState.allEdges = graphEdges;
+
+            // Create Vis.js nodes dataset
+            const nodesData = new vis.DataSet(graphNodes.map(n => ({
+                id: n.id,
+                label: wrapText(n.title),
+                title: n.title + '\nStatus: ' + n.status,
+                color: {
+                    background: getNodeColor(n),
+                    border: getComputedStyle(document.documentElement).getPropertyValue('--border-strong').trim(),
+                    highlight: {
+                        background: getNodeColor(n),
+                        border: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+                    }
+                },
+                size: getNodeRadius(n),
+                font: {
+                    size: 12,
+                    face: "'JetBrains Mono', monospace",
+                    color: 'white',
+                    strokeWidth: 0
+                },
+                physics: true,
+                borderWidth: 2,
+                status: n.status,
+                _collection: n._collection
+            })));
+
+            // Create Vis.js edges dataset
+            const edgesData = new vis.DataSet(graphEdges.map(e => ({
+                from: e.from,
+                to: e.to,
+                arrows: 'to',
+                smooth: { type: 'continuous' },
+                color: e.type === 'blocked_by'
+                    ? { color: getComputedStyle(document.documentElement).getPropertyValue('--status-blocked').trim(), highlight: getComputedStyle(document.documentElement).getPropertyValue('--status-blocked').trim() }
+                    : { color: getComputedStyle(document.documentElement).getPropertyValue('--status-active').trim(), highlight: getComputedStyle(document.documentElement).getPropertyValue('--status-active').trim() },
+                dashes: e.type === 'blocked_by' ? [6, 4] : false,
+                width: 1.5
+            })));
+
+            // Destroy existing network if it exists
+            if (visNetwork) {
+                visNetwork.destroy();
+            }
+
+            // Create new Vis.js network
+            const container = document.getElementById('graph-network');
+            const data = {
+                nodes: nodesData,
+                edges: edgesData
+            };
+
+            const options = {
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        iterations: 200,
+                        fit: true
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -30000,
+                        centralGravity: 0.3,
+                        springLength: 200,
+                        springConstant: 0.04
+                    },
+                    maxVelocity: 50
+                },
+                interaction: {
+                    navigationButtons: true,
+                    keyboard: true,
+                    zoomView: true,
+                    dragView: true
+                },
+                nodes: {
+                    shape: 'circle',
+                    scaling: {
+                        min: 10,
+                        max: 50
+                    }
+                }
+            };
+
+            visNetwork = new vis.Network(container, data, options);
+
+            // Handle node clicks
+            visNetwork.on('click', (params) => {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = graphState.allNodes.find(n => n.id === nodeId);
+                    if (node) {
+                        openPanel(node._collection, node.id);
+                    }
+                }
+            });
+
+            // Apply filters after network is initialized
+            applyGraphFilters();
+        }
+
+        // =====================================================================
+        // View Toggle
+        // =====================================================================
+
+        function switchView(view) {
+            const kanban = document.getElementById('kanban');
+            const graph = document.getElementById('graph-container');
+            const analytics = document.getElementById('analytics');
+            const sessions = document.getElementById('sessions');
+            const buttons = document.querySelectorAll('.view-btn');
+
+            buttons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === view);
+            });
+
+            if (view === 'kanban') {
+                kanban.classList.add('active');
+                graph.classList.remove('active');
+                analytics.classList.remove('active');
+                sessions.classList.remove('active');
+                renderKanban(allNodes);
+            } else if (view === 'graph') {
+                kanban.classList.remove('active');
+                graph.classList.add('active');
+                analytics.classList.remove('active');
+                sessions.classList.remove('active');
+                renderGraph(allNodes);
+            } else if (view === 'analytics') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.add('active');
+                sessions.classList.remove('active');
+                ensureAnalyticsLoaded(false);
+            } else if (view === 'sessions') {
+                kanban.classList.remove('active');
+                graph.classList.remove('active');
+                analytics.classList.remove('active');
+                sessions.classList.add('active');
+                loadAndRenderSessions();
+            }
+        }
+
+        // =====================================================================
+        // Init
+        // =====================================================================
+
+        document.getElementById('panel-close').addEventListener('click', closePanel);
+        document.getElementById('panel-overlay').addEventListener('click', closePanel);
+
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchView(btn.dataset.view));
+        });
+
+        document.getElementById('analytics-refresh').addEventListener('click', () => {
+            ensureAnalyticsLoaded(true);
+        });
+
+        document.getElementById('analytics-features').addEventListener('click', (e) => {
+            const btn = e.target.closest && e.target.closest('button[data-feature]');
+            if (!btn) return;
+            loadFeatureAnalytics(btn.dataset.feature).catch(err => renderAnalyticsError(err));
+        });
+
+        // Session filter event listeners
+        document.getElementById('filter-status').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-agent').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-search').addEventListener('input', applySessionFilters);
+        document.getElementById('filter-date-from').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-date-to').addEventListener('change', applySessionFilters);
+        document.getElementById('filter-clear').addEventListener('click', clearSessionFilters);
+        document.getElementById('compare-sessions-btn').addEventListener('click', compareSessions);
+
+        // Session comparison modal
+        document.getElementById('comparison-close').addEventListener('click', closeComparison);
+        document.getElementById('comparison-overlay').addEventListener('click', closeComparison);
+
+        // Graph filter event listeners
+        document.querySelectorAll('.graph-filter-checkbox input').forEach(cb => {
+            cb.addEventListener('change', applyGraphFilters);
+        });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closePanel();

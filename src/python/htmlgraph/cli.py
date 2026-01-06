@@ -132,19 +132,51 @@ def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
 
 def cmd_serve(args: argparse.Namespace) -> None:
     """Start the HtmlGraph server."""
+    from pathlib import Path
+
     from htmlgraph.operations import start_server
 
-    start_server(
+    result = start_server(
         port=args.port,
-        graph_dir=args.graph_dir,
-        static_dir=args.static_dir,
+        graph_dir=Path(args.graph_dir),
+        static_dir=Path(args.static_dir),
         host=args.host,
         watch=not args.no_watch,
         auto_port=args.auto_port,
     )
 
-    # The start_server operation already handles all output and blocks
-    # No additional CLI formatting needed
+    # Print server info
+    console.print("\n[bold cyan]HtmlGraph Server[/bold cyan]")
+    console.print(f"URL: {result.handle.url}")
+    if result.warnings:
+        for warning in result.warnings:
+            console.print(f"[yellow]Warning: {warning}[/yellow]")
+    console.print(f"Graph directory: {result.config_used['graph_dir']}")
+    console.print(f"Static directory: {result.config_used['static_dir']}")
+    from htmlgraph.server import HtmlGraphAPIHandler
+
+    console.print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
+    console.print("\n[cyan]Press Ctrl+C to stop.[/cyan]\n")
+
+    # Start serving requests
+    try:
+        server = (
+            result.handle.server.get("httpserver") if result.handle.server else None
+        )
+        if server is not None:
+            server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Shutting down...[/yellow]")
+        if result.handle.server:
+            watcher = result.handle.server.get("watcher")
+            if watcher is not None:
+                try:
+                    watcher.stop()
+                except Exception:
+                    pass
+            httpserver = result.handle.server.get("httpserver")
+            if httpserver is not None:
+                httpserver.shutdown()
 
 
 def cmd_init(args: argparse.Namespace) -> None:
@@ -2954,6 +2986,7 @@ def cmd_feature_create(args: argparse.Namespace) -> None:
         description=input_data.description or "",
         priority=input_data.priority,
         steps=step_names,
+        track_id=args.track,
     )
     command.run(graph_dir=args.graph_dir, agent=args.agent, output_format=args.format)
 
@@ -5118,6 +5151,11 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         help="Priority",
     )
     feature_create.add_argument("--steps", nargs="*", help="Implementation steps")
+    feature_create.add_argument(
+        "--track",
+        "-t",
+        help="Track ID to link feature to (required for features collection)",
+    )
     feature_create.add_argument(
         "--agent",
         default=os.environ.get("HTMLGRAPH_AGENT") or "cli",

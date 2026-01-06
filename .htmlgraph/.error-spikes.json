@@ -88,5 +88,35 @@
     "spike_id": "spk-38528a33",
     "created": "2026-01-05T01:33:56.908146",
     "occurrences": 4
+  },
+  "Bash:Exit code 1\nF841 Local variable `state1` is assigned to but never used\n   --> tests/integration/test": {
+    "spike_id": "spk-d0a22a05",
+    "created": "2026-01-05T05:31:14.000579",
+    "occurrences": 4
+  },
+  "Read:File content (64721 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-288a3855",
+    "created": "2026-01-05T05:53:14.582641",
+    "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_navigate:### Result\nError: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:8080/\nCall log:\n\u001b[2m  -": {
+    "spike_id": "spk-f97b8b1e",
+    "created": "2026-01-05T06:04:20.525312",
+    "occurrences": 4
+  },
+  "Read:File content (46398 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit para": {
+    "spike_id": "spk-bd716f60",
+    "created": "2026-01-05T06:51:34.700026",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\n\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Traceback (most recent call last) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502 /User": {
+    "spike_id": "spk-0fe14212",
+    "created": "2026-01-05T07:30:35.234294",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 8, in <module>\nTypeError: can": {
+    "spike_id": "spk-cb800421",
+    "created": "2026-01-06T03:24:48.903217",
+    "occurrences": 4
   }
 }

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Duplicate Variable Declarations Fixed - Dashboard Graph Rendering</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-39a390b9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T07:57:35.567214"
+             data-updated="2026-01-05T07:57:35.567218" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex">
+
+        <header>
+            <h1>Duplicate Variable Declarations Fixed - Dashboard Graph Rendering</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Issue Resolved
+JavaScript console error: "Identifier 'graphSearchEl' has already been declared"
+This was preventing the entire graph rendering code from executing.
+
+## Root Cause
+Duplicate variable declarations and event listener setup blocks in the dashboard initialization code.
+
+## Investigation Results
+Found duplicate declarations at:
+- Line 4841: `const graphSearchEl = document.getElementById('graph-search');`
+- Line 5066: `const graphSearchEl = document.getElementById('graph-search');` (DUPLICATE)
+
+- Line 4846: `const graphResetBtn = document.getElementById('graph-reset');`
+- Line 5071: `const graphResetBtn = document.getElementById('graph-reset');` (DUPLICATE)
+
+- Line 4851: `const graphShowAllBtn = document.getElementById('graph-show-all');`
+- Line 5076: `const graphShowAllBtn = document.getElementById('graph-show-all');` (DUPLICATE)
+
+## Fix Applied
+Removed the duplicate block of variable declarations (lines 5066-5079) from the second occurrence in the initialization code. Kept the first occurrence (lines 4841-4854) intact.
+
+Changes:
+- Removed 14 lines of duplicate code
+- Each variable now declared only once
+- Event listeners set up in single location
+- No duplicate initialization blocks
+
+## Verification Results
+✅ Variables deduplicated: YES
+✅ Console errors cleared: YES
+✅ Graph renders: YES
+✅ Tests passing: 1857/1860 PASSED (skipped 3, no failures)
+✅ Server starts successfully: YES
+✅ No regression errors: NONE
+
+## Files Modified
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/dashboard.html`
+
+## Technical Details
+The duplicate code was an exact copy of the graph filter event listener setup block. This appears to have been accidentally duplicated during development. Both declarations referenced the same DOM elements (graph-search, graph-reset, graph-show-all) and set up identical event listeners.
+
+By consolidating to a single declaration, we eliminated the JavaScript error without changing any functionality.
+
+## Impact Assessment
+- **Scope**: Dashboard UI component only
+- **Risk**: Minimal - removed duplicate code, no functionality changes
+- **Testing**: Full test suite passes
+- **Rollback**: Safe - simple removal of duplicate lines
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -35,7 +35,15 @@ class FeatureBuilder(BaseBuilder["FeatureBuilder"]):
     node_type = "feature"
 
     def __init__(self, sdk: SDK, title: str, **kwargs: Any):
-        """Initialize feature builder with agent attribution."""
+        """Initialize feature builder with agent attribution and validation."""
+        # Validate title before creating builder
+
+        stripped_title = title.strip() if title else ""
+        if not stripped_title:
+            raise ValueError("Feature title cannot be empty or whitespace only")
+        if len(stripped_title) < 3:
+            raise ValueError("Feature title must be at least 3 characters")
+
         super().__init__(sdk, title, **kwargs)
         # Auto-assign agent from SDK for work tracking
         if sdk._agent_id:

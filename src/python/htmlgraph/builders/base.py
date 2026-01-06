@@ -161,6 +161,9 @@ class BaseBuilder(Generic[BuilderT]):
 
         Returns:
             Created Node instance
+
+        Raises:
+            ValueError: If node type requires track_id but none is set
         """
         # Generate collision-resistant ID if not provided
         if "id" not in self._data:
@@ -168,6 +171,33 @@ class BaseBuilder(Generic[BuilderT]):
                 node_type=self._data.get("type", self.node_type),
                 title=self._data.get("title", ""),
             )
+
+        # Validate track_id requirement for features
+        node_type = self._data.get("type", self.node_type)
+        if node_type == "feature" and not self._data.get("track_id"):
+            # Get available tracks for helpful error message
+            try:
+                tracks = self._sdk.tracks.all()
+                track_options = "\n".join(
+                    [f"  - {track.id}: {track.title}" for track in tracks[:10]]
+                )
+                if len(tracks) > 10:
+                    track_options += f"\n  ... and {len(tracks) - 10} more tracks"
+
+                error_msg = (
+                    f"Feature '{self._data.get('title', 'Unknown')}' requires a track linkage.\n\n"
+                    f"Use: .set_track('track_id') to link to a track before saving.\n\n"
+                    f"Available tracks:\n{track_options or '  (no tracks found)'}\n\n"
+                    f"Create a track first: sdk.tracks.create('Track Title')"
+                )
+            except Exception:
+                # Fallback error message if we can't fetch tracks
+                error_msg = (
+                    f"Feature '{self._data.get('title', 'Unknown')}' requires a track linkage.\n"
+                    f"Use: .set_track('track_id') to link to a track before saving."
+                )
+
+            raise ValueError(error_msg)
 
         # Import Node here to avoid circular imports
         from htmlgraph.models import Node

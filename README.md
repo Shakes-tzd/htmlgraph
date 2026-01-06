@@ -215,6 +215,16 @@ uv run python
 
 MIT
 
+## System Prompt & Delegation Documentation
+
+For Claude Code users and teams using HtmlGraph for AI agent coordination:
+
+- **[System Prompt Customization Guide](docs/SYSTEM_PROMPT_CUSTOMIZATION.md)** - Create your system prompt in 5 minutes
+- **[Delegation Enforcement Admin Guide](docs/DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md)** - Setup cost-optimal delegation for your team
+- **[System Prompt Architecture](docs/SYSTEM_PROMPT_ARCHITECTURE.md)** - Technical deep dive into persistence system
+- **[System Prompt Developer Guide](docs/SYSTEM_PROMPT_DEVELOPER_GUIDE.md)** - Extend with custom layers and skills
+- **[System Prompt Troubleshooting](docs/SYSTEM_PROMPT_TROUBLESHOOTING.md)** - Diagnose and fix common issues
+
 ## Links
 
 - [GitHub](https://github.com/Shakes-tzd/htmlgraph)

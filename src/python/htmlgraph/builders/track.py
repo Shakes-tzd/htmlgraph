@@ -679,3 +679,17 @@ class TrackBuilder:
             print(f"  - Plan with {len(self._plan_phases)} phases, {total_tasks} tasks")
 
         return track
+
+    def save(self) -> Track:
+        """
+        Save/create the track (alias for create()).
+
+        Provides API consistency with other builders.
+
+        Returns:
+            Track object that was created
+
+        Example:
+            track = sdk.tracks.create("My Track").save()
+        """
+        return self.create()

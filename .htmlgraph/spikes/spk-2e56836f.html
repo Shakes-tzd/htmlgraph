@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix: Server Startup AttributeError - Path Conversion</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-2e56836f"
+             data-type="spike"
+             data-status="todo"
+             data-priority="critical"
+             data-created="2026-01-05T05:56:44.408118"
+             data-updated="2026-01-05T05:56:44.408122" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Fix: Server Startup AttributeError - Path Conversion</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Identified AttributeError in start_server() - string passed instead of Path</li>
+                <li data-completed="false">⏳ Located root cause in cmd_serve() CLI function</li>
+                <li data-completed="false">⏳ Fixed cmd_serve() to convert string args to Path objects</li>
+                <li data-completed="false">⏳ Verified linting and type checking pass</li>
+                <li data-completed="false">⏳ Tested server startup with Path conversion</li>
+                <li data-completed="false">⏳ All server tests passing (31 tests)</li>
+                <li data-completed="false">⏳ Documented fix with comprehensive testing</li>
+            </ol>
+        </section>
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

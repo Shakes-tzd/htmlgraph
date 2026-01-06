@@ -10,12 +10,9 @@ Verifies that:
 """
 
 from pathlib import Path
-import logging
 
 import pytest
-
 from htmlgraph import SDK
-from htmlgraph.exceptions import ValidationError
 
 
 @pytest.fixture

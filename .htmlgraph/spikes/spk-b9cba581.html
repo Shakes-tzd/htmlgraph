@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Feature-Track Linkage Architecture Redesign - Comprehensive Solution</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b9cba581"
+             data-type="spike"
+             data-status="todo"
+             data-priority="critical"
+             data-created="2026-01-05T07:00:05.821949"
+             data-updated="2026-01-05T07:00:05.821953" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="architect">
+
+        <header>
+            <h1>Feature-Track Linkage Architecture Redesign - Comprehensive Solution</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## EXECUTIVE SUMMARY
+
+**Critical Problem**: 82.2% of features (74/90) and 99.4% of spikes (629/630) are NOT linked to tracks.
+
+**Current State**:
+- 90 total features, only 16 have track_id (17.8% coverage)
+- 630 total spikes, only 4 have track_id (0.6% coverage)  
+- 19 total tracks defined
+- Track linkage completely optional, unenforced
+- No mechanism to assign features at creation time
+- No bulk assignment UI for 704 unlinked items
+
+**Impact**:
+- Planning decisions made on 17.8% of actual work
+- Multi-agent coordination invisible
+- Strategic planning impossible without manual tracking
+
+---
+
+## ROOT CAUSE ANALYSIS
+
+1. **Design Assumption**: Tracks treated as optional organizational layer
+2. **SDK Evolution Gap**: Track linkage added AFTER feature system existed
+3. **Validation Gap**: No constraint in data model (track_id accepts null)
+4. **Missing CLI/UI**: No user-facing track selection during creation
+5. **No Error Handling**: Creating feature without track succeeds silently
+
+---
+
+## PROPOSED SOLUTION: 3-PHASE ARCHITECTURE
+
+### PHASE 1: Immediate (1-2 days) - Prevent NEW Untracked Items
+
+SDK Changes:
+- Add set_track(track_id) method to BaseBuilder
+- Add track_id validation in save() method
+- Raise ValueError with helpful error if track missing
+
+CLI Changes:
+- Add --track flag to 'htmlgraph feature create'
+- Interactive track selection if not specified
+- Auto-select if only 1 track exists
+
+Backward Compatibility: 1-week warning phase
+
+### PHASE 2: Short-term (3-5 days) - Fix 704 Existing Items
+
+Bulk Assignment UI:
+- Dashboard section: "Organize Unlinked Items"
+- Interactive grid with search/filter
+- Bulk select and assign to track
+- Progress bar + completion report
+
+CLI Command:
+- htmlgraph bulk-assign --track trk-xxx --dry-run
+- htmlgraph bulk-assign --track trk-xxx
+
+### PHASE 3: Long-term (1-2 weeks) - Intelligent Auto-Assignment
+
+Track Suggester:
+- Analyze feature title + description
+- Match keywords to track titles
+- Suggest most likely track
+
+Track-Based Planning:
+- Query features by track
+- View track progress
+- Dashboard track organization view
+
+---
+
+## SUCCESS METRICS
+
+Before:
+- Untracked items: 700 (82% features, 99% spikes)
+- Track-based planning coverage: 17.8%
+
+After PHASE 1:
+- New untracked items: 0 (prevented)
+- Coverage: 100% for new features
+
+After PHASE 2:
+- Total untracked: 0 (all 700 fixed)
+- Track-based planning coverage: 100%
+
+After PHASE 3:
+- Auto-assignment with intelligent suggestions
+- Track-based work planning fully operational
+
+---
+
+## EFFORT ESTIMATION
+
+PHASE 1: 1-2 days, 8-12h
+PHASE 2: 3-5 days, 16-24h
+PHASE 3: 1-2 weeks, 24-32h
+Testing/Docs: 3-5 days, 12-24h
+TOTAL: 2-4 weeks, 60-92h
+
+---
+
+## FILES TO CREATE/MODIFY
+
+New Files:
+- src/python/htmlgraph/operations/bulk_assignment.py
+- src/python/htmlgraph/cli_commands/bulk_assign.py
+- tests/python/test_feature_track_linkage.py
+
+Modified Files:
+- src/python/htmlgraph/builders/base.py
+- src/python/htmlgraph/builders/feature.py
+- src/python/htmlgraph/cli_commands/feature.py
+- src/python/htmlgraph/sdk.py
+- src/python/htmlgraph/dashboard.html
+
+---
+
+## NEXT STEPS
+
+1. Review design with team
+2. Approve 3-phase implementation sequence
+3. Start PHASE 1 this week (highest priority)
+4. Execute PHASE 2 bulk assignment
+5. Plan PHASE 3 for next sprint
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

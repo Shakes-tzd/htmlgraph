@@ -15,6 +15,7 @@ from htmlgraph.collections.metric import MetricCollection
 from htmlgraph.collections.pattern import PatternCollection
 from htmlgraph.collections.phase import PhaseCollection
 from htmlgraph.collections.spike import SpikeCollection
+from htmlgraph.collections.task_delegation import TaskDelegationCollection
 from htmlgraph.collections.todo import TodoCollection
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "InsightCollection",
     "MetricCollection",
     "TodoCollection",
+    "TaskDelegationCollection",
 ]

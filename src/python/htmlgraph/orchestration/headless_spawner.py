@@ -382,14 +382,14 @@ class HeadlessSpawner:
 
         Args:
             prompt: Task description for Gemini
-            output_format: "json" or "stream-json" (default: "stream-json" for real-time tracking)
-            model: Model selection (e.g., "gemini-2.0-flash"). Default: None (uses default)
-            include_directories: List of directories to include for context. Default: None
+            output_format: "json" or "stream-json" (enables real-time tracking)
+            model: Model selection (e.g., "gemini-2.0-flash"). Default: None
+            include_directories: Directories to include for context. Default: None
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
 
         Returns:
-            AIResult with response or error and tracked events if tracking enabled
+            AIResult with response, error, and tracked events if tracking enabled
         """
         # Initialize tracking if enabled
         sdk: SDK | None = None
@@ -585,17 +585,17 @@ class HeadlessSpawner:
 
         Args:
             prompt: Task description for Codex
-            output_json: Use --json flag for JSONL output (enables real-time tracking)
+            output_json: JSONL output flag (enables real-time tracking)
             model: Model selection (e.g., "gpt-4-turbo"). Default: None
-            sandbox: Sandbox mode ("read-only", "workspace-write", "danger-full-access"). Default: None
-            full_auto: Enable full auto mode (--full-auto). Default: True (required for headless)
+            sandbox: Sandbox mode ("read-only", "workspace-write", or full)
+            full_auto: Enable full auto mode. Default: True (required headless)
             images: List of image paths (--image). Default: None
-            output_last_message: Write last message to file (--output-last-message). Default: None
-            output_schema: JSON schema for validation (--output-schema). Default: None
-            skip_git_check: Skip git repo check (--skip-git-repo-check). Default: False
+            output_last_message: Write last message to file. Default: None
+            output_schema: JSON schema for validation. Default: None
+            skip_git_check: Skip git repo check. Default: False
             working_directory: Workspace directory (--cd). Default: None
             use_oss: Use local Ollama provider (--oss). Default: False
-            bypass_approvals: Dangerously bypass approvals (--dangerously-bypass-approvals-and-sandbox). Default: False
+            bypass_approvals: Bypass approval checks. Default: False
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
 
@@ -794,9 +794,9 @@ class HeadlessSpawner:
 
         Args:
             prompt: Task description for Copilot
-            allow_tools: List of tools to auto-approve (e.g., ["shell(git)", "write(*.py)"])
-            allow_all_tools: Auto-approve all tools (--allow-all-tools). Default: False
-            deny_tools: List of tools to deny (--deny-tool). Default: None
+            allow_tools: Tools to auto-approve (e.g., ["shell(git)"])
+            allow_all_tools: Auto-approve all tools. Default: False
+            deny_tools: Tools to deny (--deny-tool). Default: None
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
 

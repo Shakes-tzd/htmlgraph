@@ -98,15 +98,28 @@ class SpikeBuilder(BaseBuilder["SpikeBuilder"]):
         Set the findings/learnings from spike investigation.
 
         Args:
-            findings: Summary of what was learned
+            findings: Summary of what was learned (must be non-empty, min 10 chars)
 
         Returns:
             Self for method chaining
 
+        Raises:
+            ValueError: If findings are empty or too short
+
         Example:
             >>> spike.set_findings("OAuth2 is best fit. Recommend Auth0.")
         """
-        self._data["findings"] = findings
+        # Validate findings quality
+        stripped = findings.strip() if findings else ""
+        if not stripped:
+            raise ValueError(
+                "Findings cannot be empty. Provide meaningful investigation results."
+            )
+        if len(stripped) < 10:
+            raise ValueError(
+                "Findings must be at least 10 characters. Provide detailed results."
+            )
+        self._data["findings"] = stripped
         return self
 
     def set_decision(self, decision: str) -> SpikeBuilder:

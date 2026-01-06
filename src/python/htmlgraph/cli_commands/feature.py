@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.table import Table
 
 from htmlgraph.cli_framework import BaseCommand, CommandError, CommandResult
@@ -20,6 +21,7 @@ class FeatureCreateCommand(BaseCommand):
         description: str,
         priority: str,
         steps: Iterable[str] | None,
+        track_id: str | None = None,
     ) -> None:
         super().__init__()
         self.collection = collection
@@ -27,11 +29,46 @@ class FeatureCreateCommand(BaseCommand):
         self.description = description
         self.priority = priority
         self.steps = list(steps) if steps else []
+        self.track_id = track_id
 
     def execute(self) -> CommandResult:
         sdk = self.get_sdk()
 
+        # Determine track_id for feature creation
+        track_id = self.track_id
+
+        # Only enforce track selection for main features collection
         if self.collection == "features":
+            if not track_id:
+                # Get available tracks
+                try:
+                    tracks = sdk.tracks.all()
+                    if not tracks:
+                        raise CommandError(
+                            "No tracks found. Create a track first:\n"
+                            "  uv run htmlgraph track new 'Track Title'"
+                        )
+
+                    if len(tracks) == 1:
+                        # Auto-select if only one track exists
+                        track_id = tracks[0].id
+                        _console.print(
+                            f"[dim]Auto-selected track: {tracks[0].title}[/dim]"
+                        )
+                    else:
+                        # Interactive selection
+                        _console.print("[bold]Available Tracks:[/bold]")
+                        for i, track in enumerate(tracks, 1):
+                            _console.print(f"  {i}. {track.title} ({track.id})")
+
+                        selection = Prompt.ask(
+                            "Select track",
+                            choices=[str(i) for i in range(1, len(tracks) + 1)],
+                        )
+                        track_id = tracks[int(selection) - 1].id
+                except Exception as e:
+                    raise CommandError(f"Failed to get available tracks: {e}")
+
             builder = sdk.features.create(
                 title=self.title,
                 description=self.description,
@@ -39,6 +76,8 @@ class FeatureCreateCommand(BaseCommand):
             )
             if self.steps:
                 builder.add_steps(self.steps)
+            if track_id:
+                builder.set_track(track_id)
             node = builder.save()
         else:
             node = sdk.session_manager.create_feature(
@@ -58,6 +97,8 @@ class FeatureCreateCommand(BaseCommand):
         table.add_row("Created:", f"[green]{node.id}[/green]")
         table.add_row("Title:", f"[yellow]{node.title}[/yellow]")
         table.add_row("Status:", f"[blue]{node.status}[/blue]")
+        if node.track_id:
+            table.add_row("Track:", f"[cyan]{node.track_id}[/cyan]")
         table.add_row(
             "Path:", f"[dim]{self.graph_dir}/{self.collection}/{node.id}.html[/dim]"
         )
@@ -67,8 +108,11 @@ class FeatureCreateCommand(BaseCommand):
             f"Created: {node.id}",
             f"  Title: {node.title}",
             f"  Status: {node.status}",
-            f"  Path: {self.graph_dir}/{self.collection}/{node.id}.html",
         ]
+        if node.track_id:
+            text.append(f"  Track: {node.track_id}")
+        text.append(f"  Path: {self.graph_dir}/{self.collection}/{node.id}.html")
+
         return CommandResult(data=node, text=text)
 
 

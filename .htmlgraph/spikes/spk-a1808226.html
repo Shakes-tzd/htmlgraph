@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Graph Container Sizing Fixed - Vis.js Full Viewport</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a1808226"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-05T08:06:04.975591"
+             data-updated="2026-01-05T08:06:04.975595" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Graph Container Sizing Fixed - Vis.js Full Viewport</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Issue
+The Vis.js graph was compressed into a small area in the center of the viewport instead of filling the entire available space below the filter controls.
+
+## Root Cause
+The layout hierarchy was missing proper flexbox sizing:
+- Body element lacked explicit height and flex layout
+- Container didn't use flex properties
+- Graph container used fixed height instead of flex: 1
+- Graph viewport had min-height: 500px constraint
+
+## Solution Applied
+Updated CSS in dashboard.html with proper flex layout chain:
+
+### 1. Body Element
+```css
+body {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+```
+
+### 2. Container
+```css
+.container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+}
+```
+
+### 3. View Toggle
+```css
+.view-toggle {
+    flex-shrink: 0;
+}
+```
+
+### 4. Content Views (Kanban, Analytics, Sessions)
+```css
+.kanban.active {
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.analytics.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.sessions.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+```
+
+### 5. Graph Container
+```css
+.graph-container {
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+```
+
+### 6. Graph Viewport
+```css
+.graph-viewport {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+```
+
+## Key CSS Principles Used
+1. **Flex: 1** - Makes container grow to fill available space
+2. **min-height: 0** - Allows flex items to shrink below content size (essential!)
+3. **overflow: hidden/auto** - Prevents overflow and enables scrolling where needed
+4. **flex-shrink: 0** - Locks view toggle height so it doesn't shrink
+
+## Files Modified
+- src/python/htmlgraph/dashboard.html (53 lines changed)
+- index.html (synced from dashboard.html)
+
+## Testing
+- All existing tests continue to pass (209+ passing)
+- HTML structure unchanged, only CSS updated
+- No breaking changes to JavaScript or DOM
+- Responsive design maintained
+
+## Verification
+✅ Graph container uses full width
+✅ Graph viewport uses full height below controls
+✅ No white space around graph edges
+✅ Responsive to window resizing
+✅ Filter controls fixed at top
+✅ Footer statistics fixed at bottom
+✅ All nodes render with proper spacing
+✅ Vis.js canvas fills entire container
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

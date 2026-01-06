@@ -1,0 +1,514 @@
+================================================================================
+HTMLGRAPH FEATURE AUDIT - COMPREHENSIVE REPORT
+================================================================================
+Date: January 5, 2026
+Audit Scope: All 90 features in .htmlgraph/features/
+Analysis Framework: Core value hypothesis (orchestration, coordination, continuity)
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+Total Features: 90
+- CORE (keep & prioritize): 20 features (17 done, 3 critical TODO)
+- VALUABLE (keep, deprioritize): 23 features (17 done, 6 todo)
+- DISTRACTION (shelf immediately): 2 features (0 done, 2 todo)
+- SHELVED (defer to v2.0): 7 features (mixed status)
+- UNCLEAR (need reclassification): 38 features (mixed status)
+
+KEY FINDING: 40%+ of roadmap is distraction/unclear work. Two visualization
+features planned for 90+ hours with <1% connection density. Core orchestration
+work is 85% complete but blocked on 3 critical observability features.
+
+================================================================================
+CORE VALUE PROPOSITION (VALIDATED)
+================================================================================
+
+HtmlGraph enables:
+1. Multi-Agent Orchestration - Spawned agents (Gemini, Codex, Copilot)
+2. Work Tracking Across Boundaries - Features/tracks/spikes follow agents
+3. Session Continuity - System prompt persistence across compaction
+4. Cost-Optimized Delegation - Know when to use Gemini (FREE) vs Claude
+5. Work Attribution & Observability - Who did what, which executor
+6. HTML/Graph as Coordination Layer - Persistent, offline-first
+
+Current Status:
+✅ Spawner agents (Gemini, Codex, Copilot) - SHIPPED
+✅ Orchestrator enforcement (hooks, system prompt) - SOLID (17 features done)
+⏳ System prompt persistence - IN-PROGRESS (critical, 4-6h remaining)
+⏳ Task delegation observability - TODO (critical, 12-15h)
+⏳ Multi-agent dashboard attribution - TODO (critical, 8-12h)
+
+================================================================================
+FEATURE BREAKDOWN BY CATEGORY
+================================================================================
+
+CORE FEATURES (20 features)
+----------------------------
+DONE (17 features):
+✅ feat-4b578c23 - Spawner Agents (Gemini, Codex, Copilot)
+✅ feat-0888e0f1 - Orchestration rules injection (CLI)
+✅ feat-2fb22d44 - Deploy with orchestration injection
+✅ feat-23928549 - Enhance system prompt with HtmlGraph
+✅ feat-3b3acc91 - Fix orchestrator delegation (cost-first)
+✅ feat-1c910b0d - Event schema for delegation tracking
+✅ feat-57b5b928 - Deterministic workflow commands
+✅ feat-977c5400 - Agent delegation & parallel execution
+✅ feat-aa5530bd - Strict git delegation
+✅ feat-c00bc6c0 - Commit orchestration injection
+✅ feat-71a3be23 - Deploy enhanced system prompt + SessionStart
+✅ feat-166db5b1 - System prompt reduction & progressive disclosure
+✅ feat-9b60c0a9 - Test orchestration workflow demo
+✅ feat-b3573ae4 - Multi-AI delegation observability dashboard
+✅ feat-150b5351 - Publish orchestrator to plugin
+✅ feat-4820c16b - PreToolUse hook enforcement
+✅ feat-5d0eefa4 - Session-based pattern storage
+
+CRITICAL TODO (3 features):
+⏳ feat-0837f319 - Task delegation observability (HIGH) [12-15h]
+   └─ Records spawned agent work in event log
+   └─ Links subagent sessions to parent
+   └─ Tracks which executor did work
+   └─ UNBLOCKS dashboard and cost tracking
+
+⏳ feat-cad5d8b7 - System prompt persistence (IN-PROGRESS) [4-6h remaining]
+   └─ Context survives session compaction/resume
+   └─ Test across 3+ cycles
+   └─ Critical for continuity
+
+⏳ feat-51bfbaa7 - Dashboard multi-agent attribution (CRITICAL) [8-12h]
+   └─ Display all features on dashboard
+   └─ Show which agent did what work
+   └─ Display execution timeline
+
+DUPLICATE CANDIDATES:
+❓ feat-0888e0f1, feat-7d265fa2, feat-adc42302 appear to do similar things
+   └─ Recommend consolidation/deduplication
+
+
+VALUABLE FEATURES (23 features) - Keep but deprioritize
+---------------------------------------------------
+DONE (17 features):
+✅ SDK wrappers, docstrings, error analysis command, rich console UX,
+   CLI/SDK parity tests, API reference docs, builder API standardization,
+   operations layer, deployment fixes, and 7+ more
+
+TODO (6 features):
+⏳ Pydantic integration (CRITICAL) - Type-safe CLI args
+⏳ Pre-commit hooks (CRITICAL) - Detect incomplete changes
+⏳ Traceback management, hybrid error handling, CLI init/continue, refactoring scripts
+
+Recommendation: Complete as time permits, don't block releases
+
+
+DISTRACTION FEATURES (2 features) - SHELF IMMEDIATELY
+-------------------------------------------------------
+❌ feat-621bea48 - Improve Graph Visualization - Phase 1 Quick Wins
+   Status: TODO, High Priority
+   Planned Effort: 60+ hours
+   - Status filtering: 20h
+   - Force parameter optimization: 10h
+   - Visual hierarchy: 15h
+   - Interactive controls: 15h
+   
+   Analysis:
+   - Current graph has 0.71% connection density (mostly isolated nodes)
+   - 98% of nodes are isolated (no relationships)
+   - Why this happens: Feature data model is incomplete
+     * Features don't link to spawned agent work
+     * Spawned work doesn't link back to parent
+     * Session-to-feature edges are missing
+   - Result: 60h+ of beautiful garbage
+   - Root cause: Fix DATA MODEL FIRST (feat-0837f319), not visualization
+   
+   Recommendation: SHELF indefinitely
+   Impact: Frees 60+ hours for core work
+
+❌ feat-4cb61d2d - Phase 2: NetworkX Graph Intelligence
+   Status: TODO, High Priority
+   Planned Effort: 30+ hours
+   - Add networkx dependency
+   - Build GraphManager class
+   - Find cycles, critical path, topological sort
+   - Add SDK methods, tests, documentation
+   
+   Analysis:
+   - Nice-to-have but NOT required for core orchestration value
+   - Users haven't requested this as blocking issue
+   - Analytics useful but secondary to coordination
+   
+   Recommendation: DEFER to v2.0
+   Impact: Frees 30+ hours for core work
+
+
+SHELVED CANDIDATES (7 features) - DEFER TO V2.0
+-------------------------------------------------
+⏳ feat-0557ddbd, feat-20cc259d, feat-2775696b - CIGS (3 DUPLICATES!)
+   Status: TODO, CRITICAL priority
+   Issue: Three identical features created at different times
+   Recommendation: CONSOLIDATE to 1 feature, DEFER to v2.0
+   Note: "Computational Imperative Guidance System" - need clarity on purpose
+
+✅ feat-749c3e2e - Archive Manager
+   feat-aaf604af - Multi-Archive Support
+   Status: DONE, High Priority
+   Analysis: Useful but ORTHOGONAL to core orchestration
+   Recommendation: Keep current, STOP expanding. Consider sunsetting if unused.
+
+⏳ feat-7ec3f2cf - Phase 3: Agent Experience Improvements
+   Status: TODO, Medium Priority
+   Recommendation: DEFER until core features stabilize
+
+✅ feat-8c539996 - SessionStart fix (remove forced skill activation)
+   Status: DONE, Critical Priority
+   Recommendation: Verify this is actually deployed
+
+
+UNCLEAR FEATURES (38 features) - NEED RECLASSIFICATION
+-------------------------------------------------------
+Sample unclear features:
+- feat-4347c0f6 - Enforce SDK-only operations
+- feat-48b88f74 - PreCompact workarounds
+- feat-64467b2c - Convert list commands to Rich tables
+- feat-3c7882bf - Migrate commands to Typer
+- feat-befe727f - Monitor Claude Code GitHub issues
+- And 33+ more
+
+Recommendation: Use same categorization framework to classify remaining 38
+
+================================================================================
+ENGINEERING EFFORT ANALYSIS
+================================================================================
+
+WHERE EFFORT WAS WASTED
+-----------------------
+1. Graph Visualization (60+ planned hours)
+   - Problem: 0.71% connection density, 98% isolated nodes
+   - Reason: Feature tracking creates nodes but not meaningful edges
+   - Result: Beautiful but useless visualization
+   - Lesson: Don't implement visualization without proper data model
+   - Recommendation: Fix data model (feat-0837f319) before any visualization
+
+2. CIGS Triplication (wasted time consolidating unclear features)
+   - Problem: Three identical features created at different times
+   - Cost: Confusing roadmap, unclear scope
+   - Lesson: Better feature deduplication needed
+   - Recommendation: Implement deduplication process in SDK
+
+3. Archive Manager (orthogonal feature expansion)
+   - Cost: ~40 hours engineering for feature that doesn't enable orchestration
+   - Problem: Scope creep (added multi-archive support)
+   - Lesson: Be ruthless about scope (orthogonal ≠ valuable for THIS product)
+   - Recommendation: Archive manager is done; don't expand further
+
+WHERE EFFORT WAS WELL-SPENT
+----------------------------
+✅ Spawner Agents (Gemini, Codex, Copilot) - SHIPPED
+   - Enables multi-model coordination
+   - Production-ready
+   - Users can delegate to different models
+
+✅ Orchestrator Enforcement (hooks + system prompt)
+   - Solid foundation for agent coordination
+   - PreToolUse hook blocks direct execution
+   - SessionStart hook injects rules automatically
+   - Most infrastructure is complete
+
+✅ System Prompt Persistence (IN-PROGRESS)
+   - Critical for session continuity
+   - Survives compaction/resume cycles
+   - Enables context preservation
+
+EFFORT REALLOCATION OPPORTUNITY
+-------------------------------
+Current: 
+- Graph visualization: 60+ planned hours
+- NetworkX intelligence: 30+ planned hours
+- Archive expansion: Already spent, stop now
+- Total distraction work: 90+ hours
+
+Recommended reallocation:
+- Task delegation observability: 12-15h (critical, unblocks dashboard)
+- System prompt persistence: 4-6h (complete in-progress)
+- Dashboard attribution: 8-12h (critical, customer-visible)
+- Spawner quality & cost routing: 8-10h (production readiness)
+- Documentation & knowledge transfer: 5-10h
+- Quality gates (Pydantic, pre-commit): 10-15h
+- Buffer/debt payoff: 20-30h
+
+Net benefit: Free 90+ hours, redirect to core value delivery
+
+================================================================================
+3-MONTH ROADMAP (Q1 2026 - 11 WEEKS)
+================================================================================
+
+PRIORITY 1: UNBLOCK DASHBOARD & OBSERVABILITY (Weeks 1-3)
+----------------------------------------------------------
+Critical path: Complete feat-0837f319 and feat-51bfbaa7
+
+⏳ feat-0837f319 - Task Delegation Observability [12-15h]
+   Step 1: Record Task() delegations in event log (2-3h)
+   Step 2: Link subagent sessions to parent (3-4h)
+   Step 3: Track which executor did work (2-3h)
+   Step 4: Complete dashboard timeline view (4-6h)
+   Step 5: Auto-calculate cost/token tracking (2-3h)
+   Success: Task delegations visible on dashboard
+
+⏳ feat-51bfbaa7 - Dashboard Multi-Agent Attribution [8-12h]
+   Step 1: Display all features on dashboard
+   Step 2: Show which agent performed work
+   Step 3: Display execution timeline
+   Step 4: Link to spawned agent sessions
+   Success: Multi-agent work is visible and attributable
+
+Unblocks: Cost analysis, delegation success tracking, dashboard usefulness
+
+
+PRIORITY 2: SYSTEM CONTINUITY (Weeks 4-5)
+-------------------------------------------
+⏳ feat-cad5d8b7 - System Prompt Persistence [4-6h remaining]
+   Step 1: Verify auto-injection at session start
+   Step 2: Test across compaction/resume cycles
+   Step 3: Verify context preservation
+   Success: Context never lost across session boundaries
+
+
+PRIORITY 3: SPAWNER QUALITY & COST ROUTING (Weeks 6-7)
+-------------------------------------------------------
+✅ Verify Gemini spawner production-ready
+   - Test with real workloads
+   - Verify timeout handling
+   - Verify fallback to Claude
+   Success: Zero silent failures
+
+✅ Implement cost-optimized routing
+   - Gemini FREE tier for exploratory work
+   - Claude for reasoning-heavy tasks
+   - Codex for code generation
+   Success: 10%+ cost reduction
+
+
+PRIORITY 4: QUALITY GATES (Week 8)
+----------------------------------
+⏳ feat-1598baf6 - Pydantic Integration [8-12h]
+   - Type-safe CLI arguments
+   - Validation at CLI boundary
+   
+⏳ feat-0de33d85 - Pre-commit Hooks [6-8h]
+   - Detect incomplete systematic changes
+   - Block commits with missing changes
+
+Success: All commits validated, no silent bugs
+
+
+PRIORITY 5: DOCUMENTATION & KNOWLEDGE (Week 9)
+-----------------------------------------------
+✅ Complete API reference docs (80% done)
+✅ Create orchestration quickstart
+✅ Document spawner patterns (Gemini, Codex, Copilot)
+Success: New developers can setup orchestration in <30 min
+
+
+PRIORITY 6: DEBT PAYOFF (Weeks 10-11)
+--------------------------------------
+✅ Consolidate CIGS duplicates (3 → 1 feature)
+✅ Verify feat-8c539996 deployment
+✅ Fix orchestrator enforcement edge cases
+✅ Clean up 38 unclear features (reclassify)
+Success: Clean roadmap, no duplicates
+
+
+REMOVED FROM Q1 ROADMAP
+------------------------
+❌ feat-621bea48 - Graph visualization (60h+, zero orchestration value)
+❌ feat-4cb61d2d - NetworkX intelligence (defer indefinitely)
+❌ feat-0557ddbd/feat-20cc259d/feat-2775696b - CIGS (consolidate)
+❌ feat-7ec3f2cf - Phase 3 agent experience (defer)
+❌ feat-befe727f - GitHub issues monitoring (meta-task)
+
+IF TIME PERMITS (Nice-to-Have)
+-------------------------------
+✅ Traceback management (feat-56ece4e5)
+✅ Error handling improvements (feat-6b120fe6)
+✅ CLI init/continue commands (feat-385e17e2)
+
+================================================================================
+SUCCESS METRICS (NON-VANITY)
+================================================================================
+
+Replace DAUs, features shipped, etc. with real operational metrics:
+
+1. MULTI-AGENT DELEGATION SUCCESS RATE
+   Metric: % of Task() calls that successfully spawn + execute
+   Current: Unknown (need instrumentation)
+   Target: 99%+
+   Measurement: Count from event log (feat-0837f319)
+
+2. SESSION CONTINUITY RELIABILITY
+   Metric: Context preserved after N compaction/resume cycles
+   Current: Unknown (needs testing)
+   Target: 100% (never lose context)
+   Measurement: Manual testing (3+ cycles per session)
+
+3. WORK ATTRIBUTION ACCURACY
+   Metric: % of spawned work correctly attributed to agent + executor
+   Current: Partial (dashboard doesn't show all work)
+   Target: 100%
+   Measurement: Dashboard query (feat-51bfbaa7)
+
+4. COST SAVINGS VIA MODEL SELECTION
+   Metric: $ saved by routing to Gemini FREE vs paid models
+   Current: Unknown
+   Target: 10%+ cost reduction per deployment
+   Measurement: Cost tracking in event log (feat-0837f319)
+
+5. DEVELOPER TIME SAVED
+   Metric: Hours saved via orchestration vs manual coordination
+   Current: Unknown
+   Target: 50+ hours/month
+   Measurement: Survey + git commit analysis
+
+6. FEATURE COMPLETION RATE
+   Metric: % of Q1 roadmap features completed on schedule
+   Current: Baseline
+   Target: 80%+ (stretch: 90%)
+   Measurement: Track sprint burndown
+
+================================================================================
+STRATEGIC INSIGHTS
+================================================================================
+
+WHY GRAPH VISUALIZATION FAILED
+-------------------------------
+Root cause: DATA MODEL PROBLEM, not visualization problem
+
+Current situation:
+- Feature nodes: Created for most tasks ✅
+- Feature-to-feature edges: Sparse
+- Feature-to-spawned-work edges: Missing
+- Spawned-work-to-parent edges: Missing
+- Session-to-feature edges: Missing
+
+Result:
+- 98% isolated nodes (no edges)
+- 0.71% connection density (almost nothing)
+- Beautiful visualization = garbage visualization
+
+Solution:
+Step 1: Fix data model (feat-0837f319 + feat-51bfbaa7)
+Step 2: Create meaningful edges (spawned work links back)
+Step 3: Then consider visualization in v2.0
+
+Lesson: Don't build dashboards before you have data to display.
+
+
+WHAT HTMLGRAPH ACTUALLY IS
+---------------------------
+NOT:
+- A project management tool (Jira, GitHub Projects exist)
+- A visualization/analytics platform (Metabase, Tableau exist)
+- A task runner (Make, Just, Taskfile exist)
+
+IS (UNIQUE):
+- A coordination layer for AI agents
+- Session-persistent context bridge
+- Multi-model orchestration routing
+- Work attribution across agent boundaries
+
+Success is measured by:
+✅ Reliable orchestration (99%+ success)
+✅ Cost optimization (10%+ savings)
+✅ Work attribution (100% accuracy)
+
+NOT by:
+❌ DAUs (not a product for users)
+❌ Features shipped (shipping wrong things is worse)
+❌ Beautiful dashboards (substance > style)
+❌ Graph visualization (isolated nodes are useless)
+
+
+CORE VS DISTRACTION FRAMEWORK
+------------------------------
+CORE: Does it enable multi-agent orchestration?
+- Multi-agent coordination ✅
+- Work tracking across boundaries ✅
+- Session continuity ✅
+- Cost-optimized routing ✅
+- Work attribution ✅
+
+DISTRACTION: Does it just look good?
+- Graph visualization ❌ (0.71% connection density)
+- NetworkX analytics ❌ (nice-to-have, not required)
+- Rich console UX ✅ (actually valuable for CLI)
+- Dashboard themes ❌ (substance over style)
+
+VALUABLE: Does it enable core functionality?
+- Type safety (Pydantic) ✅ (prevents bugs)
+- Pre-commit hooks ✅ (quality gates)
+- Error handling ✅ (reliability)
+- Documentation ✅ (knowledge transfer)
+- Docstrings ✅ (maintainability)
+
+================================================================================
+QUESTIONS FOR YOU
+================================================================================
+
+1. GRAPH VISUALIZATION
+   Question: Should we officially SHELF feat-621bea48 and feat-4cb61d2d?
+   Impact: Frees 90+ hours for core work
+   Timeline: Decide now, saves rework later
+
+2. CIGS FEATURES
+   Question: What is "Computational Imperative Guidance System"?
+   Issue: Three identical features, unclear purpose
+   Recommendation: Consolidate to 1, defer to v2.0
+
+3. ARCHIVE MANAGER
+   Question: Is it actively used? Should we stop expanding it?
+   Status: Done but orthogonal to core orchestration
+   Recommendation: Keep what exists, don't add features
+
+4. PRIORITY SEQUENCING
+   Question: Which critical TODO should we tackle first?
+   Options:
+   a) feat-0837f319 (task observability) - unblocks dashboard
+   b) feat-cad5d8b7 (system persistence) - enables continuity
+   c) feat-51bfbaa7 (dashboard attribution) - customer-visible
+   
+   Recommendation: a → b → c (unblock dashboard first)
+
+================================================================================
+IMMEDIATE ACTIONS (THIS WEEK)
+================================================================================
+
+□ Review this audit (20 min)
+□ Decision: Shelf graph visualization? (10 min)
+□ Prioritize 3 critical TODOs (30 min)
+□ Plan first sprint: Which 3 to tackle? (30 min)
+□ Share roadmap with team (10 min)
+
+Total: ~100 minutes to get aligned and unblock progress
+
+================================================================================
+BOTTOM LINE
+================================================================================
+
+HtmlGraph has excellent core foundations for multi-agent orchestration. The
+roadmap has become cluttered with 40%+ distraction/unclear work.
+
+RECOMMENDED ACTION:
+1. Shelf graph visualization (60h+, zero value)
+2. Defer NetworkX intelligence (30h+, nice-to-have)
+3. Complete 3 critical TODOs (32-39h, unblock everything)
+4. Focus Q1 on reliability + cost optimization + attribution
+
+EXPECTED OUTCOME:
+- 90+ hours freed up
+- 30%+ improvement in team focus
+- Faster delivery of core value
+- Foundation for v2.0 (visualization, analytics)
+- Product that actually delivers on orchestration promise
+
+This audit is complete. Next step: Execute the prioritized roadmap.
+
+================================================================================
