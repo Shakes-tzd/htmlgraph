@@ -260,6 +260,9 @@ def get_app(db_path: str) -> FastAPI:
                     }
                 )
 
+            # Reverse to preserve DESC order from database query (newest first)
+            hierarchical_events.reverse()
+
             return templates.TemplateResponse(
                 "partials/activity-feed-hierarchical.html",
                 {
