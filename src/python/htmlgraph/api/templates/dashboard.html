@@ -83,6 +83,7 @@
         let eventCount = 0;
         let agentSet = new Set();
         let sessionCount = 0;
+        let processedEventIds = new Set();
 
         // Initialize dashboard on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -98,7 +99,8 @@
             const ws = new WebSocket(wsProtocol + '//' + window.location.host + '/ws/events');
 
             ws.onopen = function(event) {
-                console.log('WebSocket connected');
+                console.log('WebSocket connected for real-time events');
+                updateWebSocketStatus(true);
             };
 
             ws.onmessage = function(event) {
@@ -106,6 +108,12 @@
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'event') {
+                        // Prevent duplicate event insertions
+                        if (processedEventIds.has(data.event_id)) {
+                            return;
+                        }
+                        processedEventIds.add(data.event_id);
+
                         // Update stats
                         eventCount++;
                         if (data.agent_id) {
@@ -116,10 +124,13 @@
                         document.getElementById('event-count').textContent = eventCount;
                         document.getElementById('agent-count').textContent = agentSet.size;
 
-                        // Add animation class
+                        // Add animation class to event count badge
                         const badge = document.getElementById('event-count').parentElement;
                         badge.classList.add('pulse');
                         setTimeout(() => badge.classList.remove('pulse'), 500);
+
+                        // Insert new event into Activity Feed if visible
+                        insertNewEventIntoActivityFeed(data);
                     }
                 } catch (e) {
                     console.error('WebSocket message error:', e);
@@ -128,12 +139,136 @@
 
             ws.onerror = function(event) {
                 console.error('WebSocket error:', event);
+                updateWebSocketStatus(false);
             };
 
             ws.onclose = function(event) {
                 console.log('WebSocket disconnected, reconnecting in 3s...');
+                updateWebSocketStatus(false);
                 setTimeout(connectWebSocket, 3000);
             };
+        }
+
+        function updateWebSocketStatus(isConnected) {
+            // Update live update indicator in activity feed
+            const indicator = document.querySelector('.auto-refresh-indicator');
+            if (indicator) {
+                const dot = indicator.querySelector('.refresh-dot');
+                if (isConnected) {
+                    dot.style.backgroundColor = '#10b981';
+                    indicator.style.opacity = '1';
+                } else {
+                    dot.style.backgroundColor = '#ef4444';
+                    indicator.style.opacity = '0.6';
+                }
+            }
+        }
+
+        function insertNewEventIntoActivityFeed(eventData) {
+            // Check if activity feed is currently displayed
+            const activityFeed = document.querySelector('.activity-feed-view');
+            if (!activityFeed) {
+                // Activity feed not visible, skip insertion
+                return;
+            }
+
+            const activityList = activityFeed.querySelector('.activity-list');
+            if (!activityList) {
+                return;
+            }
+
+            // Check if there's an empty state message
+            const emptyState = activityList.querySelector('.empty-state');
+            if (emptyState) {
+                // Replace empty state with first event
+                emptyState.remove();
+            }
+
+            // Create new activity item HTML
+            const eventItem = createActivityItemHTML(eventData);
+
+            // Insert at the top of the activity list
+            const firstItem = activityList.querySelector('.activity-group');
+            if (firstItem) {
+                firstItem.insertAdjacentHTML('beforebegin', eventItem);
+            } else {
+                activityList.insertAdjacentHTML('afterbegin', eventItem);
+            }
+
+            // Highlight the new item
+            const newItem = activityList.querySelector('.activity-group:first-child');
+            if (newItem) {
+                newItem.classList.add('new-event-highlight');
+                // Remove highlight after animation
+                setTimeout(() => {
+                    newItem.classList.remove('new-event-highlight');
+                }, 2000);
+            }
+
+            // Keep only last 100 events in feed to prevent memory issues
+            const allItems = activityList.querySelectorAll('.activity-group');
+            if (allItems.length > 100) {
+                // Remove oldest items from bottom
+                const itemsToRemove = allItems.length - 100;
+                for (let i = 0; i < itemsToRemove; i++) {
+                    allItems[allItems.length - 1 - i].remove();
+                }
+            }
+        }
+
+        function createActivityItemHTML(eventData) {
+            // Determine event type emoji
+            let eventEmoji = '📋';
+            if (eventData.event_type === 'delegation') {
+                eventEmoji = '🔗';
+            } else if (eventData.event_type === 'tool_call') {
+                eventEmoji = '🔨';
+            } else if (eventData.event_type === 'completion') {
+                eventEmoji = '🎉';
+            } else if (eventData.event_type === 'tool_result') {
+                eventEmoji = '✅';
+            } else if (eventData.event_type === 'error') {
+                eventEmoji = '❌';
+            }
+
+            // Create activity group HTML
+            const html = `
+                <div class="activity-group" data-parent-id="${escapeHtml(eventData.event_id)}">
+                    <div class="activity-item parent-event event-${eventData.status || 'pending'}">
+                        <div class="activity-item-header">
+                            <span class="parent-indicator">📌</span>
+                            <span class="event-type-badge" title="${escapeHtml(eventData.event_type)}">
+                                ${eventEmoji}
+                            </span>
+                            <span class="agent-name">${escapeHtml(eventData.agent_id)}</span>
+                            <span class="event-timestamp">${escapeHtml(eventData.timestamp)}</span>
+                        </div>
+                        ${eventData.tool_name ? `
+                        <div class="activity-item-tool">
+                            <code class="tool-name">${escapeHtml(eventData.tool_name)}</code>
+                        </div>
+                        ` : ''}
+                        <div class="activity-item-content">
+                            <div class="event-input">
+                                <span class="summary-label">New Event</span>
+                                <span class="summary-text">Real-time event streamed via WebSocket</span>
+                            </div>
+                        </div>
+                        <div class="activity-item-footer">
+                            <span class="event-id" title="${escapeHtml(eventData.event_id)}">${escapeHtml(eventData.event_id.substring(0, 8))}</span>
+                            <span class="session-id" title="${escapeHtml(eventData.session_id)}">${escapeHtml(eventData.session_id.substring(0, 8))}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Handle tab switching
@@ -147,5 +282,46 @@
             });
         });
     </script>
+
+    <!-- Styles for real-time event highlighting -->
+    <style>
+        .new-event-highlight {
+            animation: highlightPulse 2s ease-out;
+        }
+
+        @keyframes highlightPulse {
+            0% {
+                background-color: rgba(16, 185, 129, 0.2);
+                border-left: 4px solid #10b981;
+            }
+            100% {
+                background-color: transparent;
+                border-left: 4px solid transparent;
+            }
+        }
+
+        .auto-refresh-indicator {
+            transition: opacity 0.3s ease;
+        }
+
+        .refresh-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #10b981;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
 </body>
 </html>
