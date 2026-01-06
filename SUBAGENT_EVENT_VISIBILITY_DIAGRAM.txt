@@ -1,0 +1,297 @@
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                          SUBAGENT EVENT TRACKING - VISIBILITY PROBLEM                                         ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ REALITY: What Actually Happened                                                                                │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+    1. Main Orchestrator (sess-fd50862f)                     2. Task Delegation
+    ┌─────────────────────────────┐
+    │ cli agent                   │
+    │ Events: 8,407               │
+    │ Status: Running             │
+    │                             │
+    │ [Event 1] Bash query        │
+    │ [Event 2] Read file         │
+    │ [Event 3] Task() call ──────────────┐
+    │ [Event 4] Bash query        │       │
+    │ [Event 5] Wait result ◄─────────────┤
+    │                             │       │
+    └─────────────────────────────┘       │
+                                          │
+                         Subagent Spawned │
+                         ─────────────────┘
+                                 │
+                                 ↓
+    3. Codex Subagent (0e6fd1e4-bc71-4424-88d4-3e88562ba5ed)
+    ┌─────────────────────────────────────────────┐
+    │ claude-code agent                           │
+    │ Events: 2,962                               │
+    │ Status: Active (2025-12-16 to 2025-12-22)   │
+    │                                             │
+    │ [Event 1] Read project structure            │
+    │ [Event 2] Bash: find features               │
+    │ [Event 3] Create feature-20251221-033403    │
+    │           └─ 640 events                     │
+    │ [Event 4] Create feature-self-tracking      │
+    │           └─ 504 events                     │
+    │ [Event 5] Create feature-20251217-015856    │
+    │           └─ 163 events                     │
+    │ ... 7 more features created ...             │
+    │ [Total 1,369 feature creation events]       │
+    │ [Total 1,593 tool execution events]         │
+    │                                             │
+    └─────────────────────────────────────────────┘
+                                 │
+                                 ↓
+                     Subagent Completes
+                     ─────────────────
+                                 │
+                                 ↓
+    4. Main Orchestrator (cont'd)
+    ┌─────────────────────────────┐
+    │ [Event 6] Log task result   │
+    │ [Event 7] Continue work...  │
+    │                             │
+    └─────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ THE PROBLEM: Dashboard Activity Feed Only Queries Main Session                                                ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    Dashboard API Call:
+    GET /api/analytics/events?session_id=sess-fd50862f&limit=500
+
+    SQL Query Executed:
+    ┌──────────────────────────────────────────────┐
+    │ SELECT * FROM events                         │
+    │ WHERE session_id='sess-fd50862f'  ←─ ONLY !!  │
+    │ ORDER BY ts DESC LIMIT 500                   │
+    └──────────────────────────────────────────────┘
+
+    Result: 8,407 events from main session
+    Subagent: 2,962 events NEVER QUERIED ✗
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ DATABASE STATE (SQLite index.sqlite)                                                                          ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    SESSIONS TABLE:
+    ┌──────────────────────────────────────────────────┬──────────────┬────────┐
+    │ session_id                                       │ agent        │ events │
+    ├──────────────────────────────────────────────────┼──────────────┼────────┤
+    │ sess-fd50862f                                    │ cli          │ 8,407  │ ← Main (Visible)
+    │ 0e6fd1e4-bc71-4424-88d4-3e88562ba5ed           │ claude-code  │ 2,962  │ ← Codex (Hidden!)
+    │ sess-3d9ec350                                    │ null         │ 5,524  │
+    │ ... (12 more sessions) ...                       │              │        │
+    └──────────────────────────────────────────────────┴──────────────┴────────┘
+
+    EVENTS TABLE (events):
+    ┌────────────────┬──────────────────────────────────┬──────────────────┬────────┐
+    │ session_id     │ tool                             │ ts               │ feature│
+    ├────────────────┼──────────────────────────────────┼──────────────────┼────────┤
+    │ sess-fd50862f  │ Bash                             │ 2026-01-06 08:40 │ null   │
+    │ sess-fd50862f  │ Read                             │ 2026-01-06 08:39 │ null   │
+    │ sess-fd50862f  │ Task                             │ 2026-01-06 08:32 │ null   │
+    │ ... 8,404 more from sess-fd50862f ...            │                  │        │
+    │                                                  │                  │        │
+    │ 0e6fd1e4-bc... │ Bash                             │ 2025-12-22 07:24 │ null   │
+    │ 0e6fd1e4-bc... │ Edit (Create feature)            │ 2025-12-22 07:23 │ feat-1 │
+    │ 0e6fd1e4-bc... │ Bash                             │ 2025-12-22 07:20 │ feat-2 │
+    │ ... 2,959 more from 0e6fd1e4-bc... ✗ NOT QUERIED │                  │        │
+    └────────────────┴──────────────────────────────────┴──────────────────┴────────┘
+
+    KEY INSIGHT:
+    - Events table has NO 'agent' column
+    - Sessions table HAS 'agent' but no link back from events
+    - Must join: events → session_id → sessions.agent
+    - But current query NEVER does this join!
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ WHAT THE DASHBOARD SHOWS vs WHAT EXISTS                                                                       ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    DISPLAYED (sess-fd50862f Activity Feed):
+    ┌────────────────────────────────────────────┐
+    │ Activity Log (8,407 events)                │
+    │                                            │
+    │ 2026-01-06 08:40:28  ✅ Bash               │
+    │ 2026-01-06 08:40:26  ✅ Bash               │
+    │ 2026-01-06 08:40:22  ✅ Bash               │
+    │ 2026-01-06 08:39:00  ✅ Read               │
+    │ 2026-01-06 08:32:19  ✅ Task (Codex)       │
+    │    ^ "Task completed" summary only        │
+    │ ... 8,402 more events ...                  │
+    │                                            │
+    │ Total: 8,407 events shown                 │
+    └────────────────────────────────────────────┘
+
+    ACTUALLY EXISTS (All sessions combined):
+    ┌────────────────────────────────────────────┐
+    │ Main Session (sess-fd50862f):               │
+    │ ✅ 8,407 events displayed                  │
+    │                                            │
+    │ Codex Subagent (0e6fd1e4-bc...):           │
+    │ ❌ 2,962 events NOT shown                  │
+    │    • 1,369 feature creation events         │
+    │    • 10 features created                   │
+    │    • Tools: Bash, Read, Edit, Grep, etc   │
+    │    • 46% of Codex work is feature-related │
+    │                                            │
+    │ TOTAL: 11,369 events exist in database     │
+    │        8,407 displayed (74%)               │
+    │        2,962 hidden (26%)  ❌              │
+    └────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ FILE STRUCTURE: Events Are There, Just Hidden                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    .htmlgraph/events/
+    │
+    ├── sess-fd50862f.jsonl
+    │   └─ 8,407 events (main orchestrator)
+    │      └─ QUERYABLE via /api/analytics/events?session_id=sess-fd50862f ✓
+    │
+    ├── 0e6fd1e4-bc71-4424-88d4-3e88562ba5ed.jsonl
+    │   └─ 2,962 events (Codex subagent)
+    │      └─ QUERYABLE but NEVER REQUESTED by dashboard ✗
+    │      └─ Contains complete work history
+    │      └─ Human never accesses this session_id
+    │
+    └── ... 13 other session files ...
+
+    .htmlgraph/features/
+    │
+    ├── feature-20251221-033403.html      (created by Codex)
+    ├── feature-self-tracking.html        (created by Codex)
+    ├── feature-20251217-015856.html      (created by Codex)
+    └── ... 7 more created by Codex ...
+
+    DISCONNECT:
+    Features ARE visible in file system
+    But HOW they were created is invisible
+    Because feature creation events are in subagent session
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ ROOT CAUSE ANALYSIS                                                                                           ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    CAUSE CHAIN:
+
+    1. Task() delegation creates new Process/Context
+       └─ Subagent runs in isolated environment
+       └─ Gets unique session_id (UUID format)
+
+    2. All subagent tool calls logged to separate JSONL
+       └─ Event stream lives in: 0e6fd1e4-bc...jsonl
+       └─ Completely separate from main: sess-fd50862f.jsonl
+
+    3. SQLite index.sqlite rebuilt from ALL JSONL files
+       └─ Contains all 2,962 + 8,407 events
+       └─ No problem at database level
+
+    4. Dashboard only knows about main session_id
+       └─ API called with: session_id=sess-fd50862f
+       └─ Query only fetches events WHERE session_id='sess-fd50862f'
+       └─ Subagent session_id never passed to API
+
+    5. No mechanism to link main task to subagent session
+       └─ "Task completed" event doesn't reference subagent session_id
+       └─ No parent-child relationship in schema
+       └─ No way to traverse from Task → Subagent events
+
+    ROOT CAUSE:
+    ┌────────────────────────────────────────────────────────┐
+    │ Architectural Assumption:                              │
+    │ "Dashboard always shows a single session in isolation" │
+    │                                                        │
+    │ This breaks when:                                      │
+    │ - Task() spawns subagent                              │
+    │ - Subagent creates new session                        │
+    │ - Main dashboard never learns about subagent session  │
+    │                                                        │
+    │ SOLUTION REQUIRED:                                     │
+    │ Link main task to subagent session_id                 │
+    │ or aggregate subagent events back to main session     │
+    └────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ EVIDENCE: Codex Created 10 Features (But This Is Invisible)                                                   ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    FEATURES CREATED BY CODEX (from database):
+
+    1. feature-20251221-033403 ............. 640 events  (33%)
+    2. feature-self-tracking .............. 504 events  (26%)
+    3. feature-20251217-015856 ............ 163 events  (8%)
+    4. feature-commit-graph-analytics ...... 92 events  (5%)
+    5. feature-20251221-034848 ............ 86 events  (4%)
+    6. feature-git-hook-foundation ........ 44 events  (2%)
+    7. feature-20251221-034838 ............ 28 events  (1%)
+    8. feature-precommit-reminder ......... 10 events  (0.5%)
+    9. test-auto-reload ................... 1 event   (0.05%)
+    10. feature-old-001 ................... 1 event   (0.05%)
+                                      ──────────
+                                      1,369 events = 46% of Codex work!
+
+    FACT: These features ARE visible in .htmlgraph/features/
+    QUESTION: But how did they get created?
+    ANSWER: It's recorded in subagent session events (invisible to main dashboard)
+
+    If you access Codex subagent session directly:
+    $ sqlite3 .htmlgraph/index.sqlite \
+      "SELECT tool, summary FROM events \
+       WHERE session_id='0e6fd1e4-bc71-4424-88d4-3e88562ba5ed' \
+       AND feature_id LIKE 'feature%' \
+       ORDER BY ts DESC LIMIT 20;"
+
+    You WILL see all the feature creation events
+    But the main dashboard Activity Feed NEVER queries this
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ SUMMARY TABLE                                                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    ┌──────────────────────┬──────────────┬──────────┬───────────────────┬─────────────┐
+    │ Session              │ Agent        │ Events   │ Features Created  │ Visibility  │
+    ├──────────────────────┼──────────────┼──────────┼───────────────────┼─────────────┤
+    │ sess-fd50862f        │ cli          │ 8,407    │ N/A               │ ✓ Visible   │
+    │ 0e6fd1e4-bc...       │ claude-code  │ 2,962    │ 10 features       │ ✗ Hidden    │
+    │ (Codex subagent)     │ (Subagent)   │ (1,369   │ (1,369 events)    │ (Should be  │
+    │                      │              │ feature) │                   │  visible!)  │
+    │                      │              │          │                   │             │
+    │ TOTAL                │              │ 11,369   │ 10                │ 8,407/11,369│
+    │                      │              │          │                   │ (74% shown) │
+    └──────────────────────┴──────────────┴──────────┴───────────────────┴─────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ CONCLUSION                                                                                                    ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+    STATUS: Events ARE recorded but architecturally ISOLATED
+
+    WHAT WORKS:
+    ✓ Codex agent creates 2,962 events
+    ✓ Events stored in SQLite
+    ✓ Events queryable if you know the session_id
+    ✓ Features ARE created and visible
+
+    WHAT'S BROKEN:
+    ✗ Dashboard doesn't know about subagent session_id
+    ✗ Activity Feed only queries main session
+    ✗ 2,962 events invisible (26% of work)
+    ✗ Feature creation process is hidden from main view
+    ✗ No link between Task() and subagent work
+
+    FIX OPTIONS:
+    A. Propagate subagent events back to main session
+    B. Add parent_session_id to events table
+    C. Query related sessions when displaying task
+    D. Create unified event stream across sessions
+
+    RECOMMENDED:
+    → Add parent-child session linking
+    → Display "Related Delegations" on dashboard
+    → Show subagent event summary in Task event details

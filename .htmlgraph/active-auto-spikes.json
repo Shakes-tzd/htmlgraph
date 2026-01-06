@@ -1,1 +1,26 @@
-{}
+{
+  "spike-init-sess-8b7": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-8b7a2750"
+  },
+  "spike-init-sess-876": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-8763f537"
+  },
+  "spike-init-sess-57c": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-57c1b05a"
+  },
+  "spike-init-sess-498": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-49854a4e"
+  },
+  "spike-init-sess-f6d": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-f6d58d41"
+  },
+  "spike-init-sess-bfd": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-bfd9f064"
+  }
+}

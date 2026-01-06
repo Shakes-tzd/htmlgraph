@@ -153,5 +153,45 @@
     "spike_id": "spk-9def0eac",
     "created": "2026-01-06T06:09:16.777652",
     "occurrences": 7
+  },
+  "Bash:Exit code 1\n\ud83d\udd0d Running pre-commit checks...\n  \u2192 ruff check...\nI001 [*] Import block is un-sorted or u": {
+    "spike_id": "spk-d74bd590",
+    "created": "2026-01-06T08:07:04.435791",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/Users": {
+    "spike_id": "spk-442d0fdb",
+    "created": "2026-01-06T08:14:31.405619",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"/Users/shakes/DevProjects/htmlgraph/demo_sdk_": {
+    "spike_id": "spk-70fd33bc",
+    "created": "2026-01-06T08:32:17.430531",
+    "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_run_code:### Result\nTimeoutError: locator.textContent: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for": {
+    "spike_id": "spk-c0177894",
+    "created": "2026-01-06T08:32:29.986573",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 10, in <module>\nAttributeErro": {
+    "spike_id": "spk-4ebdaa72",
+    "created": "2026-01-06T09:08:21.200762",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 7, in <module>\nAttributeError:": {
+    "spike_id": "spk-e586564b",
+    "created": "2026-01-06T09:19:57.789204",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 108, in <module>\nAttributeErro": {
+    "spike_id": "spk-33ad151a",
+    "created": "2026-01-06T09:22:05.107173",
+    "occurrences": 4
+  },
+  "Bash:Exit code 1\nSession sess-fd50862f: Removed 1 stale work item references: ['spk-05ddee15']\nTraceback ": {
+    "spike_id": "spk-42c62a66",
+    "created": "2026-01-06T09:31:38.963960",
+    "occurrences": 4
   }
 }

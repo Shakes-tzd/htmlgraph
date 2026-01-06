@@ -179,6 +179,56 @@ def cmd_serve(args: argparse.Namespace) -> None:
                 httpserver.shutdown()
 
 
+def cmd_serve_api(args: argparse.Namespace) -> None:
+    """Start the FastAPI-based observability dashboard (Phase 3)."""
+    import asyncio
+
+    from htmlgraph.operations.fastapi_server import (
+        run_fastapi_server,
+        start_fastapi_server,
+    )
+
+    try:
+        result = start_fastapi_server(
+            port=args.port,
+            host=args.host,
+            db_path=args.db,
+            auto_port=args.auto_port,
+            reload=args.reload,
+        )
+
+        # Print server info
+        console.print("\n[bold cyan]HtmlGraph FastAPI Dashboard[/bold cyan]")
+        console.print("[bold green]✓[/bold green] Started observability dashboard")
+        console.print(f"URL: [bold blue]{result.handle.url}[/bold blue]")
+        console.print(f"Database: {result.config_used['db_path']}")
+
+        if result.warnings:
+            for warning in result.warnings:
+                console.print(f"[yellow]Warning: {warning}[/yellow]")
+
+        console.print("\n[cyan]Features:[/cyan]")
+        console.print("  • Real-time agent activity feed")
+        console.print("  • Orchestration chains visualization")
+        console.print("  • Feature tracker with Kanban view")
+        console.print("  • Session metrics & performance analytics")
+        console.print("  • WebSocket live event streaming")
+        console.print("\n[cyan]Press Ctrl+C to stop.[/cyan]\n")
+
+        # Run server
+        asyncio.run(run_fastapi_server(result.handle))
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Shutting down...[/yellow]")
+    except Exception as e:
+        console.print(f"\n[red]Error:[/red] {e}")
+        import traceback
+
+        if getattr(args, "verbose", False):
+            traceback.print_exc()
+        sys.exit(1)
+
+
 def cmd_init(args: argparse.Namespace) -> None:
     """Initialize a new .htmlgraph directory."""
     import shutil
@@ -4537,6 +4587,32 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         help="Automatically find an available port if default is occupied",
     )
 
+    # serve-api (FastAPI-based dashboard with real-time observability)
+    serve_api_parser = subparsers.add_parser(
+        "serve-api",
+        help="Start the FastAPI-based observability dashboard (Phase 3)",
+    )
+    serve_api_parser.add_argument(
+        "--port", "-p", type=int, default=8000, help="Port (default: 8000)"
+    )
+    serve_api_parser.add_argument(
+        "--host", default="127.0.0.1", help="Host to bind to (default: 127.0.0.1)"
+    )
+    serve_api_parser.add_argument(
+        "--db", default=None, help="Path to SQLite database file"
+    )
+    serve_api_parser.add_argument(
+        "--auto-port",
+        action="store_true",
+        help="Automatically find an available port if default is occupied",
+    )
+    serve_api_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload on file changes (development mode)",
+    )
+    serve_api_parser.set_defaults(func=cmd_serve_api)
+
     # init
     init_parser = subparsers.add_parser("init", help="Initialize .htmlgraph directory")
     init_parser.add_argument(
@@ -5930,6 +6006,8 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
 
     if args.command == "serve":
         cmd_serve(args)
+    elif args.command == "serve-api":
+        cmd_serve_api(args)
     elif args.command == "init":
         cmd_init(args)
     elif args.command == "install-hooks":

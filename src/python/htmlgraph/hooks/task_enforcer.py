@@ -130,6 +130,39 @@ def enforce_task_saving(tool_name: str, tool_params: dict[str, Any]) -> dict[str
     parent_session = os.environ.get("HTMLGRAPH_PARENT_SESSION")
     parent_agent = os.environ.get("HTMLGRAPH_PARENT_AGENT", "claude-code")
     nesting_depth = int(os.environ.get("HTMLGRAPH_NESTING_DEPTH", "0"))
+    current_session = os.environ.get("HTMLGRAPH_SESSION_ID", "")
+
+    # Record delegation event in database
+    try:
+        import uuid
+
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        db = HtmlGraphDB()
+        db.connect()
+
+        # Extract to_agent from subagent_type (e.g., "haiku" -> "haiku", "gemini-spawner" -> "gemini-spawner")
+        to_agent = tool_params.get("subagent_type", "unknown")
+        task_description = tool_params.get("description", "Unnamed task")
+
+        # Record the delegation event
+        db.record_delegation_event(
+            from_agent=parent_agent,
+            to_agent=to_agent,
+            task_description=task_description,
+            session_id=current_session
+            or parent_session
+            or f"session-{uuid.uuid4().hex[:8]}",
+            context={
+                "nesting_depth": nesting_depth,
+                "prompt_preview": prompt[:200] if prompt else "",
+            },
+        )
+
+        db.close()
+    except Exception:
+        # Graceful degradation - continue even if delegation tracking fails
+        pass
 
     # Track Task invocation as activity (if parent session exists)
     task_activity_id = None

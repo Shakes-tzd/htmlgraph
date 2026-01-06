@@ -221,7 +221,31 @@ class BaseBuilder(Generic[BuilderT]):
             graph = HtmlGraph(graph_path, auto_load=False)
             graph.add(node)
 
-        # Log creation event if SessionManager is available and agent is set
+        # Log creation event to SQLite for dashboard observability
+        try:
+            action_type = self._data.get("type", self.node_type)
+            self._sdk._log_event(
+                event_type="tool_call",
+                tool_name="SDK.create",
+                input_summary=f"Create {action_type}: {self._data.get('title', 'Untitled')}",
+                output_summary=f"Created {collection_name}/{node.id}",
+                context={
+                    "collection": collection_name,
+                    "node_id": node.id,
+                    "node_type": action_type,
+                    "title": node.title,
+                    "status": self._data.get("status", "todo"),
+                    "priority": self._data.get("priority", "medium"),
+                },
+                cost_tokens=50,
+            )
+        except Exception as e:
+            # Never break save because of logging
+            import logging
+
+            logging.debug(f"Event logging failed: {e}")
+
+        # Also log via SessionManager for backward compatibility
         if hasattr(self._sdk, "session_manager") and self._sdk.agent:
             try:
                 self._sdk.session_manager._maybe_log_work_item_action(

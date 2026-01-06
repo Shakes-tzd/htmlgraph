@@ -1,0 +1,350 @@
+<!-- Orchestration View Component
+     Displays agent delegation chains and coordination topology.
+     Fetches from /api/orchestration endpoint.
+-->
+
+<div id="orchestration-view" class="orchestration-container">
+    <div class="orchestration-header">
+        <h2>Agent Orchestration</h2>
+        <p class="subtitle">Delegation chains and agent coordination</p>
+    </div>
+
+    <div class="orchestration-metrics">
+        <div class="metric-card">
+            <div class="metric-label">Total Delegations</div>
+            <div class="metric-value" id="delegation-count">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Unique Agents</div>
+            <div class="metric-value" id="unique-agents">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Active Agents</div>
+            <div class="metric-value" id="agent-list">—</div>
+        </div>
+    </div>
+
+    <div class="orchestration-chains" id="delegation-chains">
+        <div class="empty-state">
+            <p>No delegation events recorded yet.</p>
+            <p class="hint">Delegation events will appear here when Task() calls are made.</p>
+        </div>
+    </div>
+
+    <div class="orchestration-legend">
+        <div class="legend-item">
+            <span class="status-badge pending"></span>
+            <span>Pending</span>
+        </div>
+        <div class="legend-item">
+            <span class="status-badge accepted"></span>
+            <span>Accepted</span>
+        </div>
+        <div class="legend-item">
+            <span class="status-badge completed"></span>
+            <span>Completed</span>
+        </div>
+        <div class="legend-item">
+            <span class="status-badge failed"></span>
+            <span>Failed</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .orchestration-container {
+        padding: 2rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+    }
+
+    .orchestration-header {
+        margin-bottom: 2rem;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 1rem;
+    }
+
+    .orchestration-header h2 {
+        font-size: 1.5rem;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .orchestration-header .subtitle {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .orchestration-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .metric-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .orchestration-chains {
+        margin-bottom: 2rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state p {
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state .hint {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-style: italic;
+    }
+
+    .delegation-chain {
+        margin-bottom: 1.5rem;
+        border-left: 3px solid var(--status-active);
+        padding-left: 1rem;
+    }
+
+    .chain-from-agent {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        padding: 0.75rem;
+        background: rgba(41, 121, 255, 0.1);
+        border-radius: 4px;
+        border-left: 3px solid var(--status-active);
+    }
+
+    .chain-delegations {
+        margin-top: 0.5rem;
+    }
+
+    .delegation-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        border-left: 3px solid var(--status-active);
+    }
+
+    .delegation-arrow {
+        color: var(--text-secondary);
+        font-weight: bold;
+        min-width: 1rem;
+        text-align: center;
+    }
+
+    .delegation-details {
+        flex: 1;
+    }
+
+    .delegation-to-agent {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.95rem;
+    }
+
+    .delegation-task {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin: 0.25rem 0;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .delegation-timestamp {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+
+    .status-badge {
+        display: inline-block;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+    .status-badge.pending {
+        background: var(--status-todo);
+    }
+
+    .status-badge.accepted {
+        background: var(--status-active);
+    }
+
+    .status-badge.completed {
+        background: var(--status-done);
+    }
+
+    .status-badge.failed {
+        background: var(--status-blocked);
+    }
+
+    .delegation-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        background: var(--bg-primary);
+        border-radius: 3px;
+        margin-left: auto;
+        text-transform: uppercase;
+    }
+
+    .orchestration-legend {
+        display: flex;
+        gap: 1.5rem;
+        padding: 1rem;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+</style>
+
+<script>
+    function renderOrchestrationView(data) {
+        document.getElementById('delegation-count').textContent = data.delegation_count;
+        document.getElementById('unique-agents').textContent = data.unique_agents;
+        document.getElementById('agent-list').textContent = data.agents.join(', ') || '—';
+
+        const chainsContainer = document.getElementById('delegation-chains');
+
+        if (data.delegation_count === 0) {
+            chainsContainer.textContent = '';
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty-state';
+            emptyDiv.innerHTML = '<p>No delegation events recorded yet.</p><p class="hint">Delegation events will appear here when Task() calls are made.</p>';
+            chainsContainer.appendChild(emptyDiv);
+            return;
+        }
+
+        chainsContainer.textContent = '';
+
+        for (const fromAgent in data.delegation_chains) {
+            const delegations = data.delegation_chains[fromAgent];
+            const chainDiv = document.createElement('div');
+            chainDiv.className = 'delegation-chain';
+
+            const fromAgentDiv = document.createElement('div');
+            fromAgentDiv.className = 'chain-from-agent';
+            fromAgentDiv.textContent = fromAgent;
+            chainDiv.appendChild(fromAgentDiv);
+
+            const delegationsDiv = document.createElement('div');
+            delegationsDiv.className = 'chain-delegations';
+
+            for (const delegation of delegations) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'delegation-item';
+
+                const arrowDiv = document.createElement('div');
+                arrowDiv.className = 'delegation-arrow';
+                arrowDiv.textContent = '↓';
+                itemDiv.appendChild(arrowDiv);
+
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'delegation-details';
+
+                const toAgentDiv = document.createElement('div');
+                toAgentDiv.className = 'delegation-to-agent';
+                toAgentDiv.textContent = delegation.to_agent;
+                detailsDiv.appendChild(toAgentDiv);
+
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'delegation-task';
+                taskDiv.textContent = 'Task: ' + delegation.task;
+                detailsDiv.appendChild(taskDiv);
+
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'delegation-timestamp';
+                try {
+                    const date = new Date(delegation.timestamp);
+                    timeDiv.textContent = date.toLocaleString();
+                } catch {
+                    timeDiv.textContent = delegation.timestamp || 'N/A';
+                }
+                detailsDiv.appendChild(timeDiv);
+
+                itemDiv.appendChild(detailsDiv);
+
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'delegation-status';
+                const badgeSpan = document.createElement('span');
+                badgeSpan.className = 'status-badge ' + (delegation.status || 'pending');
+                statusDiv.appendChild(badgeSpan);
+                const statusText = document.createTextNode((delegation.status || 'pending').charAt(0).toUpperCase() + (delegation.status || 'pending').slice(1));
+                statusDiv.appendChild(statusText);
+                itemDiv.appendChild(statusDiv);
+
+                delegationsDiv.appendChild(itemDiv);
+            }
+
+            chainDiv.appendChild(delegationsDiv);
+            chainsContainer.appendChild(chainDiv);
+        }
+    }
+
+    async function loadOrchestrationView() {
+        try {
+            const response = await fetch('/api/orchestration');
+            if (!response.ok) {
+                console.warn('Orchestration view not available');
+                return;
+            }
+            const data = await response.json();
+            renderOrchestrationView(data);
+        } catch (error) {
+            console.error('Failed to load orchestration view:', error);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadOrchestrationView);
+    } else {
+        loadOrchestrationView();
+    }
+
+    setInterval(loadOrchestrationView, 10000);
+</script>

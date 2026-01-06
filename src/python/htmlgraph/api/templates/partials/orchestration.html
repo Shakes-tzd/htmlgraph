@@ -1,0 +1,86 @@
+<div class="view-container orchestration-view">
+    <div class="view-header">
+        <h2>Agent Orchestration & Delegation</h2>
+        <div class="view-description">
+            Real-time view of delegation chains and agent handoffs
+        </div>
+    </div>
+
+    <div class="orchestration-chains">
+        {% if delegations %}
+            {% for delegation in delegations %}
+            <div class="delegation-chain">
+                <div class="chain-header">
+                    <span class="timestamp-badge">{{ delegation.timestamp }}</span>
+                </div>
+
+                <div class="chain-flow">
+                    <div class="agent-node from-agent">
+                        <div class="agent-icon">→</div>
+                        <div class="agent-label">{{ delegation.from_agent }}</div>
+                    </div>
+
+                    <div class="delegation-arrow">
+                        <span class="arrow-icon">⟹</span>
+                        <span class="delegation-label">delegated</span>
+                    </div>
+
+                    <div class="agent-node to-agent">
+                        <div class="agent-icon">←</div>
+                        <div class="agent-label">{{ delegation.to_agent }}</div>
+                    </div>
+                </div>
+
+                <div class="chain-details">
+                    {% if delegation.task %}
+                    <div class="delegation-task">
+                        <span class="detail-label">Task:</span>
+                        <span class="detail-value">{{ delegation.task[:80] }}{% if delegation.task|length > 80 %}...{% endif %}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if delegation.result %}
+                    <div class="delegation-result">
+                        <span class="detail-label">Result:</span>
+                        <span class="detail-value">{{ delegation.result[:80] }}{% if delegation.result|length > 80 %}...{% endif %}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="chain-footer">
+                    <span class="event-id" title="{{ delegation.event_id }}">{{ delegation.event_id[:8] }}</span>
+                    <span class="session-info" title="{{ delegation.session_id }}">Session: {{ delegation.session_id[:8] }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>No delegation chains found</p>
+                <small>Agent-to-agent delegations and handoffs will appear here</small>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Orchestration stats -->
+    <div class="orchestration-stats">
+        <div class="stat-card">
+            <span class="stat-title">Total Delegations</span>
+            <span class="stat-value">{{ delegations|length }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-title">Unique Agents</span>
+            <span class="stat-value">
+                {% set unique_agents = {} %}
+                {% for d in delegations %}
+                    {% if d.from_agent not in unique_agents %}
+                        {% set _ = unique_agents.update({d.from_agent: True}) %}
+                    {% endif %}
+                    {% if d.to_agent not in unique_agents %}
+                        {% set _ = unique_agents.update({d.to_agent: True}) %}
+                    {% endif %}
+                {% endfor %}
+                {{ unique_agents|length }}
+            </span>
+        </div>
+    </div>
+</div>

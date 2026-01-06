@@ -1,0 +1,147 @@
+<div class="view-container features-view">
+    <div class="view-header">
+        <h2>Feature Tracker - Kanban View</h2>
+        <div class="view-filters">
+            <div class="filter-group">
+                <label>Filter by status:</label>
+                <select class="filter-select"
+                        hx-get="/views/features"
+                        hx-target="#content-area"
+                        hx-trigger="change"
+                        name="status">
+                    <option value="all">All</option>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="done">Done</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="kanban-board">
+        <!-- TO DO Column -->
+        <div class="kanban-column todo-column">
+            <div class="column-header">
+                <h3>To Do</h3>
+                <span class="column-count">{{ features_by_status.todo|length }}</span>
+            </div>
+            <div class="column-cards">
+                {% for feature in features_by_status.todo %}
+                <div class="feature-card todo-card">
+                    <div class="card-header">
+                        <span class="feature-type-badge type-{{ feature.type }}">{{ feature.type }}</span>
+                        <span class="priority-badge priority-{{ feature.priority }}">{{ feature.priority }}</span>
+                    </div>
+                    <h4 class="card-title">{{ feature.title }}</h4>
+                    {% if feature.description %}
+                    <p class="card-description">{{ feature.description[:100] }}{% if feature.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    <div class="card-footer">
+                        <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
+                        {% if feature.assigned_to %}
+                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not features_by_status.todo %}
+                <div class="empty-column">No tasks</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- IN PROGRESS Column -->
+        <div class="kanban-column in-progress-column">
+            <div class="column-header">
+                <h3>In Progress</h3>
+                <span class="column-count">{{ features_by_status.in_progress|length }}</span>
+            </div>
+            <div class="column-cards">
+                {% for feature in features_by_status.in_progress %}
+                <div class="feature-card in-progress-card">
+                    <div class="card-header">
+                        <span class="feature-type-badge type-{{ feature.type }}">{{ feature.type }}</span>
+                        <span class="priority-badge priority-{{ feature.priority }}">{{ feature.priority }}</span>
+                    </div>
+                    <h4 class="card-title">{{ feature.title }}</h4>
+                    {% if feature.description %}
+                    <p class="card-description">{{ feature.description[:100] }}{% if feature.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    <div class="card-footer">
+                        <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
+                        {% if feature.assigned_to %}
+                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not features_by_status.in_progress %}
+                <div class="empty-column">No tasks</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- BLOCKED Column -->
+        <div class="kanban-column blocked-column">
+            <div class="column-header">
+                <h3>Blocked</h3>
+                <span class="column-count">{{ features_by_status.blocked|length }}</span>
+            </div>
+            <div class="column-cards">
+                {% for feature in features_by_status.blocked %}
+                <div class="feature-card blocked-card">
+                    <div class="card-header">
+                        <span class="feature-type-badge type-{{ feature.type }}">{{ feature.type }}</span>
+                        <span class="priority-badge priority-{{ feature.priority }}">{{ feature.priority }}</span>
+                    </div>
+                    <h4 class="card-title">{{ feature.title }}</h4>
+                    {% if feature.description %}
+                    <p class="card-description">{{ feature.description[:100] }}{% if feature.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    <div class="card-footer">
+                        <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
+                        {% if feature.assigned_to %}
+                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not features_by_status.blocked %}
+                <div class="empty-column">No tasks</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- DONE Column -->
+        <div class="kanban-column done-column">
+            <div class="column-header">
+                <h3>Done</h3>
+                <span class="column-count">{{ features_by_status.done|length }}</span>
+            </div>
+            <div class="column-cards">
+                {% for feature in features_by_status.done %}
+                <div class="feature-card done-card">
+                    <div class="card-header">
+                        <span class="feature-type-badge type-{{ feature.type }}">{{ feature.type }}</span>
+                        <span class="priority-badge priority-{{ feature.priority }}">{{ feature.priority }}</span>
+                    </div>
+                    <h4 class="card-title">{{ feature.title }}</h4>
+                    {% if feature.description %}
+                    <p class="card-description">{{ feature.description[:100] }}{% if feature.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    <div class="card-footer">
+                        <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
+                        {% if feature.assigned_to %}
+                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not features_by_status.done %}
+                <div class="empty-column">No tasks</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

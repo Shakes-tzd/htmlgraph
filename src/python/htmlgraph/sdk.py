@@ -62,6 +62,7 @@ from htmlgraph.collections.metric import MetricCollection
 from htmlgraph.collections.pattern import PatternCollection
 from htmlgraph.collections.session import SessionCollection
 from htmlgraph.context_analytics import ContextAnalytics
+from htmlgraph.db.schema import HtmlGraphDB
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.models import Node, Step
 from htmlgraph.session_manager import SessionManager
@@ -220,6 +221,7 @@ class SDK:
         directory: Path | str | None = None,
         agent: str | None = None,
         parent_session: str | None = None,
+        db_path: str | None = None,
     ):
         """
         Initialize SDK.
@@ -233,6 +235,7 @@ class SDK:
                 Falls back to: CLAUDE_AGENT_NAME env var, then detect_agent_name()
                 Raises ValueError if not provided and cannot be detected
             parent_session: Parent session ID to log activities to (for nested contexts)
+            db_path: Path to SQLite database file (optional, defaults to ~/.htmlgraph/htmlgraph.db)
         """
         if directory is None:
             directory = self._discover_htmlgraph()
@@ -260,6 +263,13 @@ class SDK:
         self._directory = Path(directory)
         self._agent_id = agent
         self._parent_session = parent_session or os.getenv("HTMLGRAPH_PARENT_SESSION")
+
+        # Initialize SQLite database (Phase 2)
+        self._db = HtmlGraphDB(
+            db_path or str(Path.home() / ".htmlgraph" / "htmlgraph.db")
+        )
+        self._db.connect()
+        self._db.create_tables()
 
         # Initialize underlying HtmlGraphs first (for backward compatibility and sharing)
         # These are shared with SessionManager to avoid double-loading features
@@ -437,6 +447,247 @@ class SDK:
         if self._session_warning:
             return self._session_warning.get_status()
         return {"dismissed": True, "show_count": 0}
+
+    # =========================================================================
+    # SQLite Database Integration (Phase 2)
+    # =========================================================================
+
+    def db(self) -> HtmlGraphDB:
+        """
+        Get the SQLite database instance.
+
+        Returns:
+            HtmlGraphDB instance for executing queries
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> db = sdk.db()
+            >>> events = db.get_session_events("sess-123")
+            >>> features = db.get_features_by_status("todo")
+        """
+        return self._db
+
+    def query(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
+        """
+        Execute a raw SQL query on the SQLite database.
+
+        Args:
+            sql: SQL query string
+            params: Query parameters (for safe parameterized queries)
+
+        Returns:
+            List of result dictionaries
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> results = sdk.query(
+            ...     "SELECT * FROM features WHERE status = ? AND priority = ?",
+            ...     ("todo", "high")
+            ... )
+            >>> for row in results:
+            ...     print(row["title"])
+        """
+        if not self._db.connection:
+            self._db.connect()
+
+        cursor = self._db.connection.cursor()  # type: ignore[union-attr]
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def execute_query_builder(
+        self, sql: str, params: tuple = ()
+    ) -> list[dict[str, Any]]:
+        """
+        Execute a query using the Queries builder.
+
+        Args:
+            sql: SQL query from Queries builder
+            params: Parameters from Queries builder
+
+        Returns:
+            List of result dictionaries
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> sql, params = Queries.get_features_by_status("todo", limit=5)
+            >>> results = sdk.execute_query_builder(sql, params)
+        """
+        return self.query(sql, params)
+
+    def export_to_html(
+        self,
+        output_dir: str | None = None,
+        include_features: bool = True,
+        include_sessions: bool = True,
+        include_events: bool = False,
+    ) -> dict[str, int]:
+        """
+        Export SQLite data to HTML files for backward compatibility.
+
+        Args:
+            output_dir: Directory to export to (defaults to .htmlgraph)
+            include_features: Export features
+            include_sessions: Export sessions
+            include_events: Export events (detailed, use with care)
+
+        Returns:
+            Dict with export counts: {"features": int, "sessions": int, "events": int}
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> result = sdk.export_to_html()
+            >>> print(f"Exported {result['features']} features")
+        """
+        if output_dir is None:
+            output_dir = str(self._directory)
+
+        output_path = Path(output_dir)
+        counts = {"features": 0, "sessions": 0, "events": 0}
+
+        if include_features:
+            # Export all features from SQLite to HTML
+            features_dir = output_path / "features"
+            features_dir.mkdir(parents=True, exist_ok=True)
+
+            try:
+                cursor = self._db.connection.cursor()  # type: ignore[union-attr]
+                cursor.execute("SELECT * FROM features")
+                rows = cursor.fetchall()
+
+                for row in rows:
+                    feature_dict = dict(row)
+                    feature_id = feature_dict["id"]
+                    # Write HTML file (simplified export)
+                    html_file = features_dir / f"{feature_id}.html"
+                    html_file.write_text(
+                        f"<h1>{feature_dict['title']}</h1>"
+                        f"<p>Status: {feature_dict['status']}</p>"
+                        f"<p>Type: {feature_dict['type']}</p>"
+                    )
+                    counts["features"] += 1
+            except Exception as e:
+                import logging
+
+                logging.error(f"Error exporting features: {e}")
+
+        if include_sessions:
+            # Export all sessions from SQLite to HTML
+            sessions_dir = output_path / "sessions"
+            sessions_dir.mkdir(parents=True, exist_ok=True)
+
+            try:
+                cursor = self._db.connection.cursor()  # type: ignore[union-attr]
+                cursor.execute("SELECT * FROM sessions")
+                rows = cursor.fetchall()
+
+                for row in rows:
+                    session_dict = dict(row)
+                    session_id = session_dict["session_id"]
+                    # Write HTML file (simplified export)
+                    html_file = sessions_dir / f"{session_id}.html"
+                    html_file.write_text(
+                        f"<h1>Session {session_id}</h1>"
+                        f"<p>Agent: {session_dict['agent_assigned']}</p>"
+                        f"<p>Status: {session_dict['status']}</p>"
+                    )
+                    counts["sessions"] += 1
+            except Exception as e:
+                import logging
+
+                logging.error(f"Error exporting sessions: {e}")
+
+        return counts
+
+    def _log_event(
+        self,
+        event_type: str,
+        tool_name: str | None = None,
+        input_summary: str | None = None,
+        output_summary: str | None = None,
+        context: dict[str, Any] | None = None,
+        cost_tokens: int = 0,
+    ) -> bool:
+        """
+        Log an event to the SQLite database with parent-child linking.
+
+        Internal method used by collections to track operations.
+        Automatically creates a session if one doesn't exist.
+        Reads parent event ID from HTMLGRAPH_PARENT_ACTIVITY env var for hierarchical tracking.
+
+        Args:
+            event_type: Type of event (tool_call, completion, error, etc.)
+            tool_name: Tool that was called
+            input_summary: Summary of input
+            output_summary: Summary of output
+            context: Additional context metadata
+            cost_tokens: Token cost estimate
+
+        Returns:
+            True if logged successfully, False otherwise
+
+        Example (internal use):
+            >>> sdk._log_event(
+            ...     event_type="tool_call",
+            ...     tool_name="Edit",
+            ...     input_summary="Edit file.py",
+            ...     cost_tokens=100
+            ... )
+        """
+        from uuid import uuid4
+
+        event_id = f"evt-{uuid4().hex[:12]}"
+        session_id = self._parent_session or "cli-session"
+
+        # Read parent event ID from environment variable for hierarchical linking
+        parent_event_id = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
+
+        # Ensure session exists before logging event
+        try:
+            self._ensure_session_exists(session_id)
+        except Exception as e:
+            import logging
+
+            logging.debug(f"Failed to ensure session exists: {e}")
+            # Continue anyway - session creation failure shouldn't block event logging
+
+        return self._db.insert_event(
+            event_id=event_id,
+            agent_id=self._agent_id,
+            event_type=event_type,
+            session_id=session_id,
+            tool_name=tool_name,
+            input_summary=input_summary,
+            output_summary=output_summary,
+            context=context,
+            parent_event_id=parent_event_id,
+            cost_tokens=cost_tokens,
+        )
+
+    def _ensure_session_exists(self, session_id: str) -> None:
+        """
+        Create a session record if it doesn't exist.
+
+        Args:
+            session_id: Session ID to ensure exists
+        """
+        if not self._db.connection:
+            self._db.connect()
+
+        cursor = self._db.connection.cursor()  # type: ignore[union-attr]
+        cursor.execute(
+            "SELECT COUNT(*) FROM sessions WHERE session_id = ?", (session_id,)
+        )
+        exists = cursor.fetchone()[0] > 0
+
+        if not exists:
+            # Create session record
+            self._db.insert_session(
+                session_id=session_id,
+                agent_assigned=self._agent_id,
+                is_subagent=self._parent_session is not None,
+                parent_session_id=self._parent_session,
+            )
 
     def reload(self) -> None:
         """Reload all data from disk."""

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - HtmlGraph</title>
+    <script src="/static/htmx.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark-theme">
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">⚡</span>
+                    HtmlGraph Dashboard
+                </h1>
+                <div class="header-stats">
+                    <div class="stat-badge">
+                        <span class="stat-label">Events</span>
+                        <span class="stat-value" id="event-count">0</span>
+                    </div>
+                    <div class="stat-badge">
+                        <span class="stat-label">Agents</span>
+                        <span class="stat-value" id="agent-count">0</span>
+                    </div>
+                    <div class="stat-badge">
+                        <span class="stat-label">Sessions</span>
+                        <span class="stat-value" id="session-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs-navigation">
+            <button class="tab-button active"
+                    hx-get="/views/activity-feed"
+                    hx-target="#content-area"
+                    hx-trigger="click"
+                    data-tab="activity">
+                <span class="tab-icon">📋</span>
+                Activity Feed
+            </button>
+            <button class="tab-button"
+                    hx-get="/views/orchestration"
+                    hx-target="#content-area"
+                    hx-trigger="click"
+                    data-tab="orchestration">
+                <span class="tab-icon">🔗</span>
+                Orchestration
+            </button>
+            <button class="tab-button"
+                    hx-get="/views/features"
+                    hx-target="#content-area"
+                    hx-trigger="click"
+                    data-tab="features">
+                <span class="tab-icon">🎯</span>
+                Features
+            </button>
+            <button class="tab-button"
+                    hx-get="/views/metrics"
+                    hx-target="#content-area"
+                    hx-trigger="click"
+                    data-tab="metrics">
+                <span class="tab-icon">📊</span>
+                Metrics
+            </button>
+        </nav>
+
+        <!-- Content Area -->
+        <main class="content-area" id="content-area">
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+                <p>Loading dashboard...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- WebSocket for live updates -->
+    <script>
+        let eventCount = 0;
+        let agentSet = new Set();
+        let sessionCount = 0;
+
+        // Initialize dashboard on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load initial activity feed
+            htmx.ajax('GET', '/views/activity-feed', {target: '#content-area'});
+
+            // Connect WebSocket for real-time updates
+            connectWebSocket();
+        });
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(wsProtocol + '//' + window.location.host + '/ws/events');
+
+            ws.onopen = function(event) {
+                console.log('WebSocket connected');
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'event') {
+                        // Update stats
+                        eventCount++;
+                        if (data.agent_id) {
+                            agentSet.add(data.agent_id);
+                        }
+
+                        // Update header
+                        document.getElementById('event-count').textContent = eventCount;
+                        document.getElementById('agent-count').textContent = agentSet.size;
+
+                        // Add animation class
+                        const badge = document.getElementById('event-count').parentElement;
+                        badge.classList.add('pulse');
+                        setTimeout(() => badge.classList.remove('pulse'), 500);
+                    }
+                } catch (e) {
+                    console.error('WebSocket message error:', e);
+                }
+            };
+
+            ws.onerror = function(event) {
+                console.error('WebSocket error:', event);
+            };
+
+            ws.onclose = function(event) {
+                console.log('WebSocket disconnected, reconnecting in 3s...');
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        // Handle tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active state
+                document.querySelectorAll('.tab-button').forEach(b => {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

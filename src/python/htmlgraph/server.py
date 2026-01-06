@@ -261,6 +261,10 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         if collection == "analytics":
             return self._handle_analytics(node_id, params)
 
+        # GET /api/orchestration - Get delegation chains and agent coordination
+        if collection == "orchestration":
+            return self._handle_orchestration_view(params)
+
         # GET /api/task-delegations/stats - Get aggregated delegation statistics
         if collection == "task-delegations" and params.get("stats") == "true":
             return self._handle_task_delegations_stats()
@@ -1047,6 +1051,82 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
             )
         except Exception as e:
             self._send_error_json(f"Failed to generate features: {str(e)}", 500)
+
+    def _handle_orchestration_view(self, params: dict) -> None:
+        """
+        Get delegation chains and agent coordination information.
+
+        Queries the SQLite database for delegation events and builds
+        a view of agent coordination and handoff patterns.
+
+        Returns:
+            {
+                "delegation_count": int,
+                "unique_agents": int,
+                "agents": [str],
+                "delegation_chains": {
+                    "from_agent": [
+                        {
+                            "to_agent": str,
+                            "event_type": str,
+                            "timestamp": str,
+                            "task": str,
+                            "status": str
+                        }
+                    ]
+                }
+            }
+        """
+        try:
+            from htmlgraph.db.schema import HtmlGraphDB
+
+            db = HtmlGraphDB()
+            db.connect()
+
+            # Get all delegation events
+            delegations = db.get_delegations(limit=1000)
+            db.close()
+
+            # Build delegation chains grouped by from_agent
+            delegation_chains: dict[str, list[dict]] = {}
+            agents = set()
+            delegation_count = 0
+
+            for delegation in delegations:
+                from_agent = delegation.get("from_agent", "unknown")
+                to_agent = delegation.get("to_agent", "unknown")
+                timestamp = delegation.get("timestamp", "")
+                reason = delegation.get("reason", "")
+                status = delegation.get("status", "pending")
+
+                agents.add(from_agent)
+                agents.add(to_agent)
+                delegation_count += 1
+
+                if from_agent not in delegation_chains:
+                    delegation_chains[from_agent] = []
+
+                delegation_chains[from_agent].append(
+                    {
+                        "to_agent": to_agent,
+                        "event_type": "delegation",
+                        "timestamp": timestamp,
+                        "task": reason or "Unnamed task",
+                        "status": status,
+                    }
+                )
+
+            self._send_json(
+                {
+                    "delegation_count": delegation_count,
+                    "unique_agents": len(agents),
+                    "agents": sorted(list(agents)),
+                    "delegation_chains": delegation_chains,
+                }
+            )
+
+        except Exception as e:
+            self._send_error_json(f"Failed to get orchestration view: {str(e)}", 500)
 
     def _handle_task_delegations_stats(self) -> None:
         """Get aggregated statistics about task delegations."""

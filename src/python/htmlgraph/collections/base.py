@@ -525,6 +525,27 @@ class BaseCollection(Generic[CollectionT]):
                 node.updated = datetime.now()
                 graph.update(node)
                 results["success_count"] += 1
+
+                # Log completion event to SQLite
+                try:
+                    self._sdk._log_event(
+                        event_type="tool_call",
+                        tool_name="SDK.mark_done",
+                        input_summary=f"Mark {self._node_type} done: {node_id}",
+                        output_summary=f"Marked {node_id} as done",
+                        context={
+                            "collection": self._collection_name,
+                            "node_id": node_id,
+                            "node_type": self._node_type,
+                            "title": node.title,
+                        },
+                        cost_tokens=25,
+                    )
+                except Exception as e:
+                    import logging
+
+                    logging.debug(f"Event logging failed for mark_done: {e}")
+
             except Exception as e:
                 results["failed_ids"].append(node_id)
                 results["warnings"].append(f"Failed to mark {node_id}: {str(e)}")

@@ -1,0 +1,161 @@
+<div class="view-container metrics-view">
+    <div class="view-header">
+        <h2>Session Metrics & Performance</h2>
+        <div class="view-description">
+            Agent session performance analytics and system statistics
+        </div>
+    </div>
+
+    <!-- System Stats -->
+    <div class="stats-grid">
+        <div class="stat-card large">
+            <div class="stat-card-icon">📊</div>
+            <div class="stat-card-content">
+                <span class="stat-card-label">Total Events</span>
+                <span class="stat-card-value">{{ stats.total_events }}</span>
+            </div>
+        </div>
+        <div class="stat-card large">
+            <div class="stat-card-icon">🤖</div>
+            <div class="stat-card-content">
+                <span class="stat-card-label">Active Agents</span>
+                <span class="stat-card-value">{{ stats.total_agents }}</span>
+            </div>
+        </div>
+        <div class="stat-card large">
+            <div class="stat-card-icon">⏱️</div>
+            <div class="stat-card-content">
+                <span class="stat-card-label">Total Sessions</span>
+                <span class="stat-card-value">{{ stats.total_sessions }}</span>
+            </div>
+        </div>
+        <div class="stat-card large">
+            <div class="stat-card-icon">✅</div>
+            <div class="stat-card-content">
+                <span class="stat-card-label">Features</span>
+                <span class="stat-card-value">{{ stats.total_features }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sessions Timeline -->
+    <div class="sessions-section">
+        <h3 class="section-title">Session Timeline</h3>
+
+        <div class="sessions-timeline">
+            {% if sessions %}
+                {% for session in sessions %}
+                <div class="session-item session-{{ session.status }}">
+                    <div class="session-item-header">
+                        <div class="session-info">
+                            <span class="session-id" title="{{ session.session_id }}">
+                                Session: {{ session.session_id[:12] }}
+                            </span>
+                            {% if session.agent %}
+                            <span class="session-agent">Agent: {{ session.agent }}</span>
+                            {% endif %}
+                            <span class="session-status" data-status="{{ session.status }}">
+                                {{ session.status }}
+                            </span>
+                        </div>
+                        <div class="session-meta">
+                            <span class="session-timestamp">{{ session.started_at }}</span>
+                        </div>
+                    </div>
+
+                    <div class="session-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Events:</span>
+                            <span class="stat-value">{{ session.event_count }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Duration:</span>
+                            <span class="stat-value">
+                                {% if session.duration_seconds %}
+                                    {% if session.duration_seconds < 60 %}
+                                        {{ "%.1f"|format(session.duration_seconds) }}s
+                                    {% elif session.duration_seconds < 3600 %}
+                                        {{ "%.1f"|format(session.duration_seconds / 60) }}m
+                                    {% else %}
+                                        {{ "%.1f"|format(session.duration_seconds / 3600) }}h
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if session.ended_at %}
+                        <div class="stat-item">
+                            <span class="stat-label">Ended:</span>
+                            <span class="stat-value">{{ session.ended_at }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Progress bar for event distribution -->
+                    <div class="session-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (session.event_count / (stats.total_events / 100)) if stats.total_events > 0 else 0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <p>No sessions recorded yet</p>
+                    <small>Session data will appear here as agents complete work</small>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="performance-section">
+        <h3 class="section-title">Performance Summary</h3>
+
+        <div class="performance-grid">
+            <div class="performance-card">
+                <span class="perf-label">Avg Events/Session</span>
+                <span class="perf-value">
+                    {% if stats.total_sessions > 0 %}
+                        {{ "%.1f"|format(stats.total_events / stats.total_sessions) }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </span>
+            </div>
+            <div class="performance-card">
+                <span class="perf-label">Total Agent Hours</span>
+                <span class="perf-value">
+                    {% set total_seconds = 0 %}
+                    {% for session in sessions %}
+                        {% set total_seconds = total_seconds + session.duration_seconds if session.duration_seconds else total_seconds %}
+                    {% endfor %}
+                    {% if total_seconds > 0 %}
+                        {{ "%.2f"|format(total_seconds / 3600) }}h
+                    {% else %}
+                        0h
+                    {% endif %}
+                </span>
+            </div>
+            <div class="performance-card">
+                <span class="perf-label">Success Rate</span>
+                <span class="perf-value">--</span>
+                <small>(Calculated from event types)</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="metrics-legend">
+        <div class="legend-item">
+            <span class="legend-dot completed"></span> Completed
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot in-progress"></span> In Progress
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot blocked"></span> Blocked
+        </div>
+    </div>
+</div>
