@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Delegation Display Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-31f72be4"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T10:32:27.082458"
+             data-updated="2026-01-06T10:32:27.082464" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="playwright-test">
+
+        <header>
+            <h1>Dashboard Delegation Display Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Dashboard Orchestration Tab Verification
+
+**✅ VERIFICATION SUCCESSFUL**
+
+### Delegation Display Status
+- **Delegation Visible**: YES
+- **Specific Delegation**: hand-81b (orchestrator → codex-test)
+- **Task**: "Test delegation after FK fix"
+- **Timestamp**: 2026-01-06 15:07:22
+- **Status**: Successfully displayed on Orchestration tab
+
+### Dashboard Components Verified
+✓ Dashboard loads successfully at http://localhost:8000
+✓ Orchestration tab (🔗 icon) is accessible and clickable
+✓ Delegations are visible when tab is activated
+✓ Agent names displayed: "orchestrator" → "codex-test"
+✓ Delegation flow visualization working
+✓ Task details showing in delegation chain
+
+### Page Content Analysis
+✓ "Orchestration" text found in page
+✓ "delegated" status indicator present
+✓ Agent flow diagram rendering correctly
+✓ Page structure: Agent Orchestration & Delegation section
+✓ Real-time view of delegation chains
+
+### Visual Elements
+- Title: "Agent Orchestration & Delegation"
+- Subtitle: "Real-time view of delegation chains and agent handoffs"
+- Flow visualization: orchestrator → (delegated) → codex-test
+- Delegation details displayed below flow
+
+### Screenshots Captured
+- /tmp/dashboard-orchestration.png - Main dashboard with Orchestration tab visible
+- /tmp/orchestration-view.png - Orchestration tab active showing delegation chain
+
+### Summary
+The HtmlGraph dashboard is correctly displaying delegations on the Orchestration tab. The hand-81b delegation from the orchestrator agent to the codex-test subagent is fully visible with proper visual representation and metadata.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

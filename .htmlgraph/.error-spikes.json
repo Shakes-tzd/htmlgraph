@@ -213,5 +213,10 @@
     "spike_id": "spk-70ac1c16",
     "created": "2026-01-06T10:01:28.636773",
     "occurrences": 4
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nAttributeError": {
+    "spike_id": "spk-7ae4179b",
+    "created": "2026-01-06T10:11:32.584797",
+    "occurrences": 4
   }
 }

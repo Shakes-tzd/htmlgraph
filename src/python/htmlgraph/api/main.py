@@ -15,6 +15,7 @@ Architecture:
 """
 
 import asyncio
+import json
 import logging
 import sqlite3
 from datetime import datetime
@@ -336,11 +337,28 @@ def get_app(db_path: str) -> FastAPI:
             """
 
             cursor = await db.execute(query)
-            rows = await cursor.fetchall()
+            rows = list(await cursor.fetchall())
+            print(f"DEBUG orchestration_view: Query executed, got {len(rows)} rows")
+            if rows:
+                print(f"DEBUG: First row raw: {rows[0]}")
 
-            delegations = [
-                {
+            delegations = []
+            for row in rows:
+                # Parse context JSON if it exists
+                context_data = {}
+                try:
+                    if row[7]:  # context field
+                        context_data = (
+                            json.loads(row[7]) if isinstance(row[7], str) else row[7]
+                        )
+                except Exception:
+                    pass
+
+                delegation = {
                     "handoff_id": row[0],
+                    "event_id": row[
+                        0
+                    ],  # Use handoff_id as event_id for template compatibility
                     "from_agent": row[1],
                     "to_agent": row[2],
                     "timestamp": row[3],
@@ -348,9 +366,13 @@ def get_app(db_path: str) -> FastAPI:
                     "session_id": row[5],
                     "status": row[6],
                     "context": row[7],
+                    "task": context_data.get("task_description", ""),
+                    "result": context_data.get("result", ""),
                 }
-                for row in rows
-            ]
+                delegations.append(delegation)
+            print(
+                f"DEBUG orchestration_view: Created {len(delegations)} delegation dicts"
+            )
 
             return templates.TemplateResponse(
                 "partials/orchestration.html",
@@ -359,6 +381,9 @@ def get_app(db_path: str) -> FastAPI:
                     "delegations": delegations,
                 },
             )
+        except Exception as e:
+            print(f"DEBUG orchestration_view ERROR: {e}")
+            raise
         finally:
             await db.close()
 
