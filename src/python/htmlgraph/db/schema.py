@@ -846,6 +846,62 @@ class HtmlGraphDB:
             logger.error(f"Error querying delegations: {e}")
             return []
 
+    def insert_collaboration(
+        self,
+        handoff_id: str,
+        from_agent: str,
+        to_agent: str,
+        session_id: str,
+        handoff_type: str = "delegation",
+        reason: str | None = None,
+        context: dict[str, Any] | None = None,
+        status: str = "pending",
+    ) -> bool:
+        """
+        Record an agent collaboration/delegation event.
+
+        Args:
+            handoff_id: Unique handoff identifier
+            from_agent: Agent initiating the handoff
+            to_agent: Target agent receiving the task
+            session_id: Session this handoff belongs to
+            handoff_type: Type of handoff (delegation, parallel, sequential, fallback)
+            reason: Reason for the handoff (optional)
+            context: Additional metadata as JSON (optional)
+            status: Status of the handoff (pending, accepted, rejected, completed, failed)
+
+        Returns:
+            True if insert successful, False otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                INSERT INTO agent_collaboration
+                (handoff_id, from_agent, to_agent, session_id, handoff_type,
+                 reason, context, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    handoff_id,
+                    from_agent,
+                    to_agent,
+                    session_id,
+                    handoff_type,
+                    reason,
+                    json.dumps(context) if context else None,
+                    status,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error inserting collaboration record: {e}")
+            return False
+
     def close(self) -> None:
         """Clean up database connection."""
         self.disconnect()

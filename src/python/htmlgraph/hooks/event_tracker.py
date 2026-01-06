@@ -2,11 +2,15 @@
 HtmlGraph Event Tracker Module
 
 Reusable event tracking logic for hook integrations.
-Provides session management, drift detection, and activity logging.
+Provides session management, drift detection, activity logging, and SQLite persistence.
 
 Public API:
     track_event(hook_type: str, tool_input: dict) -> dict
         Main entry point for tracking hook events (PostToolUse, Stop, UserPromptSubmit)
+
+Events are recorded to both:
+    - HTML files via SessionManager (existing)
+    - SQLite database via HtmlGraphDB (new - for dashboard queries)
 """
 
 import json
@@ -18,6 +22,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from htmlgraph.db.schema import HtmlGraphDB
+from htmlgraph.ids import generate_id
 from htmlgraph.session_manager import SessionManager
 
 # Drift classification queue (stored in session directory)
@@ -370,9 +376,136 @@ def format_tool_summary(
         return f"{tool_name}: {str(tool_input)[:50]}"
 
 
+def record_event_to_sqlite(
+    db: HtmlGraphDB,
+    session_id: str,
+    tool_name: str,
+    tool_input: dict,
+    tool_response: dict,
+    is_error: bool,
+    file_paths: list[str] | None = None,
+    parent_event_id: str | None = None,
+) -> str | None:
+    """
+    Record a tool call event to SQLite database for dashboard queries.
+
+    Args:
+        db: HtmlGraphDB instance
+        session_id: Session ID from HtmlGraph
+        tool_name: Name of the tool called
+        tool_input: Tool input parameters
+        tool_response: Tool response/result
+        is_error: Whether the tool call resulted in an error
+        file_paths: File paths affected by the tool
+        parent_event_id: Parent event ID if this is a child event
+
+    Returns:
+        event_id if successful, None otherwise
+    """
+    try:
+        event_id = generate_id("event")
+        input_summary = format_tool_summary(tool_name, tool_input, tool_response)
+
+        # Build output summary from tool response
+        output_summary = ""
+        if isinstance(tool_response, dict):
+            if is_error:
+                output_summary = tool_response.get("error", "error")[:200]
+            else:
+                # Extract summary from response
+                content = tool_response.get("content", tool_response.get("output", ""))
+                if isinstance(content, str):
+                    output_summary = content[:200]
+                elif isinstance(content, list):
+                    output_summary = f"{len(content)} items"
+                else:
+                    output_summary = "success"
+
+        # Build context metadata
+        context = {
+            "file_paths": file_paths or [],
+            "tool_input_keys": list(tool_input.keys()),
+            "is_error": is_error,
+        }
+
+        # Insert event to SQLite
+        success = db.insert_event(
+            event_id=event_id,
+            agent_id="claude-code",
+            event_type="tool_call",
+            session_id=session_id,
+            tool_name=tool_name,
+            input_summary=input_summary,
+            output_summary=output_summary,
+            context=context,
+            parent_event_id=parent_event_id,
+            cost_tokens=0,
+        )
+
+        if success:
+            return event_id
+        return None
+
+    except Exception as e:
+        print(f"Warning: Could not record event to SQLite: {e}", file=sys.stderr)
+        return None
+
+
+def record_delegation_to_sqlite(
+    db: HtmlGraphDB,
+    session_id: str,
+    from_agent: str,
+    to_agent: str,
+    task_description: str,
+    task_input: dict,
+) -> str | None:
+    """
+    Record a Task() delegation to agent_collaboration table.
+
+    Args:
+        db: HtmlGraphDB instance
+        session_id: Session ID from HtmlGraph
+        from_agent: Agent delegating the task (usually 'orchestrator' or 'claude-code')
+        to_agent: Target subagent type (e.g., 'general-purpose', 'researcher')
+        task_description: Task description/prompt
+        task_input: Full task input parameters
+
+    Returns:
+        handoff_id if successful, None otherwise
+    """
+    try:
+        handoff_id = generate_id("handoff")
+
+        # Build context with task input
+        context = {
+            "task_input_keys": list(task_input.keys()),
+            "model": task_input.get("model"),
+            "temperature": task_input.get("temperature"),
+        }
+
+        # Insert delegation record
+        success = db.insert_collaboration(
+            handoff_id=handoff_id,
+            from_agent=from_agent,
+            to_agent=to_agent,
+            session_id=session_id,
+            handoff_type="delegation",
+            reason=task_description[:200],
+            context=context,
+        )
+
+        if success:
+            return handoff_id
+        return None
+
+    except Exception as e:
+        print(f"Warning: Could not record delegation to SQLite: {e}", file=sys.stderr)
+        return None
+
+
 def track_event(hook_type: str, hook_input: dict) -> dict:
     """
-    Track a hook event and log it to HtmlGraph.
+    Track a hook event and log it to HtmlGraph (both HTML files and SQLite).
 
     Args:
         hook_type: Type of hook event ("PostToolUse", "Stop", "UserPromptSubmit")
@@ -388,12 +521,20 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
     # Load drift configuration
     drift_config = load_drift_config()
 
-    # Initialize SessionManager
+    # Initialize SessionManager and SQLite DB
     try:
         manager = SessionManager(graph_dir)
     except Exception as e:
         print(f"Warning: Could not initialize SessionManager: {e}", file=sys.stderr)
         return {"continue": True}
+
+    # Initialize SQLite database for event recording
+    db = None
+    try:
+        db = HtmlGraphDB(str(graph_dir / "htmlgraph.db"))
+    except Exception as e:
+        print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
+        # Continue without SQLite (graceful degradation)
 
     # Get active session ID
     active_session = manager.get_active_session()
@@ -417,6 +558,17 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
             manager.track_activity(
                 session_id=active_session_id, tool="Stop", summary="Agent stopped"
             )
+
+            # Record to SQLite if available
+            if db:
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name="Stop",
+                    tool_input={},
+                    tool_response={"content": "Agent stopped"},
+                    is_error=False,
+                )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
         return {"continue": True}
@@ -432,6 +584,17 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
             manager.track_activity(
                 session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
+
+            # Record to SQLite if available
+            if db:
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name="UserQuery",
+                    tool_input={"prompt": prompt},
+                    tool_response={"content": "Query received"},
+                    is_error=False,
+                )
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
         return {"continue": True}
@@ -511,6 +674,32 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                 success=not is_error,
                 parent_activity_id=parent_activity_id,
             )
+
+            # Record to SQLite if available
+            if db:
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name=tool_name,
+                    tool_input=tool_input_data,
+                    tool_response=tool_response,
+                    is_error=is_error,
+                    file_paths=file_paths if file_paths else None,
+                    parent_event_id=None,  # Parent linking handled after result
+                )
+
+            # If this was a Task() delegation, also record to agent_collaboration
+            if tool_name == "Task" and db:
+                subagent = tool_input_data.get("subagent_type", "general-purpose")
+                description = tool_input_data.get("description", "")
+                record_delegation_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    from_agent="claude-code",
+                    to_agent=subagent,
+                    task_description=description,
+                    task_input=tool_input_data,
+                )
 
             # If this was a parent tool, save its ID for subsequent activities
             if is_parent_tool and result:

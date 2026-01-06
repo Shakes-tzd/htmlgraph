@@ -218,5 +218,10 @@
     "spike_id": "spk-7ae4179b",
     "created": "2026-01-06T10:11:32.584797",
     "occurrences": 4
+  },
+  "Bash:Exit code 1\n\ud83d\udd0d Running pre-commit checks...\n  \u2192 ruff check...\nF841 Local variable `sqlite_event_id` i": {
+    "spike_id": "spk-013753cb",
+    "created": "2026-01-06T11:16:30.630925",
+    "occurrences": 4
   }
 }
