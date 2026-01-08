@@ -552,6 +552,23 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
     active_session_id = active_session.id
 
+    # Ensure session exists in SQLite database (for foreign key constraints)
+    if db:
+        try:
+            db.insert_session(
+                session_id=active_session_id,
+                agent_assigned=getattr(active_session, "agent", "claude-code"),
+                is_subagent=getattr(active_session, "is_subagent", False),
+                transcript_id=getattr(active_session, "transcript_id", None),
+                transcript_path=getattr(active_session, "transcript_path", None),
+            )
+        except Exception as e:
+            # Session may already exist, that's OK - continue
+            print(
+                f"Debug: Could not insert session to SQLite (may already exist): {e}",
+                file=sys.stderr,
+            )
+
     # Handle different hook types
     if hook_type == "Stop":
         # Session is ending - track stop event
