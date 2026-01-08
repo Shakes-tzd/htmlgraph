@@ -940,6 +940,33 @@
         .badge.delegation-fallback { background: #FF9100; color: white; }
         .badge.delegation-direct { background: #2979FF; color: white; }
 
+        /* Event source badges - Color-coded by data source */
+        .badge.source { padding: 0.25rem 0.5rem; font-size: 0.55rem; font-weight: 600; }
+        .badge.source-hook { background: #2979FF; color: white; border-color: #2979FF; }
+        .badge.source-subagent { background: #7C4DFF; color: white; border-color: #7C4DFF; }
+        .badge.source-spike { background: #00C853; color: white; border-color: #00C853; }
+        .badge.source-delegation { background: #FF9100; color: white; border-color: #FF9100; }
+
+        /* Event type indicators */
+        .event-source-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+        .event-source-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        .event-source-indicator.hook::before { background: #2979FF; }
+        .event-source-indicator.subagent::before { background: #7C4DFF; }
+        .event-source-indicator.spike::before { background: #00C853; }
+        .event-source-indicator.delegation::before { background: #FF9100; }
+
         .card-path {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.625rem;
@@ -5420,6 +5447,123 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             } catch (err) {
                 console.error("Activity log error:", err);
                 container.innerHTML = `<div class="loading">Error loading activity log: ${err.message}</div>`;
+            }
+        }
+
+        /**
+         * Fetch complete activity feed from all sources (hooks, subagents, spikes).
+         * This provides unified visibility into ALL activity including delegated work.
+         * See GitHub issue #14859 for Claude Code hook limitations.
+         */
+        async function fetchCompleteActivityFeed(sessionId = null, limit = 100) {
+            const container = document.getElementById('complete-activity-container');
+            if (!container) return;
+
+            try {
+                let url = `${API}/complete-activity-feed?limit=${limit}`;
+                if (sessionId) url += `&session_id=${sessionId}`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to load complete activity feed');
+
+                const data = await response.json();
+                const events = data.events || [];
+                const sources = data.sources || {};
+
+                if (events.length === 0) {
+                    container.innerHTML = `
+                        <div class="loading">
+                            No events recorded yet.
+                            <div style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-muted);">
+                                Events are captured via PreToolUse hooks and SubagentStop hooks.
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Build source summary
+                const sourceSummary = `
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <span class="badge source source-hook">Hook Events: ${sources.hook_events || 0}</span>
+                        <span class="badge source source-subagent">Subagent: ${sources.delegations || 0}</span>
+                        <span class="badge source source-spike">SDK Spikes: ${sources.spike_logs || 0}</span>
+                    </div>
+                `;
+
+                let html_content = `
+                    <div class="activity-header">
+                        <strong>${events.length}</strong>
+                        <span>events from all sources</span>
+                    </div>
+                    ${sourceSummary}
+                    <ol class="activity-list" reversed>
+                `;
+
+                events.forEach(item => {
+                    const ts = item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Unknown';
+                    const tool = item.tool_name || item.event_type || 'Unknown';
+                    const agentId = item.agent_id || 'unknown';
+                    const status = item.status || 'recorded';
+                    const source = item.source || 'hook_event';
+                    const content = item.input_summary || item.output_summary || '';
+
+                    // Source-specific styling
+                    let sourceClass = 'hook';
+                    let sourceBadge = '<span class="badge source source-hook">HOOK</span>';
+                    if (source === 'spike_log') {
+                        sourceClass = 'spike';
+                        sourceBadge = '<span class="badge source source-spike">SDK</span>';
+                    } else if (source === 'delegation' || item.event_type === 'delegation') {
+                        sourceClass = 'subagent';
+                        sourceBadge = '<span class="badge source source-subagent">SUBAGENT</span>';
+                    } else if (item.event_type === 'handoff') {
+                        sourceClass = 'delegation';
+                        sourceBadge = '<span class="badge source source-delegation">HANDOFF</span>';
+                    }
+
+                    // Status icon
+                    const statusIcon = status === 'completed' ? '✅' :
+                                      status === 'error' ? '❌' :
+                                      status === 'subagent_completed' ? '🤖' : '📊';
+
+                    // Agent badge
+                    const agentClass = agentId.includes('claude') ? 'agent-claude' :
+                                      agentId.includes('gemini') ? 'agent-gemini' :
+                                      agentId.includes('codex') ? 'agent-codex' :
+                                      agentId.includes('subagent') ? 'agent-default' : '';
+                    const agentBadge = agentClass ? `<span class="badge agent ${agentClass}">${agentId}</span>` :
+                                                   `<span class="badge">${agentId}</span>`;
+
+                    html_content += `
+                        <li class="activity-item" style="border-left: 3px solid ${sourceClass === 'hook' ? '#2979FF' : sourceClass === 'spike' ? '#00C853' : sourceClass === 'subagent' ? '#7C4DFF' : '#FF9100'};">
+                            <div class="activity-meta">
+                                <span class="activity-time">${ts}</span>
+                                ${statusIcon}
+                                ${sourceBadge}
+                                <span class="activity-tool">${tool}</span>
+                                ${agentBadge}
+                            </div>
+                            <div class="activity-content">${escapeHtml(content.substring(0, 200))}${content.length > 200 ? '...' : ''}</div>
+                        </li>
+                    `;
+                });
+
+                html_content += `</ol>`;
+
+                // Add limitation notice
+                html_content += `
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 4px; font-size: 0.75rem; color: var(--text-muted);">
+                        <strong>Note:</strong> Subagent tool activity is not captured (Claude Code limitation).
+                        <a href="https://github.com/anthropics/claude-code/issues/14859" target="_blank" style="color: var(--status-active);">See GitHub #14859</a>
+                    </div>
+                `;
+
+                container.innerHTML = html_content;
+
+            } catch (err) {
+                console.error("Complete activity feed error:", err);
+                container.innerHTML = `<div class="loading">Error loading activity feed: ${err.message}</div>`;
             }
         }
 

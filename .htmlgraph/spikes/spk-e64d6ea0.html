@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Claude Code Hooks in Subagent Contexts - Research Findings</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e64d6ea0"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T12:15:09.382048"
+             data-updated="2026-01-08T12:15:09.382053" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="gemini-hooks-research">
+
+        <header>
+            <h1>Claude Code Hooks in Subagent Contexts - Research Findings</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Research Summary
+
+This research investigates whether Claude Code hooks (PreToolUse, PostToolUse, etc.) fire in subagent/delegated Task() contexts. **Critical finding: Hook propagation to subagents is NOT currently supported by design.**
+
+---
+
+## 1. Hook Scope & Behavior
+
+### Main Session Hooks (Work)
+✅ **PreToolUse** - Fires before tool execution in main session  
+✅ **PostToolUse** - Fires after tool execution in main session  
+✅ **Stop** - Fires when main agent stops (50+ confirmed executions)  
+✅ **SubagentStop** - Fires when subagent completes  
+✅ **UserPromptSubmit** - Fires on user input  
+✅ **SessionStart/SessionEnd** - Lifecycle events  
+
+### Subagent Context (NOT Supported)
+❌ **PreToolUse in Task()** - Does NOT fire in subagent  
+❌ **PostToolUse in Task()** - Does NOT fire in subagent  
+❌ **SubagentStart** - Does NOT exist (proposed but not implemented)  
+
+### Design Decision
+Hooks are **scoped to the session where they're configured**. When you spawn a subagent via Task():
+- The subagent runs in its own isolated context
+- Hooks from parent session DO NOT propagate to child
+- Child's tools execute without hook interference
+
+**Source**: Claude Code Hooks reference documentation, Section "Hooks in Skills, Agents, and Slash Commands"
+
+---
+
+## 2. Subagent Hook Propagation - CRITICAL LIMITATION
+
+### Current Behavior
+When a subagent spawned via Task() executes tools:
+1. Parent session hooks are NOT inherited
+2. Subagent tools run WITHOUT any PreToolUse/PostToolUse hooks
+3. Only SubagentStop fires (when task completes)
+4. Tool activity is invisible to event tracking
+
+### Why This Design?
+**Settings Inheritance Problem**: Parent session hooks ARE inherited by subagents. This causes:
+- ❌ Recursive loops (PostToolUse hook calls Claude → spawns Task() → fires hook again)
+- ❌ Settings pollution (parent's security hooks affect child behavior unexpectedly)
+- ❌ Context contamination (parent's tool matchers don't make sense in child)
+
+**Solution Used**: Subagents must be given SEPARATE configuration via `--settings` flag that explicitly disables inherited hooks.
+
+**Source**: egghead.io guide "Avoid the Dangers of Settings Pollution in Subagents, Hooks, and Scripts"
+
+### GitHub Issues Documenting This
+1. **#6305** - PreToolUse/PostToolUse hooks not executing (affects all contexts)
+2. **#14859** - Request for SubagentStart hook + agent_id/parent_id fields
+3. **#10354** - Feature request for sub-agent support in hooks (CLOSED - No explicit subagent invocation from hooks)
+4. **#7881** - SubagentStop can't identify which subagent due to shared session_id
+
+---
+
+## 3. Configuration & Environment Variables
+
+### Available Environment Variables
+All hooks have access to:
+- `$CLAUDE_PROJECT_DIR` - Project root directory
+- `$CLAUDE_CODE_REMOTE` - "true" if web, unset if CLI
+- Standard shell environment variables
+
+### SessionStart Hook Only
+- `$CLAUDE_ENV_FILE` - Path to file for persisting environment variables to subsequent bash commands
+  ```bash
+  echo 'export NODE_ENV=production' >> "$CLAUDE_ENV_FILE"
+  ```
+
+### Hook Configuration Files (Single Session Scope)
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "check-security.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### NO Hook Propagation Variables
+- ❌ `CLAUDE_HOOKS` - Does not exist for configuration
+- ❌ `CLAUDE_PROPAGATE_HOOKS` - Does not exist
+- ❌ No mechanism to pass hooks to subagents
+- ❌ No environment variable to inherit hooks
+
+**Source**: Claude Code official hooks reference documentation
+
+---
+
+## 4. Hook Events in Subagent Contexts - What Works
+
+### SubagentStop Hook (LIMITED)
+Only hook that fires for subagent events:
+```json
+{
+  "hooks": {
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "log-subagent-completion.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Problem**: Hook input doesn't distinguish between subagents:
+```json
+{
+  "session_id": "abc123",      // SAME for all subagents in same parent session
+  "hook_event_name": "SubagentStop"
+  // NO agent_id, parent_id, or subagent_type fields
+}
+```
+
+### What We Need (Not Yet Available)
+```json
+{
+  "session_id": "parent-123",
+  "hook_event_name": "SubagentStop",
+  "agent_id": "child-456",           // ❌ Not available yet
+  "parent_agent_id": "parent-123",   // ❌ Not available yet
+  "subagent_type": "Explore"         // ❌ Not available yet
+}
+```
+
+**Source**: Issue #14859 proposes these fields, currently under consideration
+
+---
+
+## 5. Why HtmlGraph Events Don't Capture Delegated Activity
+
+### Current Architecture
+1. **Main session**: PreToolUse hook fires → captures tool activity in .htmlgraph/events/
+2. **Task() subagent spawns**: Isolated context, no hook inheritance
+3. **Subagent tools execute**: NO PreToolUse fired, activity invisible
+4. **Subagent completes**: SubagentStop fires (but with no distinguishing info)
+
+### Result
+HtmlGraph's dashboard shows:
+- ✅ Main session tool activity (PreToolUse events)
+- ❌ Subagent tool activity (no PreToolUse in child context)
+- ⚠️ Subagent completion (SubagentStop, but can't identify which subagent)
+
+### Why Hooks Don't Propagate
+1. **Isolation by design** - Subagents run in isolated contexts to prevent interference
+2. **Settings inheritance problem** - Settings ARE inherited, causing loops/pollution
+3. **Session ID shared** - All subagents in same session share parent's session_id
+4. **No mechanism** - No configuration option to propagate or share hooks between contexts
+
+---
+
+## 6. Recommended Solution for HtmlGraph
+
+### Option A: Use SubagentStop + Manual Logging (Current Best Practice)
+```python
+# In hook configuration
+{
+  "hooks": {
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "record-subagent-stop.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Limitations**:
+- Only logs completion, not individual tool calls
+- Can't distinguish between multiple subagents
+- Incomplete activity tracking
+
+### Option B: Wait for GitHub Issue #14859 (Proposed Enhancement)
+When implemented, will provide:
+- `agent_id` - Unique ID for each subagent
+- `parent_agent_id` - Parent session ID
+- `SubagentStart` hook - Fires when subagent spawns
+- Better observability for multi-agent workflows
+
+**Status**: Under review by Anthropic, not yet implemented
+
+### Option C: Hybrid Approach (Practical Now)
+1. Keep PreToolUse hooks in main session (captures orchestrator activity)
+2. Add SubagentStop hooks to track completion
+3. Document limitation in dashboard: "Subagent tool activity not tracked (Claude Code limitation)"
+4. Plan migration when #14859 implemented
+5. Create GitHub issue reference in code: "See anthropics/claude-code#14859"
+
+### Option D: Alternative Event Capture (Outside Hooks)
+Instead of relying on hooks, implement event capture in:
+- SessionStart hook: Log session start with parent_agent_id if available
+- Task tool wrapper: If wrappable, log Task() invocation details
+- HtmlGraph SDK: Track all SDK operations (features, tracks, spikes)
+
+**Best for**: Non-delegated operations, explicit event logging
+
+---
+
+## 7. GitHub Issue References
+
+### Critical Issues
+1. **#6305** - [PreToolUse/PostToolUse Hooks Not Executing](https://github.com/anthropics/claude-code/issues/6305)
+   - Status: Reported Aug 2025, still under investigation
+   - Impact: Tool-related hooks not firing even in main session
+   - Workaround: Stop/SubagentStop hooks work
+
+2. **#14859** - [[FEATURE] Agent Hierarchy in Hook Events + SubagentStart Hook](https://github.com/anthropics/claude-code/issues/14859)
+   - Status: Feature proposal, NOT YET IMPLEMENTED
+   - Needed for: Distinguishing subagents in events
+   - ETA: Unknown
+
+3. **#10354** - [[FEATURE] Add sub-agent support in Hooks](https://github.com/anthropics/claude-code/issues/10354)
+   - Status: CLOSED as duplicate of #4783
+   - Impact: No explicit subagent invocation from hooks
+   - Related: #4783, #5812, #6885
+
+4. **#7881** - [SubagentStop hook cannot identify which specific subagent finished](https://github.com/anthropics/claude-code/issues/7881)
+   - Status: Acknowledged, blocked by #14859
+   - Impact: All subagents share session_id in hook input
+
+### Secondary Issues
+- **#3148** - PreToolUse/PostToolUse not triggered with `*` matcher (regex edge case)
+- **#15617** - PostToolUse hooks not firing on Termux/Android (platform-specific)
+
+---
+
+## 8. Design Patterns from Similar Tools
+
+### How Other Tools Handle This
+
+**GitHub Actions**: Workflows specify which jobs run in which contexts
+```yaml
+jobs:
+  main: steps: [...]        # Main context
+  subagent: steps: [...]    # Isolated context
+  # No automatic step propagation between jobs
+```
+
+**Kubernetes**: Pods run isolated, hooks only in their namespace
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  hooks:
+    - onStart: ...  # Only applies to this pod
+```
+
+**AWS Lambda**: Layers are explicitly included, not inherited
+```python
+# Parent function's layers don't propagate to invoke_async() calls
+# Must explicitly configure child function with same layers
+```
+
+**Pattern**: **Isolation with explicit propagation** is the standard for preventing settings pollution and recursive loops.
+
+---
+
+## 9. Implementation Impact for HtmlGraph
+
+### Current State
+- ✅ Main orchestrator activity captured via PreToolUse
+- ❌ Task() delegated activity NOT captured
+- ⚠️ SubagentStop captures completion but can't identify subagent
+
+### After GitHub Issue #14859 (IF Implemented)
+- ✅ Main orchestrator activity captured
+- ✅ Each subagent identifiable by agent_id
+- ✅ SubagentStart hook for spawn events
+- ✅ Parent-child relationships traceable
+- Impact: **Full multi-agent observability possible**
+
+### Recommended Action
+Document this limitation in code with link to GitHub issues:
+```python
+# LIMITATION: PreToolUse hooks don't fire in Task() subagents
+# See: https://github.com/anthropics/claude-code/issues/14859
+# Tracking: Awaiting SubagentStart hook + agent_id fields in hook input
+```
+
+---
+
+## 10. Key Takeaways
+
+1. **Hooks are session-scoped**: They don't propagate to subagent contexts by design
+2. **Why not?**: Settings inheritance causes recursive loops and context pollution
+3. **Current limitation**: HtmlGraph can't capture delegated task activity
+4. **Workaround**: SubagentStop hook captures completion (limited)
+5. **Future solution**: GitHub issue #14859 proposes agent hierarchy fields
+6. **Timeline**: Unknown (under review, not in active development)
+7. **Best practice**: Document limitation, plan migration when fixed
+8. **Alternative**: Use SDK event logging for explicit operations
+
+---
+
+## References & Sources
+
+### Official Documentation
+- [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks)
+- [Claude Code Hooks Guide](https://code.claude.com/docs/en/hooks-guide)
+
+### GitHub Issues
+- [#6305 - PreToolUse/PostToolUse Not Executing](https://github.com/anthropics/claude-code/issues/6305)
+- [#14859 - Agent Hierarchy in Hook Events](https://github.com/anthropics/claude-code/issues/14859)
+- [#10354 - Sub-Agent Support in Hooks](https://github.com/anthropics/claude-code/issues/10354)
+- [#7881 - SubagentStop Cannot Identify Subagent](https://github.com/anthropics/claude-code/issues/7881)
+
+### Community Articles
+- [egghead.io - Avoid Settings Pollution in Subagents](https://egghead.io/avoid-the-dangers-of-settings-pollution-in-subagents-hooks-and-scripts~xrecv)
+- [GitHub - claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery)
+
+### Discussions
+- PubNub: Best practices for Claude Code subagents
+- DEV Community: Claude Code subagents and task delegation
+- Medium: Mastering main agent and sub-agents
+
+---
+
+## Conclusion
+
+**Hook propagation to subagents is not supported by design.** This is an intentional architectural decision to prevent settings pollution and recursive loops. HtmlGraph's event capture is limited to the main orchestrator session. Full multi-agent observability requires the enhancement proposed in GitHub issue #14859 (SubagentStart hook + agent_id fields), which is currently under review but not yet implemented.
+
+For immediate use: Document the limitation and plan migration when hooks support agent hierarchy fields. Consider using SubagentStop + SessionStart hooks for partial observability.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

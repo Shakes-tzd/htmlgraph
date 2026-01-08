@@ -180,6 +180,125 @@ def sanitize_tool_input(tool_input: dict[str, Any]) -> dict[str, Any]:
         return tool_input
 
 
+def extract_subagent_type(tool_input: dict[str, Any]) -> str | None:
+    """
+    Extract subagent_type from Task() tool input.
+
+    Looks for patterns like:
+    - "subagent_type": "gemini-spawner"
+    - Task with specific naming patterns
+
+    Args:
+        tool_input: Task() tool input parameters
+
+    Returns:
+        Subagent type string or None if not found
+    """
+    try:
+        # Check for explicit subagent_type parameter
+        if "subagent_type" in tool_input:
+            return str(tool_input.get("subagent_type"))
+
+        # Check in prompt for agent references
+        prompt = str(tool_input.get("prompt", "")).lower()
+        if "gemini" in prompt:
+            return "gemini-spawner"
+        if "codex" in prompt:
+            return "codex-spawner"
+        if "researcher" in prompt:
+            return "researcher"
+        if "debugger" in prompt:
+            return "debugger"
+
+        return None
+    except Exception:
+        return None
+
+
+def create_task_parent_event(
+    db: HtmlGraphDB,
+    tool_input: dict[str, Any],
+    session_id: str,
+    start_time: str,
+) -> str | None:
+    """
+    Create a parent event for Task() delegations.
+
+    Inserts into agent_events with:
+    - event_type: 'task_delegation'
+    - subagent_type: Extracted from tool input
+    - status: 'started'
+    - parent_event_id: None (this is a parent)
+
+    This event will be linked to child events created by the subagent
+    and updated when SubagentStop fires.
+
+    Args:
+        db: Database connection
+        tool_input: Task() tool input parameters
+        session_id: Current session ID
+        start_time: ISO8601 UTC timestamp
+
+    Returns:
+        Parent event_id if successful, None otherwise
+    """
+    try:
+        if not db.connection:
+            db.connect()
+
+        parent_event_id = f"evt-{str(uuid.uuid4())[:8]}"
+        subagent_type = extract_subagent_type(tool_input)
+        prompt = str(tool_input.get("prompt", ""))[:200]
+
+        # Build input summary
+        input_summary = json.dumps(
+            {
+                "subagent_type": subagent_type or "general-purpose",
+                "prompt": prompt,
+            }
+        )[:500]
+
+        cursor = db.connection.cursor()  # type: ignore[union-attr]
+
+        # Insert parent event
+        cursor.execute(
+            """
+            INSERT INTO agent_events
+            (event_id, agent_id, event_type, timestamp, tool_name,
+             input_summary, session_id, status, subagent_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                parent_event_id,
+                "claude-code",  # Main orchestrator agent
+                "task_delegation",
+                start_time,
+                "Task",
+                input_summary,
+                session_id,
+                "started",
+                subagent_type or "general-purpose",
+            ),
+        )
+
+        db.connection.commit()  # type: ignore[union-attr]
+
+        # Export to environment for subagent reference
+        os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+        os.environ["HTMLGRAPH_SUBAGENT_TYPE"] = subagent_type or "general-purpose"
+
+        logger.debug(
+            f"Created parent event for Task delegation: "
+            f"event_id={parent_event_id}, subagent_type={subagent_type}"
+        )
+
+        return parent_event_id
+
+    except Exception as e:
+        logger.warning(f"Error creating parent event: {e}")
+        return None
+
+
 def create_start_event(
     tool_name: str, tool_input: dict[str, Any], session_id: str
 ) -> str | None:
@@ -194,6 +313,8 @@ def create_start_event(
     - tool_input: Sanitized input parameters
     - start_time: ISO8601 UTC timestamp
     - status: 'started'
+
+    For Task() calls, also creates a parent event for event nesting.
 
     Args:
         tool_name: Name of tool being executed
@@ -229,6 +350,13 @@ def create_start_event(
 
         cursor = db.connection.cursor()  # type: ignore[union-attr]
 
+        # Check if this is a Task() call for parent event creation
+        parent_event_id = None
+        if tool_name == "Task":
+            parent_event_id = create_task_parent_event(
+                db, tool_input, session_id, start_time
+            )
+
         # Insert into agent_events table (for dashboard display)
         import uuid
 
@@ -238,8 +366,8 @@ def create_start_event(
             """
             INSERT INTO agent_events
             (event_id, agent_id, event_type, timestamp, tool_name,
-             input_summary, session_id, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             input_summary, session_id, status, parent_event_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 event_id,
@@ -250,6 +378,7 @@ def create_start_event(
                 json.dumps(sanitized_input)[:500],  # Truncate for summary
                 session_id,
                 "recorded",
+                parent_event_id,  # Link to parent if this is Task()
             ),
         )
 
@@ -259,8 +388,8 @@ def create_start_event(
                 """
                 INSERT INTO tool_traces
                 (tool_use_id, trace_id, session_id, tool_name, tool_input,
-                 start_time, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                 start_time, status, parent_tool_use_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     tool_use_id,
@@ -270,6 +399,7 @@ def create_start_event(
                     json.dumps(sanitized_input),
                     start_time,
                     "started",
+                    None,  # Will be set by SubagentStop hook
                 ),
             )
         except Exception as e:
@@ -280,7 +410,7 @@ def create_start_event(
 
         logger.debug(
             f"Created start event: tool_use_id={tool_use_id}, "
-            f"tool={tool_name}, session={session_id}"
+            f"tool={tool_name}, session={session_id}, parent_event={parent_event_id}"
         )
         return tool_use_id
 

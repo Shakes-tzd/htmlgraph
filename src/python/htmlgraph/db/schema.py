@@ -103,7 +103,7 @@ class HtmlGraphDB:
                 agent_id TEXT NOT NULL,
                 event_type TEXT NOT NULL CHECK(
                     event_type IN ('tool_call', 'tool_result', 'error', 'delegation',
-                                   'completion', 'start', 'end', 'check_point')
+                                   'completion', 'start', 'end', 'check_point', 'task_delegation')
                 ),
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 tool_name TEXT,
@@ -113,6 +113,8 @@ class HtmlGraphDB:
                 session_id TEXT NOT NULL,
                 parent_agent_id TEXT,
                 parent_event_id TEXT,
+                subagent_type TEXT,
+                child_spike_count INTEGER DEFAULT 0,
                 cost_tokens INTEGER DEFAULT 0,
                 execution_duration_seconds REAL DEFAULT 0.0,
                 status TEXT DEFAULT 'recorded',
@@ -288,44 +290,78 @@ class HtmlGraphDB:
         """
         Create indexes on frequently queried fields.
 
+        OPTIMIZATION STRATEGY:
+        - Composite indexes for most common query patterns (session+timestamp, agent+timestamp)
+        - Single-column indexes for individual filters and sorts
+        - DESC indexes for reverse-order queries (e.g., activity feed, timelines)
+        - Covering indexes where beneficial to reduce table lookups
+
         Args:
             cursor: SQLite cursor for executing queries
         """
         indexes = [
-            # agent_events indexes
-            "CREATE INDEX IF NOT EXISTS idx_agent_events_session ON agent_events(session_id)",
+            # agent_events indexes - optimized for common query patterns
+            # Pattern: WHERE session_id ORDER BY timestamp DESC (activity feed)
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_session_ts_desc ON agent_events(session_id, timestamp DESC)",
+            # Pattern: WHERE agent_id ORDER BY timestamp DESC (agent timeline)
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_agent_ts_desc ON agent_events(agent_id, timestamp DESC)",
+            # Pattern: GROUP BY agent_id (agent statistics)
             "CREATE INDEX IF NOT EXISTS idx_agent_events_agent ON agent_events(agent_id)",
-            "CREATE INDEX IF NOT EXISTS idx_agent_events_timestamp ON agent_events(timestamp)",
+            # Pattern: WHERE event_type = 'error' (error tracking)
             "CREATE INDEX IF NOT EXISTS idx_agent_events_type ON agent_events(event_type)",
+            # Pattern: WHERE parent_event_id (hierarchical queries)
             "CREATE INDEX IF NOT EXISTS idx_agent_events_parent_event ON agent_events(parent_event_id)",
-            # features indexes
-            "CREATE INDEX IF NOT EXISTS idx_features_status ON features(status)",
-            "CREATE INDEX IF NOT EXISTS idx_features_type ON features(type)",
-            "CREATE INDEX IF NOT EXISTS idx_features_track ON features(track_id)",
+            # Pattern: WHERE event_type = 'task_delegation' (task delegation queries)
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_task_delegation ON agent_events(event_type, subagent_type, timestamp DESC)",
+            # Pattern: Tool usage summary GROUP BY tool_name WHERE session_id
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_session_tool ON agent_events(session_id, tool_name)",
+            # Pattern: Timestamp range queries
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_timestamp ON agent_events(timestamp DESC)",
+            # features indexes - optimized for kanban/filtering
+            # Pattern: WHERE status ORDER BY priority DESC (feature list views)
+            "CREATE INDEX IF NOT EXISTS idx_features_status_priority ON features(status, priority DESC, created_at DESC)",
+            # Pattern: WHERE track_id ORDER BY priority (track features)
+            "CREATE INDEX IF NOT EXISTS idx_features_track_priority ON features(track_id, priority DESC, created_at DESC)",
+            # Pattern: WHERE assigned_to (agent workload)
             "CREATE INDEX IF NOT EXISTS idx_features_assigned ON features(assigned_to)",
+            # Pattern: WHERE parent_feature_id (feature tree)
             "CREATE INDEX IF NOT EXISTS idx_features_parent ON features(parent_feature_id)",
-            "CREATE INDEX IF NOT EXISTS idx_features_created ON features(created_at)",
-            # sessions indexes
-            "CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_assigned)",
-            "CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at)",
-            "CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)",
-            "CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id)",
-            # tracks indexes
-            "CREATE INDEX IF NOT EXISTS idx_tracks_status ON tracks(status)",
-            "CREATE INDEX IF NOT EXISTS idx_tracks_created ON tracks(created_at)",
-            # collaboration indexes
+            # Pattern: WHERE type (filtering by type)
+            "CREATE INDEX IF NOT EXISTS idx_features_type ON features(type)",
+            # Pattern: Created timestamp range queries
+            "CREATE INDEX IF NOT EXISTS idx_features_created ON features(created_at DESC)",
+            # sessions indexes - optimized for session analysis
+            # Pattern: WHERE agent_assigned ORDER BY created_at DESC
+            "CREATE INDEX IF NOT EXISTS idx_sessions_agent_created ON sessions(agent_assigned, created_at DESC)",
+            # Pattern: WHERE status (active sessions query)
+            "CREATE INDEX IF NOT EXISTS idx_sessions_status_created ON sessions(status, created_at DESC)",
+            # Pattern: WHERE parent_session_id (subagent queries)
+            "CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id, created_at DESC)",
+            # Pattern: Timestamp ordering for metrics
+            "CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC)",
+            # tracks indexes - optimized for track queries
+            # Pattern: WHERE status GROUP BY track_id
+            "CREATE INDEX IF NOT EXISTS idx_tracks_status_created ON tracks(status, created_at DESC)",
+            # Pattern: Ordering by priority
+            "CREATE INDEX IF NOT EXISTS idx_tracks_priority ON tracks(priority DESC)",
+            # collaboration indexes - optimized for handoff queries
+            # Pattern: WHERE session_id, WHERE from_agent, WHERE to_agent
+            "CREATE INDEX IF NOT EXISTS idx_collaboration_session ON agent_collaboration(session_id, timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_collaboration_from_agent ON agent_collaboration(from_agent)",
             "CREATE INDEX IF NOT EXISTS idx_collaboration_to_agent ON agent_collaboration(to_agent)",
+            # Pattern: GROUP BY from_agent, to_agent
+            "CREATE INDEX IF NOT EXISTS idx_collaboration_agents ON agent_collaboration(from_agent, to_agent)",
             "CREATE INDEX IF NOT EXISTS idx_collaboration_feature ON agent_collaboration(feature_id)",
-            # graph_edges indexes
+            "CREATE INDEX IF NOT EXISTS idx_collaboration_handoff_type ON agent_collaboration(handoff_type, timestamp DESC)",
+            # graph_edges indexes - optimized for graph traversal
             "CREATE INDEX IF NOT EXISTS idx_edges_from ON graph_edges(from_node_id)",
             "CREATE INDEX IF NOT EXISTS idx_edges_to ON graph_edges(to_node_id)",
             "CREATE INDEX IF NOT EXISTS idx_edges_type ON graph_edges(relationship_type)",
-            # tool_traces indexes (5 performance indexes)
+            # tool_traces indexes - optimized for tool performance analysis
             "CREATE INDEX IF NOT EXISTS idx_tool_traces_trace_id ON tool_traces(trace_id, start_time DESC)",
-            "CREATE INDEX IF NOT EXISTS idx_tool_traces_session ON tool_traces(session_id)",
-            "CREATE INDEX IF NOT EXISTS idx_tool_traces_tool_name ON tool_traces(tool_name)",
-            "CREATE INDEX IF NOT EXISTS idx_tool_traces_status ON tool_traces(status)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_session ON tool_traces(session_id, start_time DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_tool_name ON tool_traces(tool_name, status)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_status ON tool_traces(status, start_time DESC)",
             "CREATE INDEX IF NOT EXISTS idx_tool_traces_start_time ON tool_traces(start_time DESC)",
         ]
 

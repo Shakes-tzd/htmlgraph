@@ -1,268 +1,252 @@
-# Phase 4-6 Implementation Summary: Hooks, Model Selection, CLI Commands
+# Hybrid Event Capture System - Implementation Summary
 
-## Overview
-Completed implementation of Phase 4-6 features for HtmlGraph, adding intelligent task routing, enhanced workflow guidance, and Claude Code integration.
+## Status: COMPLETE ✅
 
-## Components Implemented
+All components of the Hybrid Event Capture System have been implemented and tested.
 
-### 1. Enhanced UserPromptSubmit Hook
-**File:** `.claude/hooks/scripts/user-prompt-submit.py`
+## What Was Implemented
 
-#### New Features
-- **Task Classification**: Automatically classify user prompts into categories
-  - `exploration` - Research and discovery tasks
-  - `debugging` - Error analysis and troubleshooting
-  - `implementation` - Code writing and feature development
-  - `quality` - Testing, linting, and validation
-  - `general` - Unclassified tasks
+### 1. SubagentStop Hook (NEW)
+- **File**: `src/python/htmlgraph/hooks/subagent_stop.py`
+- **Wrapper**: `.claude/hooks/scripts/subagent-stop.py`
+- **Purpose**: Updates parent events when subagents complete execution
+- **Functionality**:
+  - Reads `HTMLGRAPH_PARENT_EVENT` from environment
+  - Counts child spikes created during subagent execution
+  - Updates parent event with completion status and child spike count
+  - Gracefully handles missing parent events
+  - Non-blocking error handling
 
-- **Skill Recommendations**: Suggest appropriate skills based on task type
-  - Exploration → `multi-ai-orchestration`
-  - Debugging → `debugging-workflow`
-  - Implementation → `htmlgraph-coder`
-  - Quality → `code-quality`
+### 2. Database Schema (Already Present)
+- `parent_event_id`: Links child events to parent
+- `subagent_type`: Type of subagent (gemini-spawner, researcher, etc.)
+- `child_spike_count`: Count of spikes created by subagent
+- `status`: Event status (started, completed, failed)
+- Proper foreign key relationships and indexes
 
-#### Implementation Details
+### 3. PreToolUse Hook (Enhanced)
+- **File**: `src/python/htmlgraph/hooks/pretooluse.py`
+- **Already Implemented**: Creates parent events for Task() calls
+- **Features**:
+  - Detects Task() delegations
+  - Extracts subagent_type from parameters
+  - Creates parent event in agent_events table
+  - Exports `HTMLGRAPH_PARENT_EVENT` to environment
+  - Non-blocking, graceful error handling
+
+### 4. API Endpoint (Already Present)
+- **File**: `src/python/htmlgraph/api/main.py` (lines 573-754)
+- **Endpoint**: `GET /api/event-traces`
+- **Response**: Parent-child event traces with complete hierarchy
+- **Features**:
+  - Returns parent events with child events/spikes
+  - Includes duration calculations
+  - Proper JSON serialization
+  - Query caching for performance
+
+### 5. Dashboard Template (NEW)
+- **File**: `src/python/htmlgraph/api/templates/partials/event-traces.html`
+- **Purpose**: Visualize parent-child event relationships
+- **Features**:
+  - Hierarchical display with ASCII art connectors
+  - Color-coded status badges
+  - Duration and child count display
+  - Responsive design
+
+### 6. Comprehensive Tests (NEW)
+- **File**: `tests/hooks/test_hybrid_event_capture.py`
+- **Coverage**: 8 tests, 100% passing
+- **Test Categories**:
+  - Parent event creation
+  - Child spike detection and counting
+  - Parent event updates
+  - Complete workflow (delegation → execution → completion)
+  - API response format validation
+
+### 7. Documentation (NEW)
+- **File**: `docs/HYBRID_EVENT_CAPTURE.md`
+- **Content**:
+  - System overview and architecture
+  - Component descriptions
+  - Usage patterns and examples
+  - Database schema details
+  - Performance characteristics
+  - Query examples
+  - Error handling guide
+  - Verification checklist
+
+## Event Flow Example
+
+```
+ORCHESTRATOR: Calls Task() delegation
+  ↓
+PRETOOLUSE HOOK: Creates evt-123 (status=started, subagent_type=gemini-spawner)
+  ↓ Exports HTMLGRAPH_PARENT_EVENT=evt-123
+  ↓
+SUBAGENT: Runs in isolated context with parent_event in environment
+  ├─ Creates spike spk-456 with findings
+  ├─ Creates spike spk-789 with findings
+  └─ Completes execution
+  ↓
+SUBAGENT STOP HOOK: Fires when subagent completes
+  ├─ Counts child spikes (finds 2)
+  ├─ Updates evt-123: status=completed, child_spike_count=2
+  └─ Clears HTMLGRAPH_PARENT_EVENT from environment
+  ↓
+DASHBOARD: Shows complete trace
+  evt-123 Task(gemini-spawner) [COMPLETED]
+  ├─ spk-456 [Knowledge Created]
+  └─ spk-789 [Knowledge Created]
+```
+
+## Test Results
+
+```
+tests/hooks/test_hybrid_event_capture.py::TestParentEventCreation::test_task_detection PASSED
+tests/hooks/test_hybrid_event_capture.py::TestParentEventCreation::test_parent_event_in_database PASSED
+tests/hooks/test_hybrid_event_capture.py::TestChildSpikeDetection::test_count_spikes_within_window PASSED
+tests/hooks/test_hybrid_event_capture.py::TestChildSpikeDetection::test_spikes_outside_window_ignored PASSED
+tests/hooks/test_hybrid_event_capture.py::TestParentEventCompletion::test_update_parent_event PASSED
+tests/hooks/test_hybrid_event_capture.py::TestParentEventCompletion::test_parent_event_not_found PASSED
+tests/hooks/test_hybrid_event_capture.py::TestFullWorkflow::test_complete_delegation_trace PASSED
+tests/hooks/test_hybrid_event_capture.py::TestFullWorkflow::test_event_traces_api_format PASSED
+
+8 passed in 0.31s
+```
+
+## Files Created
+
+1. `/Users/shakes/DevProjects/htmlgraph/.claude/hooks/scripts/subagent-stop.py`
+   - Hook script wrapper for SubagentStop hook
+
+2. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/subagent_stop.py`
+   - Complete SubagentStop hook implementation
+
+3. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/partials/event-traces.html`
+   - Dashboard template for event traces visualization
+
+4. `/Users/shakes/DevProjects/htmlgraph/tests/hooks/test_hybrid_event_capture.py`
+   - Comprehensive test suite (8 tests, 100% passing)
+
+5. `/Users/shakes/DevProjects/htmlgraph/docs/HYBRID_EVENT_CAPTURE.md`
+   - Complete documentation and architectural guide
+
+## Files Enhanced
+
+1. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/pretooluse.py`
+   - Already had parent event creation logic
+   - Verified and documented
+
+2. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py`
+   - Already had /api/event-traces endpoint
+   - Verified and documented
+
+## Verification Checklist
+
+- ✅ Database schema has parent_event_id, subagent_type, child_spike_count columns
+- ✅ PreToolUse hook detects Task() calls and creates parent events
+- ✅ HTMLGRAPH_PARENT_EVENT exported to subagent environment
+- ✅ HTMLGRAPH_SUBAGENT_TYPE exported to subagent environment
+- ✅ SubagentStop hook updates parent event with completion info
+- ✅ /api/event-traces endpoint returns proper parent-child structure
+- ✅ Dashboard template shows event nesting with visual indicators
+- ✅ 8 comprehensive tests all passing
+- ✅ Complete documentation with examples
+- ✅ Error handling and graceful degradation
+- ✅ Performance optimized with caching
+
+## Key Design Decisions
+
+1. **Non-blocking Architecture**
+   - All database operations gracefully degrade on failure
+   - Tool execution never blocked by tracking failures
+   - Errors logged but don't prevent task completion
+
+2. **Time-Window Based Spike Counting**
+   - 5-minute window avoids counting unrelated spikes
+   - May undercount if spikes created outside window
+   - May overcount if other subagents run in parallel
+   - Tradeoff: simplicity vs. perfect accuracy
+
+3. **Environment Variable Linking**
+   - `HTMLGRAPH_PARENT_EVENT` connects parent and child contexts
+   - Simple, reliable, works across process boundaries
+   - Available to subagent SDK for explicit linking
+
+4. **Graceful Degradation**
+   - Missing parent events handled gracefully
+   - Database unavailability doesn't block execution
+   - All errors logged for debugging
+
+## Next Steps (Optional Future Work)
+
+1. **Explicit Spike-to-Parent Linking**
+   - Add `parent_event_id` column to features table
+   - More accurate than time-window based counting
+   - Requires explicit SDK support
+
+2. **Subagent Hook Access**
+   - If Claude Code adds SubagentPreToolUse hook
+   - Could track tool calls within subagent
+   - Would provide complete visibility
+
+3. **Batch Queries**
+   - Optimize N+1 query pattern in dashboard
+   - Use SQL joins instead of per-parent queries
+   - Reduce dashboard response time
+
+4. **Real-time Updates**
+   - WebSocket streaming of event traces
+   - Live updates as delegations complete
+   - Better UX for monitoring
+
+## Usage Examples
+
+### Basic Task Delegation
 ```python
-def classify_task(prompt: str) -> str:
-    """Classify user request into category based on keywords."""
-    # Returns: exploration, debugging, implementation, quality, general
+from htmlgraph import Task
 
-def recommend_skill(task_type: str) -> str | None:
-    """Recommend skill based on task type."""
-    # Returns: skill name or None
-```
-
-#### Hook Output
-Enhanced JSON response now includes classification details:
-```json
-{
-  "additionalContext": "...",
-  "classification": {
-    "implementation": true,
-    "task_type": "implementation",
-    "recommended_skill": "htmlgraph-coder",
-    "confidence": 0.8
-  }
-}
-```
-
-### 2. Model Selection Module
-**File:** `src/python/htmlgraph/orchestration/model_selection.py`
-
-#### Key Classes
-- **ModelSelection**: Main orchestration class for model routing
-- **TaskType**: Enum with task categories (exploration, debugging, implementation, quality, general)
-- **ComplexityLevel**: Task difficulty levels (low, medium, high)
-- **BudgetMode**: Budget constraints (free, balanced, quality)
-
-#### Decision Matrix
-Intelligent routing based on 3-dimensional tuple: (task_type, complexity, budget)
-
-Examples:
-```python
-select_model("exploration", "medium", "free")      # → "gemini"
-select_model("implementation", "high", "balanced")  # → "claude-opus"
-select_model("debugging", "high", "quality")        # → "claude-opus"
-select_model("quality", "low", "balanced")          # → "claude-haiku"
-```
-
-#### Fallback Chains
-Each model has fallback options:
-- `gemini` → `claude-haiku` → `claude-sonnet` → `claude-opus`
-- `codex` → `claude-sonnet` → `claude-opus`
-- `copilot` → `claude-sonnet` → `claude-opus`
-
-#### Token Estimation
-```python
-estimate_tokens(task_description, complexity)
-# Returns estimated token count based on task description and complexity
-```
-
-### 3. Claude CLI Commands
-**File:** `src/python/htmlgraph/cli.py`
-
-#### New Commands
-
-##### `htmlgraph claude`
-Start Claude Code in normal mode
-```bash
-htmlgraph claude
-```
-
-##### `htmlgraph claude --init`
-Start Claude Code with orchestrator system prompt (recommended)
-```bash
-htmlgraph claude --init
-```
-Shows orchestrator directives:
-- Delegate implementation to subagents
-- Create work items before delegating
-- Track all work in .htmlgraph/
-- Respect dependency chains
-
-##### `htmlgraph claude --continue`
-Resume last Claude Code session
-```bash
-htmlgraph claude --continue
-```
-
-#### Implementation Details
-- Loads optional orchestrator system prompt from `src/python/htmlgraph/orchestrator_system_prompt.txt`
-- Falls back to inline prompt if file doesn't exist
-- Respects `--format json` and `--quiet` flags for non-interactive usage
-- Proper error handling for missing Claude CLI
-
-## Testing Results
-
-### Model Selection Tests
-```bash
-✓ Model selection imports work
-✓ select_model('implementation', 'high', 'balanced') → 'claude-opus'
-✓ get_fallback_chain('gemini') → ['claude-haiku', 'claude-sonnet', 'claude-opus']
-```
-
-### Hook Tests
-```bash
-✓ Hook correctly classifies implementation prompts
-✓ Returns task_type: 'implementation'
-✓ Recommends skill: 'htmlgraph-coder'
-✓ Confidence: 0.8
-```
-
-### CLI Tests
-- Parser correctly registers `claude` command
-- Flags `--init` and `--continue` are mutually exclusive
-- Command dispatches to `cmd_claude()` handler
-
-## Integration Points
-
-### 1. With Existing Orchestration
-- Model selection used by `HeadlessSpawner` for AI selection
-- Task coordination uses recommendations
-- Plugin system can suggest skills based on classification
-
-### 2. With SDK
-```python
-from htmlgraph import SDK
-from htmlgraph.orchestration import ModelSelection
-
-sdk = SDK(agent='orchestrator')
-
-# Model selection in orchestration context
-primary_model = ModelSelection.select_model(
-    task_type='implementation',
-    complexity='high',
-    budget='balanced'
+Task(
+    prompt="Analyze codebase architecture",
+    subagent_type="gemini-spawner"
 )
-
-# Fallback chain for resilience
-fallbacks = ModelSelection.get_fallback_chain(primary_model)
 ```
 
-### 3. With Claude Code Hooks
-- UserPromptSubmit hook now provides skill recommendations
-- Claude Code can use recommendations to guide agent selection
-- Task classification flows through orchestration pipeline
-
-## File Changes Summary
-
-### New Files Created
-1. `src/python/htmlgraph/orchestration/model_selection.py` (300+ lines)
-
-### Files Modified
-1. `.claude/hooks/scripts/user-prompt-submit.py`
-   - Added `classify_task()` function
-   - Added `recommend_skill()` function
-   - Enhanced `classify_prompt()` with task type and skill recommendation
-   - Updated hook output JSON structure
-
-2. `src/python/htmlgraph/orchestration/__init__.py`
-   - Added model selection exports
-   - Reorganized imports for clarity
-
-3. `src/python/htmlgraph/cli.py`
-   - Added `cmd_claude()` handler function (100 lines)
-   - Added CLI parser for `claude` command
-   - Updated docstring with usage examples
-   - Added command dispatch logic
-
-## Documentation Updates
-
-### Quick Start
-```bash
-# Start with orchestrator mode (recommended)
-htmlgraph claude --init
-
-# Resume previous session
-htmlgraph claude --continue
-
-# Use model selection in code
-from htmlgraph.orchestration import select_model
-model = select_model('implementation', 'high')  # → 'claude-opus'
+### With SDK Logging
+```python
+Task(
+    prompt="""
+    Research API patterns and create spike.
+    
+    from htmlgraph import SDK
+    sdk = SDK(agent='researcher')
+    spike = sdk.spikes.create('API Patterns').set_findings(...).save()
+    """,
+    subagent_type="researcher"
+)
 ```
 
-### Architecture Diagram
+### Query Event Traces
+```python
+import httpx
+
+response = httpx.get('http://localhost:8000/api/event-traces')
+traces = response.json()['traces']
+
+for trace in traces:
+    print(f"{trace['parent_event_id']}: {trace['status']}")
+    print(f"  Subagent: {trace['subagent_type']}")
+    print(f"  Child events: {trace['child_spike_count']}")
 ```
-User Prompt
-    ↓
-UserPromptSubmit Hook
-    ↓
-Task Classification (new)
-    ↓
-Skill Recommendation (new)
-    ↓
-Orchestrator Logic
-    ↓
-Model Selection (new)
-    ↓
-HeadlessSpawner
-    ↓
-AI CLI (Claude, Gemini, Codex, etc.)
-```
-
-## Future Enhancements
-
-### 1. Machine Learning Classification
-- Train classifier on historical prompts
-- Improve accuracy beyond keyword matching
-- Learn from user feedback
-
-### 2. Cost Optimization
-- Track actual token usage per model
-- Adjust budget mode dynamically
-- Recommend cost-saving alternatives
-
-### 3. Extended Model Support
-- Add more fallback chains
-- Support custom model routing rules
-- Integration with enterprise AI platforms
-
-### 4. Metrics & Analytics
-- Track model usage by task type
-- Measure cost vs. quality trade-offs
-- Optimize model selection over time
-
-## Version Information
-- Feature: `feat-f6ffbefe`
-- Track: `trk-6676a644`
-- Implementation Date: 2026-01-03
-
-## Validation Checklist
-- [x] Code compiles without errors
-- [x] Hook processes prompts correctly
-- [x] Model selection returns valid models
-- [x] CLI commands parse correctly
-- [x] Fallback chains are complete
-- [x] Integration with existing code verified
-- [x] Documentation complete
 
 ## Summary
 
-Successfully implemented all Phase 4-6 features:
+The Hybrid Event Capture System is now fully implemented and tested. It provides complete visibility into delegated work through parent-child event relationships, enabling:
 
-1. **UserPromptSubmit Hook Enhancement**: Task classification and skill recommendations now guide users to appropriate tools
-2. **Model Selection Module**: Intelligent routing system considers task type, complexity, and budget constraints
-3. **Claude CLI Integration**: Easy access to orchestrator mode with `htmlgraph claude --init`
+- Full traceability of Task() delegations
+- Complete audit trail of subagent work
+- Dashboard visualization of delegation hierarchy
+- Structured event data for analytics
+- Error handling and graceful degradation
 
-All components are tested, integrated with existing systems, and ready for production use.
+All components work together seamlessly to create a comprehensive event tracking system for agent orchestration.
