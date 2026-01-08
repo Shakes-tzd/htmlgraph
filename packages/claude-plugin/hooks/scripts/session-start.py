@@ -1258,6 +1258,7 @@ def main():
             if env_file:
                 try:
                     with open(env_file, "a") as f:
+                        f.write(f"export HTMLGRAPH_SESSION_ID={active.id}\n")
                         f.write(f"export HTMLGRAPH_PARENT_SESSION={active.id}\n")
                         f.write("export HTMLGRAPH_PARENT_AGENT=claude-code\n")
                         f.write("export HTMLGRAPH_NESTING_DEPTH=0\n")

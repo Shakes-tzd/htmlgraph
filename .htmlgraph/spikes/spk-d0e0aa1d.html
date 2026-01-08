@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Codebase Architecture Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-d0e0aa1d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T11:45:19.361325"
+             data-updated="2026-01-08T11:45:19.361329" data-spike-type="technical" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Codebase Architecture Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Codebase Architecture Analysis
+
+### 1. Key Directories and Their Purposes
+
+#### Core Graph Engine (`src/python/htmlgraph/`)
+- **graph.py** - Main HtmlGraph class with file-based node/edge management, CSS selector queries, graph algorithms (BFS, shortest path), transaction/snapshot support
+- **models.py** - Pydantic models (Node, Edge, Step, Session) defining domain entities with HTML serialization
+- **parser.py** - HTML parser for CSS selector query execution
+- **converter.py** - Node/Edge conversion between HTML and Python representations
+- **types.py** - TypedDict definitions for SDK return types (WorkRecommendation, BottleneckDict, etc.)
+
+#### API & Server (`api/`, `server.py`)
+- **main.py** - FastAPI backend with SQLite support, REST API, Jinja2 templates, WebSocket real-time streaming
+- **db/schema.py** - SQLite schema manager with tables for agent_events, features, sessions, tracks, agent_collaboration
+- Provides agent observability dashboard with activity feed, orchestration chains, feature tracker, metrics
+
+#### SDK & Collections (`sdk.py`, `collections/`, `builders/`)
+- **sdk.py** - Main fluent API entry point with auto-discovery of .htmlgraph directory
+- **collections/** - Specialized collection classes (FeatureCollection, SpikeCollection, BugCollection, etc.) for CRUD operations
+- **builders/** - Fluent builder pattern for node creation with method chaining
+  - BaseBuilder/BaseCollection provide common functionality
+  - Specialized builders for Feature, Spike, Bug, Chore, Epic, Phase, Pattern, Insight, Metric
+
+#### Hooks System (`hooks/`)
+- **pretooluse.py** - Pre-tool execution validation and classification
+- **orchestrator.py** - Orchestration enforcement (delegation patterns, tool history tracking)
+- **orchestrator_reflector.py** - Reflection system for post-execution analysis
+- **event_tracker.py** - Tracks all tool executions as events for observability
+- **posttooluse.py** - Post-execution event recording and analysis
+- **validator.py** - Validates orchestrator mode and tool constraints
+- **installer.py** - Hook installation and management
+
+#### Analytics & Query (`analytics/`, `query_builder.py`)
+- **query_builder.py** - Fluent query API with logical operators (AND, OR, NOT), comparison operators (EQ, GT, LT, CONTAINS), regex matching
+- **analytics/work_type.py** - Work type distribution, feature-to-spike ratios, session metrics
+- **analytics/dependency.py** - Bottleneck detection, circular dependency detection, impact analysis
+- **analytics/cross_session.py** - Cross-session analytics and correlations
+- **context_analytics.py** - Context usage tracking and optimization
+
+#### Orchestration & Parallel Work (`orchestration/`)
+- **task_coordination.py** - delegate_with_id(), parallel_delegate(), result aggregation
+- **model_selection.py** - Model selection based on task type and complexity
+- **headless_spawner.py** - HeadlessSpawner for spawning Gemini/Haiku subagents
+
+#### ID System (`ids.py`)
+- **ids.py** - Collision-resistant ID generation (hierarchical_id, legacy_id support)
+- Multi-agent safe with deterministic generation
+
+#### Session Management (`session_manager.py`, `session_registry.py`)
+- Session tracking with automatic activation/deactivation
+- Registry for concurrent multi-agent sessions
+- Session hooks for lifecycle events
+
+#### Configuration & System Prompts
+- **config.py** - Project configuration loading
+- **system_prompts.py** - System prompt management with project override support
+- **setup.py** - Project initialization
+
+---
+
+### 2. Module Organization & Layering
+
+#### Layer 1: Domain Models (Bottom)
+```
+models.py → pydantic BaseModel definitions
+  ↓
+types.py → TypedDict wrappers for API boundaries
+  ↓
+exceptions.py → Custom exception hierarchy
+```
+
+#### Layer 2: Core Graph Operations
+```
+parser.py → HTML parsing via CSS selectors
+  ↓
+converter.py → Bidirectional model conversion
+  ↓
+edge_index.py → Optimized edge lookups
+  ↓
+query_builder.py → Fluent query composition
+  ↓
+graph.py → HtmlGraph main orchestrator
+```
+
+#### Layer 3: Data Persistence
+```
+db/schema.py → SQLite schema and database management
+  ↓
+api/main.py → FastAPI REST endpoints
+  ↓
+server.py → Web server and real-time WebSocket streaming
+```
+
+#### Layer 4: SDK & Developer Interface
+```
+builders/ → Fluent node creation API
+  ↓
+collections/ → Type-specific CRUD operations
+  ↓
+sdk.py → Main SDK entry point
+```
+
+#### Layer 5: AI Agent Features
+```
+analytics/ → Strategic insights (bottlenecks, dependencies)
+  ↓
+orchestration/ → Multi-agent coordination
+  ↓
+hooks/ → Pre/post-tool execution tracking
+  ↓
+session_manager.py → Session lifecycle management
+```
+
+#### Layer 6: Extensions
+```
+cigs/ → Autonomous agent cost tracking
+  ↓
+archive/ → Historical data management
+  ↓
+learning.py → Active learning persistence
+  ↓
+reflection.py → Computational reflection context injection
+```
+
+---
+
+### 3. Design Patterns Used
+
+#### 1. **Builder Pattern**
+- **BaseBuilder** abstract class with fluent API
+- Specialized builders (FeatureBuilder, SpikeBuilder, etc.)
+- Method chaining for ergonomic node creation
+```python
+feature = sdk.features.create("title")
+    .add_steps([...])
+    .set_priority("high")
+    .set_track("auth")
+    .save()
+```
+
+#### 2. **Collection Pattern**
+- **BaseCollection** with CRUD operations (create, get, where, mark_done)
+- Specialized collections inherit and extend functionality
+- Type-safe access to each domain entity type
+```python
+sdk.features.create(...)  # Returns FeatureBuilder
+sdk.features.where(status="todo")  # Returns filtered list
+sdk.features.mark_done([id1, id2, id3])  # Batch operations
+```
+
+#### 3. **Query Builder Pattern**
+- Fluent composition of complex queries
+- Logical operators (AND, OR, NOT)
+- Comparison operators (EQ, GT, LT, CONTAINS, MATCHES)
+- Chainable condition composition
+```python
+graph.query_builder()
+    .where("status", "blocked")
+    .and_("priority").in_(["high", "critical"])
+    .and_("completion").lt(50)
+    .execute()
+```
+
+#### 4. **Repository Pattern**
+- HtmlGraph acts as repository for file-based nodes
+- Abstraction over HTML file storage
+- Transactions and snapshots for consistency
+
+#### 5. **Composite Pattern**
+- Hierarchical node relationships (parent-child)
+- Features contain Steps
+- Tracks contain Features
+- Recursive aggregation in analytics
+
+#### 6. **Strategy Pattern**
+- Model selection strategies (TaskType, ComplexityLevel, BudgetMode)
+- Fallback chains (Gemini → Haiku → Opus)
+- Different analytics strategies (work_type vs dependency vs cross_session)
+
+#### 7. **Observer Pattern**
+- Hook system (PreToolUse, PostToolUse) for event-driven execution
+- Event tracking via event_tracker.py
+- Real-time WebSocket updates in API
+
+#### 8. **Adapter Pattern**
+- NodeConverter bridges HTML ↔ Python representations
+- Different serialization formats (HTML, JSON for API)
+- SQL schema adapts file-based data to relational queries
+
+#### 9. **Factory Pattern**
+- Collection factory in SDK (sdk.features, sdk.spikes, etc.)
+- Builder factory for creating specialized builders
+- Headless spawner factory for model selection
+
+#### 10. **Facade Pattern**
+- SDK provides simplified interface to complex system
+- Auto-discovery of .htmlgraph directory
+- Abstract underlying graph, database, hooks complexity
+
+---
+
+### 4. Module Dependencies & Architecture
+
+#### Dependency Hierarchy (Import Graph)
+
+**No circular dependencies** - Clean layering:
+
+```
+models.py (0 external deps)
+  ← types.py
+    ← exceptions.py
+      ← query_builder.py, ids.py
+        ← parser.py, converter.py
+          ← graph.py (core orchestrator)
+            ← collections/base.py
+              ← builders/base.py
+                ← sdk.py (facade)
+                  ← api/main.py (API layer)
+                  ← hooks/* (middleware)
+                  ← orchestration/* (agents)
+                  ← analytics/* (insights)
+```
+
+#### Key Import Patterns
+
+1. **SDK is central hub** - All collections/builders route through SDK
+2. **HtmlGraph is core engine** - All queries use HtmlGraph internally
+3. **Models are shared** - All layers use same Pydantic models
+4. **Analytics are independent** - Can be used separately from SDK
+5. **Hooks are optional** - Can be installed/removed without breaking core
+
+#### Critical Dependencies
+
+| Module | Purpose | Dependencies |
+|--------|---------|--------------|
+| sdk.py | Entry point | graph, collections, builders, analytics, orchestration |
+| graph.py | Core engine | parser, converter, edge_index, query_builder, models |
+| api/main.py | REST API | db/schema, models, aiosqlite, fastapi |
+| hooks/orchestrator.py | Enforcement | orchestrator_mode, orchestrator_validator |
+| analytics/dependency.py | Strategic analysis | graph, models, query_builder |
+| orchestration/ | Multi-agent | model_selection, task_coordination, headless_spawner |
+
+---
+
+### 5. Data Flow Patterns
+
+#### Write Path (Creating a Feature)
+```
+SDK.features.create("title")
+  → FeatureBuilder.__init__()
+  → FeatureBuilder.save()
+    → BaseBuilder.save()
+      → NodeConverter.to_html()
+      → HtmlGraph.add_node(html_content)
+        → Write to .htmlgraph/features/*.html
+        → EdgeIndex.add_edge()
+        → AttributeIndex.index()
+```
+
+#### Query Path (Finding Blocked Features)
+```
+sdk.features.where(status="blocked")
+  → HtmlGraph.query_builder()
+  → QueryBuilder.where("status", "blocked").execute()
+    → HtmlGraph.execute()
+      → AttributeIndex.find(status="blocked")
+      → Or: CSS selector matching on HTML
+      → Return matching Node objects
+```
+
+#### Analytics Path (Find Bottlenecks)
+```
+sdk.dep_analytics.find_bottlenecks()
+  → DependencyAnalytics.__init__(graph)
+    → graph.get_all_nodes()
+    → Build dependency matrix
+  → Graph algorithms (BFS, topological sort)
+  → Identify nodes with high incoming edges
+  → Return BottleneckDict
+```
+
+#### Hook/Orchestration Path
+```
+AI calls Tool (e.g., Edit)
+  → PreToolUse Hook (pretooluse.py)
+    → OrchestratorValidator
+    → Check orchestrator mode (strict/guidance)
+    → Allow/Block/Warn
+  → Tool executes
+  → PostToolUse Hook (posttooluse.py)
+    → EventTracker.record_event()
+    → Store in SQLite agent_events table
+    → Broadcast via WebSocket to dashboard
+```
+
+---
+
+### 6. Architectural Strengths
+
+1. **Separation of Concerns** - Clean layering (models → graph → SDK → API → hooks)
+2. **No Circular Dependencies** - Import graph is acyclic and well-structured
+3. **Extensibility** - Builder/Collection pattern allows new work types without modifying core
+4. **Composability** - QueryBuilder, Analytics can be used independently
+5. **Multi-Agent Safety** - Collision-resistant IDs, session isolation, orchestrator mode
+6. **Backwards Compatibility** - Legacy ID support, multiple serialization formats
+7. **Performance Optimizations** - EdgeIndex, AttributeIndex, CompiledQuery, caching
+8. **Observability** - Comprehensive event tracking, analytics, session management
+9. **Testability** - Clear interfaces, dependency injection, mockable components
+10. **Developer Experience** - Fluent API, auto-discovery, sensible defaults
+
+---
+
+### 7. Key Architectural Decisions
+
+1. **File-Based Graph + SQLite Hybrid**
+   - Primary: HTML files for node storage (git-friendly, readable)
+   - Secondary: SQLite for queries and analytics (performant)
+   - Keeps both in sync via schema migrations
+
+2. **CSS Selectors as Query Language**
+   - Leverages existing web standards
+   - No custom query syntax to learn
+   - Integrates with HTML storage naturally
+
+3. **Pydantic for Schema Validation**
+   - Single source of truth for models
+   - JSON serialization built-in
+   - Backward compatibility with aliases
+
+4. **Hooks-Based Middleware**
+   - Non-invasive - wraps Claude Code execution
+   - Composable - multiple hooks can coexist
+   - No core modifications needed for observability
+
+5. **Fluent Builder API**
+   - Natural for AI code generation
+   - Self-documenting through method names
+   - Reduces boilerplate
+
+6. **Context Injection via Reflection**
+   - Pre-computed insights available at tool use time
+   - Reduces AI hallucination through facts
+   - Sidesteps token limits with specific findings
+
+---
+
+### 8. Critical Components
+
+**Most Complex:**
+- `hooks/orchestrator.py` - Tool history tracking, enforcement logic
+- `analytics/dependency.py` - Graph algorithms for bottleneck detection
+- `orchestration/model_selection.py` - Cost-aware model routing
+- `api/main.py` - Real-time event streaming, hierarchical grouping
+
+**Most Coupled:**
+- `sdk.py` → requires all collection types
+- `graph.py` → used by analytics, queries, builders
+- `models.py` → used everywhere (import fan-out)
+
+**Most Reusable:**
+- `query_builder.py` - Independent fluent query composition
+- `edge_index.py` - Efficient relationship lookups
+- `analytics/*` - Can be used without SDK
+
+**Most Critical for Multi-Agent:**
+- `hooks/orchestrator.py` - Delegation enforcement
+- `session_registry.py` - Session isolation
+- `ids.py` - Collision-resistant ID generation
+            </div>
+        </section>
+    </article>
+</body>
+</html>

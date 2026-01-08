@@ -24,6 +24,7 @@ Tables:
 import json
 import logging
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -253,7 +254,30 @@ class HtmlGraphDB:
             )
         """)
 
-        # 8. Create indexes for performance
+        # 8. TOOL_TRACES TABLE - Detailed tool execution tracing
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tool_traces (
+                tool_use_id TEXT PRIMARY KEY,
+                trace_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                tool_input JSON,
+                tool_output JSON,
+                start_time TIMESTAMP NOT NULL,
+                end_time TIMESTAMP,
+                duration_ms INTEGER,
+                status TEXT NOT NULL DEFAULT 'started' CHECK(
+                    status IN ('started', 'completed', 'failed', 'timeout', 'cancelled')
+                ),
+                error_message TEXT,
+                parent_tool_use_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id),
+                FOREIGN KEY (parent_tool_use_id) REFERENCES tool_traces(tool_use_id)
+            )
+        """)
+
+        # 9. Create indexes for performance
         self._create_indexes(cursor)
 
         if self.connection:
@@ -297,6 +321,12 @@ class HtmlGraphDB:
             "CREATE INDEX IF NOT EXISTS idx_edges_from ON graph_edges(from_node_id)",
             "CREATE INDEX IF NOT EXISTS idx_edges_to ON graph_edges(to_node_id)",
             "CREATE INDEX IF NOT EXISTS idx_edges_type ON graph_edges(relationship_type)",
+            # tool_traces indexes (5 performance indexes)
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_trace_id ON tool_traces(trace_id, start_time DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_session ON tool_traces(session_id)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_tool_name ON tool_traces(tool_name)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_status ON tool_traces(status)",
+            "CREATE INDEX IF NOT EXISTS idx_tool_traces_start_time ON tool_traces(start_time DESC)",
         ]
 
         for index_sql in indexes:
@@ -910,6 +940,181 @@ class HtmlGraphDB:
         except sqlite3.Error as e:
             logger.error(f"Error inserting collaboration record: {e}")
             return False
+
+    def insert_tool_trace(
+        self,
+        tool_use_id: str,
+        trace_id: str,
+        session_id: str,
+        tool_name: str,
+        tool_input: dict[str, Any] | None = None,
+        start_time: str | None = None,
+        parent_tool_use_id: str | None = None,
+    ) -> bool:
+        """
+        Insert a tool trace start event.
+
+        Args:
+            tool_use_id: Unique tool use identifier (UUID)
+            trace_id: Parent trace ID for correlation
+            session_id: Session this tool use belongs to
+            tool_name: Name of the tool being executed
+            tool_input: Tool input parameters as dict (optional)
+            start_time: Start time ISO8601 UTC (optional, defaults to now)
+            parent_tool_use_id: Parent tool use ID if nested (optional)
+
+        Returns:
+            True if insert successful, False otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+
+            if start_time is None:
+                start_time = datetime.now(timezone.utc).isoformat()
+
+            cursor.execute(
+                """
+                INSERT INTO tool_traces
+                (tool_use_id, trace_id, session_id, tool_name, tool_input,
+                 start_time, status, parent_tool_use_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    tool_use_id,
+                    trace_id,
+                    session_id,
+                    tool_name,
+                    json.dumps(tool_input) if tool_input else None,
+                    start_time,
+                    "started",
+                    parent_tool_use_id,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error inserting tool trace: {e}")
+            return False
+
+    def update_tool_trace(
+        self,
+        tool_use_id: str,
+        tool_output: dict[str, Any] | None = None,
+        end_time: str | None = None,
+        duration_ms: int | None = None,
+        status: str = "completed",
+        error_message: str | None = None,
+    ) -> bool:
+        """
+        Update tool trace with completion data.
+
+        Args:
+            tool_use_id: Tool use ID to update
+            tool_output: Tool output result (optional)
+            end_time: End time ISO8601 UTC (optional, defaults to now)
+            duration_ms: Execution duration in milliseconds (optional)
+            status: Final status (completed, failed, timeout, cancelled)
+            error_message: Error message if failed (optional)
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+
+            if end_time is None:
+                end_time = datetime.now(timezone.utc).isoformat()
+
+            cursor.execute(
+                """
+                UPDATE tool_traces
+                SET tool_output = ?, end_time = ?, duration_ms = ?,
+                    status = ?, error_message = ?
+                WHERE tool_use_id = ?
+            """,
+                (
+                    json.dumps(tool_output) if tool_output else None,
+                    end_time,
+                    duration_ms,
+                    status,
+                    error_message,
+                    tool_use_id,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error updating tool trace: {e}")
+            return False
+
+    def get_tool_trace(self, tool_use_id: str) -> dict[str, Any] | None:
+        """
+        Get a tool trace by tool_use_id.
+
+        Args:
+            tool_use_id: Tool use ID to retrieve
+
+        Returns:
+            Tool trace dictionary or None if not found
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                SELECT * FROM tool_traces
+                WHERE tool_use_id = ?
+            """,
+                (tool_use_id,),
+            )
+
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except sqlite3.Error as e:
+            logger.error(f"Error fetching tool trace: {e}")
+            return None
+
+    def get_session_tool_traces(
+        self, session_id: str, limit: int = 1000
+    ) -> list[dict[str, Any]]:
+        """
+        Get all tool traces for a session ordered by start time DESC.
+
+        Args:
+            session_id: Session to query
+            limit: Maximum number of results
+
+        Returns:
+            List of tool trace dictionaries
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                SELECT * FROM tool_traces
+                WHERE session_id = ?
+                ORDER BY start_time DESC
+                LIMIT ?
+            """,
+                (session_id, limit),
+            )
+
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except sqlite3.Error as e:
+            logger.error(f"Error querying tool traces: {e}")
+            return []
 
     def close(self) -> None:
         """Clean up database connection."""

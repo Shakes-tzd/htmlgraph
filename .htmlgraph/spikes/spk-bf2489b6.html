@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Event Display Debug - Root Cause Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bf2489b6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T00:20:22.251547"
+             data-updated="2026-01-08T00:20:22.251550" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-opus-4-5-20251101">
+
+        <header>
+            <h1>Dashboard Event Display Debug - Root Cause Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Dashboard Debug Investigation Report
+
+### Executive Summary
+**ROOT CAUSE IDENTIFIED**: The dashboard API queries the wrong database table.
+
+- **Dashboard queries**: `agent_events` table (5 old rows from 2026-01-06)
+- **Hooks write to**: `events` table (45+ current rows including today's session)
+- **Result**: Dashboard shows stale data, not real-time events
+
+### Event Logging Status
+**WORKING CORRECTLY** - Events are being captured:
+- Current session ID: `sess-fd50862f`
+- JSONL event log: `.htmlgraph/events/sess-fd50862f.jsonl` (13,034+ lines, 11MB)
+- SQLite `events` table: 45 rows (latest from 2026-01-08 00:17)
+
+### Database Table Mismatch
+
+#### Table 1: `events` (analytics_index.py) - WHERE DATA IS WRITTEN
+- Schema: `event_id, session_id, ts, tool, summary, success, feature_id, drift_score, payload_json`
+- Populated by: `session_manager.py` -> `AnalyticsIndex.upsert_event()`
+- Row count: **45 rows** (includes current session)
+- Latest event: 2026-01-08 00:17
+
+#### Table 2: `agent_events` (db/schema.py) - WHERE DASHBOARD QUERIES
+- Schema: `event_id, agent_id, event_type, timestamp, tool_name, input_summary, output_summary, context, session_id, parent_event_id, cost_tokens, status`
+- Populated by: `event_tracker.py` -> `HtmlGraphDB.insert_event()`
+- Row count: **5 rows** (old migrated data only)
+- Latest event: 2026-01-06 20:08
+
+### Dashboard UI Status
+- WebSocket connection: **CONNECTED** (console shows "WebSocket connected for real-time events")
+- Events displayed: **5** (stale data from wrong table)
+- Real-time updates: **NOT WORKING** (WebSocket queries wrong table)
+
+### Code Flow Analysis
+
+**Event Writing Path (WORKING):**
+1. Hook fires (PreToolUse/PostToolUse)
+2. `session_manager.track_activity()` called
+3. `AnalyticsIndex.upsert_event()` writes to `events` table
+4. JSONL file also updated
+
+**Dashboard Query Path (BROKEN):**
+1. Dashboard loads, WebSocket connects to `/ws/events`
+2. `api/main.py:websocket_events()` queries `agent_events` table
+3. `api/main.py:get_events()` also queries `agent_events` table
+4. Only 5 old rows returned
+
+### Affected Files
+- `src/python/htmlgraph/api/main.py` - Dashboard API queries `agent_events`
+- `src/python/htmlgraph/analytics_index.py` - Defines `events` table, writes to it
+- `src/python/htmlgraph/db/schema.py` - Defines `agent_events` table
+- `src/python/htmlgraph/session_manager.py` - Calls `upsert_event()` on `events` table
+
+### Recommended Fix
+
+**Option A (Preferred): Update API to query `events` table**
+1. Modify `api/main.py` to query `events` instead of `agent_events`
+2. Map column names: `ts` -> `timestamp`, `tool` -> `tool_name`, `summary` -> `input_summary`
+3. Add `agent_id` from session metadata or default to "cli"
+
+**Option B: Sync data to `agent_events` table**
+1. Add sync logic in `session_manager.track_activity()` to also write to `agent_events`
+2. More complex, duplicates data
+
+### Evidence
+- Screenshot: dashboard-showing-old-events.png
+- Events table count: 45
+- Agent_events table count: 5
+- JSONL log size: 11MB with 13,034+ lines
+            </div>
+        </section>
+    </article>
+</body>
+</html>

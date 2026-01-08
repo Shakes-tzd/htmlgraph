@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed UI Tests - Post-Restart Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1715dfcc"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T09:24:10.633053"
+             data-updated="2026-01-08T09:24:10.633056" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-sonnet-4-5-20251105">
+
+        <header>
+            <h1>Activity Feed UI Tests - Post-Restart Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Activity Feed UI Tests - Complete
+
+### Test Date
+2026-01-08 01:31:32 (PST)
+
+### Dashboard Status
+- Server startup: ✅ SUCCESS
+- Page load: ✅ SUCCESS
+- WebSocket connection: ✅ CONNECTED
+
+### Current Session Tracking
+- Session ID detected: ⚠️ PARTIAL
+- Events appearing in real-time: ⚠️ LIMITED
+- Event count on dashboard: 5 events (all migrated)
+
+### Event Display Tests
+- Event ordering (newest first): ✅ PASS
+- All fields visible: ✅ PASS (Timestamp, Agent, Tool, Input, Output, Status, ID)
+- Timestamps formatted correctly: ✅ YES (01/06/2026 format with time)
+- Agent attribution visible: ✅ YES (showing "migrated" for all current events)
+
+### Real-Time Updates
+- Test command executed: ✅ SUCCESS
+- Event appeared in dashboard: ❌ NO
+- Latency: N/A (event did not appear)
+- WebSocket still connected: ✅ YES (confirmed via console logs)
+
+### Screenshots Captured
+- 01-dashboard-loaded.png ✅
+- 02-websocket-connected.png ✅
+- 03-current-session-events.png ✅
+- 04-event-ordering.png ✅
+- 05-event-details.png ✅
+- 06-realtime-update.png ✅
+- 07-full-dashboard.png ✅
+
+All screenshots saved to: /Users/shakes/DevProjects/htmlgraph/.playwright-mcp/
+
+### Overall Assessment
+⚠️ PARTIAL PASS - Dashboard UI is functional but real-time event tracking needs investigation
+
+### Issues Found
+
+1. **New Session Events Not Appearing**
+   - Current session (started at test time) events not appearing in Activity Feed
+   - Only showing 5 migrated events from previous sessions
+   - Test command (SDK initialization) did not generate visible events
+
+2. **Event Tracking Gap**
+   - API shows 5 events, all with agent_id="migrated"
+   - No events from current session visible
+   - Session tracking files excluded from git (.gitignore)
+
+3. **WebSocket Connected But Not Receiving Events**
+   - Console shows: "WebSocket connected for real-time events"
+   - Console shows: "convertTimestampsToLocal() called, found 5 timestamps to convert"
+   - No new events pushed via WebSocket during test
+
+### What Works Well
+
+1. **Dashboard UI** ✅
+   - Clean, professional layout
+   - All navigation buttons functional
+   - Stats displayed (5 Events, 1 Agent, 0 Sessions)
+
+2. **WebSocket Connection** ✅
+   - Successfully establishes connection
+   - "Live updates enabled" indicator visible
+   - No connection errors in console
+
+3. **Event Display** ✅
+   - All columns present and properly formatted
+   - Timestamps converted to local timezone
+   - Event IDs, tool names shown in code blocks
+   - Tool emoji indicators (🔨) displayed
+
+4. **Event Ordering** ✅
+   - Newest events at top (15:08:48 > 15:04:07 > 12:04:49)
+   - Consistent ordering maintained
+
+### Recommendations
+
+1. **Investigate Event Generation**
+   - Verify SDK initialization triggers tool_call events
+   - Check if PostToolUse hook is firing for current session
+   - Review session tracking file generation
+
+2. **Test Real-Time Streaming**
+   - Generate events with explicit tool calls (not just SDK init)
+   - Monitor WebSocket message flow during event creation
+   - Add WebSocket message logging to dashboard
+
+3. **Session Tracking**
+   - Verify current session is being tracked
+   - Check if .htmlgraph/sessions/ files are being created
+   - Confirm events are being written to database
+
+4. **Production Readiness Decision**
+   - Dashboard UI: ✅ READY
+   - WebSocket infrastructure: ✅ READY
+   - Event display: ✅ READY
+   - Real-time event generation: ⚠️ NEEDS VERIFICATION
+
+### Next Steps
+
+1. Create test that generates explicit tool call events (not just SDK init)
+2. Monitor WebSocket traffic during event creation
+3. Verify PostToolUse hook is capturing events in current session
+4. Add WebSocket message debugging to dashboard console
+5. Re-test with explicit tool calls (e.g., feature creation, spike creation)
+
+### Technical Details
+
+**Console Messages:**
+- ERROR: 404 for /favicon.ico (cosmetic, not blocking)
+- LOG: WebSocket connected for real-time events
+- LOG: convertTimestampsToLocal() called, found 5 timestamps to convert
+
+**API Response:**
+- 5 events returned from /api/events
+- All events have agent_id="migrated"
+- Event timestamps: 2026-01-06
+- Oldest event: evt-ec6b0dcb (17:04:49)
+- Newest event: evt-cf7b7cf3 (20:08:48)
+
+**Test Environment:**
+- Dashboard URL: http://localhost:8080
+- Dashboard server: htmlgraph serve
+- Test command: uv run python -c "from htmlgraph import SDK; sdk = SDK(agent='test-playwright')"
+- Browser: Playwright (automated testing)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Events Investigation - Root Cause Found</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b6f8d08e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T11:51:51.064406"
+             data-updated="2026-01-08T11:51:51.064411" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Dashboard Events Investigation - Root Cause Found</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Dashboard Events Investigation - Complete Results
+
+### Investigation Summary
+The dashboard is **working correctly** and displaying events. The issue was a timestamp format mismatch in the JavaScript time conversion function, not a data layer problem.
+
+### Diagnostic Results
+
+**API Events Endpoint**: ✓ Working
+- Endpoint: GET /api/events
+- Returns: 1 event (evt-703e699d)
+- Event details:
+  - Agent: claude-code
+  - Tool: Bash
+  - Session: sess-fd50862f
+  - Status: recorded
+  - Timestamp: 2026-01-08T16:40:54.363922+00:00
+
+**Database Status**: ✓ Working
+- Database: .htmlgraph/index.sqlite
+- Total events: 1
+- Events by session: sess-fd50862f has 1 event
+- Tables present: agent_events, features, tracks, agent_collaboration, sessions, events, etc.
+
+**Dashboard Display**: ✓ Working
+- Dashboard loads successfully at http://localhost:8080
+- Shows "Events: 1" in header
+- Activity Feed displays the test event in table format
+- WebSocket connected for real-time updates
+
+**Browser Console Errors**: ⚠️ Timestamp Conversion Issue
+```
+RangeError: Invalid time value in convertTimestampsToLocal()
+Failed to convert timestamp: 2026-01-08T16:40:54.363922+00:00
+```
+
+### Root Cause Analysis
+
+**The Problem**:
+The PreToolUse hook (line 203 of pretooluse.py) generates timestamps using:
+```python
+start_time = datetime.now(timezone.utc).isoformat()
+```
+
+This produces: `2026-01-08T16:40:54.363922+00:00`
+- Contains microseconds (.363922)
+- Contains timezone offset (+00:00)
+
+But the JavaScript function (index.html, ~line 360) expects:
+```
+Format: "2026-01-06 18:01:19"
+- Space separator instead of T
+- No microseconds
+- No timezone offset (function adds 'Z')
+```
+
+**Why This Happens**:
+1. JavaScript Date constructor cannot parse microseconds
+2. The function does: `new Date(utcTime.replace(' ', 'T') + 'Z')`
+3. When input already has '+00:00', adding 'Z' creates invalid format
+4. Result: RangeError when trying to parse timestamp
+
+### Current Behavior
+- Events ARE being stored correctly in database ✓
+- Events ARE being returned by API ✓
+- Events ARE displayed in dashboard ✓
+- BUT timestamps show as unparseable in console (cosmetic issue)
+
+### Impact Assessment
+- **Data Integrity**: No impact - data is stored and retrieved correctly
+- **Functionality**: No impact - events display and filter work fine
+- **User Experience**: Minor - timestamp conversion warnings in console, but local time still displays
+
+### Recommendations
+
+**Option 1: Fix Python (Recommended)**
+Modify pretooluse.py line 203 to remove microseconds:
+```python
+# Before:
+start_time = datetime.now(timezone.utc).isoformat()
+
+# After (remove microseconds):
+start_time = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+```
+
+**Option 2: Fix JavaScript**
+Update convertTimestampsToLocal() to handle ISO8601 with microseconds:
+```javascript
+const date = new Date(utcTime);  // JavaScript can parse ISO8601 directly
+```
+
+**Option 3: Database Schema Change**
+Store timestamps without microseconds in schema:
+- Define default format for all timestamp fields
+- Update all timestamp-generating code to use consistent format
+
+### Files Involved
+- *PreToolUse Hook*: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/pretooluse.py` (line 203)
+- *Dashboard Frontend*: `/Users/shakes/DevProjects/htmlgraph/index.html` (lines 355-381)
+- *API Server*: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py` (queries agent_events table)
+
+### Test Evidence
+- Database query confirmed 1 event in agent_events table
+- API endpoint /api/events returns the event in JSON format
+- Browser dashboard displays event in activity feed table
+- WebSocket successfully delivers events in real-time
+
+### Next Steps
+1. Decide on fix strategy (Python, JavaScript, or schema-wide)
+2. Implement fix in chosen layer
+3. Test with new tool executions to verify timestamp parsing
+4. Update other timestamp-generating hooks (if any) to match format
+            </div>
+        </section>
+    </article>
+</body>
+</html>

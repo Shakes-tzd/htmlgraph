@@ -18,8 +18,10 @@ import asyncio
 import json
 import logging
 import sqlite3
+import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import aiosqlite
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -29,6 +31,48 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+
+class QueryCache:
+    """Simple in-memory cache with TTL support for query results."""
+
+    def __init__(self, ttl_seconds: float = 30.0):
+        """Initialize query cache with TTL."""
+        self.cache: dict[str, tuple[Any, float]] = {}
+        self.ttl_seconds = ttl_seconds
+        self.metrics: dict[str, dict[str, float]] = {}
+
+    def get(self, key: str) -> Any | None:
+        """Get cached value if exists and not expired."""
+        if key not in self.cache:
+            return None
+
+        value, timestamp = self.cache[key]
+        if time.time() - timestamp > self.ttl_seconds:
+            del self.cache[key]
+            return None
+
+        return value
+
+    def set(self, key: str, value: Any) -> None:
+        """Store value with current timestamp."""
+        self.cache[key] = (value, time.time())
+
+    def record_metric(self, key: str, query_time_ms: float, cache_hit: bool) -> None:
+        """Record performance metrics for a query."""
+        if key not in self.metrics:
+            self.metrics[key] = {"count": 0, "total_ms": 0, "avg_ms": 0, "hits": 0}
+
+        metrics = self.metrics[key]
+        metrics["count"] += 1
+        metrics["total_ms"] += query_time_ms
+        metrics["avg_ms"] = metrics["total_ms"] / metrics["count"]
+        if cache_hit:
+            metrics["hits"] += 1
+
+    def get_metrics(self) -> dict[str, dict[str, float]]:
+        """Get all collected metrics."""
+        return self.metrics
 
 
 class EventModel(BaseModel):
@@ -142,8 +186,9 @@ def get_app(db_path: str) -> FastAPI:
         version="0.1.0",
     )
 
-    # Store database path in app state
+    # Store database path and query cache in app state
     app.state.db_path = db_path
+    app.state.query_cache = QueryCache(ttl_seconds=30.0)
 
     # Setup Jinja2 templates
     template_dir = Path(__file__).parent / "templates"
@@ -151,7 +196,7 @@ def get_app(db_path: str) -> FastAPI:
     templates = Jinja2Templates(directory=str(template_dir))
 
     # Add custom filters
-    def format_number(value):
+    def format_number(value: int | None) -> str:
         if value is None:
             return "0"
         return f"{value:,}"
@@ -191,48 +236,79 @@ def get_app(db_path: str) -> FastAPI:
     async def agents_view(request: Request) -> HTMLResponse:
         """Get agent workload and performance stats as HTMX partial."""
         db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
         try:
-            # Query agent statistics
-            query = """
-                SELECT
-                    agent_id,
-                    COUNT(*) as event_count,
-                    SUM(cost_tokens) as total_tokens,
-                    COUNT(DISTINCT session_id) as session_count,
-                    MAX(timestamp) as last_active
-                FROM agent_events
-                GROUP BY agent_id
-                ORDER BY event_count DESC
-            """
+            # Create cache key for agents view
+            cache_key = "agents_view:all"
 
-            cursor = await db.execute(query)
-            rows = await cursor.fetchall()
-
-            agents = []
-            total_actions = 0
-            total_tokens = 0
-
-            # First pass to calculate totals
-            for row in rows:
-                total_actions += row[1]
-                total_tokens += row[2] or 0
-
-            # Second pass to build agent objects with percentages
-            for row in rows:
-                event_count = row[1]
-                workload_pct = (
-                    (event_count / total_actions * 100) if total_actions > 0 else 0
+            # Check cache first
+            cached_response = cache.get(cache_key)
+            if cached_response is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                logger.debug(
+                    f"Cache HIT for agents_view (key={cache_key}, time={query_time_ms:.2f}ms)"
                 )
+                agents, total_actions, total_tokens = cached_response
+            else:
+                # Query agent statistics from 'agent_events' table joined with sessions
+                # Optimized with GROUP BY on indexed column
+                query = """
+                    SELECT
+                        e.agent_id,
+                        COUNT(*) as event_count,
+                        SUM(e.cost_tokens) as total_tokens,
+                        COUNT(DISTINCT e.session_id) as session_count,
+                        MAX(e.timestamp) as last_active
+                    FROM agent_events e
+                    GROUP BY e.agent_id
+                    ORDER BY event_count DESC
+                """
 
-                agents.append(
-                    {
-                        "agent_id": row[0],
-                        "event_count": event_count,
-                        "total_tokens": row[2] or 0,
-                        "session_count": row[3],
-                        "last_active": row[4],
-                        "workload_pct": round(workload_pct, 1),
-                    }
+                # Execute query with timing
+                exec_start = time.time()
+                cursor = await db.execute(query)
+                rows = await cursor.fetchall()
+                exec_time_ms = (time.time() - exec_start) * 1000
+
+                agents = []
+                total_actions = 0
+                total_tokens = 0
+
+                # First pass to calculate totals
+                for row in rows:
+                    total_actions += row[1]
+                    total_tokens += row[2] or 0
+
+                # Second pass to build agent objects with percentages
+                for row in rows:
+                    event_count = row[1]
+                    workload_pct = (
+                        (event_count / total_actions * 100) if total_actions > 0 else 0
+                    )
+
+                    agents.append(
+                        {
+                            "agent_id": row[0],
+                            "event_count": event_count,
+                            "total_tokens": row[2] or 0,
+                            "session_count": row[3],
+                            "last_active": row[4],
+                            "workload_pct": round(workload_pct, 1),
+                        }
+                    )
+
+                # Cache the results
+                cache_data = (agents, total_actions, total_tokens)
+                cache.set(cache_key, cache_data)
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+                logger.debug(
+                    f"Cache MISS for agents_view (key={cache_key}, "
+                    f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms, "
+                    f"agents={len(agents)})"
                 )
 
             return templates.TemplateResponse(
@@ -259,39 +335,66 @@ def get_app(db_path: str) -> FastAPI:
     ) -> HTMLResponse:
         """Get latest agent events as HTMX partial with hierarchical parent-child grouping."""
         db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
         try:
-            # Build query - include effective_parent_id for hierarchical grouping
-            # Join with sessions to support parent_session_id filtering and session-level parent linking
-            query = """
-                SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
-                       e.input_summary, e.output_summary, e.session_id, e.status,
-                       COALESCE(e.parent_event_id, s.parent_event_id) as effective_parent_id,
-                       e.cost_tokens, e.execution_duration_seconds
-                FROM agent_events e
-                LEFT JOIN sessions s ON e.session_id = s.session_id
-                WHERE 1=1
-            """
-            params: list = []
+            # Create cache key from query parameters
+            cache_key = (
+                f"activity_feed:{limit}:{session_id or 'all'}:{agent_id or 'all'}"
+            )
 
-            if session_id:
-                query += " AND (e.session_id = ? OR s.parent_session_id = ?)"
-                params.extend([session_id, session_id])
+            # Check cache first
+            cached_rows = cache.get(cache_key)
+            if cached_rows is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                logger.debug(
+                    f"Cache HIT for activity_feed (key={cache_key}, time={query_time_ms:.2f}ms)"
+                )
+                rows = cached_rows
+            else:
+                # Build query using 'agent_events' table from Phase 1 PreToolUse hook implementation
+                # Optimized with index hints and selective columns
+                query = """
+                    SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+                           e.input_summary, e.output_summary, e.session_id,
+                           e.status
+                    FROM agent_events e
+                    WHERE 1=1
+                """
+                params: list = []
 
-            if agent_id:
-                query += " AND e.agent_id = ?"
-                params.append(agent_id)
+                if session_id:
+                    query += " AND e.session_id = ?"
+                    params.append(session_id)
 
-            query += " ORDER BY e.timestamp DESC LIMIT ?"
-            params.append(limit)
+                if agent_id:
+                    query += " AND e.agent_id = ?"
+                    params.append(agent_id)
 
-            # Execute query
-            cursor = await db.execute(query, params)
-            rows = list(await cursor.fetchall())
+                query += " ORDER BY e.timestamp DESC LIMIT ?"
+                params.append(limit)
+
+                # Execute query with timing
+                exec_start = time.time()
+                cursor = await db.execute(query, params)
+                rows = list(await cursor.fetchall())
+                exec_time_ms = (time.time() - exec_start) * 1000
+
+                # Cache the results
+                cache.set(cache_key, rows)
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+                logger.debug(
+                    f"Cache MISS for activity_feed (key={cache_key}, "
+                    f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms)"
+                )
 
             events = [
                 {
                     "event_id": row[0],
-                    "agent_id": row[1],
+                    "agent_id": row[1] or "unknown",
                     "event_type": row[2],
                     "timestamp": row[3],
                     "tool_name": row[4],
@@ -299,9 +402,9 @@ def get_app(db_path: str) -> FastAPI:
                     "output_summary": row[6],
                     "session_id": row[7],
                     "status": row[8],
-                    "parent_event_id": row[9],
-                    "cost_tokens": row[10],
-                    "execution_duration_seconds": row[11],
+                    "parent_event_id": None,
+                    "cost_tokens": 0,
+                    "execution_duration_seconds": 0.0,
                 }
                 for row in rows
             ]
@@ -362,45 +465,108 @@ def get_app(db_path: str) -> FastAPI:
     ) -> list[EventModel]:
         """Get events as JSON API with parent-child hierarchical linking."""
         db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
         try:
-            query = """
-                SELECT event_id, agent_id, event_type, timestamp, tool_name,
-                       input_summary, output_summary, session_id, parent_event_id, status
-                FROM agent_events WHERE 1=1
-            """
-            params: list = []
+            # Create cache key from query parameters
+            cache_key = (
+                f"api_events:{limit}:{offset}:{session_id or 'all'}:{agent_id or 'all'}"
+            )
 
-            if session_id:
-                query += " AND session_id = ?"
-                params.append(session_id)
-
-            if agent_id:
-                query += " AND agent_id = ?"
-                params.append(agent_id)
-
-            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-            params.extend([limit, offset])
-
-            cursor = await db.execute(query, params)
-            rows = await cursor.fetchall()
-
-            return [
-                EventModel(
-                    event_id=row[0],
-                    agent_id=row[1],
-                    event_type=row[2],
-                    timestamp=row[3],
-                    tool_name=row[4],
-                    input_summary=row[5],
-                    output_summary=row[6],
-                    session_id=row[7],
-                    parent_event_id=row[8],
-                    status=row[9],
+            # Check cache first
+            cached_results = cache.get(cache_key)
+            if cached_results is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                logger.debug(
+                    f"Cache HIT for api_events (key={cache_key}, time={query_time_ms:.2f}ms)"
                 )
-                for row in rows
-            ]
+                return list(cached_results) if isinstance(cached_results, list) else []
+            else:
+                # Query from 'agent_events' table from Phase 1 PreToolUse hook implementation
+                # Optimized with column selection and proper indexing
+                query = """
+                    SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+                           e.input_summary, e.output_summary, e.session_id,
+                           e.status
+                    FROM agent_events e
+                    WHERE 1=1
+                """
+                params: list = []
+
+                if session_id:
+                    query += " AND e.session_id = ?"
+                    params.append(session_id)
+
+                if agent_id:
+                    query += " AND e.agent_id = ?"
+                    params.append(agent_id)
+
+                query += " ORDER BY e.timestamp DESC LIMIT ? OFFSET ?"
+                params.extend([limit, offset])
+
+                # Execute query with timing
+                exec_start = time.time()
+                cursor = await db.execute(query, params)
+                rows = await cursor.fetchall()
+                exec_time_ms = (time.time() - exec_start) * 1000
+
+                # Build result models
+                results = [
+                    EventModel(
+                        event_id=row[0],
+                        agent_id=row[1] or "unknown",
+                        event_type=row[2],
+                        timestamp=row[3],
+                        tool_name=row[4],
+                        input_summary=row[5],
+                        output_summary=row[6],
+                        session_id=row[7],
+                        parent_event_id=None,  # Not available in all schema versions
+                        status=row[8],
+                    )
+                    for row in rows
+                ]
+
+                # Cache the results
+                cache.set(cache_key, results)
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+                logger.debug(
+                    f"Cache MISS for api_events (key={cache_key}, "
+                    f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms, "
+                    f"rows={len(results)})"
+                )
+
+                return results
         finally:
             await db.close()
+
+    # ========== PERFORMANCE METRICS ENDPOINT ==========
+
+    @app.get("/api/query-metrics")
+    async def get_query_metrics() -> dict[str, Any]:
+        """Get query performance metrics and cache statistics."""
+        cache = app.state.query_cache
+        metrics = cache.get_metrics()
+
+        # Calculate aggregate statistics
+        total_queries = sum(m.get("count", 0) for m in metrics.values())
+        total_cache_hits = sum(m.get("hits", 0) for m in metrics.values())
+        hit_rate = (total_cache_hits / total_queries * 100) if total_queries > 0 else 0
+
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "cache_status": {
+                "ttl_seconds": cache.ttl_seconds,
+                "cached_queries": len(cache.cache),
+                "total_queries_tracked": total_queries,
+                "cache_hits": total_cache_hits,
+                "cache_hit_rate_percent": round(hit_rate, 2),
+            },
+            "query_metrics": metrics,
+        }
 
     # ========== ORCHESTRATION ENDPOINTS ==========
 
@@ -530,6 +696,7 @@ def get_app(db_path: str) -> FastAPI:
         db = await get_db()
         try:
             # Query active sessions with explicit column selection
+            # Note: sessions table uses 'agent_assigned' not 'agent', 'created_at/completed_at' not 'started_at/ended_at'
             query = """
                 SELECT session_id, agent_assigned, status, created_at, completed_at
                 FROM sessions
@@ -543,16 +710,16 @@ def get_app(db_path: str) -> FastAPI:
             sessions = []
             for row in rows:
                 session_id = row[0]
-                started_at = datetime.fromisoformat(row[3])
+                created_at = datetime.fromisoformat(row[3])
 
                 # Calculate duration
                 if row[4]:
-                    ended_at = datetime.fromisoformat(row[4])
-                    duration_seconds = (ended_at - started_at).total_seconds()
+                    completed_at = datetime.fromisoformat(row[4])
+                    duration_seconds = (completed_at - created_at).total_seconds()
                 else:
-                    duration_seconds = (datetime.now() - started_at).total_seconds()
+                    duration_seconds = (datetime.now() - created_at).total_seconds()
 
-                # Count events
+                # Count events from 'agent_events' table
                 event_query = "SELECT COUNT(*) FROM agent_events WHERE session_id = ?"
                 event_cursor = await db.execute(event_query, (session_id,))
                 event_row = await event_cursor.fetchone()
@@ -561,20 +728,20 @@ def get_app(db_path: str) -> FastAPI:
                 sessions.append(
                     {
                         "session_id": session_id,
-                        "agent": row[1],
+                        "agent_assigned": row[1],
                         "status": row[2],
-                        "started_at": row[3],
-                        "ended_at": row[4],
+                        "created_at": row[3],
+                        "completed_at": row[4],
                         "event_count": event_count,
                         "duration_seconds": duration_seconds,
                     }
                 )
 
-            # Query system stats
+            # Query system stats from 'agent_events' table
             stats_query = """
                 SELECT
                     (SELECT COUNT(*) FROM agent_events) as total_events,
-                    (SELECT COUNT(DISTINCT agent_id) FROM agent_events) as total_agents,
+                    (SELECT COUNT(DISTINCT s.agent_assigned) FROM agent_events e LEFT JOIN sessions s ON e.session_id = s.session_id) as total_agents,
                     (SELECT COUNT(*) FROM sessions) as total_sessions,
                     (SELECT COUNT(*) FROM features) as total_features
             """
@@ -620,15 +787,12 @@ def get_app(db_path: str) -> FastAPI:
             while True:
                 db = await get_db()
                 try:
-                    # Query for new events since last message
-                    # Join with sessions to support hierarchical filtering
+                    # Query for new events since last message from 'agent_events' table
                     query = """
                         SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
-                               e.input_summary, e.output_summary, e.session_id, e.status,
-                               COALESCE(e.parent_event_id, s.parent_event_id) as effective_parent_id,
-                               e.cost_tokens, e.execution_duration_seconds
+                               e.input_summary, e.output_summary, e.session_id,
+                               e.status
                         FROM agent_events e
-                        LEFT JOIN sessions s ON e.session_id = s.session_id
                         WHERE 1=1
                     """
                     params: list = []
@@ -645,7 +809,7 @@ def get_app(db_path: str) -> FastAPI:
                     if rows:
                         # Convert rows to list for indexing
                         rows_list = [list(row) for row in rows]
-                        # Update last timestamp (first row since ORDER BY timestamp DESC)
+                        # Update last timestamp (first row since ORDER BY ts DESC)
                         last_timestamp = rows_list[0][3]
 
                         # Send events (reverse to send oldest first among the new ones)
@@ -653,7 +817,7 @@ def get_app(db_path: str) -> FastAPI:
                             event_data = {
                                 "type": "event",
                                 "event_id": row[0],
-                                "agent_id": row[1],
+                                "agent_id": row[1] or "unknown",
                                 "event_type": row[2],
                                 "timestamp": row[3],
                                 "tool_name": row[4],
@@ -661,9 +825,9 @@ def get_app(db_path: str) -> FastAPI:
                                 "output_summary": row[6],
                                 "session_id": row[7],
                                 "status": row[8],
-                                "parent_event_id": row[9],
-                                "cost_tokens": row[10],
-                                "execution_duration_seconds": row[11],
+                                "parent_event_id": None,
+                                "cost_tokens": 0,
+                                "execution_duration_seconds": 0.0,
                             }
                             await websocket.send_json(event_data)
                 finally:

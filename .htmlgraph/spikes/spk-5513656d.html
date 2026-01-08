@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Event Tracing Patterns - Observability Platforms Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5513656d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-07T22:31:55.319838"
+             data-updated="2026-01-07T22:31:55.319842" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="tracing-researcher">
+
+        <header>
+            <h1>Event Tracing Patterns - Observability Platforms Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Event Tracing Patterns - Observability Platforms Research
+
+## Executive Summary
+
+Industry observability platforms (Logfire, Langfuse, OpenTelemetry) use a **Pre-Hook + Post-Hook pattern with correlation IDs** to track tool call lifecycles. This enables accurate duration measurement, context propagation, and parent-child span relationships. HtmlGraph currently uses PostToolUse only, missing critical pre-execution context and precise timing data.
+
+---
+
+## 1. Logfire Approach
+
+### Tool Call Capture
+- **Integration**: Automatically captures tool invocations when instrumenting supported LLM libraries
+- **Display**: Shows tool name, arguments, and returned payload (objects or arrays)
+- **Events**: Follows **OpenTelemetry semantic conventions for GenAI spans**
+- **Metadata**: Captures latency, input/output tokens, and total cost
+
+### Key Implementation Details
+- Built on OpenTelemetry standard
+- Uses `gen_ai.system` and `gen_ai.request.model` attributes
+- Captures token counts: `gen_ai.usage.prompt_tokens`, `gen_ai.usage.completion_tokens`
+- Measures cost with input/output pricing breakdown
+
+### What HtmlGraph Can Learn
+- Semantic conventions provide standardized attribute naming
+- Cost tracking requires both token counts and pricing metadata
+- Token usage (prompt vs completion) is essential for cost analysis
+
+**Source**: Logfire LLM Panels Documentation
+
+---
+
+## 2. Langfuse Approach
+
+### Data Model Hierarchy
+- **Traces**: Represent a single request/operation (user question → response)
+- **Observations**: Individual steps within a trace
+  - Specializations: generations, toolcalls, RAG retrieval steps, etc.
+- **Sessions**: Optional grouping of related traces
+
+### Span Lifecycle & Duration
+- **Observations**: Can be nested hierarchically (parent-child relationships)
+- **Core Fields**:
+  - `id`: Unique observation ID
+  - `traceId`: Links to parent trace
+  - `parentObservationId`: Creates hierarchy
+  - `startTime`: ISO timestamp when observation begins
+  - `endTime`: ISO timestamp when observation completes
+  - `type`: observation type (e.g., "toolcall")
+  - `name`: Human-readable name
+  - `level`: Log level (debug, info, warn, error)
+
+### Duration Calculation
+- Duration = `endTime - startTime`
+- Automatic calculation when using context managers
+- Manual `.end()` required for explicit lifecycle management
+
+### Parent-Child Relationships
+- Tree structure within single trace
+- `parentObservationId` establishes parent link
+- Enables nested tool calls and retrieval steps
+
+**Source**: Langfuse Data Model Documentation
+
+---
+
+## 3. OpenTelemetry Standard
+
+### Trace Model
+- **Definition**: Directed acyclic graph (DAG) of Spans
+- **Trace ID**: Shared across all spans in a trace (top-level identifier)
+- **Span Relationships**: Parent-child via `parent_span_id`
+- **Lifetime**: From root request through all nested operations
+
+### Span Structure
+Each Span contains:
+- **Timestamps**: `start_time` and `end_time` (nanosecond precision)
+- **Duration**: Calculated as `end_time - start_time`
+- **Context**: Trace ID, Span ID, Parent Span ID
+- **Attributes**: Key-value pairs describing operation
+  - Keys: non-null strings
+  - Values: string, boolean, float, int, or arrays of these
+- **Events**: Timestamped annotations marking significant moments
+  - Display as offsets from span start (easy duration tracking)
+- **Status**: Success (Unset/Ok) or error conditions
+- **Kind**: Client, Server, Internal, Producer, Consumer
+
+### Best Practices
+1. **Set attributes at span creation** - Samplers only see attributes present at creation
+2. **Use events for timestamps** - Event timestamps display as offsets from span start
+3. **Prefer duration representation** - Allows high-resolution timing in all languages
+4. **Use semantic conventions** - Standardizes span names, attributes, kinds
+
+---
+
+## 4. Pre-Hook + Post-Hook Pattern
+
+### Why It's Universal
+- **Separation of Concerns**: Start logic separate from completion logic
+- **Accurate Timing**: Timestamps captured at actual execution boundaries
+- **Correlation**: Tool use ID enables matching start → end events
+- **Error Handling**: PostToolUse fires only on success; errors caught separately
+- **Metadata Collection**: Pre-hook captures input; post-hook captures output and duration
+
+### Claude Code Implementation
+- **PreToolUse Hook**:
+  - Fires BEFORE tool execution begins
+  - Has access to: tool name, input, tool_use_id
+  - Can block tool execution (permissions, validation)
+  - **Action**: Record start timestamp, input arguments
+  
+- **PostToolUse Hook**:
+  - Fires AFTER tool completes successfully
+  - Has access to: tool name, input, output, tool_use_id
+  - **Action**: Record end timestamp, output, duration = end - start
+  
+- **Correlation**: `tool_use_id` (str) correlates PreToolUse → PostToolUse events
+  - Deterministic matching across hook invocations
+  - Survives async and parallel execution
+
+### Data Flow
+```
+PreToolUse(tool_use_id="abc-123", start=t1, tool="search", input={...})
+  ↓
+[Tool Execution - latency measured here]
+  ↓
+PostToolUse(tool_use_id="abc-123", end=t2, output={...})
+  ↓
+Duration = t2 - t1
+```
+
+---
+
+## 5. Correlation & Context Propagation
+
+### Trace Context Standard
+- **W3C Traceparent Header Format**: `\${version}-\${trace-id}-\${parent-id}-\${trace-flags}`
+- **Example**: `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`
+  - `00`: Version
+  - `4bf92f3577b34da6a3ce929d0e0e4736`: Trace ID (128-bit)
+  - `00f067aa0ba902b7`: Parent Span ID (64-bit)
+  - `01`: Trace flags (sampled)
+
+### Parent-Child Relationships
+- **Synchronous**: Parent-child relationship (cleaner, unified view)
+  - Parent span ID explicitly set in child
+  - Used when you control the call stack
+  - Creates clear visual hierarchy
+  
+- **Asynchronous**: Span links (more flexible)
+  - Used in message-driven systems
+  - When full context cannot be guaranteed
+  - When service ownership is distributed
+
+### For Tool Calls
+- **Tool Use ID**: Acts as correlation ID (matches PreToolUse ↔ PostToolUse)
+- **Session ID**: Could link all tool calls in a session
+- **Trace ID**: Could track tool call chain across agents
+- **Parent Observation ID**: Creates hierarchy for nested tool calls
+
+---
+
+## 6. HtmlGraph Current State
+
+### What We Track
+- **PostToolUse only**: Tool name, input, output, success/error
+- **One-shot capture**: Single event per tool call
+- **Available fields**: Captured from PostToolUse hook payload
+
+### What We're Missing
+1. **Start Timestamp**: When did execution actually begin?
+2. **End Timestamp**: When did it complete?
+3. **Duration**: How long did it take?
+4. **Input Metadata**: Arguments passed to tool
+5. **Output Metadata**: Return value structure and size
+6. **Token Usage**: If applicable (not all tools)
+7. **Cost**: Pricing impact
+8. **Error Context**: Why did it fail (if applicable)?
+9. **Parent-Child Relationships**: How do tool calls relate?
+10. **Correlation IDs**: How do we match events together?
+
+### Current Limitations
+- Cannot calculate duration (no pre/post pair)
+- Cannot track timing patterns (start vs completion)
+- Cannot identify slow tool calls without external timing
+- Cannot measure context propagation latency
+- Single PostToolUse event doesn't show lifecycle
+- No correlation mechanism for related tool calls
+
+---
+
+## 7. Best Practices from Observability Leaders
+
+### Timing Accuracy
+1. **Nanosecond Precision**: Use high-resolution timestamps (not milliseconds)
+2. **Clock Skew Handling**: Duration = end - start (handles small drifts naturally)
+3. **Event Timestamps as Offsets**: Display event times relative to span start
+4. **Server-Side Calculation**: Duration calculated at post-hook (not client-sent)
+
+### Minimum Required Fields for Tool Call Span
+```
+- tool_use_id: Correlation ID
+- trace_id: Trace this belongs to
+- session_id: Session grouping
+- parent_observation_id: Optional parent span
+- start_time: PreToolUse timestamp (ISO8601)
+- end_time: PostToolUse timestamp (ISO8601)
+- duration_ms: Calculated (end - start)
+- tool_name: Which tool was called
+- tool_input: Arguments passed
+- tool_output: Return value
+- type: "toolcall" observation type
+- status: "Ok" or "Error"
+- error_message: If status=Error
+```
+
+---
+
+## 8. Recommended Pattern for HtmlGraph
+
+### Phase 1: Dual Hook Capture (PreToolUse + PostToolUse)
+
+**PreToolUse Hook**:
+- Capture: tool_use_id, tool_name, tool_input, start_time, session_id
+
+**PostToolUse Hook**:
+- Capture: tool_use_id (for matching), tool_name, tool_input, tool_output, end_time, status, error
+
+**Correlation**:
+- Match events via tool_use_id
+- Calculate duration = end_time - start_time
+- Link to session and trace context
+
+### Phase 2: Parent-Child Relationships
+- Add parent_observation_id for nested calls
+- Track call hierarchy
+
+### Phase 3: Enhanced Metadata
+- Token usage (if applicable)
+- Cost calculation
+- Performance metrics
+
+---
+
+## 9. Implementation Roadmap
+
+### Immediate
+- [ ] Add PreToolUse hook capture
+- [ ] Implement tool_use_id correlation
+- [ ] Add start_time and end_time fields
+- [ ] Calculate duration_ms
+
+### Short-Term
+- [ ] Add parent-child relationships
+- [ ] Implement session-level grouping
+- [ ] Add error status tracking
+- [ ] Implement indexing
+
+### Medium-Term
+- [ ] Query patterns for analysis
+- [ ] Performance dashboards
+- [ ] Cost analysis UI
+
+### Long-Term
+- [ ] Trace visualization
+- [ ] Waterfall charts for parallel execution
+- [ ] Anomaly detection
+
+---
+
+## Key Differences from Current Implementation
+
+| Aspect | Current | Recommended |
+|--------|---------|-------------|
+| Duration Measurement | Not possible | Precise (pre+post) |
+| Input Capture | Only in PostToolUse | Dedicated PreToolUse |
+| Correlation | N/A | tool_use_id |
+| Parent-Child Links | Not supported | Supported |
+| Async Support | Limited | Full |
+| Cost Tracking | Not implemented | Can calculate |
+
+---
+
+## Conclusion
+
+Industry observability platforms universally use **Pre-Hook + Post-Hook pattern** because it:
+1. Enables accurate duration measurement
+2. Captures both input and output
+3. Supports correlation via IDs
+4. Handles async/concurrent execution
+5. Maintains hierarchical relationships
+6. Provides complete lifecycle visibility
+
+HtmlGraph should implement this to provide accurate performance metrics, better cost analysis, and industry-standard tracing.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

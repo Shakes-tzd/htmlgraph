@@ -238,5 +238,30 @@
     "spike_id": "spk-87d2971f",
     "created": "2026-01-06T16:58:45.050366",
     "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 7, in <module>\n  File \"/Users/": {
+    "spike_id": "spk-3344bede",
+    "created": "2026-01-07T22:44:52.732931",
+    "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_tabs:### Result\nError: Browser is already in use for /Users/shakes/Library/Caches/ms-playwright/mcp-chrom": {
+    "spike_id": "spk-2141f11d",
+    "created": "2026-01-07T23:59:47.288210",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 12, in <module>\n  File \"/User": {
+    "spike_id": "spk-1064c364",
+    "created": "2026-01-08T00:04:05.678218",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 20, in <module>\n  File \"/User": {
+    "spike_id": "spk-2fdbb22c",
+    "created": "2026-01-08T00:21:17.438382",
+    "occurrences": 3
+  },
+  "Bash:Exit code 7": {
+    "spike_id": "spk-31561b85",
+    "created": "2026-01-08T09:55:23.709816",
+    "occurrences": 3
   }
 }

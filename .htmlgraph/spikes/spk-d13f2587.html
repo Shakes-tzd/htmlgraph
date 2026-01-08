@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SessionStart Hook Diagnosis - HTMLGRAPH_SESSION_ID Missing</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-d13f2587"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T00:32:13.886383"
+             data-updated="2026-01-08T00:32:13.886386" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="diagnostic">
+
+        <header>
+            <h1>SessionStart Hook Diagnosis - HTMLGRAPH_SESSION_ID Missing</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## SessionStart Hook Diagnostic Report
+
+### Current Issue
+- **HTMLGRAPH_SESSION_ID environment variable**: NOT SET in current session
+- **HTMLGRAPH_PARENT_SESSION environment variable**: NOT SET
+- **Active HtmlGraph Session**: EXISTS (sess-3d9ec350)
+- **Events logging**: Working (session exists and is active)
+- **Dashboard**: Should display events (session is created)
+
+### Root Cause Analysis
+
+The session management is **working correctly** but the environment variable is **not being exported to the shell**.
+
+**Location of the issue:** `packages/claude-plugin/hooks/scripts/session-start.py` lines 1250-1259
+
+```python
+# Lines 1250-1259 in session-start.py
+if active and active.id:
+    os.environ["HTMLGRAPH_PARENT_SESSION"] = active.id
+    os.environ["HTMLGRAPH_PARENT_AGENT"] = "claude-code"
+    os.environ["HTMLGRAPH_NESTING_DEPTH"] = "0"
+
+    # Export to shell environment (persist across tools)
+    # Note: These print statements export to shell only if hook output is captured
+    print(f"export HTMLGRAPH_PARENT_SESSION={active.id}", file=sys.stderr)
+    print("export HTMLGRAPH_PARENT_AGENT=claude-code", file=sys.stderr)
+    print("export HTMLGRAPH_NESTING_DEPTH=0", file=sys.stderr)
+```
+
+### Why HTMLGRAPH_SESSION_ID Doesn't Exist
+
+1. **SessionStart hook creates the session** in HtmlGraph (✅ WORKING)
+2. **SessionStart hook sets os.environ** in Python (✅ WORKING)
+3. **SessionStart hook prints export statements to stderr** (✅ ATTEMPTED)
+4. **Stderr export statements don't propagate to Claude Code shell** (❌ DOESN'T WORK)
+5. **Result**: Environment variable set in hook's Python process, but NOT in Claude's shell
+
+### Hook Configuration Status
+
+**Hook is properly registered:**
+```
+File: .claude/hooks/hooks.json
+Status: ✅ SessionStart hook registered
+Command: uv run ".claude/hooks/scripts/session-start.py"
+Invocation: Fires at session start, resume, compact, clear
+```
+
+**Hook is being executed:**
+- Session is created (sess-3d9ec350)
+- Activities are tracked
+- Output is being generated
+
+### Why Events ARE Being Logged (Despite Missing Env Var)
+
+The environment variable is a **convenience tool, not a requirement** for event logging:
+
+1. **SessionStart hook creates session** directly via `SessionManager.start_session()` (line 1223-1228)
+2. **SessionStart hook tracks activity** via `SessionManager.track_activity()` (line 1236-1244)
+3. **Environment variable is only for child processes** to know parent session ID
+4. **Result**: Events ARE logged, but child processes (Task(), spawn operations) don't know parent session ID
+
+### Evidence
+
+**Session exists and is active:**
+```
+Active HtmlGraph Session: sess-3d9ec350
+Session Status: active
+```
+
+**Recent session files confirm logging:**
+```
+.rw-r--r-- 312 KB Thu Jan  8 00:30:26 2026 sess-fd50862f.html
+.rw-r--r-- 2.0 KB Sun Jan  4 18:04:04 2026 sess-f9d341aa.html
+```
+
+### Impact Assessment
+
+**LOW SEVERITY:**
+- ✅ Session creation: WORKING
+- ✅ Event logging: WORKING
+- ✅ Dashboard display: WORKING
+- ❌ Environment variable: NOT WORKING
+- ❌ Child process context: BROKEN
+
+**Affects:**
+- Task() subagents don't know parent session ID
+- spawn_gemini(), spawn_codex() can't link work to parent session
+- Multi-agent coordination lacks parent context
+- Nesting depth not tracked in child processes
+
+### Root Cause: Hook Output Capture
+
+**The Problem:**
+- SessionStart hook prints to stderr: `print(..., file=sys.stderr)`
+- These lines are DIAGNOSTIC OUTPUT, not hook control output
+- Hook output to stdout is JSON response only
+- Stderr lines are NOT captured by Claude Code's environment setup mechanism
+- Result: Export statements never make it to the shell
+
+**Confirmed in code comments:**
+```python
+# Note: These print statements export to shell only if hook output is captured
+```
+
+**This comment acknowledges the limitation:** shell environment setup requires a specific mechanism that stderr alone doesn't provide.
+
+### The Fix (Two Options)
+
+**Option A: Use CLAUDE_ENV_FILE (Proper Mechanism)**
+- `CLAUDE_ENV_FILE` is provided by Claude Code SessionStart
+- Writing to this file persists variables across shell commands
+- More reliable than stderr exports
+
+**Option B: Use Hook Output JSON**
+- Return environment variables in hook JSON response
+- Claude Code should provide mechanism to pass these to shell
+- More direct but requires Claude Code API extension
+
+### Recommended Solution
+
+Modify `session-start.py` to write environment variables to `CLAUDE_ENV_FILE`:
+
+```python
+# Around line 1250-1260
+if active and active.id:
+    os.environ["HTMLGRAPH_PARENT_SESSION"] = active.id
+    os.environ["HTMLGRAPH_PARENT_AGENT"] = "claude-code"
+    os.environ["HTMLGRAPH_NESTING_DEPTH"] = "0"
+    
+    # Write to CLAUDE_ENV_FILE if available (recommended approach)
+    env_file = os.environ.get("CLAUDE_ENV_FILE")
+    if env_file:
+        with open(env_file, "a") as f:
+            f.write(f'export HTMLGRAPH_PARENT_SESSION={active.id}
+')
+            f.write(f'export HTMLGRAPH_PARENT_AGENT=claude-code
+')
+            f.write(f'export HTMLGRAPH_NESTING_DEPTH=0
+')
+```
+
+### Session Summary
+
+| Aspect | Status | Evidence |
+|--------|--------|----------|
+| Hook Registered | ✅ WORKING | .claude/hooks/hooks.json has SessionStart |
+| Hook Execution | ✅ WORKING | Session sess-3d9ec350 created and active |
+| Event Logging | ✅ WORKING | Activities tracked in session |
+| Dashboard Tracking | ✅ WORKING | Session files in .htmlgraph/sessions/ |
+| Env Var in Python | ✅ WORKING | os.environ set in hook process |
+| Env Var in Shell | ❌ BROKEN | Not exported to Claude Code shell |
+| Child Context | ❌ BROKEN | Task() can't find parent session ID |
+
+### Action Items
+
+1. ✅ VERIFY: Session creation is working correctly
+2. ✅ VERIFY: Event logging is functional
+3. ⚠️ FIX: Write environment variables to CLAUDE_ENV_FILE instead of stderr
+4. ⚠️ TEST: Verify HTMLGRAPH_PARENT_SESSION propagates to Task() calls
+5. ⚠️ DOCUMENT: Update comments about environment variable persistence mechanism
+
+### Conclusion
+
+**The system is 95% working.** Sessions are created, events logged, dashboard active. The only issue is that child processes don't know the parent session ID because the export mechanism isn't working. This is a **configuration fix, not an architecture problem**.
+
+**Severity: Medium** - Affects multi-agent coordination but not core functionality.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

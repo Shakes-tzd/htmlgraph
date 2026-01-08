@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Session File Tracking System Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-session-file-tracking-design"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2026-01-08T12:00:00Z"
+             data-updated="2026-01-08T12:00:00Z"
+             data-spike-type="architectural">
+
+        <header>
+            <h1>Session File Tracking System Design</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge">Architectural Spike</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h2>Executive Summary</h2>
+            <p>
+                This spike documents a comprehensive session file tracking system for HtmlGraph that handles
+                parallel sessions, time awareness, and git repository scenarios. The design replaces the
+                problematic single-file approach (<code>.htmlgraph/.current-session</code>) with a robust
+                multi-file architecture that supports concurrent Claude Code instances.
+            </p>
+        </section>
+
+        <section data-findings>
+            <h2>Architecture Overview</h2>
+
+            <h3>Directory Structure</h3>
+            <pre><code>
+.htmlgraph/
+├── sessions/
+│   ├── registry/                    # Session registry (index)
+│   │   ├── active/                  # Currently active sessions
+│   │   │   ├── {instance_id}.json   # One file per Claude instance
+│   │   │   └── ...
+│   │   └── index.json               # Fast lookup index
+│   │
+│   ├── {session_id}.html            # Session data files (existing)
+│   ├── ...
+│   │
+│   └── _archive/                    # Completed/expired sessions
+│       ├── 2026/
+│       │   ├── 01/
+│       │   │   ├── {session_id}.html
+│       │   │   └── ...
+│       │   └── ...
+│       └── ...
+│
+└── .session-lock                    # Optional advisory lock file
+            </code></pre>
+
+            <h3>ASCII Architecture Diagram</h3>
+            <pre><code>
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SESSION FILE TRACKING SYSTEM                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐       │
+│  │  Claude Instance │    │  Claude Instance │    │  Claude Instance │       │
+│  │     (PID: 1234)  │    │     (PID: 5678)  │    │     (PID: 9012)  │       │
+│  └────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘       │
+│           │                       │                       │                  │
+│           ▼                       ▼                       ▼                  │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                     ACTIVE SESSION REGISTRY                          │    │
+│  │  .htmlgraph/sessions/registry/active/                               │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │    │
+│  │  │ inst-1234   │  │ inst-5678   │  │ inst-9012   │                  │    │
+│  │  │   .json     │  │   .json     │  │   .json     │                  │    │
+│  │  │             │  │             │  │             │                  │    │
+│  │  │ session_id  │  │ session_id  │  │ session_id  │                  │    │
+│  │  │ repo_hash   │  │ repo_hash   │  │ repo_hash   │                  │    │
+│  │  │ branch      │  │ branch      │  │ branch      │                  │    │
+│  │  │ pid         │  │ pid         │  │ pid         │                  │    │
+│  │  │ heartbeat   │  │ heartbeat   │  │ heartbeat   │                  │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                  │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                        SESSION HTML FILES                            │    │
+│  │  .htmlgraph/sessions/                                               │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │    │
+│  │  │sess-abc123  │  │sess-def456  │  │sess-ghi789  │                  │    │
+│  │  │   .html     │  │   .html     │  │   .html     │                  │    │
+│  │  │             │  │             │  │             │                  │    │
+│  │  │ Full session│  │ Full session│  │ Full session│                  │    │
+│  │  │ data with   │  │ data with   │  │ data with   │                  │    │
+│  │  │ activity    │  │ activity    │  │ activity    │                  │    │
+│  │  │ logs        │  │ logs        │  │ logs        │                  │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                  │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+            </code></pre>
+
+            <h2>File Formats</h2>
+
+            <h3>1. Instance Registration File</h3>
+            <p>Location: <code>.htmlgraph/sessions/registry/active/{instance_id}.json</code></p>
+            <pre><code>
+{
+  "instance_id": "inst-1234-abc",
+  "session_id": "sess-a1b2c3d4",
+  "created_at": "2026-01-08T12:34:56.789Z",
+  "last_heartbeat": "2026-01-08T12:35:10.123Z",
+  "status": "active",
+
+  "process": {
+    "pid": 12345,
+    "ppid": 1000,
+    "start_time": "2026-01-08T12:34:56Z",
+    "command": "claude"
+  },
+
+  "git": {
+    "repo_path": "/Users/shakes/DevProjects/htmlgraph",
+    "repo_hash": "d78e458a",
+    "remote_url": "https://github.com/user/htmlgraph.git",
+    "branch": "main",
+    "commit": "d78e458",
+    "is_dirty": false
+  },
+
+  "agent": {
+    "name": "claude-code",
+    "model": "claude-opus-4-5-20251101",
+    "is_subagent": false,
+    "parent_session": null,
+    "nesting_depth": 0
+  },
+
+  "metadata": {
+    "external_session_id": "ext-uuid-from-claude",
+    "conversation_id": "conv-xyz",
+    "project_name": "htmlgraph"
+  }
+}
+            </code></pre>
+
+            <h3>2. Registry Index File</h3>
+            <p>Location: <code>.htmlgraph/sessions/registry/index.json</code></p>
+            <pre><code>
+{
+  "version": "1.0",
+  "updated_at": "2026-01-08T12:35:10Z",
+
+  "active_sessions": {
+    "sess-a1b2c3d4": {
+      "instance_id": "inst-1234-abc",
+      "agent": "claude-code",
+      "repo_hash": "d78e458a",
+      "branch": "main",
+      "last_heartbeat": "2026-01-08T12:35:10Z"
+    }
+  },
+
+  "by_repo": {
+    "d78e458a": ["sess-a1b2c3d4"],
+    "f9g0h1i2": ["sess-xyz789"]
+  },
+
+  "by_agent": {
+    "claude-code": ["sess-a1b2c3d4"],
+    "codex": ["sess-xyz789"]
+  },
+
+  "stats": {
+    "total_active": 2,
+    "oldest_active": "2026-01-08T10:00:00Z",
+    "last_cleanup": "2026-01-08T12:00:00Z"
+  }
+}
+            </code></pre>
+
+            <h2>Current Session Detection Algorithm</h2>
+
+            <h3>Pseudocode</h3>
+            <pre><code>
+function get_current_session(agent: str, repo_path: str) -> Session | None:
+    """
+    Determine the current session for a given agent and repository.
+
+    Priority order:
+    1. Environment variable HTMLGRAPH_SESSION_ID (explicit override)
+    2. Active registration file matching (PID, repo, agent)
+    3. Most recent active session for repo+agent combination
+    4. Create new session if none found
+    """
+
+    # Priority 1: Environment override
+    if env_session_id := os.environ.get("HTMLGRAPH_SESSION_ID"):
+        session = load_session(env_session_id)
+        if session and session.status == "active":
+            return session
+
+    # Calculate repo identifier
+    repo_hash = calculate_repo_hash(repo_path)
+    current_pid = os.getpid()
+
+    # Priority 2: Find active registration for THIS process
+    active_registrations = list_active_registrations()
+    for reg in active_registrations:
+        if reg.process.pid == current_pid:
+            # This is our registration
+            if is_process_alive(reg.process.pid):
+                return load_session(reg.session_id)
+            else:
+                # Stale registration, clean up
+                remove_registration(reg.instance_id)
+
+    # Priority 3: Find most recent active session for repo+agent
+    candidates = []
+    for reg in active_registrations:
+        if (reg.git.repo_hash == repo_hash and
+            reg.agent.name == agent and
+            not reg.agent.is_subagent):
+
+            if is_process_alive(reg.process.pid):
+                candidates.append(reg)
+            else:
+                # Orphaned registration
+                mark_session_orphaned(reg.session_id)
+                remove_registration(reg.instance_id)
+
+    if candidates:
+        # Sort by last_heartbeat descending
+        candidates.sort(key=lambda r: r.last_heartbeat, reverse=True)
+        canonical = candidates[0]
+
+        # Mark others as stale (multiple active sessions for same repo+agent)
+        for other in candidates[1:]:
+            mark_session_stale(other.session_id)
+
+        return load_session(canonical.session_id)
+
+    # Priority 4: No active session found
+    return None
+
+
+function register_session(session: Session, repo_path: str) -> Registration:
+    """
+    Register a new session in the active registry.
+    """
+    instance_id = generate_instance_id()
+    repo_hash = calculate_repo_hash(repo_path)
+
+    registration = {
+        "instance_id": instance_id,
+        "session_id": session.id,
+        "created_at": utc_now(),
+        "last_heartbeat": utc_now(),
+        "status": "active",
+        "process": {
+            "pid": os.getpid(),
+            "ppid": os.getppid(),
+            "start_time": get_process_start_time(),
+            "command": get_process_command()
+        },
+        "git": get_git_info(repo_path),
+        "agent": {
+            "name": session.agent,
+            "is_subagent": session.is_subagent,
+            "parent_session": session.parent_session,
+            "nesting_depth": session.nesting_depth
+        }
+    }
+
+    # Atomic write to registration file
+    write_atomic(
+        path=f".htmlgraph/sessions/registry/active/{instance_id}.json",
+        data=registration
+    )
+
+    # Update index
+    update_registry_index()
+
+    return registration
+
+
+function calculate_repo_hash(repo_path: str) -> str:
+    """
+    Generate a stable hash for a repository.
+
+    Uses multiple factors for uniqueness:
+    - Absolute path (handles symlinks)
+    - Remote URL (if available)
+    - Git directory inode (filesystem-level identity)
+    """
+    real_path = os.path.realpath(repo_path)
+    git_dir = os.path.join(real_path, ".git")
+
+    components = [real_path]
+
+    # Add remote URL if available
+    try:
+        remote = subprocess.check_output(
+            ["git", "remote", "get-url", "origin"],
+            cwd=repo_path
+        ).decode().strip()
+        components.append(remote)
+    except:
+        pass
+
+    # Add inode for filesystem identity
+    try:
+        stat = os.stat(git_dir)
+        components.append(str(stat.st_ino))
+    except:
+        pass
+
+    content = "|".join(components)
+    return hashlib.sha256(content.encode()).hexdigest()[:8]
+            </code></pre>
+
+            <h2>Session Lifecycle</h2>
+
+            <h3>State Diagram</h3>
+            <pre><code>
+                                    ┌─────────────┐
+                                    │   (start)   │
+                                    └──────┬──────┘
+                                           │
+                                           ▼
+                          ┌────────────────────────────────┐
+                          │                                │
+                          │           CREATING             │
+                          │  - Generate session ID         │
+                          │  - Create registration         │
+                          │  - Initialize HTML file        │
+                          │                                │
+                          └────────────────┬───────────────┘
+                                           │
+                                           ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│                               ACTIVE                                          │
+│  - Receiving activity events                                                  │
+│  - Heartbeat updated periodically                                            │
+│  - Registration file maintained                                               │
+│                                                                               │
+└───────────┬───────────────────────┬───────────────────────┬──────────────────┘
+            │                       │                       │
+            │ (Stop hook)           │ (Process dies)        │ (Timeout)
+            │                       │                       │
+            ▼                       ▼                       ▼
+    ┌───────────────┐      ┌───────────────┐       ┌───────────────┐
+    │               │      │               │       │               │
+    │    ENDED      │      │   ORPHANED    │       │    STALE      │
+    │               │      │               │       │               │
+    │ - Graceful    │      │ - Process     │       │ - Heartbeat   │
+    │   shutdown    │      │   crashed     │       │   expired     │
+    │ - Registration│      │ - No cleanup  │       │ - Inactive    │
+    │   removed     │      │   performed   │       │   too long    │
+    │               │      │               │       │               │
+    └───────┬───────┘      └───────┬───────┘       └───────┬───────┘
+            │                       │                       │
+            │                       │ (cleanup job)         │ (cleanup job)
+            │                       │                       │
+            ▼                       ▼                       ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │                                                              │
+    │                        ARCHIVED                              │
+    │  - Moved to _archive/{year}/{month}/                        │
+    │  - Registration removed                                      │
+    │  - Available for historical queries                          │
+    │                                                              │
+    └─────────────────────────────────────────────────────────────┘
+            </code></pre>
+
+            <h3>Lifecycle Events</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Trigger</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Creation</td>
+                        <td>SessionStart hook, first activity</td>
+                        <td>
+                            1. Generate session ID<br>
+                            2. Create registration file<br>
+                            3. Update index<br>
+                            4. Create session HTML
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Heartbeat</td>
+                        <td>Every activity, periodic timer</td>
+                        <td>
+                            1. Update last_heartbeat<br>
+                            2. Verify process alive<br>
+                            3. Check for conflicts
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>End (graceful)</td>
+                        <td>Stop hook, /exit command</td>
+                        <td>
+                            1. Set status=ended<br>
+                            2. Remove registration<br>
+                            3. Update index<br>
+                            4. Archive if policy
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Orphan Detection</td>
+                        <td>Cleanup job finds dead PID</td>
+                        <td>
+                            1. Set status=orphaned<br>
+                            2. Remove registration<br>
+                            3. Update index<br>
+                            4. Log warning
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Stale Detection</td>
+                        <td>Heartbeat > threshold</td>
+                        <td>
+                            1. Set status=stale<br>
+                            2. Keep registration (may resume)<br>
+                            3. Update index
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Archive</td>
+                        <td>Age > retention policy</td>
+                        <td>
+                            1. Move to _archive/<br>
+                            2. Remove from index<br>
+                            3. Compress if large
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Parallel Session Handling</h2>
+
+            <h3>Multi-Instance Scenarios</h3>
+            <pre><code>
+Scenario 1: Same repo, same agent, different terminals
+─────────────────────────────────────────────────────
+Terminal 1: claude (PID 1234) → sess-aaa111
+Terminal 2: claude (PID 5678) → sess-bbb222
+
+Resolution:
+- Each gets its own session (different PIDs)
+- Both are valid and active simultaneously
+- No conflict - parallel work is intentional
+
+Query "current session":
+- Returns session matching current PID
+- Falls back to most recent heartbeat
+
+
+Scenario 2: Same repo, different agents
+───────────────────────────────────────
+claude-code (PID 1234) → sess-claude-001
+codex       (PID 5678) → sess-codex-001
+gemini      (PID 9012) → sess-gemini-001
+
+Resolution:
+- Each agent type gets independent session
+- Agent name is part of session identity
+- No conflict - multi-agent coordination expected
+
+
+Scenario 3: Parent/Child sessions (Task delegation)
+──────────────────────────────────────────────────
+Main session:     claude-code (PID 1234) → sess-parent
+  └─ Task 1:      subagent    (PID 2345) → sess-child-1 (parent=sess-parent)
+  └─ Task 2:      subagent    (PID 3456) → sess-child-2 (parent=sess-parent)
+
+Resolution:
+- Subagent sessions linked via parent_session field
+- nesting_depth tracks delegation level
+- Parent session remains canonical for the conversation
+
+
+Scenario 4: Resume after crash
+──────────────────────────────
+Before crash:  claude (PID 1234) → sess-original (active)
+Crash:         PID 1234 terminates unexpectedly
+After restart: claude (PID 5678) → ?
+
+Resolution:
+1. Detect orphaned registration (PID 1234 dead)
+2. Mark sess-original as orphaned
+3. New process gets choice:
+   a. Resume sess-original (same repo+agent+branch+commit)
+   b. Create new session (different context)
+4. Decision based on time since last activity:
+   - < 1 hour: Resume
+   - >= 1 hour: New session
+            </code></pre>
+
+            <h3>Conflict Resolution Matrix</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Conflict Type</th>
+                        <th>Detection</th>
+                        <th>Resolution</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Duplicate PID</td>
+                        <td>Registration with same PID exists</td>
+                        <td>Check if process alive; if dead, replace registration</td>
+                    </tr>
+                    <tr>
+                        <td>Multiple active same repo+agent</td>
+                        <td>Query returns multiple</td>
+                        <td>Use most recent heartbeat; mark others stale</td>
+                    </tr>
+                    <tr>
+                        <td>Session ID collision</td>
+                        <td>Extremely rare (hash collision)</td>
+                        <td>Regenerate with additional entropy</td>
+                    </tr>
+                    <tr>
+                        <td>Stale registration</td>
+                        <td>Heartbeat > threshold</td>
+                        <td>Remove if process dead; warn if alive</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Git Repository Awareness</h2>
+
+            <h3>Repository Identity</h3>
+            <pre><code>
+function get_git_info(repo_path: str) -> GitInfo:
+    """
+    Capture comprehensive git repository information.
+    """
+    return {
+        # Path information
+        "repo_path": os.path.realpath(repo_path),
+        "repo_hash": calculate_repo_hash(repo_path),
+
+        # Remote information
+        "remote_url": git("remote", "get-url", "origin"),
+        "remote_name": "origin",
+
+        # Branch/commit state
+        "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
+        "commit": git("rev-parse", "--short", "HEAD"),
+        "commit_full": git("rev-parse", "HEAD"),
+        "commit_message": git("log", "-1", "--format=%s"),
+        "commit_author": git("log", "-1", "--format=%an"),
+        "commit_date": git("log", "-1", "--format=%ci"),
+
+        # Working tree state
+        "is_dirty": has_uncommitted_changes(),
+        "untracked_count": count_untracked_files(),
+        "staged_count": count_staged_changes(),
+        "modified_count": count_modified_files(),
+
+        # Repository metadata
+        "is_shallow": os.path.exists(".git/shallow"),
+        "worktree_count": count_worktrees(),
+        "submodule_count": count_submodules()
+    }
+            </code></pre>
+
+            <h3>Branch Switching Handling</h3>
+            <pre><code>
+Scenario: User switches branches during active session
+──────────────────────────────────────────────────────
+
+Initial state:
+  Session: sess-abc123
+  Branch: main
+  Commit: d78e458
+
+User runs: git checkout feature-branch
+
+Detection:
+  - Next activity detects branch change
+  - Current: feature-branch
+  - Session recorded: main
+
+Options:
+  1. CONTINUE (default): Update session with new branch
+     - Add activity: "Branch switch: main → feature-branch"
+     - Update session.current_branch
+     - Keep same session ID
+
+  2. SPLIT: Create new session for new branch
+     - End current session with handoff note
+     - Create new session for feature-branch
+     - Link via continued_from
+
+  3. WARN: Alert user about context drift
+     - Log warning in activity
+     - Continue with same session
+     - Flag in session metadata
+
+Recommendation: Option 1 (CONTINUE) as default
+  - Branch switches are normal workflow
+  - User can force SPLIT with explicit command
+  - Analytics can track branch-switching patterns
+            </code></pre>
+
+            <h3>Monorepo Support</h3>
+            <pre><code>
+Monorepo structure:
+  /monorepo/
+  ├── .git/
+  ├── package-a/
+  │   └── .htmlgraph/    # Package-specific tracking
+  ├── package-b/
+  │   └── .htmlgraph/    # Package-specific tracking
+  └── .htmlgraph/        # Root-level tracking (optional)
+
+Session isolation:
+  - Each .htmlgraph/ is independent
+  - Sessions scoped to their .htmlgraph/ directory
+  - repo_hash includes .htmlgraph path for uniqueness
+
+Cross-package work:
+  - Use root .htmlgraph/ for cross-cutting work
+  - Or link features across packages via edges
+  - Session can reference multiple packages in worked_on
+            </code></pre>
+
+            <h2>Time-Based Queries</h2>
+
+            <h3>Query Interface</h3>
+            <pre><code>
+class SessionQuery:
+    """
+    Time-aware session query interface.
+    """
+
+    def active_sessions(
+        self,
+        repo_hash: str | None = None,
+        agent: str | None = None,
+        since: datetime | None = None
+    ) -> list[Session]:
+        """Get all currently active sessions."""
+
+    def sessions_in_range(
+        self,
+        start: datetime,
+        end: datetime,
+        include_archived: bool = True
+    ) -> list[Session]:
+        """Get sessions that were active during time range."""
+
+    def orphaned_sessions(
+        self,
+        max_age: timedelta = timedelta(hours=24)
+    ) -> list[Session]:
+        """Find sessions that appear orphaned (no heartbeat, process dead)."""
+
+    def sessions_by_date(
+        self,
+        date: date
+    ) -> list[Session]:
+        """Get all sessions from a specific date."""
+
+    def session_history(
+        self,
+        session_id: str,
+        include_children: bool = True
+    ) -> SessionHistory:
+        """Get full history of a session including child sessions."""
+
+
+class SessionHistory:
+    """Session history with timeline."""
+
+    session: Session
+    children: list[Session]
+    timeline: list[TimelineEvent]
+    duration: timedelta
+    activity_count: int
+
+    def to_context(self) -> str:
+        """Generate human-readable history summary."""
+            </code></pre>
+
+            <h3>Cleanup Policy</h3>
+            <pre><code>
+DEFAULT_CLEANUP_POLICY = {
+    # Heartbeat timeout - consider stale after this duration
+    "heartbeat_timeout_minutes": 30,
+
+    # Orphan detection - check if process is alive after this
+    "orphan_check_minutes": 5,
+
+    # Archive threshold - move to archive after this
+    "archive_after_days": 30,
+
+    # Delete threshold - permanently delete after this
+    "delete_after_days": 90,
+
+    # Maximum active sessions per repo+agent
+    "max_active_per_repo_agent": 1,
+
+    # Maximum total active sessions
+    "max_total_active": 50
+}
+
+
+function cleanup_sessions(policy: CleanupPolicy = DEFAULT):
+    """
+    Periodic cleanup job for session management.
+
+    Run: On session start, or via cron/scheduler
+    """
+    now = utc_now()
+
+    # 1. Find orphaned sessions (dead PIDs)
+    for reg in list_active_registrations():
+        if not is_process_alive(reg.process.pid):
+            mark_session_orphaned(reg.session_id)
+            remove_registration(reg.instance_id)
+            log_warning(f"Orphaned session detected: {reg.session_id}")
+
+    # 2. Find stale sessions (heartbeat timeout)
+    for reg in list_active_registrations():
+        heartbeat_age = now - reg.last_heartbeat
+        if heartbeat_age > timedelta(minutes=policy.heartbeat_timeout_minutes):
+            if is_process_alive(reg.process.pid):
+                # Process alive but not updating - warn
+                log_warning(f"Stale session (process alive): {reg.session_id}")
+            else:
+                mark_session_stale(reg.session_id)
+                remove_registration(reg.instance_id)
+
+    # 3. Archive old sessions
+    for session in list_sessions(status=["ended", "stale", "orphaned"]):
+        session_age = now - session.ended_at
+        if session_age > timedelta(days=policy.archive_after_days):
+            archive_session(session.id)
+
+    # 4. Delete very old archives
+    for archived in list_archived_sessions():
+        archive_age = now - archived.archived_at
+        if archive_age > timedelta(days=policy.delete_after_days):
+            delete_archived_session(archived.id)
+
+    # 5. Enforce max active limits
+    active_by_repo_agent = group_active_by_repo_agent()
+    for key, sessions in active_by_repo_agent.items():
+        if len(sessions) > policy.max_active_per_repo_agent:
+            # Keep most recent, mark others stale
+            sessions.sort(key=lambda s: s.last_heartbeat, reverse=True)
+            for excess in sessions[policy.max_active_per_repo_agent:]:
+                mark_session_stale(excess.id)
+            </code></pre>
+
+            <h2>Edge Case Handling</h2>
+
+            <h3>Decision Matrix</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Edge Case</th>
+                        <th>Detection Method</th>
+                        <th>Handling Strategy</th>
+                        <th>Recovery Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Process crash (no Stop hook)</td>
+                        <td>PID no longer exists</td>
+                        <td>Mark as orphaned</td>
+                        <td>New session can resume if within time window</td>
+                    </tr>
+                    <tr>
+                        <td>Machine reboot</td>
+                        <td>All PIDs invalid on next start</td>
+                        <td>Bulk orphan detection</td>
+                        <td>Clean sweep of registry, start fresh</td>
+                    </tr>
+                    <tr>
+                        <td>Long pause (hours)</td>
+                        <td>Heartbeat timeout exceeded</td>
+                        <td>Mark as stale</td>
+                        <td>Resume if process still alive on next activity</td>
+                    </tr>
+                    <tr>
+                        <td>Git reset/rebase</td>
+                        <td>Commit hash changed unexpectedly</td>
+                        <td>Log in activity</td>
+                        <td>Continue session, note the change</td>
+                    </tr>
+                    <tr>
+                        <td>Repository moved/renamed</td>
+                        <td>repo_path no longer exists</td>
+                        <td>Mark as orphaned</td>
+                        <td>New location = new session</td>
+                    </tr>
+                    <tr>
+                        <td>Concurrent writes</td>
+                        <td>File lock contention</td>
+                        <td>Atomic write with temp file</td>
+                        <td>Retry with backoff</td>
+                    </tr>
+                    <tr>
+                        <td>Disk full</td>
+                        <td>Write failure</td>
+                        <td>Log error, continue in memory</td>
+                        <td>Retry writes when space available</td>
+                    </tr>
+                    <tr>
+                        <td>Corrupt registration file</td>
+                        <td>JSON parse error</td>
+                        <td>Delete corrupt file</td>
+                        <td>Rebuild from session HTML</td>
+                    </tr>
+                    <tr>
+                        <td>Session HTML missing</td>
+                        <td>Referenced file not found</td>
+                        <td>Remove registration</td>
+                        <td>Create new session</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Atomic Operations</h3>
+            <pre><code>
+function write_atomic(path: str, data: dict) -> bool:
+    """
+    Atomic file write using temp file + rename pattern.
+
+    This ensures:
+    - No partial writes visible to readers
+    - No corruption from concurrent writes
+    - Crash-safe (either old or new content, never mixed)
+    """
+    temp_path = f"{path}.{os.getpid()}.tmp"
+
+    try:
+        # Write to temp file
+        with open(temp_path, 'w') as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())  # Ensure written to disk
+
+        # Atomic rename
+        os.rename(temp_path, path)
+        return True
+
+    except Exception as e:
+        # Clean up temp file on failure
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
+        raise e
+
+
+function read_with_retry(path: str, max_retries: int = 3) -> dict | None:
+    """
+    Read file with retry for transient failures.
+    """
+    for attempt in range(max_retries):
+        try:
+            with open(path, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            # File might be mid-write, retry
+            time.sleep(0.1 * (attempt + 1))
+        except FileNotFoundError:
+            return None
+
+    # Max retries exceeded, file likely corrupt
+    return None
+            </code></pre>
+
+            <h2>SDK Integration</h2>
+
+            <h3>API Design</h3>
+            <pre><code>
+class SDK:
+    """Extended SDK with session file tracking."""
+
+    @property
+    def current_session(self) -> Session | None:
+        """
+        Get current session for this process.
+
+        Uses the detection algorithm to find or create session.
+        """
+        return self._session_tracker.get_current()
+
+    def sessions(self) -> SessionCollection:
+        """Access session collection with queries."""
+        return self._sessions
+
+
+class SessionCollection:
+    """Session collection with file tracking support."""
+
+    def get_current(self) -> Session | None:
+        """Get current session using detection algorithm."""
+
+    def register(self, session: Session) -> Registration:
+        """Register a new session in the active registry."""
+
+    def unregister(self, session_id: str) -> bool:
+        """Remove session from active registry."""
+
+    def heartbeat(self, session_id: str) -> bool:
+        """Update heartbeat for active session."""
+
+    def query(self) -> SessionQuery:
+        """Get query interface for advanced session queries."""
+
+    def cleanup(self, policy: CleanupPolicy | None = None) -> CleanupResult:
+        """Run cleanup with specified or default policy."""
+
+
+# Usage example
+sdk = SDK(agent="claude-code")
+
+# Get current session (auto-detection)
+session = sdk.current_session
+print(f"Current: {session.id if session else 'None'}")
+
+# Query sessions
+today_sessions = sdk.sessions.query().sessions_by_date(date.today())
+orphaned = sdk.sessions.query().orphaned_sessions()
+
+# Manual cleanup
+result = sdk.sessions.cleanup()
+print(f"Cleaned: {result.orphaned_count} orphaned, {result.archived_count} archived")
+            </code></pre>
+
+            <h2>Migration Path</h2>
+
+            <h3>From Current Implementation</h3>
+            <pre><code>
+Current state:
+- Sessions stored in .htmlgraph/sessions/*.html
+- No registry/index
+- Single "active" determined by status field and recency
+- Session explosion problem with parallel instances
+
+Migration steps:
+1. Create registry/ directory structure
+2. Scan existing sessions, create registrations for "active" ones
+3. Update SessionManager to use new system
+4. Maintain backward compatibility (read old format)
+5. Deprecate old detection logic after transition period
+
+Backward compatibility:
+- Old sessions remain readable
+- New system creates registrations for any accessed old session
+- Gradual migration as sessions are touched
+            </code></pre>
+
+            <h2>Implementation Phases</h2>
+
+            <h3>Phase 1: Core Infrastructure (2-3 days)</h3>
+            <ul>
+                <li>Create registry directory structure</li>
+                <li>Implement registration file read/write</li>
+                <li>Implement atomic file operations</li>
+                <li>Add repo hash calculation</li>
+            </ul>
+
+            <h3>Phase 2: Detection Algorithm (2-3 days)</h3>
+            <ul>
+                <li>Implement current session detection</li>
+                <li>Add PID-based process checking</li>
+                <li>Implement heartbeat mechanism</li>
+                <li>Add conflict resolution</li>
+            </ul>
+
+            <h3>Phase 3: Lifecycle Management (2-3 days)</h3>
+            <ul>
+                <li>Implement session state transitions</li>
+                <li>Add cleanup job</li>
+                <li>Implement archival</li>
+                <li>Add time-based queries</li>
+            </ul>
+
+            <h3>Phase 4: SDK Integration (1-2 days)</h3>
+            <ul>
+                <li>Update SDK with new APIs</li>
+                <li>Integrate with SessionStart hook</li>
+                <li>Add environment variable support</li>
+                <li>Write comprehensive tests</li>
+            </ul>
+
+            <h2>Trade-offs and Decisions</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Decision</th>
+                        <th>Alternatives Considered</th>
+                        <th>Rationale</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>JSON for registry files</td>
+                        <td>SQLite, YAML, HTML</td>
+                        <td>Simple, human-readable, fast for small files, no dependencies</td>
+                    </tr>
+                    <tr>
+                        <td>File-per-instance in registry</td>
+                        <td>Single index file</td>
+                        <td>Avoids lock contention, atomic updates, easier cleanup</td>
+                    </tr>
+                    <tr>
+                        <td>PID-based identity</td>
+                        <td>UUID, file locks</td>
+                        <td>OS-guaranteed uniqueness, easy liveness check</td>
+                    </tr>
+                    <tr>
+                        <td>Heartbeat polling</td>
+                        <td>File watches, signals</td>
+                        <td>Simple, portable, doesn't require background processes</td>
+                    </tr>
+                    <tr>
+                        <td>Archive by date hierarchy</td>
+                        <td>Flat archive, single zip</td>
+                        <td>Easy date-based queries, git-friendly, no compression overhead</td>
+                    </tr>
+                    <tr>
+                        <td>30-min heartbeat timeout</td>
+                        <td>5-min, 1-hour, configurable</td>
+                        <td>Balance between responsiveness and tolerance for pauses</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>Assumptions</h2>
+            <ul>
+                <li>Single machine execution (no distributed sessions)</li>
+                <li>PID reuse is rare within cleanup window</li>
+                <li>File system supports atomic rename</li>
+                <li>Clock is reasonably synchronized</li>
+                <li>Git is available in repositories</li>
+                <li>Sessions are typically short-lived (&lt; 24 hours active)</li>
+            </ul>
+        </section>
+
+        <section data-decision>
+            <h2>Recommendation</h2>
+            <p>
+                Implement the proposed multi-file registry system with PID-based instance tracking.
+                This design provides robust parallel session support while maintaining the file-based,
+                git-friendly architecture that is core to HtmlGraph's philosophy.
+            </p>
+            <p>
+                Start with Phase 1 (core infrastructure) and iterate. The detection algorithm in Phase 2
+                is the critical path - it must handle all edge cases gracefully without data loss.
+            </p>
+        </section>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">Design registry directory structure</li>
+                <li data-completed="false">Implement atomic file operations</li>
+                <li data-completed="false">Create registration file format</li>
+                <li data-completed="false">Implement repo hash calculation</li>
+                <li data-completed="false">Build current session detection algorithm</li>
+                <li data-completed="false">Add heartbeat mechanism</li>
+                <li data-completed="false">Implement cleanup job</li>
+                <li data-completed="false">Update SDK with new APIs</li>
+                <li data-completed="false">Integrate with SessionStart hook</li>
+                <li data-completed="false">Write comprehensive tests</li>
+            </ol>
+        </section>
+
+    </article>
+</body>
+</html>

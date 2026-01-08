@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PreToolUse Hook Implementation Plan</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-4570557b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-07T22:44:36.387427"
+             data-updated="2026-01-07T22:44:36.387431" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-opus-4-5-20251101">
+
+        <header>
+            <h1>PreToolUse Hook Implementation Plan</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # PreToolUse Hook: Complete Event Tracing System
+## Implementation Plan
+
+---
+
+## 1. Architecture Overview
+
+### System Design (ASCII Diagram)
+
+```
++------------------------------------------------------------------------------+
+|                         Event Tracing System                                  |
++------------------------------------------------------------------------------+
+|                                                                              |
+|  +------------------+         +------------------+         +----------------+ |
+|  |   Claude Code   |-------->|  PreToolUse     |-------->|  tool_traces   | |
+|  |   Tool Call     |         |  Hook Handler   |         |  (SQLite)      | |
+|  +------------------+         +------------------+         +----------------+ |
+|           |                         |                           ^            |
+|           |                         | tool_use_id               |            |
+|           |                         v                           |            |
+|           |                  +------------------+               |            |
+|           |                  |  Context Store  |               |            |
+|           |                  |  (tool_use_id)  |               |            |
+|           |                  +------------------+               |            |
+|           |                         |                           |            |
+|           v                         v                           |            |
+|  +------------------+         +------------------+               |            |
+|  |   Tool         |-------->|  PostToolUse    |---------------+            |
+|  |   Execution    |         |  Hook Handler   |                            |
+|  +------------------+         |  (duration calc)|                            |
+|                              +------------------+                            |
+|                                      |                                       |
+|                                      v                                       |
+|                              +------------------+         +----------------+ |
+|                              |   Trace API     |-------->|  Dashboard     | |
+|                              |   (queries)     |         |  WebSocket     | |
+|                              +------------------+         +----------------+ |
+|                                                                              |
++------------------------------------------------------------------------------+
+```
+
+### Component Responsibilities
+
+| Component | File | Responsibility |
+|-----------|------|----------------|
+| PreToolUse Handler | hooks/pre_tool_use_handler.py | Capture tool start, generate tool_use_id, create trace |
+| PostToolUse Handler | hooks/post_tool_use_handler.py | Calculate duration, update trace status |
+| Context Store | hooks/context.py | Thread-safe storage for tool_use_id correlation |
+| Database Schema | db/schema.py | tool_traces table definition |
+| Trace API | collections/traces.py | Query and retrieval interface |
+| Dashboard Integration | api/main.py | WebSocket event streaming |
+
+### Data Flow
+
+```
+1. Tool Call Initiated
+   |
+   v
+2. PreToolUse Hook Fires
+   - Generate tool_use_id (UUID)
+   - Store in Context (keyed by session_id + tool_name)
+   - INSERT into tool_traces (start_time, tool_name, tool_input)
+   - Return tool_use_id
+   |
+   v
+3. Tool Executes
+   |
+   v
+4. PostToolUse Hook Fires
+   - Retrieve tool_use_id from Context
+   - Query tool_traces for start_time
+   - Calculate duration_ms = end_time - start_time
+   - UPDATE tool_traces (end_time, duration_ms, tool_output, status)
+   - Clear Context entry
+   |
+   v
+5. Trace Available for Query
+```
+
+### Integration Points
+
+1. **SessionStart Hook** - Provides session_id for correlation
+2. **Event Log** - Tool traces complement existing events
+3. **Dashboard WebSocket** - Stream trace updates in real-time
+4. **CLI** - htmlgraph traces command for debugging
+5. **SDK** - sdk.traces.get() for programmatic access
+
+---
+
+## 2. Database Schema
+
+### New Table: tool_traces
+
+```sql
+CREATE TABLE tool_traces (
+    -- Primary Identifier
+    tool_use_id TEXT PRIMARY KEY,          -- UUID, unique per execution
+    
+    -- Correlation IDs
+    trace_id TEXT NOT NULL,                 -- Groups related traces
+    session_id TEXT NOT NULL,               -- Links to session
+    parent_tool_use_id TEXT,                -- For nested tool calls
+    
+    -- Tool Information
+    tool_name TEXT NOT NULL,                -- e.g., Read, Edit, Bash
+    tool_input JSON,                        -- Input parameters (sanitized)
+    tool_output JSON,                       -- Output (truncated if large)
+    
+    -- Timing
+    start_time TIMESTAMP NOT NULL,          -- ISO8601 UTC
+    end_time TIMESTAMP,                     -- NULL until complete
+    duration_ms INTEGER,                    -- Calculated on completion
+    
+    -- Status
+    status TEXT DEFAULT 'pending',          -- pending | running | success | error
+    error_message TEXT,                     -- Error details if failed
+    
+    -- Metadata
+    agent_name TEXT,                        -- Which agent initiated
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Foreign Keys
+    FOREIGN KEY(session_id) REFERENCES sessions(id),
+    FOREIGN KEY(parent_tool_use_id) REFERENCES tool_traces(tool_use_id)
+);
+
+-- Performance Indexes
+CREATE INDEX idx_tool_traces_trace_id ON tool_traces(trace_id, start_time DESC);
+CREATE INDEX idx_tool_traces_session ON tool_traces(session_id, start_time DESC);
+CREATE INDEX idx_tool_traces_tool_name ON tool_traces(tool_name, start_time DESC);
+CREATE INDEX idx_tool_traces_status ON tool_traces(status) WHERE status != 'success';
+CREATE INDEX idx_tool_traces_duration ON tool_traces(duration_ms) WHERE duration_ms IS NOT NULL;
+```
+
+### OpenTelemetry Compliance
+
+The schema maps to OpenTelemetry span concepts:
+- tool_use_id -> Span ID
+- trace_id -> Trace ID  
+- parent_tool_use_id -> Parent Span ID
+- start_time / end_time -> Timestamps
+- status -> Span Status
+- tool_input / tool_output -> Span Attributes
+
+---
+
+## 3. Implementation Tasks
+
+### Task 1: PreToolUse Hook Handler (6-8 hours)
+
+**File**: src/python/htmlgraph/hooks/pre_tool_use_handler.py
+
+**Key Functions**:
+- handle(tool_name, tool_input, session_id, trace_id, parent_tool_use_id, agent_name) -> tool_use_id
+- _sanitize_input(tool_input) -> sanitized dict (redact secrets, truncate large values)
+- _insert_trace(**kwargs) -> None (insert into database)
+
+**Tests Required** (4-6):
+- test_handle_generates_uuid
+- test_handle_stores_in_context
+- test_handle_inserts_to_db
+- test_sanitize_input_redacts_secrets
+- test_sanitize_input_truncates_large_values
+- test_handle_continues_on_db_error
+
+---
+
+### Task 2: PostToolUse Enhancement (4-6 hours)
+
+**File**: src/python/htmlgraph/hooks/post_tool_use_handler.py
+
+**Key Functions**:
+- handle(tool_name, tool_output, session_id, status, error_message) -> duration_ms or None
+- _truncate_output(output, max_size) -> truncated output
+- _update_trace(**kwargs) -> None (update database)
+
+**Tests Required** (4-6):
+- test_handle_calculates_duration
+- test_handle_updates_trace
+- test_handle_clears_context
+- test_handle_returns_none_without_pre_event
+- test_truncate_output_limits_size
+- test_handle_handles_error_status
+
+---
+
+### Task 3: Context Store (2-3 hours)
+
+**File**: src/python/htmlgraph/hooks/context.py
+
+**Key Features**:
+- Singleton pattern for global context
+- Thread-safe with threading.Lock
+- Methods: set(), get(), clear(), clear_session()
+
+**Tests Required** (3-4):
+- test_singleton_pattern
+- test_set_and_get
+- test_clear_removes_entry
+- test_thread_safety
+
+---
+
+### Task 4: Database Migration (2-3 hours)
+
+**File**: src/python/htmlgraph/db/migrations/003_add_tool_traces.py
+
+**Functions**:
+- upgrade(conn) - Create table and indexes
+- downgrade(conn) - Drop table and indexes
+
+**Tests Required** (2-3):
+- test_upgrade_creates_table
+- test_upgrade_creates_indexes
+- test_downgrade_removes_table
+
+---
+
+### Task 5: Trace Query API (6-8 hours)
+
+**File**: src/python/htmlgraph/collections/traces.py
+
+**Classes**:
+- Trace (dataclass) - Single trace record
+- TraceTree (dataclass) - Hierarchical view
+- TraceCollection - Query interface
+
+**Methods**:
+- get(tool_use_id) -> Trace or None
+- get_by_session(session_id, limit, offset) -> List[Trace]
+- get_by_tool(tool_name, limit, since) -> List[Trace]
+- get_tree(trace_id) -> TraceTree
+- get_slow_traces(threshold_ms, limit) -> List[Trace]
+- get_error_traces(limit) -> List[Trace]
+- get_stats(session_id) -> dict
+
+**Tests Required** (8-10):
+- test_get_returns_trace
+- test_get_returns_none_for_missing
+- test_get_by_session_returns_ordered_list
+- test_get_by_session_respects_limit_offset
+- test_get_by_tool_filters_correctly
+- test_get_tree_builds_hierarchy
+- test_get_slow_traces_filters_by_threshold
+- test_get_error_traces_returns_errors_only
+- test_get_stats_calculates_correctly
+- test_row_to_trace_converts_properly
+
+---
+
+### Task 6: Comprehensive Testing (8-10 hours)
+
+**Test File**: tests/hooks/test_tool_traces.py
+
+**Test Categories**:
+1. Unit Tests (20-25 tests)
+2. Integration Tests (10-15 tests)
+3. Edge Case Tests (10-12 tests)
+4. Performance Tests (3-5 tests)
+
+**Edge Cases to Test**:
+- PreToolUse without PostToolUse (timeout)
+- PostToolUse without PreToolUse (orphan)
+- Concurrent tool executions
+- Very large inputs/outputs
+- Unicode and special characters
+- Database connection failures
+
+---
+
+### Task 7: Documentation (4-5 hours)
+
+**Files**:
+- docs/EVENT_TRACING.md - Complete guide
+- AGENTS.md - Add tracing section
+- API Reference - TraceCollection methods
+
+---
+
+## 4. Timeline & Effort Summary
+
+| Task | Hours | Dependencies |
+|------|-------|--------------|
+| Task 1: PreToolUse Handler | 6-8 | None |
+| Task 2: PostToolUse Handler | 4-6 | Task 1, Task 3 |
+| Task 3: Context Store | 2-3 | None |
+| Task 4: Database Migration | 2-3 | None |
+| Task 5: Trace Query API | 6-8 | Task 4 |
+| Task 6: Testing | 8-10 | All above |
+| Task 7: Documentation | 4-5 | All above |
+| **Total** | **32-43** | - |
+
+**Recommended Execution Order**:
+1. Task 3 (Context Store) + Task 4 (DB Migration) - parallel
+2. Task 1 (PreToolUse)
+3. Task 2 (PostToolUse)
+4. Task 5 (Query API)
+5. Task 6 (Testing)
+6. Task 7 (Documentation)
+
+---
+
+## 5. Success Criteria
+
+| Metric | Target |
+|--------|--------|
+| Tool executions with pre+post events | 100% |
+| Duration accuracy | within 10ms |
+| Query latency (single trace) | <10ms |
+| Query latency (100 traces) | <50ms |
+| Data loss rate | 0% |
+| Test coverage | >90% |
+| OpenTelemetry compliance | Schema compatible |
+
+---
+
+## 6. Risks & Mitigations
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Context propagation failures | High | Medium | Fallback to session-based correlation |
+| Performance impact | Medium | Low | Batch writes, async handlers |
+| Large output truncation | Low | Medium | Configurable limits, separate storage |
+| Concurrent execution race conditions | Medium | Medium | Thread-safe context store, DB transactions |
+| Database corruption | High | Very Low | WAL mode, regular backups |
+
+---
+
+## 7. Future Enhancements (Out of Scope)
+
+- OpenTelemetry export (OTLP)
+- Distributed tracing across multiple agents
+- Trace sampling for high-volume scenarios
+- Cost tracking per trace
+- Visual trace timeline in dashboard
+            </div>
+        </section>
+    </article>
+</body>
+</html>

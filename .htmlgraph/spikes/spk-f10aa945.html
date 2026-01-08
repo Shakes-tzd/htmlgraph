@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SessionStart Hook Diagnosis - CLAUDE_ENV_FILE Not Set Issue</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f10aa945"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T00:38:57.414989"
+             data-updated="2026-01-08T00:38:57.414997" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="diagnostic-agent">
+
+        <header>
+            <h1>SessionStart Hook Diagnosis - CLAUDE_ENV_FILE Not Set Issue</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## SessionStart Hook Post-Fix Diagnosis Report
+
+### CRITICAL FINDING: CLAUDE_ENV_FILE Environment Variable NOT Set
+
+**Status**: Hook is registered and firing, but the fix cannot work because CLAUDE_ENV_FILE is not provided by Claude Code.
+
+---
+
+### Evidence Collected
+
+#### 1. Hook Registration - VERIFIED
+✅ **SessionStart hook IS registered in plugin.json:**
+```json
+{
+  "type": "command",
+  "command": "uv run "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.py""
+}
+```
+- Location: `packages/claude-plugin/hooks/hooks.json` (lines 25-34)
+- Hook fires on session start (confirmed by hook-debug.jsonl)
+
+#### 2. Fix Was Applied - VERIFIED
+✅ **CLAUDE_ENV_FILE mechanism implemented in session-start.py (lines 1255-1274):**
+```python
+env_file = os.environ.get("CLAUDE_ENV_FILE")
+if env_file:
+    with open(env_file, "a") as f:
+        f.write(f"export HTMLGRAPH_PARENT_SESSION={active.id}\n")
+        # ... more exports
+    logger.info(f"Environment variables written to {env_file}")
+else:
+    logger.warning(
+        "CLAUDE_ENV_FILE not set. "
+        "HTMLGRAPH_SESSION_ID may not persist to shell environment."
+    )
+```
+
+#### 3. CLAUDE_ENV_FILE Is NOT Set - VERIFIED
+✅ **Current environment has NO CLAUDE_ENV_FILE variable:**
+```
+CLAUDE_ENV_FILE: NOT SET
+HTMLGRAPH_SESSION_ID: NOT SET
+```
+
+#### 4. Hook IS Firing - VERIFIED
+✅ **hook-debug.jsonl shows SessionStart events:**
+```json
+{
+  "hook_event_name": "SessionStart",
+  "session_id": "aae931e8-4c94-47ab-819d-bc1a377e424d",
+  ...
+}
+```
+And the hook output shows the warning message from session-start.py:
+```
+WARNING: CLAUDE_ENV_FILE not set. HTMLGRAPH_SESSION_ID may not persist to shell environment.
+```
+
+---
+
+### Root Cause Analysis
+
+**The Fix is Correct, BUT Claude Code Does Not Support CLAUDE_ENV_FILE**
+
+The session-start.py script implements the fix perfectly, but it depends on a mechanism (CLAUDE_ENV_FILE) that Claude Code does not provide.
+
+**What We Expected:**
+- Claude Code to set `CLAUDE_ENV_FILE` environment variable
+- Hook to write environment variables to that file
+- Claude Code to source that file before each tool execution
+- Subagents inherit the environment variables
+
+**What Actually Happens:**
+- Claude Code doesn't set CLAUDE_ENV_FILE
+- Hook detects missing variable and logs warning
+- Environment variables are NOT written anywhere
+- Subagents don't receive HTMLGRAPH_SESSION_ID
+
+---
+
+### Technical Assessment
+
+#### What Works
+✅ Session tracking (current session ID: `aae931e8-4c94-47ab-819d-bc1a377e424d`)
+✅ SessionStart hook registration
+✅ SessionStart hook execution
+✅ HTMLGRAPH_PARENT_SESSION variable set locally (os.environ)
+✅ Warning logging when CLAUDE_ENV_FILE unavailable
+✅ Error handling (doesn't crash, just warns)
+
+#### What Doesn't Work
+❌ CLAUDE_ENV_FILE provided by Claude Code (not implemented)
+❌ Persistent environment variables across tool calls
+❌ Subagents receiving HTMLGRAPH_SESSION_ID
+❌ HTMLGRAPH_PARENT_SESSION visible in Task() subagents
+
+---
+
+### Possible Solutions
+
+#### Option A: Request Claude Code Feature (Upstream)
+- **Status**: BLOCKED - Requires Claude Code team to implement CLAUDE_ENV_FILE
+- **Timeline**: Unknown
+- **Action**: Open feature request with Anthropic
+- **Fallback**: While waiting, use alternative approaches
+
+#### Option B: Use Python SDK Directly in Prompts (No Hook Needed)
+**RECOMMENDED - Works immediately**
+
+Include initialization code in every Task() prompt:
+```python
+# Include this in every Task call:
+prompt = """
+[Your actual task]
+
+INITIALIZATION:
+from htmlgraph import SDK
+import os
+from datetime import datetime, timezone
+
+os.environ['HTMLGRAPH_SESSION_ID'] = 'sess-...'  # From parent
+os.environ['HTMLGRAPH_PARENT_AGENT'] = 'claude-code'
+
+# Continue with actual task...
+"""
+```
+
+**Pros:**
+- Works immediately without requiring Claude Code changes
+- No dependency on CLAUDE_ENV_FILE
+- Explicit control over environment setup
+
+**Cons:**
+- Requires modifying every Task() call
+- More verbose prompts
+- Manual environment setup
+
+#### Option C: Create Wrapper Script/Shim
+**WORKAROUND - Medium effort, provides intermediate solution**
+
+Create a bash script that:
+1. Reads session ID from `.htmlgraph/current-session.txt`
+2. Exports environment variables
+3. Calls the actual tool
+
+```bash
+#!/bin/bash
+# ~/.claude/hooks/env-shim.sh
+
+SESSION_FILE="/Users/shakes/DevProjects/htmlgraph/.htmlgraph/current-session.txt"
+if [ -f "$SESSION_FILE" ]; then
+    export HTMLGRAPH_SESSION_ID=$(cat "$SESSION_FILE")
+    export HTMLGRAPH_PARENT_AGENT="claude-code"
+fi
+
+exec "$@"
+```
+
+Hook would call: `env-shim.sh uv run "..."`
+
+**Pros:**
+- Works with current Claude Code
+- Transparent to application code
+
+**Cons:**
+- Adds complexity to hook setup
+- Still needs hook to write session ID to file
+- May have path/permission issues
+
+#### Option D: Use HtmlGraph SDK in PreToolUse Hook
+**ALTERNATIVE - More reliable than environment variables**
+
+Instead of setting environment variables, use HtmlGraph SDK to:
+1. Read current session from SDK
+2. Pass session context in tool calls
+3. Create features/tracks programmatically
+
+**Pros:**
+- Doesn't depend on environment variables
+- More reliable and explicit
+- SDK already handles this
+
+**Cons:**
+- Requires SDK to be available in task context
+- Different pattern than environment variables
+
+---
+
+### Recommended Next Steps
+
+#### Immediate (This Session)
+1. Document that CLAUDE_ENV_FILE is not supported by Claude Code
+2. Create spike explaining the limitation
+3. Recommend Option B (SDK direct initialization) as workaround
+
+#### Short Term (This Week)
+1. Update session-start.py to also write session ID to file:
+   ```python
+   session_file = graph_dir / ".current-session"
+   session_file.write_text(session_id)
+   ```
+2. Update documentation to show SDK initialization pattern
+
+#### Medium Term (Next 2 Weeks)
+1. Open feature request with Anthropic for CLAUDE_ENV_FILE support
+2. Implement Option C (wrapper script) as intermediate solution
+3. Test with actual Task() delegations
+
+#### Long Term (When Claude Code Implements It)
+1. Remove workarounds
+2. Use CLAUDE_ENV_FILE mechanism exclusively
+3. Simplify subagent environment setup
+
+---
+
+### Session Context Data
+
+**Current Session:**
+- ID: `aae931e8-4c94-47ab-819d-bc1a377e424d`
+- Hook events captured: PostToolUseFailure (browser conflicts, test failures)
+- Status: Active, tracking enabled
+
+**Hook Execution Timeline:**
+- SessionStart fires at session initialization
+- Detects missing CLAUDE_ENV_FILE
+- Logs warning to stderr
+- Continues normally (graceful degradation)
+- PostToolUse/PostToolUseFailure hooks also working
+
+---
+
+### Files Affected
+
+| File | Status | Notes |
+|------|--------|-------|
+| `packages/claude-plugin/hooks/scripts/session-start.py` | ✅ Fix applied | Lines 1255-1274 handle CLAUDE_ENV_FILE |
+| `packages/claude-plugin/hooks/hooks.json` | ✅ Correct | SessionStart registered properly |
+| `.claude/hooks/hooks.json` | ❌ Missing | Not synced to project .claude |
+| `.claude/env.sh` | ❌ Not created | Would be created if CLAUDE_ENV_FILE set |
+
+---
+
+### Conclusion
+
+**The SessionStart hook fix is correctly implemented, but cannot work because Claude Code does not provide the CLAUDE_ENV_FILE mechanism.**
+
+This is a limitation of Claude Code itself, not a bug in HtmlGraph.
+
+**Recommended workaround:** Use Option B (SDK direct initialization in Task prompts) until Claude Code implements environment file support.
+            </div>
+        </section>
+    </article>
+</body>
+</html>
