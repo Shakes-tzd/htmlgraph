@@ -1252,11 +1252,26 @@ def main():
             os.environ["HTMLGRAPH_PARENT_AGENT"] = "claude-code"
             os.environ["HTMLGRAPH_NESTING_DEPTH"] = "0"  # Root level
 
-            # Export to shell environment (persist across tools)
-            # Note: These print statements export to shell only if hook output is captured
-            print(f"export HTMLGRAPH_PARENT_SESSION={active.id}", file=sys.stderr)
-            print("export HTMLGRAPH_PARENT_AGENT=claude-code", file=sys.stderr)
-            print("export HTMLGRAPH_NESTING_DEPTH=0", file=sys.stderr)
+            # Export to shell environment using CLAUDE_ENV_FILE (persistent across tool calls)
+            # This mechanism ensures variables are available to subagents and task delegations
+            env_file = os.environ.get("CLAUDE_ENV_FILE")
+            if env_file:
+                try:
+                    with open(env_file, "a") as f:
+                        f.write(f"export HTMLGRAPH_PARENT_SESSION={active.id}\n")
+                        f.write("export HTMLGRAPH_PARENT_AGENT=claude-code\n")
+                        f.write("export HTMLGRAPH_NESTING_DEPTH=0\n")
+                    logger.info(f"Environment variables written to {env_file}")
+                except Exception as e:
+                    logger.warning(
+                        f"Could not write to CLAUDE_ENV_FILE: {e}. "
+                        f"HTMLGRAPH_SESSION_ID may not be available to subagents."
+                    )
+            else:
+                logger.warning(
+                    "CLAUDE_ENV_FILE not set. "
+                    "HTMLGRAPH_SESSION_ID may not persist to shell environment."
+                )
 
         # If new conversation, close open auto-spikes and create new one
         if is_new_conversation:
