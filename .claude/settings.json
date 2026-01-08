@@ -5,6 +5,6 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "hookify@claude-plugins-official": false
+    "hookify@claude-plugins-official": true
   }
 }
