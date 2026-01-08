@@ -8,6 +8,14 @@ hyperlinks as edges, and CSS selectors as the query language.
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 from htmlgraph.agents import AgentInterface
 from htmlgraph.analytics import Analytics, DependencyAnalytics
+from htmlgraph.atomic_ops import (
+    AtomicFileWriter,
+    DirectoryLocker,
+    atomic_rename,
+    cleanup_orphaned_temp_files,
+    safe_temp_file,
+    validate_atomic_write,
+)
 from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
@@ -56,9 +64,11 @@ from htmlgraph.orchestrator_mode import OrchestratorMode, OrchestratorModeManage
 from htmlgraph.parallel import AggregateResult, ParallelAnalysis, ParallelWorkflow
 from htmlgraph.query_builder import Condition, Operator, QueryBuilder
 from htmlgraph.reflection import ComputationalReflection, get_reflection_context
+from htmlgraph.repo_hash import RepoHash
 from htmlgraph.sdk import SDK
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
+from htmlgraph.session_registry import SessionRegistry
 from htmlgraph.types import (
     ActiveWorkItem,
     AggregateResultsDict,
@@ -123,6 +133,8 @@ __all__ = [
     "find_all",
     "AgentInterface",
     "SessionManager",
+    "SessionRegistry",
+    "RepoHash",
     "SDK",
     "Analytics",  # Phase 2: Work Type Analytics
     "DependencyAnalytics",  # Advanced dependency-aware analytics
@@ -190,4 +202,11 @@ __all__ = [
     "get_results_by_task_id",
     "parallel_delegate",
     "generate_task_id",
+    # Atomic file operations (Phase 1.3: Session File Tracking)
+    "AtomicFileWriter",
+    "DirectoryLocker",
+    "atomic_rename",
+    "cleanup_orphaned_temp_files",
+    "safe_temp_file",
+    "validate_atomic_write",
 ]
