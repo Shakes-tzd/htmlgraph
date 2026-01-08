@@ -14,7 +14,6 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from htmlgraph.hooks.post_tool_use_handler import (
     calculate_duration,
     determine_status_from_response,

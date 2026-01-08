@@ -11,13 +11,10 @@ Tests verify:
 """
 
 import json
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import pytest
-
 from htmlgraph.db.schema import HtmlGraphDB
 
 
@@ -60,9 +57,7 @@ class TestParentEventCreation:
                 "task_delegation",
                 timestamp,
                 "Task",
-                json.dumps(
-                    {"subagent_type": "gemini-spawner", "prompt": "Test task"}
-                ),
+                json.dumps({"subagent_type": "gemini-spawner", "prompt": "Test task"}),
                 session_id,
                 "started",
                 "gemini-spawner",
@@ -621,7 +616,9 @@ class TestEventTypeValidation:
         db.connection.commit()  # type: ignore[union-attr]
 
         # Verify insertion succeeded
-        cursor.execute("SELECT event_type FROM agent_events WHERE event_id = ?", (event_id,))
+        cursor.execute(
+            "SELECT event_type FROM agent_events WHERE event_id = ?", (event_id,)
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "task_delegation"
@@ -662,7 +659,9 @@ class TestEventTypeValidation:
         db.connection.commit()  # type: ignore[union-attr]
 
         # Retrieve and verify subagent_type
-        cursor.execute("SELECT subagent_type FROM agent_events WHERE event_id = ?", (event_id,))
+        cursor.execute(
+            "SELECT subagent_type FROM agent_events WHERE event_id = ?", (event_id,)
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == "test-agent"
@@ -703,7 +702,9 @@ class TestEventTypeValidation:
         db.connection.commit()  # type: ignore[union-attr]
 
         # Retrieve and verify child_spike_count
-        cursor.execute("SELECT child_spike_count FROM agent_events WHERE event_id = ?", (event_id,))
+        cursor.execute(
+            "SELECT child_spike_count FROM agent_events WHERE event_id = ?", (event_id,)
+        )
         row = cursor.fetchone()
         assert row is not None
         assert row[0] == 5

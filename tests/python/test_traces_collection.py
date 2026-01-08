@@ -17,9 +17,7 @@ Tests cover:
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from htmlgraph.collections.traces import TraceCollection, TraceRecord, TraceTree
-from htmlgraph.db.schema import HtmlGraphDB
 
 
 class TestTraceCollectionInitialization:

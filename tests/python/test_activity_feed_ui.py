@@ -9,15 +9,17 @@ Tests verify:
 - Performance meets baseline
 """
 
+import socket
 import subprocess
 import time
-import socket
 
 import pytest
 from playwright.async_api import async_playwright, expect
 
 
-def wait_for_server(host: str = "localhost", port: int = 8080, timeout: int = 30) -> bool:
+def wait_for_server(
+    host: str = "localhost", port: int = 8080, timeout: int = 30
+) -> bool:
     """Wait for server to be ready by attempting connections."""
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -61,9 +63,9 @@ class TestActivityFeedDashboard:
                     await page.goto("http://localhost:8080", timeout=10000)
 
                     # Wait for Activity Feed heading to appear
-                    await expect(
-                        page.locator("text=Activity Feed")
-                    ).to_be_visible(timeout=5000)
+                    await expect(page.locator("text=Activity Feed")).to_be_visible(
+                        timeout=5000
+                    )
 
                     # Verify page loaded
                     title = await page.title()
@@ -107,9 +109,9 @@ class TestActivityFeedDashboard:
                     await page.goto("http://localhost:8080", timeout=10000)
 
                     # Wait for Activity Feed
-                    await expect(
-                        page.locator("text=Activity Feed")
-                    ).to_be_visible(timeout=5000)
+                    await expect(page.locator("text=Activity Feed")).to_be_visible(
+                        timeout=5000
+                    )
 
                     # Wait for any JS errors
                     await page.wait_for_timeout(1000)
@@ -120,9 +122,9 @@ class TestActivityFeedDashboard:
                         for m in console_messages
                         if "error" in m.lower() and "websocket" in m.lower()
                     ]
-                    assert (
-                        len(critical_errors) == 0
-                    ), f"Critical errors found: {critical_errors}"
+                    assert len(critical_errors) == 0, (
+                        f"Critical errors found: {critical_errors}"
+                    )
 
                 finally:
                     await browser.close()
@@ -169,9 +171,7 @@ class TestActivityFeedDashboard:
 
                     # Should not have 404 errors
                     not_found_errors = [e for e in request_errors if "404" in e]
-                    assert (
-                        len(not_found_errors) == 0
-                    ), f"404 errors: {not_found_errors}"
+                    assert len(not_found_errors) == 0, f"404 errors: {not_found_errors}"
 
                 finally:
                     await browser.close()
@@ -204,9 +204,9 @@ class TestActivityFeedDashboard:
                     await page.goto("http://localhost:8080", timeout=10000)
 
                     # Wait for Activity Feed
-                    await expect(
-                        page.locator("text=Activity Feed")
-                    ).to_be_visible(timeout=5000)
+                    await expect(page.locator("text=Activity Feed")).to_be_visible(
+                        timeout=5000
+                    )
 
                     # Test viewport resizing
                     viewports = [
@@ -217,9 +217,9 @@ class TestActivityFeedDashboard:
 
                     for viewport in viewports:
                         await page.set_viewport_size(viewport)
-                        await expect(
-                            page.locator("text=Activity Feed")
-                        ).to_be_visible(timeout=5000)
+                        await expect(page.locator("text=Activity Feed")).to_be_visible(
+                            timeout=5000
+                        )
 
                 finally:
                     await browser.close()
@@ -258,9 +258,9 @@ class TestActivityFeedDashboard:
                     assert load_time < 5.0, f"Page load took {load_time}s"
 
                     # Activity Feed should be visible
-                    await expect(
-                        page.locator("text=Activity Feed")
-                    ).to_be_visible(timeout=5000)
+                    await expect(page.locator("text=Activity Feed")).to_be_visible(
+                        timeout=5000
+                    )
 
                 finally:
                     await browser.close()
@@ -332,9 +332,9 @@ class TestActivityFeedDashboard:
                     await page.goto("http://localhost:8080", timeout=10000)
 
                     # Wait for Activity Feed
-                    await expect(
-                        page.locator("text=Activity Feed")
-                    ).to_be_visible(timeout=5000)
+                    await expect(page.locator("text=Activity Feed")).to_be_visible(
+                        timeout=5000
+                    )
 
                     # Get initial URL
                     initial_url = page.url

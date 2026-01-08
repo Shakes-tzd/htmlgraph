@@ -22,14 +22,10 @@ Test coverage:
 import json
 import os
 from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
-import pytest
-
-from htmlgraph.session_registry import SessionRegistry
-from htmlgraph.repo_hash import RepoHash
 from htmlgraph.atomic_ops import AtomicFileWriter
+from htmlgraph.repo_hash import RepoHash
+from htmlgraph.session_registry import SessionRegistry
 
 
 class TestSessionRegistryWithRepoHash:
@@ -173,8 +169,8 @@ class TestSessionHookIntegration:
         monkeypatch.chdir(tmp_path)
 
         from htmlgraph.session_hooks import (
-            initialize_session_from_hook,
             finalize_session,
+            initialize_session_from_hook,
         )
 
         session_id = initialize_session_from_hook()
@@ -199,8 +195,8 @@ class TestSessionHookIntegration:
         import time
 
         from htmlgraph.session_hooks import (
-            initialize_session_from_hook,
             heartbeat,
+            initialize_session_from_hook,
         )
 
         session_id = initialize_session_from_hook()
@@ -297,7 +293,9 @@ class TestConcurrentSessions:
                 "repo": repo_info,
                 "instance": instance_info,
                 "status": "active",
-                "last_activity": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "last_activity": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%S.%fZ"
+                ),
             }
             reg_file = registry.active_dir / f"{instance_id}.json"
             with open(reg_file, "w") as f:
@@ -339,7 +337,9 @@ class TestConcurrentSessions:
                 "repo": repo_info,
                 "instance": instance_info,
                 "status": "active",
-                "last_activity": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "last_activity": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%S.%fZ"
+                ),
             }
             reg_file = registry.active_dir / f"{instance_id}.json"
             with open(reg_file, "w") as f:
@@ -373,9 +373,7 @@ class TestConcurrentSessions:
 
         # Find session by repo hash
         all_sessions = registry.get_current_sessions()
-        repo_sessions = [
-            s for s in all_sessions if s["repo"]["hash"] == "repo-main123"
-        ]
+        repo_sessions = [s for s in all_sessions if s["repo"]["hash"] == "repo-main123"]
 
         assert len(repo_sessions) == 1
         assert repo_sessions[0]["session_id"] == "sess-repo"
@@ -603,7 +601,9 @@ class TestErrorRecovery:
             "repo": repo_info,
             "instance": instance_info,
             "status": "active",
-            "last_activity": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "last_activity": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            ),
         }
         reg_file = registry.active_dir / f"{instance_id}.json"
         with open(reg_file, "w") as f:

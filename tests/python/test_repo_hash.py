@@ -236,9 +236,7 @@ class TestGetCurrentBranch:
     @patch("subprocess.run")
     def test_get_current_branch_detached_head(self, mock_run, tmp_path):
         """Test detached HEAD state."""
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="HEAD\n"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="HEAD\n")
 
         result = get_current_branch(tmp_path)
 
@@ -313,9 +311,7 @@ class TestIsGitDirty:
     @patch("subprocess.run")
     def test_is_git_dirty_with_changes(self, mock_run, tmp_path):
         """Test repository with uncommitted changes."""
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout=" M src/file.py\n"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout=" M src/file.py\n")
 
         result = is_git_dirty(tmp_path)
 
@@ -487,7 +483,7 @@ class TestGetGitInfo:
         mock_branch.return_value = "main"
 
         repo = RepoHash(tmp_path)
-        info1 = repo.get_git_info()
+        repo.get_git_info()
 
         # Modify cache to verify it's used
         repo._git_info_cache = {"branch": "cached"}
