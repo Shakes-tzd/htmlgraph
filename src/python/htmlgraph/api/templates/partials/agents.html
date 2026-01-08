@@ -1,0 +1,183 @@
+<div class="view-container agents-view fade-in">
+    <div class="view-header">
+        <h2>Agent Workload & Performance</h2>
+        <div class="view-controls">
+            <span class="refresh-badge auto-refresh-indicator" title="Live Updates Active">
+                <span class="refresh-dot"></span> Live
+            </span>
+        </div>
+    </div>
+
+    <!-- Agent Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ total_agents }}</div>
+                <div class="stat-label">Active Agents</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ total_actions }}</div>
+                <div class="stat-label">Total Actions</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-content">
+                <div class="stat-value">{{ total_tokens | format_number }}</div>
+                <div class="stat-label">Total Tokens</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agents List -->
+    <div class="agents-grid">
+        {% for agent in agents %}
+        <div class="agent-card">
+            <div class="agent-header">
+                <div class="agent-identity">
+                    <span class="agent-avatar agent-{{ agent.agent_id.lower() }}">{{ agent.agent_id[:2].upper() }}</span>
+                    <h3 class="agent-name">{{ agent.agent_id }}</h3>
+                </div>
+                <span class="agent-status status-active">Active</span>
+            </div>
+            
+            <div class="agent-metrics">
+                <div class="metric-row">
+                    <span class="metric-label">Actions</span>
+                    <span class="metric-value">{{ agent.event_count }}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Tokens</span>
+                    <span class="metric-value">{{ agent.total_tokens | format_number }}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Sessions</span>
+                    <span class="metric-value">{{ agent.session_count }}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Last Active</span>
+                    <span class="metric-value" data-utc-time="{{ agent.last_active }}">{{ agent.last_active }}</span>
+                </div>
+            </div>
+
+            <div class="agent-workload-bar">
+                <div class="workload-fill" style="width: {{ agent.workload_pct }}%"></div>
+            </div>
+            
+            <div class="agent-actions">
+                <button class="action-btn small" 
+                        hx-get="/views/activity-feed?agent_id={{ agent.agent_id }}"
+                        hx-target="#content-area">
+                    View Activity
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .agents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .agent-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .agent-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        border-color: var(--accent);
+    }
+
+    .agent-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .agent-identity {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .agent-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .agent-name {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+    }
+
+    .agent-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+    }
+
+    .metric-label {
+        color: var(--text-muted);
+    }
+
+    .metric-value {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .agent-workload-bar {
+        height: 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .workload-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 3px;
+    }
+
+    .agent-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Agent-specific colors */
+    .agent-claude { background-color: #7c3aed; }
+    .agent-gemini { background-color: #2563eb; }
+    .agent-codex { background-color: #059669; }
+    .agent-gpt4 { background-color: #10b981; }
+</style>

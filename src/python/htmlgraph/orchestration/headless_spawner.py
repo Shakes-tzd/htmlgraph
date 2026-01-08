@@ -924,6 +924,7 @@ class HeadlessSpawner:
         resume: str | None = None,
         verbose: bool = False,
         timeout: int = 300,
+        extra_args: list[str] | None = None,
     ) -> AIResult:
         """
         Spawn Claude in headless mode.
@@ -948,6 +949,7 @@ class HeadlessSpawner:
             resume: Resume from previous session (--resume). Default: None
             verbose: Enable verbose output (--verbose). Default: False
             timeout: Max seconds (default: 300, Claude can be slow with initialization)
+            extra_args: Additional arguments to pass to Claude CLI
 
         Returns:
             AIResult with response or error
@@ -975,6 +977,12 @@ class HeadlessSpawner:
         if verbose:
             cmd.append("--verbose")
 
+        # Add extra args
+        if extra_args:
+            cmd.extend(extra_args)
+
+        # Use -- separator to ensure prompt isn't consumed by variadic args
+        cmd.append("--")
         cmd.append(prompt)
 
         try:

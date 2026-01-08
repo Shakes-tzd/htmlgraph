@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Timezone Conversion Debug - Root Cause Identified</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f20973aa"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T13:23:18.515382"
+             data-updated="2026-01-06T13:23:18.515386" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Timezone Conversion Debug - Root Cause Identified</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Issue Summary
+Timestamps display in UTC (18:01) instead of EST (13:01), showing a ~5 hour offset error.
+
+## Root Cause Identified
+Database stores naive datetime without timezone indicator: `2026-01-06 15:29:13`
+JavaScript timezone conversion has a fundamental flaw:
+
+1. **Database Layer**: Stores naive datetime (no 'Z' suffix)
+   - Format: `2026-01-06 15:29:13` (from SQLite)
+   - No timezone information included
+
+2. **JavaScript Interpretation Error**:
+   - `new Date('2026-01-06 15:29:13')` interprets as LOCAL time (EST)
+   - Converts to UTC internally: `2026-01-06T20:29:13Z` (15:29 EST + 5 hours = 20:29 UTC)
+   - Then `Intl.DateTimeFormat()` with `timeZone` option converts UTC back to local
+   - Result: 20:29 UTC → 15:29 EST (correct hour, but the reference timestamp was already local!)
+
+3. **The Confusion**:
+   - If DB timestamp is 15:29 and actually means "15:29 EST" (local time)
+   - JavaScript double-converts it: EST → UTC → EST = wrong!
+   - If DB timestamp should mean "15:29 UTC" then needs 'Z' suffix
+
+## Evidence
+
+### Test Results
+```
+1. new Date("2026-01-06 15:29:13") → 2026-01-06T20:29:13.000Z
+   Interpreted as: LOCAL time (EST), converted to UTC adds 5 hours
+
+2. new Date("2026-01-06T15:29:13Z") → 2026-01-06T15:29:13.000Z
+   Interpreted as: UTC time, no conversion
+
+Difference: 300 minutes (5 hours) = EST offset
+```
+
+### Code Location
+**File**: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/dashboard.html`
+**Lines**: 6959-6987
+
+```javascript
+function convertTimestampsToLocal() {
+    const timestampElements = document.querySelectorAll('[data-utc-time]');
+    timestampElements.forEach(element => {
+        const utcTime = element.getAttribute('data-utc-time');
+        if (utcTime) {
+            try {
+                // PROBLEM: Parsing naive datetime
+                const date = new Date(utcTime);  // ← 15:29 parsed as EST
+                
+                // PROBLEM: Converting again to local
+                const localTime = new Intl.DateTimeFormat('en-US', {
+                    // ... options ...
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                }).format(date);  // ← 20:29 UTC converted back to EST = 15:29
+                
+                element.textContent = localTime;
+            } catch (err) {
+                console.warn('Failed to convert timestamp:', utcTime, err);
+            }
+        }
+    });
+}
+```
+
+### Database Verification
+```
+SELECT timestamp FROM agent_events LIMIT 5;
+2026-01-06 15:29:13
+2026-01-06 15:29:13
+2026-01-06 15:29:13
+2026-01-06 15:29:13
+2026-01-06 15:29:13
+```
+
+Format: Naive datetime (no timezone indicator)
+
+### Template References
+**File**: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/partials/activity-feed.html`
+**Line**: 36
+```html
+<span class="event-timestamp" data-utc-time="{{ event.timestamp }}">{{ event.timestamp }}</span>
+```
+
+## Solutions (Choose One)
+
+### Option 1: Store Timestamps as UTC in Database (RECOMMENDED)
+- Store in ISO 8601 format with 'Z': `2026-01-06T18:01:19Z`
+- Python: Use `datetime.datetime.utcnow().isoformat() + 'Z'`
+- JavaScript conversion works correctly
+- **Advantage**: Industry standard, portable, clear semantics
+- **Changes needed**: Database schema, backend timestamp generation
+
+### Option 2: Store as ISO with Z, but Report Local in Python
+- Store UTC: `2026-01-06T18:01:19Z`
+- Display local time in templates via `pytz` or `dateutil`
+- No JavaScript conversion needed
+- **Advantage**: Clear separation of storage (UTC) vs display (local)
+- **Changes needed**: Backend only
+
+### Option 3: Fix JavaScript to Handle Naive Datetime
+- Assume naive datetime = UTC (current assumption is wrong)
+- Add 'T' separator and 'Z' suffix in JavaScript before parsing
+- Fix: `const date = new Date(utcTime.replace(' ', 'T') + 'Z');`
+- **Advantage**: Minimal backend changes
+- **Disadvantage**: Fragile, assumes database format
+
+### Option 4: No JavaScript Conversion (Just Display Database Time)
+- Remove timezone conversion entirely
+- Display database timestamp as-is with timezone label
+- Template: `<span>{{ event.timestamp }} UTC</span>`
+- **Advantage**: Simplest, no ambiguity
+- **Disadvantage**: Not user-friendly (shows UTC, not local time)
+
+## Recommended Action
+**Option 1**: Update database and backend to store ISO 8601 UTC timestamps
+- Use `datetime.datetime.utcnow().isoformat() + 'Z'` in Python
+- JavaScript conversion will work correctly
+- Aligns with web standards and observability best practices
+- Enables proper timezone handling across all platforms
+
+## Impact Assessment
+- **Affected Files**: 
+  - Database schema (agent_events.timestamp column)
+  - Backend timestamp generation (hook.json creation, SDK events)
+  - Frontend templates (no changes needed)
+  - JavaScript (no changes needed if DB uses proper format)
+  
+- **Backward Compatibility**: 
+  - Migration needed for existing timestamps
+  - Can bulk-update with: `UPDATE agent_events SET timestamp = timestamp || 'Z';` (if not already Z)
+  
+- **Testing**: 
+  - Verify timestamps display in user's local timezone
+  - Test with multiple timezones (EST, UTC, PST, Asia/Tokyo)
+  - Validate ISO 8601 parsing in all browsers
+
+## Console Test Command
+```javascript
+// Test in browser console:
+new Date('2026-01-06T15:29:13Z').toLocaleString()
+// Should show: 1/6/2026, 10:29:13 AM (or your local time)
+```
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -230,6 +230,7 @@ class SessionManager:
         continued_from: str | None = None,
         start_commit: str | None = None,
         title: str | None = None,
+        parent_session_id: str | None = None,
     ) -> Session:
         """
         Start a new session.
@@ -241,6 +242,7 @@ class SessionManager:
             continued_from: Previous session ID if continuing
             start_commit: Git commit hash at session start
             title: Optional human-readable title
+            parent_session_id: ID of parent session (for subagents)
 
         Returns:
             New Session instance
@@ -309,6 +311,7 @@ class SessionManager:
             started_at=now,
             last_activity=now,
             title=title or "",
+            parent_session=parent_session_id,
         )
 
         # Add session start event
@@ -319,6 +322,12 @@ class SessionManager:
                 timestamp=now,
             )
         )
+
+        # Set parent session in environment for subsequent subprocesses (e.g. HeadlessSpawner)
+        # This ensures that any tools spawned by this session link back to it
+        import os
+
+        os.environ["HTMLGRAPH_PARENT_SESSION"] = session.id
 
         # Save to disk
         self.session_converter.save(session)
@@ -1045,6 +1054,7 @@ class SessionManager:
                     work_type=work_type,
                     session_status=session.status,
                     file_paths=file_paths,
+                    parent_session_id=session.parent_session,
                     payload=entry.payload
                     if isinstance(entry.payload, dict)
                     else payload,

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>WebSocket Timezone Fix Applied</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b51563c6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T13:15:25.827921"
+             data-updated="2026-01-06T13:15:25.827928" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex">
+
+        <header>
+            <h1>WebSocket Timezone Fix Applied</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem
+WebSocket events in the dashboard were created WITHOUT the `data-utc-time` attribute, preventing the timezone conversion function from finding and converting them to local time (EST).
+
+## Solution Applied
+1. **Added `data-utc-time` attribute** to WebSocket event timestamp spans (line 277 in dashboard.html)
+   - Changed: `<span class="timestamp-text">${escapeHtml(eventData.timestamp)}</span>`
+   - To: `<span class="timestamp-text" data-utc-time="${escapeHtml(eventData.timestamp)}">${escapeHtml(eventData.timestamp)}</span>`
+
+2. **Added timezone conversion call** after DOM insertion (line 240 in insertNewEventIntoActivityFeed function)
+   - Calls `convertTimestampsToLocal()` after new event is inserted
+   - Ensures timestamps are immediately converted to local timezone
+
+## Files Modified
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html`
+
+## Quality Checks
+- ✅ ruff check --fix: All checks passed
+- ✅ ruff format: All files formatted correctly
+- ✅ mypy: No type errors
+- ✅ Pre-commit hooks: All passed
+- ✅ Commit: 14f9b66
+
+## Result
+WebSocket real-time events now display timestamps in the user's local timezone (EST) automatically upon arrival.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Ordering Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-375a3b93"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T12:38:54.668951"
+             data-updated="2026-01-06T12:38:54.668954" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex">
+
+        <header>
+            <h1>Activity Feed Ordering Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Issue
+Activity Feed dashboard was showing events in ascending order (oldest first) 
+instead of descending order (newest first). This was backwards from the expected UX.
+
+## Root Cause
+The `/ws/events` WebSocket endpoint in src/python/htmlgraph/api/main.py (line 554) 
+was using `ORDER BY timestamp ASC` when it should use `ORDER BY timestamp DESC`.
+
+## Solution
+Changed the WebSocket endpoint query from:
+- `query += " ORDER BY timestamp ASC LIMIT 100"`
+
+To:
+- `query += " ORDER BY timestamp DESC LIMIT 100"`
+
+Other endpoints were already correct:
+- `/views/activity-feed` (line 208): Already using DESC
+- `/api/events` (line 300): Already using DESC
+- `/views/orchestration` (line 337): Already using DESC
+
+## Verification
+- All quality checks passed: ruff, mypy, pytest
+- 1354 tests passed (pre-existing failures unrelated to this change)
+- Code committed and pre-commit hooks verified
+- File: src/python/htmlgraph/api/main.py
+- Commit: 5eabba3
+
+## Impact
+Events in the real-time WebSocket stream now display newest first, 
+providing the expected chronological display pattern for user observability.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

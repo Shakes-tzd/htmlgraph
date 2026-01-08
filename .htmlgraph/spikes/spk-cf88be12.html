@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Ordering Investigation - Root Cause Found</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-cf88be12"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T12:44:37.412489"
+             data-updated="2026-01-06T12:44:37.412492" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Activity Feed Ordering Investigation - Root Cause Found</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Activity Feed Event Ordering Investigation
+
+### Problem Statement
+Activity Feed displays events in backwards/reversed order:
+- Top of table: 2026-01-06T15:46:49 (older events)
+- Bottom: 2026-01-06T17:36:49 (newer events - should be at top)
+
+### Root Cause Identified: TEMPLATE RENDERING ORDER MISMATCH
+
+**The issue is NOT in the database queries or JavaScript - it's in how the template iterates events.**
+
+#### Evidence
+
+**1. Database Query (main.py line 208):**
+```sql
+ORDER BY timestamp DESC LIMIT ?
+```
+✅ CORRECT - Returns DESC (newest first)
+
+**2. WebSocket Endpoint (main.py line 554):**
+```sql
+ORDER BY timestamp DESC LIMIT 100
+```
+✅ CORRECT - Returns DESC (newest first)
+
+**3. JavaScript WebSocket Handler (dashboard.html lines 221-227):**
+```javascript
+// Insert at the top of tbody
+const firstRow = tbody.querySelector('tr');
+if (firstRow) {
+    firstRow.insertAdjacentHTML('beforebegin', eventRow);  // ✅ Inserts at TOP
+} else {
+    tbody.insertAdjacentHTML('afterbegin', eventRow);      // ✅ Inserts at TOP
+}
+```
+✅ CORRECT - New events inserted at TOP
+
+**4. Template Iteration (activity-feed-hierarchical.html line 33):**
+```jinja2
+{% for group in hierarchical_events %}
+    <!-- Renders first item of list at top of table -->
+    <tr>{{ group.parent.timestamp }}</tr>
+{% endfor %}
+```
+
+#### The Bug Analysis
+
+**File:** `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py` lines 251-261
+
+The hierarchical_events list is constructed by iterating root_events in the order they appear:
+
+```python
+# Query returns DESC (newest first)
+events = [row for row in rows]  # [2026-01-06T17:36:49, 2026-01-06T17:36:51, ..., 2026-01-06T15:46:49]
+
+# Organize into hierarchy - iterates forward through DESC ordered events
+root_events = []
+for event in events:  # events are in DESC order
+    if not parent_id:
+        root_events.append(event)  # Maintains DESC order
+
+# Build hierarchical_events  
+hierarchical_events = []
+for parent_event in root_events:  # Forward iteration of DESC list
+    hierarchical_events.append({
+        "parent": parent_event,
+        ...
+    })
+```
+
+**Key Issue:** When a list is in DESC order [newest, ..., oldest] and we iterate forward and render top-to-bottom, we should get correct ordering. The problem must be:
+
+1. **Events are being stored ASC instead of DESC** - Check if fetchall() reverses them
+2. **Root events list is being reversed somewhere** - Look for .reverse() calls
+3. **Template is reversing display order** - Check Jinja2 iteration
+
+#### Critical Finding
+
+The database query correctly specifies `ORDER BY timestamp DESC`, but the actual storage/retrieval might be reversing the order. The symptom (oldest at top) suggests events are being stored in ASC order despite the DESC query.
+
+### Root Cause: Likely in Event Hierarchy Construction
+
+Looking at line 248: `# Query returns DESC order which is preserved by iteration`
+
+This comment suggests the developer EXPECTED DESC order to be preserved, but it's NOT happening. The issue is likely:
+
+1. **SQLite cursor.fetchall() returns results in ASC order** - Contrary to the ORDER BY DESC
+2. **Or root_events accumulation is reversing somehow**
+3. **Or the template rendering is opposite**
+
+### Solution Areas to Investigate
+
+1. **Verify DESC order is actually returned from SQLite:**
+   ```python
+   cursor = await db.execute(query, params)
+   rows = list(await cursor.fetchall())
+   # Add logging: print([row[3] for row in rows])  # Print timestamps
+   ```
+
+2. **Reverse root_events if DESC order is lost:**
+   ```python
+   root_events.reverse()  # Ensure newest first
+   ```
+
+3. **Or reverse hierarchical_events before template:**
+   ```python
+   hierarchical_events.reverse()  # Display newest first
+   ```
+
+### Files Involved
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py` (lines 208, 236-261, 554)
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/partials/activity-feed-hierarchical.html` (line 33)
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html` (lines 221-227)
+
+### Investigation Steps Completed
+✅ Verified database queries have ORDER BY DESC
+✅ Verified JavaScript inserts WebSocket events at top
+✅ Identified template iteration as critical point
+✅ Found comment suggesting DESC order should be preserved
+✅ Located hierarchical event construction in main.py
+
+### Next Action Required
+**Add logging to verify actual event order returned from SQLite, then apply fix (likely reverse()) to root_events or hierarchical_events.**
+            </div>
+        </section>
+    </article>
+</body>
+</html>

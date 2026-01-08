@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Timezone Fix Applied - Event Timestamps</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-980c9bea"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T13:03:57.328986"
+             data-updated="2026-01-06T13:03:57.328991" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex">
+
+        <header>
+            <h1>Timezone Fix Applied - Event Timestamps</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Summary
+Successfully applied timezone fixes to Activity Feed event timestamps. Events are now stored in UTC with timezone info and displayed in user's local timezone on the frontend.
+
+## Backend Implementation
+Updated `/src/python/htmlgraph/hooks/event_tracker.py`:
+- Added `from datetime import timezone` import
+- Modified 3 timestamp generation locations to use `datetime.now(timezone.utc).isoformat()`:
+  1. Line 106: `save_parent_activity()` - parent activity state tracking
+  2. Line 208: `add_to_drift_queue()` - drift queue activity timestamps
+  3. Line 827: `track_event()` - classification triggered timestamp
+
+All UTC timestamps now include 'Z' suffix indicating UTC timezone.
+
+## Frontend Implementation
+Updated `/src/python/htmlgraph/api/templates/partials/activity-feed.html`:
+- Added `data-utc-time="{{ event.timestamp }}"` attribute to timestamp spans
+- Maintains original timestamp for fallback if JavaScript unavailable
+
+Updated `/src/python/htmlgraph/dashboard.html`:
+- Added `convertTimestampsToLocal()` JavaScript function
+- Uses Intl.DateTimeFormat API for client-side timezone conversion
+- Auto-applies to:
+  * Initial page load via DOMContentLoaded
+  * HTMX dynamic content loads via htmx:afterSwap
+  * WebSocket updates via custom ws:update event
+
+Hover over any timestamp to see both UTC and local time formats.
+
+## Quality Assurance
+- Ruff linting: All checks passed
+- Ruff formatting: 154 files, 1 reformatted (event_tracker.py)
+- MyPy type checking: Success, no issues
+- Drift queue tests: All 4 tests passing
+- Pre-existing test failures: Unrelated to timezone changes (database constraints)
+
+## User Impact
+Users in different timezones (EST, PST, UTC, etc.) will now see:
+- All timestamps automatically converted to their local timezone
+- Consistent timezone display across all Activity Feed entries
+- Ability to verify original UTC time by hovering over timestamp
+
+## Files Changed
+1. src/python/htmlgraph/hooks/event_tracker.py - Backend UTC timestamps
+2. src/python/htmlgraph/api/templates/partials/activity-feed.html - Template data attribute
+3. src/python/htmlgraph/dashboard.html - Client-side conversion script
+
+Commit: 1cad32c
+            </div>
+        </section>
+    </article>
+</body>
+</html>

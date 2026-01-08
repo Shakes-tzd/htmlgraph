@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SDK Agent Naming - Correct Patterns</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c6f33db9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-07T15:55:07.255547"
+             data-updated="2026-01-07T15:55:07.255550" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-sonnet-4-5-20251105">
+
+        <header>
+            <h1>SDK Agent Naming - Correct Patterns</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Correct SDK Agent Naming
+
+**RULE: Use actual model names, not arbitrary role names**
+
+### Correct Pattern
+
+```python
+from htmlgraph import SDK
+
+# Correct - use model name
+sdk = SDK(agent='claude-haiku-4-5-20251001')
+sdk = SDK(agent='claude-sonnet-4-5-20251105')
+sdk = SDK(agent='claude-opus-4-5-20251101')
+sdk = SDK(agent='gpt-4')
+sdk = SDK(agent='gemini-2.0-flash-exp')
+```
+
+### Incorrect Pattern
+
+```python
+# WRONG - arbitrary role names
+sdk = SDK(agent='coder')
+sdk = SDK(agent='status-updater')
+sdk = SDK(agent='cleanup')
+sdk = SDK(agent='explorer')
+```
+
+### Why This Matters
+- HtmlGraph tracks which model/agent created features
+- Analytics queries filter by agent type
+- Session attribution requires correct model names
+- Role names don't map to actual agents
+
+### When Delegating to Subagents
+
+In Task() delegations, include these instructions:
+
+```python
+from htmlgraph import SDK
+
+# Get your actual model name (e.g., from environment or model config)
+sdk = SDK(agent='claude-opus-4-5-20251101')  # Your actual model
+
+# For subagents spawned via Task()
+# The subagent should use its own model name
+sdk = SDK(agent='gpt-4')  # If Codex spawner
+sdk = SDK(agent='gemini-2.0-flash-exp')  # If Gemini spawner
+sdk = SDK(agent='claude-sonnet-4-5-20251105')  # If Copilot spawner (Claude-based)
+```
+
+### Model Name Reference
+
+| Spawner | Model Name |
+|---------|-----------|
+| Codex Spawner | gpt-4 |
+| Gemini Spawner | gemini-2.0-flash-exp |
+| Copilot Spawner | claude-sonnet-4-5-20251105 |
+| Claude (orchestrator) | claude-haiku-4-5-20251001, claude-sonnet-4-5-20251105, claude-opus-4-5-20251101 |
+
+### Impact
+This bug affected:
+- Feature attribution (features attributed to 'coder' instead of actual model)
+- Analytics (queries by agent don't match reality)
+- Session tracking (agent name mismatches)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

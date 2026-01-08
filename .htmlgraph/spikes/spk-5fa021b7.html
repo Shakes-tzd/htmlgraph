@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>WIP Feature Analysis - 15 In-Progress Features</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5fa021b7"
+             data-type="spike"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-01-07T13:42:20.262288"
+             data-updated="2026-01-07T13:42:20.262294" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="feature-analyzer">
+
+        <header>
+            <h1>WIP Feature Analysis - 15 In-Progress Features</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # WIP Feature Analysis - HtmlGraph In-Progress Features
+
+## Executive Summary
+
+**15 in-progress features identified** across the HtmlGraph project, with critical findings:
+
+### Key Metrics
+- **Total In-Progress:** 15 features
+- **All Recently Modified:** Last 48 hours (healthy activity)
+- **Test/Duplicate Features:** 8 (53% of WIP) - CRITICAL ISSUE
+- **Features with Zero Progress:** 13 of 15 (87% blocked)
+- **Only 1 Feature with Progress:** feat-4159307f (20% complete)
+- **Stale Features (>7 days):** 0 (all actively tracked)
+
+---
+
+## Categorization Results
+
+### CATEGORY 1: ACTIVE FEATURES (Modified Last 48 Hours)
+**Status:** All 15 features are recent - healthy development activity
+
+```
+feat-0cf9dec1   high        0/ 5   1d  Dashboard Activity Feed Real-Time Streaming
+feat-12ffea6b   low         0/ 2   1d  Delegation Test Feature 3
+feat-1d6ccb7f   low         0/ 2   1d  Delegation Test Feature 3 (DUPLICATE)
+feat-273f174b   high        0/ 3   1d  Delegation Test Feature 1
+feat-2e458b68   medium      0/ 3   1d  Orchestration Feature 1
+feat-2f17d60a   medium      0/ 3   1d  Orchestration Feature 3
+feat-3a580c9b   medium      0/ 3   1d  Orchestration Feature 2
+feat-4159307f   high        1/ 5   1d  Dashboard Activity Feed Real-Time Streaming (20% DONE)
+feat-58cfd77c   high        0/ 3   1d  Delegation Test Feature 1 (DUPLICATE)
+feat-6415af33   medium      0/ 4   1d  Delegation Test Feature 2
+feat-66599a45   high        0/ 5   1d  Dashboard Activity Feed Real-Time Streaming
+feat-8c4655a5   medium      0/ 4   1d  Delegation Test Feature 2 (DUPLICATE)
+feat-930c96ba   medium      0/ 5   1d  Test Delegation Event Tracking
+feat-a89d158d   medium      0/ 5   1d  Test Delegation Event Tracking (DUPLICATE)
+feat-cad5d8b7   high        0/ 0   2d  System Prompt Persistence Across Sessions (NO STEPS)
+```
+
+---
+
+### CATEGORY 2: STALE FEATURES (Not Modified >7 Days)
+**Status:** NONE - All features are actively maintained
+
+---
+
+### CATEGORY 3: TEST/DUPLICATE FEATURES (8 TOTAL - 53% OF WIP!)
+**Status:** CRITICAL - Recommend immediate cleanup
+
+These appear to be leftover from delegation testing and should be removed:
+
+1. **Delegation Test Feature 1 (2 instances)**
+   - feat-273f174b (high priority, 0/3 steps)
+   - feat-58cfd77c (high priority, 0/3 steps)
+
+2. **Delegation Test Feature 2 (2 instances)**
+   - feat-6415af33 (medium priority, 0/4 steps)
+   - feat-8c4655a5 (medium priority, 0/4 steps)
+
+3. **Delegation Test Feature 3 (2 instances)**
+   - feat-12ffea6b (low priority, 0/2 steps)
+   - feat-1d6ccb7f (low priority, 0/2 steps)
+
+4. **Test Delegation Event Tracking (2 instances)**
+   - feat-930c96ba (medium priority, 0/5 steps)
+   - feat-a89d158d (medium priority, 0/5 steps)
+
+**Likely Reason:** These were created during orchestrator/delegation testing and never cleaned up.
+
+---
+
+### CATEGORY 4: CRITICAL PRIORITY FEATURES
+**Status:** NONE - No critical features in in-progress status
+
+All critical work appears to be either done or in "todo" status, which is reasonable.
+
+---
+
+### CATEGORY 5: BLOCKED FEATURES (No Progress Started)
+**Status:** 13 of 15 features (87%) have 0 completed steps
+
+Only **feat-4159307f** has any progress (1/5 steps = 20%).
+
+**Real Features (Non-Test) Blocked:**
+- feat-0cf9dec1: Dashboard Activity Feed Real-Time Streaming (0/5)
+- feat-2e458b68: Orchestration Feature 1 (0/3)
+- feat-2f17d60a: Orchestration Feature 3 (0/3)
+- feat-3a580c9b: Orchestration Feature 2 (0/3)
+- feat-66599a45: Dashboard Activity Feed Real-Time Streaming (0/5)
+- feat-cad5d8b7: System Prompt Persistence Across Sessions (0/0 - no steps defined!)
+
+---
+
+## Real vs Test Features Analysis
+
+### Real Features (7 total - 47% of WIP)
+
+**Dashboard/Real-Time (3 instances - may be actual duplicates, not test artifacts)**
+- feat-0cf9dec1: Dashboard Activity Feed Real-Time Streaming
+- feat-4159307f: Dashboard Activity Feed Real-Time Streaming (only one with progress)
+- feat-66599a45: Dashboard Activity Feed Real-Time Streaming
+
+**Orchestration Features (3 instances - different feature, no duplicates)**
+- feat-2e458b68: Orchestration Feature 1
+- feat-2f17d60a: Orchestration Feature 3
+- feat-3a580c9b: Orchestration Feature 2
+
+**System Prompt**
+- feat-cad5d8b7: System Prompt Persistence Across Sessions (NO STEPS DEFINED)
+
+---
+
+## Critical Issues Found
+
+### Issue 1: 8 Test/Delegation Features Still In-Progress
+**Severity:** HIGH
+**Action:** Remove these features immediately:
+- feat-273f174b, feat-58cfd77c (Delegation Test 1)
+- feat-6415af33, feat-8c4655a5 (Delegation Test 2)
+- feat-12ffea6b, feat-1d6ccb7f (Delegation Test 3)
+- feat-930c96ba, feat-a89d158d (Test Delegation Event Tracking)
+
+**Impact:** These clutter the WIP backlog and reduce signal-to-noise ratio.
+
+### Issue 2: 3 Duplicate Dashboard Features
+**Severity:** MEDIUM
+**Status:** Unclear if these are real duplicates or test artifacts
+**Action:** Investigate whether feat-0cf9dec1 and feat-66599a45 are duplicates of feat-4159307f (the only one with progress)
+
+### Issue 3: System Prompt Feature Has Zero Steps
+**Severity:** LOW
+**Status:** feat-cad5d8b7 has 0/0 steps - needs step definition
+**Action:** Either define implementation steps or move to "done" if complete
+
+### Issue 4: 87% of Features Blocked (No Progress)
+**Severity:** MEDIUM
+**Status:** Only 1 of 15 features has started implementation
+**Action:** 
+- Investigate blockers on real features
+- Prioritize Dashboard real-time streaming work
+- Clarify Orchestration features requirements
+
+---
+
+## Recommendations
+
+### PRIORITY 1: Remove Test Features (20 mins)
+Remove from in-progress status immediately:
+\`\`\`bash
+# Delete these feature files
+rm .htmlgraph/features/feat-273f174b.html
+rm .htmlgraph/features/feat-58cfd77c.html
+rm .htmlgraph/features/feat-6415af33.html
+rm .htmlgraph/features/feat-8c4655a5.html
+rm .htmlgraph/features/feat-12ffea6b.html
+rm .htmlgraph/features/feat-1d6ccb7f.html
+rm .htmlgraph/features/feat-930c96ba.html
+rm .htmlgraph/features/feat-a89d158d.html
+\`\`\`
+
+**After cleanup:** 7 real features remain (Dashboard, Orchestration, System Prompt)
+
+### PRIORITY 2: Consolidate Dashboard Features (10 mins)
+Investigate whether feat-0cf9dec1 and feat-66599a45 are duplicates:
+- If YES: Remove them, keep feat-4159307f (the one with progress)
+- If NO: Clarify their distinct purposes and update titles
+
+### PRIORITY 3: Define System Prompt Steps (5 mins)
+feat-cad5d8b7 needs either:
+- Implementation steps defined (if still in progress)
+- Status moved to "done" (if already complete)
+
+### PRIORITY 4: Unblock Real Features (TBD)
+For remaining real features:
+1. feat-0cf9dec1/feat-4159307f/feat-66599a45: Dashboard Real-Time Streaming
+   - Identify blocker preventing progress
+   - Complete remaining 4 steps
+
+2. feat-2e458b68, feat-2f17d60a, feat-3a580c9b: Orchestration Features
+   - Clarify requirements
+   - Start implementation
+
+---
+
+## Metrics After Cleanup
+
+**Current State:**
+- Total In-Progress: 15
+- Test/Duplicate: 8 (53%)
+- Real Features: 7 (47%)
+
+**Expected State (After Cleanup):**
+- Total In-Progress: ~4-5
+- Real Features: Dashboard + Orchestration + System Prompt
+- Test/Duplicate: 0 (0%)
+- Signal-to-Noise Ratio: 100% real work
+
+---
+
+## Summary
+
+The HtmlGraph project has **healthy development activity** (all features modified in last 48 hours), but the WIP backlog is **cluttered with test artifacts** (53% test/duplicate features). A 25-minute cleanup would reduce WIP to 7 real features and significantly improve backlog clarity.
+
+**Key Finding:** Most real work is currently blocked at 0% progress, with only 1 feature (20% complete). Recommend investigating blockers after cleanup.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

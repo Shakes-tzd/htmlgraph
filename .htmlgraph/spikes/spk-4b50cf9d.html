@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Timezone JavaScript Debug Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-4b50cf9d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T13:13:37.984684"
+             data-updated="2026-01-06T13:13:37.984687" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Timezone JavaScript Debug Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Timezone JavaScript Debug Investigation - FINDINGS
+
+## ROOT CAUSES IDENTIFIED
+
+### CRITICAL ISSUE 1: Missing data-utc-time Attribute in WebSocket Events
+Location: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html lines 250-300
+
+The Problem: 
+The createActivityRowHTML() function (called when WebSocket events arrive in real-time) creates HTML WITHOUT the data-utc-time attribute.
+
+Line 277 shows:
+<span class="timestamp-text">{{ timestamp }}</span>
+
+Should be:
+<span class="timestamp-text" data-utc-time="{{ timestamp }}">{{ timestamp }}</span>
+
+Impact: When events arrive via WebSocket, the timestamp spans DON'T have the data-utc-time attribute, so the convertTimestampsToLocal() function can't find them with querySelectorAll('[data-utc-time]').
+
+### ISSUE 2: Missing Conversion Call After WebSocket Insert
+Location: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html lines 106-137
+
+The Problem: After insertNewEventIntoActivityFeed() inserts the new event row, the code does NOT call convertTimestampsToLocal() to convert the newly-added timestamps.
+
+Current flow:
+1. WebSocket message arrives
+2. insertNewEventIntoActivityFeed(data) is called
+3. HTML is inserted into DOM
+4. Function returns
+5. NO conversion happens - timestamps stay in UTC
+
+Should call convertTimestampsToLocal() after line 237.
+
+### ISSUE 3: Weak WebSocket Event Listener
+Location: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html lines 6997-7002
+
+The Problem: The code listens for custom 'ws:update' event but never dispatches it. The WebSocket message handler doesn't trigger this event.
+
+## VERIFICATION CHECKLIST
+
+✅ Function EXISTS: convertTimestampsToLocal() properly defined (lines 6959-6987)
+✅ Function LOGIC correct: Uses Intl.DateTimeFormat API correctly  
+✅ DOMContentLoaded WORKS: Converts initial page load timestamps
+✅ HTMX WORKS: Converts activity-feed partial timestamps
+❌ WebSocket BROKEN: New events don't have data-utc-time attribute
+❌ WebSocket NOT CALLED: Conversion function not invoked after WebSocket inserts
+
+## SUMMARY
+
+The timezone conversion JavaScript is perfectly written, but bypassed for WebSocket events because:
+
+1. WebSocket event rows created WITHOUT data-utc-time attribute
+2. Conversion function not called after insertion
+3. Custom ws:update event never dispatched
+
+Result: Activity Feed loads with correct EST times (template + HTMX), but real-time WebSocket events show UTC forever.
+
+## FIX LOCATIONS
+
+1. File: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html
+   Line: 277 in createActivityRowHTML()
+   Change: Add data-utc-time attribute to timestamp span
+
+2. File: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/dashboard.html
+   Line: After 237 in insertNewEventIntoActivityFeed()
+   Change: Call convertTimestampsToLocal() after new row insertion
+            </div>
+        </section>
+    </article>
+</body>
+</html>

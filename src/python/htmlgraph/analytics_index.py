@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -87,7 +87,9 @@ class AnalyticsIndex:
                     continued_from TEXT,
                     status TEXT,
                     started_at TEXT,
-                    ended_at TEXT
+                    ended_at TEXT,
+                    parent_session_id TEXT,
+                    parent_event_id TEXT
                 )
                 """
             )
@@ -103,6 +105,9 @@ class AnalyticsIndex:
                     feature_id TEXT,
                     drift_score REAL,
                     payload_json TEXT,
+                    parent_event_id TEXT,
+                    cost_tokens INTEGER,
+                    execution_duration_seconds REAL,
                     FOREIGN KEY(session_id) REFERENCES sessions(session_id)
                 )
                 """
@@ -157,6 +162,9 @@ class AnalyticsIndex:
             )
 
             # Indexes for typical dashboard queries
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id)"
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_events_session_ts ON events(session_id, ts)"
@@ -190,15 +198,17 @@ class AnalyticsIndex:
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO sessions(session_id, agent, start_commit, continued_from, status, started_at, ended_at)
-                VALUES(?,?,?,?,?,?,?)
+                INSERT INTO sessions(session_id, agent, start_commit, continued_from, status, started_at, ended_at, parent_session_id, parent_event_id)
+                VALUES(?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(session_id) DO UPDATE SET
                     agent=excluded.agent,
                     start_commit=excluded.start_commit,
                     continued_from=excluded.continued_from,
                     status=excluded.status,
                     started_at=excluded.started_at,
-                    ended_at=excluded.ended_at
+                    ended_at=excluded.ended_at,
+                    parent_session_id=excluded.parent_session_id,
+                    parent_event_id=excluded.parent_event_id
                 """,
                 (
                     session.get("session_id"),
@@ -208,6 +218,8 @@ class AnalyticsIndex:
                     session.get("status"),
                     session.get("started_at"),
                     session.get("ended_at"),
+                    session.get("parent_session_id"),
+                    session.get("parent_event_id"),
                 ),
             )
 
@@ -238,8 +250,8 @@ class AnalyticsIndex:
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT OR IGNORE INTO events(event_id, session_id, ts, tool, summary, success, feature_id, drift_score, payload_json)
-                VALUES(?,?,?,?,?,?,?,?,?)
+                INSERT OR IGNORE INTO events(event_id, session_id, ts, tool, summary, success, feature_id, drift_score, payload_json, parent_event_id, cost_tokens, execution_duration_seconds)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     event_id,
@@ -251,6 +263,9 @@ class AnalyticsIndex:
                     event.get("feature_id"),
                     event.get("drift_score"),
                     payload_json,
+                    event.get("parent_event_id"),
+                    event.get("cost_tokens"),
+                    event.get("execution_duration_seconds"),
                 ),
             )
             # Insert file path rows, idempotent by (event_id, path)
@@ -367,6 +382,8 @@ class AnalyticsIndex:
                         "status": event.get("session_status"),
                         "started_at": None,
                         "ended_at": None,
+                        "parent_session_id": event.get("parent_session_id"),
+                        "parent_event_id": event.get("parent_event_id"),
                     },
                 )
                 if meta.get("agent") is None and event.get("agent"):
@@ -377,6 +394,12 @@ class AnalyticsIndex:
                     meta["continued_from"] = event.get("continued_from")
                 if meta.get("status") is None and event.get("session_status"):
                     meta["status"] = event.get("session_status")
+                if meta.get("parent_session_id") is None and event.get(
+                    "parent_session_id"
+                ):
+                    meta["parent_session_id"] = event.get("parent_session_id")
+                if meta.get("parent_event_id") is None and event.get("parent_event_id"):
+                    meta["parent_event_id"] = event.get("parent_event_id")
 
                 # Track time range (treat earliest event as started_at, latest as ended_at if session is ended)
                 if meta["started_at"] is None or ts < meta["started_at"]:
@@ -393,8 +416,8 @@ class AnalyticsIndex:
 
                 conn.execute(
                     """
-                    INSERT OR IGNORE INTO events(event_id, session_id, ts, tool, summary, success, feature_id, drift_score, payload_json)
-                    VALUES(?,?,?,?,?,?,?,?,?)
+                    INSERT OR IGNORE INTO events(event_id, session_id, ts, tool, summary, success, feature_id, drift_score, payload_json, parent_event_id, cost_tokens, execution_duration_seconds)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         event_id,
@@ -406,6 +429,9 @@ class AnalyticsIndex:
                         event.get("feature_id"),
                         event.get("drift_score"),
                         payload_json,
+                        event.get("parent_event_id"),
+                        event.get("cost_tokens"),
+                        event.get("execution_duration_seconds"),
                     ),
                 )
 
@@ -483,8 +509,8 @@ class AnalyticsIndex:
             for meta in session_meta.values():
                 conn.execute(
                     """
-                    INSERT INTO sessions(session_id, agent, start_commit, continued_from, status, started_at, ended_at)
-                    VALUES(?,?,?,?,?,?,?)
+                    INSERT INTO sessions(session_id, agent, start_commit, continued_from, status, started_at, ended_at, parent_session_id, parent_event_id)
+                    VALUES(?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         meta.get("session_id"),
@@ -494,6 +520,8 @@ class AnalyticsIndex:
                         meta.get("status"),
                         meta.get("started_at"),
                         meta.get("ended_at"),
+                        meta.get("parent_session_id"),
+                        meta.get("parent_event_id"),
                     ),
                 )
 
@@ -676,13 +704,17 @@ class AnalyticsIndex:
         with self.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT event_id, session_id, ts, tool, summary, success, feature_id, drift_score
-                FROM events
-                WHERE session_id=?
-                ORDER BY ts DESC
+                SELECT e.event_id, e.session_id, e.ts, e.tool, e.summary, e.success, e.feature_id, e.drift_score,
+                       COALESCE(e.parent_event_id, s.parent_event_id) as parent_event_id,
+                       e.cost_tokens, e.execution_duration_seconds
+                FROM events e
+                JOIN sessions s ON e.session_id = s.session_id
+                WHERE e.session_id = ?
+                   OR s.parent_session_id = ?
+                ORDER BY e.ts DESC
                 LIMIT ?
                 """,
-                (session_id, int(limit)),
+                (session_id, session_id, int(limit)),
             ).fetchall()
         return [dict(r) for r in rows]
 

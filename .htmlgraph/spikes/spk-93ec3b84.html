@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Ordering Fix Applied</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-93ec3b84"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T12:47:29.965616"
+             data-updated="2026-01-06T12:47:29.965618" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex">
+
+        <header>
+            <h1>Activity Feed Ordering Fix Applied</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                Added .reverse() to hierarchical_events in /views/activity-feed endpoint (src/python/htmlgraph/api/main.py lines 263-264) to preserve DESC order from database query.
+
+**Change:**
+- Location: src/python/htmlgraph/api/main.py lines 263-264
+- Added: hierarchical_events.reverse()
+- Purpose: Maintain newest-first (DESC) ordering when organizing events hierarchically by parent-child relationships
+
+**Why This Works:**
+- Database query returns events in DESC order (newest first)
+- Iteration through root_events maintains order
+- Building hierarchical_events list reverses the iteration order
+- Adding .reverse() restores the original DESC ordering
+
+**Result:**
+Activity Feed now displays newest events at top (2026-01-06 17:36:49 at top, 2026-01-06T15:46:49 at bottom) when events are organized hierarchically.
+
+**Quality Checks:**
+- Ruff check: PASSED
+- Ruff format: PASSED  
+- Mypy type check: PASSED
+- Commit: 8336e44
+
+**Commit Message:**
+fix: preserve DESC event ordering in Activity Feed hierarchical organization
+            </div>
+        </section>
+    </article>
+</body>
+</html>

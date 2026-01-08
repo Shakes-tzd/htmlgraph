@@ -113,6 +113,7 @@ class HtmlGraphDB:
                 parent_agent_id TEXT,
                 parent_event_id TEXT,
                 cost_tokens INTEGER DEFAULT 0,
+                execution_duration_seconds REAL DEFAULT 0.0,
                 status TEXT DEFAULT 'recorded',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -157,6 +158,7 @@ class HtmlGraphDB:
                 session_id TEXT PRIMARY KEY,
                 agent_assigned TEXT NOT NULL,
                 parent_session_id TEXT,
+                parent_event_id TEXT,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 completed_at DATETIME,
                 total_events INTEGER DEFAULT 0,
@@ -173,7 +175,8 @@ class HtmlGraphDB:
                 is_subagent BOOLEAN DEFAULT FALSE,
                 features_worked_on JSON,
                 metadata JSON,
-                FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id)
+                FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id),
+                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id)
             )
         """)
 
@@ -315,6 +318,7 @@ class HtmlGraphDB:
         parent_agent_id: str | None = None,
         parent_event_id: str | None = None,
         cost_tokens: int = 0,
+        execution_duration_seconds: float = 0.0,
     ) -> bool:
         """
         Insert an agent event into the database.
@@ -331,6 +335,7 @@ class HtmlGraphDB:
             parent_agent_id: Parent agent if delegated (optional)
             parent_event_id: Parent event if nested (optional)
             cost_tokens: Token usage estimate (optional)
+            execution_duration_seconds: Execution time in seconds (optional)
 
         Returns:
             True if insert successful, False otherwise
@@ -345,8 +350,8 @@ class HtmlGraphDB:
                 INSERT INTO agent_events
                 (event_id, agent_id, event_type, session_id, tool_name,
                  input_summary, output_summary, context, parent_agent_id,
-                 parent_event_id, cost_tokens)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 parent_event_id, cost_tokens, execution_duration_seconds)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
@@ -360,6 +365,7 @@ class HtmlGraphDB:
                     parent_agent_id,
                     parent_event_id,
                     cost_tokens,
+                    execution_duration_seconds,
                 ),
             )
             self.connection.commit()  # type: ignore[union-attr]
@@ -435,6 +441,7 @@ class HtmlGraphDB:
         session_id: str,
         agent_assigned: str,
         parent_session_id: str | None = None,
+        parent_event_id: str | None = None,
         is_subagent: bool = False,
         transcript_id: str | None = None,
         transcript_path: str | None = None,
@@ -446,6 +453,7 @@ class HtmlGraphDB:
             session_id: Unique session identifier
             agent_assigned: Primary agent for this session
             parent_session_id: Parent session if subagent (optional)
+            parent_event_id: Event that spawned this session (optional)
             is_subagent: Whether this is a subagent session
             transcript_id: ID of Claude transcript (optional)
             transcript_path: Path to transcript file (optional)
@@ -461,14 +469,15 @@ class HtmlGraphDB:
             cursor.execute(
                 """
                 INSERT INTO sessions
-                (session_id, agent_assigned, parent_session_id, is_subagent,
-                 transcript_id, transcript_path)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (session_id, agent_assigned, parent_session_id, parent_event_id,
+                 is_subagent, transcript_id, transcript_path)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     session_id,
                     agent_assigned,
                     parent_session_id,
+                    parent_event_id,
                     is_subagent,
                     transcript_id,
                     transcript_path,

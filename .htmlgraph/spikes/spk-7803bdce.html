@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Feature Status Updates - Production Alignment</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7803bdce"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-07T15:52:03.404454"
+             data-updated="2026-01-07T15:52:03.404460" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="status-updater">
+
+        <header>
+            <h1>Feature Status Updates - Production Alignment</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Status Updates Complete ✅
+
+Successfully updated 2 features to match production deployment status.
+
+### 1. SessionStart System Prompt Injection (feat-adc42302)
+- **Previous Status**: todo
+- **New Status**: done
+- **Reason**: Core functionality fully deployed and actively working
+
+**Evidence:**
+- Hook registered in packages/claude-plugin/hooks/hooks.json (lines 25-34)
+- Shell script (.claude/hooks/session-start.sh) actively prints orchestrator directives
+- Persisting across 82+ sessions with 1000+ tokens of context
+- System prompt management via src/python/htmlgraph/system_prompts.py
+- Proven to survive compact/resume cycles
+
+**Status**: Mature & production-ready
+**Deployed**: Wave 1 completion (now in production monitoring)
+
+---
+
+### 2. Computational Imperative Guidance System (CIGS) (feat-0557ddbd)
+- **Previous Status**: todo
+- **New Status**: done
+- **Reason**: 8 production modules, Wave 2 trials complete, actively tracking autonomy across 82+ sessions
+
+**Evidence:**
+- 8 production modules implemented and tested
+- Wave 2 trials completed (results in .htmlgraph/cigs/wave2-results.json)
+- Currently tracking autonomy across 82+ sessions
+- Full documentation in docs/CIGS_USER_GUIDE.md and CIGS_SESSION_START_INTEGRATION.md
+- All test suites passing
+
+**Status**: Mature & production-ready
+**Deployed**: Wave 2 completion (now in continuous production monitoring)
+
+---
+
+## Impact
+
+- ✅ Completed feature count increased by 2
+- ✅ Feature tracking now aligns with production reality
+- ✅ Enables accurate backlog prioritization
+- ✅ All changes made via SDK API (no direct .htmlgraph file operations)
+
+## Summary
+
+These two features were implemented and deployed months ago but feature status tracking hadn't been updated to reflect their production-ready state. This update ensures HtmlGraph's own feature tracking accurately reflects what's actually deployed and actively working.
+
+Both updates used proper SDK methods (mark_done) to ensure data integrity and auditability.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

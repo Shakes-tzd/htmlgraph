@@ -150,6 +150,14 @@ def get_app(db_path: str) -> FastAPI:
     template_dir.mkdir(parents=True, exist_ok=True)
     templates = Jinja2Templates(directory=str(template_dir))
 
+    # Add custom filters
+    def format_number(value):
+        if value is None:
+            return "0"
+        return f"{value:,}"
+
+    templates.env.filters["format_number"] = format_number
+
     # Setup static files
     static_dir = Path(__file__).parent / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
@@ -177,6 +185,69 @@ def get_app(db_path: str) -> FastAPI:
             },
         )
 
+    # ========== AGENTS ENDPOINTS ==========
+
+    @app.get("/views/agents", response_class=HTMLResponse)
+    async def agents_view(request: Request) -> HTMLResponse:
+        """Get agent workload and performance stats as HTMX partial."""
+        db = await get_db()
+        try:
+            # Query agent statistics
+            query = """
+                SELECT
+                    agent_id,
+                    COUNT(*) as event_count,
+                    SUM(cost_tokens) as total_tokens,
+                    COUNT(DISTINCT session_id) as session_count,
+                    MAX(timestamp) as last_active
+                FROM agent_events
+                GROUP BY agent_id
+                ORDER BY event_count DESC
+            """
+
+            cursor = await db.execute(query)
+            rows = await cursor.fetchall()
+
+            agents = []
+            total_actions = 0
+            total_tokens = 0
+
+            # First pass to calculate totals
+            for row in rows:
+                total_actions += row[1]
+                total_tokens += row[2] or 0
+
+            # Second pass to build agent objects with percentages
+            for row in rows:
+                event_count = row[1]
+                workload_pct = (
+                    (event_count / total_actions * 100) if total_actions > 0 else 0
+                )
+
+                agents.append(
+                    {
+                        "agent_id": row[0],
+                        "event_count": event_count,
+                        "total_tokens": row[2] or 0,
+                        "session_count": row[3],
+                        "last_active": row[4],
+                        "workload_pct": round(workload_pct, 1),
+                    }
+                )
+
+            return templates.TemplateResponse(
+                "partials/agents.html",
+                {
+                    "request": request,
+                    "agents": agents,
+                    "total_agents": len(agents),
+                    "total_actions": total_actions,
+                    "total_tokens": total_tokens,
+                },
+            )
+        finally:
+            await db.close()
+
     # ========== ACTIVITY FEED ENDPOINTS ==========
 
     @app.get("/views/activity-feed", response_class=HTMLResponse)
@@ -189,23 +260,28 @@ def get_app(db_path: str) -> FastAPI:
         """Get latest agent events as HTMX partial with hierarchical parent-child grouping."""
         db = await get_db()
         try:
-            # Build query - include parent_event_id for hierarchical grouping
+            # Build query - include effective_parent_id for hierarchical grouping
+            # Join with sessions to support parent_session_id filtering and session-level parent linking
             query = """
-                SELECT event_id, agent_id, event_type, timestamp, tool_name,
-                       input_summary, output_summary, session_id, status, parent_event_id
-                FROM agent_events WHERE 1=1
+                SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+                       e.input_summary, e.output_summary, e.session_id, e.status,
+                       COALESCE(e.parent_event_id, s.parent_event_id) as effective_parent_id,
+                       e.cost_tokens, e.execution_duration_seconds
+                FROM agent_events e
+                LEFT JOIN sessions s ON e.session_id = s.session_id
+                WHERE 1=1
             """
             params: list = []
 
             if session_id:
-                query += " AND session_id = ?"
-                params.append(session_id)
+                query += " AND (e.session_id = ? OR s.parent_session_id = ?)"
+                params.extend([session_id, session_id])
 
             if agent_id:
-                query += " AND agent_id = ?"
+                query += " AND e.agent_id = ?"
                 params.append(agent_id)
 
-            query += " ORDER BY timestamp DESC LIMIT ?"
+            query += " ORDER BY e.timestamp DESC LIMIT ?"
             params.append(limit)
 
             # Execute query
@@ -224,6 +300,8 @@ def get_app(db_path: str) -> FastAPI:
                     "session_id": row[7],
                     "status": row[8],
                     "parent_event_id": row[9],
+                    "cost_tokens": row[10],
+                    "execution_duration_seconds": row[11],
                 }
                 for row in rows
             ]
@@ -542,19 +620,24 @@ def get_app(db_path: str) -> FastAPI:
             while True:
                 db = await get_db()
                 try:
-                    # Query for new events since last message with explicit column selection
+                    # Query for new events since last message
+                    # Join with sessions to support hierarchical filtering
                     query = """
-                        SELECT event_id, agent_id, event_type, timestamp, tool_name,
-                               input_summary, output_summary, session_id, status, parent_event_id
-                        FROM agent_events WHERE 1=1
+                        SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+                               e.input_summary, e.output_summary, e.session_id, e.status,
+                               COALESCE(e.parent_event_id, s.parent_event_id) as effective_parent_id,
+                               e.cost_tokens, e.execution_duration_seconds
+                        FROM agent_events e
+                        LEFT JOIN sessions s ON e.session_id = s.session_id
+                        WHERE 1=1
                     """
                     params: list = []
 
                     if last_timestamp:
-                        query += " AND timestamp > ?"
+                        query += " AND e.timestamp > ?"
                         params.append(last_timestamp)
 
-                    query += " ORDER BY timestamp DESC LIMIT 100"
+                    query += " ORDER BY e.timestamp DESC LIMIT 100"
 
                     cursor = await db.execute(query, params)
                     rows = await cursor.fetchall()
@@ -562,11 +645,11 @@ def get_app(db_path: str) -> FastAPI:
                     if rows:
                         # Convert rows to list for indexing
                         rows_list = [list(row) for row in rows]
-                        # Update last timestamp
-                        last_timestamp = rows_list[-1][3]
+                        # Update last timestamp (first row since ORDER BY timestamp DESC)
+                        last_timestamp = rows_list[0][3]
 
-                        # Send events
-                        for row in rows_list:
+                        # Send events (reverse to send oldest first among the new ones)
+                        for row in reversed(rows_list):
                             event_data = {
                                 "type": "event",
                                 "event_id": row[0],
@@ -579,6 +662,8 @@ def get_app(db_path: str) -> FastAPI:
                                 "session_id": row[7],
                                 "status": row[8],
                                 "parent_event_id": row[9],
+                                "cost_tokens": row[10],
+                                "execution_duration_seconds": row[11],
                             }
                             await websocket.send_json(event_data)
                 finally:

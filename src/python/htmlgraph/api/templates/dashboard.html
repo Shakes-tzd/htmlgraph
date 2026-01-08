@@ -60,6 +60,14 @@
                 Features
             </button>
             <button class="tab-button"
+                    hx-get="/views/agents"
+                    hx-target="#content-area"
+                    hx-trigger="click"
+                    data-tab="agents">
+                <span class="tab-icon">🤖</span>
+                Agents
+            </button>
+            <button class="tab-button"
                     hx-get="/views/metrics"
                     hx-target="#content-area"
                     hx-trigger="click"
@@ -92,6 +100,16 @@
 
             // Connect WebSocket for real-time updates
             connectWebSocket();
+        });
+
+        // Convert timestamps after HTMX loads Activity Feed
+        document.body.addEventListener('htmx:afterSettle', function(evt) {
+            if (evt.detail.target.id === 'content-area') {
+                // Activity Feed has been loaded, convert timestamps to local timezone
+                if (typeof convertTimestampsToLocal === 'function') {
+                    convertTimestampsToLocal();
+                }
+            }
         });
 
         function connectWebSocket() {
@@ -218,7 +236,19 @@
             // Create new table row HTML
             const eventRow = createActivityRowHTML(eventData);
 
-            // Insert at the top of tbody
+            // Handle hierarchical placement
+            if (eventData.parent_event_id) {
+                // Try to find parent row
+                const parentRow = tbody.querySelector(`tr[data-event-id="${eventData.parent_event_id}"]`);
+                if (parentRow) {
+                    // Insert after parent row
+                    parentRow.insertAdjacentHTML('afterend', eventRow);
+                    highlightRow(tbody.querySelector(`tr[data-event-id="${eventData.event_id}"]`));
+                    return;
+                }
+            }
+
+            // Default: Insert at the top of tbody
             const firstRow = tbody.querySelector('tr');
             if (firstRow) {
                 firstRow.insertAdjacentHTML('beforebegin', eventRow);
@@ -227,14 +257,7 @@
             }
 
             // Highlight the new row
-            const newRow = tbody.querySelector('tr:first-child');
-            if (newRow) {
-                newRow.classList.add('new-event-highlight');
-                // Remove highlight after animation
-                setTimeout(() => {
-                    newRow.classList.remove('new-event-highlight');
-                }, 2000);
-            }
+            highlightRow(tbody.querySelector('tr:first-child'));
 
             // Convert new event timestamp to local timezone
             if (typeof convertTimestampsToLocal === 'function') {
@@ -249,6 +272,16 @@
                 for (let i = 0; i < itemsToRemove; i++) {
                     allRows[allRows.length - 1 - i].remove();
                 }
+            }
+        }
+
+        function highlightRow(row) {
+            if (row) {
+                row.classList.add('new-event-highlight');
+                // Remove highlight after animation
+                setTimeout(() => {
+                    row.classList.remove('new-event-highlight');
+                }, 2000);
             }
         }
 
@@ -272,17 +305,25 @@
             const outputSummary = eventData.output_summary ? eventData.output_summary.substring(0, 100) : '';
             const outputTruncated = eventData.output_summary && eventData.output_summary.length > 100 ? '…' : '';
 
+            const isChild = !!eventData.parent_event_id;
+            const rowClass = isChild ? 'child-row' : 'parent-row';
+            const indentStyle = isChild ? 'padding-left: 2rem;' : '';
+            const borderStyle = isChild ? 'border-left: 4px solid var(--text-muted);' : 'border-left: 4px solid var(--accent);';
+
             // Create table row HTML
             const html = `
-                <tr class="activity-row parent-row event-${eventData.status || 'pending'}" data-event-id="${escapeHtml(eventData.event_id)}">
-                    <td class="col-timestamp">
+                <tr class="activity-row ${rowClass} event-${eventData.status || 'pending'}" 
+                    data-event-id="${escapeHtml(eventData.event_id)}"
+                    style="${borderStyle}">
+                    <td class="col-timestamp" style="${indentStyle}">
                         <span class="event-type-badge" title="${escapeHtml(eventData.event_type)}">
                             ${eventEmoji}
                         </span>
                         <span class="timestamp-text" data-utc-time="${escapeHtml(eventData.timestamp)}">${escapeHtml(eventData.timestamp)}</span>
                     </td>
                     <td class="col-agent">
-                        <span class="agent-badge">${escapeHtml(eventData.agent_id)}</span>
+                        <span class="agent-badge agent-${escapeHtml(eventData.agent_id.toLowerCase())}">${escapeHtml(eventData.agent_id)}</span>
+                        ${isChild ? `<span class="child-indicator" title="Child of ${escapeHtml(eventData.parent_event_id.substring(0, 8))}">↳</span>` : ''}
                     </td>
                     <td class="col-tool">
                         ${eventData.tool_name ? `<code class="tool-name">${escapeHtml(eventData.tool_name)}</code>` : '<span class="text-muted">—</span>'}
@@ -309,6 +350,39 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Convert UTC timestamps to local timezone
+        function convertTimestampsToLocal() {
+            const timestampElements = document.querySelectorAll('[data-utc-time]');
+            console.log('convertTimestampsToLocal() called, found', timestampElements.length, 'timestamps to convert');
+            timestampElements.forEach(element => {
+                const utcTime = element.getAttribute('data-utc-time');
+                if (utcTime) {
+                    try {
+                        // Parse ISO 8601 UTC time - convert naive datetime to UTC format
+                        // Input: "2026-01-06 18:01:19" → "2026-01-06T18:01:19Z"
+                        const date = new Date(utcTime.replace(' ', 'T') + 'Z');
+                        // Convert to local timezone using Intl API for best compatibility
+                        const localTime = new Intl.DateTimeFormat('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false,
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        }).format(date);
+                        // Replace the displayed timestamp with local time
+                        element.textContent = localTime;
+                        // Add title attribute to show full ISO format on hover
+                        element.setAttribute('title', `UTC: ${utcTime} | Local: ${localTime}`);
+                    } catch (err) {
+                        console.warn('Failed to convert timestamp:', utcTime, err);
+                    }
+                }
+            });
         }
 
         // Handle tab switching

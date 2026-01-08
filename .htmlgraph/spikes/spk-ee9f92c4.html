@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Timezone Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-ee9f92c4"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-06T12:59:03.518648"
+             data-updated="2026-01-06T12:59:03.518651" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Activity Feed Timezone Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Analysis: Activity Feed Timezone Issue
+
+### Issue Summary
+All timestamps in the Activity Feed display in UTC (or server time) instead of the user's local timezone. Events show "2026-01-06 17:45:33" when they should show adjusted for Pacific Time (several hours earlier).
+
+### Detailed Findings
+
+#### 1. Timestamp Generation (event_tracker.py)
+**Location**: `src/python/htmlgraph/hooks/event_tracker.py` lines 106, 208, 827
+
+**Problem**:
+```python
+# Lines 106, 208, 827 use:
+datetime.now().isoformat()
+```
+
+**Analysis**:
+- `datetime.now()` returns a **naive datetime** (no timezone info)
+- When called on a system with a specific timezone (EST in this case), it returns local time
+- However, the database `DEFAULT CURRENT_TIMESTAMP` uses UTC
+- This creates a mismatch: local time values are stored but treated as UTC by the database
+
+#### 2. Database Storage (schema.py)
+**Location**: `src/python/htmlgraph/db/schema.py` lines 107, 206
+
+**Problem**:
+```sql
+timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+```
+
+**Analysis**:
+- SQLite's `CURRENT_TIMESTAMP` is always in UTC
+- The schema stores timestamps as naive DATETIME (no timezone info)
+- When the same naive timestamp is inserted via Python (from `event_tracker.py`), it's ambiguous which timezone it represents
+
+#### 3. Display Layer (main.py)
+**Location**: `src/python/htmlgraph/api/main.py` lines 220, 575
+
+**Problem**:
+```python
+"timestamp": row[3]  # Raw string from database
+```
+
+**Analysis**:
+- Timestamps are retrieved directly from the database without any conversion
+- No timezone conversion happens between storage and display
+- Template displays the raw string: `{{ event.timestamp }}`
+
+#### 4. Frontend Template (activity-feed.html)
+**Location**: `src/python/htmlgraph/api/templates/partials/activity-feed.html` line 36
+
+**Problem**:
+```html
+<span class="event-timestamp">{{ event.timestamp }}</span>
+```
+
+**Analysis**:
+- Template has no JavaScript to convert timestamp to local timezone
+- No timezone offset applied
+- No localization formatting
+
+### System Information
+- **Current System**: macOS (EST timezone)
+- **datetime.now()**: Returns naive datetime (no tzinfo)
+- **System timezone**: EST
+- **Example**: `2026-01-06T12:58:32.608529` (local time, no timezone marker)
+
+### Root Cause Chain
+1. **event_tracker.py** generates `datetime.now().isoformat()` → naive UTC string
+2. **schema.py** uses `DEFAULT CURRENT_TIMESTAMP` → SQLite interprets as UTC
+3. **main.py** queries raw timestamp → no conversion applied
+4. **Template** displays raw string → user sees UTC instead of local time
+5. No frontend JavaScript to adjust for user's timezone
+
+### Recommended Solution
+
+**Use UTC with Timezone Markers (Best Practice)**:
+1. Update `event_tracker.py` to use `datetime.now(timezone.utc)`
+2. Store timestamps as ISO 8601 with 'Z' suffix: "2026-01-06T17:45:33Z"
+3. Update template to add JavaScript for local timezone conversion
+4. Unambiguous, future-proof, works across multiple timezones
+
+### Files Requiring Changes
+1. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/event_tracker.py`
+   - Lines 106, 208, 827: Change to `datetime.now(timezone.utc).isoformat()`
+   
+2. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py`
+   - Lines 220, 575: Consider adding timezone context
+   
+3. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/partials/activity-feed.html`
+   - Line 36: Add JavaScript to format timestamp in user's local timezone
+   
+4. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/db/schema.py`
+   - Update documentation to clarify UTC storage
+
+### Verification
+- Confirm timestamps stored with timezone info ('Z' suffix)
+- Verify frontend converts to browser's local timezone
+- Test with different system timezones
+- Confirm Activity Feed displays correct local time
+            </div>
+        </section>
+    </article>
+</body>
+</html>

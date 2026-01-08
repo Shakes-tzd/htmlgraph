@@ -38,6 +38,7 @@ class EventRecord:
     session_status: str | None = None
     file_paths: list[str] | None = None
     payload: dict[str, Any] | None = None
+    parent_session_id: str | None = None  # Link to parent session (e.g. for subagents)
     # Phase 1: Enhanced Event Data Schema for multi-AI delegation tracking
     delegated_to_ai: str | None = (
         None  # "gemini", "codex", "copilot", "claude", or None
@@ -72,6 +73,7 @@ class EventRecord:
             "session_status": self.session_status,
             "file_paths": self.file_paths or [],
             "payload": self.payload,
+            "parent_session_id": self.parent_session_id,
             # Delegation fields
             "delegated_to_ai": self.delegated_to_ai,
             "task_id": self.task_id,

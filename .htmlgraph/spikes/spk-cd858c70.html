@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SDK Agent/Model Parameter Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-cd858c70"
+             data-type="spike"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-07T15:59:35.120803"
+             data-updated="2026-01-07T15:59:35.120806" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="gemini-researcher">
+
+        <header>
+            <h1>SDK Agent/Model Parameter Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h3>Description</h3>
+            
+<h2>SDK Agent/Model Parameter System - Research Findings</h2>
+
+<h3>1. SDK.__init__() Signature</h3>
+<p><strong>Location:</strong> src/python/htmlgraph/sdk.py:219-239</p>
+<pre><code>def __init__(
+    self,
+    directory: Path | str | None = None,
+    agent: str | None = None,
+    parent_session: str | None = None,
+    db_path: str | None = None,
+):</code></pre>
+
+<h3>2. The `agent=` Parameter - CRITICAL FINDINGS</h3>
+
+<h4>Purpose & Usage</h4>
+<p><strong>The `agent=` parameter is NOT about model selection.</strong></p>
+<p>It is for <strong>work attribution</strong> - attributing work items to the agent performing them.</p>
+<ul>
+  <li><strong>Type:</strong> String identifier (e.g., "claude", "explorer", "coder", "tester")</li>
+  <li><strong>Purpose:</strong> Track WHO did the work in HtmlGraph features/bugs/spikes</li>
+  <li><strong>Required:</strong> YES - SDK() raises ValueError if not provided</li>
+  <li><strong>Critical for:</strong> Work attribution, result retrieval, orchestrator tracking</li>
+</ul>
+
+<h4>SDK Docstring (Lines 231-236)</h4>
+<pre><code>agent: REQUIRED - Agent identifier for operations.
+    Used to attribute work items (features, spikes, bugs, etc) to the agent.
+    Examples: agent='explorer', agent='coder', agent='tester'
+    Critical for: Work attribution, result retrieval, orchestrator tracking
+    Falls back to: CLAUDE_AGENT_NAME env var, then detect_agent_name()
+    Raises ValueError if not provided and cannot be detected</code></pre>
+
+<h4>Resolution Chain</h4>
+<ol>
+  <li>If agent= explicitly provided → USE IT</li>
+  <li>Else, check CLAUDE_AGENT_NAME env var</li>
+  <li>Else, call detect_agent_name() auto-detection</li>
+  <li>Else, RAISE ValueError (fail fast with clear error message)</li>
+</ol>
+
+<h4>Implementation (Lines 243-261)</h4>
+<pre><code>if agent is None:
+    # Try environment variable fallback
+    agent = os.getenv("CLAUDE_AGENT_NAME")
+
+if agent is None:
+    # Try automatic detection
+    detected = detect_agent_name()
+    if detected and detected != "cli":
+        agent = detected
+    else:
+        # No valid agent found - fail fast with helpful error message
+        raise ValueError(
+            "Agent identifier is required for work attribution. "
+            "Pass agent='name' to SDK() initialization..."
+        )</code></pre>
+
+<h3>3. HeadlessSpawner Methods - NO `agent=` parameter</h3>
+
+<p><strong>Location:</strong> src/python/htmlgraph/orchestration/headless_spawner.py</p>
+
+<h4>spawn_gemini() Signature (Lines 371-378)</h4>
+<pre><code>def spawn_gemini(
+    self,
+    prompt: str,
+    output_format: str = "stream-json",
+    model: str | None = None,
+    include_directories: list[str] | None = None,
+    track_in_htmlgraph: bool = True,
+    timeout: int = 120,
+) -> AIResult:</code></pre>
+
+<p><strong>NO `agent=` parameter in spawner methods.</strong></p>
+<p>Spawners accept:</p>
+<ul>
+  <li><code>model</code> - For model selection (passed to CLI with -m flag)</li>
+  <li>Not <code>agent</code> - Agent comes from SDK initialization context</li>
+</ul>
+
+<h4>How Spawners Get Agent Context</h4>
+<p>Spawners read parent agent from environment (Lines 78-85):</p>
+<pre><code>def _get_sdk(self) -> "SDK | None":
+    """Get SDK instance for HtmlGraph tracking with parent session support."""
+    try:
+        from htmlgraph.sdk import SDK
+        
+        # Read parent session context from environment
+        parent_session = os.getenv("HTMLGRAPH_PARENT_SESSION")
+        parent_agent = os.getenv("HTMLGRAPH_PARENT_AGENT")
+        
+        # Create SDK with parent session context
+        sdk = SDK(
+            agent=f"spawner-{parent_agent}" if parent_agent else "spawner",
+            parent_session=parent_session,  # Pass parent session
+        )
+        return sdk
+    except Exception:
+        return None</code></pre>
+
+<h3>4. Correct Usage Patterns</h3>
+
+<h4>Pattern 1: Basic SDK Usage</h4>
+<pre><code>from htmlgraph import SDK
+
+# Initialize with agent identifier
+sdk = SDK(agent="claude")  # "claude" = work attribution label
+
+# Create feature - agent is recorded automatically
+feature = sdk.features.create("Build API endpoint").save()</code></pre>
+
+<h4>Pattern 2: Spawning Gemini from SDK Context</h4>
+<pre><code>from htmlgraph import SDK
+from htmlgraph.orchestration import HeadlessSpawner
+
+sdk = SDK(agent="claude")  # Parent agent context
+
+spawner = HeadlessSpawner()
+
+# spawn_gemini() gets parent agent from environment
+# Don't pass agent= to spawner - it reads from HTMLGRAPH_PARENT_AGENT
+result = spawner.spawn_gemini(
+    prompt="Your task",
+    model="gemini-2.0-flash",  # Model selection (optional)
+    include_directories=["src/"],
+    timeout=120
+)
+
+if result.success:
+    print(f"Response: {result.response}")
+    print(f"Tokens: {result.tokens_used}")</code></pre>
+
+<h4>Pattern 3: Explicit Agent Naming</h4>
+<pre><code>from htmlgraph import SDK
+
+# Different agents work on same project
+researcher_sdk = SDK(agent="researcher")
+implementer_sdk = SDK(agent="implementer")
+tester_sdk = SDK(agent="tester")
+
+# Work is attributed separately by agent
+feature = researcher_sdk.spikes.create("Research auth patterns").save()
+feature = implementer_sdk.features.create("Implement OAuth").save()
+feature = tester_sdk.bugs.create("Test edge cases").save()</code></pre>
+
+<h3>5. How to Get Active Agent Programmatically</h3>
+
+<pre><code>from htmlgraph import SDK
+
+sdk = SDK(agent="claude")
+
+# Access agent ID
+print(f"Active agent: {sdk._agent_id}")  # "claude"
+
+# Available as property (should be added as public API)
+# Currently internal (_agent_id)</code></pre>
+
+<p><strong>Note:</strong> The SDK stores agent in <code>self._agent_id</code> (internal). Consider public property for agent() accessor.</p>
+
+<h3>6. Key Misconceptions & Corrections</h3>
+
+<table border="1" cellpadding="5">
+  <tr>
+    <th>Misconception</th>
+    <th>Reality</th>
+  </tr>
+  <tr>
+    <td><code>agent=</code> selects the LLM model</td>
+    <td><code>agent=</code> is for work attribution only. <code>model=</code> parameter (in spawners) selects LLM</td>
+  </tr>
+  <tr>
+    <td>Can pass <code>agent=</code> to <code>spawn_gemini()</code></td>
+    <td>spawn_gemini() does NOT accept agent parameter. It reads from HTMLGRAPH_PARENT_AGENT env var</td>
+  </tr>
+  <tr>
+    <td><code>agent=</code> is optional</td>
+    <td><code>agent=</code> is REQUIRED - SDK raises ValueError if not provided and can't detect</td>
+  </tr>
+  <tr>
+    <td>SDK auto-detects model from environment</td>
+    <td>SDK doesn't handle model selection. Spawners take explicit <code>model=</code> parameter</td>
+  </tr>
+</table>
+
+<h3>7. Recommendation: Update Documentation</h3>
+
+<p><strong>For GEMINI.md (Gemini Spawner Agent):</strong></p>
+<pre><code># CORRECT CODE PATTERN
+
+from htmlgraph import SDK
+from htmlgraph.orchestration import HeadlessSpawner
+
+# Initialize SDK with agent for work attribution
+sdk = SDK(agent='gemini-researcher')
+
+# Create spawner
+spawner = HeadlessSpawner()
+
+# Spawn Gemini - agent context comes from SDK parent, model= for LLM selection
+result = spawner.spawn_gemini(
+    prompt="Your task description here",
+    output_format="json",
+    model="gemini-2.0-flash",  # FREE tier model
+    include_directories=["src/"],
+    timeout=120
+)
+
+if result.success and result.response:
+    print(f"Response: {result.response}")
+    print(f"Tokens: {result.tokens_used}")
+else:
+    # Handle empty response or error
+    print(f"Error: {result.error}")</code></pre>
+
+<p><strong>Key Points:</strong></p>
+<ul>
+  <li>agent='gemini-researcher' = work attribution (who is doing the research)</li>
+  <li>model="gemini-2.0-flash" = model selection for Gemini CLI</li>
+  <li>These are DIFFERENT PURPOSES - easy to confuse</li>
+</ul>
+
+<h3>8. Summary Table</h3>
+
+<table border="1" cellpadding="5">
+  <tr>
+    <th>Parameter</th>
+    <th>Location</th>
+    <th>Purpose</th>
+    <th>Required?</th>
+    <th>Examples</th>
+  </tr>
+  <tr>
+    <td><code>agent=</code></td>
+    <td>SDK.__init__()</td>
+    <td>Work attribution - WHO is doing the work</td>
+    <td>YES</td>
+    <td>"claude", "researcher", "implementer", "tester"</td>
+  </tr>
+  <tr>
+    <td><code>model=</code></td>
+    <td>spawner.spawn_*()</td>
+    <td>LLM model selection</td>
+    <td>NO (defaults)</td>
+    <td>"gemini-2.0-flash", "gpt-4-turbo"</td>
+  </tr>
+  <tr>
+    <td><code>parent_session=</code></td>
+    <td>SDK.__init__()</td>
+    <td>Nested session context</td>
+    <td>NO</td>
+    <td>Session IDs from env</td>
+  </tr>
+</table>
+
+        </section>
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

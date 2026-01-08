@@ -15,7 +15,9 @@
     <div class="activity-list">
         {% if events %}
             {% for event in events %}
-            <div class="activity-item event-{{ event.status }}">
+            {% set is_child = event.parent_event_id is defined and event.parent_event_id %}
+            <div class="activity-item event-{{ event.status }} {{ 'child-activity' if is_child else '' }}"
+                 style="{{ 'margin-left: 2rem; border-left: 2px solid var(--border); padding-left: 1rem;' if is_child else '' }}">
                 <div class="activity-item-header">
                     <span class="event-type-badge" title="{{ event.event_type }}">
                         {% if event.event_type == 'tool_call' %}
@@ -29,10 +31,13 @@
                         {% elif event.event_type == 'completion' %}
                             🎉
                         {% else %}
-                            📌
+                            📋
                         {% endif %}
                     </span>
-                    <span class="agent-name">{{ event.agent_id }}</span>
+                    <span class="agent-name agent-{{ event.agent_id|lower }}">{{ event.agent_id }}</span>
+                    {% if is_child %}
+                        <span class="child-indicator">↳ sub-task</span>
+                    {% endif %}
                     <span class="event-timestamp" data-utc-time="{{ event.timestamp }}">{{ event.timestamp }}</span>
                 </div>
 
@@ -60,7 +65,7 @@
 
                 <div class="activity-item-footer">
                     <span class="event-id" title="{{ event.event_id }}">{{ event.event_id[:8] }}</span>
-                    <span class="session-id" title="{{ event.session_id }}">{{ event.session_id[:8] }}</span>
+                    <span class="session-id" title="{{ event.session_id }}">Session: {{ event.session_id[:8] }}</span>
                 </div>
             </div>
             {% endfor %}

@@ -644,7 +644,7 @@ class SDK:
 
         # Ensure session exists before logging event
         try:
-            self._ensure_session_exists(session_id)
+            self._ensure_session_exists(session_id, parent_event_id=parent_event_id)
         except Exception as e:
             import logging
 
@@ -664,12 +664,15 @@ class SDK:
             cost_tokens=cost_tokens,
         )
 
-    def _ensure_session_exists(self, session_id: str) -> None:
+    def _ensure_session_exists(
+        self, session_id: str, parent_event_id: str | None = None
+    ) -> None:
         """
         Create a session record if it doesn't exist.
 
         Args:
             session_id: Session ID to ensure exists
+            parent_event_id: Event that spawned this session (optional)
         """
         if not self._db.connection:
             self._db.connect()
@@ -687,6 +690,7 @@ class SDK:
                 agent_assigned=self._agent_id,
                 is_subagent=self._parent_session is not None,
                 parent_session_id=self._parent_session,
+                parent_event_id=parent_event_id,
             )
 
     def reload(self) -> None:
@@ -790,7 +794,10 @@ class SDK:
             New Session instance
         """
         return self.session_manager.start_session(
-            session_id=session_id, agent=agent or self._agent_id or "cli", title=title
+            session_id=session_id,
+            agent=agent or self._agent_id or "cli",
+            title=title,
+            parent_session_id=self._parent_session,
         )
 
     def end_session(
@@ -896,19 +903,19 @@ class SDK:
             ... )
             >>> print(f"Tracked: [{entry.tool}] {entry.summary}")
         """
-        # Determine target session: explicit > parent > active
+        # Determine target session: explicit > active > parent
         if not session_id:
-            # Use parent session if available (for nested contexts)
-            if self._parent_session:
+            # Check for active session first
+            active = self.session_manager.get_active_session(agent=self._agent_id)
+            if active:
+                session_id = active.id
+            # Fall back to parent session if available (for headless/nested contexts)
+            elif self._parent_session:
                 session_id = self._parent_session
             else:
-                # Fall back to active session
-                active = self.session_manager.get_active_session(agent=self._agent_id)
-                if not active:
-                    raise ValueError(
-                        "No active session. Start one with sdk.start_session()"
-                    )
-                session_id = active.id
+                raise ValueError(
+                    "No active session. Start one with sdk.start_session()"
+                )
 
         # Get parent activity ID from environment if not provided
         if not parent_activity_id:

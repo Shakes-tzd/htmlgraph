@@ -32,7 +32,9 @@
                 <tbody>
                     {% for group in hierarchical_events %}
                         <!-- Parent Event -->
-                        <tr class="activity-row parent-row event-{{ group.parent.status }}" data-event-id="{{ group.parent.event_id }}">
+                        <tr class="activity-row parent-row event-{{ group.parent.status }}" 
+                            data-event-id="{{ group.parent.event_id }}"
+                            style="border-left: 4px solid var(--accent);">
                             <td class="col-timestamp">
                                 <span class="event-type-badge" title="{{ group.parent.event_type }}">
                                     {% if group.parent.event_type == 'delegation' %}
@@ -45,10 +47,10 @@
                                         📋
                                     {% endif %}
                                 </span>
-                                <span class="timestamp-text">{{ group.parent.timestamp }}</span>
+                                <span class="timestamp-text" data-utc-time="{{ group.parent.timestamp }}">{{ group.parent.timestamp }}</span>
                             </td>
                             <td class="col-agent">
-                                <span class="agent-badge">{{ group.parent.agent_id }}</span>
+                                <span class="agent-badge agent-{{ group.parent.agent_id|lower }}">{{ group.parent.agent_id }}</span>
                                 {% if group.has_children %}
                                     <span class="parent-indicator" title="Parent task with {{ group.children|length }} child event(s)">📌</span>
                                 {% endif %}
@@ -73,6 +75,17 @@
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
+                                
+                                {% if group.parent.cost_tokens or group.parent.execution_duration_seconds %}
+                                    <div class="event-metrics" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                        {% if group.parent.cost_tokens %}
+                                            <span class="metric-item">🪙 {{ group.parent.cost_tokens }} tokens</span>
+                                        {% endif %}
+                                        {% if group.parent.execution_duration_seconds %}
+                                            <span class="metric-item">⏱️ {{ "%.2f"|format(group.parent.execution_duration_seconds) }}s</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </td>
                             <td class="col-status">
                                 <span class="status-badge status-{{ group.parent.status }}">{{ group.parent.status }}</span>
@@ -82,11 +95,14 @@
                             </td>
                         </tr>
 
-                        <!-- Child Events (if any) -->
+                        <!-- Child Events (Sub-traces) -->
                         {% if group.has_children %}
                             {% for child in group.children %}
-                            <tr class="activity-row child-row event-{{ child.status }}" data-event-id="{{ child.event_id }}" data-parent-id="{{ group.parent.event_id }}">
-                                <td class="col-timestamp">
+                            <tr class="activity-row child-row event-{{ child.status }}" 
+                                data-event-id="{{ child.event_id }}" 
+                                data-parent-id="{{ group.parent.event_id }}"
+                                style="background-color: rgba(255, 255, 255, 0.02); border-left: 4px solid var(--text-muted);">
+                                <td class="col-timestamp" style="padding-left: 2rem;">
                                     <span class="event-type-badge" title="{{ child.event_type }}">
                                         {% if child.event_type == 'tool_call' %}
                                             🔨
@@ -102,11 +118,11 @@
                                             📌
                                         {% endif %}
                                     </span>
-                                    <span class="timestamp-text">{{ child.timestamp }}</span>
+                                    <span class="timestamp-text" data-utc-time="{{ child.timestamp }}">{{ child.timestamp }}</span>
                                 </td>
                                 <td class="col-agent">
-                                    <span class="agent-badge">{{ child.agent_id }}</span>
-                                    <span class="child-indicator" title="Child of {{ child.parent_event_id[:8] }}">↳</span>
+                                    <span class="agent-badge agent-{{ child.agent_id|lower }}">{{ child.agent_id }}</span>
+                                    <span class="child-indicator" title="Child of {{ group.parent.event_id[:8] }}">↳</span>
                                 </td>
                                 <td class="col-tool">
                                     {% if child.tool_name %}
@@ -127,6 +143,17 @@
                                         <span class="truncate" title="{{ child.output_summary }}">{{ child.output_summary[:100] }}{% if child.output_summary|length > 100 %}…{% endif %}</span>
                                     {% else %}
                                         <span class="text-muted">—</span>
+                                    {% endif %}
+
+                                    {% if child.cost_tokens or child.execution_duration_seconds %}
+                                        <div class="event-metrics" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                            {% if child.cost_tokens %}
+                                                <span class="metric-item">🪙 {{ child.cost_tokens }} tokens</span>
+                                            {% endif %}
+                                            {% if child.execution_duration_seconds %}
+                                                <span class="metric-item">⏱️ {{ "%.2f"|format(child.execution_duration_seconds) }}s</span>
+                                            {% endif %}
+                                        </div>
                                     {% endif %}
                                 </td>
                                 <td class="col-status">

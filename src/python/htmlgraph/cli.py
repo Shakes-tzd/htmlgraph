@@ -131,52 +131,60 @@ def cmd_install_gemini_extension(args: argparse.Namespace) -> None:
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
-    """Start the HtmlGraph server."""
-    from pathlib import Path
+    """Start the HtmlGraph server (FastAPI-based)."""
+    import asyncio
 
-    from htmlgraph.operations import start_server
-
-    result = start_server(
-        port=args.port,
-        graph_dir=Path(args.graph_dir),
-        static_dir=Path(args.static_dir),
-        host=args.host,
-        watch=not args.no_watch,
-        auto_port=args.auto_port,
+    from htmlgraph.operations.fastapi_server import (
+        run_fastapi_server,
+        start_fastapi_server,
     )
 
-    # Print server info
-    console.print("\n[bold cyan]HtmlGraph Server[/bold cyan]")
-    console.print(f"URL: {result.handle.url}")
-    if result.warnings:
-        for warning in result.warnings:
-            console.print(f"[yellow]Warning: {warning}[/yellow]")
-    console.print(f"Graph directory: {result.config_used['graph_dir']}")
-    console.print(f"Static directory: {result.config_used['static_dir']}")
-    from htmlgraph.server import HtmlGraphAPIHandler
-
-    console.print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
-    console.print("\n[cyan]Press Ctrl+C to stop.[/cyan]\n")
-
-    # Start serving requests
     try:
-        server = (
-            result.handle.server.get("httpserver") if result.handle.server else None
+        # Default to database in graph dir if not specified
+        db_path = getattr(args, "db", None)
+        if not db_path:
+            db_path = str(Path(args.graph_dir) / "index.sqlite")
+
+        result = start_fastapi_server(
+            port=args.port,
+            host=args.host,
+            db_path=db_path,
+            auto_port=args.auto_port,
+            reload=getattr(args, "reload", False),
         )
-        if server is not None:
-            server.serve_forever()
+
+        # Print server info
+        console.print("\n[bold cyan]HtmlGraph Server (FastAPI)[/bold cyan]")
+        console.print(f"URL: [bold blue]{result.handle.url}[/bold blue]")
+        console.print(f"Graph directory: {args.graph_dir}")
+        console.print(f"Database: {result.config_used['db_path']}")
+
+        if result.warnings:
+            for warning in result.warnings:
+                console.print(f"[yellow]Warning: {warning}[/yellow]")
+
+        from htmlgraph.server import HtmlGraphAPIHandler
+
+        console.print(f"Collections: {', '.join(HtmlGraphAPIHandler.COLLECTIONS)}")
+        console.print("\n[cyan]Features:[/cyan]")
+        console.print("  • Real-time agent activity feed (HTMX)")
+        console.print("  • Orchestration chains visualization")
+        console.print("  • Feature tracker with Kanban view")
+        console.print("  • Session metrics & performance analytics")
+        console.print("\n[cyan]Press Ctrl+C to stop.[/cyan]\n")
+
+        # Run server
+        asyncio.run(run_fastapi_server(result.handle))
+
     except KeyboardInterrupt:
         console.print("\n[yellow]Shutting down...[/yellow]")
-        if result.handle.server:
-            watcher = result.handle.server.get("watcher")
-            if watcher is not None:
-                try:
-                    watcher.stop()
-                except Exception:
-                    pass
-            httpserver = result.handle.server.get("httpserver")
-            if httpserver is not None:
-                httpserver.shutdown()
+    except Exception as e:
+        console.print(f"\n[red]Error:[/red] {e}")
+        import traceback
+
+        if getattr(args, "verbose", False):
+            traceback.print_exc()
+        sys.exit(1)
 
 
 def cmd_serve_api(args: argparse.Namespace) -> None:

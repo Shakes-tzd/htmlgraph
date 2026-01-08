@@ -223,5 +223,20 @@
     "spike_id": "spk-013753cb",
     "created": "2026-01-06T11:16:30.630925",
     "occurrences": 4
+  },
+  "Bash:Failed to parse command: Bad substitution: escapeHtml": {
+    "spike_id": "spk-80b62afa",
+    "created": "2026-01-06T13:29:58.238144",
+    "occurrences": 4
+  },
+  "mcp__plugin_playwright_playwright__browser_wait_for:### Result\nTimeoutError: locator.waitFor: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for get": {
+    "spike_id": "spk-ef465836",
+    "created": "2026-01-06T16:19:49.806211",
+    "occurrences": 4
+  },
+  "mcp__plugin_htmlgraph_chrome-devtools__new_page:net::ERR_CONNECTION_REFUSED at http://localhost:8000": {
+    "spike_id": "spk-87d2971f",
+    "created": "2026-01-06T16:58:45.050366",
+    "occurrences": 3
   }
 }

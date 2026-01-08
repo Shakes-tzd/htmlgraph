@@ -5362,64 +5362,54 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             const container = document.getElementById('activity-log-container');
 
             try {
-                // Fetch the HTML file directly
-                const response = await fetch(`${API}/../.htmlgraph/${collection}/${sessionId}.html`);
-                if (!response.ok) throw new Error('Failed to load session file');
+                // Use Analytics API to get merged events (including child sessions)
+                const response = await fetch(`${API}/analytics/session?id=${sessionId}&limit=100`);
+                if (!response.ok) throw new Error('Failed to load session events');
 
-                const html = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
+                const data = await response.json();
+                const events = data.events || [];
 
-                // Find the activity log section
-                const activitySection = doc.querySelector('section[data-activity-log]');
-                if (!activitySection) {
-                    container.innerHTML = '<div class="loading">No activity log found</div>';
-                    return;
-                }
-
-                // Get the activity items
-                const activityItems = activitySection.querySelectorAll('li[data-ts]');
-                const eventCount = activitySection.querySelector('h3')?.textContent || 'Activity Log';
-
-                if (activityItems.length === 0) {
+                if (events.length === 0) {
                     container.innerHTML = '<div class="loading">No events recorded</div>';
                     return;
                 }
 
-                // Render activity log (show first 50 events)
-                const limit = 50;
-                const events = Array.from(activityItems).slice(0, limit);
-
                 let html_content = `
                     <div class="activity-header">
-                        <strong>${eventCount}</strong>
-                        ${activityItems.length > limit ? `<span>(showing first ${limit})</span>` : ''}
+                        <strong>${events.length}</strong>
+                        <span>(most recent first)</span>
                     </div>
                     <ol class="activity-list" reversed>
                 `;
 
                 events.forEach(item => {
-                    const ts = new Date(item.dataset.ts).toLocaleString();
-                    const tool = item.dataset.tool || 'Unknown';
-                    const success = item.dataset.success === 'true';
-                    const feature = item.dataset.feature || '';
-                    const drift = item.dataset.drift ? parseFloat(item.dataset.drift).toFixed(2) : '';
-                    const content = item.textContent.trim();
+                    const ts = new Date(item.ts).toLocaleString();
+                    const tool = item.tool || 'Unknown';
+                    const success = item.success === 1 || item.success === true;
+                    const feature = item.feature_id || '';
+                    const drift = item.drift_score ? parseFloat(item.drift_score).toFixed(2) : '';
+                    const content = item.summary || '';
+                    
+                    // Identify child events (from sub-sessions)
+                    const isChild = item.session_id !== sessionId;
+                    const childClass = isChild ? 'child-event' : '';
+                    const childBadge = isChild ? '<span class="badge" style="background: var(--bg-tertiary); color: var(--text-muted);">sub-task</span>' : '';
 
                     const statusIcon = success ? '✅' : '❌';
                     const featureBadge = feature ? `<span class="badge">${feature}</span>` : '';
                     const driftBadge = drift ? `<span class="badge drift-${drift >= 0.7 ? 'high' : 'low'}">drift: ${drift}</span>` : '';
 
                     html_content += `
-                        <li class="activity-item">
+                        <li class="activity-item ${childClass}" style="${isChild ? 'padding-left: 1.5rem; border-left: 2px solid var(--border);' : ''}">
                             <div class="activity-meta">
                                 <span class="activity-time">${ts}</span>
                                 ${statusIcon}
                                 <span class="activity-tool">${tool}</span>
+                                ${childBadge}
                                 ${featureBadge}
                                 ${driftBadge}
                             </div>
-                            <div class="activity-content">${content}</div>
+                            <div class="activity-content">${escapeHtml(content)}</div>
                         </li>
                     `;
                 });
@@ -5428,6 +5418,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 container.innerHTML = html_content;
 
             } catch (err) {
+                console.error("Activity log error:", err);
                 container.innerHTML = `<div class="loading">Error loading activity log: ${err.message}</div>`;
             }
         }
@@ -6954,6 +6945,53 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 closeSpecPlanModal();
             }
         });
+
+        // Convert UTC timestamps to local timezone
+        function convertTimestampsToLocal() {
+            const timestampElements = document.querySelectorAll('[data-utc-time]');
+            timestampElements.forEach(element => {
+                const utcTime = element.getAttribute('data-utc-time');
+                if (utcTime) {
+                    try {
+                        // Parse ISO 8601 UTC time - convert naive datetime to UTC format
+                        // Input: "2026-01-06 18:01:19" → "2026-01-06T18:01:19Z"
+                        const date = new Date(utcTime.replace(' ', 'T') + 'Z');
+                        // Convert to local timezone using Intl API for best compatibility
+                        const localTime = new Intl.DateTimeFormat('en-US', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false,
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                        }).format(date);
+                        // Replace the displayed timestamp with local time
+                        element.textContent = localTime;
+                        // Add title attribute to show full ISO format on hover
+                        element.setAttribute('title', `UTC: ${utcTime} | Local: ${localTime}`);
+                    } catch (err) {
+                        console.warn('Failed to convert timestamp:', utcTime, err);
+                    }
+                }
+            });
+        }
+
+        // Convert timestamps on page load
+        document.addEventListener('DOMContentLoaded', convertTimestampsToLocal);
+
+        // Also convert timestamps when new content is dynamically loaded (e.g., via HTMX)
+        if (typeof htmx !== 'undefined') {
+            document.addEventListener('htmx:afterSwap', convertTimestampsToLocal);
+        }
+
+        // Convert timestamps via WebSocket updates
+        const originalWebSocketOpen = WebSocket.prototype.open;
+        if (originalWebSocketOpen) {
+            // Re-convert after WebSocket message arrives
+            document.addEventListener('ws:update', convertTimestampsToLocal);
+        }
     </script>
 
     <!-- Spec/Plan Modal -->
