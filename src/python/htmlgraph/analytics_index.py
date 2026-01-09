@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4  # Bumped: renamed 'agent' column to 'agent_assigned'
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,7 @@ class AnalyticsIndex:
                 """
                 CREATE TABLE IF NOT EXISTS sessions (
                     session_id TEXT PRIMARY KEY,
-                    agent TEXT,
+                    agent_assigned TEXT,
                     start_commit TEXT,
                     continued_from TEXT,
                     status TEXT,
@@ -198,10 +198,10 @@ class AnalyticsIndex:
         with self.connect() as conn:
             conn.execute(
                 """
-                INSERT INTO sessions(session_id, agent, start_commit, continued_from, status, started_at, ended_at, parent_session_id, parent_event_id)
+                INSERT INTO sessions(session_id, agent_assigned, start_commit, continued_from, status, started_at, ended_at, parent_session_id, parent_event_id)
                 VALUES(?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(session_id) DO UPDATE SET
-                    agent=excluded.agent,
+                    agent_assigned=excluded.agent_assigned,
                     start_commit=excluded.start_commit,
                     continued_from=excluded.continued_from,
                     status=excluded.status,
@@ -509,12 +509,12 @@ class AnalyticsIndex:
             for meta in session_meta.values():
                 conn.execute(
                     """
-                    INSERT INTO sessions(session_id, agent, start_commit, continued_from, status, started_at, ended_at, parent_session_id, parent_event_id)
+                    INSERT INTO sessions(session_id, agent_assigned, start_commit, continued_from, status, started_at, ended_at, parent_session_id, parent_event_id)
                     VALUES(?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         meta.get("session_id"),
-                        meta.get("agent"),
+                        meta.get("agent"),  # Source data still uses 'agent' key
                         meta.get("start_commit"),
                         meta.get("continued_from"),
                         meta.get("status"),

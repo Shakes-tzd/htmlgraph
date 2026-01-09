@@ -41,6 +41,13 @@ Analytics:
     htmlgraph analytics                           # Project-wide analytics
     htmlgraph analytics --session-id SESSION_ID   # Single session analysis
     htmlgraph analytics --recent N                # Analyze recent N sessions
+
+Cost Attribution:
+    htmlgraph cigs cost-dashboard                 # Display cost summary in console
+    htmlgraph cigs cost-dashboard --save          # Save to .htmlgraph/cost-dashboard.html
+    htmlgraph cigs cost-dashboard --open          # Open in browser after generation
+    htmlgraph cigs cost-dashboard --json          # Output JSON instead of HTML
+    htmlgraph cigs cost-dashboard --output PATH   # Custom output path
 """
 
 import argparse
@@ -3547,6 +3554,552 @@ def cmd_cigs_reset_violations(args: argparse.Namespace) -> None:
     print("Starting fresh for this session")
 
 
+def cmd_cigs_cost_dashboard(args: argparse.Namespace) -> None:
+    """Generate cost attribution dashboard from HtmlGraph events."""
+    import webbrowser
+    from pathlib import Path
+
+    from htmlgraph.cigs.cost import CostCalculator
+    from htmlgraph.operations.events import query_events
+
+    graph_dir = Path(args.graph_dir or ".htmlgraph")
+
+    # Parse options
+    save = getattr(args, "save", False)
+    open_browser = getattr(args, "open", False)
+    output_json = getattr(args, "json", False)
+    output_path = getattr(args, "output", None)
+
+    # Display progress
+    with console.status("[blue]Analyzing HtmlGraph events...[/blue]", spinner="dots"):
+        try:
+            # Query all events
+            result = query_events(graph_dir=graph_dir, limit=None)
+            events = result.events if hasattr(result, "events") else []
+
+            if not events:
+                console.print(
+                    "[yellow]No events found. Run some work to generate analytics![/yellow]"
+                )
+                return
+
+            # Calculate costs from events
+            cost_calc = CostCalculator()
+            cost_summary = _analyze_event_costs(events, cost_calc)
+
+        except Exception as e:
+            console.print(f"[red]Error analyzing events: {e}[/red]")
+            return
+
+    # Generate output
+    if output_json:
+        _output_cost_json(cost_summary, output_path)
+    else:
+        html_content = _generate_cost_dashboard_html(cost_summary)
+
+        if save or output_path:
+            output_file = (
+                Path(output_path) if output_path else graph_dir / "cost-dashboard.html"
+            )
+            output_file.write_text(html_content)
+            console.print(f"[green]✓ Dashboard saved to: {output_file}[/green]")
+
+            if open_browser:
+                webbrowser.open(f"file://{output_file.absolute()}")
+                console.print("[blue]Opening dashboard in browser...[/blue]")
+        else:
+            # Display summary to console
+            _display_cost_summary(cost_summary)
+
+    # Print recommendations
+    _print_cost_recommendations(cost_summary)
+
+
+def _analyze_event_costs(events: list[dict], cost_calc: object) -> dict:
+    """Analyze events and calculate cost attribution."""
+    cost_summary: dict[str, Any] = {
+        "total_cost_tokens": 0,
+        "total_events": len(events),
+        "tool_costs": {},
+        "session_costs": {},
+        "delegation_count": 0,
+        "direct_execution_count": 0,
+        "cost_by_category": {},
+    }
+
+    for event in events:
+        try:
+            tool = event.get("tool", "unknown")
+            session_id = event.get("session_id", "unknown")
+            cost = (
+                event.get("predicted_tokens", 0)
+                or event.get("actual_tokens", 0)
+                or 2000
+            )
+
+            # Track by tool
+            if tool not in cost_summary["tool_costs"]:
+                cost_summary["tool_costs"][tool] = {"count": 0, "total_tokens": 0}
+            cost_summary["tool_costs"][tool]["count"] += 1
+            cost_summary["tool_costs"][tool]["total_tokens"] += cost
+
+            # Track by session
+            if session_id not in cost_summary["session_costs"]:
+                cost_summary["session_costs"][session_id] = {
+                    "count": 0,
+                    "total_tokens": 0,
+                }
+            cost_summary["session_costs"][session_id]["count"] += 1
+            cost_summary["session_costs"][session_id]["total_tokens"] += cost
+
+            # Track delegation vs direct
+            if tool in ["Task", "spawn_gemini", "spawn_codex", "spawn_copilot"]:
+                cost_summary["delegation_count"] += 1
+                category = "delegation"
+            else:
+                cost_summary["direct_execution_count"] += 1
+                category = "direct"
+
+            if category not in cost_summary["cost_by_category"]:
+                cost_summary["cost_by_category"][category] = {
+                    "count": 0,
+                    "total_tokens": 0,
+                }
+            cost_summary["cost_by_category"][category]["count"] += 1
+            cost_summary["cost_by_category"][category]["total_tokens"] += cost
+
+            cost_summary["total_cost_tokens"] += cost
+        except Exception:
+            continue
+
+    return cost_summary
+
+
+def _generate_cost_dashboard_html(cost_summary: dict) -> str:
+    """Generate HTML dashboard for cost attribution."""
+    from datetime import datetime
+
+    # Calculate metrics
+    total_cost = cost_summary["total_cost_tokens"]
+    total_events = cost_summary["total_events"]
+    avg_cost = total_cost / total_events if total_events > 0 else 0
+    delegation_pct = (
+        cost_summary["delegation_count"] / total_events * 100 if total_events > 0 else 0
+    )
+
+    # Estimate cost in dollars (assuming $0.001 per 1K tokens for simplicity)
+    cost_usd = total_cost / 1_000_000 * 5  # Rough estimate
+
+    # Sort tools by cost
+    sorted_tools = sorted(
+        cost_summary["tool_costs"].items(),
+        key=lambda x: x[1]["total_tokens"],
+        reverse=True,
+    )
+
+    # Sort sessions by cost
+    sorted_sessions = sorted(
+        cost_summary["session_costs"].items(),
+        key=lambda x: x[1]["total_tokens"],
+        reverse=True,
+    )
+
+    # Build tool cost rows
+    tool_rows = "".join(
+        f"""
+    <tr>
+        <td class="cell">{tool}</td>
+        <td class="cell number">{data["count"]}</td>
+        <td class="cell number">{data["total_tokens"]:,}</td>
+        <td class="cell number">{data["total_tokens"] / total_cost * 100:.1f}%</td>
+    </tr>
+    """
+        for tool, data in sorted_tools[:20]
+    )
+
+    # Build session cost rows
+    session_rows = "".join(
+        f"""
+    <tr>
+        <td class="cell">{session[:12]}...</td>
+        <td class="cell number">{data["count"]}</td>
+        <td class="cell number">{data["total_tokens"]:,}</td>
+        <td class="cell number">{data["total_tokens"] / total_cost * 100:.1f}%</td>
+    </tr>
+    """
+        for session, data in sorted_sessions[:20]
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HtmlGraph Cost Dashboard</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }}
+
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+
+        header {{
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }}
+
+        h1 {{
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }}
+
+        .timestamp {{
+            color: #999;
+            font-size: 12px;
+        }}
+
+        .metrics {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }}
+
+        .metric {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }}
+
+        .metric-label {{
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+
+        .metric-value {{
+            font-size: 32px;
+            font-weight: bold;
+        }}
+
+        .metric-unit {{
+            font-size: 14px;
+            opacity: 0.8;
+            margin-left: 8px;
+        }}
+
+        .metric.warning {{
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }}
+
+        .metric.success {{
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }}
+
+        section {{
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }}
+
+        h2 {{
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+
+        th {{
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+        }}
+
+        td {{
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }}
+
+        td.cell {{
+            color: #333;
+        }}
+
+        td.number {{
+            text-align: right;
+            font-family: 'Monaco', 'Courier New', monospace;
+            color: #667eea;
+            font-weight: 500;
+        }}
+
+        tr:hover {{
+            background: #f9f9f9;
+        }}
+
+        .insights {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }}
+
+        .insight {{
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 4px;
+        }}
+
+        .insight-title {{
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }}
+
+        .insight-text {{
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }}
+
+        .footer {{
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            margin-top: 40px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 HtmlGraph Cost Dashboard</h1>
+            <p class="timestamp">Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-label">Total Cost</div>
+                    <div class="metric-value">{total_cost:,}<span class="metric-unit">tokens</span></div>
+                </div>
+                <div class="metric success">
+                    <div class="metric-label">Estimated USD</div>
+                    <div class="metric-value">${cost_usd:.2f}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Average Cost</div>
+                    <div class="metric-value">{avg_cost:,.0f}<span class="metric-unit">tokens</span></div>
+                </div>
+                <div class="metric success">
+                    <div class="metric-label">Delegation Rate</div>
+                    <div class="metric-value">{delegation_pct:.1f}%</div>
+                </div>
+            </div>
+        </header>
+
+        <section>
+            <h2>📊 Cost by Tool</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Count</th>
+                        <th>Total Tokens</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {tool_rows}
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>🔄 Cost by Session</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Session ID</th>
+                        <th>Count</th>
+                        <th>Total Tokens</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {session_rows}
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>💡 Insights & Recommendations</h2>
+            <div class="insights">
+                <div class="insight">
+                    <div class="insight-title">✓ Delegation Usage</div>
+                    <div class="insight-text">
+                        You're delegating {delegation_pct:.1f}% of operations.
+                        {"Continue delegation for cost efficiency!" if delegation_pct > 50 else "Consider delegating more operations to reduce costs."}
+                    </div>
+                </div>
+                <div class="insight">
+                    <div class="insight-title">🎯 Top Cost Driver</div>
+                    <div class="insight-text">
+                        {sorted_tools[0][0] if sorted_tools else "N/A"} accounts for {sorted_tools[0][1]["total_tokens"] / total_cost * 100:.1f}% of total cost.
+                        Review if this tool usage is optimal.
+                    </div>
+                </div>
+                <div class="insight">
+                    <div class="insight-title">📈 Parallelization Opportunity</div>
+                    <div class="insight-text">
+                        Parallel Task() calls can reduce overall execution time by ~40%.
+                        Look for independent operations that can run simultaneously.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="footer">
+            <p>HtmlGraph Cost Attribution Dashboard | Real-time cost tracking and optimization</p>
+        </div>
+    </div>
+</body>
+</html>"""
+
+    return html
+
+
+def _output_cost_json(cost_summary: dict, output_path: str | None) -> None:
+    """Output cost data as JSON."""
+    import json
+
+    output_file = Path(output_path) if output_path else Path("cost-summary.json")
+    output_file.write_text(json.dumps(cost_summary, indent=2))
+    console.print(f"[green]✓ JSON output saved to: {output_file}[/green]")
+
+
+def _display_cost_summary(cost_summary: dict) -> None:
+    """Display cost summary in console."""
+    console.print("\n[bold cyan]Cost Dashboard Summary[/bold cyan]\n")
+
+    # Create summary table
+    summary_table = Table(
+        show_header=True, header_style="bold magenta", box=box.ROUNDED
+    )
+    summary_table.add_column("Metric", style="cyan")
+    summary_table.add_column("Value", style="green")
+
+    total_tokens = cost_summary["total_cost_tokens"]
+    total_events = cost_summary["total_events"]
+    avg_tokens = total_tokens / total_events if total_events > 0 else 0
+    delegation_pct = (
+        cost_summary["delegation_count"] / total_events * 100 if total_events > 0 else 0
+    )
+    cost_usd = total_tokens / 1_000_000 * 5
+
+    summary_table.add_row("Total Events", str(total_events))
+    summary_table.add_row("Total Cost", f"{total_tokens:,} tokens")
+    summary_table.add_row("Average Cost", f"{avg_tokens:,.0f} tokens/event")
+    summary_table.add_row("Estimated USD", f"${cost_usd:.2f}")
+    summary_table.add_row("Delegation Count", str(cost_summary["delegation_count"]))
+    summary_table.add_row("Delegation Rate", f"{delegation_pct:.1f}%")
+    summary_table.add_row(
+        "Direct Executions", str(cost_summary["direct_execution_count"])
+    )
+
+    console.print(summary_table)
+
+    # Top tools
+    if cost_summary["tool_costs"]:
+        console.print("\n[bold cyan]Top Cost Drivers (by Tool)[/bold cyan]\n")
+        tools_table = Table(
+            show_header=True, header_style="bold magenta", box=box.ROUNDED
+        )
+        tools_table.add_column("Tool", style="cyan")
+        tools_table.add_column("Count", justify="right", style="green")
+        tools_table.add_column("Tokens", justify="right", style="yellow")
+        tools_table.add_column("% Total", justify="right", style="magenta")
+
+        for tool, data in sorted(
+            cost_summary["tool_costs"].items(),
+            key=lambda x: x[1]["total_tokens"],
+            reverse=True,
+        )[:10]:
+            pct = data["total_tokens"] / total_tokens * 100
+            tools_table.add_row(
+                tool, str(data["count"]), f"{data['total_tokens']:,}", f"{pct:.1f}%"
+            )
+
+        console.print(tools_table)
+
+
+def _print_cost_recommendations(cost_summary: dict) -> None:
+    """Print recommendations for cost optimization."""
+    console.print("\n[bold cyan]Recommendations[/bold cyan]\n")
+
+    total_events = cost_summary["total_events"]
+    delegation_pct = (
+        cost_summary["delegation_count"] / total_events * 100 if total_events > 0 else 0
+    )
+
+    recommendations = []
+
+    if delegation_pct < 50:
+        recommendations.append(
+            "[yellow]→ Increase delegation usage[/yellow] - Consider using Task() and spawn_* for more operations"
+        )
+
+    if cost_summary["tool_costs"]:
+        top_tool = max(
+            cost_summary["tool_costs"].items(), key=lambda x: x[1]["total_tokens"]
+        )
+        if top_tool[1]["total_tokens"] / cost_summary["total_cost_tokens"] > 0.4:
+            recommendations.append(
+                f"[yellow]→ Review {top_tool[0]} usage[/yellow] - It accounts for {top_tool[1]['total_tokens'] / cost_summary['total_cost_tokens'] * 100:.1f}% of total cost"
+            )
+
+    if total_events > 100:
+        recommendations.append(
+            "[green]✓ Good event volume[/green] - Sufficient data for optimization analysis"
+        )
+
+    recommendations.append(
+        "[blue]💡 Tip: Use parallel Task() calls to reduce execution time by ~40%[/blue]"
+    )
+
+    for rec in recommendations:
+        console.print(f"  {rec}")
+
+    console.print()
+
+
 def cmd_publish(args: argparse.Namespace) -> None:
     """Build and publish the package to PyPI (Interoperable)."""
     import shutil
@@ -5981,6 +6534,27 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
         "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
     )
 
+    # cigs cost dashboard
+    cigs_cost_dashboard = cigs_subparsers.add_parser(
+        "cost-dashboard", help="Generate cost attribution dashboard"
+    )
+    cigs_cost_dashboard.add_argument(
+        "--graph-dir", "-g", default=".htmlgraph", help="Graph directory"
+    )
+    cigs_cost_dashboard.add_argument(
+        "--save",
+        "-s",
+        action="store_true",
+        help="Save to .htmlgraph/cost-dashboard.html",
+    )
+    cigs_cost_dashboard.add_argument(
+        "--open", "-o", action="store_true", help="Open in browser after generation"
+    )
+    cigs_cost_dashboard.add_argument(
+        "--json", action="store_true", help="Output JSON instead of HTML"
+    )
+    cigs_cost_dashboard.add_argument("--output", type=str, help="Custom output path")
+
     # install-gemini-extension
     subparsers.add_parser(
         "install-gemini-extension",
@@ -6258,6 +6832,8 @@ For more help: https://github.com/Shakes-tzd/htmlgraph
             cmd_cigs_patterns(args)
         elif args.cigs_command == "reset-violations":
             cmd_cigs_reset_violations(args)
+        elif args.cigs_command == "cost-dashboard":
+            cmd_cigs_cost_dashboard(args)
         else:
             cigs_parser.print_help()
             sys.exit(1)

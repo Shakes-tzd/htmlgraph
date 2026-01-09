@@ -77,6 +77,65 @@ class HtmlGraphDB:
             self.connection.close()
             self.connection = None
 
+    def _migrate_sessions_table(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migrate sessions table from old schema to new schema.
+
+        Old schema had columns: session_id, agent, start_commit, continued_from,
+                               status, started_at, ended_at
+        New schema expects: session_id, agent_assigned, parent_session_id,
+                           parent_event_id, created_at, etc.
+        """
+        # Check if sessions table exists with old schema
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+        )
+        if not cursor.fetchone():
+            return  # Table doesn't exist yet, will be created fresh
+
+        # Get current columns
+        cursor.execute("PRAGMA table_info(sessions)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        # Migration: rename 'agent' to 'agent_assigned' if needed
+        if "agent" in columns and "agent_assigned" not in columns:
+            cursor.execute("ALTER TABLE sessions RENAME COLUMN agent TO agent_assigned")
+            logger.info("Migrated sessions.agent -> sessions.agent_assigned")
+
+        # Add missing columns with defaults
+        # Note: SQLite doesn't allow CURRENT_TIMESTAMP in ALTER TABLE, so we use NULL
+        migrations = [
+            ("parent_session_id", "TEXT"),
+            ("parent_event_id", "TEXT"),
+            ("created_at", "DATETIME"),  # Can't use DEFAULT CURRENT_TIMESTAMP in ALTER
+            ("is_subagent", "INTEGER DEFAULT 0"),
+            ("total_events", "INTEGER DEFAULT 0"),
+            ("total_tokens_used", "INTEGER DEFAULT 0"),
+            ("context_drift", "REAL DEFAULT 0.0"),
+            ("transcript_id", "TEXT"),
+            ("transcript_path", "TEXT"),
+            ("transcript_synced", "INTEGER DEFAULT 0"),
+            ("end_commit", "TEXT"),
+            ("features_worked_on", "TEXT"),
+            ("metadata", "TEXT"),
+            ("completed_at", "DATETIME"),
+        ]
+
+        # Refresh columns after potential rename
+        cursor.execute("PRAGMA table_info(sessions)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        for col_name, col_type in migrations:
+            if col_name not in columns:
+                try:
+                    cursor.execute(
+                        f"ALTER TABLE sessions ADD COLUMN {col_name} {col_type}"
+                    )
+                    logger.info(f"Added column sessions.{col_name}")
+                except sqlite3.OperationalError as e:
+                    # Column may already exist
+                    logger.debug(f"Could not add {col_name}: {e}")
+
     def create_tables(self) -> None:
         """
         Create all required tables in SQLite database.
@@ -95,6 +154,9 @@ class HtmlGraphDB:
             self.connect()
 
         cursor = self.connection.cursor()  # type: ignore[union-attr]
+
+        # Run migrations for existing tables before creating new ones
+        self._migrate_sessions_table(cursor)
 
         # 1. AGENT_EVENTS TABLE - Core event tracking
         cursor.execute("""
@@ -534,7 +596,7 @@ class HtmlGraphDB:
             cursor = self.connection.cursor()  # type: ignore[union-attr]
             cursor.execute(
                 """
-                INSERT INTO sessions
+                INSERT OR IGNORE INTO sessions
                 (session_id, agent_assigned, parent_session_id, parent_event_id,
                  is_subagent, transcript_id, transcript_path)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -870,7 +932,7 @@ class HtmlGraphDB:
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
-        Query delegation events with optional filtering.
+        Query delegation events from agent_events (Task tool calls).
 
         Args:
             session_id: Filter by session (optional)
@@ -887,27 +949,31 @@ class HtmlGraphDB:
         try:
             cursor = self.connection.cursor()  # type: ignore[union-attr]
 
-            # Build dynamic WHERE clause
-            where_clauses = ["handoff_type = 'delegation'"]
+            # Build WHERE clause
+            where_clauses = ["tool_name = 'Task'"]
             params: list[str | int] = []
 
             if session_id:
                 where_clauses.append("session_id = ?")
                 params.append(session_id)
             if from_agent:
-                where_clauses.append("from_agent = ?")
+                where_clauses.append("agent_id = ?")
                 params.append(from_agent)
-            if to_agent:
-                where_clauses.append("to_agent = ?")
-                params.append(to_agent)
 
             where_sql = " AND ".join(where_clauses)
 
+            # Query Task events - extract subagent type from context JSON
             cursor.execute(
                 f"""
-                SELECT handoff_id, from_agent, to_agent, timestamp, reason,
-                       feature_id, session_id, status, context
-                FROM agent_collaboration
+                SELECT
+                    event_id,
+                    agent_id as from_agent,
+                    context,
+                    timestamp,
+                    input_summary as reason,
+                    status,
+                    session_id
+                FROM agent_events
                 WHERE {where_sql}
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -916,7 +982,34 @@ class HtmlGraphDB:
             )
 
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+
+            # Convert to dictionaries and extract subagent info from context
+            import json
+
+            delegations = []
+            for row in rows:
+                row_dict = dict(row)
+
+                # Extract subagent_type from context JSON
+                to_agent = "unknown"
+                try:
+                    context = row_dict.get("context", "{}")
+                    context_data = (
+                        json.loads(context) if isinstance(context, str) else context
+                    )
+                    to_agent = context_data.get("subagent_type", "unknown")
+                except Exception:
+                    pass
+
+                row_dict["to_agent"] = to_agent
+                row_dict["reason"] = row_dict.get("reason", "")[:100]
+
+                # Remove context from output (already extracted what we need)
+                row_dict.pop("context", None)
+
+                delegations.append(row_dict)
+
+            return delegations
         except sqlite3.Error as e:
             logger.error(f"Error querying delegations: {e}")
             return []

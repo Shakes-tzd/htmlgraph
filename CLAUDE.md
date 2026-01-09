@@ -118,6 +118,54 @@ This project uses HtmlGraph to develop HtmlGraph. The `.htmlgraph/` directory co
 
 ---
 
+## Hook & Plugin Development
+
+**CRITICAL: All hook and system changes must be made to the PLUGIN SOURCE, not the local `.claude/` directory.**
+
+### Directory Structure
+
+```
+packages/claude-plugin/.claude-plugin/  <-- SOURCE (make changes here)
+├── hooks/
+│   ├── hooks.json
+│   └── scripts/
+│       ├── session-start.py
+│       ├── posttooluse-integrator.py
+│       └── ...
+├── agents/
+├── skills/
+└── plugin.json
+
+.claude/  <-- LOCAL COPY (synced from plugin, don't edit directly)
+```
+
+### Why This Matters
+
+1. **Publishability** - The plugin at `packages/claude-plugin/` is what gets published
+2. **Dogfooding** - We use our own plugin to develop HtmlGraph
+3. **Sync** - Changes to `.claude/` are overwritten when plugin is updated
+
+### Workflow
+
+1. Make changes in `packages/claude-plugin/.claude-plugin/`
+2. Run `claude plugin update htmlgraph` to sync to `.claude/`
+3. Test the changes
+4. Commit changes to plugin source
+
+### Never Do This
+
+- Edit `.claude/hooks/hooks.json` directly
+- Edit `.claude/hooks/scripts/*.py` directly
+- Make changes to `.claude/` expecting them to persist
+
+### Always Do This
+
+- Edit `packages/claude-plugin/.claude-plugin/hooks/hooks.json`
+- Edit `packages/claude-plugin/.claude-plugin/hooks/scripts/*.py`
+- Sync via `claude plugin update htmlgraph` after changes
+
+---
+
 ## Project vs General Tooling
 
 **This project is both:**

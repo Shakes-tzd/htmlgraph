@@ -543,6 +543,48 @@ def get_app(db_path: str) -> FastAPI:
         finally:
             await db.close()
 
+    # ========== INITIAL STATS ENDPOINT ==========
+
+    @app.get("/api/initial-stats")
+    async def initial_stats() -> dict[str, Any]:
+        """Get initial statistics for dashboard header (events, agents, sessions)."""
+        db = await get_db()
+        try:
+            # Query all stats in a single query for efficiency
+            stats_query = """
+                SELECT
+                    (SELECT COUNT(*) FROM agent_events) as total_events,
+                    (SELECT COUNT(DISTINCT agent_id) FROM agent_events) as total_agents,
+                    (SELECT COUNT(*) FROM sessions) as total_sessions
+            """
+            cursor = await db.execute(stats_query)
+            row = await cursor.fetchone()
+
+            # Query distinct agent IDs for the agent set
+            agents_query = (
+                "SELECT DISTINCT agent_id FROM agent_events WHERE agent_id IS NOT NULL"
+            )
+            agents_cursor = await db.execute(agents_query)
+            agents_rows = await agents_cursor.fetchall()
+            agents = [row[0] for row in agents_rows]
+
+            if row is None:
+                return {
+                    "total_events": 0,
+                    "total_agents": 0,
+                    "total_sessions": 0,
+                    "agents": agents,
+                }
+
+            return {
+                "total_events": int(row[0]) if row[0] else 0,
+                "total_agents": int(row[1]) if row[1] else 0,
+                "total_sessions": int(row[2]) if row[2] else 0,
+                "agents": agents,
+            }
+        finally:
+            await db.close()
+
     # ========== PERFORMANCE METRICS ENDPOINT ==========
 
     @app.get("/api/query-metrics")
@@ -984,6 +1026,135 @@ def get_app(db_path: str) -> FastAPI:
         finally:
             await db.close()
 
+    # ========== SESSIONS API ENDPOINT ==========
+
+    @app.get("/api/sessions")
+    async def get_sessions(
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Get sessions from the database.
+
+        Args:
+            status: Filter by session status (e.g., 'active', 'completed')
+            limit: Maximum number of sessions to return (default 50)
+            offset: Number of sessions to skip (default 0)
+
+        Returns:
+            {
+                "total": int,
+                "limit": int,
+                "offset": int,
+                "sessions": [
+                    {
+                        "session_id": str,
+                        "agent": str | None,
+                        "continued_from": str | None,
+                        "started_at": str,
+                        "status": str,
+                        "start_commit": str | None,
+                        "ended_at": str | None
+                    }
+                ]
+            }
+        """
+        db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
+        try:
+            # Create cache key from query parameters
+            cache_key = f"api_sessions:{status or 'all'}:{limit}:{offset}"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                logger.debug(
+                    f"Cache HIT for api_sessions (key={cache_key}, time={query_time_ms:.2f}ms)"
+                )
+                return cached_result  # type: ignore[no-any-return]
+
+            exec_start = time.time()
+
+            # Build query with optional status filter
+            # Note: index.sqlite uses different column names than htmlgraph.db
+            query = """
+                SELECT
+                    session_id,
+                    agent,
+                    continued_from,
+                    started_at,
+                    status,
+                    start_commit,
+                    ended_at
+                FROM sessions
+                WHERE 1=1
+            """
+            params: list[Any] = []
+
+            if status:
+                query += " AND status = ?"
+                params.append(status)
+
+            query += " ORDER BY started_at DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+            cursor = await db.execute(query, params)
+            rows = await cursor.fetchall()
+
+            # Get total count for pagination
+            count_query = "SELECT COUNT(*) FROM sessions WHERE 1=1"
+            count_params: list[Any] = []
+            if status:
+                count_query += " AND status = ?"
+                count_params.append(status)
+
+            count_cursor = await db.execute(count_query, count_params)
+            count_row = await count_cursor.fetchone()
+            total = int(count_row[0]) if count_row else 0
+
+            # Build session objects
+            sessions = []
+            for row in rows:
+                sessions.append(
+                    {
+                        "session_id": row[0],
+                        "agent": row[1],
+                        "continued_from": row[2],
+                        "started_at": row[3],
+                        "status": row[4] or "unknown",
+                        "start_commit": row[5],
+                        "ended_at": row[6],
+                    }
+                )
+
+            exec_time_ms = (time.time() - exec_start) * 1000
+
+            result = {
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "sessions": sessions,
+            }
+
+            # Cache the result
+            cache.set(cache_key, result)
+            query_time_ms = (time.time() - query_start_time) * 1000
+            cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+            logger.debug(
+                f"Cache MISS for api_sessions (key={cache_key}, "
+                f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms, "
+                f"sessions={len(sessions)})"
+            )
+
+            return result
+
+        finally:
+            await db.close()
+
     # ========== ORCHESTRATION ENDPOINTS ==========
 
     @app.get("/views/orchestration", response_class=HTMLResponse)
@@ -991,52 +1162,55 @@ def get_app(db_path: str) -> FastAPI:
         """Get delegation chains and agent handoffs as HTMX partial."""
         db = await get_db()
         try:
-            # Query from agent_collaboration table which stores delegations
+            # Query delegation events from agent_events table
+            # Use same query as API endpoint - filter by tool_name = 'Task'
             query = """
-                SELECT handoff_id, from_agent, to_agent, timestamp, reason,
-                       session_id, status, context
-                FROM agent_collaboration
-                WHERE handoff_type = 'delegation'
+                SELECT
+                    event_id,
+                    agent_id as from_agent,
+                    subagent_type as to_agent,
+                    timestamp,
+                    input_summary,
+                    session_id,
+                    status
+                FROM agent_events
+                WHERE tool_name = 'Task'
                 ORDER BY timestamp DESC
                 LIMIT 50
             """
 
             cursor = await db.execute(query)
             rows = list(await cursor.fetchall())
-            print(f"DEBUG orchestration_view: Query executed, got {len(rows)} rows")
-            if rows:
-                print(f"DEBUG: First row raw: {rows[0]}")
+            logger.debug(f"orchestration_view: Query executed, got {len(rows)} rows")
 
             delegations = []
             for row in rows:
-                # Parse context JSON if it exists
-                context_data = {}
-                try:
-                    if row[7]:  # context field
-                        context_data = (
-                            json.loads(row[7]) if isinstance(row[7], str) else row[7]
-                        )
-                except Exception:
-                    pass
+                from_agent = row[1] or "unknown"
+                to_agent = row[2]  # May be NULL
+                task_summary = row[4] or ""
+
+                # Extract to_agent from input_summary JSON if NULL
+                if not to_agent:
+                    try:
+                        input_data = json.loads(task_summary) if task_summary else {}
+                        to_agent = input_data.get("subagent_type", "unknown")
+                    except Exception:
+                        to_agent = "unknown"
 
                 delegation = {
-                    "handoff_id": row[0],
-                    "event_id": row[
-                        0
-                    ],  # Use handoff_id as event_id for template compatibility
-                    "from_agent": row[1],
-                    "to_agent": row[2],
+                    "event_id": row[0],
+                    "from_agent": from_agent,
+                    "to_agent": to_agent,
                     "timestamp": row[3],
-                    "reason": row[4],
+                    "task": task_summary or "Unnamed task",
                     "session_id": row[5],
-                    "status": row[6],
-                    "context": row[7],
-                    "task": context_data.get("task_description", ""),
-                    "result": context_data.get("result", ""),
+                    "status": row[6] or "pending",
+                    "result": "",  # Not available in agent_events
                 }
                 delegations.append(delegation)
-            print(
-                f"DEBUG orchestration_view: Created {len(delegations)} delegation dicts"
+
+            logger.debug(
+                f"orchestration_view: Created {len(delegations)} delegation dicts"
             )
 
             return templates.TemplateResponse(
@@ -1047,7 +1221,227 @@ def get_app(db_path: str) -> FastAPI:
                 },
             )
         except Exception as e:
-            print(f"DEBUG orchestration_view ERROR: {e}")
+            logger.error(f"orchestration_view ERROR: {e}")
+            raise
+        finally:
+            await db.close()
+
+    @app.get("/api/orchestration")
+    async def orchestration_api() -> dict[str, Any]:
+        """Get delegation chains and agent coordination information as JSON.
+
+        Returns:
+            {
+                "delegation_count": int,
+                "unique_agents": int,
+                "agents": [str],
+                "delegation_chains": {
+                    "from_agent": [
+                        {
+                            "to_agent": str,
+                            "event_type": str,
+                            "timestamp": str,
+                            "task": str,
+                            "status": str
+                        }
+                    ]
+                }
+            }
+        """
+        db = await get_db()
+        try:
+            # Query delegation events from agent_events table
+            # Filter by tool_name = 'Task' (not event_type)
+            query = """
+                SELECT
+                    event_id,
+                    agent_id as from_agent,
+                    subagent_type as to_agent,
+                    timestamp,
+                    input_summary,
+                    status
+                FROM agent_events
+                WHERE tool_name = 'Task'
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            """
+
+            cursor = await db.execute(query)
+            rows = await cursor.fetchall()
+
+            # Build delegation chains grouped by from_agent
+            delegation_chains: dict[str, list[dict[str, Any]]] = {}
+            agents = set()
+            delegation_count = 0
+
+            for row in rows:
+                from_agent = row[1] or "unknown"
+                to_agent = row[2]  # May be NULL
+                timestamp = row[3] or ""
+                task_summary = row[4] or ""
+                status = row[5] or "pending"
+
+                # Extract to_agent from input_summary JSON if NULL
+                if not to_agent:
+                    try:
+                        import json
+
+                        input_data = json.loads(task_summary) if task_summary else {}
+                        to_agent = input_data.get("subagent_type", "unknown")
+                    except Exception:
+                        to_agent = "unknown"
+
+                agents.add(from_agent)
+                agents.add(to_agent)
+                delegation_count += 1
+
+                if from_agent not in delegation_chains:
+                    delegation_chains[from_agent] = []
+
+                delegation_chains[from_agent].append(
+                    {
+                        "to_agent": to_agent,
+                        "event_type": "delegation",
+                        "timestamp": timestamp,
+                        "task": task_summary or "Unnamed task",
+                        "status": status,
+                    }
+                )
+
+            return {
+                "delegation_count": delegation_count,
+                "unique_agents": len(agents),
+                "agents": sorted(list(agents)),
+                "delegation_chains": delegation_chains,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get orchestration data: {e}")
+            raise
+        finally:
+            await db.close()
+
+    @app.get("/api/orchestration/delegations")
+    async def orchestration_delegations_api() -> dict[str, Any]:
+        """Get delegation statistics and chains as JSON.
+
+        This endpoint is used by the dashboard JavaScript to display
+        delegation metrics in the orchestration panel.
+
+        Returns:
+            {
+                "delegation_count": int,
+                "unique_agents": int,
+                "delegation_chains": {
+                    "from_agent": [
+                        {
+                            "to_agent": str,
+                            "timestamp": str,
+                            "task": str,
+                            "status": str
+                        }
+                    ]
+                }
+            }
+        """
+        db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
+        try:
+            # Create cache key
+            cache_key = "orchestration_delegations:all"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                logger.debug(
+                    f"Cache HIT for orchestration_delegations (key={cache_key}, "
+                    f"time={query_time_ms:.2f}ms)"
+                )
+                return cached_result  # type: ignore[no-any-return]
+
+            exec_start = time.time()
+
+            # Query delegation events from agent_events table
+            # Filter by tool_name = 'Task' to get Task() delegations
+            query = """
+                SELECT
+                    event_id,
+                    agent_id as from_agent,
+                    subagent_type as to_agent,
+                    timestamp,
+                    input_summary,
+                    status
+                FROM agent_events
+                WHERE tool_name = 'Task'
+                ORDER BY timestamp DESC
+                LIMIT 1000
+            """
+
+            cursor = await db.execute(query)
+            rows = await cursor.fetchall()
+
+            # Build delegation chains grouped by from_agent
+            delegation_chains: dict[str, list[dict[str, Any]]] = {}
+            agents = set()
+            delegation_count = 0
+
+            for row in rows:
+                from_agent = row[1] or "unknown"
+                to_agent = row[2]  # May be NULL
+                timestamp = row[3] or ""
+                task_summary = row[4] or ""
+                status = row[5] or "pending"
+
+                # Extract to_agent from input_summary JSON if NULL
+                if not to_agent:
+                    try:
+                        input_data = json.loads(task_summary) if task_summary else {}
+                        to_agent = input_data.get("subagent_type", "unknown")
+                    except Exception:
+                        to_agent = "unknown"
+
+                agents.add(from_agent)
+                agents.add(to_agent)
+                delegation_count += 1
+
+                if from_agent not in delegation_chains:
+                    delegation_chains[from_agent] = []
+
+                delegation_chains[from_agent].append(
+                    {
+                        "to_agent": to_agent,
+                        "timestamp": timestamp,
+                        "task": task_summary or "Unnamed task",
+                        "status": status,
+                    }
+                )
+
+            exec_time_ms = (time.time() - exec_start) * 1000
+
+            result = {
+                "delegation_count": delegation_count,
+                "unique_agents": len(agents),
+                "delegation_chains": delegation_chains,
+            }
+
+            # Cache the result
+            cache.set(cache_key, result)
+            query_time_ms = (time.time() - query_start_time) * 1000
+            cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+            logger.debug(
+                f"Cache MISS for orchestration_delegations (key={cache_key}, "
+                f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms, "
+                f"delegations={delegation_count})"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get orchestration delegations: {e}")
             raise
         finally:
             await db.close()
@@ -1334,8 +1728,8 @@ def get_app(db_path: str) -> FastAPI:
 def create_app(db_path: str | None = None) -> FastAPI:
     """Create FastAPI app with default database path."""
     if db_path is None:
-        # Use default database location
-        db_path = str(Path.home() / ".htmlgraph" / "htmlgraph.db")
+        # Use default database location - index.sqlite is the unified database
+        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
 
     return get_app(db_path)
 
