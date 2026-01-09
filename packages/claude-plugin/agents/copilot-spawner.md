@@ -1,11 +1,9 @@
 ---
-description: Spawn GitHub Copilot for GitHub-integrated workflows with tool permission controls and automatic fallback to Sonnet
-capabilities:
-  - GitHub integration (repos, issues, PRs, actions)
-  - Fine-grained tool permissions (allowlist/denylist)
-  - Git workflow automation
-  - Code review assistance with GitHub context
-  - Automatic fallback to Sonnet on failure or quota exceeded
+name: copilot-spawner
+description: "Use this agent when you need to spawn GitHub Copilot for GitHub-integrated workflows, git operations, and repository management. Examples: <example>Context: User needs git operations\\nuser: \"Commit and push changes\"\\nassistant: Uses copilot-spawner for GitHub-integrated git workflow</example>"
+model: haiku
+color: blue
+tools: ["Read", "Bash", "Grep", "Glob"]
 ---
 
 # Copilot Spawner Agent

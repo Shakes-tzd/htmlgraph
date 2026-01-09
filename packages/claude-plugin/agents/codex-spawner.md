@@ -1,11 +1,9 @@
 ---
-description: Spawn OpenAI Codex (GPT-4) for code generation, sandboxed execution, and structured outputs with automatic fallback to Sonnet
-capabilities:
-  - Code generation requiring GPT-4 reasoning
-  - Sandboxed execution (read-only, workspace-write, full-access modes)
-  - Structured JSON outputs with schema validation
-  - Isolated execution context for independent tasks
-  - Automatic fallback to Sonnet on failure or timeout
+name: codex-spawner
+description: "Use this agent when you need to spawn OpenAI Codex (GPT-4) for code generation, sandboxed execution, and implementation tasks. Examples: <example>Context: User needs code implementation\\nuser: \"Implement JWT authentication\"\\nassistant: Uses codex-spawner for specialized code generation</example>"
+model: haiku
+color: purple
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 ---
 
 # Codex Spawner Agent
