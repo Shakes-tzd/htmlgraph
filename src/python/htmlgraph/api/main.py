@@ -1080,11 +1080,11 @@ def get_app(db_path: str) -> FastAPI:
             exec_start = time.time()
 
             # Build query with optional status filter
-            # Note: index.sqlite uses different column names than htmlgraph.db
+            # Note: Database uses agent_assigned but started_at/ended_at (partial migration)
             query = """
                 SELECT
                     session_id,
-                    agent,
+                    agent_assigned,
                     continued_from,
                     started_at,
                     status,
@@ -1117,17 +1117,18 @@ def get_app(db_path: str) -> FastAPI:
             total = int(count_row[0]) if count_row else 0
 
             # Build session objects
+            # Map schema columns to API response fields for backward compatibility
             sessions = []
             for row in rows:
                 sessions.append(
                     {
                         "session_id": row[0],
-                        "agent": row[1],
-                        "continued_from": row[2],
-                        "started_at": row[3],
+                        "agent": row[1],  # agent_assigned -> agent for API compat
+                        "continued_from": row[2],  # parent_session_id
+                        "started_at": row[3],  # created_at -> started_at for API compat
                         "status": row[4] or "unknown",
                         "start_commit": row[5],
-                        "ended_at": row[6],
+                        "ended_at": row[6],  # completed_at -> ended_at for API compat
                     }
                 )
 
@@ -1555,10 +1556,11 @@ def get_app(db_path: str) -> FastAPI:
             else:
                 # OPTIMIZATION: Combine session data with event counts in single query
                 # This eliminates N+1 query problem (was 20+ queries, now 2)
+                # Note: Database uses agent_assigned but started_at/ended_at (partial migration)
                 query = """
                     SELECT
                         s.session_id,
-                        s.agent,
+                        s.agent_assigned,
                         s.status,
                         s.started_at,
                         s.ended_at,
@@ -1655,9 +1657,15 @@ def get_app(db_path: str) -> FastAPI:
 
         OPTIMIZATION: Uses timestamp-based filtering to minimize data transfers.
         The timestamp > ? filter with DESC index makes queries O(log n) instead of O(n).
+
+        IMPORTANT: Initializes last_timestamp to current time to only stream NEW events.
+        Historical events are already counted in /api/initial-stats, so streaming them
+        again would cause double-counting in the header stats.
         """
         await websocket.accept()
-        last_timestamp: str | None = None
+        # Initialize to current time - only stream events created AFTER connection
+        # This prevents double-counting: initial-stats already includes historical events
+        last_timestamp: str = datetime.now().isoformat()
         poll_interval = 0.5  # OPTIMIZATION: Adaptive polling (reduced from 1s)
 
         try:
@@ -1666,21 +1674,17 @@ def get_app(db_path: str) -> FastAPI:
                 try:
                     # OPTIMIZATION: Only select needed columns, use DESC index
                     # Pattern uses index: idx_agent_events_timestamp DESC
+                    # Only fetch events AFTER last_timestamp to stream new events only
                     query = """
                         SELECT event_id, agent_id, event_type, timestamp, tool_name,
                                input_summary, output_summary, session_id, status
                         FROM agent_events
-                        WHERE 1=1
+                        WHERE timestamp > ?
+                        ORDER BY timestamp ASC
+                        LIMIT 100
                     """
-                    params: list = []
 
-                    if last_timestamp:
-                        query += " AND timestamp > ?"
-                        params.append(last_timestamp)
-
-                    query += " ORDER BY timestamp ASC LIMIT 100"
-
-                    cursor = await db.execute(query, params)
+                    cursor = await db.execute(query, [last_timestamp])
                     rows = await cursor.fetchall()
 
                     if rows:

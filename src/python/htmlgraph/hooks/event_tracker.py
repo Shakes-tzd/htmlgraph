@@ -299,6 +299,40 @@ def resolve_project_path(cwd: str | None = None) -> str:
     return start_dir
 
 
+def detect_agent_from_environment() -> str:
+    """
+    Detect the agent/model name from environment variables.
+
+    Checks multiple environment variables in order of priority:
+    1. HTMLGRAPH_AGENT - Explicit agent name set by user
+    2. HTMLGRAPH_SUBAGENT_TYPE - For subagent sessions
+    3. CLAUDE_MODEL - Model name if exposed by Claude Code
+    4. ANTHROPIC_MODEL - Alternative model env var
+    5. HTMLGRAPH_PARENT_AGENT - Parent agent context
+
+    Falls back to 'claude-code' if no environment variable is set.
+
+    Returns:
+        Agent/model identifier string
+    """
+    # Check environment variables in priority order
+    env_vars = [
+        "HTMLGRAPH_AGENT",
+        "HTMLGRAPH_SUBAGENT_TYPE",
+        "CLAUDE_MODEL",
+        "ANTHROPIC_MODEL",
+        "HTMLGRAPH_PARENT_AGENT",
+    ]
+
+    for var in env_vars:
+        value = os.environ.get(var)
+        if value and value.strip():
+            return value.strip()
+
+    # Default fallback
+    return "claude-code"
+
+
 def extract_file_paths(tool_input: dict, tool_name: str) -> list[str]:
     """Extract file paths from tool input based on tool type."""
     paths = []
@@ -386,6 +420,7 @@ def record_event_to_sqlite(
     file_paths: list[str] | None = None,
     parent_event_id: str | None = None,
     agent_id: str | None = None,
+    subagent_type: str | None = None,
 ) -> str | None:
     """
     Record a tool call event to SQLite database for dashboard queries.
@@ -399,6 +434,8 @@ def record_event_to_sqlite(
         is_error: Whether the tool call resulted in an error
         file_paths: File paths affected by the tool
         parent_event_id: Parent event ID if this is a child event
+        agent_id: Agent identifier (optional)
+        subagent_type: Subagent type for Task delegations (optional)
 
     Returns:
         event_id if successful, None otherwise
@@ -441,6 +478,7 @@ def record_event_to_sqlite(
             context=context,
             parent_event_id=parent_event_id,
             cost_tokens=0,
+            subagent_type=subagent_type,
         )
 
         if success:
@@ -532,10 +570,13 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
     # Initialize SQLite database for event recording
     db = None
     try:
-        db = HtmlGraphDB(str(graph_dir / "htmlgraph.db"))
+        db = HtmlGraphDB(str(graph_dir / "index.sqlite"))
     except Exception as e:
         print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
         # Continue without SQLite (graceful degradation)
+
+    # Detect agent from environment
+    detected_agent = detect_agent_from_environment()
 
     # Get active session ID
     active_session = manager.get_active_session()
@@ -544,7 +585,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
         try:
             active_session = manager.start_session(
                 session_id=None,
-                agent="claude-code",
+                agent=detected_agent,
                 title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             )
         except Exception:
@@ -557,7 +598,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
         try:
             db.insert_session(
                 session_id=active_session_id,
-                agent_assigned=getattr(active_session, "agent", "claude-code"),
+                agent_assigned=getattr(active_session, "agent", None) or detected_agent,
                 is_subagent=getattr(active_session, "is_subagent", False),
                 transcript_id=getattr(active_session, "transcript_id", None),
                 transcript_path=getattr(active_session, "transcript_path", None),
@@ -579,17 +620,6 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
             # Record to SQLite if available
             if db:
-                # Get agent from environment first, then session, then default
-                agent_from_env = os.environ.get("HTMLGRAPH_AGENT")
-                agent_id_to_use = (
-                    agent_from_env
-                    or (
-                        getattr(active_session, "agent", None)
-                        if active_session
-                        else None
-                    )
-                    or "claude-code"
-                )
                 record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
@@ -597,7 +627,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     tool_input={},
                     tool_response={"content": "Agent stopped"},
                     is_error=False,
-                    agent_id=agent_id_to_use,
+                    agent_id=detected_agent,
                 )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
@@ -617,17 +647,6 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
             # Record to SQLite if available
             if db:
-                # Get agent from environment first, then session, then default
-                agent_from_env = os.environ.get("HTMLGRAPH_AGENT")
-                agent_id_to_use = (
-                    agent_from_env
-                    or (
-                        getattr(active_session, "agent", None)
-                        if active_session
-                        else None
-                    )
-                    or "claude-code"
-                )
                 record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
@@ -635,7 +654,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     tool_input={"prompt": prompt},
                     tool_response={"content": "Query received"},
                     is_error=False,
-                    agent_id=agent_id_to_use,
+                    agent_id=detected_agent,
                 )
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
@@ -684,8 +703,8 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
         # Get drift thresholds from config
         drift_settings = drift_config.get("drift_detection", {})
-        warning_threshold = drift_settings.get("warning_threshold", 0.7)
-        auto_classify_threshold = drift_settings.get("auto_classify_threshold", 0.85)
+        warning_threshold = drift_settings.get("warning_threshold") or 0.7
+        auto_classify_threshold = drift_settings.get("auto_classify_threshold") or 0.85
 
         # Determine parent activity context
         parent_activity_state = load_parent_activity(graph_dir)
@@ -705,6 +724,13 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
             if parent_activity_state.get("parent_id"):
                 parent_activity_id = parent_activity_state["parent_id"]
 
+            # Also check environment variable for cross-process parent linking
+            # This is set by PreToolUse hook when Task() spawns a subagent
+            if not parent_activity_id:
+                env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+                if env_parent:
+                    parent_activity_id = env_parent
+
         # Track the activity
         nudge = None
         try:
@@ -719,17 +745,13 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
 
             # Record to SQLite if available
             if db:
-                # Get agent from environment first, then session, then default to claude-code
-                agent_from_env = os.environ.get("HTMLGRAPH_AGENT")
-                agent_id_to_use = (
-                    agent_from_env
-                    or (
-                        getattr(active_session, "agent", None)
-                        if active_session
-                        else None
+                # Extract subagent_type for Task delegations
+                task_subagent_type = None
+                if tool_name == "Task":
+                    task_subagent_type = tool_input_data.get(
+                        "subagent_type", "general-purpose"
                     )
-                    or "claude-code"
-                )
+
                 record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
@@ -738,8 +760,9 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     tool_response=tool_response,
                     is_error=is_error,
                     file_paths=file_paths if file_paths else None,
-                    parent_event_id=None,  # Parent linking handled after result
-                    agent_id=agent_id_to_use,
+                    parent_event_id=parent_activity_id,  # Link to parent event
+                    agent_id=detected_agent,
+                    subagent_type=task_subagent_type,
                 )
 
             # If this was a Task() delegation, also record to agent_collaboration
@@ -749,7 +772,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                 record_delegation_to_sqlite(
                     db=db,
                     session_id=active_session_id,
-                    from_agent="claude-code",
+                    from_agent=detected_agent,
                     to_agent=subagent,
                     task_description=description,
                     task_input=tool_input_data,
@@ -767,7 +790,10 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                 drift_score = result.drift_score
                 feature_id = getattr(result, "feature_id", "unknown")
 
-                if drift_score and drift_score >= auto_classify_threshold:
+                # Skip drift detection if no score available
+                if drift_score is None:
+                    pass  # No active features - can't calculate drift
+                elif drift_score >= auto_classify_threshold:
                     # High drift - add to classification queue
                     queue = add_to_drift_queue(
                         graph_dir,

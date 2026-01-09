@@ -77,6 +77,45 @@ class HtmlGraphDB:
             self.connection.close()
             self.connection = None
 
+    def _migrate_agent_events_table(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migrate agent_events table to add missing columns.
+
+        Adds columns that may be missing from older database versions.
+        """
+        # Check if agent_events table exists
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='agent_events'"
+        )
+        if not cursor.fetchone():
+            return  # Table doesn't exist yet, will be created fresh
+
+        # Get current columns
+        cursor.execute("PRAGMA table_info(agent_events)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        # Add missing columns with defaults
+        migrations = [
+            ("subagent_type", "TEXT"),
+            ("child_spike_count", "INTEGER DEFAULT 0"),
+            ("cost_tokens", "INTEGER DEFAULT 0"),
+            ("execution_duration_seconds", "REAL DEFAULT 0.0"),
+            ("status", "TEXT DEFAULT 'recorded'"),
+            ("created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
+        ]
+
+        for col_name, col_type in migrations:
+            if col_name not in columns:
+                try:
+                    cursor.execute(
+                        f"ALTER TABLE agent_events ADD COLUMN {col_name} {col_type}"
+                    )
+                    logger.info(f"Added column agent_events.{col_name}")
+                except sqlite3.OperationalError as e:
+                    # Column may already exist
+                    logger.debug(f"Could not add {col_name}: {e}")
+
     def _migrate_sessions_table(self, cursor: sqlite3.Cursor) -> None:
         """
         Migrate sessions table from old schema to new schema.
@@ -156,6 +195,7 @@ class HtmlGraphDB:
         cursor = self.connection.cursor()  # type: ignore[union-attr]
 
         # Run migrations for existing tables before creating new ones
+        self._migrate_agent_events_table(cursor)
         self._migrate_sessions_table(cursor)
 
         # 1. AGENT_EVENTS TABLE - Core event tracking
@@ -447,6 +487,7 @@ class HtmlGraphDB:
         parent_event_id: str | None = None,
         cost_tokens: int = 0,
         execution_duration_seconds: float = 0.0,
+        subagent_type: str | None = None,
     ) -> bool:
         """
         Insert an agent event into the database.
@@ -464,6 +505,7 @@ class HtmlGraphDB:
             parent_event_id: Parent event if nested (optional)
             cost_tokens: Token usage estimate (optional)
             execution_duration_seconds: Execution time in seconds (optional)
+            subagent_type: Subagent type for Task delegations (optional)
 
         Returns:
             True if insert successful, False otherwise
@@ -478,8 +520,8 @@ class HtmlGraphDB:
                 INSERT INTO agent_events
                 (event_id, agent_id, event_type, session_id, tool_name,
                  input_summary, output_summary, context, parent_agent_id,
-                 parent_event_id, cost_tokens, execution_duration_seconds)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
@@ -494,6 +536,7 @@ class HtmlGraphDB:
                     parent_event_id,
                     cost_tokens,
                     execution_duration_seconds,
+                    subagent_type,
                 ),
             )
             self.connection.commit()  # type: ignore[union-attr]

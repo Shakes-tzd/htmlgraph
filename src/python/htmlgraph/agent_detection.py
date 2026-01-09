@@ -14,34 +14,48 @@ def detect_agent_name() -> str:
     Detect the current agent/interface name based on environment.
 
     Returns:
-        Agent name (e.g., "claude", "gemini", "cli")
+        Agent name (e.g., "claude-code", "gemini", "cli")
 
     Detection order:
         1. HTMLGRAPH_AGENT environment variable (explicit override)
-        2. Claude Code detection (CLAUDE_CODE_VERSION, parent process)
-        3. Gemini detection (GEMINI environment markers)
-        4. Fall back to "cli"
+        2. HTMLGRAPH_PARENT_AGENT (set by hooks for session context)
+        3. Claude Code detection (CLAUDECODE env var, parent process)
+        4. Gemini detection (GEMINI environment markers)
+        5. Fall back to "cli" only if no AI agent detected
     """
     # 1. Explicit override
     explicit = os.environ.get("HTMLGRAPH_AGENT")
     if explicit:
         return explicit.strip()
 
-    # 2. Claude Code detection
-    if _is_claude_code():
-        return "claude"
+    # 2. Parent agent context (set by HtmlGraph hooks)
+    parent_agent = os.environ.get("HTMLGRAPH_PARENT_AGENT")
+    if parent_agent:
+        return parent_agent.strip()
 
-    # 3. Gemini detection
+    # 3. Claude Code detection
+    if _is_claude_code():
+        return "claude-code"
+
+    # 4. Gemini detection
     if _is_gemini():
         return "gemini"
 
-    # 4. Default to CLI
+    # 5. Default to CLI only if no AI agent detected
     return "cli"
 
 
 def _is_claude_code() -> bool:
     """Check if running in Claude Code environment."""
     # Check for Claude Code environment variables
+    # CLAUDECODE=1 is set by Claude Code CLI
+    if os.environ.get("CLAUDECODE"):
+        return True
+
+    # CLAUDE_CODE_ENTRYPOINT indicates the entry point (cli, api, etc.)
+    if os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+        return True
+
     if os.environ.get("CLAUDE_CODE_VERSION"):
         return True
 
@@ -100,12 +114,14 @@ def get_agent_display_name(agent: str) -> str:
     """
     display_names = {
         "claude": "Claude",
-        "claude-code": "Claude",
+        "claude-code": "Claude Code",
         "gemini": "Gemini",
         "cli": "CLI",
         "haiku": "Haiku",
         "opus": "Opus",
         "sonnet": "Sonnet",
+        "claude-opus-4-5-20251101": "Claude Opus 4.5",
+        "claude-sonnet-4-20250514": "Claude Sonnet 4",
     }
 
     return display_names.get(agent.lower(), agent.title())
