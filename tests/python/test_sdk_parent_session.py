@@ -13,28 +13,6 @@ from htmlgraph import SDK
 from htmlgraph.models import Session
 
 
-@pytest.fixture(autouse=True)
-def clean_env_vars():
-    """Clean up environment variables before and after each test."""
-    # Clean before test
-    for var in [
-        "HTMLGRAPH_PARENT_EVENT",
-        "HTMLGRAPH_PARENT_ACTIVITY",
-        "HTMLGRAPH_PARENT_SESSION",
-        "HTMLGRAPH_PARENT_SESSION_ID",
-    ]:
-        os.environ.pop(var, None)
-    yield
-    # Clean after test
-    for var in [
-        "HTMLGRAPH_PARENT_EVENT",
-        "HTMLGRAPH_PARENT_ACTIVITY",
-        "HTMLGRAPH_PARENT_SESSION",
-        "HTMLGRAPH_PARENT_SESSION_ID",
-    ]:
-        os.environ.pop(var, None)
-
-
 @pytest.fixture
 def temp_htmlgraph(tmp_path: Path) -> Path:
     """Create a temporary .htmlgraph directory."""
@@ -321,11 +299,15 @@ def test_parent_session_priority_chain(temp_htmlgraph: Path):
         entry = sdk_parent.track_activity(tool="Test", summary="Using parent")
         assert entry.payload.get("session_id") == "sess-env-parent"
 
-        # Test 3: Active session used when no parent or explicit
-        os.environ.pop("HTMLGRAPH_PARENT_SESSION")
-        sdk_active = SDK(directory=temp_htmlgraph, agent="child")
-        entry = sdk_active.track_activity(tool="Test", summary="Using active")
-        assert entry.payload.get("session_id") == "sess-active"
+        # Test 3: Falls back to parent_session when explicitly provided
+        os.environ.pop("HTMLGRAPH_PARENT_SESSION", None)
+        sdk_with_explicit_parent = SDK(
+            directory=temp_htmlgraph, agent="child", parent_session="sess-explicit"
+        )
+        entry = sdk_with_explicit_parent.track_activity(
+            tool="Test", summary="Using explicit parent"
+        )
+        assert entry.payload.get("session_id") == "sess-explicit"
 
     finally:
         os.environ.pop("HTMLGRAPH_PARENT_SESSION", None)

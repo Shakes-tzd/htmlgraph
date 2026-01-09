@@ -903,19 +903,20 @@ class SDK:
             ... )
             >>> print(f"Tracked: [{entry.tool}] {entry.summary}")
         """
-        # Determine target session: explicit > active > parent
+        # Determine target session: explicit parameter > parent_session > active > none
         if not session_id:
-            # Check for active session first
-            active = self.session_manager.get_active_session(agent=self._agent_id)
-            if active:
-                session_id = active.id
-            # Fall back to parent session if available (for headless/nested contexts)
-            elif self._parent_session:
+            # Priority 1: Parent session (explicitly provided or from env var)
+            if self._parent_session:
                 session_id = self._parent_session
             else:
-                raise ValueError(
-                    "No active session. Start one with sdk.start_session()"
-                )
+                # Priority 2: Active session for this agent
+                active = self.session_manager.get_active_session(agent=self._agent_id)
+                if active:
+                    session_id = active.id
+                else:
+                    raise ValueError(
+                        "No active session. Start one with sdk.start_session()"
+                    )
 
         # Get parent activity ID from environment if not provided
         if not parent_activity_id:

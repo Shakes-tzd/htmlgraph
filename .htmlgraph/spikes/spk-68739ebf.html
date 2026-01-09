@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Analysis Report - Architecture & Opportunities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-68739ebf"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T13:38:57.570640"
+             data-updated="2026-01-09T13:38:57.570645" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="dashboard-analyzer">
+
+        <header>
+            <h1>Dashboard Analysis Report - Architecture & Opportunities</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # HtmlGraph Dashboard Codebase Analysis
+
+## Current Dashboard Pages & Structure
+
+### Primary Pages (5 main tabs)
+1. **Activity Feed** - Real-time agent event stream
+   - Location: `/views/activity-feed`
+   - Template: `activity-feed.html` + `activity-feed-hierarchical.html`
+   - Displays: Flat list of events with filtering by agent
+   - Features: Live WebSocket updates, parent-child event relationships
+
+2. **Orchestration** - Delegation chains & agent handoffs
+   - Location: `/views/orchestration`
+   - Template: `orchestration.html`
+   - Displays: Card-based delegation chains with from/to agents
+   - Features: Shows task & result summaries, basic stats
+
+3. **Features** - Kanban board view
+   - Location: `/views/features`
+   - Template: `features.html`
+   - Displays: 4-column Kanban (To Do, In Progress, Blocked, Done)
+   - Features: Status filtering, feature type badges, priority indicators
+
+4. **Agents** - Workload & performance tracking
+   - Location: `/views/agents`
+   - Template: `agents.html`
+   - Displays: Agent cards in grid layout
+   - Features: Actions, tokens, sessions, workload bars, direct activity filtering
+
+5. **Metrics** - Session performance analytics
+   - Location: `/views/metrics`
+   - Template: `metrics.html`
+   - Displays: System stats, session timeline, performance summary
+   - Features: Event distribution bars, duration calculations, success rate placeholder
+
+## Data Display Architecture
+
+### Activity Feed Data Structure
+- **Flat List Format** (old): Simple div-based activity items with visual indentation
+- **Hierarchical Table** (new): Parent-child table rows with proper nesting
+  - Parent rows: Yellow/accent border, full width
+  - Child rows: Gray border, indented (padding-left: 2rem), semi-transparent background
+  - Child indicator: ↳ symbol + parent reference
+  - Metrics: Cost tokens + execution duration shown in output column
+
+### Orchestration Data Structure
+- **Delegation Chain Cards**:
+  - From Agent → ⟹ → To Agent flow
+  - Timestamp, task summary, result summary
+  - Event ID & session ID in footer
+  - Counts: Total delegations & unique agents
+
+### Features Kanban Data Structure
+- **Card-based columns**: Static 4-column layout
+- **Card content**: Type badge, priority badge, title, description (100 char), assignee
+- **Column counts**: Show number of items per status
+- **Empty states**: "No tasks" when column empty
+
+### Agents Performance Data
+- **Card grid**: Auto-fill responsive grid (300px min)
+- **Metrics**: Actions, tokens, sessions, last active
+- **Workload bar**: Visual representation of relative workload
+- **Direct filtering**: "View Activity" button links to filtered feed
+
+### Metrics & Session Timeline
+- **Stat cards**: Large cards showing totals (events, agents, sessions, features)
+- **Session items**: Timeline-style list with status, duration, event progress bar
+- **Performance cards**: Avg events/session, total agent hours, success rate
+- **Legend**: Visual indicators for status states
+
+## UI Components & Layout Patterns
+
+### Component Library
+1. **Badges/Indicators**:
+   - Event type: 🔨 tool_call, ✅ tool_result, ❌ error, 🔗 delegation, 🎉 completion
+   - Status: status-badge with classes (done, active, blocked, todo)
+   - Priority: priority-badge (critical, high, medium, low)
+   - Feature type: type-badge with status coloring
+
+2. **Tables**:
+   - Activity table: 7 columns (timestamp, agent, tool, input, output, status, ID)
+   - Fixed widths for consistent alignment
+   - Responsive truncation (title attribute for full text)
+   - Parent-child row grouping with visual hierarchy
+
+3. **Cards**:
+   - Feature cards: Type/priority badges, title, description, footer
+   - Agent cards: Avatar, name, status, metrics grid, workload bar
+   - Stat cards: Icon + label + value format
+   - Session cards: Timeline style with progress bar
+
+4. **Filtering & Controls**:
+   - Input filter: Agent name filtering via HTMX
+   - Select dropdown: Status filtering for features
+   - View buttons: Segmented control toggle (active state = accent background)
+   - Live indicator: Pulsing dot showing WebSocket connection
+
+### Styling System
+- **Color Palette**:
+  - Accent: #CDFF00 (lime) for highlights & primary actions
+  - Status colors: Green (#00C853), Blue (#2979FF), Red (#FF1744), Gray (#78909C)
+  - Theme support: Light (F8F7F4) & Dark (#151518) with system preference detection
+
+- **Typography**:
+  - Headlines: Outfit (sans-serif)
+  - Code/monospace: JetBrains Mono
+  - Status/labels: Uppercase with letter-spacing
+
+- **Shadows**: Sharp geometric (2-8px offset) rather than soft blur
+
+## Current Limitations & Pain Points
+
+### 1. Activity Feed Issues
+- **Problem**: Flat list view hard to parse with many events
+- **Current fix**: Hierarchical table with parent-child nesting (partially implemented)
+- **Limitation**: Only works in table mode, not in original card/div view
+- **Impact**: Users can't easily understand event delegation chains
+
+### 2. Orchestration Workflow Visualization
+- **Problem**: Card layout doesn't show complex multi-agent workflows
+- **Current state**: Simple 1:1 delegation pairs only
+- **Missing**: Parallel delegations, circular patterns, multi-hop chains
+- **Missing**: Timeline view showing sequence of delegations
+- **Impact**: Hard to understand complex orchestration patterns
+
+### 3. Kanban Board Limitations
+- **Problem**: Static 4-column grid, no drag-and-drop
+- **Current state**: Read-only view with filtering
+- **Missing**: Card movement, status updates, persistence
+- **Missing**: Swimlanes by agent/category
+- **Missing**: WIP limits or blocking indicators
+- **Impact**: Board is informational only, not actionable
+
+### 4. Session Analytics Gap
+- **Problem**: Minimal performance data captured
+- **Current state**: Event counts, duration, start/end times
+- **Missing**: Token costs, model selection, error rates, branching factor
+- **Missing**: Comparison across sessions, trends
+- **Impact**: Can't optimize agent performance
+
+### 5. Event Trace Display
+- **Problem**: Event traces template exists but may not be integrated into main dashboard
+- **Current state**: Separate hierarchical visualization with ASCII tree format
+- **Missing**: Integration into main orchestration view
+- **Missing**: Real-time updates via WebSocket
+- **Impact**: Tree visualization not accessible from main dashboard
+
+## Design Opportunities
+
+### High Impact Improvements (Priority Order)
+
+1. **Orchestration Workflow Graph** (HIGH VALUE)
+   - Implement vis.js network graph for multi-agent workflows
+   - Show parent-child delegation chains as visual hierarchy
+   - Display execution timeline (horizontal axis = time)
+   - Color code by agent, status, or cost
+   - Interactive: Click to filter activity feed by workflow
+   - Resource: vis-network.min.js already included in dashboard.html
+
+2. **Hierarchical Activity Timeline** (HIGH VALUE)
+   - Convert flat activity feed to tree/timeline hybrid
+   - Vertical timeline with branches for child events
+   - Parent event as main trunk, children as branches
+   - Visual connection lines between parent-child
+   - Expandable/collapsible parent groups
+   - Show timing/duration relationships
+
+3. **Interactive Kanban with Drag-Drop** (MEDIUM VALUE)
+   - Add column collapse/expand (partially implemented in CSS)
+   - Implement card drag-and-drop between columns
+   - Persist status changes back to database
+   - Add swimlanes for agent assignment
+   - Show WIP indicators on columns
+   - Add card detail modal on click
+
+4. **Session Performance Dashboard** (MEDIUM VALUE)
+   - Cost breakdown by model (Claude, Gemini, etc.)
+   - Token distribution chart (input vs output)
+   - Session branching visualization (how many delegations)
+   - Error/success rate by agent
+   - Trends over time (chart.js or similar)
+
+5. **Event Filtering & Search** (MEDIUM VALUE)
+   - Advanced filter panel (by date range, status, agent, cost, duration)
+   - Full-text search on event input/output
+   - Save filter presets
+   - URL-based filter state
+   - Export filtered results (CSV/JSON)
+
+6. **Real-time Notifications** (LOW VALUE)
+   - Toast notifications for key events
+   - Error highlighting in red
+   - Delegation completion notifications
+   - "Agent idle" warnings
+
+## Technical Architecture Notes
+
+### Backend (FastAPI + SQLite)
+- Query caching: 30-second TTL for frequently accessed data
+- WebSocket endpoint: `/ws/events` for real-time streaming
+- Template rendering: Jinja2 with custom filters (format_number)
+- Event model: Parent-child relationships tracked via `parent_event_id`
+
+### Frontend (HTMX + Vanilla JS)
+- HTMX for tab loading via `/views/*` endpoints
+- WebSocket for live event insertion without page reload
+- Table row highlighting: Temporary CSS animation on new events
+- Timestamp conversion: UTC → local timezone via Intl API
+- Memory management: Keep only last 100 events in feed (prevents memory leaks)
+
+### Data Flow
+1. Initial load: `/api/initial-stats` for header counters
+2. Tab click: HTMX GET `/views/{tab}` → renders template fragment
+3. Real-time events: WebSocket message → insertNewEventIntoActivityFeed()
+4. Parent-child linkage: Inserts child rows after parent row in DOM
+
+## Files Structure
+
+```
+src/python/htmlgraph/
+├── api/
+│   ├── main.py                           # FastAPI app, routes, WebSocket
+│   └── templates/
+│       ├── dashboard.html               # Main container + HTMX setup
+│       └── partials/
+│           ├── activity-feed.html       # Old flat list view
+│           ├── activity-feed-hierarchical.html  # Table with nesting
+│           ├── orchestration.html       # Delegation chains
+│           ├── features.html            # Kanban board
+│           ├── agents.html              # Workload cards
+│           ├── metrics.html             # Session analytics
+│           └── event-traces.html        # Tree visualization (unused?)
+├── dashboard.html                       # Standalone version (synced)
+└── ...
+```
+
+## Key Observations
+
+1. **Dual Dashboard Pattern**: Two versions maintained
+   - `src/python/htmlgraph/api/templates/dashboard.html` - Server-rendered
+   - `src/python/htmlgraph/dashboard.html` - Standalone HTML (synced)
+   
+2. **Hierarchical Event Support**: Already implemented
+   - Parent-child relationships tracked in database
+   - Table view shows hierarchy with visual indicators
+   - WebSocket insertion handles parent event lookup
+   
+3. **Vis.js Already Available**: Network graph library ready to use
+   - Included in dashboard.html (line 8)
+   - Perfect for orchestration workflow visualization
+   
+4. **HTMX Integration Complete**: Dynamic tab loading works well
+   - No full page reloads on tab switch
+   - Fragment rendering efficient
+   - Ready for partial updates
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -288,5 +288,15 @@
     "spike_id": "spk-3c8a6fb3",
     "created": "2026-01-09T03:56:00.497955",
     "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 19, in <module>\n  File \"/Users": {
+    "spike_id": "spk-dd7f82ab",
+    "created": "2026-01-09T13:45:56.878335",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 6, in <module>\n  File \"/Users/": {
+    "spike_id": "spk-880d3b01",
+    "created": "2026-01-09T13:46:12.434377",
+    "occurrences": 3
   }
 }

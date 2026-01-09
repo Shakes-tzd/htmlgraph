@@ -46,14 +46,14 @@ class TestSDKAgentParameterRequired:
 
     def test_sdk_without_agent_uses_detected_value(self, tmp_htmlgraph: Path):
         """SDK() without explicit agent uses detect_agent_name() if not CLI."""
-        # In test environment, detect_agent_name() will return "claude"
-        # (because CLAUDE_CODE_VERSION is set)
+        # In test environment, detect_agent_name() will return "claude-code"
+        # (because CLAUDE_CODE_VERSION is set in test environment)
         sdk = SDK(directory=tmp_htmlgraph)
 
         # Should use detected agent
         assert sdk._agent_id is not None
-        # In this environment, it should be "claude"
-        assert sdk._agent_id in ["claude", "cli"]
+        # In this environment, it should be "claude-code" or "cli"
+        assert sdk._agent_id in ["claude-code", "cli"]
 
     def test_sdk_with_agent_parameter_succeeds(self, tmp_htmlgraph: Path):
         """SDK(agent='name') should succeed and set _agent_id."""
@@ -183,7 +183,10 @@ class TestOtherCollectionsWithAgent:
         """Feature created via SDK should have agent_assigned."""
         sdk = SDK(directory=tmp_htmlgraph, agent="coder")
 
-        feature = sdk.features.create("User Auth").save()
+        # Create a track first (required for features)
+        track = sdk.tracks.create("Test Track").save()
+
+        feature = sdk.features.create("User Auth").set_track(track.id).save()
 
         assert hasattr(feature, "agent_assigned")
         assert feature.agent_assigned == "coder"

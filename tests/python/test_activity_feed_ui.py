@@ -62,10 +62,10 @@ class TestActivityFeedDashboard:
                     # Navigate to dashboard
                     await page.goto("http://localhost:8080", timeout=10000)
 
-                    # Wait for Activity Feed heading to appear
-                    await expect(page.locator("text=Activity Feed")).to_be_visible(
-                        timeout=5000
-                    )
+                    # Wait for Activity Feed heading to appear (use specific heading selector)
+                    await expect(
+                        page.locator("h2:has-text('Agent Activity Feed')")
+                    ).to_be_visible(timeout=5000)
 
                     # Verify page loaded
                     title = await page.title()
@@ -108,10 +108,10 @@ class TestActivityFeedDashboard:
                 try:
                     await page.goto("http://localhost:8080", timeout=10000)
 
-                    # Wait for Activity Feed
-                    await expect(page.locator("text=Activity Feed")).to_be_visible(
-                        timeout=5000
-                    )
+                    # Wait for Activity Feed heading
+                    await expect(
+                        page.locator("h2:has-text('Agent Activity Feed')")
+                    ).to_be_visible(timeout=5000)
 
                     # Wait for any JS errors
                     await page.wait_for_timeout(1000)
@@ -203,10 +203,10 @@ class TestActivityFeedDashboard:
                 try:
                     await page.goto("http://localhost:8080", timeout=10000)
 
-                    # Wait for Activity Feed
-                    await expect(page.locator("text=Activity Feed")).to_be_visible(
-                        timeout=5000
-                    )
+                    # Wait for Activity Feed heading
+                    await expect(
+                        page.locator("h2:has-text('Agent Activity Feed')")
+                    ).to_be_visible(timeout=5000)
 
                     # Test viewport resizing
                     viewports = [
@@ -217,9 +217,9 @@ class TestActivityFeedDashboard:
 
                     for viewport in viewports:
                         await page.set_viewport_size(viewport)
-                        await expect(page.locator("text=Activity Feed")).to_be_visible(
-                            timeout=5000
-                        )
+                        await expect(
+                            page.locator("h2:has-text('Agent Activity Feed')")
+                        ).to_be_visible(timeout=5000)
 
                 finally:
                     await browser.close()
@@ -257,10 +257,10 @@ class TestActivityFeedDashboard:
                     # Should load in less than 5 seconds
                     assert load_time < 5.0, f"Page load took {load_time}s"
 
-                    # Activity Feed should be visible
-                    await expect(page.locator("text=Activity Feed")).to_be_visible(
-                        timeout=5000
-                    )
+                    # Activity Feed heading should be visible
+                    await expect(
+                        page.locator("h2:has-text('Agent Activity Feed')")
+                    ).to_be_visible(timeout=5000)
 
                 finally:
                     await browser.close()
@@ -331,10 +331,10 @@ class TestActivityFeedDashboard:
                 try:
                     await page.goto("http://localhost:8080", timeout=10000)
 
-                    # Wait for Activity Feed
-                    await expect(page.locator("text=Activity Feed")).to_be_visible(
-                        timeout=5000
-                    )
+                    # Wait for Activity Feed heading
+                    await expect(
+                        page.locator("h2:has-text('Agent Activity Feed')")
+                    ).to_be_visible(timeout=5000)
 
                     # Get initial URL
                     initial_url = page.url

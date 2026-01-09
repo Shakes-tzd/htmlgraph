@@ -161,7 +161,10 @@ class TestSDKCollectionDelete:
 
     def test_sdk_delete_feature(self, sdk):
         """Test deleting a feature via SDK."""
-        feature = sdk.features.create("Test Feature").save()
+        # Create a track first (required for features)
+        track = sdk.tracks.create("Test Track").save()
+
+        feature = sdk.features.create("Test Feature").set_track(track.id).save()
         feature_id = feature.id
 
         assert sdk.features.get(feature_id) is not None

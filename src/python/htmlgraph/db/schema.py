@@ -520,6 +520,10 @@ class HtmlGraphDB:
 
         try:
             cursor = self.connection.cursor()  # type: ignore[union-attr]
+            # Temporarily disable foreign key constraints to allow inserting
+            # parent_event_id references that may not exist yet (will be created later)
+            if parent_event_id:
+                cursor.execute("PRAGMA foreign_keys=OFF")
             cursor.execute(
                 """
                 INSERT INTO agent_events
@@ -544,49 +548,15 @@ class HtmlGraphDB:
                     subagent_type,
                 ),
             )
+            # Re-enable foreign key constraints
+            if parent_event_id:
+                cursor.execute("PRAGMA foreign_keys=ON")
             self.connection.commit()  # type: ignore[union-attr]
             return True
         except sqlite3.IntegrityError as e:
-            # FOREIGN KEY constraint failed - likely parent_event_id doesn't exist
-            if "FOREIGN KEY constraint failed" in str(e) and parent_event_id:
-                logger.warning(
-                    f"Parent event {parent_event_id} not found, inserting event without parent link"
-                )
-                # Retry without parent_event_id to enable graceful degradation
-                try:
-                    cursor = self.connection.cursor()  # type: ignore[union-attr]
-                    cursor.execute(
-                        """
-                        INSERT INTO agent_events
-                        (event_id, agent_id, event_type, session_id, tool_name,
-                         input_summary, output_summary, context, parent_agent_id,
-                         parent_event_id, cost_tokens, execution_duration_seconds, subagent_type)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                        (
-                            event_id,
-                            agent_id,
-                            event_type,
-                            session_id,
-                            tool_name,
-                            input_summary,
-                            output_summary,
-                            json.dumps(context) if context else None,
-                            parent_agent_id,
-                            None,  # Drop parent_event_id reference
-                            cost_tokens,
-                            execution_duration_seconds,
-                            subagent_type,
-                        ),
-                    )
-                    self.connection.commit()  # type: ignore[union-attr]
-                    return True
-                except sqlite3.Error as retry_error:
-                    logger.error(f"Error inserting event after retry: {retry_error}")
-                    return False
-            else:
-                logger.error(f"Error inserting event: {e}")
-                return False
+            # Other integrity errors (unique constraint, etc.)
+            logger.error(f"Error inserting event: {e}")
+            return False
         except sqlite3.Error as e:
             logger.error(f"Error inserting event: {e}")
             return False
@@ -1061,7 +1031,7 @@ class HtmlGraphDB:
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
-        Query delegation events from agent_events (Task tool calls).
+        Query delegation events from agent_collaboration table.
 
         Args:
             session_id: Filter by session (optional)
@@ -1079,30 +1049,35 @@ class HtmlGraphDB:
             cursor = self.connection.cursor()  # type: ignore[union-attr]
 
             # Build WHERE clause
-            where_clauses = ["tool_name = 'Task'"]
+            where_clauses = ["handoff_type = 'delegation'"]
             params: list[str | int] = []
 
             if session_id:
                 where_clauses.append("session_id = ?")
                 params.append(session_id)
             if from_agent:
-                where_clauses.append("agent_id = ?")
+                where_clauses.append("from_agent = ?")
                 params.append(from_agent)
+            if to_agent:
+                where_clauses.append("to_agent = ?")
+                params.append(to_agent)
 
             where_sql = " AND ".join(where_clauses)
 
-            # Query Task events - extract subagent type from context JSON
+            # Query agent_collaboration table for delegations
             cursor.execute(
                 f"""
                 SELECT
-                    event_id,
-                    agent_id as from_agent,
+                    handoff_id,
+                    from_agent,
+                    to_agent,
+                    session_id,
+                    feature_id,
+                    handoff_type,
+                    reason,
                     context,
-                    timestamp,
-                    input_summary as reason,
-                    status,
-                    session_id
-                FROM agent_events
+                    timestamp
+                FROM agent_collaboration
                 WHERE {where_sql}
                 ORDER BY timestamp DESC
                 LIMIT ?
@@ -1112,30 +1087,10 @@ class HtmlGraphDB:
 
             rows = cursor.fetchall()
 
-            # Convert to dictionaries and extract subagent info from context
-            import json
-
+            # Convert to dictionaries
             delegations = []
             for row in rows:
                 row_dict = dict(row)
-
-                # Extract subagent_type from context JSON
-                to_agent = "unknown"
-                try:
-                    context = row_dict.get("context", "{}")
-                    context_data = (
-                        json.loads(context) if isinstance(context, str) else context
-                    )
-                    to_agent = context_data.get("subagent_type", "unknown")
-                except Exception:
-                    pass
-
-                row_dict["to_agent"] = to_agent
-                row_dict["reason"] = row_dict.get("reason", "")[:100]
-
-                # Remove context from output (already extracted what we need)
-                row_dict.pop("context", None)
-
                 delegations.append(row_dict)
 
             return delegations

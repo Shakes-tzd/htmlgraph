@@ -17,26 +17,6 @@ from htmlgraph import SDK
 from htmlgraph.db.schema import HtmlGraphDB
 
 
-@pytest.fixture(autouse=True)
-def clean_env_vars():
-    """Clean up environment variables before and after each test."""
-    # Clean before test
-    for var in [
-        "HTMLGRAPH_PARENT_ACTIVITY",
-        "HTMLGRAPH_PARENT_SESSION",
-        "HTMLGRAPH_PARENT_SESSION_ID",
-    ]:
-        os.environ.pop(var, None)
-    yield
-    # Clean after test
-    for var in [
-        "HTMLGRAPH_PARENT_ACTIVITY",
-        "HTMLGRAPH_PARENT_SESSION",
-        "HTMLGRAPH_PARENT_SESSION_ID",
-    ]:
-        os.environ.pop(var, None)
-
-
 @pytest.fixture
 def temp_db():
     """Create temporary database for testing."""
@@ -143,6 +123,15 @@ class TestParentChildEventLinking:
 
     def test_hierarchical_event_structure(self, temp_htmlgraph_dir, tmp_path):
         """Test that hierarchical event structure is correctly formed."""
+        # DEBUG: Check env var state at test start
+        import sys
+
+        parent_activity_before = os.environ.get("HTMLGRAPH_PARENT_ACTIVITY")
+        print(
+            f"\n>>> TEST START: HTMLGRAPH_PARENT_ACTIVITY={parent_activity_before}",
+            file=sys.stderr,
+        )
+
         db_path = str(tmp_path / "test.db")
         sdk = SDK(directory=temp_htmlgraph_dir, agent="parent-agent", db_path=db_path)
 
@@ -184,8 +173,9 @@ class TestParentChildEventLinking:
             )
 
             # Verify hierarchy in database
+            # Order by rowid ASC for reliable insertion order (timestamp may be identical)
             cursor.execute(
-                "SELECT event_id, parent_event_id FROM agent_events ORDER BY timestamp ASC"
+                "SELECT event_id, parent_event_id FROM agent_events ORDER BY rowid ASC"
             )
             rows = cursor.fetchall()
 
@@ -258,8 +248,9 @@ class TestParentChildEventLinking:
             )
 
             # Query events directly from database (simulating API query)
+            # Order by rowid DESC for reliable insertion order (timestamp may be identical)
             cursor.execute(
-                "SELECT event_id, parent_event_id FROM agent_events ORDER BY timestamp DESC LIMIT 10"
+                "SELECT event_id, parent_event_id FROM agent_events ORDER BY rowid DESC LIMIT 10"
             )
             rows = cursor.fetchall()
 
@@ -306,7 +297,7 @@ class TestParentChildEventLinking:
             )
 
             cursor.execute(
-                "SELECT event_id FROM agent_events WHERE tool_name = 'Task' ORDER BY timestamp DESC LIMIT 1"
+                "SELECT event_id FROM agent_events WHERE tool_name = 'Task' ORDER BY rowid DESC LIMIT 1"
             )
             parent_id = cursor.fetchone()[0]
 
@@ -319,8 +310,9 @@ class TestParentChildEventLinking:
             )
 
             # Verify hierarchy
+            # Order by rowid ASC for reliable insertion order (timestamp may be identical)
             cursor.execute(
-                "SELECT event_id, parent_event_id FROM agent_events ORDER BY timestamp ASC"
+                "SELECT event_id, parent_event_id FROM agent_events ORDER BY rowid ASC"
             )
             rows = cursor.fetchall()
 

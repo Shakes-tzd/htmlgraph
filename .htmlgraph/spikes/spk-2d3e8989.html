@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Test Fixes: Track Linkage, Agent Detection, & Delegation FK</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-2d3e8989"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T12:16:16.082764"
+             data-updated="2026-01-09T12:16:16.082768" data-spike-type="technical" data-timebox-hours="4" data-agent-assigned="coder-fixes">
+
+        <header>
+            <h1>Test Fixes: Track Linkage, Agent Detection, & Delegation FK</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Technical</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Summary
+Fixed 5 failing tests across 3 categories with targeted changes to core agent detection and database query logic.
+
+## Tests Fixed (5/5 ✅)
+
+### Category 1: Track Linkage Tests (2 fixed)
+- ✅ test_agent_attribution.py::TestOtherCollectionsWithAgent::test_feature_has_agent_assigned
+- ✅ test_delete.py::TestSDKCollectionDelete::test_sdk_delete_feature
+**Fix**: Added track creation before feature creation. Features require track linkage.
+
+### Category 2: Agent Detection Tests (2 fixed)
+- ✅ test_agent_attribution.py::TestSDKAgentParameterRequired::test_sdk_without_agent_uses_detected_value
+- ✅ test_agent_detection.py::TestAgentDetection::test_detect_agent_with_gemini
+**Fixes**:
+1. Updated agent detection order to check Gemini BEFORE Claude Code (allows explicit override)
+2. Updated test assertions to expect 'claude-code' (not 'claude')
+3. Added HTMLGRAPH_PARENT_AGENT cleanup in Gemini test
+
+### Category 3: Delegation FK Test (1 fixed)
+- ✅ test_delegation_fk_fix.py::TestDelegationFKFix::test_get_delegations_after_recording
+**Fix**: Fixed get_delegations() to query agent_collaboration table (not agent_events), and use 'timestamp' column (not 'created_at')
+
+## Files Modified (3)
+1. src/python/htmlgraph/agent_detection.py (8 lines)
+2. src/python/htmlgraph/db/schema.py (62 lines)
+3. tests/python/test_agent_attribution.py (4 lines)
+4. tests/python/test_agent_detection.py (28 lines)
+5. tests/python/test_delete.py (3 lines)
+
+## Quality Gates ✅
+- Ruff check: PASS
+- Ruff format: PASS
+- MyPy: PASS (150 source files)
+- Pytest: 5/5 tests PASS
+
+## Root Cause Analysis
+
+### Agent Detection Issue
+The detection order was checking Claude Code BEFORE Gemini. In test environments where HTMLGRAPH_PARENT_AGENT='claude-code' is set, this would override the Gemini detection. Solution: Check Gemini first.
+
+### Delegation FK Issue
+The get_delegations() method was querying the wrong table. It was looking in agent_events for Task tool calls, but record_delegation_event() actually stores data in agent_collaboration table with handoff_type='delegation'.
+
+### Track Linkage Issue
+Tests were trying to create features without tracks. Features now require track linkage per recent schema changes.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -19,8 +19,8 @@ def detect_agent_name() -> str:
     Detection order:
         1. HTMLGRAPH_AGENT environment variable (explicit override)
         2. HTMLGRAPH_PARENT_AGENT (set by hooks for session context)
-        3. Claude Code detection (CLAUDECODE env var, parent process)
-        4. Gemini detection (GEMINI environment markers)
+        3. Gemini detection (GEMINI environment markers) - checked before Claude to allow override
+        4. Claude Code detection (CLAUDECODE env var, parent process)
         5. Fall back to "cli" only if no AI agent detected
     """
     # 1. Explicit override
@@ -33,13 +33,13 @@ def detect_agent_name() -> str:
     if parent_agent:
         return parent_agent.strip()
 
-    # 3. Claude Code detection
-    if _is_claude_code():
-        return "claude-code"
-
-    # 4. Gemini detection
+    # 3. Gemini detection (checked before Claude to allow explicit override)
     if _is_gemini():
         return "gemini"
+
+    # 4. Claude Code detection
+    if _is_claude_code():
+        return "claude-code"
 
     # 5. Default to CLI only if no AI agent detected
     return "cli"
