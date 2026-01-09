@@ -236,6 +236,9 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         """Handle GET requests."""
         api, collection, node_id, params = self._parse_path()
+        print(
+            f"DEBUG do_GET: api={api}, collection={collection}, node_id={node_id}, params={params}"
+        )
 
         # Not an API request - serve static files
         if api != "api":
@@ -263,6 +266,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         # GET /api/orchestration - Get delegation chains and agent coordination
         if collection == "orchestration":
+            print(f"DEBUG: Handling orchestration request, params={params}")
             return self._handle_orchestration_view(params)
 
         # GET /api/task-delegations/stats - Get aggregated delegation statistics
@@ -1080,7 +1084,9 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         try:
             from htmlgraph.db.schema import HtmlGraphDB
 
-            db = HtmlGraphDB()
+            # Use unified index.sqlite database
+            db_path = str(self.graph_dir / "index.sqlite")
+            db = HtmlGraphDB(db_path=db_path)
             db.connect()
 
             # Get all delegation events

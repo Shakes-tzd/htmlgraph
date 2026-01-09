@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Events Table Schema Fix - Hybrid Event Capture System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-6e8782bb"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T17:20:34.557015"
+             data-updated="2026-01-08T17:20:34.557019" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Events Table Schema Fix - Hybrid Event Capture System</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                Root Cause:
+Database had old schema with only agent_events table. The hybrid event capture 
+system requires BOTH tables:
+- agent_events: Main event storage (Phase 1 backend)
+- events: Analytics index for dashboard queries (rebuildable cache)
+
+Schema Created:
+Successfully created events table in htmlgraph.db using AnalyticsIndex.ensure_schema()
+
+Tables Now Present:
+agent_collaboration, agent_events, event_files, event_log_archive, events (NEW),
+features, git_commit_features, git_commit_parents, git_commits, graph_edges,
+meta, sessions, tool_traces, tracks
+
+Current Status:
+- events table created successfully
+- Schema verified with indexes
+- Events being written to agent_events (1 event captured)
+- Events NOT yet populating events table (0 events)
+
+Next Steps:
+The events table exists but event_tracker.py is writing to agent_events via 
+HtmlGraphDB.insert_event(). Need to verify if there's a sync process from 
+agent_events to events, or if analytics_index.py handles population separately.
+
+Resolution:
+Schema issue RESOLVED. The missing events table has been created.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

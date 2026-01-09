@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Nested Tracing Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-829601da"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T22:31:16.753253"
+             data-updated="2026-01-08T22:31:16.753258" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="nested-trace-verify">
+
+        <header>
+            <h1>Nested Tracing Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Parent-Child Linking Test Complete
+
+**Version Found**: 0.24.1
+
+**This delegation should appear in dashboard with:**
+- Expand icon (▶) on the Task row
+- Child events nested underneath when expanded
+- Proper indentation showing hierarchy
+
+**Verification Steps**:
+1. Open http://localhost:9000
+2. Go to Activity Feed
+3. Find this Task event (most recent)
+4. Look for expand icon (▶)
+5. Click to expand
+6. Verify child events appear indented
+
+**Events Generated**:
+- Read tool call (src/python/htmlgraph/__init__.py)
+- Bash tool call (this Python script execution)
+- SDK spike creation
+
+**Expected Behavior**:
+All these child events should have parent_event_id linking back to the parent Task event.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

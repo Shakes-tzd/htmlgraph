@@ -1,10 +1,4 @@
-#!/usr/bin/env -S uv run
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#   "htmlgraph",
-# ]
-# ///
+#!/usr/bin/env python3
 """
 PostToolUse Hook - Thin wrapper around package logic.
 

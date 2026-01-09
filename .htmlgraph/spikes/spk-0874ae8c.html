@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PostToolUse Hook Database Schema Missing</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0874ae8c"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T17:14:57.453489"
+             data-updated="2026-01-08T17:14:57.453492" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="debugger">
+
+        <header>
+            <h1>PostToolUse Hook Database Schema Missing</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Root Cause Found
+
+**Problem**: PostToolUse hook failing with database error
+
+**Error**: `sqlite3.OperationalError: no such table: events`
+
+**Investigation Results**:
+
+1. ✅ NoneType fix IS applied correctly (lines 770-773 in event_tracker.py)
+2. ✅ Package reinstalled successfully with `uv pip install -e .`
+3. ✅ Hook script executes without Python errors
+4. ❌ Database missing `events` table from hybrid event capture system
+
+**Current Database Tables**:
+- agent_events (old system)
+- features
+- sessions
+- tracks
+- agent_collaboration
+- graph_edges
+- event_log_archive
+- tool_traces
+
+**Missing Table**: `events` (new hybrid capture system)
+
+**Next Steps**:
+1. Find schema initialization function in event_tracker.py
+2. Run schema migration/initialization
+3. Verify events table created
+4. Test PostToolUse hook again
+
+**Expected Outcome**:
+Hook should successfully insert events into SQLite database once schema exists.
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

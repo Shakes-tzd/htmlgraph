@@ -10,6 +10,7 @@ Modules:
 - cost: Cost calculation and efficiency metrics
 - patterns: Anti-pattern detection and analysis
 - autonomy: Autonomy level management
+- reporter: Dashboard generation for cost analysis
 """
 
 from htmlgraph.cigs.autonomy import AutonomyRecommender
@@ -42,6 +43,7 @@ from htmlgraph.cigs.patterns import (
     detect_patterns,
 )
 from htmlgraph.cigs.posttool_analyzer import CIGSPostToolAnalyzer
+from htmlgraph.cigs.reporter import CostReporter
 from htmlgraph.cigs.tracker import ViolationTracker
 
 __all__ = [
@@ -74,4 +76,6 @@ __all__ = [
     "ViolationTracker",
     # PostTool Analysis
     "CIGSPostToolAnalyzer",
+    # Reporter
+    "CostReporter",
 ]

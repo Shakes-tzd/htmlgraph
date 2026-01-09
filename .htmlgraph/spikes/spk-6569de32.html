@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SDK get_latest() Investigation - Bug Found</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-6569de32"
+             data-type="spike"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-01-08T17:04:24.109347"
+             data-updated="2026-01-08T17:04:24.109351" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="gemini">
+
+        <header>
+            <h1>SDK get_latest() Investigation - Bug Found</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause: Exact Equality Check Instead of Substring Match
+
+### The Bug
+`get_latest(agent='X')` uses **exact equality** for filtering:
+
+```python
+# Current code in spike.py line 86-92
+if agent:
+    all_spikes = [
+        s
+        for s in all_spikes
+        if s.agent_assigned == agent  # ❌ EXACT MATCH
+        or (s.model_name and agent in s.model_name.lower())  # ✅ Substring match
+    ]
+```
+
+### Evidence
+```
+# Test case: spike with agent_assigned='codex-dashboard-check'
+agent_assigned == 'codex'  # False (exact match fails)
+'codex' in 'codex-dashboard-check'.lower()  # True (substring would work)
+```
+
+**Result**: `get_latest(agent='codex')` returns 10 spikes BUT should return 20!
+
+### Why It Partially Works
+- `model_name` field uses substring matching: `agent in s.model_name.lower()`
+- `agent_assigned` field uses exact equality: `s.agent_assigned == agent`
+- Inconsistent behavior between the two fields
+
+### Fix Required
+Change line 90 in `src/python/htmlgraph/collections/spike.py`:
+
+```python
+# BEFORE (line 86-92)
+if agent:
+    all_spikes = [
+        s
+        for s in all_spikes
+        if s.agent_assigned == agent
+        or (s.model_name and agent in s.model_name.lower())
+    ]
+
+# AFTER
+if agent:
+    all_spikes = [
+        s
+        for s in all_spikes
+        if (s.agent_assigned and agent.lower() in s.agent_assigned.lower())
+        or (s.model_name and agent.lower() in s.model_name.lower())
+    ]
+```
+
+### Test Case
+```python
+# After fix
+sdk.spikes.get_latest(agent='codex')  # Should return 20, not 10
+sdk.spikes.get_latest(agent='debugger')  # Should return spikes with 'debugger' in agent_assigned
+```
+
+### Additional Findings
+- **862 total spikes** in database
+- **20 spikes** have 'codex' in `agent_assigned`
+- **0 spikes** have 'debugger' in `agent_assigned` (no test data)
+- Current SDK returns only 10 codex spikes (those where agent_assigned == 'codex' exactly)
+
+### Impact
+- **HIGH**: Breaks subagent delegation workflows
+- Orchestrators calling `get_latest(agent='explorer')` miss spikes from 'explorer-research' agent
+- Users expect substring matching for flexible agent naming
+            </div>
+        </section>
+    </article>
+</body>
+</html>

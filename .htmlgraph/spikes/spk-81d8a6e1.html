@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PostToolUse Hook Database Schema Missing</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-81d8a6e1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T17:15:25.013385"
+             data-updated="2026-01-08T17:15:25.013391" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="debugger">
+
+        <header>
+            <h1>PostToolUse Hook Database Schema Missing</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause: Missing events Table in Database
+
+**Error**: sqlite3.OperationalError: no such table: events
+
+**Current Tables**: agent_events, features, sessions, tracks (old schema)
+**Missing**: events table (new hybrid capture system)
+
+**Fix Status**:
+- ✅ NoneType bug fixed (lines 770-773)
+- ✅ Package reinstalled
+- ❌ Database schema not migrated
+
+**Next**: Find schema creation in event_tracker.py
+            </div>
+        </section>
+    </article>
+</body>
+</html>

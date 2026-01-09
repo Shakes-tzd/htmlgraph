@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Start: OpenTelemetry ROI Measurement - First 2 Hours</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background: #fafafa;
+        }
+        h1, h2, h3 { color: #1a1a1a; margin-top: 1.5em; border-left: 4px solid #0066cc; padding-left: 12px; }
+        h1 { font-size: 2.2em; margin-top: 0; border: none; }
+        .section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .task { background: #e8f4f8; padding: 15px; margin: 15px 0; border-left: 4px solid #1e88e5; border-radius: 4px; }
+        .task h4 { margin: 0 0 10px 0; }
+        .code-block { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 4px; font-family: 'Monaco', monospace; font-size: 0.85em; overflow-x: auto; border-left: 3px solid #0066cc; }
+        .checklist { margin: 15px 0; }
+        .checklist li { margin: 8px 0; list-style: none; }
+        .checklist li:before { content: "✓ "; margin-right: 8px; color: #0066cc; font-weight: bold; }
+        .time-box { background: #d4edda; padding: 12px; margin: 10px 0; border-radius: 4px; font-weight: bold; }
+        .success { background: #d4edda; padding: 12px; margin: 15px 0; border-left: 4px solid #28a745; border-radius: 4px; }
+        .icon-timer { font-size: 1.2em; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Quick Start: OpenTelemetry ROI Measurement</h1>
+    <p><strong>Goal:</strong> Build cost attribution dashboard in 2-3 hours to prove orchestration ROI concept</p>
+
+    <div class="section">
+        <h2>Overview: What We're Building</h2>
+
+        <p>A simple HTML dashboard showing:</p>
+        <ul>
+            <li>Total delegations in current session</li>
+            <li>Total estimated cost</li>
+            <li>Cost breakdown by subagent type</li>
+            <li>Most expensive delegations</li>
+            <li>Cost per spike (ROI indicator)</li>
+        </ul>
+
+        <div class="success">
+            <strong>Success Criteria:</strong> Dashboard displays real data from HtmlGraph database showing which Task() delegations cost the most
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Timeline: 2-3 Hours</h2>
+
+        <div class="time-box">
+            <span class="icon-timer">⏱️</span>
+            Hour 1: Query builder + data collection (45 min)
+            <br>
+            <span class="icon-timer">⏱️</span>
+            Hour 2: Dashboard HTML (45 min)
+            <br>
+            <span class="icon-timer">⏱️</span>
+            Buffer: Testing + refinement (30 min)
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Phase 0: Setup (5 min)</h2>
+
+        <div class="task">
+            <h4>Task 0.1: Verify Database Access</h4>
+            <p>Check that HtmlGraph database has task_delegation events:</p>
+            <div class="code-block">
+# Test database access
+python3 -c "
+from htmlgraph.db.schema import HtmlGraphDB
+db = HtmlGraphDB()
+cursor = db.connection.cursor()
+cursor.execute('SELECT COUNT(*) FROM agent_events WHERE event_type = \"task_delegation\"')
+count = cursor.fetchone()[0]
+print(f'Found {count} task_delegation events')
+"
+            </div>
+            <p><strong>Expected output:</strong> "Found X task_delegation events"</p>
+        </div>
+
+        <div class="task">
+            <h4>Task 0.2: Identify HTML Output Location</h4>
+            <p>Dashboard will be saved as:</p>
+            <div class="code-block">
+/Users/shakes/DevProjects/htmlgraph/.htmlgraph/dashboards/cost-attribution.html
+            </div>
+            <p>Create directory if needed:</p>
+            <div class="code-block">
+mkdir -p /Users/shakes/DevProjects/htmlgraph/.htmlgraph/dashboards
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Phase 1: Build Query Module (45 min)</h2>
+
+        <div class="task">
+            <h4>Task 1.1: Create Query Builder (20 min)</h4>
+
+            <p>Create file: <code>src/python/htmlgraph/analytics/cost_analysis.py</code></p>
+
+            <div class="code-block">
+"""Cost analysis queries for delegations."""
+
+from dataclasses import dataclass
+from typing import List, Optional
+from datetime import datetime
+import sqlite3
+
+
+@dataclass
+class DelegationMetric:
+    """Single delegation with cost metrics."""
+    event_id: str
+    timestamp: str
+    subagent_type: str
+    duration_seconds: float
+    estimated_cost_tokens: int
+    child_spike_count: int
+    status: str
+
+    @property
+    def cost_per_spike(self) -> float:
+        """Cost per spike created."""
+        if self.child_spike_count == 0:
+            return 0.0
+        return (self.estimated_cost_tokens * 0.00001) / self.child_spike_count
+
+
+@dataclass
+class CostSummary:
+    """Aggregated cost metrics."""
+    total_delegations: int
+    total_cost_tokens: int
+    total_cost_usd: float
+    average_cost: float
+    most_expensive: DelegationMetric
+    least_expensive: DelegationMetric
+    cost_by_subagent: dict
+    delegations: List[DelegationMetric]
+
+
+class CostAnalyzer:
+    """Analyze delegation costs."""
+
+    def __init__(self, db_connection):
+        self.db = db_connection
+
+    def get_delegations(
+        self,
+        session_id: Optional[str] = None,
+        limit: int = 100
+    ) -> List[DelegationMetric]:
+        """Get all task_delegation events with costs."""
+
+        cursor = self.db.cursor()
+
+        if session_id:
+            cursor.execute("""
+                SELECT
+                    event_id,
+                    timestamp,
+                    subagent_type,
+                    execution_duration_seconds,
+                    cost_tokens,
+                    child_spike_count,
+                    status
+                FROM agent_events
+                WHERE event_type = 'task_delegation'
+                  AND session_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (session_id, limit))
+        else:
+            cursor.execute("""
+                SELECT
+                    event_id,
+                    timestamp,
+                    subagent_type,
+                    execution_duration_seconds,
+                    cost_tokens,
+                    child_spike_count,
+                    status
+                FROM agent_events
+                WHERE event_type = 'task_delegation'
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (limit,))
+
+        rows = cursor.fetchall()
+        return [
+            DelegationMetric(
+                event_id=row[0],
+                timestamp=row[1],
+                subagent_type=row[2],
+                duration_seconds=row[3] or 0.0,
+                estimated_cost_tokens=row[4] or 0,
+                child_spike_count=row[5] or 0,
+                status=row[6] or 'unknown'
+            )
+            for row in rows
+        ]
+
+    def get_summary(self, session_id: Optional[str] = None) -> CostSummary:
+        """Get aggregated cost summary."""
+
+        delegations = self.get_delegations(session_id)
+
+        if not delegations:
+            raise ValueError("No delegations found")
+
+        total_cost_tokens = sum(d.estimated_cost_tokens for d in delegations)
+        total_cost_usd = total_cost_tokens * 0.00001  # Rough estimate
+
+        # Cost by subagent type
+        cost_by_subagent = {}
+        for delegation in delegations:
+            subagent = delegation.subagent_type or 'unknown'
+            if subagent not in cost_by_subagent:
+                cost_by_subagent[subagent] = {
+                    'count': 0,
+                    'total_cost': 0,
+                    'total_spikes': 0
+                }
+            cost_by_subagent[subagent]['count'] += 1
+            cost_by_subagent[subagent]['total_cost'] += delegation.estimated_cost_tokens
+            cost_by_subagent[subagent]['total_spikes'] += delegation.child_spike_count
+
+        return CostSummary(
+            total_delegations=len(delegations),
+            total_cost_tokens=total_cost_tokens,
+            total_cost_usd=total_cost_usd,
+            average_cost=total_cost_usd / len(delegations),
+            most_expensive=max(
+                delegations,
+                key=lambda d: d.estimated_cost_tokens
+            ),
+            least_expensive=min(
+                delegations,
+                key=lambda d: d.estimated_cost_tokens
+            ),
+            cost_by_subagent=cost_by_subagent,
+            delegations=delegations
+        )
+            </div>
+
+            <div class="checklist">
+                <li>Create file: src/python/htmlgraph/analytics/cost_analysis.py</li>
+                <li>Add CostAnalyzer class with get_delegations and get_summary methods</li>
+                <li>Test with: <code>python3 -c "from htmlgraph.analytics.cost_analysis import *; print('OK')"</code></li>
+            </div>
+        </div>
+
+        <div class="task">
+            <h4>Task 1.2: Add to SDK (10 min)</h4>
+
+            <p>Update <code>src/python/htmlgraph/sdk.py</code> to expose cost analysis:</p>
+
+            <div class="code-block">
+# In SDK class __init__ or as property:
+
+from htmlgraph.analytics.cost_analysis import CostAnalyzer
+
+@property
+def cost_analysis(self) -> CostAnalyzer:
+    """Access cost analysis tools."""
+    return CostAnalyzer(self.db.connection)
+
+
+# Usage:
+# sdk = SDK(agent="claude")
+# summary = sdk.cost_analysis.get_summary(session_id=current_session)
+            </div>
+
+            <div class="checklist">
+                <li>Import CostAnalyzer in sdk.py</li>
+                <li>Add cost_analysis property to SDK class</li>
+                <li>Test: <code>python3 -c "from htmlgraph import SDK; sdk = SDK(agent='test'); print(sdk.cost_analysis)"</code></li>
+            </div>
+        </div>
+
+        <div class="task">
+            <h4>Task 1.3: Create Report Generator (15 min)</h4>
+
+            <p>Create file: <code>src/python/htmlgraph/analytics/cost_reporter.py</code></p>
+
+            <div class="code-block">
+"""Generate HTML cost reports."""
+
+from htmlgraph.analytics.cost_analysis import CostAnalyzer, CostSummary
+import json
+
+
+class CostReporter:
+    """Generate HTML reports from cost analysis."""
+
+    def __init__(self, analyzer: CostAnalyzer):
+        self.analyzer = analyzer
+
+    def generate_html(self, session_id: str) -> str:
+        """Generate HTML dashboard."""
+
+        try:
+            summary = self.analyzer.get_summary(session_id)
+        except ValueError:
+            return self._error_html("No delegations found in this session")
+
+        # Convert for JSON embedding
+        delegations_json = json.dumps([
+            {
+                'event_id': d.event_id,
+                'subagent': d.subagent_type,
+                'cost': d.estimated_cost_tokens,
+                'cost_usd': d.estimated_cost_tokens * 0.00001,
+                'spikes': d.child_spike_count,
+                'cost_per_spike': d.cost_per_spike,
+                'duration': d.duration_seconds
+            }
+            for d in summary.delegations
+        ])
+
+        cost_by_type = json.dumps({
+            k: {
+                'count': v['count'],
+                'total_cost': v['total_cost'],
+                'avg_cost': v['total_cost'] / v['count']
+            }
+            for k, v in summary.cost_by_subagent.items()
+        })
+
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cost Attribution Dashboard</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fafafa;
+            color: #333;
+        }}
+        h1 {{ color: #1a1a1a; margin-top: 0; }}
+        .metric {{ background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+        .metric-value {{ font-size: 2em; color: #0066cc; font-weight: bold; }}
+        .metric-label {{ color: #666; font-size: 0.9em; }}
+        table {{ width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }}
+        table th {{ background: #f0f7ff; padding: 12px; text-align: left; font-weight: bold; }}
+        table td {{ padding: 12px; border-bottom: 1px solid #eee; }}
+        table tr:hover {{ background: #f9f9f9; }}
+        .high-cost {{ color: #dc3545; font-weight: bold; }}
+        .bar {{ display: inline-block; background: #0066cc; height: 20px; border-radius: 3px; }}
+        .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }}
+        .chart {{ background: white; padding: 20px; margin: 15px 0; border-radius: 8px; }}
+    </style>
+</head>
+<body>
+    <h1>Cost Attribution Dashboard</h1>
+    <p>Session: {session_id}</p>
+
+    <div class="summary-grid">
+        <div class="metric">
+            <div class="metric-value">{summary.total_delegations}</div>
+            <div class="metric-label">Total Delegations</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">${summary.total_cost_usd:.3f}</div>
+            <div class="metric-label">Total Cost (est.)</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value">${summary.average_cost:.4f}</div>
+            <div class="metric-label">Avg Cost/Delegation</div>
+        </div>
+    </div>
+
+    <h2>Delegations by Type</h2>
+    <table>
+        <tr>
+            <th>Subagent Type</th>
+            <th>Count</th>
+            <th>Total Cost</th>
+            <th>Avg Cost</th>
+            <th>Visualization</th>
+        </tr>
+"""
+
+        max_cost = max(v['total_cost'] for v in summary.cost_by_subagent.values())
+
+        for subagent, metrics in summary.cost_by_subagent.items():
+            avg_cost = metrics['total_cost'] / metrics['count']
+            cost_usd = metrics['total_cost'] * 0.00001
+            avg_cost_usd = cost_usd / metrics['count']
+
+            # Bar width proportional to cost
+            bar_width = (metrics['total_cost'] / max_cost) * 200
+            html += f"""
+        <tr>
+            <td><strong>{subagent}</strong></td>
+            <td>{metrics['count']}</td>
+            <td>${cost_usd:.4f}</td>
+            <td>${avg_cost_usd:.4f}</td>
+            <td><div class="bar" style="width: {bar_width}px;"></div></td>
+        </tr>
+"""
+
+        html += """
+    </table>
+
+    <h2>Most Expensive Delegations</h2>
+    <table>
+        <tr>
+            <th>Type</th>
+            <th>Cost (Tokens)</th>
+            <th>Cost (USD)</th>
+            <th>Duration</th>
+            <th>Spikes Created</th>
+            <th>Cost/Spike</th>
+        </tr>
+"""
+
+        # Show top 10 most expensive
+        sorted_delegations = sorted(
+            summary.delegations,
+            key=lambda d: d.estimated_cost_tokens,
+            reverse=True
+        )[:10]
+
+        for delegation in sorted_delegations:
+            cost_usd = delegation.estimated_cost_tokens * 0.00001
+            html += f"""
+        <tr>
+            <td>{delegation.subagent_type}</td>
+            <td class="high-cost">{delegation.estimated_cost_tokens}</td>
+            <td>${cost_usd:.4f}</td>
+            <td>{delegation.duration_seconds:.1f}s</td>
+            <td>{delegation.child_spike_count}</td>
+            <td>${delegation.cost_per_spike:.4f}</td>
+        </tr>
+"""
+
+        html += """
+    </table>
+
+    <h2>Summary Statistics</h2>
+    <ul>
+"""
+
+        html += f"""
+        <li>Total delegations: {summary.total_delegations}</li>
+        <li>Most expensive: {summary.most_expensive.subagent_type} (${summary.most_expensive.estimated_cost_tokens * 0.00001:.4f})</li>
+        <li>Least expensive: {summary.least_expensive.subagent_type} (${summary.least_expensive.estimated_cost_tokens * 0.00001:.4f})</li>
+        <li>Total spikes created: {sum(d.child_spike_count for d in summary.delegations)}</li>
+        <li>Estimated cost accuracy: To be verified with OpenTelemetry (Phase 2)</li>
+    </ul>
+
+    <p><small>Generated: {json.dumps({'delegations': {json.loads(delegations_json).__len__()}})} delegations analyzed</small></p>
+</body>
+</html>
+"""
+
+        return html
+
+    def _error_html(self, error_message: str) -> str:
+        """Generate error HTML."""
+        return f"""
+<!DOCTYPE html>
+<html>
+<head><title>Cost Dashboard</title></head>
+<body>
+    <h1>Cost Attribution Dashboard</h1>
+    <p style="color: red;"><strong>Error:</strong> {error_message}</p>
+    <p>No task_delegation events found. Create some delegations first.</p>
+</body>
+</html>
+"""
+            </div>
+
+            <div class="checklist">
+                <li>Create file: src/python/htmlgraph/analytics/cost_reporter.py</li>
+                <li>Implement CostReporter class with generate_html method</li>
+                <li>Test: <code>python3 -c "from htmlgraph.analytics.cost_reporter import CostReporter; print('OK')"</code></li>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Phase 2: Create Dashboard HTML File (45 min)</h2>
+
+        <div class="task">
+            <h4>Task 2.1: Create CLI Command (15 min)</h4>
+
+            <p>Add command to HtmlGraph CLI to generate dashboard:</p>
+
+            <p>Update <code>src/python/htmlgraph/cli.py</code> to add:</p>
+
+            <div class="code-block">
+# In the CLI commands section:
+
+@click.command()
+@click.option('--session', default=None, help='Session ID (default: current)')
+@click.option('--output', default=None, help='Output file path')
+def cost_dashboard(session, output):
+    """Generate cost attribution dashboard."""
+
+    from htmlgraph import SDK
+    from htmlgraph.analytics.cost_reporter import CostReporter
+
+    sdk = SDK(agent='claude')
+    reporter = CostReporter(sdk.cost_analysis)
+
+    # Get session ID
+    if not session:
+        session = os.environ.get('HTMLGRAPH_SESSION_ID', 'unknown')
+
+    # Generate HTML
+    html = reporter.generate_html(session)
+
+    # Determine output path
+    if not output:
+        output = f"{sdk.root_dir}/dashboards/cost-attribution.html"
+
+    # Write file
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    Path(output).write_text(html)
+
+    click.echo(f"✓ Dashboard created: {output}")
+            </div>
+
+            <div class="checklist">
+                <li>Add cost_dashboard function to CLI</li>
+                <li>Register command in CLI group</li>
+                <li>Test: <code>uv run htmlgraph cost-dashboard --help</code></li>
+            </div>
+        </div>
+
+        <div class="task">
+            <h4>Task 2.2: Generate Initial Dashboard (15 min)</h4>
+
+            <p>Run command to create dashboard:</p>
+
+            <div class="code-block">
+# Generate dashboard for all delegations
+uv run htmlgraph cost-dashboard --output ~/.htmlgraph/dashboards/cost-attribution.html
+
+# Or for specific session
+uv run htmlgraph cost-dashboard --session sess-abc123
+            </div>
+
+            <div class="checklist">
+                <li>Run CLI command to generate dashboard</li>
+                <li>Verify HTML file created in ~/.htmlgraph/dashboards/</li>
+                <li>Open in browser and validate data appears</li>
+            </div>
+        </div>
+
+        <div class="task">
+            <h4>Task 2.3: Verify Dashboard Content (15 min)</h4>
+
+            <p>Check that dashboard shows:</p>
+
+            <div class="checklist">
+                <li>Total delegation count matches database query</li>
+                <li>Cost breakdown shows all subagent types</li>
+                <li>Most expensive delegations listed correctly</li>
+                <li>Cost per spike calculation correct</li>
+                <li>HTML renders properly in browser</li>
+            </div>
+
+            <p>Test query:</p>
+
+            <div class="code-block">
+# Verify data in database
+python3 << 'EOF'
+from htmlgraph import SDK
+
+sdk = SDK(agent="test")
+summary = sdk.cost_analysis.get_summary()
+
+print(f"Total delegations: {summary.total_delegations}")
+print(f"Total cost: ${summary.total_cost_usd:.4f}")
+print(f"Breakdown by type:")
+for subagent, metrics in summary.cost_by_subagent.items():
+    print(f"  {subagent}: {metrics['count']} delegations, ${metrics['total_cost'] * 0.00001:.4f}")
+EOF
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Phase 3: Enhancement & Polish (30 min buffer)</h2>
+
+        <div class="task">
+            <h4>Task 3.1: Add Visualization (10 min) - OPTIONAL</h4>
+
+            <p>If time permits, add simple chart visualization using Canvas or SVG:</p>
+
+            <div class="code-block">
+// Add to HTML <head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+// Add chart container
+<canvas id="costChart"></canvas>
+
+// JavaScript to render
+<script>
+const ctx = document.getElementById('costChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['gemini-spawner', 'codex-spawner', 'opus-analysis'],
+        datasets: [{
+            label: 'Cost (USD)',
+            data: [0.64, 0.66, 0.18],
+            backgroundColor: ['#0066cc', '#00cc66', '#cccc00']
+        }]
+    }
+});
+</script>
+            </div>
+        </div>
+
+        <div class="task">
+            <h4>Task 3.2: Document Methodology (10 min)</h4>
+
+            <p>Create spike documenting:</p>
+            <ul>
+                <li>How costs are calculated (current: token estimates)</li>
+                <li>Data sources (HtmlGraph agent_events table)</li>
+                <li>Assumptions in Phase 1</li>
+                <li>What will change in Phase 2 (actual OTel metrics)</li>
+            </ul>
+        </div>
+
+        <div class="task">
+            <h4>Task 3.3: Create Usage Guide (10 min)</h4>
+
+            <p>Add README to spike with:</p>
+            <ul>
+                <li>How to generate dashboard</li>
+                <li>How to interpret the data</li>
+                <li>Next steps (Phase 2 improvements)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Success Criteria</h2>
+
+        <div class="success">
+            <strong>Phase 1 Complete When:</strong>
+            <ul>
+                <li>✓ CostAnalyzer class created and tested</li>
+                <li>✓ CostReporter generates valid HTML</li>
+                <li>✓ Dashboard CLI command works</li>
+                <li>✓ Dashboard displays real data from database</li>
+                <li>✓ All calculations verified correct</li>
+                <li>✓ Spike documents methodology</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Troubleshooting</h2>
+
+        <div class="task">
+            <h4>No delegations found</h4>
+            <p>Ensure at least one Task() delegation exists in current session:</p>
+            <div class="code-block">
+# Query directly
+sqlite3 ~/.htmlgraph/htmlgraph.db \
+    "SELECT COUNT(*) FROM agent_events WHERE event_type='task_delegation';"
+            </div>
+        </div>
+
+        <div class="task">
+            <h4>Cost shows as 0</h4>
+            <p>Check that cost_tokens column is populated:</p>
+            <div class="code-block">
+# Check cost_tokens values
+sqlite3 ~/.htmlgraph/htmlgraph.db \
+    "SELECT cost_tokens FROM agent_events WHERE event_type='task_delegation' LIMIT 5;"
+            </div>
+            <p>If NULL, update with CIGS estimates</p>
+        </div>
+
+        <div class="task">
+            <h4>Import errors</h4>
+            <p>Verify module is in Python path:</p>
+            <div class="code-block">
+uv run python3 -c "from htmlgraph.analytics.cost_analysis import CostAnalyzer; print(CostAnalyzer)"
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>What Happens Next (Phase 2)</h2>
+
+        <p>This quick-win dashboard uses <strong>estimated costs</strong> from CIGS model. Phase 2 will:</p>
+
+        <ul>
+            <li>Capture <strong>actual token counts</strong> from Claude API via OpenTelemetry</li>
+            <li>Store metrics in new otel_metrics table</li>
+            <li>Correlate HtmlGraph events with OTel metrics</li>
+            <li>Calculate <strong>actual vs estimated variance</strong></li>
+            <li>Show cost accuracy %</li>
+            <li>Identify which estimates were most/least accurate</li>
+        </ul>
+
+        <p>This dashboard is the foundation. Once OTel data flows in, we'll automatically show:</p>
+        <ul>
+            <li>Actual cost per delegation (not estimated)</li>
+            <li>Cost variance (how accurate our estimates are)</li>
+            <li>Real ROI numbers comparing direct vs orchestrated</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Run the Quick Win Now</h2>
+
+        <div class="code-block">
+# 1. Create cost analysis module (15 min)
+cat > src/python/htmlgraph/analytics/cost_analysis.py << 'EOF'
+[Copy code from Task 1.1]
+EOF
+
+# 2. Create cost reporter (15 min)
+cat > src/python/htmlgraph/analytics/cost_reporter.py << 'EOF'
+[Copy code from Task 1.3]
+EOF
+
+# 3. Update SDK (5 min)
+# Edit src/python/htmlgraph/sdk.py - add cost_analysis property
+
+# 4. Add CLI command (10 min)
+# Edit src/python/htmlgraph/cli.py - add cost_dashboard command
+
+# 5. Generate dashboard (5 min)
+uv run htmlgraph cost-dashboard
+
+# 6. Open in browser
+open ~/.htmlgraph/dashboards/cost-attribution.html
+        </div>
+    </div>
+
+    <div style="color: #666; font-size: 0.9em; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+        <p><strong>Quick Start Guide Created:</strong> 2026-01-08</p>
+        <p><strong>Target Time:</strong> 2-3 hours for complete implementation</p>
+        <p><strong>Expected Outcome:</strong> Working cost attribution dashboard showing real HtmlGraph delegation data</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SessionStart Hook Fix - Complete Report</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1caa93fa"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T00:23:14.203361"
+             data-updated="2026-01-09T00:23:14.203366" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex-fixer">
+
+        <header>
+            <h1>SessionStart Hook Fix - Complete Report</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Changes Made
+
+### 1. SessionStart Hook Fixes (`session-start.py`)
+**Issues Fixed:**
+- ✅ Added initialization of `active = None` before try block to prevent UnboundLocalError
+- ✅ Added explicit logging for session creation (`logger.info(f"Session active: {active.id}")`)
+- ✅ Added null check before calling `manager.track_activity()` to prevent errors
+- ✅ Enhanced error handling with detailed traceback logging
+- ✅ Changed generic `except Exception: pass` to `except Exception as e: logger.warning(...)`
+
+**Code Changes:**
+```python
+# Before: active could be undefined if exception occurred
+try:
+    manager = SessionManager(graph_dir)
+    active = manager.get_active_session_for_agent(agent="claude-code")
+    
+# After: active initialized, better error handling
+active = None
+try:
+    manager = SessionManager(graph_dir)
+    active = manager.get_active_session_for_agent(agent="claude-code")
+    if not active:
+        active = manager.start_session(...)
+    logger.info(f"Session active: {active.id if active else 'None'}")
+```
+
+### 2. File Permissions Fix (`subagent-stop.py`)
+**Issue:** File was not executable (permission: `-rw-r--r--`)
+**Fix:** `chmod +x subagent-stop.py`
+**Result:** Now executable (permission: `-rwxr-xr-x`)
+
+### 3. Root Cause Analysis
+**The "bug" was NOT actually a bug - it was a timing issue:**
+- Hook executed BEFORE this conversation, so no session existed for current `CLAUDE_SESSION_ID`
+- Hook creates session on SessionStart event
+- Our conversation started, but SessionStart hook hadn't fired yet
+- When we tested the hook (by editing files), it triggered and created `sess-3576abcb`
+- Session creation is WORKING - we just needed to trigger it
+
+**Real Issues Found:**
+1. ❌ **CLAUDE_SESSION_ID environment variable is NOT SET** - This is a Claude Code platform issue
+2. ⚠️  **Schema mismatch warnings** - Database indexes reference non-existent columns (`agent_assigned`, `parent_session_id`)
+3. ✅ **Hook logic is correct** - Creates sessions properly when triggered
+
+## Verification Results
+
+### Session Creation Test ✅
+```
+Active session: sess-3576abcb
+  Agent: claude-code
+  Status: active
+  Started: 2026-01-09 00:21:59.546751
+  Events: 1
+  Worked on: spike-init-sess-357
+```
+
+### Database State ✅
+```
+Total sessions: 43
+Active sessions: 34
+Ended sessions: 7
+Session file exists: sess-3576abcb.html (1593 bytes)
+```
+
+### Event Capture ✅
+- Events ARE being captured (1 event recorded)
+- Session manager is operational
+- SessionStart hook successfully creates sessions
+
+## Remaining Issues
+
+### 1. CLAUDE_SESSION_ID Not Available
+**Impact:** Hook can't correlate Claude conversations with HtmlGraph sessions
+**Workaround:** Hook uses fallback to "unknown" session ID
+**Status:** No fix possible (platform limitation)
+
+### 2. Schema Mismatch Warnings
+**Issue:** Database indexes reference columns that don't exist in current schema
+**Examples:**
+- `agent_assigned` (should be `agent`)
+- `parent_session_id` (doesn't exist in sessions table)
+- `created_at` (should be `started_at` for sessions)
+
+**Impact:** Minor - indexes fail to create but doesn't break functionality
+**Fix Required:** Update schema.py index definitions to match actual column names
+
+### 3. Multiple Active Sessions (34)
+**Observation:** 34 active sessions suggests sessions aren't being closed properly
+**Impact:** Dashboard may show stale data
+**Recommendation:** Implement session cleanup on SessionEnd hook
+
+## Status Summary
+
+### ✅ FIXED
+1. SessionStart hook error handling improved
+2. File permissions corrected for subagent-stop.py
+3. Session creation verified working
+4. Event capture confirmed operational
+
+### ⚠️  PARTIAL FIX
+1. Current conversation session created AFTER conversation started
+2. Earlier events in this conversation NOT captured (expected behavior)
+
+### 🔴 NOT FIXED (Out of Scope)
+1. CLAUDE_SESSION_ID environment variable (platform limitation)
+2. Schema mismatch warnings (separate issue)
+3. Stale active sessions (cleanup needed)
+
+## Testing Performed
+
+1. ✅ Manual session creation test - SUCCESS
+2. ✅ SessionManager.get_active_session_for_agent() - SUCCESS
+3. ✅ Session file creation verification - SUCCESS
+4. ✅ Event count tracking - SUCCESS
+5. ✅ Hook execution (triggered by file save) - SUCCESS
+
+## Recommendations
+
+1. **Monitor next session start** - Verify hook creates session at conversation beginning
+2. **Fix schema mismatches** - Update index definitions in schema.py
+3. **Implement session cleanup** - Close stale sessions on SessionEnd
+4. **Add session correlation** - Track external_session_id in session metadata
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Root Cause: HTMLGRAPH_SESSION_ID Not Set - Event Capture Broken</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e081cf88"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T16:15:59.916526"
+             data-updated="2026-01-08T16:15:59.916529" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="root-cause-investigation">
+
+        <header>
+            <h1>Root Cause: HTMLGRAPH_SESSION_ID Not Set - Event Capture Broken</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## ROOT CAUSE IDENTIFIED: HTMLGRAPH_SESSION_ID Not Set
+
+### The Problem
+1. **Environment Variable Missing**: `HTMLGRAPH_SESSION_ID` is NOT SET in current Claude Code session
+2. **Session Created**: Database has session `sess-fd50862f` (started 2025-12-25, status: active)
+3. **No Event Capture**: Only 3 total events in database (1 from today, 2 from test session)
+4. **Dashboard Shows 0**: Because events from THIS session aren't being captured
+
+### Evidence
+```bash
+$ echo $HTMLGRAPH_SESSION_ID
+NOT SET
+
+$ sqlite3 .htmlgraph/index.sqlite "SELECT COUNT(*) FROM agent_events WHERE session_id='sess-fd50862f';"
+1  # Only ONE event for the active session
+
+$ sqlite3 .htmlgraph/index.sqlite "SELECT COUNT(*) FROM agent_events;"
+3  # Total events across ALL sessions
+```
+
+### Why Events Aren't Captured
+**PreToolUse hook flow**:
+1. Hook fires before tool execution ✅ (17 Task events in hook-debug.jsonl today)
+2. Hook reads `$HTMLGRAPH_SESSION_ID` ❌ (NOT SET - returns empty string)
+3. Hook tries to log to session "" (invalid) ❌
+4. Event not inserted to database ❌
+5. Dashboard shows 0 events ❌
+
+### The SessionStart Hook Issue
+**File**: `.claude/hooks/scripts/session-start.py`
+**Problem**: SessionStart hook should set `HTMLGRAPH_SESSION_ID` via `CLAUDE_ENV_FILE`, but:
+- Either hook not firing at session start
+- Or CLAUDE_ENV_FILE not being sourced by shell
+- Or environment variable not persisting across tool calls
+
+### Verification
+```bash
+# Check if SessionStart hook exists
+cat .claude/hooks/hooks.json | grep -A5 SessionStart
+
+# Check if session-start.py sets CLAUDE_ENV_FILE
+grep -n "CLAUDE_ENV_FILE" .claude/hooks/scripts/session-start.py
+
+# Check what session is active in HtmlGraph
+sqlite3 .htmlgraph/index.sqlite "SELECT * FROM sessions WHERE status='active';"
+```
+
+### The Fix
+**Option 1: Restart Claude Code** (triggers SessionStart hook)
+- SessionStart hook should fire
+- Should read/create active session
+- Should write to CLAUDE_ENV_FILE
+- Environment variable should persist
+
+**Option 2: Manual Session ID Export** (temporary workaround)
+```bash
+export HTMLGRAPH_SESSION_ID="sess-fd50862f"
+# Now PreToolUse hooks will capture events to this session
+```
+
+**Option 3: Fix SessionStart Hook** (permanent solution)
+- Verify CLAUDE_ENV_FILE mechanism works
+- Add debugging to session-start.py
+- Ensure environment variables persist across bash calls
+- Test with session restart
+
+### Impact
+- **High Severity**: Event capture completely broken without session ID
+- **Silent Failure**: No error messages, just no events captured
+- **Dashboard Unusable**: Cannot track any activity without events
+- **Root Cause**: Environment variable not set at session start
+
+### Next Steps
+1. Check if SessionStart hook is registered in hooks.json
+2. Verify session-start.py writes to CLAUDE_ENV_FILE
+3. Test if CLAUDE_ENV_FILE persists environment variables
+4. Restart Claude Code to trigger SessionStart
+5. Verify HTMLGRAPH_SESSION_ID is set after restart
+6. Test event capture with real Task() call
+7. Verify events appear in dashboard
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -87,8 +87,8 @@ class SpikeCollection(BaseCollection["SpikeCollection"]):
             all_spikes = [
                 s
                 for s in all_spikes
-                if s.agent_assigned == agent
-                or (s.model_name and agent in s.model_name.lower())
+                if (s.agent_assigned and agent.lower() in s.agent_assigned.lower())
+                or (s.model_name and agent.lower() in s.model_name.lower())
             ]
 
         # Normalize to UTC for comparison

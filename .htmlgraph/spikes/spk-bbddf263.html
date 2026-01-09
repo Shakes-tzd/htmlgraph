@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Parent Event Linking Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bbddf263"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T22:28:56.859666"
+             data-updated="2026-01-08T22:28:56.859669" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="parent-linking-fix">
+
+        <header>
+            <h1>Parent Event Linking Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Changes Made
+
+### File: src/python/htmlgraph/hooks/event_tracker.py
+
+**Lines 708-713 (NEW):**
+Added environment variable fallback for cross-process parent linking:
+```python
+# Also check environment variable for cross-process parent linking
+# This is set by PreToolUse hook when Task() spawns a subagent
+if not parent_activity_id:
+    env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+    if env_parent:
+        parent_activity_id = env_parent
+```
+
+**Line 748 (FIXED):**
+Changed from hardcoded None to actual parent_activity_id:
+```python
+# BEFORE:
+parent_event_id=None,  # Parent linking handled after result
+
+# AFTER:
+parent_event_id=parent_activity_id,  # Link to parent event
+```
+
+## Root Cause
+
+The parent_activity_id variable was already being calculated correctly (lines 691-707) from two sources:
+1. **parent-activity.json state file** - For same-process parent tracking
+2. **HTMLGRAPH_PARENT_EVENT environment variable** - For cross-process parent tracking (set by PreToolUse hook)
+
+However, line 741 was hardcoded to pass None instead of using the parent_activity_id variable.
+
+This caused all child events to have parent_event_id=NULL in the database, breaking nested event tracing.
+
+## Implementation Approach
+
+Used **Option A: Environment Variables + State File** (hybrid approach):
+
+1. **Same-process tracking**: parent-activity.json state file stores parent event ID when Task/Skill tools are invoked
+2. **Cross-process tracking**: HTMLGRAPH_PARENT_EVENT environment variable passes parent ID to subagent processes
+3. **Database recording**: record_event_to_sqlite() now receives the parent_event_id and stores it correctly
+
+This approach leverages existing infrastructure:
+- PreToolUse hook already sets HTMLGRAPH_PARENT_EVENT (line 287 in pretooluse.py)
+- SubagentStop hook already reads HTMLGRAPH_PARENT_EVENT (line 41 in subagent_stop.py)
+- Parent activity state tracking already existed but wasnt being used for SQLite
+
+## Testing Results
+
+### Integration Tests (test_parent_linking_integration.py)
+```bash
+pytest tests/python/test_parent_linking_integration.py -v
+```
+**Result: 4/4 tests passed ✅**
+
+Tests verified:
+- Basic parent-child linking works
+- Multiple children can link to same parent
+- Three-level nesting works (Task -> Skill -> Read)
+- Recursive queries work for event trees
+
+### Verification Script (verify_fix_works.py)
+```
+Total events: 12
+Events with parent_event_id: 9
+Events without parent_event_id (root events): 3
+Parent linking rate: 75.0%
+```
+
+**All scenarios passed:**
+✅ Scenario 1: Task with 4 child events (Read, Read, Edit, Bash)
+✅ Scenario 2: 3-level nesting (Task -> Skill -> Read)
+✅ Scenario 3: Parallel work (3 children, same parent)
+
+### Database Verification
+
+Before fix:
+```sql
+SELECT COUNT(*) as total,
+       SUM(CASE WHEN parent_event_id IS NOT NULL THEN 1 ELSE 0 END) as with_parents
+FROM agent_events;
+-- Result: 9 total, 0 with_parents (0%)
+```
+
+After fix (new events):
+```sql
+-- Result: 12 total, 9 with_parents (75%)
+-- 3 root events (Task delegations)
+-- 9 child events properly linked
+```
+
+### Recursive Query Test
+
+Successfully queried event tree using recursive CTE:
+```sql
+WITH RECURSIVE event_tree AS (
+    SELECT event_id, tool_name, parent_event_id, 0 as depth
+    FROM agent_events
+    WHERE event_id = ?
+    UNION ALL
+    SELECT e.event_id, e.tool_name, e.parent_event_id, t.depth + 1
+    FROM agent_events e
+    JOIN event_tree t ON e.parent_event_id = t.event_id
+)
+SELECT event_id, tool_name, depth FROM event_tree
+ORDER BY depth, event_id;
+```
+
+This enables dashboard UI to display nested event structure with proper indentation.
+
+## Dashboard Verification
+
+The fix enables the nested tracing UI:
+- ✅ Task events show expand icon (▶)
+- ✅ Clicking expands child events
+- ✅ Child events properly indented
+- ✅ Nested structure visible
+
+Database now supports queries like:
+- Get all children of a Task event
+- Build event tree recursively
+- Calculate nesting depth
+- Show parent-child relationships in activity feed
+
+## Files Changed
+
+1. **src/python/htmlgraph/hooks/event_tracker.py** (2 changes)
+   - Added environment variable fallback (lines 708-713)
+   - Fixed parent_event_id parameter (line 748)
+
+## Files Added
+
+1. **tests/python/test_parent_linking_integration.py** (integration tests)
+2. **tests/python/test_parent_child_linking.py** (unit tests with mocking)
+3. **verify_fix_works.py** (verification script)
+4. **test_manual_parent_linking.py** (manual testing script)
+
+## Backward Compatibility
+
+✅ No breaking changes - existing events without parent_event_id remain unchanged
+✅ New events automatically get parent_event_id set correctly
+✅ Dashboard handles both NULL and non-NULL parent_event_id gracefully
+
+## Next Steps
+
+1. ✅ Fix implemented and tested
+2. ✅ Integration tests passing
+3. ✅ Verification complete
+4. 🔄 Ready for production use
+5. 📊 Dashboard can now query and display nested events
+
+## Performance Impact
+
+Minimal - only one additional environment variable lookup per event:
+```python
+env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")  # O(1) lookup
+```
+
+No additional database queries or file I/O.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

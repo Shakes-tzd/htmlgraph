@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix Spawner Agent Frontmatter</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-614d4038"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T03:17:11.896163"
+             data-updated="2026-01-09T03:17:11.896170" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Fix Spawner Agent Frontmatter</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Fix: Spawner Agent Frontmatter
+
+## Summary
+Updated all three spawner agent files with valid Claude Code frontmatter to fix agents returning immediately without executing.
+
+## Key Findings
+- All three spawner agents had invalid YAML frontmatter using "capabilities" field
+- Claude Code agents require: name, description, model, color, tools fields
+- The invalid frontmatter caused agents to fail silently
+
+## Files Updated
+
+### 1. gemini-spawner.md
+- Added: name, model (haiku), color (green), tools
+- Removed: capabilities list
+- Tools: Read, Bash, Grep, Glob, WebSearch, WebFetch
+
+### 2. copilot-spawner.md  
+- Added: name, model (haiku), color (blue), tools
+- Removed: capabilities list
+- Tools: Read, Bash, Grep, Glob
+
+### 3. codex-spawner.md
+- Added: name, model (haiku), color (purple), tools
+- Removed: capabilities list
+- Tools: Read, Write, Edit, Bash, Grep, Glob
+
+## Commit Details
+- Commit: 501f1f3
+- Message: fix: Add required frontmatter to spawner agent files
+- Pre-commit checks: All passed (ruff, mypy)
+- Pushed to: origin/main
+
+## Recommendations
+- Test spawner agents to verify they now execute properly
+- Consider adding integration tests for agent frontmatter validation
+            </div>
+        </section>
+    </article>
+</body>
+</html>

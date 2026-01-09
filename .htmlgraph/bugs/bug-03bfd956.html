@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Database schema missing subagent_type column in agent_events table</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-03bfd956"
+             data-type="bug"
+             data-status="todo"
+             data-priority="critical"
+             data-created="2026-01-09T02:59:56.744631"
+             data-updated="2026-01-09T07:59:57.323889+00:00" data-agent-assigned="orchestrator">
+
+        <header>
+            <h1>Database schema missing subagent_type column in agent_events table</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-422f9b54.html" data-relationship="implemented-in" data-since="2026-01-09T02:59:57.323877">sess-422f9b54</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Root cause of "unknown" agents in Orchestration page.
+
+## Error:
+table agent_events has no column named subagent_type
+
+## Impact:
+- Cannot store delegation target (subagent_type) in events
+- Orchestration page shows "unknown" for all delegations
+- Index creation warnings appear throughout
+
+## Fix needed:
+- Add subagent_type column to agent_events table in schema
+- Run migration or ALTER TABLE
+- Update event insertion code to use the column
+</p>
+        </section>
+    </article>
+</body>
+</html>

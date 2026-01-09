@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spawner Agents Investigation - Root Cause Found</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0e751c65"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T03:14:36.682625"
+             data-updated="2026-01-09T03:14:36.682629" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="spawner-investigator">
+
+        <header>
+            <h1>Spawner Agents Investigation - Root Cause Found</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Investigation Summary
+
+Spawner agents (gemini-spawner, copilot-spawner, codex-spawner) return immediately without executing when invoked via Task(subagent_type="htmlgraph:...").
+
+## Root Cause
+
+The spawner agent files have **invalid YAML frontmatter** that does not match Claude Code's agent specification.
+
+### Current (Invalid) Frontmatter Structure:
+```yaml
+---
+description: Spawn Google Gemini 2.0-Flash...
+capabilities:
+  - Exploratory research...
+  - Batch file analysis...
+---
+```
+
+### Required Frontmatter Structure:
+```yaml
+---
+name: gemini-spawner
+description: Use this agent when... Examples: <example>...</example>
+model: inherit
+color: green
+tools: ["Read", "Bash", "Grep", "Glob"]
+---
+```
+
+## Missing Required Fields
+
+1. **name** - Agent identifier (CRITICAL - causes silent failure)
+2. **model** - Claude model to use (sonnet, haiku, inherit)
+3. **color** - Visual identifier
+
+## Invalid Fields Used
+
+1. **capabilities** - Not a valid frontmatter field
+
+## Evidence
+
+Compared official plugin-dev agents (agent-creator.md, skill-reviewer.md) with htmlgraph spawner agents:
+
+| Field | Official Agents | HtmlGraph Spawners |
+|-------|-----------------|-------------------|
+| name | Present (required) | MISSING |
+| description | "Use this agent when..." | Just describes function |
+| model | sonnet, inherit, etc. | MISSING |
+| color | Present | MISSING |
+| tools | Array format | MISSING |
+| capabilities | N/A | Present (invalid) |
+
+## Sources
+
+- Claude Code Subagents Docs: https://code.claude.com/docs/en/sub-agents
+- Claude Code Plugins Reference: https://code.claude.com/docs/en/plugins-reference
+- Shipyard Guide: https://shipyard.build/blog/claude-code-subagents-guide/
+
+## Affected Files
+
+- packages/claude-plugin/agents/gemini-spawner.md
+- packages/claude-plugin/agents/copilot-spawner.md
+- packages/claude-plugin/agents/codex-spawner.md
+
+## Proposed Fix
+
+Update all spawner agent files with correct frontmatter:
+
+1. Add **name** field matching filename (without .md)
+2. Rewrite **description** to start with "Use this agent when..."
+3. Add **model: inherit** (or specify sonnet for complex tasks)
+4. Add **color** field (green for spawners)
+5. Add **tools** array with needed tools
+6. Move **capabilities** content to body text
+7. Add **<example>** blocks showing triggering scenarios
+
+## Priority
+
+CRITICAL - Agents are completely non-functional without the name field.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

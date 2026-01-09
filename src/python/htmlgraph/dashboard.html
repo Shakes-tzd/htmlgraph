@@ -2515,6 +2515,38 @@
             border-bottom: none;
         }
 
+        /* Parent events with children */
+        .activity-item.parent-event {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .activity-item.parent-event .expand-icon {
+            display: inline-block;
+            margin-right: 0.5rem;
+            transition: transform 0.2s;
+            font-size: 0.75rem;
+        }
+
+        .activity-item.parent-event .expand-icon::before {
+            content: '▶';
+            color: var(--text-muted);
+        }
+
+        .activity-item.parent-event.expanded .expand-icon::before {
+            content: '▼';
+        }
+
+        /* Child events styling */
+        .activity-item.child-event {
+            background-color: rgba(205, 255, 0, 0.02);
+            margin-left: 0;
+        }
+
+        .activity-item.child-event:hover {
+            background-color: rgba(205, 255, 0, 0.05);
+        }
+
         .activity-meta {
             display: flex;
             align-items: center;
@@ -2778,16 +2810,43 @@
         .activity-table tbody tr.parent-row {
             font-weight: 500;
             border-left: 3px solid var(--accent);
+            cursor: pointer;
+        }
+
+        /* Expand icon for parent rows */
+        .activity-table tbody tr.parent-row .expand-icon {
+            display: inline-block;
+            margin-right: 0.5rem;
+            transition: transform 0.2s;
+        }
+
+        .activity-table tbody tr.parent-row .expand-icon::before {
+            content: '▶';
+            color: var(--text-muted);
+        }
+
+        .activity-table tbody tr.parent-row.expanded .expand-icon::before {
+            content: '▼';
         }
 
         /* Child rows with visual indent marker */
         .activity-table tbody tr.child-row {
             background-color: rgba(205, 255, 0, 0.02);
             border-left: 3px solid var(--text-muted);
+            display: none;
+        }
+
+        .activity-table tbody tr.child-row.visible {
+            display: table-row;
         }
 
         .activity-table tbody tr.child-row:hover {
             background-color: rgba(205, 255, 0, 0.05);
+        }
+
+        /* Indent child row content */
+        .activity-table tbody tr.child-row td:first-child {
+            padding-left: 2.5rem;
         }
 
         /* Status-based row coloring */
@@ -3476,6 +3535,17 @@
                 </p>
                 <div class="skills-matrix-container" id="skills-matrix-content">
                     <div class="loading">Analyzing agent work history...</div>
+                </div>
+            </div>
+
+            <!-- Orchestration & Delegations -->
+            <div class="analytics-card analytics-card-wide" id="orchestration-view">
+                <h3>Orchestration & Delegations</h3>
+                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+                    Track agent-to-agent task delegations and coordination patterns.
+                </p>
+                <div id="orchestration-content">
+                    <div class="loading">Loading delegation data...</div>
                 </div>
             </div>
 
@@ -5482,6 +5552,21 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     return;
                 }
 
+                // Build parent-child map
+                const parentMap = new Map();
+                const topLevelEvents = [];
+
+                events.forEach(event => {
+                    if (event.parent_event_id) {
+                        if (!parentMap.has(event.parent_event_id)) {
+                            parentMap.set(event.parent_event_id, []);
+                        }
+                        parentMap.get(event.parent_event_id).push(event);
+                    } else {
+                        topLevelEvents.push(event);
+                    }
+                });
+
                 // Build source summary
                 const sourceSummary = `
                     <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
@@ -5494,19 +5579,22 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 let html_content = `
                     <div class="activity-header">
                         <strong>${events.length}</strong>
-                        <span>events from all sources</span>
+                        <span>events from all sources (${topLevelEvents.length} top-level)</span>
                     </div>
                     ${sourceSummary}
                     <ol class="activity-list" reversed>
                 `;
 
-                events.forEach(item => {
+                // Render helper function
+                function renderEvent(item, isChild = false, depth = 0) {
                     const ts = item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Unknown';
                     const tool = item.tool_name || item.event_type || 'Unknown';
                     const agentId = item.agent_id || 'unknown';
                     const status = item.status || 'recorded';
                     const source = item.source || 'hook_event';
                     const content = item.input_summary || item.output_summary || '';
+                    const eventId = item.event_id || '';
+                    const hasChildren = parentMap.has(eventId);
 
                     // Source-specific styling
                     let sourceClass = 'hook';
@@ -5535,9 +5623,16 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     const agentBadge = agentClass ? `<span class="badge agent ${agentClass}">${agentId}</span>` :
                                                    `<span class="badge">${agentId}</span>`;
 
-                    html_content += `
-                        <li class="activity-item" style="border-left: 3px solid ${sourceClass === 'hook' ? '#2979FF' : sourceClass === 'spike' ? '#00C853' : sourceClass === 'subagent' ? '#7C4DFF' : '#FF9100'};">
+                    // Add expand icon for parents
+                    const expandIcon = hasChildren ? '<span class="expand-icon"></span>' : '';
+                    const indent = isChild ? 'padding-left: ' + (1.5 + depth * 1.5) + 'rem;' : '';
+
+                    return `
+                        <li class="activity-item ${hasChildren ? 'parent-event' : ''} ${isChild ? 'child-event' : ''}"
+                            data-event-id="${eventId}"
+                            style="border-left: 3px solid ${sourceClass === 'hook' ? '#2979FF' : sourceClass === 'spike' ? '#00C853' : sourceClass === 'subagent' ? '#7C4DFF' : '#FF9100'}; ${indent}">
                             <div class="activity-meta">
+                                ${expandIcon}
                                 <span class="activity-time">${ts}</span>
                                 ${statusIcon}
                                 ${sourceBadge}
@@ -5547,8 +5642,23 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                             <div class="activity-content">${escapeHtml(content.substring(0, 200))}${content.length > 200 ? '...' : ''}</div>
                         </li>
                     `;
-                });
+                }
 
+                // Render events recursively
+                function renderEventTree(eventList, depth = 0) {
+                    let html = '';
+                    eventList.forEach(item => {
+                        html += renderEvent(item, depth > 0, depth);
+                        const eventId = item.event_id || '';
+                        if (parentMap.has(eventId)) {
+                            const children = parentMap.get(eventId);
+                            html += renderEventTree(children, depth + 1);
+                        }
+                    });
+                    return html;
+                }
+
+                html_content += renderEventTree(topLevelEvents);
                 html_content += `</ol>`;
 
                 // Add limitation notice
@@ -5560,6 +5670,91 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 `;
 
                 container.innerHTML = html_content;
+
+                // Add click handlers for expandable parent events
+                const parentEvents = container.querySelectorAll('.activity-item.parent-event');
+                parentEvents.forEach(parentEl => {
+                    parentEl.addEventListener('click', (e) => {
+                        // Don't toggle if clicking on a link
+                        if (e.target.tagName === 'A') return;
+
+                        const eventId = parentEl.dataset.eventId;
+                        const isExpanded = parentEl.classList.contains('expanded');
+
+                        if (isExpanded) {
+                            // Collapse - hide children
+                            parentEl.classList.remove('expanded');
+                            hideChildren(eventId);
+                        } else {
+                            // Expand - show direct children only
+                            parentEl.classList.add('expanded');
+                            showDirectChildren(eventId);
+                        }
+                    });
+                });
+
+                // Helper to show direct children
+                function showDirectChildren(parentId) {
+                    const allItems = container.querySelectorAll('.activity-item');
+                    let foundParent = false;
+                    let parentDepth = -1;
+
+                    allItems.forEach(item => {
+                        if (item.dataset.eventId === parentId) {
+                            foundParent = true;
+                            // Calculate depth from indent
+                            const style = item.getAttribute('style') || '';
+                            const match = style.match(/padding-left:\s*([\d.]+)rem/);
+                            parentDepth = match ? parseFloat(match[1]) : 0;
+                        } else if (foundParent) {
+                            const style = item.getAttribute('style') || '';
+                            const match = style.match(/padding-left:\s*([\d.]+)rem/);
+                            const itemDepth = match ? parseFloat(match[1]) : 0;
+
+                            // Stop when we reach same or lower depth (sibling or parent)
+                            if (itemDepth <= parentDepth) {
+                                foundParent = false;
+                                return;
+                            }
+
+                            // Show only direct children (next depth level)
+                            if (itemDepth === parentDepth + 1.5) {
+                                item.style.display = 'block';
+                            }
+                        }
+                    });
+                }
+
+                // Helper to hide all descendants
+                function hideChildren(parentId) {
+                    const allItems = container.querySelectorAll('.activity-item');
+                    let foundParent = false;
+                    let parentDepth = -1;
+
+                    allItems.forEach(item => {
+                        if (item.dataset.eventId === parentId) {
+                            foundParent = true;
+                            // Calculate depth from indent
+                            const style = item.getAttribute('style') || '';
+                            const match = style.match(/padding-left:\s*([\d.]+)rem/);
+                            parentDepth = match ? parseFloat(match[1]) : 0;
+                        } else if (foundParent) {
+                            const style = item.getAttribute('style') || '';
+                            const match = style.match(/padding-left:\s*([\d.]+)rem/);
+                            const itemDepth = match ? parseFloat(match[1]) : 0;
+
+                            // Stop when we reach same or lower depth
+                            if (itemDepth <= parentDepth) {
+                                foundParent = false;
+                                return;
+                            }
+
+                            // Hide all descendants and collapse them
+                            item.style.display = 'none';
+                            item.classList.remove('expanded');
+                        }
+                    });
+                }
 
             } catch (err) {
                 console.error("Complete activity feed error:", err);
@@ -6493,6 +6688,56 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
             }
         }
 
+        async function loadOrchestrationView() {
+            const el = document.getElementById('orchestration-content');
+            try {
+                const r = await fetch(`${API}/orchestration`);
+                if (!r.ok) throw new Error('Failed to load orchestration data');
+                const data = await r.json();
+
+                if (data.delegation_count === 0) {
+                    el.innerHTML = '<div style="padding: 2rem; color: var(--text-muted);">No delegations found</div>';
+                    return;
+                }
+
+                // Render delegation summary
+                let html = '<div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">';
+                html += `<div class="metric-card"><div class="metric-value">${data.delegation_count}</div><div class="metric-label">Total Delegations</div></div>`;
+                html += `<div class="metric-card"><div class="metric-value">${data.unique_agents}</div><div class="metric-label">Agents Involved</div></div>`;
+                html += '</div>';
+
+                // Render delegation chains
+                html += '<div class="delegations-list">';
+                for (const [fromAgent, delegations] of Object.entries(data.delegation_chains)) {
+                    html += `<div style="margin-bottom: 1.5rem;">`;
+                    html += `<h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">${fromAgent}</h4>`;
+                    delegations.forEach(d => {
+                        const statusColor = d.status === 'completed' ? 'var(--status-done)' :
+                                           d.status === 'failed' ? 'var(--status-blocked)' :
+                                           'var(--status-active)';
+                        html += `<div class="delegation-item" style="margin-left: 1.5rem; margin-bottom: 0.5rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 6px;">`;
+                        html += `<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">`;
+                        html += `<span style="color: var(--text-secondary);">→</span>`;
+                        html += `<strong style="color: var(--text-primary);">${d.to_agent}</strong>`;
+                        html += `<span class="badge" style="background: ${statusColor}; color: white; font-size: 0.65rem;">${d.status}</span>`;
+                        html += `</div>`;
+                        html += `<div style="color: var(--text-secondary); font-size: 0.875rem; margin-left: 1.5rem;">${d.task}</div>`;
+                        if (d.timestamp) {
+                            html += `<div style="color: var(--text-muted); font-size: 0.75rem; margin-left: 1.5rem; margin-top: 0.25rem;">${d.timestamp.replace('T', ' ').substring(0, 19)}</div>`;
+                        }
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                }
+                html += '</div>';
+
+                el.innerHTML = html;
+            } catch (e) {
+                el.innerHTML = `<div style="padding: 2rem; color: red;">Error: ${e.message}</div>`;
+            }
+        }
+
+
         // =====================================================================
         // View Toggle
         // =====================================================================
@@ -6537,6 +6782,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 agents.classList.add('active');
                 sessions.classList.remove('active');
                 loadAndRenderAgents();
+                loadOrchestrationView();
             } else if (view === 'sessions') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');
@@ -6854,6 +7100,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                 agents.classList.add('active');
                 sessions.classList.remove('active');
                 loadAndRenderAgents();
+                loadOrchestrationView();
             } else if (view === 'sessions') {
                 kanban.classList.remove('active');
                 graph.classList.remove('active');

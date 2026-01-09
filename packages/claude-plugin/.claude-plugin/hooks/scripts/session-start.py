@@ -1335,6 +1335,7 @@ def main():
     except Exception as e:
         logger.error(f"Session creation failed: {e}")
         import traceback
+
         logger.error(f"Traceback: {traceback.format_exc()}")
         print(f"Warning: Could not start session: {e}", file=sys.stderr)
 

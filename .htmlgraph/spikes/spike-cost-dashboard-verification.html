@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cost Dashboard Verification - HtmlGraph Spike</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            padding: 40px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #0f3460;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #e94560;
+            border-bottom: 3px solid #e94560;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #4facfe;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        h3 {
+            color: #00f2fe;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #4caf50;
+            color: white;
+        }
+        .status.warning {
+            background: #ff9800;
+            color: white;
+        }
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        .code {
+            background: #1a1a2e;
+            border-left: 4px solid #e94560;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .finding {
+            background: #16213e;
+            border-left: 4px solid #4facfe;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .recommendation {
+            background: #1a1a2e;
+            border-left: 4px solid #ff9800;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .meta {
+            color: #b0b0b0;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        a {
+            color: #4facfe;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Cost Dashboard HTML Generation Verification</h1>
+
+        <div class="meta">
+            <strong>Agent:</strong> codex-dashboard-check<br>
+            <strong>Generated:</strong> 2026-01-08 16:15:00<br>
+            <strong>Session:</strong> sess-095254eb<br>
+            <strong>Status:</strong> <span class="status warning">⚠️ ISSUE IDENTIFIED</span>
+        </div>
+
+        <h2>Executive Summary</h2>
+        <div class="finding">
+            <p><strong>Problem:</strong> The CLI command <code>htmlgraph cigs cost-dashboard</code> generates basic HTML without Chart.js visualizations, despite CostReporter class being implemented with full chart support in Phase 1 Task 2.</p>
+
+            <p><strong>Root Cause:</strong> CLI uses custom <code>_generate_cost_dashboard_html()</code> function instead of the CostReporter class.</p>
+
+            <p><strong>Impact:</strong> Users see tables and metrics but miss interactive Chart.js visualizations (pie charts, bar charts) that were designed in the CostReporter.</p>
+        </div>
+
+        <h2>Current Status</h2>
+
+        <h3>✅ What Works</h3>
+        <ul>
+            <li><strong>HTML Generation:</strong> Dashboard HTML file is created successfully</li>
+            <li><strong>File Location:</strong> <code>.htmlgraph/cost-dashboard.html</code> (15 KB)</li>
+            <li><strong>Basic Visualizations:</strong> Metric cards, tables, insights section</li>
+            <li><strong>Responsive Design:</strong> Mobile-friendly layout with gradient theme</li>
+            <li><strong>Data Analysis:</strong> Cost breakdown by tool and session works correctly</li>
+            <li><strong>--save Flag:</strong> Saves HTML to disk properly</li>
+            <li><strong>--open Flag:</strong> Opens in browser successfully</li>
+        </ul>
+
+        <h3>❌ What's Missing</h3>
+        <ul>
+            <li><strong>Chart.js CDN:</strong> Not included in generated HTML</li>
+            <li><strong>Canvas Elements:</strong> No <code>&lt;canvas&gt;</code> tags for charts</li>
+            <li><strong>Interactive Visualizations:</strong> No pie chart for violation types</li>
+            <li><strong>Cost Breakdown Charts:</strong> No bar chart for tool costs</li>
+            <li><strong>Chart.js Configuration:</strong> No JavaScript to initialize charts</li>
+            <li><strong>CostReporter Integration:</strong> CLI bypasses the reporter class entirely</li>
+        </ul>
+
+        <h2>Technical Analysis</h2>
+
+        <h3>File Comparison</h3>
+
+        <div class="code">
+            <strong>CLI Implementation (cli.py:3666-3916):</strong><br>
+            - Function: <code>_generate_cost_dashboard_html(cost_summary: dict)</code><br>
+            - Output: Basic HTML with tables and metric cards<br>
+            - Styling: Purple gradient theme, responsive design<br>
+            - Charts: ❌ None
+        </div>
+
+        <div class="code">
+            <strong>CostReporter Implementation (reporter.py:32-819):</strong><br>
+            - Class: <code>CostReporter</code><br>
+            - Method: <code>generate_dashboard(violation_summary)</code><br>
+            - Output: Full HTML with Chart.js visualizations<br>
+            - Styling: Dark theme (#1a1a2e, #16213e, #e94560)<br>
+            - Charts: ✅ Doughnut chart (violation types), Bar chart (tool costs)
+        </div>
+
+        <h3>Architecture Mismatch</h3>
+        <div class="finding">
+            <p><strong>Phase 1 Design:</strong> CostReporter was designed for violation tracking (CIGS system)</p>
+            <p><strong>CLI Implementation:</strong> General cost analysis from HtmlGraph events</p>
+            <p><strong>Data Format Mismatch:</strong></p>
+            <ul>
+                <li>CostReporter expects: <code>SessionViolationSummary</code> object</li>
+                <li>CLI provides: <code>dict</code> with tool_costs, session_costs, delegation metrics</li>
+            </ul>
+        </div>
+
+        <h2>Verification Results</h2>
+
+        <div class="code">
+            <strong>Command Run:</strong><br>
+            $ uv run htmlgraph cigs cost-dashboard --save<br><br>
+
+            <strong>Output:</strong><br>
+            ✓ Dashboard saved to: .htmlgraph/cost-dashboard.html<br><br>
+
+            <strong>File Details:</strong><br>
+            - Size: 15 KB<br>
+            - Format: HTML5<br>
+            - Chart.js: ❌ Not found<br>
+            - Canvas elements: ❌ Not found<br>
+            - Metric cards: ✅ Present<br>
+            - Tables: ✅ Present (Cost by Tool, Cost by Session)<br>
+            - Insights: ✅ Present
+        </div>
+
+        <h3>Dashboard Features Present</h3>
+        <ol>
+            <li><strong>Header Section:</strong> Title, timestamp, metric cards</li>
+            <li><strong>Metric Cards:</strong>
+                <ul>
+                    <li>Total Cost: 73,356,000 tokens</li>
+                    <li>Estimated USD: $366.78</li>
+                    <li>Average Cost: 2,000 tokens</li>
+                    <li>Delegation Rate: 2.9%</li>
+                </ul>
+            </li>
+            <li><strong>Cost by Tool Table:</strong> 20 top tools with count, total tokens, percentage</li>
+            <li><strong>Cost by Session Table:</strong> Session breakdown with usage stats</li>
+            <li><strong>Insights Section:</strong> Recommendations for optimization</li>
+        </ol>
+
+        <h3>Dashboard Features Missing</h3>
+        <ol>
+            <li><strong>Chart.js Library:</strong> CDN script tag not included</li>
+            <li><strong>Doughnut Chart:</strong> Cost breakdown by violation type visualization</li>
+            <li><strong>Bar Chart:</strong> Cost breakdown by tool visualization</li>
+            <li><strong>Interactive Tooltips:</strong> Hover effects on chart data points</li>
+            <li><strong>Chart Configuration:</strong> JavaScript initialization code</li>
+        </ol>
+
+        <h2>Why This Happened</h2>
+
+        <div class="finding">
+            <h3>Design Evolution</h3>
+            <p>The CostReporter class was built for the CIGS (Cost-aware Intelligent Guidance System) in Phase 1, which focuses on <strong>delegation violations</strong> and <strong>waste tracking</strong>.</p>
+
+            <p>The CLI cost dashboard command analyzes <strong>general HtmlGraph events</strong> for cost attribution across all tool usage, not just violations.</p>
+
+            <p>When implementing the CLI, a custom HTML generator was created instead of adapting CostReporter, resulting in:</p>
+            <ul>
+                <li>Duplicate HTML generation code</li>
+                <li>Missing Chart.js visualizations</li>
+                <li>Different data formats</li>
+                <li>Inconsistent styling between CIGS and CLI dashboards</li>
+            </ul>
+        </div>
+
+        <h2>Recommendations</h2>
+
+        <div class="recommendation">
+            <h3>Option 1: Adapt CostReporter (Recommended)</h3>
+            <p><strong>Pros:</strong> Reuses existing code, gets Chart.js visualizations, consistent design</p>
+            <p><strong>Implementation:</strong></p>
+            <ol>
+                <li>Create adapter to convert <code>cost_summary dict</code> → <code>SessionViolationSummary</code></li>
+                <li>Update CostReporter to accept both violation data and general event data</li>
+                <li>Replace <code>_generate_cost_dashboard_html()</code> with <code>CostReporter.generate_dashboard()</code></li>
+                <li>Test chart rendering with real data</li>
+            </ol>
+        </div>
+
+        <div class="recommendation">
+            <h3>Option 2: Add Chart.js to Existing HTML Generator</h3>
+            <p><strong>Pros:</strong> Minimal refactoring, maintains current architecture</p>
+            <p><strong>Implementation:</strong></p>
+            <ol>
+                <li>Add Chart.js CDN script tag to HTML header</li>
+                <li>Add <code>&lt;canvas&gt;</code> elements for charts</li>
+                <li>Copy chart initialization JavaScript from CostReporter</li>
+                <li>Pass data to JavaScript for chart rendering</li>
+            </ol>
+        </div>
+
+        <div class="recommendation">
+            <h3>Option 3: Create Unified Dashboard System</h3>
+            <p><strong>Pros:</strong> Best long-term architecture, single source of truth</p>
+            <p><strong>Implementation:</strong></p>
+            <ol>
+                <li>Create <code>DashboardGenerator</code> base class</li>
+                <li>Refactor CostReporter to extend base class</li>
+                <li>Create <code>EventCostDashboard</code> for general event analysis</li>
+                <li>Share Chart.js configuration and styling</li>
+                <li>Both CLI and CIGS use appropriate dashboard class</li>
+            </ol>
+        </div>
+
+        <h2>Next Steps</h2>
+
+        <div class="code">
+            <strong>Immediate Action:</strong><br>
+            1. Choose architectural approach (Option 1 recommended for MVP)<br>
+            2. Implement Chart.js integration<br>
+            3. Test dashboard generation with charts<br>
+            4. Verify charts render correctly in browser<br>
+            5. Update documentation with chart examples<br><br>
+
+            <strong>Testing Checklist:</strong><br>
+            ✅ Dashboard HTML generated<br>
+            ❌ Chart.js CDN loaded<br>
+            ❌ Canvas elements present<br>
+            ❌ Charts render on page load<br>
+            ❌ Interactive tooltips work<br>
+            ❌ Responsive design maintains chart aspect ratios<br>
+            ✅ Dark theme matches HtmlGraph style<br>
+            ✅ Tables display correctly
+        </div>
+
+        <h2>Files Analyzed</h2>
+        <ul>
+            <li><code>src/python/htmlgraph/cli.py</code> (lines 3557-3916)</li>
+            <li><code>src/python/htmlgraph/cigs/reporter.py</code> (lines 1-819)</li>
+            <li><code>.htmlgraph/cost-dashboard.html</code> (generated output, 15 KB)</li>
+        </ul>
+
+        <h2>Conclusion</h2>
+
+        <div class="finding">
+            <p><strong>Status:</strong> The cost dashboard generates valid HTML but lacks the Chart.js visualizations that were implemented in CostReporter.</p>
+
+            <p><strong>User Impact:</strong> Users see data in tables but miss the visual insights from interactive charts.</p>
+
+            <p><strong>Fix Complexity:</strong> Low to Medium - Can be resolved by integrating CostReporter or copying Chart.js setup.</p>
+
+            <p><strong>Priority:</strong> Medium - Dashboard is functional but not using best available implementation.</p>
+        </div>
+
+        <h2>Links</h2>
+        <ul>
+            <li><a href="../cost-dashboard.html">Generated Cost Dashboard (Current)</a></li>
+            <li><a href="../../src/python/htmlgraph/cigs/reporter.py">CostReporter Implementation</a></li>
+            <li><a href="../../src/python/htmlgraph/cli.py">CLI Cost Dashboard Command</a></li>
+        </ul>
+
+        <div class="meta" style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #16213e;">
+            <p>🔴 <strong>CRITICAL:</strong> This spike documents the verification requested by the user. The HTML dashboard works but doesn't use the Chart.js visualizations from CostReporter.</p>
+            <p>📊 <strong>Next:</strong> Integrate CostReporter or add Chart.js to CLI's HTML generator.</p>
+        </div>
+    </div>
+</body>
+</html>

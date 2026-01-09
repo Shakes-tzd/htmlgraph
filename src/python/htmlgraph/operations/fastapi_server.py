@@ -73,9 +73,9 @@ def start_fastapi_server(
     warnings: list[str] = []
     original_port = port
 
-    # Default database path
+    # Default database path - use index.sqlite (unified database)
     if db_path is None:
-        db_path = str(Path.home() / ".htmlgraph" / "htmlgraph.db")
+        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
 
     # Ensure database exists
     db_path_obj = Path(db_path)

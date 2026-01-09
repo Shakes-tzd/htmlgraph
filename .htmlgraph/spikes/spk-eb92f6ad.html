@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Current Session Events Not Captured - Root Cause Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-eb92f6ad"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T01:30:45.827803"
+             data-updated="2026-01-09T01:30:45.827806" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="event-diagnosis">
+
+        <header>
+            <h1>Current Session Events Not Captured - Root Cause Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Identified
+
+**PRIMARY ISSUE: Schema Mismatch Between Code and Database**
+
+The `index.sqlite` database has an outdated schema that doesn't match the current code in `schema.py`.
+
+### Schema Comparison
+
+| Column in Code (`schema.py`) | Column in Database (`index.sqlite`) |
+|------------------------------|-------------------------------------|
+| `agent_assigned`             | `agent`                             |
+| `created_at`                 | `started_at`                        |
+| `parent_session_id`          | (missing)                           |
+| `parent_event_id`            | (missing)                           |
+| `is_subagent`                | (missing)                           |
+| `transcript_id`              | (missing)                           |
+| `transcript_path`            | (missing)                           |
+
+### Error Chain
+
+1. **Hook fires** - PostToolUse hook is called correctly (visible in hook-debug.jsonl)
+2. **Session insert fails** - `insert_session()` tries to insert into `agent_assigned` column which doesn't exist
+3. **Error logged** - "Error inserting session: table sessions has no column named agent_assigned"
+4. **Event insert may fail** - Foreign key constraint on session_id may cause cascading failure
+5. **No events recorded** - Database shows 0 events from 2026-01-09
+
+### Evidence
+
+1. **Hook Debug Log** - Shows PostToolUse events being processed with timestamps from 2026-01-09
+2. **Database Modified** - `index.sqlite` was modified at 01:29:02 (file touched but no data written)
+3. **Test Output** - Direct test shows "Error inserting session: table sessions has no column named agent_assigned"
+4. **Event Count** - `SELECT COUNT(*) FROM agent_events WHERE timestamp LIKE '2026-01-09%'` returns 0
+
+### Database Timestamps
+
+- **htmlgraph.db**: Last modified 2026-01-08 17:19:21 (older schema)
+- **index.sqlite**: Last modified 2026-01-09 01:29:02 (being accessed but writes fail)
+
+### Session Table Schema in Database
+
+Actual columns in `index.sqlite.sessions`:
+```
+session_id TEXT PRIMARY KEY
+agent TEXT
+start_commit TEXT
+continued_from TEXT
+status TEXT
+started_at TEXT
+ended_at TEXT
+```
+
+Expected columns per `schema.py`:
+```
+session_id TEXT PRIMARY KEY
+agent_assigned TEXT NOT NULL
+parent_session_id TEXT
+parent_event_id TEXT
+created_at DATETIME NOT NULL
+completed_at DATETIME
+total_events INTEGER
+total_tokens_used INTEGER
+context_drift REAL
+status TEXT NOT NULL
+transcript_id TEXT
+transcript_path TEXT
+transcript_synced DATETIME
+start_commit TEXT
+end_commit TEXT
+is_subagent BOOLEAN
+features_worked_on JSON
+metadata JSON
+```
+
+## Resolution Options
+
+### Option 1: Migrate Database Schema (Recommended)
+Add missing columns to existing tables using ALTER TABLE statements.
+
+### Option 2: Rebuild Database
+Backup current database and let `HtmlGraphDB.create_tables()` create fresh schema.
+Risk: Lose historical data.
+
+### Option 3: Fix Code to Handle Both Schemas
+Update `insert_session()` to detect schema version and use appropriate columns.
+
+## Immediate Workaround
+
+The code has graceful degradation - when session insert fails, it logs warning but continues.
+However, event insert also fails because the session doesn't exist for foreign key reference.
+
+## Next Steps
+
+1. Create database migration script to add missing columns
+2. Or backup index.sqlite and create fresh database
+3. Test event capture after schema is fixed
+4. Verify dashboard shows new events
+            </div>
+        </section>
+    </article>
+</body>
+</html>

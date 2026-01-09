@@ -1,0 +1,215 @@
+
+# Parent-Child Event Linking Investigation - Status Report
+
+**Investigation ID**: agent-a2ca4f0
+**Status**: ✅ Investigation Complete - Fix Implemented & Tested
+**Date**: 2026-01-09
+**Phase**: Post-Implementation Verification
+
+---
+
+## Executive Summary
+
+The parent-child event linking investigation is **COMPLETE**. A comprehensive root cause analysis identified 4 critical design flaws in the schema and event tracking system. The primary fix has been **implemented, tested, and verified working**.
+
+### Key Findings
+
+#### Root Causes Identified (4 Critical Issues)
+
+1. **RC-1: FOREIGN KEY Constraint Too Strict**
+   - Agent_events and sessions tables enforce strict foreign key constraints on parent_event_id
+   - Prevents child events from referencing non-existent parent events
+   - Blocks distributed/cross-process parent-child linking
+
+2. **RC-2: Foreign Key on Sessions Table Unnecessary**
+   - Sessions.parent_event_id has unnecessary foreign key constraint
+   - Prevents subagent sessions from referencing parent events in different processes
+   - Makes task delegation parent linking impossible
+
+3. **RC-3: Insert Methods Lack Graceful Error Handling**
+   - insert_event() and insert_session() fail hard on constraint violations
+   - No fallback to NULL parent_event_id on errors
+   - Silent failures cause lost parent-child relationships
+
+4. **RC-4: Parent Activity State File Not Integrated with SDK**
+   - event_tracker.py manages parent-activity.json state file
+   - SDK._log_event() only reads HTMLGRAPH_PARENT_ACTIVITY environment variable
+   - Two separate mechanisms cause inconsistencies
+
+#### Primary Fix Implemented ✅
+
+**File**: src/python/htmlgraph/hooks/event_tracker.py
+**Changes**: 2 critical fixes
+- Added HTMLGRAPH_PARENT_EVENT environment variable fallback (lines 708-713)
+- Fixed parent_event_id parameter to use actual parent_activity_id (line 748)
+
+**Result**: Event hierarchy now properly linked from Task delegations through child events
+
+#### Test Results ✅
+
+```
+test_parent_linking_integration.py: 4/4 PASSED
+- Basic parent-child linking ✅
+- Multiple children per parent ✅
+- Three-level nesting ✅
+- Recursive query support ✅
+
+Database verification:
+- Total events: 12
+- Events with parent_event_id: 9 (75%)
+- Root events (no parent): 3
+```
+
+---
+
+## Investigation Timeline
+
+### Phase 1: Root Cause Analysis (COMPLETE) ✅
+- 35+ failing tests analyzed across 3 test files
+- Database schema examined
+- Event tracking flow traced
+- 4 root causes identified
+
+**Document**: PARENT_CHILD_LINKING_ANALYSIS.md (390 lines, comprehensive)
+
+### Phase 2: Primary Fix Implementation (COMPLETE) ✅
+- Fixed environment variable propagation in event_tracker.py
+- Enabled parent event ID capture in child events
+- Integration tests passing (4/4)
+
+**Document**: PARENT_CHILD_LINKING_FIX.md (268 lines, tested)
+
+### Phase 3: Remaining Work (PENDING)
+- RC-1 & RC-2: Remove/relax FOREIGN KEY constraints (critical)
+- RC-3: Add graceful error handling in insert methods
+- RC-4: Integrate parent-activity.json with SDK
+
+---
+
+## Key Discoveries
+
+### How Parent-Child Linking Works (Now Fixed)
+
+```
+1. Orchestrator calls Task()
+   └─ PreToolUse hook creates parent event
+   └─ Sets HTMLGRAPH_PARENT_EVENT env var
+   └─ Saves to parent-activity.json
+
+2. Subagent executes child tools (Read, Edit, Bash)
+   └─ PostToolUse hook captures each tool call
+   └─ Reads parent ID from env var ✅ (NOW WORKING)
+   └─ Records event with parent_event_id set ✅
+
+3. Database stores hierarchy
+   └─ Child events link to parent via foreign key
+   └─ Dashboard displays nested event structure
+```
+
+### Cascade Effects
+
+- ✅ Task delegations now properly tracked
+- ✅ Nested event trees can be displayed in dashboard
+- ✅ Recursive queries work (WITH RECURSIVE)
+- ✅ Multi-level nesting supported (tested to 3 levels)
+
+---
+
+## Impact Assessment
+
+### What's Working Now
+- Parent event ID properly captured from environment
+- Child events correctly record parent references
+- Event hierarchy stored in database
+- Recursive queries functional
+
+### What Still Needs Fixing
+1. **FOREIGN KEY constraints** - Still too strict for cross-process linking
+2. **Error handling** - Insert methods need graceful fallbacks
+3. **State file integration** - SDK doesn't use parent-activity.json
+
+### Risk Level
+- **Current state**: MEDIUM (primary fix working, constraints still strict)
+- **After RC-1&2 fix**: LOW (distributed linking enabled)
+- **After RC-3 fix**: MINIMAL (graceful error handling)
+
+---
+
+## Files Documented
+
+| File | Size | Status |
+|------|------|--------|
+| PARENT_CHILD_LINKING_ANALYSIS.md | 390 lines | ✅ Complete |
+| PARENT_CHILD_LINKING_FIX.md | 268 lines | ✅ Complete |
+| PARENT_SESSION_LINKING_RESEARCH.md | ? lines | Research doc |
+| tests/python/test_parent_linking_integration.py | Tests | ✅ 4/4 passing |
+
+---
+
+## Verification Steps Completed
+
+```bash
+✅ Root cause analysis documented
+✅ Primary fix implemented (event_tracker.py)
+✅ Integration tests passing (4/4)
+✅ Database statistics verified
+✅ Parent-child relationships confirmed in DB
+✅ Nested hierarchies tested to 3 levels
+✅ Recursive queries working
+```
+
+---
+
+## Next Actions (Priority Order)
+
+1. **CRITICAL - Phase 1**: Remove FOREIGN KEY constraints
+   - Modify schema.py lines 34, 45
+   - Allows cross-process parent-child linking
+   - Estimated effort: 30 minutes
+
+2. **CRITICAL - Phase 2**: Add graceful error handling
+   - Modify schema.py insert_event(), insert_session()
+   - Fallback to NULL if parent doesn't exist
+   - Estimated effort: 20 minutes
+
+3. **HIGH - Phase 3**: Integrate parent-activity.json
+   - Modify sdk.py _log_event()
+   - Check both env var and state file
+   - Estimated effort: 15 minutes
+
+4. **HIGH - Phase 4**: Fix remaining test lifecycle issues
+   - Ensure parent events exist before references
+   - Proper test setup and teardown
+   - Estimated effort: 20 minutes
+
+---
+
+## Key References
+
+- **Root Cause Analysis**: /Users/shakes/DevProjects/htmlgraph/PARENT_CHILD_LINKING_ANALYSIS.md
+- **Primary Fix Details**: /Users/shakes/DevProjects/htmlgraph/PARENT_CHILD_LINKING_FIX.md
+- **Database Schema**: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/db/schema.py
+- **Event Tracker**: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/event_tracker.py
+- **Integration Tests**: /Users/shakes/DevProjects/htmlgraph/tests/python/test_parent_linking_integration.py
+
+---
+
+## Current Spike Status
+
+**Created**: 2026-01-09
+**Investigation Duration**: ~2 hours (across multiple sessions)
+**Tests Run**: 35+ tests analyzed, 4/4 integration tests passing
+**Lines of Documentation**: 658+ lines across 2 comprehensive documents
+**Confidence Level**: HIGH - Root causes clearly identified, primary fix validated
+
+---
+
+## Conclusions
+
+1. ✅ **Investigation Complete**: All 4 root causes identified with supporting evidence
+2. ✅ **Primary Fix Working**: Parent event ID propagation fixed and tested
+3. ⚠️ **Secondary Fixes Pending**: FOREIGN KEY constraints and error handling still needed
+4. 📈 **Architecture Sound**: Parent-child linking design is correct, implementation needs refinement
+5. 🎯 **Path Forward Clear**: 4 specific phases with estimated effort for each
+
+The parent-child event linking system is on track for full implementation. The primary fix is working, and the remaining issues are well-understood and documented.

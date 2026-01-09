@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Session Tracking Pipeline: Missing /api/sessions Endpoint</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5cbc1cf1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T14:00:13.672950"
+             data-updated="2026-01-08T14:00:13.672955" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="investigation">
+
+        <header>
+            <h1>Session Tracking Pipeline: Missing /api/sessions Endpoint</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Session Tracking Pipeline Failure - Root Cause Investigation
+
+## CRITICAL FINDING: Missing /api/sessions Endpoint
+
+### Failure Point Identified
+**Location**: `src/python/htmlgraph/api/main.py`  
+**Problem**: Dashboard JavaScript calls `fetch('/api/sessions')` but the endpoint is NOT defined in the FastAPI application.
+
+### Evidence
+
+#### 1. Dashboard JavaScript Makes the Request
+```javascript
+// From index.html line 4488, 4533, 4709
+const response = await fetch(`${API}/sessions`);
+// API = '/api' by default
+// So it calls GET /api/sessions
+```
+
+#### 2. FastAPI Endpoints Defined (from grep analysis)
+- ✅ `/api/events` - Defined at line 459
+- ✅ `/api/query-metrics` - Defined at line 548  
+- ✅ `/api/event-traces` - Defined at line 573
+- ✅ `/api/complete-activity-feed` - Defined at line 758
+- ❌ `/api/sessions` - **NOT FOUND** (0 matches)
+
+#### 3. Database HAS Session Data
+```sql
+sqlite3 .htmlgraph/index.sqlite "SELECT COUNT(*) FROM sessions;"
+# Returns: 2 sessions in database
+
+SELECT * FROM sessions LIMIT 3;
+# Returns: 
+# sess-3d9ec350|claude-code|96e398e||active|2025-12-26T08:29:16.155199|
+# sess-fd50862f|cli|c6c2b26||active|2025-12-25T05:34:10.091725|
+```
+
+#### 4. Session Files Exist on Disk
+```bash
+ls -la .htmlgraph/sessions/*.html | wc -l
+# Returns: 41 session HTML files
+# Most recent: sess-fd50862f.html (513 KB, Jan 8 13:58:01)
+```
+
+#### 5. SessionStart Hook IS Configured
+```json
+"SessionStart": [
+  {
+    "matcher": "",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "uv run ".claude/hooks/scripts/session-start.py""
+      }
+    ]
+  }
+]
+```
+
+### Root Cause
+
+**The pipeline is HALF-WORKING:**
+
+1. ✅ **SessionStart Hook**: Fires and creates sessions (2 in DB, 41 HTML files)
+2. ✅ **Database Storage**: Sessions stored in `.htmlgraph/index.sqlite` 
+3. ✅ **File System**: Session HTML files created on disk
+4. ❌ **API Endpoint**: No `/api/sessions` endpoint to expose session data
+5. ❌ **Dashboard Display**: JavaScript fetch fails silently → shows "Sessions 0"
+
+### What's Happening Now
+
+1. **Tests run** → SessionStart hook fires (✅ confirmed in hook-debug.jsonl)
+2. **Sessions created** → Stored in DB and disk (✅ 2 in DB, 41 files)
+3. **Dashboard loads** → Calls `fetch('/api/sessions')` 
+4. **Endpoint missing** → 404 or no response
+5. **JavaScript handles error** → Sets `allSessions = []` (empty)
+6. **Dashboard shows** → "Sessions 0" or empty list
+
+### Implementation Status
+
+**Missing Endpoint**: `/api/sessions`
+
+Should return:
+```json
+{
+  "nodes": [
+    {
+      "id": "sess-3d9ec350",
+      "agent": "claude-code",
+      "status": "active",
+      "started_at": "2025-12-26T08:29:16.155199",
+      "ended_at": null,
+      "start_commit": "96e398e",
+      "continued_from": null,
+      "updated": "2025-12-26T08:29:16.155199"
+    },
+    ...
+  ]
+}
+```
+
+### Code Location to Fix
+
+**File**: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py`
+
+**Add after line 758** (after `@app.get("/api/complete-activity-feed")`):
+
+```python
+@app.get("/api/sessions")
+async def get_sessions(
+    db: aiosqlite.Connection = Depends(get_db),
+    agent: str | None = None,
+    status: str | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Get all sessions with optional filtering.
+    
+    Query parameters:
+    - agent: Filter by agent type (e.g., 'claude-code', 'cli')
+    - status: Filter by status (e.g., 'active', 'completed')
+    """
+    query = "SELECT * FROM sessions ORDER BY started_at DESC"
+    params: list[str] = []
+    
+    filters = []
+    if agent:
+        filters.append("agent = ?")
+        params.append(agent)
+    if status:
+        filters.append("status = ?")
+        params.append(status)
+    
+    if filters:
+        query += " WHERE " + " AND ".join(filters)
+    
+    async with db.execute(query, params) as cursor:
+        columns = [description[0] for description in cursor.description]
+        rows = await cursor.fetchall()
+        
+        nodes = [dict(zip(columns, row)) for row in rows]
+        
+        # Add 'updated' field for UI (use started_at or ended_at)
+        for node in nodes:
+            node['updated'] = node['ended_at'] or node['started_at']
+    
+    return {"nodes": nodes}
+```
+
+### Testing the Fix
+
+After implementing the endpoint:
+
+```bash
+# Test the API directly
+curl http://localhost:8080/api/sessions | python3 -m json.tool
+
+# Should return:
+{
+  "nodes": [
+    {
+      "id": "sess-3d9ec350",
+      "agent": "claude-code",
+      "status": "active",
+      "started_at": "2025-12-26T08:29:16.155199",
+      ...
+    }
+  ]
+}
+
+# Dashboard should then display sessions correctly
+```
+
+### Impact
+
+- **Current State**: Dashboard shows "Sessions 0" despite having 2 active sessions
+- **Root Cause**: Missing API endpoint (not missing hook or database data)
+- **Fix Complexity**: Low - just implement the missing endpoint
+- **Time to Fix**: <10 minutes
+- **Verification**: Sessions will appear in dashboard after endpoint added
+
+### Related Files to Check
+
+1. **API File**: `src/python/htmlgraph/api/main.py` (needs new endpoint)
+2. **Dashboard**: `src/python/htmlgraph/dashboard.html` (fetch call correct, no change needed)
+3. **Database**: `.htmlgraph/index.sqlite` (has data, no change needed)
+4. **Hooks**: `.claude/hooks/scripts/session-start.py` (working correctly, no change needed)
+
+### Next Steps
+
+1. ✅ Add `/api/sessions` endpoint to `main.py`
+2. ✅ Test with `curl http://localhost:8080/api/sessions`
+3. ✅ Verify dashboard displays sessions
+4. ✅ Run tests to ensure no regressions
+5. ✅ Commit with message: "feat: add /api/sessions endpoint for dashboard display"
+
+---
+
+## Summary
+
+**Not a hook problem. Not a database problem. Not a tracking problem.**
+
+The session tracking pipeline IS WORKING. Sessions are being created, stored, and persisted. The ONLY missing piece is the API endpoint to expose that data to the dashboard.
+
+This is why:
+- ✅ hook-debug.jsonl shows SessionStart hook firing
+- ✅ Database has 2 sessions
+- ✅ Disk has 41 session HTML files
+- ✅ But dashboard shows "Sessions 0"
+
+All data exists. Just needs the endpoint to serve it.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

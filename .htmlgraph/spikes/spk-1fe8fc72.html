@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Cost Dashboard HTML Generation Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1fe8fc72"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T16:13:20.733740"
+             data-updated="2026-01-08T16:13:20.733743" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex-dashboard-check">
+
+        <header>
+            <h1>Cost Dashboard HTML Generation Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## HTML Dashboard Generation Verification
+
+### Current Status
+**HTML IS being generated** ✅ BUT without Chart.js visualizations ❌
+
+### Problem Identified
+The CLI command `htmlgraph cigs cost-dashboard` uses a custom HTML generator (`_generate_cost_dashboard_html()`) instead of the CostReporter class that was implemented in Phase 1 Task 2 with full Chart.js support.
+
+### Files Created
+- **Path:** `.htmlgraph/cost-dashboard.html`
+- **Size:** 15 KB
+- **Format:** HTML5 with responsive design
+- **Theme:** Purple gradient (#667eea, #764ba2)
+
+### Dashboard Features Present
+✅ HTML file generation  
+✅ Metric cards (Total Cost, USD, Avg Cost, Delegation Rate)  
+✅ Cost by Tool table (20 top tools)  
+✅ Cost by Session table  
+✅ Insights and recommendations  
+✅ Responsive design  
+✅ --save and --open flags work  
+
+### Dashboard Features Missing
+❌ Chart.js CDN script tag  
+❌ Canvas elements for charts  
+❌ Doughnut chart (violation type breakdown)  
+❌ Bar chart (tool cost breakdown)  
+❌ Interactive tooltips  
+❌ Chart initialization JavaScript  
+
+### Root Cause Analysis
+
+**Architecture Mismatch:**
+1. **CostReporter** (reporter.py) was designed for CIGS violation tracking
+   - Input: `SessionViolationSummary` object
+   - Output: Dark-themed HTML with Chart.js visualizations
+   - Features: Doughnut chart, bar chart, interactive tooltips
+
+2. **CLI Dashboard** (cli.py) analyzes general HtmlGraph events
+   - Input: `cost_summary dict` from event analysis
+   - Output: Purple-themed HTML with tables only
+   - Features: Metric cards, tables, insights (no charts)
+
+**Why This Happened:**
+- CostReporter expects violation data (Phase 1 CIGS focus)
+- CLI analyzes all events for general cost attribution
+- Custom HTML generator was created instead of adapting CostReporter
+- Result: Duplicate code, missing Chart.js visualizations
+
+### Files Analyzed
+1. `src/python/htmlgraph/cli.py` (lines 3557-3916)
+   - Function: `cmd_cigs_cost_dashboard()`
+   - Function: `_generate_cost_dashboard_html()`
+   - No CostReporter import or usage
+
+2. `src/python/htmlgraph/cigs/reporter.py` (lines 1-819)
+   - Class: `CostReporter`
+   - Method: `generate_dashboard()`
+   - Chart.js CDN: Line 196
+   - Canvas elements: Lines 545-552
+   - Chart initialization: Lines 697-806
+
+3. `.htmlgraph/cost-dashboard.html` (generated output)
+   - Searched for "chart.js": Not found
+   - Searched for "<canvas": Not found
+   - Tables and metrics: Present
+
+### Verification Commands Run
+```bash
+# Generate dashboard
+uv run htmlgraph cigs cost-dashboard --save
+
+# Check file created
+ls -la .htmlgraph/cost-dashboard.html  # ✅ 15 KB
+
+# Verify Chart.js
+grep -i "chart.js" .htmlgraph/cost-dashboard.html  # ❌ Not found
+
+# Check canvas elements  
+grep -i "<canvas" .htmlgraph/cost-dashboard.html  # ❌ Not found
+
+# Open in browser
+open .htmlgraph/cost-dashboard.html  # ✅ Opens successfully
+```
+
+### Browser Verification
+Dashboard opens and displays:
+- ✅ Title and timestamp
+- ✅ Four metric cards with gradients
+- ✅ Cost by Tool table (Bash: 40.1%, Read: 18.8%, etc.)
+- ✅ Cost by Session table (sess-fd50862: 39.8%, etc.)
+- ✅ Insights section with recommendations
+- ❌ No charts visible (as expected - no Chart.js)
+
+### Recommendations
+
+**Option 1: Integrate CostReporter (Recommended)**
+- Adapt CostReporter to accept both violation data and event data
+- Create adapter: `cost_summary dict` → `SessionViolationSummary`
+- Replace `_generate_cost_dashboard_html()` with `CostReporter.generate_dashboard()`
+- **Pros:** Reuses existing code, gets Chart.js visualizations
+- **Effort:** 2-3 hours
+
+**Option 2: Add Chart.js to CLI Generator**
+- Copy Chart.js setup from CostReporter to `_generate_cost_dashboard_html()`
+- Add CDN script tag, canvas elements, initialization code
+- **Pros:** Minimal refactoring
+- **Effort:** 1-2 hours
+
+**Option 3: Unified Dashboard System**
+- Create `DashboardGenerator` base class
+- Refactor both CostReporter and CLI to extend base
+- Share Chart.js configuration and styling
+- **Pros:** Best long-term architecture
+- **Effort:** 4-6 hours
+
+### Ready for User
+**Current State:** Dashboard is functional but incomplete.
+
+**User Experience:**
+- ✅ Can view cost data in tables
+- ✅ Can see metric cards and insights
+- ❌ Missing visual charts for quick analysis
+- ❌ Not using the Chart.js implementation from Phase 1
+
+**Recommendation:** Integrate CostReporter to provide the full dashboard experience with interactive visualizations.
+
+### Next Steps
+1. Choose integration approach (Option 1 recommended)
+2. Implement Chart.js integration
+3. Test chart rendering with real data
+4. Verify responsive design maintains chart aspect ratios
+5. Document chart features in CLI help text
+
+### Impact Assessment
+- **Functionality:** 70% complete (tables work, charts missing)
+- **User Value:** Medium (data visible but less intuitive)
+- **Fix Complexity:** Low-Medium (can reuse existing CostReporter)
+- **Priority:** Medium (enhancement, not blocker)
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Gemini spawner Task() calls return immediately without producing results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-43ee6940"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-09T02:59:43.150800"
+             data-updated="2026-01-09T07:59:43.723216+00:00" data-agent-assigned="orchestrator">
+
+        <header>
+            <h1>Gemini spawner Task() calls return immediately without producing results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-422f9b54.html" data-relationship="implemented-in" data-since="2026-01-09T02:59:43.723209">sess-422f9b54</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>When using Task() with subagent_type="htmlgraph:gemini-spawner":
+- Task completes almost instantly
+- No spike files are created with findings
+- Agent doesn't appear to execute the research
+
+## Expected behavior:
+- Gemini spawner should execute the prompt
+- Results should be saved to HtmlGraph spike
+- Findings should be retrievable via SDK
+
+## Actual behavior:
+- Task returns agentId immediately
+- No spike created
+- No research performed
+
+## Files to investigate:
+- packages/claude-plugin/agents/gemini-spawner.md
+- The spawner mechanism implementation
+</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -222,8 +222,8 @@ class HtmlGraphDB:
                 status TEXT DEFAULT 'recorded',
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (session_id) REFERENCES sessions(session_id),
-                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id)
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
+                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE
             )
         """)
 
@@ -280,8 +280,8 @@ class HtmlGraphDB:
                 is_subagent BOOLEAN DEFAULT FALSE,
                 features_worked_on JSON,
                 metadata JSON,
-                FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id),
-                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id)
+                FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE,
+                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE
             )
         """)
 
@@ -492,6 +492,11 @@ class HtmlGraphDB:
         """
         Insert an agent event into the database.
 
+        Gracefully handles FOREIGN KEY constraint failures by retrying without
+        the parent_event_id reference. This allows events to be recorded even if
+        the parent event doesn't exist yet (useful for cross-process or distributed
+        event tracking).
+
         Args:
             event_id: Unique event identifier
             agent_id: Agent that generated this event
@@ -541,6 +546,47 @@ class HtmlGraphDB:
             )
             self.connection.commit()  # type: ignore[union-attr]
             return True
+        except sqlite3.IntegrityError as e:
+            # FOREIGN KEY constraint failed - likely parent_event_id doesn't exist
+            if "FOREIGN KEY constraint failed" in str(e) and parent_event_id:
+                logger.warning(
+                    f"Parent event {parent_event_id} not found, inserting event without parent link"
+                )
+                # Retry without parent_event_id to enable graceful degradation
+                try:
+                    cursor = self.connection.cursor()  # type: ignore[union-attr]
+                    cursor.execute(
+                        """
+                        INSERT INTO agent_events
+                        (event_id, agent_id, event_type, session_id, tool_name,
+                         input_summary, output_summary, context, parent_agent_id,
+                         parent_event_id, cost_tokens, execution_duration_seconds, subagent_type)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            event_id,
+                            agent_id,
+                            event_type,
+                            session_id,
+                            tool_name,
+                            input_summary,
+                            output_summary,
+                            json.dumps(context) if context else None,
+                            parent_agent_id,
+                            None,  # Drop parent_event_id reference
+                            cost_tokens,
+                            execution_duration_seconds,
+                            subagent_type,
+                        ),
+                    )
+                    self.connection.commit()  # type: ignore[union-attr]
+                    return True
+                except sqlite3.Error as retry_error:
+                    logger.error(f"Error inserting event after retry: {retry_error}")
+                    return False
+            else:
+                logger.error(f"Error inserting event: {e}")
+                return False
         except sqlite3.Error as e:
             logger.error(f"Error inserting event: {e}")
             return False
@@ -620,6 +666,10 @@ class HtmlGraphDB:
         """
         Insert a new session record.
 
+        Gracefully handles FOREIGN KEY constraint failures by retrying without
+        the parent_event_id or parent_session_id reference. This allows sessions
+        to be created even if the parent doesn't exist yet.
+
         Args:
             session_id: Unique session identifier
             agent_assigned: Primary agent for this session
@@ -656,6 +706,42 @@ class HtmlGraphDB:
             )
             self.connection.commit()  # type: ignore[union-attr]
             return True
+        except sqlite3.IntegrityError as e:
+            # FOREIGN KEY constraint failed - parent doesn't exist
+            if "FOREIGN KEY constraint failed" in str(e) and (
+                parent_event_id or parent_session_id
+            ):
+                logger.warning(
+                    "Parent session/event not found, creating session without parent link"
+                )
+                # Retry without parent references to enable graceful degradation
+                try:
+                    cursor = self.connection.cursor()  # type: ignore[union-attr]
+                    cursor.execute(
+                        """
+                        INSERT OR IGNORE INTO sessions
+                        (session_id, agent_assigned, parent_session_id, parent_event_id,
+                         is_subagent, transcript_id, transcript_path)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            session_id,
+                            agent_assigned,
+                            None,  # Drop parent_session_id
+                            None,  # Drop parent_event_id
+                            is_subagent,
+                            transcript_id,
+                            transcript_path,
+                        ),
+                    )
+                    self.connection.commit()  # type: ignore[union-attr]
+                    return True
+                except sqlite3.Error as retry_error:
+                    logger.error(f"Error inserting session after retry: {retry_error}")
+                    return False
+            else:
+                logger.error(f"Error inserting session: {e}")
+                return False
         except sqlite3.Error as e:
             logger.error(f"Error inserting session: {e}")
             return False

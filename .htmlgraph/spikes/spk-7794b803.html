@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Database Split Fix Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7794b803"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T17:38:16.171961"
+             data-updated="2026-01-08T17:38:16.171965" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="codex-fixer">
+
+        <header>
+            <h1>Database Split Fix Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Changes Made
+
+### 1. Updated event_tracker.py (Line 535)
+- **Before**: `db = HtmlGraphDB(str(graph_dir / "htmlgraph.db"))`
+- **After**: `db = HtmlGraphDB(str(graph_dir / "index.sqlite"))`
+- **File**: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/event_tracker.py
+
+### 2. Migrated Existing Data
+- Migrated 9 events from htmlgraph.db to index.sqlite
+- Used INSERT OR IGNORE to avoid duplicates
+- Preserved all event metadata (timestamps, tool names, session IDs)
+
+## Migration Results
+
+### Before Migration
+- **htmlgraph.db**: 9 events
+- **index.sqlite**: 4 events
+- **Problem**: Split database causing dashboard to miss 5 events
+
+### After Migration
+- **htmlgraph.db**: 9 events (unchanged, for reference)
+- **index.sqlite**: 13 events (4 original + 9 migrated)
+- **Status**: All events now in single database
+
+### Event Distribution by Session
+- sess-fd50862f: 10 events
+- sess-test-fixed-schema: 2 events
+- aae931e8-4c94-47ab-819d-bc1a377e424d: 1 event
+
+## Verification
+
+### Code Changes Verified
+✅ event_tracker.py updated to use index.sqlite
+✅ Package reinstalled with: uv pip install -e .
+
+### Data Migration Verified
+✅ All 9 events from htmlgraph.db now in index.sqlite
+✅ No duplicate events (used INSERT OR IGNORE)
+✅ Event count increased from 4 to 13
+
+### Next Steps for Full Verification
+⚠️ **Hook reload needed**: Current session may still use old code
+- Hooks are loaded at session start
+- New sessions will use index.sqlite automatically
+- Dashboard should now show all 13 events
+
+### Testing Recommendations
+1. Start a new Claude Code session to trigger hook reload
+2. Run a test command to generate new event
+3. Verify event appears in index.sqlite immediately
+4. Check dashboard shows real-time updates
+
+## Root Cause Analysis
+
+The database split occurred because:
+1. **Event capture** (hooks/event_tracker.py) used "htmlgraph.db"
+2. **Dashboard** (dashboard.html) used "index.sqlite"
+3. No validation ensured database path consistency
+
+## Prevention Measures
+- Centralize database path configuration
+- Add validation to ensure hooks and dashboard use same DB
+- Consider adding migration script for future schema changes
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

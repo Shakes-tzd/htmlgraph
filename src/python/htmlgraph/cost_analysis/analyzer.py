@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 # Standard Claude pricing (tokens per 1M tokens)
-CLAUDE_PRICING = {
-    "claude-3.5-sonnet": {"input": 3, "output": 15},  # $3/$15 per 1M
-    "claude-3-opus": {"input": 15, "output": 75},  # $15/$75 per 1M
+CLAUDE_PRICING: dict[str, dict[str, float]] = {
+    "claude-3.5-sonnet": {"input": 3.0, "output": 15.0},  # $3/$15 per 1M
+    "claude-3-opus": {"input": 15.0, "output": 75.0},  # $15/$75 per 1M
     "claude-3-haiku": {"input": 0.25, "output": 1.25},  # $0.25/$1.25 per 1M
-    "claude-3-sonnet": {"input": 3, "output": 15},  # $3/$15 per 1M (alias)
+    "claude-3-sonnet": {"input": 3.0, "output": 15.0},  # $3/$15 per 1M (alias)
 }
 
 # Default model if not specified
@@ -184,11 +184,7 @@ class CostAnalyzer:
         tool_name = event.get("tool")
 
         # Calculate cost
-        pricing: dict[str, float] = CLAUDE_PRICING.get(
-            model, CLAUDE_PRICING[DEFAULT_MODEL]
-        )
-        if pricing is None:
-            pricing = CLAUDE_PRICING[DEFAULT_MODEL]
+        pricing = CLAUDE_PRICING.get(model) or CLAUDE_PRICING[DEFAULT_MODEL]
         input_cost = (input_tokens / 1_000_000) * pricing["input"]
         output_cost = (output_tokens / 1_000_000) * pricing["output"]
         total_cost = input_cost + output_cost

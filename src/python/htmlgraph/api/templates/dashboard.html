@@ -93,8 +93,37 @@
         let sessionCount = 0;
         let processedEventIds = new Set();
 
+        // Load initial stats from server
+        async function loadInitialStats() {
+            try {
+                const response = await fetch('/api/initial-stats');
+                const data = await response.json();
+
+                // Update header stats
+                eventCount = data.total_events || 0;
+                sessionCount = data.total_sessions || 0;
+
+                // Update agent set from database
+                if (data.agents) {
+                    data.agents.forEach(agent => agentSet.add(agent));
+                }
+
+                // Update UI
+                document.getElementById('event-count').textContent = eventCount;
+                document.getElementById('agent-count').textContent = agentSet.size;
+                document.getElementById('session-count').textContent = sessionCount;
+
+                console.log('Initial stats loaded:', data);
+            } catch (error) {
+                console.error('Failed to load initial stats:', error);
+            }
+        }
+
         // Initialize dashboard on load
         document.addEventListener('DOMContentLoaded', function() {
+            // Load initial stats
+            loadInitialStats();
+
             // Load initial activity feed
             htmx.ajax('GET', '/views/activity-feed', {target: '#content-area'});
 

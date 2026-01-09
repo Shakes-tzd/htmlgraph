@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>API 404 Fix & Orchestration Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e231f08e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T19:02:08.128207"
+             data-updated="2026-01-08T19:02:08.128211" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="api-fix-verification">
+
+        <header>
+            <h1>API 404 Fix & Orchestration Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Analysis
+
+The `/api/orchestration` endpoint was returning 404 because:
+
+1. **Wrong Server Implementation**: The `htmlgraph serve` command uses FastAPI (in `src/python/htmlgraph/api/main.py`), not the HTTP server handler (in `src/python/htmlgraph/server.py`)
+2. **Missing Endpoint**: The FastAPI app had `/views/orchestration` (HTML partial) but not `/api/orchestration` (JSON API)
+3. **Wrong Database Schema**: Initial implementation used incorrect table name (`events`) and column names (`agent_id`, `event_type`)
+
+## Changes Made
+
+### File: src/python/htmlgraph/api/main.py
+- **Line 1087-1169**: Added new `/api/orchestration` endpoint
+- Queries `agent_events` table with correct schema
+- Returns JSON with delegation chains, agent counts, and statistics
+
+### Query Details
+```sql
+SELECT
+    event_id,
+    agent_id as from_agent,
+    subagent_type as to_agent,
+    timestamp,
+    input_summary,
+    status
+FROM agent_events
+WHERE event_type = 'task_delegation'
+ORDER BY timestamp DESC
+LIMIT 1000
+```
+
+## Verification Results
+
+### API Endpoint Test
+```bash
+curl http://localhost:9000/api/orchestration | jq
+```
+
+**Output:**
+```json
+{
+    "delegation_count": 1,
+    "unique_agents": 2,
+    "agents": ["claude-code", "haiku"],
+    "delegation_chains": {
+        "claude-code": [{
+            "to_agent": "haiku",
+            "event_type": "delegation",
+            "timestamp": "2026-01-08 17:48:23",
+            "task": "Test task with FULLY FIXED SCHEMA",
+            "status": "started"
+        }]
+    }
+}
+```
+
+### Dashboard Verification
+- ✅ API endpoint `/api/orchestration` returns valid JSON
+- ✅ Data shows delegation from claude-code → haiku
+- ✅ Timestamp and status tracked correctly
+- ✅ `/views/orchestration` HTML view also working
+
+### Database Schema
+Correct table: `agent_events` with columns:
+- `event_id` (TEXT, PRIMARY KEY)
+- `agent_id` (TEXT) - delegating agent
+- `event_type` (TEXT) - "task_delegation" for delegations
+- `subagent_type` (TEXT) - target agent
+- `timestamp` (DATETIME)
+- `input_summary` (TEXT) - task description
+- `status` (TEXT) - delegation status
+- `parent_event_id` (TEXT) - for nested events
+
+## Status
+✅ **FIXED** - API endpoint now returns delegation data correctly
+✅ **TESTED** - Verified with curl and database queries
+✅ **DOCUMENTED** - Root cause and solution captured
+            </div>
+        </section>
+    </article>
+</body>
+</html>

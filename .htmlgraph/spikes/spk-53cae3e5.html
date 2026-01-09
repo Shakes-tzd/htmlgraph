@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Kanban and Metrics Debug Investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-53cae3e5"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T02:28:17.081321"
+             data-updated="2026-01-09T02:28:17.081324" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="dashboard-debugger">
+
+        <header>
+            <h1>Dashboard Kanban and Metrics Debug Investigation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Summary
+Investigated two dashboard issues: empty Kanban board and Metrics page Internal Server Error.
+
+## Issue 1: Kanban Board Shows Empty (No Tasks)
+
+### Root Cause
+**Data sync gap between HTML files and SQLite database.**
+
+- Feature HTML files exist: 138 files in `.htmlgraph/features/`
+- SQLite database `features` table: 0 rows
+- The dashboard API queries SQLite, not HTML files
+
+### Evidence
+```bash
+ls .htmlgraph/features/ | wc -l  # 138 files
+sqlite3 ~/.htmlgraph/index.sqlite "SELECT COUNT(*) FROM features;"  # 0 rows
+```
+
+### Fix Required
+Need to either:
+1. **Sync HTML to SQLite** - Parse HTML files and insert into database
+2. **Query HTML directly** - Modify API to read from HTML files
+3. **Ensure SDK writes to both** - SDK should persist to both HTML and SQLite
+
+---
+
+## Issue 2: Metrics Page Internal Server Error (500)
+
+### Root Cause
+**Column name mismatch between API code and database schema.**
+
+API code (main.py lines 1556-1598) queries:
+```sql
+SELECT session_id, agent, status, started_at, ended_at FROM sessions
+```
+
+Actual schema has:
+```sql
+session_id, agent_assigned, status, created_at, completed_at
+```
+
+### Mismatched columns:
+| API expects | Schema has |
+|------------|------------|
+| agent | agent_assigned |
+| started_at | created_at |
+| ended_at | completed_at |
+
+### Evidence
+```python
+# This query fails with "no such column: agent"
+cursor.execute("SELECT session_id, agent, status, started_at, ended_at FROM sessions")
+```
+
+### Fix Required
+Update `src/python/htmlgraph/api/main.py` lines 1558-1572:
+```python
+# Change FROM:
+s.agent -> s.agent_assigned
+s.started_at -> s.created_at
+s.ended_at -> s.completed_at
+```
+
+---
+
+## Files Affected
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py` (metrics_view function)
+- Database: `~/.htmlgraph/index.sqlite`
+- Features: `.htmlgraph/features/*.html` (not synced to DB)
+
+## Recommendation
+1. **Immediate fix**: Update column names in metrics_view (5 min fix)
+2. **Medium-term**: Implement HTML-to-SQLite sync for features
+3. **Long-term**: Ensure SDK writes persist to both storage systems
+            </div>
+        </section>
+    </article>
+</body>
+</html>

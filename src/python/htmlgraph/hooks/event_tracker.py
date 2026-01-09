@@ -83,7 +83,12 @@ def load_parent_activity(graph_dir: Path) -> dict:
                 # Clean up stale parent activities (older than 5 minutes)
                 if data.get("timestamp"):
                     ts = datetime.fromisoformat(data["timestamp"])
-                    if datetime.now() - ts > timedelta(minutes=5):
+                    # Use timezone-aware datetime for comparison
+                    now = datetime.now(timezone.utc)
+                    # Ensure ts is timezone-aware (handle both formats)
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    if now - ts > timedelta(minutes=5):
                         return {}
                 return data
         except Exception:
@@ -596,12 +601,39 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
     # Ensure session exists in SQLite database (for foreign key constraints)
     if db:
         try:
+            # Get attributes safely - MagicMock objects can cause SQLite binding errors
+            # When getattr is called on a MagicMock, it returns another MagicMock, not the default
+            def safe_getattr(obj: Any, attr: str, default: Any) -> Any:
+                """Get attribute safely, returning default for MagicMock/invalid values."""
+                try:
+                    val = getattr(obj, attr, default)
+                    # Check if it's a mock object (has _mock_name attribute)
+                    if hasattr(val, "_mock_name"):
+                        return default
+                    return val
+                except Exception:
+                    return default
+
+            is_subagent_raw = safe_getattr(active_session, "is_subagent", False)
+            is_subagent = (
+                bool(is_subagent_raw) if isinstance(is_subagent_raw, bool) else False
+            )
+
+            transcript_id = safe_getattr(active_session, "transcript_id", None)
+            transcript_path = safe_getattr(active_session, "transcript_path", None)
+            # Ensure strings or None, not mock objects
+            if transcript_id is not None and not isinstance(transcript_id, str):
+                transcript_id = None
+            if transcript_path is not None and not isinstance(transcript_path, str):
+                transcript_path = None
+
             db.insert_session(
                 session_id=active_session_id,
-                agent_assigned=getattr(active_session, "agent", None) or detected_agent,
-                is_subagent=getattr(active_session, "is_subagent", False),
-                transcript_id=getattr(active_session, "transcript_id", None),
-                transcript_path=getattr(active_session, "transcript_path", None),
+                agent_assigned=safe_getattr(active_session, "agent", None)
+                or detected_agent,
+                is_subagent=is_subagent,
+                transcript_id=transcript_id,
+                transcript_path=transcript_path,
             )
         except Exception as e:
             # Session may already exist, that's OK - continue
@@ -720,16 +752,14 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
             is_parent_tool = True
         else:
             is_parent_tool = False
-            # Check if there's an active parent context
-            if parent_activity_state.get("parent_id"):
-                parent_activity_id = parent_activity_state["parent_id"]
-
-            # Also check environment variable for cross-process parent linking
+            # Check environment variable FIRST for cross-process parent linking
             # This is set by PreToolUse hook when Task() spawns a subagent
-            if not parent_activity_id:
-                env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
-                if env_parent:
-                    parent_activity_id = env_parent
+            env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+            if env_parent:
+                parent_activity_id = env_parent
+            # Fall back to file-based parent context if no env var set
+            elif parent_activity_state.get("parent_id"):
+                parent_activity_id = parent_activity_state["parent_id"]
 
         # Track the activity
         nudge = None

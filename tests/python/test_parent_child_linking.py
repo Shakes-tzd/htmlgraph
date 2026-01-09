@@ -21,6 +21,28 @@ from htmlgraph.hooks.event_tracker import (
 )
 
 
+@pytest.fixture(autouse=True)
+def clean_env_vars():
+    """Clean up environment variables before and after each test."""
+    # Clean before test
+    for var in [
+        "HTMLGRAPH_PARENT_EVENT",
+        "HTMLGRAPH_PARENT_ACTIVITY",
+        "HTMLGRAPH_PARENT_SESSION",
+        "HTMLGRAPH_PARENT_SESSION_ID",
+    ]:
+        os.environ.pop(var, None)
+    yield
+    # Clean after test
+    for var in [
+        "HTMLGRAPH_PARENT_EVENT",
+        "HTMLGRAPH_PARENT_ACTIVITY",
+        "HTMLGRAPH_PARENT_SESSION",
+        "HTMLGRAPH_PARENT_SESSION_ID",
+    ]:
+        os.environ.pop(var, None)
+
+
 @pytest.fixture
 def temp_graph_dir():
     """Create temporary .htmlgraph directory."""
@@ -35,9 +57,14 @@ def mock_session_manager():
     """Mock SessionManager to avoid file I/O."""
     with patch("htmlgraph.hooks.event_tracker.SessionManager") as mock:
         instance = MagicMock()
-        instance.get_active_session.return_value = MagicMock(
-            id="sess-test-123", agent="claude-code"
-        )
+        # Create a proper mock session with all required attributes explicitly set
+        mock_session = MagicMock()
+        mock_session.id = "sess-test-123"
+        mock_session.agent = "claude-code"
+        mock_session.is_subagent = False
+        mock_session.transcript_id = None
+        mock_session.transcript_path = None
+        instance.get_active_session.return_value = mock_session
         instance.track_activity.return_value = MagicMock(
             id="evt-child-001", drift_score=None
         )
@@ -64,12 +91,28 @@ def test_parent_activity_file_mechanism(temp_graph_dir):
 
 def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
     """Test parent event ID from HTMLGRAPH_PARENT_EVENT environment variable."""
-    # Set up environment
+    # Create parent event in database first
     parent_event_id = "evt-parent-002"
+    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
+
+    # Create parent session
+    db.insert_session("sess-test-123", "claude-code")
+
+    # Create parent Task event
+    db.insert_event(
+        event_id=parent_event_id,
+        agent_id="claude-code",
+        event_type="tool_call",
+        session_id="sess-test-123",
+        tool_name="Task",
+        input_summary="Parent task",
+    )
+
+    # Set up environment with parent event ID
     os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
 
     try:
-        # Create mock hook input
+        # Create mock hook input for child Read event
         hook_input = {
             "cwd": str(temp_graph_dir.parent),
             "tool_name": "Read",
@@ -83,7 +126,6 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
             track_event("PostToolUse", hook_input)
 
         # Verify database has event with parent_event_id
-        db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
         events = db.get_session_events("sess-test-123")
 
         # Find the Read event
@@ -103,8 +145,24 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
 
 def test_parent_event_from_activity_state(temp_graph_dir, mock_session_manager):
     """Test parent event ID from parent-activity.json state file."""
-    # Save parent activity state
+    # Create parent event in database first
     parent_event_id = "evt-parent-003"
+    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
+
+    # Create parent session
+    db.insert_session("sess-test-123", "claude-code")
+
+    # Create parent Task event
+    db.insert_event(
+        event_id=parent_event_id,
+        agent_id="claude-code",
+        event_type="tool_call",
+        session_id="sess-test-123",
+        tool_name="Task",
+        input_summary="Parent task",
+    )
+
+    # Save parent activity state (this will be read by track_event)
     save_parent_activity(temp_graph_dir, parent_event_id, "Task")
 
     # Create mock hook input
@@ -125,7 +183,6 @@ def test_parent_event_from_activity_state(temp_graph_dir, mock_session_manager):
         track_event("PostToolUse", hook_input)
 
     # Verify database has event with parent_event_id
-    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
     events = db.get_session_events("sess-test-123")
 
     # Find the Edit event
@@ -243,10 +300,35 @@ def test_nested_event_hierarchy(temp_graph_dir):
 
 def test_environment_variable_takes_precedence(temp_graph_dir, mock_session_manager):
     """Test that environment variable takes precedence when both mechanisms exist."""
-    # Set up both mechanisms with different parent IDs
+    # Create both parent events in database first
     env_parent_id = "evt-env-parent"
     file_parent_id = "evt-file-parent"
+    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
 
+    # Create parent session
+    db.insert_session("sess-test-123", "claude-code")
+
+    # Create environment variable parent event
+    db.insert_event(
+        event_id=env_parent_id,
+        agent_id="claude-code",
+        event_type="tool_call",
+        session_id="sess-test-123",
+        tool_name="Task",
+        input_summary="Env parent task",
+    )
+
+    # Create file-based parent event
+    db.insert_event(
+        event_id=file_parent_id,
+        agent_id="claude-code",
+        event_type="tool_call",
+        session_id="sess-test-123",
+        tool_name="Task",
+        input_summary="File parent task",
+    )
+
+    # Set up both mechanisms with different parent IDs
     os.environ["HTMLGRAPH_PARENT_EVENT"] = env_parent_id
     save_parent_activity(temp_graph_dir, file_parent_id, "Task")
 
@@ -265,7 +347,6 @@ def test_environment_variable_takes_precedence(temp_graph_dir, mock_session_mana
             track_event("PostToolUse", hook_input)
 
         # Verify environment variable was used
-        db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
         events = db.get_session_events("sess-test-123")
 
         bash_events = [e for e in events if e["tool_name"] == "Bash"]

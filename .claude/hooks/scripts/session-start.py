@@ -18,11 +18,20 @@ Architecture:
 """
 
 import json
+import logging
 import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+    stream=sys.stderr,
+)
+logger = logging.getLogger(__name__)
 
 if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     print(json.dumps({}))
@@ -139,9 +148,15 @@ def install_git_hooks(project_dir: str) -> bool:
 
 try:
     from htmlgraph import SDK, generate_id
+    from htmlgraph.cigs import (
+        AutonomyRecommender,
+        PatternDetector,
+        ViolationTracker,
+    )
     from htmlgraph.converter import node_to_dict  # type: ignore[import]
     from htmlgraph.graph import HtmlGraph
     from htmlgraph.orchestrator_mode import OrchestratorModeManager
+    from htmlgraph.reflection import get_reflection_context
     from htmlgraph.session_manager import SessionManager
 except Exception as e:
     print(
@@ -565,6 +580,315 @@ After Task completes, retrieve results with SDK command above.
 """
 
 
+def load_system_prompt(project_dir: Path) -> str | None:
+    """
+    Load system prompt from plugin default or project override.
+
+    Uses two-tier system:
+    1. Project override: .claude/system-prompt.md (takes precedence)
+    2. Plugin default: Included with HtmlGraph plugin
+
+    Args:
+        project_dir: Root directory of the project
+
+    Returns:
+        System prompt content (from override or default), or None if neither available
+    """
+    try:
+        from htmlgraph.system_prompts import SystemPromptManager
+
+        graph_dir = Path(project_dir) / ".htmlgraph"
+        manager = SystemPromptManager(graph_dir)
+        prompt = manager.get_active()
+
+        if prompt:
+            logger.info(f"Loaded system prompt ({len(prompt)} chars)")
+            return prompt
+        else:
+            logger.warning(
+                "System prompt not found (no project override or plugin default)"
+            )
+            return None
+
+    except ImportError:
+        logger.warning("HtmlGraph SDK not available, falling back to legacy loading")
+        # Fallback for when SDK is not available
+        prompt_file = Path(project_dir) / ".claude" / "system-prompt.md"
+        if not prompt_file.exists():
+            logger.warning(f"System prompt not found: {prompt_file}")
+            return None
+
+        try:
+            content = prompt_file.read_text(encoding="utf-8")
+            logger.info(f"Loaded system prompt ({len(content)} chars)")
+            return content
+        except Exception as e:
+            logger.error(f"Failed to load system prompt: {e}")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to load system prompt via SDK: {e}")
+        # Fallback to legacy loading
+        prompt_file = Path(project_dir) / ".claude" / "system-prompt.md"
+        if prompt_file.exists():
+            try:
+                content = prompt_file.read_text(encoding="utf-8")
+                logger.info(f"Loaded system prompt via fallback ({len(content)} chars)")
+                return content
+            except Exception:
+                pass
+
+        return None
+
+
+def validate_token_count(prompt: str, max_tokens: int = 500) -> tuple[bool, int]:
+    """
+    Validate prompt token count using SDK validator.
+
+    Uses SDK's SystemPromptValidator which supports:
+    - Accurate tiktoken counting (if available)
+    - Fallback character-based estimation (1 token ≈ 4 chars)
+
+    Args:
+        prompt: Text to count tokens for
+        max_tokens: Maximum allowed tokens
+
+    Returns:
+        (is_valid, token_count) tuple
+    """
+    try:
+        from htmlgraph.system_prompts import SystemPromptValidator
+
+        result = SystemPromptValidator.validate(prompt, max_tokens=max_tokens)
+        tokens = result["tokens"]
+        is_valid = result["is_valid"]
+
+        if not is_valid:
+            logger.warning(f"Prompt exceeds budget: {tokens} > {max_tokens}")
+            for warning in result.get("warnings", []):
+                logger.warning(f"  {warning}")
+        else:
+            logger.info(f"Prompt tokens: {tokens}/{max_tokens}")
+
+        return is_valid, tokens
+
+    except ImportError:
+        logger.debug("SDK validator not available, using fallback estimation")
+        # Fallback: manual token counting
+        try:
+            import tiktoken
+
+            encoding = tiktoken.encoding_for_model("gpt-4")
+            tokens = len(encoding.encode(prompt))
+        except Exception:
+            # Fallback: rough estimation (1 token ≈ 4 chars)
+            tokens = max(1, len(prompt) // 4)
+
+        is_valid = tokens <= max_tokens
+        if not is_valid:
+            logger.warning(f"Prompt exceeds budget: {tokens} > {max_tokens}")
+        else:
+            logger.info(f"Prompt tokens: {tokens}/{max_tokens}")
+
+        return is_valid, tokens
+
+    except Exception as e:
+        logger.error(f"Token validation failed: {e}")
+        # Fallback to simple estimation
+        tokens = max(1, len(prompt) // 4)
+        is_valid = tokens <= max_tokens
+        return is_valid, tokens
+
+
+def inject_prompt_via_additionalcontext(prompt: str, source: str) -> dict:
+    """
+    Create SessionStart hook output with system prompt injection.
+
+    Args:
+        prompt: The system prompt to inject
+        source: Source of injection (e.g., 'compact', 'resume', 'startup')
+
+    Returns:
+        Hook output dict with additionalContext field
+    """
+    context = f"""## SYSTEM PROMPT RESTORED (via SessionStart)
+
+This system prompt was injected at session {source} to maintain context across compacts and session transitions.
+
+---
+
+{prompt}
+
+---
+
+*This prompt persists across tool executions and survives compact/resume cycles.*
+"""
+
+    output = {
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": context,
+        }
+    }
+
+    return output
+
+
+def get_cigs_context(graph_dir: Path, session_id: str) -> str:
+    """
+    Generate CIGS (Computational Imperative Guidance System) context.
+
+    Loads violation history, detects patterns, recommends autonomy level,
+    and generates personalized delegation reminders.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        session_id: Current session ID
+
+    Returns:
+        Formatted CIGS context string
+    """
+    try:
+        # Initialize CIGS components
+        tracker = ViolationTracker(graph_dir)
+        tracker.set_session_id(session_id)
+
+        # Load violation history from last 5 sessions
+        recent_violations = tracker.get_recent_violations(sessions=5)
+
+        # Get current session summary
+        session_summary = tracker.get_session_violations()
+
+        # Detect patterns from recent violations
+        # Convert violations to tool history format
+        history = [
+            {
+                "tool": v.tool,
+                "command": v.tool_params.get("command", ""),
+                "file_path": v.tool_params.get("file_path", ""),
+                "prompt": "",
+                "timestamp": v.timestamp,
+            }
+            for v in recent_violations
+        ]
+
+        detector = PatternDetector()
+        patterns = detector.detect_all_patterns(history)
+
+        # Calculate compliance history (last 5 sessions)
+        # For now, use a simple approximation from recent violations
+        # In future, this should be stored persistently
+        compliance_history = [
+            max(
+                0.0,
+                1.0
+                - (len([v for v in recent_violations if v.session_id == sid]) / 5.0),
+            )
+            for sid in set(v.session_id for v in recent_violations[-5:])
+        ]
+
+        # Recommend autonomy level
+        recommender = AutonomyRecommender()
+        autonomy = recommender.recommend(
+            violations=session_summary,
+            patterns=patterns,
+            compliance_history=compliance_history if compliance_history else None,
+        )
+
+        # Build CIGS context
+        context_parts = [
+            "## 🧠 CIGS Status (Computational Imperative Guidance System)",
+            "",
+            f"**Autonomy Level:** {autonomy.level.upper()}",
+            f"**Messaging Intensity:** {autonomy.messaging_intensity}",
+            f"**Enforcement Mode:** {autonomy.enforcement_mode}",
+            "",
+            f"**Reason:** {autonomy.reason}",
+        ]
+
+        # Add violation summary if there are any
+        if session_summary.total_violations > 0:
+            context_parts.extend(
+                [
+                    "",
+                    "### Session Violations",
+                    f"- Total violations: {session_summary.total_violations}",
+                    f"- Compliance rate: {session_summary.compliance_rate:.0%}",
+                    f"- Wasted tokens: {session_summary.total_waste_tokens}",
+                ]
+            )
+
+            if session_summary.circuit_breaker_triggered:
+                context_parts.append("- ⚠️ **Circuit breaker active** (3+ violations)")
+
+        # Add pattern warnings if detected
+        if patterns:
+            context_parts.extend(
+                [
+                    "",
+                    "### Detected Anti-Patterns",
+                ]
+            )
+            for pattern in patterns:
+                context_parts.append(f"- **{pattern.name}**: {pattern.description}")
+                if pattern.delegation_suggestion:
+                    context_parts.append(f"  - Fix: {pattern.delegation_suggestion}")
+
+        # Add personalized reminders based on autonomy level
+        context_parts.extend(
+            [
+                "",
+                "### Delegation Reminders",
+            ]
+        )
+
+        if autonomy.level == "operator":
+            context_parts.extend(
+                [
+                    "🚨 **STRICT MODE ACTIVE** - You MUST delegate ALL operations except:",
+                    "- Task() - Delegation itself",
+                    "- AskUserQuestion() - User clarification",
+                    "- TodoWrite() - Work tracking",
+                    "- SDK operations - Feature/session management",
+                    "",
+                    "**ALL other operations MUST be delegated to subagents.**",
+                ]
+            )
+        elif autonomy.level == "collaborator":
+            context_parts.extend(
+                [
+                    "⚠️ **ACTIVE GUIDANCE** - Focus on delegation:",
+                    "- Exploration: Use spawn_gemini() (FREE)",
+                    "- Code changes: Use spawn_codex() or Task()",
+                    "- Git operations: Use spawn_copilot()",
+                    "",
+                    "Direct tool use should be rare and well-justified.",
+                ]
+            )
+        elif autonomy.level == "consultant":
+            context_parts.extend(
+                [
+                    "🔴 **MODERATE GUIDANCE** - Remember delegation patterns:",
+                    "- Multi-file exploration → spawn_gemini()",
+                    "- Code changes with tests → Task() or spawn_codex()",
+                    "- Git operations → spawn_copilot()",
+                ]
+            )
+        else:  # observer
+            context_parts.extend(
+                [
+                    "💡 **MINIMAL GUIDANCE** - You're doing well!",
+                    "Continue delegating as appropriate. Guidance will escalate if patterns change.",
+                ]
+            )
+
+        return "\n".join(context_parts)
+
+    except Exception as e:
+        print(f"Warning: Could not generate CIGS context: {e}", file=sys.stderr)
+        return ""
+
+
 def _build_orchestrator_status(active: bool, level: str) -> str:
     """
     Build orchestrator status section for context.
@@ -776,46 +1100,48 @@ def get_recent_commits(project_dir: str, count: int = 5) -> list[str]:
     return []
 
 
-def output_response(context: str, status_summary: str | None = None) -> None:
-    """Output JSON response with context."""
+def output_response(
+    context: str,
+    status_summary: str | None = None,
+    system_prompt_injection: dict | None = None,
+) -> None:
+    """
+    Output JSON response with context.
+
+    If system_prompt_injection is provided, it takes precedence as the hook output
+    (ensuring system prompt is injected first before other context).
+    """
     if status_summary:
         print(f"\n{status_summary}\n", file=sys.stderr)
 
-    print(
-        json.dumps(
-            {
-                "continue": True,
-                "hookSpecificOutput": {
-                    "hookEventName": "SessionStart",
-                    "additionalContext": context,
-                },
-            }
+    # If we have a system prompt injection, use it as the base output
+    # This ensures the system prompt is injected as the primary additionalContext
+    if system_prompt_injection:
+        # Merge the main context into the system prompt context
+        hook_output = system_prompt_injection.copy()
+        # Append main context after the system prompt
+        if (
+            "hookSpecificOutput" in hook_output
+            and "additionalContext" in hook_output["hookSpecificOutput"]
+        ):
+            hook_output["hookSpecificOutput"]["additionalContext"] += (
+                f"\n\n---\n\n{context}"
+            )
+        hook_output["continue"] = True
+        print(json.dumps(hook_output))
+    else:
+        # Standard output without system prompt injection
+        print(
+            json.dumps(
+                {
+                    "continue": True,
+                    "hookSpecificOutput": {
+                        "hookEventName": "SessionStart",
+                        "additionalContext": context,
+                    },
+                }
+            )
         )
-    )
-
-
-def setup_session_state_and_environment() -> dict[str, str] | None:
-    """
-    Automatically set up session state and environment variables.
-
-    Returns:
-        Dict of environment variables that were set, or None if setup failed
-    """
-    try:
-        from htmlgraph import SDK
-
-        sdk = SDK(agent="claude-code")
-
-        # Get current session state (auto-detects post-compact, delegation status, etc.)
-        state = sdk.sessions.get_current_state()
-
-        # Automatically set up environment variables
-        env_vars = sdk.sessions.setup_environment_variables(state)
-
-        return env_vars
-    except Exception as e:
-        print(f"Warning: Could not set up session state: {e}", file=sys.stderr)
-        return None
 
 
 def main():
@@ -824,13 +1150,29 @@ def main():
     except json.JSONDecodeError:
         hook_input = {}
 
-    # Set up session state and environment variables automatically
-    env_vars = setup_session_state_and_environment()
-    if env_vars:
-        print(
-            f"Session state configured: {env_vars.get('CLAUDE_SESSION_ID', 'unknown')[:12]}...",
-            file=sys.stderr,
-        )
+    # Layer 1: Load and inject system prompt (non-blocking)
+    system_prompt_injection = None
+    try:
+        cwd = hook_input.get("cwd")
+        project_dir_for_prompt = resolve_project_path(cwd if cwd else None)
+        system_prompt = load_system_prompt(Path(project_dir_for_prompt))
+
+        if system_prompt:
+            # Validate token count
+            is_valid, token_count = validate_token_count(system_prompt, max_tokens=500)
+            logger.info(
+                f"System prompt validation: {token_count} tokens (valid: {is_valid})"
+            )
+
+            # Inject via additionalContext
+            source = hook_input.get("source", "startup")
+            system_prompt_injection = inject_prompt_via_additionalcontext(
+                system_prompt, source
+            )
+            logger.info("System prompt injection prepared")
+    except Exception as e:
+        logger.warning(f"System prompt injection failed (non-blocking): {e}")
+        # Continue without prompt injection
 
     # Check for version updates (non-blocking, best-effort)
     version_warning = ""
@@ -873,6 +1215,7 @@ def main():
     # - Each new conversation gets a new auto-spike
     # - Previous auto-spikes are closed when a new conversation starts
     # - Tracked via last_conversation_id in session metadata
+    active = None
     try:
         manager = SessionManager(graph_dir)
         # Get or create session for THIS specific agent (claude-code)
@@ -884,24 +1227,55 @@ def main():
                 start_commit=get_head_commit(project_dir),
                 title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             )
+        logger.info(f"Session active: {active.id if active else 'None'}")
 
         # Check if this is a new conversation
         last_conversation_id = getattr(active, "last_conversation_id", None)
         is_new_conversation = last_conversation_id != external_session_id
 
         # Record the external session id as a low-cost breadcrumb (for continuity debugging).
-        try:
-            manager.track_activity(
-                session_id=active.id,
-                tool="ClaudeSessionStart",
-                summary=f"Claude session started: {external_session_id}",
-                payload={
-                    "claude_session_id": external_session_id,
-                    "is_new_conversation": is_new_conversation,
-                },
-            )
-        except Exception:
-            pass
+        if active:
+            try:
+                manager.track_activity(
+                    session_id=active.id,
+                    tool="ClaudeSessionStart",
+                    summary=f"Claude session started: {external_session_id}",
+                    payload={
+                        "claude_session_id": external_session_id,
+                        "is_new_conversation": is_new_conversation,
+                    },
+                )
+            except Exception as e:
+                logger.warning(f"Could not track session start activity: {e}")
+
+        # Set environment variables for parent session context (Phase 2: Parent context propagation)
+        # These variables are used by child Task() calls to track parent session and nesting depth
+        if active and active.id:
+            os.environ["HTMLGRAPH_PARENT_SESSION"] = active.id
+            os.environ["HTMLGRAPH_PARENT_AGENT"] = "claude-code"
+            os.environ["HTMLGRAPH_NESTING_DEPTH"] = "0"  # Root level
+
+            # Export to shell environment using CLAUDE_ENV_FILE (persistent across tool calls)
+            # This mechanism ensures variables are available to subagents and task delegations
+            env_file = os.environ.get("CLAUDE_ENV_FILE")
+            if env_file:
+                try:
+                    with open(env_file, "a") as f:
+                        f.write(f"export HTMLGRAPH_SESSION_ID={active.id}\n")
+                        f.write(f"export HTMLGRAPH_PARENT_SESSION={active.id}\n")
+                        f.write("export HTMLGRAPH_PARENT_AGENT=claude-code\n")
+                        f.write("export HTMLGRAPH_NESTING_DEPTH=0\n")
+                    logger.info(f"Environment variables written to {env_file}")
+                except Exception as e:
+                    logger.warning(
+                        f"Could not write to CLAUDE_ENV_FILE: {e}. "
+                        f"HTMLGRAPH_SESSION_ID may not be available to subagents."
+                    )
+            else:
+                logger.warning(
+                    "CLAUDE_ENV_FILE not set. "
+                    "HTMLGRAPH_SESSION_ID may not persist to shell environment."
+                )
 
         # If new conversation, close open auto-spikes and create new one
         if is_new_conversation:
@@ -959,6 +1333,10 @@ def main():
                     file=sys.stderr,
                 )
     except Exception as e:
+        logger.error(f"Session creation failed: {e}")
+        import traceback
+
+        logger.error(f"Traceback: {traceback.format_exc()}")
         print(f"Warning: Could not start session: {e}", file=sys.stderr)
 
     # Get features and stats
@@ -992,7 +1370,11 @@ htmlgraph init
 
 Or create features manually in `.htmlgraph/features/`
 """
-        output_response(context, "No features found. Run 'htmlgraph init' to set up.")
+        output_response(
+            context,
+            "No features found. Run 'htmlgraph init' to set up.",
+            system_prompt_injection,
+        )
         return
 
     # Find active feature(s)
@@ -1014,11 +1396,21 @@ Or create features manually in `.htmlgraph/features/`
         orchestrator_active, orchestrator_level
     )
 
+    # Get CIGS context (if HtmlGraph session exists)
+    cigs_context = ""
+    try:
+        if active and active.id:
+            cigs_context = get_cigs_context(graph_dir, active.id)
+    except Exception as e:
+        print(f"Warning: Could not load CIGS context: {e}", file=sys.stderr)
+
     # Build context (prepend version warning if outdated)
     context_parts = []
     if version_warning:
         context_parts.append(version_warning.strip())
     context_parts.append(HTMLGRAPH_PROCESS_NOTICE)
+    if cigs_context:
+        context_parts.append(cigs_context)
     context_parts.append(orchestrator_status)
     context_parts.append(ORCHESTRATOR_DIRECTIVES)
     context_parts.append(TRACKER_WORKFLOW)
@@ -1177,6 +1569,20 @@ htmlgraph feature start <feature-id>
 **Action required:** Coordinate with other agents or choose a different feature.
 """)
 
+    # Add computational reflections (pre-computed context from history)
+    try:
+        sdk = SDK(directory=graph_dir, agent="claude-code")
+        current_feature_id = active_features[0]["id"] if active_features else None
+        reflection_context = get_reflection_context(
+            sdk,
+            feature_id=current_feature_id,
+            track=None,
+        )
+        if reflection_context:
+            context_parts.append(reflection_context)
+    except Exception as e:
+        print(f"Warning: Could not compute reflections: {e}", file=sys.stderr)
+
     # Session continuity instructions (minimal - no forced skill activation)
     context_parts.append("""## Session Continuity
 
@@ -1197,7 +1603,7 @@ Greet the user with a brief status update:
     else:
         status_summary = f"No active feature | Progress: {stats['done']}/{stats['total']} ({stats['percentage']}%) | {len(pending_features)} pending"
 
-    output_response(context, status_summary)
+    output_response(context, status_summary, system_prompt_injection)
 
 
 if __name__ == "__main__":

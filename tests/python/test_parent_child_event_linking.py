@@ -17,6 +17,26 @@ from htmlgraph import SDK
 from htmlgraph.db.schema import HtmlGraphDB
 
 
+@pytest.fixture(autouse=True)
+def clean_env_vars():
+    """Clean up environment variables before and after each test."""
+    # Clean before test
+    for var in [
+        "HTMLGRAPH_PARENT_ACTIVITY",
+        "HTMLGRAPH_PARENT_SESSION",
+        "HTMLGRAPH_PARENT_SESSION_ID",
+    ]:
+        os.environ.pop(var, None)
+    yield
+    # Clean after test
+    for var in [
+        "HTMLGRAPH_PARENT_ACTIVITY",
+        "HTMLGRAPH_PARENT_SESSION",
+        "HTMLGRAPH_PARENT_SESSION_ID",
+    ]:
+        os.environ.pop(var, None)
+
+
 @pytest.fixture
 def temp_db():
     """Create temporary database for testing."""

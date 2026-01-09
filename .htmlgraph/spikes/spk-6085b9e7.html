@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestration View Fix - HTML View Now Shows Delegations</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-6085b9e7"
+             data-type="spike"
+             data-status="todo"
+             data-priority="critical"
+             data-created="2026-01-08T19:12:42.091764"
+             data-updated="2026-01-08T19:12:42.091767" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="orchestration-view-fix">
+
+        <header>
+            <h1>Orchestration View Fix - HTML View Now Shows Delegations</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Analysis
+
+**Problem**: Orchestration tab showed "Total Delegations: 0" but API endpoint returned 2 delegations correctly.
+
+**Root Cause**: The HTML view endpoint `/views/orchestration` was querying the wrong database table:
+- ❌ **Before**: Queried `agent_collaboration` table with `WHERE handoff_type = 'delegation'` (empty)
+- ✅ **After**: Queries `agent_events` table with `WHERE tool_name = 'Task'` (2 results)
+
+## Changes Made
+
+### File: `src/python/htmlgraph/api/main.py`
+
+**Lines 1021-1086**: Rewrote `orchestration_view()` function to match `orchestration_api()` logic.
+
+**Key Changes**:
+1. Changed query from `agent_collaboration` table to `agent_events` table
+2. Filter by `tool_name = 'Task'` instead of `handoff_type = 'delegation'`
+3. Extract data from correct columns: `agent_id`, `subagent_type`, `input_summary`
+4. Parse `to_agent` from JSON `input_summary` if `subagent_type` is NULL
+5. Removed debug `print()` statements, replaced with `logger.debug()`
+
+**Query Comparison**:
+
+**Before (broken)**:
+```sql
+SELECT handoff_id, from_agent, to_agent, timestamp, reason,
+       session_id, status, context
+FROM agent_collaboration
+WHERE handoff_type = 'delegation'
+ORDER BY timestamp DESC
+LIMIT 50
+```
+Returns: 0 rows (table is empty)
+
+**After (fixed)**:
+```sql
+SELECT
+    event_id,
+    agent_id as from_agent,
+    subagent_type as to_agent,
+    timestamp,
+    input_summary,
+    session_id,
+    status
+FROM agent_events
+WHERE tool_name = 'Task'
+ORDER BY timestamp DESC
+LIMIT 50
+```
+Returns: 2 rows (correct delegation data)
+
+## Verification Results
+
+### API Endpoint (working before and after):
+```bash
+curl http://localhost:9000/api/orchestration | jq .delegation_count
+# Output: 2 ✅
+```
+
+### HTML View (now fixed):
+```bash
+curl http://localhost:9000/views/orchestration | grep -A2 "stat-value"
+# Output: <span class="stat-value">2</span> ✅
+```
+
+### Delegation Chains Visible:
+```bash
+curl http://localhost:9000/views/orchestration | grep -o "delegation-chain" | wc -l
+# Output: 2 ✅
+```
+
+## Why This Happened
+
+**Inconsistent Implementation**: The API and HTML view endpoints were implemented at different times with different data sources:
+- `orchestration_api()` (line 1088) uses `agent_events.tool_name = 'Task'` ✅
+- `orchestration_view()` (line 1021) used `agent_collaboration.handoff_type = 'delegation'` ❌
+
+The `agent_collaboration` table appears to be unused or part of a different schema design that was never populated.
+
+## Pattern for Future
+
+**Best Practice**: HTML views should either:
+1. Call the API endpoint internally (reuse logic)
+2. Use identical SQL queries (maintain consistency)
+
+**Recommended approach**:
+```python
+@app.get("/views/orchestration")
+async def orchestration_view(request: Request):
+    # Option 1: Call API endpoint
+    api_data = await orchestration_api()
+    delegations = build_delegations_from_api(api_data)
+    
+    # Option 2: Share query logic
+    delegations = await _get_delegations_from_db(db)
+    
+    return templates.TemplateResponse(...)
+```
+
+## Testing Coverage
+
+All tests passed:
+- ✅ API endpoint returns `delegation_count = 2`
+- ✅ HTML view shows "Total Delegations: 2"
+- ✅ Delegation chains render (2 `.delegation-chain` elements)
+- ✅ Unique agents calculation works (shows correct count)
+- ✅ No errors in server logs
+            </div>
+        </section>
+    </article>
+</body>
+</html>

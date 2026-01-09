@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestration + Nested Event Tracing Implementation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7b102f82"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T18:44:12.176142"
+             data-updated="2026-01-08T18:44:12.176144" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="orchestration-fix-complete">
+
+        <header>
+            <h1>Orchestration + Nested Event Tracing Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Part 1: get_delegations() Fix - COMPLETE ✅
+
+**Root Cause Identified**:
+- `agent_collaboration` table is empty (0 delegations)
+- `agent_events` table has 276 events (all SDK.create, no Task events yet)
+- `get_delegations()` was querying wrong table
+
+**Fix Implemented** (`src/python/htmlgraph/db/schema.py` lines 865-951):
+- ✅ Updated to query `agent_events` WHERE `tool_name = 'Task'`
+- ✅ Extracts `subagent_type` from `context` JSON field
+- ✅ Extracts delegation reason from `input_summary`
+- ✅ Returns properly formatted delegation records
+- ✅ Handles missing/malformed JSON gracefully
+
+**Schema Used**:
+```sql
+SELECT
+    event_id,
+    agent_id as from_agent,
+    context,           -- Contains subagent_type in JSON
+    timestamp,
+    input_summary as reason,
+    status,
+    session_id
+FROM agent_events
+WHERE tool_name = 'Task'
+```
+
+**Current State**:
+- Fix is correct and ready
+- Will work once Task events are captured by hooks
+- Currently 0 Task events in database (hooks need to capture them)
+
+---
+
+## Part 2: Nested UI Implementation - COMPLETE ✅
+
+**Goal**: Show subagent events nested under parent Task calls in Activity Feed
+
+**Changes Made**:
+
+### 1. CSS for Expandable Rows (`dashboard.html` lines 2777-2818)
+```css
+/* Parent rows with expand icon */
+.activity-table tbody tr.parent-row {
+    cursor: pointer;
+    border-left: 3px solid var(--accent);
+}
+
+.activity-table tbody tr.parent-row .expand-icon::before {
+    content: '▶';
+}
+
+.activity-table tbody tr.parent-row.expanded .expand-icon::before {
+    content: '▼';
+}
+
+/* Child rows hidden by default */
+.activity-table tbody tr.child-row {
+    display: none;
+}
+
+.activity-table tbody tr.child-row.visible {
+    display: table-row;
+}
+
+/* Indent child content */
+.activity-table tbody tr.child-row td:first-child {
+    padding-left: 2.5rem;
+}
+```
+
+### 2. CSS for List View (`dashboard.html` lines 2518-2548)
+```css
+.activity-item.parent-event {
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.activity-item.parent-event .expand-icon::before {
+    content: '▶';
+}
+
+.activity-item.parent-event.expanded .expand-icon::before {
+    content: '▼';
+}
+
+.activity-item.child-event {
+    background-color: rgba(205, 255, 0, 0.02);
+}
+```
+
+### 3. JavaScript Parent-Child Mapping (`dashboard.html` lines 5523-5536)
+```javascript
+// Build parent-child map from parent_event_id
+const parentMap = new Map();
+const topLevelEvents = [];
+
+events.forEach(event => {
+    if (event.parent_event_id) {
+        if (!parentMap.has(event.parent_event_id)) {
+            parentMap.set(event.parent_event_id, []);
+        }
+        parentMap.get(event.parent_event_id).push(event);
+    } else {
+        topLevelEvents.push(event);
+    }
+});
+```
+
+### 4. Recursive Rendering (`dashboard.html` lines 5556-5627)
+```javascript
+function renderEvent(item, isChild = false, depth = 0) {
+    const hasChildren = parentMap.has(eventId);
+    const expandIcon = hasChildren ? '<span class="expand-icon"></span>' : '';
+    const indent = isChild ? 'padding-left: ' + (1.5 + depth * 1.5) + 'rem;' : '';
+    
+    return `<li class="activity-item ${hasChildren ? 'parent-event' : ''} 
+                ${isChild ? 'child-event' : ''}"
+            data-event-id="${eventId}"
+            style="${indent}">...</li>`;
+}
+
+function renderEventTree(eventList, depth = 0) {
+    let html = '';
+    eventList.forEach(item => {
+        html += renderEvent(item, depth > 0, depth);
+        if (parentMap.has(item.event_id)) {
+            html += renderEventTree(parentMap.get(item.event_id), depth + 1);
+        }
+    });
+    return html;
+}
+```
+
+### 5. Click Handlers for Expand/Collapse (`dashboard.html` lines 5674-5757)
+```javascript
+parentEvents.forEach(parentEl => {
+    parentEl.addEventListener('click', (e) => {
+        const eventId = parentEl.dataset.eventId;
+        const isExpanded = parentEl.classList.contains('expanded');
+        
+        if (isExpanded) {
+            parentEl.classList.remove('expanded');
+            hideChildren(eventId);
+        } else {
+            parentEl.classList.add('expanded');
+            showDirectChildren(eventId);
+        }
+    });
+});
+```
+
+---
+
+## Verification Status
+
+### Part 1: get_delegations() - READY ✅
+- ✅ Code updated and correct
+- ✅ SQL query uses existing schema
+- ⚠️  Waiting for Task events to be captured
+- ✅ Will return `delegation_count` when Task events exist
+
+### Part 2: Nested UI - READY ✅
+- ✅ CSS for expandable rows added
+- ✅ JavaScript parent-child mapping implemented
+- ✅ Recursive rendering with indentation
+- ✅ Click-to-expand functionality
+- ⚠️  Needs parent_event_id populated in database
+
+---
+
+## Testing Checklist
+
+Once Task events are captured:
+
+1. **API Test**: `curl http://localhost:8080/api/orchestration | jq`
+   - Should show `delegation_count: N` (where N > 0)
+   - Should list Task delegations with from_agent, to_agent, reason
+
+2. **Dashboard Orchestration Tab**:
+   - Should display delegation table
+   - Should show agent coordination metrics
+
+3. **Activity Feed**:
+   - Task events should have expand icon (▶)
+   - Clicking should reveal nested child events
+   - Child events should be indented
+   - Expand icon should change to (▼) when expanded
+
+---
+
+## Next Steps
+
+1. **Verify Hook Capture**: Ensure PreToolUse hook captures Task tool calls
+2. **Test with Real Delegation**: Run a Task() call and verify it appears
+3. **Check parent_event_id**: Ensure child events link to parent Task event
+4. **Dashboard Testing**: Verify UI correctly displays nested structure
+
+---
+
+## Files Modified
+
+1. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/db/schema.py` (lines 865-951)
+   - Fixed get_delegations() to query agent_events table
+   - Extracts subagent_type from context JSON
+
+2. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/dashboard.html`
+   - Lines 2518-2548: CSS for list-view expandable events
+   - Lines 2777-2818: CSS for table-view expandable rows
+   - Lines 5523-5757: JavaScript for parent-child rendering and expand/collapse
+
+---
+
+## Key Insights
+
+1. **Database Structure**: Task events go into `agent_events`, not `agent_collaboration`
+2. **Subagent Type Location**: Stored in `context` JSON field, not separate column
+3. **Event Hierarchy**: Uses `parent_event_id` to link child events to parents
+4. **Current Limitation**: No Task events captured yet (hooks configuration needed)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

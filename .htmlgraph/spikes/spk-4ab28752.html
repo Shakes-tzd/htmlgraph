@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Bug Investigation: Event count mismatch between header and Metrics page</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-4ab28752"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T02:51:18.481769"
+             data-updated="2026-01-09T02:51:18.481773" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="researcher-event-count">
+
+        <header>
+            <h1>Bug Investigation: Event count mismatch between header and Metrics page</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Identified
+
+The event count mismatch is caused by **two different databases being queried by different parts of the dashboard**.
+
+### The Two Databases
+
+1. **`.htmlgraph/htmlgraph.db`** - Used by FastAPI backend (`main.py`)
+   - Table: `agent_events` 
+   - Current count: **9 events**
+   - Populated by: Claude Code hooks (PreToolUse, PostToolUse, etc.)
+
+2. **`.htmlgraph/index.sqlite`** - Used by REST server (`server.py`) analytics
+   - Table: `events`
+   - Current count: **1 event** (was likely 378 at some point, or rebuilt incorrectly)
+   - Populated by: Rebuilding from JSONL event logs in `.htmlgraph/events/`
+
+### Which Queries What
+
+| Component | Database | Table | Purpose |
+|-----------|----------|-------|---------|
+| Header stats (`/api/initial-stats`) | htmlgraph.db | agent_events | FastAPI main.py line 554-558 |
+| Metrics view (`/views/metrics`) | htmlgraph.db | agent_events + sessions | FastAPI main.py line 1605 |
+| Analytics overview (`/api/analytics/overview`) | index.sqlite | events | server.py via AnalyticsIndex.overview() |
+| Dashboard Analytics tab | index.sqlite | events | Uses `fetchAnalytics("overview")` |
+
+### The Mismatch Pattern
+
+- **Header shows 378**: This would come from `/api/initial-stats` querying `agent_events` table in `htmlgraph.db`
+- **Metrics shows 210**: This comes from `/api/analytics/overview` querying `events` table in `index.sqlite`
+
+The two databases have diverged because:
+1. `htmlgraph.db` receives live events from hooks
+2. `index.sqlite` is a rebuildable cache from JSONL logs that needs manual rebuild
+
+### Files Involved
+
+1. **`src/python/htmlgraph/api/main.py`** - FastAPI backend
+   - Line 548-586: `/api/initial-stats` endpoint queries `agent_events` table
+   - Line 1534-1650: `/views/metrics` endpoint queries both tables
+
+2. **`src/python/htmlgraph/server.py`** - REST server  
+   - Line 454-646: `_handle_analytics()` uses AnalyticsIndex which queries `index.sqlite`
+
+3. **`src/python/htmlgraph/analytics_index.py`** - Analytics queries
+   - Line 629-669: `overview()` method queries `events` table in index.sqlite
+
+4. **`src/python/htmlgraph/dashboard.html`** - Frontend
+   - Line 3736-3741: `fetchAnalytics()` calls `/api/analytics/overview`
+   - Line 3841: Uses `overview.events` for display
+
+### Proposed Fix Options
+
+**Option A: Unify to single database** (Recommended)
+- Modify `AnalyticsIndex.overview()` to query `agent_events` table instead of `events`
+- Or ensure both tables stay in sync
+
+**Option B: Rebuild index.sqlite regularly**
+- Run `htmlgraph index rebuild` to sync index.sqlite from JSONL logs
+- Add hook to auto-rebuild when events change
+
+**Option C: Make dashboard use consistent source**
+- Update dashboard to always use `/api/initial-stats` for counts
+- Remove dependency on analytics index for basic counts
+
+### Immediate Workaround
+
+To sync the counts now, run:
+```bash
+uv run htmlgraph events export-sessions
+uv run htmlgraph index rebuild
+```
+
+This rebuilds `index.sqlite` from the JSONL event logs.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

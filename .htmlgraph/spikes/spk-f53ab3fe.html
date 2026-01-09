@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Bug Investigation: Unknown agents in Orchestration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f53ab3fe"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T02:50:40.415391"
+             data-updated="2026-01-09T02:50:40.415396" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="researcher-unknown-agents">
+
+        <header>
+            <h1>Bug Investigation: Unknown agents in Orchestration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Analysis
+
+### Problem
+Delegation targets show "unknown" instead of actual agent names (e.g., "gemini-spawner", "general-purpose") in the Orchestration tab.
+
+### Evidence from Database
+```sql
+SELECT subagent_type, input_summary FROM agent_events WHERE tool_name = 'Task' LIMIT 5;
+```
+Results show:
+- `subagent_type` column is **NULL** for all Task delegations
+- `input_summary` contains the subagent info: "Task (general-purpose): ..."
+
+### Root Cause Chain
+
+**1. PreToolUse Hook (pretooluse.py) - Line 264-282**
+
+The `create_task_parent_event()` function correctly inserts the `subagent_type` into `agent_events`:
+```python
+cursor.execute("""
+    INSERT INTO agent_events
+    (event_id, agent_id, event_type, timestamp, tool_name,
+     input_summary, session_id, status, subagent_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
+    parent_event_id,
+    "claude-code",
+    "task_delegation",  # <-- event_type = task_delegation
+    ...
+    subagent_type or "general-purpose",  # <-- subagent_type IS set
+))
+```
+
+BUT there is a **SECOND INSERT** at lines 365-383 that creates an event with  and **NO subagent_type**:
+```python
+cursor.execute("""
+    INSERT INTO agent_events
+    (event_id, agent_id, event_type, timestamp, tool_name,
+     input_summary, session_id, status, parent_event_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)  # <-- No subagent_type column!
+""", ...)
+```
+
+**2. Orchestration View (main.py) - Lines 1168-1182**
+
+The orchestration view queries events with :
+```python
+query = """
+    SELECT
+        event_id,
+        agent_id as from_agent,
+        subagent_type as to_agent,  # <-- Gets NULL because wrong event
+        ...
+    FROM agent_events
+    WHERE tool_name = 'Task'  # <-- Finds tool_call events, NOT task_delegation
+    ORDER BY timestamp DESC
+"""
+```
+
+This query finds the **tool_call** events (which have NULL subagent_type), not the **task_delegation** events (which have the correct subagent_type).
+
+**3. Fallback Logic (main.py) - Lines 1194-1199**
+
+When `to_agent` is NULL, the code tries to extract from `input_summary`:
+```python
+if not to_agent:
+    try:
+        input_data = json.loads(task_summary) if task_summary else {}
+        to_agent = input_data.get("subagent_type", "unknown")
+    except Exception:
+        to_agent = "unknown"  # <-- Falls through here because input_summary is NOT JSON
+```
+
+The problem: `input_summary` contains a **string like "Task (general-purpose): ..."**, not JSON.
+So `json.loads()` fails, exception is caught, and "unknown" is returned.
+
+### Summary of Issues
+
+| Issue | Location | Problem |
+|-------|----------|---------|
+| 1. Duplicate events | pretooluse.py:365 | Task() creates TWO events - one with subagent_type, one without |
+| 2. Wrong query filter | main.py:1178 | Queries  instead of  |
+| 3. Invalid JSON fallback | main.py:1196 | Tries json.loads() on non-JSON string |
+
+### Proposed Fix
+
+**Option A (Recommended - Minimal change):**
+Change the orchestration query filter from:
+```sql
+WHERE tool_name = 'Task'
+```
+to:
+```sql
+WHERE event_type = 'task_delegation'
+```
+
+This will return the events that have the `subagent_type` populated.
+
+**Option B (Alternative - Fix data at source):**
+Modify `pretooluse.py` to include `subagent_type` in the tool_call insert at line 365-383, or remove the duplicate insert.
+
+**Option C (Fallback improvement):**
+Fix the JSON parsing fallback to parse the string format "Task (subagent_type): ..." using regex:
+```python
+import re
+match = re.search(r"Task \(([^)]+)\):", task_summary)
+to_agent = match.group(1) if match else "unknown"
+```
+
+### Files to Fix
+
+1. **src/python/htmlgraph/api/main.py** - Lines 1168-1182, 1256-1268, 1371-1383
+   - Change query filter from `tool_name = 'Task'` to `event_type = 'task_delegation'`
+
+2. **src/python/htmlgraph/hooks/pretooluse.py** - Lines 365-383 (optional)
+   - Add `subagent_type` to the tool_call insert OR remove duplicate event creation
+            </div>
+        </section>
+    </article>
+</body>
+</html>

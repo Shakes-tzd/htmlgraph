@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Fixes Verification Report</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-4583d8a4"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T01:08:24.890868"
+             data-updated="2026-01-09T01:08:24.890872" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="verification-agent">
+
+        <header>
+            <h1>Dashboard Fixes Verification Report</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Dashboard Fixes Verification Report
+
+## Verification Results
+
+### 1. API 404 Fixed - NOT FIXED
+**Claimed:** /api/orchestration/delegations returns 200 OK with valid JSON
+**Actual:** Endpoint does NOT exist
+
+**Evidence:**
+- Code search shows /api/orchestration endpoint exists (line 1088)
+- NO /api/orchestration/delegations endpoint found in code
+- API main.py has views/orchestration and api/orchestration
+- Missing: api/orchestration/delegations
+
+**Fix Required:** Create /api/orchestration/delegations endpoint or update dashboard to use /api/orchestration
+
+---
+
+### 2. Orchestration Showing 0 - PARTIAL
+**Claimed:** Delegations are displayed correctly
+**Actual:** Code queries correctly, but NO delegation data exists
+
+**Evidence:**
+- Database query: WHERE tool_name = Task (correct)
+- Events in database: 9 total
+- Delegations found: 0 (no Task tool invocations recorded)
+- Query logic is correct, but no data to display
+
+**Root Cause:** Hooks not capturing Task() delegations OR no delegations have occurred
+
+---
+
+### 3. Sessions Count Showing 0 - PARTIAL
+**Claimed:** Session counts are accurate
+**Actual:** Sessions exist but schema mismatch causes errors
+
+**Evidence:**
+- Sessions table has 3 records (confirmed)
+- Schema issue: Query uses agent column, but sessions table uses agent_assigned
+- Sessions table schema verified with PRAGMA table_info
+- Session-start.py uses SessionManager correctly
+
+**Fix Required:** Update queries to use agent_assigned instead of agent
+
+---
+
+### 4. Current Session Tracked - PARTIAL
+**Claimed:** SessionStart hook creates sessions
+**Actual:** Hook has correct logic but environment variables not set
+
+**Evidence:**
+- session-start.py has SessionManager implementation
+- Has get_active_session_for_agent() method
+- Has start_session() method
+- Has track_activity() method
+- BUT: HTMLGRAPH_SESSION_ID environment variable NOT set
+- CLAUDE_ENV_FILE mechanism present but not working
+
+**Root Cause:** Hook writes to CLAUDE_ENV_FILE but variables do not persist to shell
+
+---
+
+### 5. Hooks Capturing Events - CONFIRMED
+**Claimed:** Event capture is working
+**Actual:** Events ARE being captured
+
+**Evidence:**
+- agent_events table has 9 events
+- 3 distinct sessions tracked
+- PreToolUse hook capturing tool calls
+- 0 delegations (expected if no Task() calls made)
+
+---
+
+## Summary Table
+
+| Fix | Status | Notes |
+|-----|--------|-------|
+| API 404 | NOT FIXED | /api/orchestration/delegations endpoint missing |
+| Orchestration showing 0 | PARTIAL | Code correct, no delegation data exists |
+| Sessions count 0 | PARTIAL | Schema mismatch: agent vs agent_assigned |
+| Current session tracked | PARTIAL | Logic correct, env vars not propagating |
+| Hooks capturing events | CONFIRMED | 9 events captured successfully |
+
+---
+
+## Critical Issues Found
+
+### Issue 1: Missing API Endpoint
+**File:** src/python/htmlgraph/api/main.py
+**Problem:** Dashboard expects /api/orchestration/delegations, but only /api/orchestration exists
+**Fix:** Add delegation-specific endpoint or update dashboard JavaScript
+
+### Issue 2: Sessions Table Column Name Mismatch
+**File:** src/python/htmlgraph/api/main.py (queries)
+**Problem:** Queries use agent column but table schema has agent_assigned
+**Evidence:** Sessions table schema shows agent_assigned not agent
+**Fix:** Update all queries to use agent_assigned instead of agent
+
+### Issue 3: Environment Variable Propagation
+**File:** .claude/hooks/scripts/session-start.py
+**Problem:** CLAUDE_ENV_FILE writes do not persist to shell environment
+**Impact:** Child processes cannot access HTMLGRAPH_SESSION_ID
+**Workaround:** Pass session_id via other mechanism (database, temp file)
+
+---
+
+## Recommendations
+
+1. **Immediate:** Create /api/orchestration/delegations endpoint
+2. **High Priority:** Fix sessions table column name (agent -> agent_assigned)
+3. **Medium Priority:** Test delegation tracking with actual Task() calls
+4. **Low Priority:** Debug CLAUDE_ENV_FILE propagation (may be Claude Code limitation)
+
+---
+
+## Database Evidence
+
+### Sessions Table Schema
+- session_id (TEXT)
+- agent_assigned (TEXT) <- Note: NOT agent
+- parent_session_id (TEXT)
+- created_at (DATETIME)
+- status (TEXT)
+- total_events (INTEGER)
+- Features: 3 sessions exist in database
+
+### Agent Events
+- Total events: 9
+- Distinct sessions: 2
+- Task delegations: 0
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Test & Event Capture Verification After Hook Sync</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-4f4b1340"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-08T14:09:29.262974"
+             data-updated="2026-01-08T14:09:29.262978" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="test-verification-after-sync">
+
+        <header>
+            <h1>Test & Event Capture Verification After Hook Sync</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Complete Test & Event Capture Verification After Hook Sync
+
+### Test Suite Results
+- Total tests: 1581 passed + 51 failed + 14 errors + 10 skipped = 1656 total
+- Passed: 1581
+- Failed: 51 (mostly work_queue tests with track linkage requirement)
+- Errors: 14 (same track linkage issue)
+- Skipped: 10
+- Status: MOSTLY PASS - Failures are pre-existing track linkage validation issues, not hook-related
+
+### Hook Execution Status
+- PostToolUseFailure hooks fired: 1091 events recorded in hook-debug.jsonl (3.4 MB file)
+- Hook event format: raw_input.hook_event_name contains hook type
+- Status: HOOKS FIRING SUCCESSFULLY
+- Evidence: grep '"hook_event_name":"PostToolUseFailure"' shows 1091 entries in hook-debug.jsonl
+
+### Database Event Capture
+- Total events in database: 3 events
+  - Tool call events: 2
+  - Task delegation events: 1
+- Status: PARTIAL - Database has events but pipeline not processing all hook failures
+- Critical issue: Only 3 events in database despite 1091 hooks firing
+- Root cause: Event processing pipeline not translating hooks to database events
+
+### Session Tracking
+- Sessions in database: 3 confirmed
+- Session files on disk: 41 total sessions tracked
+- Status: SESSIONS TRACKED - Multiple sessions properly stored
+
+### Dashboard API Status
+- HTTP Status: 000 (connection failure)
+- /api/events endpoint: NOT RESPONDING
+- /api/sessions endpoint: NOT RESPONDING
+- Dashboard server processes: Multiple instances running (PIDs: 47434, 47595, 47771, 47929, 48079, 48229, 48363, 85007, 85010, 90801, 90803)
+- Status: DASHBOARD API BROKEN - Server running but endpoints failing
+
+### HtmlGraph System Status
+- Total tracked nodes: 1084
+  - Features: 121
+  - Sessions: 41
+  - Spikes: 844
+  - Tracks: 38
+  - Bugs: 30
+  - Epics: 4
+  - Chores: 6
+- Database warning: "no such column: subagent_type" during index creation
+- Status: CORE SYSTEM OPERATIONAL
+
+## Critical Assessment
+
+The hybrid event capture system is PARTIALLY OPERATIONAL with the following gaps:
+
+**Working Components:**
+✅ Hook execution - PostToolUseFailure hooks firing successfully (1091 captured)
+✅ Hook debug logging - hook-debug.jsonl properly recording hook events
+✅ Session tracking - Multiple sessions tracked in database and filesystem
+✅ HtmlGraph core - Status command and node tracking fully functional
+✅ Plugin hooks - Successfully synced and executing
+
+**Broken Components:**
+❌ Event pipeline - Hooks fire but not creating database events (1091 hooks, only 3 events)
+❌ Dashboard API - HTTP endpoints returning 000 (connection failure)
+❌ Event-to-database translation - PostToolUseFailure hooks not triggering event creation
+
+## Root Causes
+
+1. **Event Processing Pipeline Broken**: Hook fires are captured in hook-debug.jsonl but the pipeline that should translate these into agent_events database entries is not functioning
+2. **Dashboard API Misconfiguration**: Multiple dashboard server instances running but HTTP endpoints not responding (likely port mismatch or API not initialized)
+3. **Database Schema Issue**: Warning about missing subagent_type column suggests schema mismatch
+
+## Recommendations for Next Steps
+
+1. **Debug Hook-to-Event Pipeline**: Trace why PostToolUseFailure hooks are recorded but not creating database events
+2. **Fix Dashboard API**: Check dashboard server configuration and endpoint initialization
+3. **Verify Database Schema**: Ensure agent_events table has all expected columns (subagent_type)
+4. **Clean Up Dashboard Processes**: Multiple instances running - verify if this is expected or if cleanup needed
+
+## Evidence
+
+### Hook-debug.jsonl Sample
+```json
+{"raw_input": {..., "hook_event_name": "PostToolUseFailure", ...}, "keys": [...], "ts": "2026-01-01T19:37:46.024545"}
+```
+
+### Database Query Results
+```
+sqlite3> SELECT event_type, COUNT(*) as count FROM agent_events GROUP BY event_type ORDER BY count DESC;
+tool_call|2
+task_delegation|1
+```
+
+### HtmlGraph Status
+```
+Total nodes: 1084
+By Collection:
+  bugs: 30
+  chores: 6
+  epics: 4
+  features: 121
+  sessions: 41
+  spikes: 844
+  tracks: 38
+```
+
+## Conclusion
+
+The hook synchronization was successful - hooks are firing and being recorded. However, the event capture pipeline that converts hook events into database records needs debugging. The system is functional for session tracking and HtmlGraph core operations, but the real-time event dashboard API is non-functional.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

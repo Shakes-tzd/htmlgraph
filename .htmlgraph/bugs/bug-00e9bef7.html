@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Data Inconsistencies: Unknown agents, wrong agent names, event count mismatch</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-00e9bef7"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-09T02:48:34.085144"
+             data-updated="2026-01-09T07:48:34.660679+00:00" data-agent-assigned="orchestrator">
+
+        <header>
+            <h1>Dashboard Data Inconsistencies: Unknown agents, wrong agent names, event count mismatch</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-422f9b54.html" data-relationship="implemented-in" data-since="2026-01-09T02:48:34.660666">sess-422f9b54</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Three related bugs in dashboard display:
+
+## Bug 1: Unknown agents in Orchestration page
+- Delegation target shows "unknown" instead of actual agent name
+- Expected: Should show "haiku", "sonnet", "general-purpose", etc.
+- Actual: Shows "unknown" for most delegations
+
+## Bug 2: Agent name shows "cli" instead of model name  
+- Session/events attributed to "cli" instead of actual model
+- Expected: "claude-opus-4-5-20251101" or proper model name
+- Actual: "cli" for main orchestrator session
+
+## Bug 3: Event count mismatch
+- Header shows 378 events
+- Metrics page shows 210 total events  
+- These should be consistent or explain the difference
+</p>
+        </section>
+    </article>
+</body>
+</html>
