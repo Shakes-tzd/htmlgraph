@@ -169,10 +169,14 @@ def test_parallel_delegate_structure(tmp_path):
     task_id_2, _ = delegate_with_id("Task 2", "Do task 2", "agent2")
 
     spike1 = sdk.spikes.create(f"Results: {task_id_1} - Task 1")
-    spike1.set_findings("Result 1").save()
+    spike1.set_findings(
+        "Result 1: Task completed successfully with expected output and validation."
+    ).save()
 
     spike2 = sdk.spikes.create(f"Results: {task_id_2} - Task 2")
-    spike2.set_findings("Result 2").save()
+    spike2.set_findings(
+        "Result 2: Task completed successfully with expected output and validation."
+    ).save()
 
     # Note: In real usage, parallel_delegate would handle task spawning
     # For testing, we just verify the result retrieval works
@@ -181,5 +185,5 @@ def test_parallel_delegate_structure(tmp_path):
 
     assert results_1["success"]
     assert results_2["success"]
-    assert results_1["findings"] == "Result 1"
-    assert results_2["findings"] == "Result 2"
+    assert "Task completed successfully" in results_1["findings"]
+    assert "Task completed successfully" in results_2["findings"]

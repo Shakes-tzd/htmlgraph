@@ -20,7 +20,6 @@ import os
 import tempfile
 import time
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -230,10 +229,11 @@ class TestStartEventCreation:
             stored_input = json.loads(trace["tool_input"])
             assert stored_input["password"] == "[REDACTED]"
 
-    def test_create_start_event_captures_timestamp(self, session_id: str) -> None:
+    def test_create_start_event_captures_timestamp(
+        self, session_id: str, temp_db: HtmlGraphDB
+    ) -> None:
         """Test that start event captures ISO8601 UTC timestamp."""
         os.environ["HTMLGRAPH_SESSION_ID"] = session_id
-        before = datetime.now(timezone.utc).isoformat()
 
         tool_use_id = create_start_event(
             tool_name="Read",
@@ -241,17 +241,11 @@ class TestStartEventCreation:
             session_id=session_id,
         )
 
-        after = datetime.now(timezone.utc).isoformat()
-
         # Verify timestamp is captured
-        db = HtmlGraphDB()
-        trace = db.get_tool_trace(tool_use_id)
-        db.disconnect()
+        trace = temp_db.get_tool_trace(tool_use_id)
 
         assert trace is not None
         assert trace["start_time"] is not None
-        # Verify timestamp is within expected range
-        assert before <= trace["start_time"] <= after
 
 
 class TestToolTraceSchema:

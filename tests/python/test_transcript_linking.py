@@ -141,8 +141,10 @@ class TestCompleteWithTranscript:
 
         sdk = SDK(directory=temp_graph_dir, agent="test-agent")
 
+        # Create track and feature
+        track = sdk.tracks.create("Test Track").save()
         # Create a test feature
-        feature = sdk.features.create("Test Feature")
+        feature = sdk.features.create("Test Feature").set_track(track.id)
         feature_id = feature.id if hasattr(feature, "id") else feature.save().id
 
         mock_session = MagicMock()
@@ -176,9 +178,10 @@ class TestParallelWorkflowLinkTranscripts:
         sdk = SDK(directory=temp_graph_dir, agent="test-agent")
         workflow = ParallelWorkflow(sdk)
 
-        # Create test features
-        f1 = sdk.features.create("Feature 1").save()
-        f2 = sdk.features.create("Feature 2").save()
+        # Create track and test features
+        track = sdk.tracks.create("Test Track").save()
+        f1 = sdk.features.create("Feature 1").set_track(track.id).save()
+        f2 = sdk.features.create("Feature 2").set_track(track.id).save()
 
         mock_session = MagicMock()
         mock_session.tool_call_count = 30

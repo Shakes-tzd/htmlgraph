@@ -263,7 +263,8 @@ class TestFullLifecycle:
 
         # Do some work
         sdk = SDK(directory=graph_dir, agent="test-agent")
-        feature = sdk.features.create("Test Feature").save()
+        track = sdk.tracks.create("Test Track").save()
+        feature = sdk.features.create("Test Feature").set_track(track.id).save()
         manager.start_feature(feature.id, agent="test-agent")
         manager.complete_feature(feature.id, agent="test-agent")
         manager.end_session(session.id)

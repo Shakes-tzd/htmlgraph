@@ -41,8 +41,10 @@ def test_get_active_work_item_no_items(sdk: SDK):
 def test_get_active_work_item_only_todo(sdk: SDK):
     """Test when only todo items exist (no in-progress user work)."""
     # Create a todo feature
+    track = sdk.tracks.create("Test Track").save()
     (
         sdk.features.create("Test Feature")
+        .set_track(track.id)
         .set_priority("high")
         .add_steps(["Step 1", "Step 2"])
         .save()
@@ -58,8 +60,10 @@ def test_get_active_work_item_only_todo(sdk: SDK):
 def test_get_active_work_item_single_in_progress_feature(sdk: SDK):
     """Test with a single in-progress feature."""
     # Create an in-progress feature
+    track = sdk.tracks.create("Test Track").save()
     feature = (
         sdk.features.create("Active Feature")
+        .set_track(track.id)
         .set_priority("high")
         .add_steps(["Step 1", "Step 2", "Step 3"])
         .save()
@@ -86,7 +90,8 @@ def test_get_active_work_item_single_in_progress_feature(sdk: SDK):
 def test_get_active_work_item_multiple_types(sdk: SDK):
     """Test with multiple work item types (feature, bug)."""
     # Create in-progress feature
-    feature = sdk.features.create("Active Feature").save()
+    track = sdk.tracks.create("Test Track").save()
+    feature = sdk.features.create("Active Feature").set_track(track.id).save()
     with sdk.features.edit(feature.id) as f:
         f.status = "in-progress"
 
@@ -227,8 +232,10 @@ def test_get_active_work_item_done_items_ignored(sdk: SDK):
 
 def test_get_active_work_item_step_progress(sdk: SDK):
     """Test step progress calculation."""
+    track = sdk.tracks.create("Test Track").save()
     feature = (
         sdk.features.create("Feature with Steps")
+        .set_track(track.id)
         .add_steps(["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"])
         .save()
     )
@@ -272,7 +279,8 @@ def test_get_active_work_item_auto_spike_deprioritized(sdk: SDK):
 
     # Create a real feature using SDK (not HtmlGraph directly)
     # This ensures the SDK's collection is aware of the new feature
-    feature = sdk.features.create("Real Feature").save()
+    track = sdk.tracks.create("Test Track").save()
+    feature = sdk.features.create("Real Feature").set_track(track.id).save()
     with sdk.features.edit(feature.id) as f:
         f.status = "in-progress"
 

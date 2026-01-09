@@ -174,7 +174,11 @@ class TestSDKCollectionDelete:
 
     def test_sdk_batch_delete(self, sdk):
         """Test SDK batch delete."""
-        features = [sdk.features.create(f"Feature {i}").save() for i in range(5)]
+        track = sdk.tracks.create("Test Track").save()
+        features = [
+            sdk.features.create(f"Feature {i}").set_track(track.id).save()
+            for i in range(5)
+        ]
         feature_ids = [f.id for f in features]
 
         # Delete first 3
@@ -190,7 +194,8 @@ class TestSDKCollectionDelete:
     def test_sdk_delete_all_collection_types(self, sdk):
         """Test that delete works for all collection types."""
         # Create test nodes for different collections
-        feature = sdk.features.create("Test Feature").save()
+        track = sdk.tracks.create("Test Track").save()
+        feature = sdk.features.create("Test Feature").set_track(track.id).save()
 
         # For non-feature collections, create nodes directly
         bug = Node(id="test-bug", title="Test Bug", type="bug")
@@ -216,8 +221,14 @@ class TestSDKCollectionDelete:
     def test_sdk_delete_with_edges(self, sdk):
         """Test SDK delete cleans up edges properly."""
         # Create features with dependencies
-        feat_a = sdk.features.create("Feature A").save()
-        feat_b = sdk.features.create("Feature B").blocked_by(feat_a.id).save()
+        track = sdk.tracks.create("Test Track").save()
+        feat_a = sdk.features.create("Feature A").set_track(track.id).save()
+        feat_b = (
+            sdk.features.create("Feature B")
+            .set_track(track.id)
+            .blocked_by(feat_a.id)
+            .save()
+        )
 
         # Delete feat_a
         sdk.features.delete(feat_a.id)

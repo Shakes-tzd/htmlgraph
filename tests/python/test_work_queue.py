@@ -31,10 +31,19 @@ def temp_sdk(tmp_path):
 
     sdk = SDK(directory=graph_dir, agent="test-agent")
 
+    # Create test track
+    track = sdk.tracks.create("Test Track").save()
+
     # Create test features with different priorities and statuses
-    sdk.features.create("High priority feature", priority="high").save()
-    sdk.features.create("Medium priority feature", priority="medium").save()
-    sdk.features.create("Low priority feature", priority="low").save()
+    sdk.features.create("High priority feature", priority="high").set_track(
+        track.id
+    ).save()
+    sdk.features.create("Medium priority feature", priority="medium").set_track(
+        track.id
+    ).save()
+    sdk.features.create("Low priority feature", priority="low").set_track(
+        track.id
+    ).save()
 
     # Create a bug
     sdk.bugs.create("Critical bug", priority="high").save()

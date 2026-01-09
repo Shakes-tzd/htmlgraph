@@ -27,10 +27,15 @@ class TestStrategicRecommendations:
 
         sdk = SDK(directory=graph_dir, agent="test-agent")
 
+        # Create track for features
+        track = sdk.tracks.create("Test Track").save()
+
         # Create some features with dependencies
-        sdk.features.create("Feature 1").set_priority("high").save()
-        sdk.features.create("Feature 2").set_priority("medium").save()
-        sdk.features.create("Feature 3").set_priority("low").save()
+        sdk.features.create("Feature 1").set_track(track.id).set_priority("high").save()
+        sdk.features.create("Feature 2").set_track(track.id).set_priority(
+            "medium"
+        ).save()
+        sdk.features.create("Feature 3").set_track(track.id).set_priority("low").save()
 
         # Get recommendations
         recs = sdk.recommend_next_work(agent_count=1)
@@ -54,10 +59,17 @@ class TestStrategicRecommendations:
 
         sdk = SDK(directory=graph_dir, agent="test-agent")
 
+        # Create track for features
+        track = sdk.tracks.create("Test Track").save()
+
         # Create features with blocking relationships
-        f1 = sdk.features.create("Blocker Feature").save()
-        sdk.features.create("Blocked Feature 1").blocked_by(f1.id).save()
-        sdk.features.create("Blocked Feature 2").blocked_by(f1.id).save()
+        f1 = sdk.features.create("Blocker Feature").set_track(track.id).save()
+        sdk.features.create("Blocked Feature 1").set_track(track.id).blocked_by(
+            f1.id
+        ).save()
+        sdk.features.create("Blocked Feature 2").set_track(track.id).blocked_by(
+            f1.id
+        ).save()
 
         # Get bottlenecks
         bottlenecks = sdk.find_bottlenecks(top_n=3)
@@ -78,10 +90,13 @@ class TestStrategicRecommendations:
 
         sdk = SDK(directory=graph_dir, agent="test-agent")
 
+        # Create track for features
+        track = sdk.tracks.create("Test Track").save()
+
         # Create independent features (no dependencies)
-        sdk.features.create("Independent 1").save()
-        sdk.features.create("Independent 2").save()
-        sdk.features.create("Independent 3").save()
+        sdk.features.create("Independent 1").set_track(track.id).save()
+        sdk.features.create("Independent 2").set_track(track.id).save()
+        sdk.features.create("Independent 3").set_track(track.id).save()
 
         # Get parallel capacity
         parallel = sdk.get_parallel_work(max_agents=5)
@@ -136,8 +151,11 @@ class TestMultiAgentAwareness:
 
         sdk = SDK(directory=graph_dir, agent="agent-1")
 
+        # Create track for features
+        track = sdk.tracks.create("Test Track").save()
+
         # Create a feature and start it with agent-1
-        feature = sdk.features.create("Shared Feature").save()
+        feature = sdk.features.create("Shared Feature").set_track(track.id).save()
 
         with sdk.features.edit(feature.id) as f:
             f.status = "in-progress"
@@ -270,7 +288,8 @@ class TestSessionStartHookIntegration:
         graph_dir.mkdir()
 
         sdk = SDK(directory=graph_dir, agent="test-agent")
-        sdk.features.create("Test Feature").save()
+        track = sdk.tracks.create("Test Track").save()
+        sdk.features.create("Test Feature").set_track(track.id).save()
 
         # Note: This test would need to actually invoke the hook script
         # For now, we verify the components work independently

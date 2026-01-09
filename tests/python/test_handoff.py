@@ -382,8 +382,10 @@ class TestSDKHandoff:
         with TemporaryDirectory() as tmpdir:
             sdk = SDK(directory=tmpdir)
 
+            track = sdk.tracks.create("Test Track").save()
             feature = (
                 sdk.features.create("Test Feature")
+                .set_track(track.id)
                 .complete_and_handoff(
                     reason="awaiting review",
                     notes="All tests passing",
@@ -401,8 +403,10 @@ class TestSDKHandoff:
         with TemporaryDirectory() as tmpdir:
             sdk = SDK(directory=tmpdir)
 
+            track = sdk.tracks.create("Test Track").save()
             feature = (
                 sdk.features.create("Test Feature")
+                .set_track(track.id)
                 .set_priority("high")
                 .add_step("Step 1")
                 .complete_and_handoff(
