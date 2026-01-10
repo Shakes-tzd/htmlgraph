@@ -191,6 +191,8 @@ def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
     user-query-event-{SESSION_ID}.json to support multiple concurrent
     Claude windows in the same project.
     """
+    from datetime import timezone
+
     path = get_user_query_event_file(graph_dir, session_id)
     if path.exists():
         try:
@@ -199,9 +201,12 @@ def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
                 # Clean up stale UserQuery events (older than 10 minutes)
                 if data.get("timestamp"):
                     ts = datetime.fromisoformat(data["timestamp"])
+                    now = datetime.now(timezone.utc)
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
                     # UserQuery events expire after 10 minutes (conversation turn boundary)
                     # This allows tool calls up to 10 minutes after a user query to be linked as children
-                    if datetime.now() - ts > timedelta(minutes=10):
+                    if now - ts > timedelta(minutes=10):
                         return None
                 return data.get("event_id")
         except Exception:
@@ -209,7 +214,9 @@ def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
     return None
 
 
-def save_user_query_event(graph_dir: Path, session_id: str, event_id: str | None) -> None:
+def save_user_query_event(
+    graph_dir: Path, session_id: str, event_id: str | None
+) -> None:
     """
     Save the active UserQuery event ID for parent-child linking.
 
@@ -217,6 +224,8 @@ def save_user_query_event(graph_dir: Path, session_id: str, event_id: str | None
     user-query-event-{SESSION_ID}.json to support multiple concurrent
     Claude windows in the same project.
     """
+    from datetime import timezone
+
     path = get_user_query_event_file(graph_dir, session_id)
     try:
         if event_id:
@@ -224,7 +233,7 @@ def save_user_query_event(graph_dir: Path, session_id: str, event_id: str | None
                 json.dump(
                     {
                         "event_id": event_id,
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     },
                     f,
                 )
@@ -704,7 +713,9 @@ def main():
 
                 # Store the UserQuery event_id for subsequent tool calls to use as parent
                 if user_query_event_id:
-                    save_user_query_event(graph_dir, active_session_id, user_query_event_id)
+                    save_user_query_event(
+                        graph_dir, active_session_id, user_query_event_id
+                    )
 
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
@@ -777,16 +788,16 @@ def main():
             env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
             if env_parent:
                 parent_activity_id = env_parent
-            # Next, check for UserQuery event as parent (for prompt-based grouping)
-            # UserQuery takes priority over parent_activity_json to ensure each conversation turn
-            # has its tool calls properly grouped together
-            else:
-                user_query_event_id = load_user_query_event(graph_dir, active_session_id)
+            # Fall back to file-based parent context if no env var set
+            elif parent_activity_state.get("parent_id"):
+                parent_activity_id = parent_activity_state["parent_id"]
+            # Finally, check for UserQuery event as parent (for prompt-based grouping)
+            elif not parent_activity_id:
+                user_query_event_id = load_user_query_event(
+                    graph_dir, active_session_id
+                )
                 if user_query_event_id:
                     parent_activity_id = user_query_event_id
-                # Fall back to parent-activity.json only if no UserQuery event (backward compatibility)
-                elif parent_activity_state.get("parent_id"):
-                    parent_activity_id = parent_activity_state["parent_id"]
 
         # Track the activity
         nudge = None
