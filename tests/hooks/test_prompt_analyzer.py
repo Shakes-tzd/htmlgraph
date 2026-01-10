@@ -9,25 +9,14 @@ Test Framework: pytest
 Test Count: 35+ comprehensive test cases
 """
 
-import json
 import tempfile
-import uuid
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-
 from htmlgraph.hooks.context import HookContext
 from htmlgraph.hooks.prompt_analyzer import (
-    BUG_PATTERNS,
-    CODE_CHANGE_KEYWORDS,
-    CONTINUATION_PATTERNS,
     EXPLORATION_KEYWORDS,
-    GIT_KEYWORDS,
-    IMPLEMENTATION_PATTERNS,
-    INVESTIGATION_PATTERNS,
     classify_cigs_intent,
     classify_prompt,
     create_user_query_event,
@@ -36,7 +25,6 @@ from htmlgraph.hooks.prompt_analyzer import (
     get_active_work_item,
     get_session_violation_count,
 )
-
 
 # ============================================================================
 # FIXTURES: Mock HookContext and Dependencies
@@ -930,7 +918,7 @@ class TestGenerateCigsGuidance:
 
 
 class TestCreateUserQueryEvent:
-    """Tests for UserQuery event creation."""
+    """Tests for UserQuery event creation (database-only, no file-based state)."""
 
     def test_create_user_query_event_success(self, mock_hook_context, tmp_graph_dir):
         """Test successful UserQuery event creation."""
@@ -941,16 +929,15 @@ class TestCreateUserQueryEvent:
         mock_cursor.fetchone.return_value = (1,)  # Session exists
         mock_hook_context.database.connection.cursor.return_value = mock_cursor
 
-        with patch("htmlgraph.hooks.event_tracker.save_user_query_event") as mock_save:
-            with patch("htmlgraph.hooks.prompt_analyzer.uuid.uuid4") as mock_uuid:
-                mock_uuid.return_value = Mock(hex="abcdefghijklmnop")
+        with patch("htmlgraph.hooks.prompt_analyzer.uuid.uuid4") as mock_uuid:
+            mock_uuid.return_value = Mock(hex="abcdefghijklmnop")
 
-                event_id = create_user_query_event(
-                    mock_hook_context, "Test prompt"
-                )
+            event_id = create_user_query_event(
+                mock_hook_context, "Test prompt"
+            )
 
-                assert event_id is not None
-                assert event_id.startswith("uq-")
+            assert event_id is not None
+            assert event_id.startswith("uq-")
 
     def test_create_user_query_event_creates_session_if_not_exists(
         self, mock_hook_context, tmp_graph_dir
@@ -963,13 +950,12 @@ class TestCreateUserQueryEvent:
         mock_cursor.fetchone.return_value = (0,)  # Session doesn't exist
         mock_hook_context.database.connection.cursor.return_value = mock_cursor
 
-        with patch("htmlgraph.hooks.event_tracker.save_user_query_event"):
-            event_id = create_user_query_event(
-                mock_hook_context, "Test prompt"
-            )
+        event_id = create_user_query_event(
+            mock_hook_context, "Test prompt"
+        )
 
-            # Should still create event even if session didn't exist
-            assert event_id is not None
+        # Should still create event even if session didn't exist
+        assert event_id is not None
 
     def test_create_user_query_event_unknown_session(self, mock_hook_context_no_session):
         """Test handling of unknown session."""
@@ -995,11 +981,10 @@ class TestCreateUserQueryEvent:
 
         long_prompt = "x" * 1000
 
-        with patch("htmlgraph.hooks.event_tracker.save_user_query_event"):
-            event_id = create_user_query_event(mock_hook_context, long_prompt)
+        event_id = create_user_query_event(mock_hook_context, long_prompt)
 
-            # Should still create event
-            assert event_id is not None
+        # Should still create event
+        assert event_id is not None
 
     def test_create_user_query_event_database_insert_fails(self, mock_hook_context):
         """Test handling when database insert fails."""
@@ -1018,29 +1003,26 @@ class TestCreateUserQueryEvent:
         mock_cursor.fetchone.return_value = (1,)
         mock_hook_context.database.connection.cursor.return_value = mock_cursor
 
-        with patch("htmlgraph.hooks.event_tracker.save_user_query_event"):
-            event_id = create_user_query_event(mock_hook_context, "Test")
+        event_id = create_user_query_event(mock_hook_context, "Test")
 
-            assert event_id is not None
-            assert event_id.startswith("uq-")
-            assert len(event_id) == 11  # "uq-" + 8 hex chars
+        assert event_id is not None
+        assert event_id.startswith("uq-")
+        assert len(event_id) == 11  # "uq-" + 8 hex chars
 
-    def test_create_user_query_event_saves_to_file(self, mock_hook_context, tmp_graph_dir):
-        """Test that event is saved to session file."""
+    def test_create_user_query_event_stores_in_database(self, mock_hook_context, tmp_graph_dir):
+        """Test that event is stored in database (single source of truth)."""
         mock_hook_context.graph_dir = tmp_graph_dir
         mock_cursor = Mock()
         mock_cursor.fetchone.return_value = (1,)
         mock_hook_context.database.connection.cursor.return_value = mock_cursor
 
-        with patch(
-            "htmlgraph.hooks.event_tracker.save_user_query_event"
-        ) as mock_save:
-            event_id = create_user_query_event(
-                mock_hook_context, "Test prompt"
-            )
+        event_id = create_user_query_event(
+            mock_hook_context, "Test prompt"
+        )
 
-            if event_id:
-                mock_save.assert_called_once()
+        if event_id:
+            # Verify database insert was called
+            mock_hook_context.database.insert_event.assert_called_once()
 
 
 # ============================================================================

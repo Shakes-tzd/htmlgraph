@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 4: Orchestrator Auto-Delegation & Transparent Failure Tests</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f0ca3512"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T17:02:42.564165"
+             data-updated="2026-01-10T17:02:42.564170" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Phase 4: Orchestrator Auto-Delegation & Transparent Failure Tests</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Phase 4: Orchestrator Auto-Delegation & Transparent Failure Semantics
+
+## Summary
+Successfully implemented comprehensive test suite (20 tests) verifying orchestrator auto-delegation capabilities and transparent failure handling for multi-AI spawner agents (Gemini, Codex, Copilot).
+
+## Test File
+File: `tests/integration/test_orchestrator_spawner_delegation.py`
+Status: All 20 tests passing
+Code Quality: Ruff-formatted, mypy-compatible, follows pytest conventions
+
+## Key Findings
+
+### 1. Orchestrator Description Reading (3 tests)
+✓ Orchestrator can read and parse all spawner agent descriptions from:
+  - Agent markdown files (*.md) with YAML frontmatter
+  - plugin.json with complete agent metadata
+  - Descriptions contain required capability keywords:
+    - Gemini: "exploration", "exploratory", "research" (FREE)
+    - Codex: "code", "implementation", "code_generation" (Paid)
+    - Copilot: "git", "github", "workflow" (Subscription)
+
+### 2. Spawner CLI Availability Handling (3 tests)
+✓ Spawners return TRANSPARENT ERRORS when CLIs unavailable:
+  - Gemini spawner: Handles missing "gemini" CLI gracefully
+  - Codex spawner: Handles missing "codex" CLI gracefully
+  - Copilot spawner: Handles missing "gh" CLI gracefully
+✓ Error responses include:
+  - Clear error message with CLI name
+  - Installation instructions (URLs, commands)
+  - Authentication hints where applicable
+  - NO fallback to other agents
+
+### 3. CLI Requirements Declaration (2 tests)
+✓ All spawners correctly declare required CLIs:
+  - "requires_cli": "gemini" (Gemini)
+  - "requires_cli": "codex" (Codex)
+  - "requires_cli": "gh" (Copilot)
+✓ All spawners explicitly set "fallback": null
+  - Ensures transparent error propagation
+  - Orchestrator receives error, not automatic fallback
+
+### 4. Orchestrator Delegation Logic (4 tests)
+✓ Orchestrator can make intelligent routing decisions:
+  - Exploration tasks → Gemini (FREE, 2M context)
+  - Implementation tasks → Codex (code-specialized)
+  - Git operations → Copilot (github-integrated)
+  - Failure handling: Receives explicit errors, not fallbacks
+
+### 5. Error Message Quality (3 tests)
+✓ Installation guidance includes:
+  - Gemini: URL to CLI installation docs
+  - Codex: "pip install openai" with API key hint
+  - Copilot: "brew install gh" with "gh auth login" requirement
+✓ All error messages are actionable and clear
+
+### 6. Capability Matching (3 tests)
+✓ Agent capabilities properly declared and routable:
+  - Exploration: ["exploration", "analysis", "batch_processing"]
+  - Code generation: ["code_generation", "implementation", "file_operations"]
+  - Git operations: ["github_integration", "git_operations", "pr_handling"]
+
+### 7. Agent Metadata Validation (2 tests)
+✓ All spawners have complete metadata:
+  - executable, model, description, requires_cli, fallback
+  - capabilities, context_window, cost
+✓ Cost information accurate:
+  - Gemini: FREE
+  - Codex: Paid (OpenAI)
+  - Copilot: Subscription (GitHub Copilot)
+
+## Architecture Verification
+
+### Plugin.json Configuration
+```json
+{
+  "agents": {
+    "gemini": {
+      "executable": "agents/gemini-spawner.py",
+      "model": "haiku",
+      "description": "Google Gemini 2.0-Flash spawner - FREE exploratory research...",
+      "requires_cli": "gemini",
+      "fallback": null,  // ← Critical: No fallback
+      "capabilities": ["exploration", "analysis", "batch_processing"],
+      "context_window": "2M tokens",
+      "cost": "FREE"
+    },
+    // ... codex, copilot similar
+  }
+}
+```
+
+### Transparent Error Semantics
+When CLI unavailable:
+1. Spawner detects CLI missing via `shutil.which(cli_name)` 
+2. Returns JSON error response with:
+   - `"continue": false` (stop execution)
+   - `"error": true` (mark as error)
+   - Installation guidance
+   - NO fallback to other agent
+3. Orchestrator receives error signal
+4. Orchestrator can choose different spawner or other strategy
+
+## Test Coverage Breakdown
+
+| Category | Tests | Status |
+|----------|-------|--------|
+| Description Reading | 3 | ✓ All Pass |
+| CLI Handling | 3 | ✓ All Pass |
+| Delegation Logic | 4 | ✓ All Pass |
+| Error Messages | 3 | ✓ All Pass |
+| CLI Requirements | 2 | ✓ All Pass |
+| Capability Matching | 3 | ✓ All Pass |
+| Metadata Validation | 2 | ✓ All Pass |
+| **Total** | **20** | **✓ All Pass** |
+
+## Code Quality
+
+✓ Ruff formatting applied
+✓ Modern Python type hints (dict[str, Any])
+✓ Proper pytest fixture patterns
+✓ Clear docstrings for each test
+✓ Mock/patch patterns for CLI checking
+✓ No external dependencies beyond pytest
+
+## Recommendations
+
+### Phase 4 Complete ✓
+1. Orchestrator can read spawner descriptions → Implement auto-selection logic
+2. Spawners have transparent failure semantics → Implement error propagation
+3. CLI requirements declared → Implement availability checks in orchestrator
+
+### Phase 5 (Future)
+- Implement orchestrator decision logic based on:
+  - Task type → capability matching
+  - Cost constraints → agent selection
+  - CLI availability → fallback planning
+- Add real spawner execution tests (currently mocked)
+- Implement agent retry logic with exponential backoff
+- Add observability metrics for spawner routing decisions
+
+## Files Modified/Created
+- ✓ Created: `tests/integration/test_orchestrator_spawner_delegation.py` (20 tests)
+- ✓ Plugin metadata verified: `packages/claude-plugin/.claude-plugin/plugin.json`
+- ✓ Agent definitions verified:
+  - `packages/claude-plugin/.claude-plugin/agents/gemini.md`
+  - `packages/claude-plugin/.claude-plugin/agents/codex.md`
+  - `packages/claude-plugin/.claude-plugin/agents/copilot.md`
+
+## Test Execution Results
+```
+20 passed in 0.06s
+Platform: darwin, Python 3.10.7, pytest 9.0.2
+```
+
+## Technical Details
+
+### Test Fixtures
+- `plugin_agents_dir`: Points to plugin agent definitions
+- `plugin_json_path`: Points to plugin.json configuration
+- `mock_cli_check`: Mocks shutil.which for CLI availability
+
+### Helper Methods
+- `load_agent_description()`: Parses YAML frontmatter from agent markdown
+- Agent metadata loading from both sources (markdown + JSON)
+
+### Verification Patterns
+- Keyword matching for capability descriptions
+- CLI requirement declaration checking
+- Fallback nullability verification
+- Installation guidance completeness checks
+- Capability-to-task routing logic
+
+## Next Steps
+1. Implement orchestrator agent selection algorithm
+2. Integrate with spawner router (pretooluse-spawner-router.py)
+3. Add observability for delegation decisions
+4. Test with real spawner executions
+            </div>
+        </section>
+    </article>
+</body>
+</html>

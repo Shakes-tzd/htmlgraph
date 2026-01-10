@@ -4,7 +4,7 @@ Test parent-child event linking for nested tracing.
 Verifies that:
 1. Child events have parent_event_id set correctly
 2. Environment variable mechanism works for cross-process linking
-3. Parent activity state file mechanism works for same-process linking
+3. Database schema supports parent-child relationships
 """
 
 import os
@@ -14,11 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from htmlgraph.db.schema import HtmlGraphDB
-from htmlgraph.hooks.event_tracker import (
-    load_parent_activity,
-    save_parent_activity,
-    track_event,
-)
+from htmlgraph.hooks.event_tracker import track_event
 
 
 @pytest.fixture(autouse=True)
@@ -72,21 +68,28 @@ def mock_session_manager():
         yield instance
 
 
-def test_parent_activity_file_mechanism(temp_graph_dir):
-    """Test parent activity state persistence via file."""
-    # Save parent activity
-    parent_id = "evt-parent-001"
-    save_parent_activity(temp_graph_dir, parent_id, "Task")
+def test_parent_event_id_column_exists(temp_graph_dir):
+    """Test that parent_event_id column exists in database schema."""
+    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
 
-    # Load parent activity
-    state = load_parent_activity(temp_graph_dir)
-    assert state["parent_id"] == parent_id
-    assert state["tool"] == "Task"
+    # Create session
+    db.insert_session("sess-test-schema", "claude-code")
 
-    # Clear parent activity
-    save_parent_activity(temp_graph_dir, None)
-    state = load_parent_activity(temp_graph_dir)
-    assert state == {}
+    # Insert event with parent_event_id
+    db.insert_event(
+        event_id="evt-child-001",
+        agent_id="claude-code",
+        event_type="tool_call",
+        session_id="sess-test-schema",
+        tool_name="Read",
+        input_summary="Test read",
+        parent_event_id="evt-parent-001",  # This column should exist
+    )
+
+    # Verify it was stored correctly
+    events = db.get_session_events("sess-test-schema")
+    assert len(events) == 1
+    assert events[0]["parent_event_id"] == "evt-parent-001"
 
 
 def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
@@ -143,87 +146,69 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
         os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
 
 
-def test_parent_event_from_activity_state(temp_graph_dir, mock_session_manager):
-    """Test parent event ID from parent-activity.json state file."""
-    # Create parent event in database first
-    parent_event_id = "evt-parent-003"
+def test_parent_child_query_by_parent_id(temp_graph_dir):
+    """Test querying child events by parent_event_id."""
     db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
 
-    # Create parent session
-    db.insert_session("sess-test-123", "claude-code")
+    # Create session
+    db.insert_session("sess-query-test", "claude-code")
 
-    # Create parent Task event
+    # Create parent event
+    parent_id = "evt-parent-query"
     db.insert_event(
-        event_id=parent_event_id,
+        event_id=parent_id,
         agent_id="claude-code",
         event_type="tool_call",
-        session_id="sess-test-123",
+        session_id="sess-query-test",
         tool_name="Task",
         input_summary="Parent task",
+        parent_event_id=None,  # Root level
     )
 
-    # Save parent activity state (this will be read by track_event)
-    save_parent_activity(temp_graph_dir, parent_event_id, "Task")
+    # Create multiple child events
+    for i in range(3):
+        db.insert_event(
+            event_id=f"evt-child-{i}",
+            agent_id="claude-code",
+            event_type="tool_call",
+            session_id="sess-query-test",
+            tool_name="Read",
+            input_summary=f"Child read {i}",
+            parent_event_id=parent_id,  # Link to parent
+        )
 
-    # Create mock hook input
-    hook_input = {
-        "cwd": str(temp_graph_dir.parent),
-        "tool_name": "Edit",
-        "tool_input": {
-            "file_path": "/test/file.py",
-            "old_string": "old",
-            "new_string": "new",
-        },
-        "tool_response": {"success": True},
-    }
+    # Query children by parent
+    cursor = db.connection.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) FROM agent_events WHERE parent_event_id = ?",
+        (parent_id,),
+    )
+    child_count = cursor.fetchone()[0]
+    assert child_count == 3, "Parent should have 3 child events"
 
-    # Track event (this should link to parent via state file)
-    with patch("htmlgraph.hooks.event_tracker.resolve_project_path") as mock_path:
-        mock_path.return_value = str(temp_graph_dir.parent)
-        track_event("PostToolUse", hook_input)
 
-    # Verify database has event with parent_event_id
-    events = db.get_session_events("sess-test-123")
+def test_null_parent_event_id_for_root_events(temp_graph_dir):
+    """Test that root-level events have NULL parent_event_id."""
+    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
 
-    # Find the Edit event
-    edit_events = [e for e in events if e["tool_name"] == "Edit"]
-    assert len(edit_events) > 0, "Edit event should be recorded"
+    # Create session
+    db.insert_session("sess-root-test", "claude-code")
 
-    # Verify parent linking
-    edit_event = edit_events[0]
-    assert edit_event["parent_event_id"] == parent_event_id, (
-        "Child event should have parent_event_id set from activity state"
+    # Create root-level event (no parent)
+    db.insert_event(
+        event_id="evt-root-001",
+        agent_id="claude-code",
+        event_type="tool_call",
+        session_id="sess-root-test",
+        tool_name="Task",
+        input_summary="Root task",
+        parent_event_id=None,  # Explicitly NULL
     )
 
-
-def test_task_event_creates_parent_context(temp_graph_dir, mock_session_manager):
-    """Test that Task tool invocation creates parent context for subsequent events."""
-    # Mock track_activity to return event with ID
-    task_event_id = "evt-task-001"
-    mock_session_manager.track_activity.return_value = MagicMock(
-        id=task_event_id, drift_score=None
-    )
-
-    # Create mock Task hook input
-    hook_input = {
-        "cwd": str(temp_graph_dir.parent),
-        "tool_name": "Task",
-        "tool_input": {
-            "description": "Test task delegation",
-            "subagent_type": "general-purpose",
-        },
-        "tool_response": {"success": True},
-    }
-
-    # Track Task event
-    with patch("htmlgraph.hooks.event_tracker.resolve_project_path") as mock_path:
-        mock_path.return_value = str(temp_graph_dir.parent)
-        track_event("PostToolUse", hook_input)
-
-    # Verify parent activity state was saved
-    state = load_parent_activity(temp_graph_dir)
-    assert state["parent_id"] == task_event_id
-    assert state["tool"] == "Task"
+    # Verify it was stored with NULL parent
+    events = db.get_session_events("sess-root-test")
+    assert len(events) == 1
+    assert events[0]["parent_event_id"] is None
 
 
 def test_nested_event_hierarchy(temp_graph_dir):

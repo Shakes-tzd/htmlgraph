@@ -243,8 +243,6 @@ def create_task_parent_event(
         Parent event_id if successful, None otherwise
     """
     try:
-        from pathlib import Path
-
         if not db.connection:
             db.connect()
 
@@ -252,13 +250,12 @@ def create_task_parent_event(
         subagent_type = extract_subagent_type(tool_input)
         prompt = str(tool_input.get("prompt", ""))[:200]
 
-        # Load UserQuery event ID for parent-child linking
-        graph_dir = Path.cwd() / ".htmlgraph"
+        # Load UserQuery event ID for parent-child linking from database
         user_query_event_id = None
         try:
-            from htmlgraph.hooks.event_tracker import load_user_query_event
+            from htmlgraph.hooks.event_tracker import get_parent_user_query
 
-            user_query_event_id = load_user_query_event(graph_dir, session_id)
+            user_query_event_id = get_parent_user_query(db, session_id)
         except Exception:
             pass
 

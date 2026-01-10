@@ -11,6 +11,11 @@ Public API:
 Events are recorded to both:
     - HTML files via SessionManager (existing)
     - SQLite database via HtmlGraphDB (new - for dashboard queries)
+
+Parent-child event linking:
+    - Database is the single source of truth for parent-child linking
+    - UserQuery events are stored in agent_events table with tool_name='UserQuery'
+    - get_parent_user_query() queries database for most recent UserQuery in session
 """
 
 import json
@@ -28,15 +33,6 @@ from htmlgraph.session_manager import SessionManager
 
 # Drift classification queue (stored in session directory)
 DRIFT_QUEUE_FILE = "drift-queue.json"
-# Active parent activity tracker (for Skill/Task invocations)
-PARENT_ACTIVITY_FILE = "parent-activity.json"
-# UserQuery event tracker (for parent-child linking) - DEPRECATED (use session-scoped files)
-USER_QUERY_EVENT_FILE = "user-query-event.json"
-
-
-def get_user_query_event_file(graph_dir: Path, session_id: str) -> Path:
-    """Get the session-scoped user query event file path."""
-    return graph_dir / f"user-query-event-{session_id}.json"
 
 
 def load_drift_config() -> dict[str, Any]:
@@ -80,79 +76,24 @@ def load_drift_config() -> dict[str, Any]:
     }
 
 
-def load_parent_activity(graph_dir: Path) -> dict[str, Any]:
-    """Load the active parent activity state."""
-    path = graph_dir / PARENT_ACTIVITY_FILE
-    if path.exists():
-        try:
-            with open(path) as f:
-                data = cast(dict[Any, Any], json.load(f))
-                # Clean up stale parent activities (older than 5 minutes)
-                if data.get("timestamp"):
-                    ts = datetime.fromisoformat(data["timestamp"])
-                    # Use timezone-aware datetime for comparison
-                    now = datetime.now(timezone.utc)
-                    # Ensure ts is timezone-aware (handle both formats)
-                    if ts.tzinfo is None:
-                        ts = ts.replace(tzinfo=timezone.utc)
-                    if now - ts > timedelta(minutes=5):
-                        return {}
-                return data
-        except Exception:
-            pass
-    return {}
-
-
-def save_parent_activity(
-    graph_dir: Path, parent_id: str | None, tool: str | None = None
-) -> None:
-    """Save the active parent activity state."""
-    path = graph_dir / PARENT_ACTIVITY_FILE
-    try:
-        if parent_id:
-            with open(path, "w") as f:
-                json.dump(
-                    {
-                        "parent_id": parent_id,
-                        "tool": tool,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                    f,
-                )
-        else:
-            # Clear parent activity
-            path.unlink(missing_ok=True)
-    except Exception as e:
-        print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
-
-
-def _get_latest_user_query_from_db(graph_dir: Path, session_id: str) -> str | None:
+def get_parent_user_query(db: HtmlGraphDB, session_id: str) -> str | None:
     """
-    Query SQLite database for the most recent UserQuery event in a session.
+    Get the most recent UserQuery event_id for this session from database.
 
-    This is a fallback mechanism when the session-scoped file has expired or is missing.
-    Ensures parent-child linking works for the entire session duration, not just 10 minutes.
+    This is the primary method for parent-child event linking.
+    Database is the single source of truth - no file-based state.
 
     Args:
-        graph_dir: Path to .htmlgraph directory
+        db: HtmlGraphDB instance
         session_id: Session ID to query
 
     Returns:
         event_id of the most recent UserQuery event, or None if not found
     """
     try:
-        db_path = graph_dir / "index.sqlite"
-        if not db_path.exists():
+        if db.connection is None:
             return None
-
-        import sqlite3
-
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        # Query for the most recent UserQuery event in this session
-        # UserQuery events are recorded with tool_name='UserQuery'
+        cursor = db.connection.cursor()
         cursor.execute(
             """
             SELECT event_id FROM agent_events
@@ -162,106 +103,16 @@ def _get_latest_user_query_from_db(graph_dir: Path, session_id: str) -> str | No
             """,
             (session_id,),
         )
-
         row = cursor.fetchone()
-        conn.close()
-
         if row:
-            event_id: str = str(row["event_id"])
-            print(
-                f"Debug: Found UserQuery {event_id} from database fallback for session {session_id}",
-                file=sys.stderr,
-            )
-            return event_id
-
+            return str(row[0])
         return None
-
     except Exception as e:
         print(
-            f"Debug: Database fallback for UserQuery failed: {e}",
+            f"Debug: Database query for UserQuery failed: {e}",
             file=sys.stderr,
         )
         return None
-
-
-def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
-    """
-    Load the active UserQuery event ID for parent-child linking.
-
-    Session-scoped: Each session maintains its own parent context via
-    user-query-event-{SESSION_ID}.json to support multiple concurrent
-    Claude windows in the same project.
-
-    When the session-scoped file expires (after 10 minutes) or is missing,
-    falls back to querying the SQLite database for the most recent UserQuery
-    in the session. This ensures parent-child linking works for the entire
-    session duration, not just 10 minutes.
-
-    Args:
-        graph_dir: Path to .htmlgraph directory
-        session_id: Session ID to look up
-
-    Returns:
-        event_id of the active UserQuery event, or None if not found
-    """
-    # Fast path: check session-scoped file first
-    path = get_user_query_event_file(graph_dir, session_id)
-    if path.exists():
-        try:
-            with open(path) as f:
-                data = cast(dict[Any, Any], json.load(f))
-                # Check if file-based event is still fresh (within 10 minutes)
-                if data.get("timestamp"):
-                    ts = datetime.fromisoformat(data["timestamp"])
-                    now = datetime.now(timezone.utc)
-                    if ts.tzinfo is None:
-                        ts = ts.replace(tzinfo=timezone.utc)
-                    # UserQuery events in file expire after 10 minutes
-                    # If fresh, return directly without database query
-                    if now - ts <= timedelta(minutes=10):
-                        return data.get("event_id")
-                    # File expired - fall through to database fallback
-                else:
-                    # No timestamp in file, assume it's valid
-                    return data.get("event_id")
-        except Exception as e:
-            print(
-                f"Debug: Could not read UserQuery file: {e}",
-                file=sys.stderr,
-            )
-            # Fall through to database fallback
-
-    # Fallback: Query database for most recent UserQuery in this session
-    # This ensures parent-child linking works even after 10+ minutes
-    return _get_latest_user_query_from_db(graph_dir, session_id)
-
-
-def save_user_query_event(
-    graph_dir: Path, session_id: str, event_id: str | None
-) -> None:
-    """
-    Save the active UserQuery event ID for parent-child linking.
-
-    Session-scoped: Each session maintains its own parent context via
-    user-query-event-{SESSION_ID}.json to support multiple concurrent
-    Claude windows in the same project.
-    """
-    path = get_user_query_event_file(graph_dir, session_id)
-    try:
-        if event_id:
-            with open(path, "w") as f:
-                json.dump(
-                    {
-                        "event_id": event_id,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                    f,
-                )
-        else:
-            # Clear UserQuery event
-            path.unlink(missing_ok=True)
-    except Exception as e:
-        print(f"Warning: Could not save UserQuery event: {e}", file=sys.stderr)
 
 
 def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict[str, Any]:
@@ -834,10 +685,11 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
 
-            # Record to SQLite if available and capture event_id for parent-child linking
-            user_query_event_id = None
+            # Record to SQLite if available
+            # UserQuery event is stored in database - no file-based state needed
+            # Subsequent tool calls query database for parent via get_parent_user_query()
             if db:
-                user_query_event_id = record_event_to_sqlite(
+                record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
                     tool_name="UserQuery",
@@ -846,12 +698,6 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     is_error=False,
                     agent_id=detected_agent,
                 )
-
-                # Store the UserQuery event_id for subsequent tool calls to use as parent
-                if user_query_event_id:
-                    save_user_query_event(
-                        graph_dir, active_session_id, user_query_event_id
-                    )
 
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
@@ -903,37 +749,18 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         warning_threshold = drift_settings.get("warning_threshold") or 0.7
         auto_classify_threshold = drift_settings.get("auto_classify_threshold") or 0.85
 
-        # Determine parent activity context
-        parent_activity_state = load_parent_activity(graph_dir)
+        # Determine parent activity context using database-only lookup
         parent_activity_id = None
 
-        # Tools that create parent context (Skill, Task)
-        parent_tools = {"Skill", "Task"}
-
-        # If this is a parent tool invocation, save its context for subsequent activities
-        if tool_name in parent_tools:
-            # We'll get the event_id after tracking, so we use a placeholder for now
-            # The actual parent_id will be set below after we track the activity
-            is_parent_tool = True
-        else:
-            is_parent_tool = False
-            # Check environment variable FIRST for cross-process parent linking
-            # This is set by PreToolUse hook when Task() spawns a subagent
-            env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
-            if env_parent:
-                parent_activity_id = env_parent
-            # Next, check for UserQuery event as parent (for prompt-based grouping)
-            # UserQuery takes priority over parent_activity_json to ensure each conversation turn
-            # has its tool calls properly grouped together
-            else:
-                user_query_event_id = load_user_query_event(
-                    graph_dir, active_session_id
-                )
-                if user_query_event_id:
-                    parent_activity_id = user_query_event_id
-                # Fall back to parent-activity.json only if no UserQuery event (backward compatibility)
-                elif parent_activity_state.get("parent_id"):
-                    parent_activity_id = parent_activity_state["parent_id"]
+        # Check environment variable FIRST for cross-process parent linking
+        # This is set by PreToolUse hook when Task() spawns a subagent
+        env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+        if env_parent:
+            parent_activity_id = env_parent
+        # Query database for most recent UserQuery event as parent
+        # Database is the single source of truth for parent-child linking
+        elif db:
+            parent_activity_id = get_parent_user_query(db, active_session_id)
 
         # Track the activity
         nudge = None
@@ -981,12 +808,6 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     task_description=description,
                     task_input=tool_input_data,
                 )
-
-            # If this was a parent tool, save its ID for subsequent activities
-            if is_parent_tool and result:
-                save_parent_activity(graph_dir, result.id, tool_name)
-            # If this tool finished a parent context (e.g., Task completed), clear it
-            # We'll clear parent context after 5 minutes automatically (see load_parent_activity)
 
             # Check for drift and handle accordingly
             # Skip drift detection for child activities (they inherit parent's context)

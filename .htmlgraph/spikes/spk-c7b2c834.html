@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 2: Update Codex-Spawner Agent Definition</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c7b2c834"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T17:01:14.172547"
+             data-updated="2026-01-10T17:01:14.172549" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Phase 2: Update Codex-Spawner Agent Definition</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Phase 2: Codex-Spawner Agent Definition Update
+
+## Summary
+Successfully updated `packages/claude-plugin/agents/codex-spawner.md` with Phase 2 improvements to clarify the agent's role as a thin CLI wrapper around OpenAI Codex, with explicit instructions to avoid attempting implementation work directly.
+
+## Changes Made
+
+### 1. YAML Frontmatter Updates
+- **name**: Kept as `codex-spawner` (unchanged)
+- **description**: Updated from verbose multi-line to concise, clear statement:
+  - Old: "Use this agent when you need to spawn OpenAI Codex (GPT-4) for code generation..."
+  - New: "For code implementation, file operations, and code generation. Specialized for writing production code. Use when you need reliable, tested code with proper error handling."
+- **model**: Confirmed as `haiku` (agent runs with Haiku model)
+- **tools**: Reordered to ensure Bash is first and Edit removed:
+  - From: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+  - To: ["Bash", "Read", "Write", "Glob", "Grep"]
+  - Rationale: Bash takes priority as primary tool for CLI invocation
+- **color**: Kept as `purple` (unchanged)
+
+### 2. Critical New Section: "Critical Instructions"
+Added explicit role definition immediately after the title:
+```
+You are a CLI wrapper around OpenAI Codex.
+
+Your role is to **invoke the Codex spawner and return results**. Do NOT attempt to do the work yourself.
+
+- ✅ If the Codex CLI is installed: Invoke it via Bash with proper parameters
+- ✅ If the Codex CLI is not installed: Return the error message to the orchestrator
+- ❌ Do NOT try to implement code yourself
+- ❌ Do NOT install dependencies unless explicitly instructed
+- The orchestrator will decide: install CLI, use a different agent, or try a different approach.
+```
+
+### 3. New Section: "CLI Invocation Pattern"
+Added comprehensive Bash invocation examples before the Workflow section:
+- Basic invocation with sandbox mode
+- Model specification pattern
+- JSON output pattern
+- Full options example with all parameters
+- Added CRITICAL BEHAVIOR section with explicit instructions:
+  - If CLI not found: Return error to orchestrator (don't try to install)
+  - If CLI runs: Return complete output
+  - If CLI fails: Return error message for orchestrator decision
+  - Do NOT implement task yourself as fallback
+
+### 4. Enhanced Error Handling Section
+Completely rewrote "Codex CLI Not Found" section:
+- Added banner: "IMPORTANT: This is the most common scenario. Handle it correctly."
+- Added bash comment block showing exact error scenarios
+- Clear do/don't list with emoji indicators:
+  - ✅ DO: Return error to orchestrator
+  - ❌ DON'T: Install CLI, implement code, use different tool
+- Added "Why This Matters" subsection explaining orchestrator's decision-making authority
+- Renamed subsequent errors subsection to "Other Common Errors" for clarity
+
+## Key Improvements
+
+### 1. Role Clarity
+The agent now has an explicit, unambiguous role: CLI wrapper only. This prevents the agent from:
+- Attempting to implement code when Codex is unavailable
+- Trying to install missing dependencies
+- Falling back to its own implementation capabilities
+- Making decisions about resource allocation
+
+### 2. Orchestrator Delegation
+By emphasizing "return error to orchestrator," the agent respects the orchestrator's authority to:
+- Know all available resources (CLI installed, alternative agents, etc.)
+- Make strategic decisions about which approach to take
+- Route work to the most appropriate agent (Codex vs Sonnet vs others)
+
+### 3. Error Handling Pattern
+The new error handling section makes it crystal clear that "Codex CLI not found" is not a blocker for the orchestrator—it's just data for decision-making. This aligns with Phase 2's goal of having agents report their capabilities and constraints.
+
+### 4. Bash as Primary Tool
+By reordering tools to put Bash first, we signal that CLI invocation is the agent's primary responsibility. The agent doesn't need Edit; it invokes Codex which does the implementation.
+
+## Technical Details
+
+### File Location
+`/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/agents/codex-spawner.md`
+
+### Lines Modified
+- Lines 2-6: YAML frontmatter (description and tools reordering)
+- Lines 9-21: New critical instructions section
+- Lines 37-66: New CLI invocation pattern section
+- Lines 211-237: Enhanced error handling section
+
+### Backward Compatibility
+- All existing content preserved (code examples, use cases, advanced options, etc.)
+- Only enhanced clarity and structure; no breaking changes to documented behavior
+- Fallback strategy section remains unchanged but now better supported by CLI invocation pattern
+
+## Design Philosophy
+
+This update implements the "thin CLI wrapper" pattern from Phase 2:
+1. **Single Responsibility**: Agent's job is to invoke Codex CLI, not implement code
+2. **Error as Data**: CLI errors are information for orchestrator, not problems for agent to solve
+3. **Delegation**: All decisions about what to do next belong to orchestrator
+4. **Clarity**: Explicit instructions prevent agent from making incorrect assumptions about its role
+
+## Validation
+
+The file was successfully updated and reads correctly. All sections are in proper markdown format with clear hierarchy. YAML frontmatter is valid and tools list is properly formatted as JSON array.
+
+## Next Steps
+
+Phase 2 completion is nearly done. Remaining work:
+- Update Gemini-spawner agent definition (similar pattern)
+- Update base orchestrator directives to clarify spawner routing
+- Test the updated agent definitions with real orchestrator scenarios
+            </div>
+        </section>
+    </article>
+</body>
+</html>

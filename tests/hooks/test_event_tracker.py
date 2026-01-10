@@ -24,17 +24,13 @@ from htmlgraph.hooks.event_tracker import (
     detect_agent_from_environment,
     extract_file_paths,
     format_tool_summary,
-    get_user_query_event_file,
+    get_parent_user_query,
     load_drift_config,
     load_drift_queue,
-    load_parent_activity,
-    load_user_query_event,
     record_delegation_to_sqlite,
     record_event_to_sqlite,
     resolve_project_path,
     save_drift_queue,
-    save_parent_activity,
-    save_user_query_event,
     should_trigger_classification,
     track_event,
 )
@@ -389,121 +385,26 @@ class TestResolveProjectPath:
 
 
 # ============================================================================
-# TESTS: Parent Activity Persistence
+# TESTS: Database-based Parent User Query Lookup
 # ============================================================================
 
 
-class TestParentActivityPersistence:
-    """Test cases for parent activity loading and saving."""
+class TestGetParentUserQuery:
+    """Test cases for get_parent_user_query() database lookup."""
 
-    def test_save_and_load_parent_activity(self, tmp_graph_dir):
-        """Test saving and loading parent activity."""
-        parent_id = "activity-123"
-        tool = "Task"
-
-        save_parent_activity(tmp_graph_dir, parent_id, tool)
-
-        loaded = load_parent_activity(tmp_graph_dir)
-        assert loaded["parent_id"] == parent_id
-        assert loaded["tool"] == tool
-        assert "timestamp" in loaded
-
-    def test_load_nonexistent_parent_activity(self, tmp_graph_dir):
-        """Test loading when no parent activity file exists."""
-        loaded = load_parent_activity(tmp_graph_dir)
-        assert loaded == {}
-
-    def test_load_stale_parent_activity(self, tmp_graph_dir):
-        """Test that stale parent activities are expired."""
-        # Save a parent activity with old timestamp
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=6)).isoformat()
-        activity_file = tmp_graph_dir / "parent-activity.json"
-        activity_file.write_text(
-            json.dumps({"parent_id": "stale-id", "timestamp": old_time})
-        )
-
-        loaded = load_parent_activity(tmp_graph_dir)
-        assert loaded == {}  # Should be expired
-
-    def test_clear_parent_activity(self, tmp_graph_dir):
-        """Test clearing parent activity."""
-        parent_id = "activity-123"
-        save_parent_activity(tmp_graph_dir, parent_id, "Task")
-
-        # Verify it exists
-        loaded = load_parent_activity(tmp_graph_dir)
-        assert loaded["parent_id"] == parent_id
-
-        # Clear it
-        save_parent_activity(tmp_graph_dir, None, None)
-
-        loaded = load_parent_activity(tmp_graph_dir)
-        assert loaded == {}
-
-
-# ============================================================================
-# TESTS: UserQuery Event Persistence
-# ============================================================================
-
-
-class TestUserQueryEventPersistence:
-    """Test cases for UserQuery event loading and saving."""
-
-    def test_save_and_load_user_query_event(self, tmp_graph_dir):
-        """Test saving and loading UserQuery event."""
-        session_id = "sess-abc123"
-        event_id = "event-user-query-001"
-
-        save_user_query_event(tmp_graph_dir, session_id, event_id)
-
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded == event_id
-
-    def test_user_query_event_file_path_session_scoped(self, tmp_graph_dir):
-        """Test that UserQuery event files are session-scoped."""
-        session_id = "sess-abc123"
-        event_id = "event-001"
-
-        file_path = get_user_query_event_file(tmp_graph_dir, session_id)
-        assert "user-query-event-sess-abc123.json" in str(file_path)
-
-    def test_load_nonexistent_user_query_event(self, tmp_graph_dir):
-        """Test loading when no UserQuery event file exists."""
-        loaded = load_user_query_event(tmp_graph_dir, "sess-unknown")
-        assert loaded is None
-
-    def test_load_stale_user_query_event(self, tmp_graph_dir):
-        """Test that stale UserQuery events are expired."""
-        session_id = "sess-abc123"
-        # Save event with old timestamp (older than 10 minutes)
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=11)).isoformat()
-        event_file = get_user_query_event_file(tmp_graph_dir, session_id)
-        event_file.parent.mkdir(parents=True, exist_ok=True)
-        event_file.write_text(
-            json.dumps({"event_id": "stale-event", "timestamp": old_time})
-        )
-
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded is None  # Should be expired
-
-    def test_load_stale_user_query_falls_back_to_database(self, tmp_graph_dir):
-        """Test that stale UserQuery events fall back to database query.
-
-        When the session-scoped file expires (after 10 minutes), the function
-        should query the SQLite database for the most recent UserQuery event
-        in the session.
-        """
+    def test_get_parent_user_query_found(self, tmp_graph_dir):
+        """Test finding UserQuery event in database."""
         import sqlite3
 
         session_id = "sess-abc123"
-        db_event_id = "evt-from-database"
+        expected_event_id = "evt-userquery-001"
 
         # Create SQLite database with a UserQuery event
-        db_path = tmp_graph_dir / "index.sqlite"
+        db_path = tmp_graph_dir / "htmlgraph.db"
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
 
-        # Create the agent_events table (simplified schema)
+        # Create the agent_events table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS agent_events (
                 event_id TEXT PRIMARY KEY,
@@ -516,42 +417,31 @@ class TestUserQueryEventPersistence:
         # Insert a UserQuery event
         cursor.execute(
             """
-            INSERT INTO agent_events (event_id, session_id, tool_name)
-            VALUES (?, ?, ?)
+            INSERT INTO agent_events (event_id, session_id, tool_name, timestamp)
+            VALUES (?, ?, ?, ?)
             """,
-            (db_event_id, session_id, "UserQuery"),
+            (expected_event_id, session_id, "UserQuery", "2025-01-10T12:00:00"),
         )
         conn.commit()
         conn.close()
 
-        # Save event file with old timestamp (older than 10 minutes)
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
-        event_file = get_user_query_event_file(tmp_graph_dir, session_id)
-        event_file.parent.mkdir(parents=True, exist_ok=True)
-        event_file.write_text(
-            json.dumps({"event_id": "stale-event", "timestamp": old_time})
-        )
+        # Create mock db with connection
+        mock_db = mock.MagicMock()
+        mock_db.connection = sqlite3.connect(str(db_path))
 
-        # Load should fall back to database and return the database event_id
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded == db_event_id
+        result = get_parent_user_query(mock_db, session_id)
+        assert result == expected_event_id
 
-    def test_load_user_query_database_fallback_no_db(self, tmp_graph_dir):
-        """Test database fallback when no SQLite database exists."""
-        session_id = "sess-abc123"
+        mock_db.connection.close()
 
-        # No database file exists, no session file exists
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded is None
-
-    def test_load_user_query_database_fallback_empty_db(self, tmp_graph_dir):
-        """Test database fallback when database exists but has no matching events."""
+    def test_get_parent_user_query_returns_most_recent(self, tmp_graph_dir):
+        """Test that most recent UserQuery event is returned."""
         import sqlite3
 
         session_id = "sess-abc123"
 
-        # Create SQLite database without any UserQuery events
-        db_path = tmp_graph_dir / "index.sqlite"
+        # Create SQLite database with multiple UserQuery events
+        db_path = tmp_graph_dir / "htmlgraph.db"
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
 
@@ -564,7 +454,61 @@ class TestUserQueryEventPersistence:
             )
         """)
 
-        # Insert a non-UserQuery event
+        # Insert multiple UserQuery events with different timestamps
+        cursor.execute(
+            """
+            INSERT INTO agent_events (event_id, session_id, tool_name, timestamp)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("evt-old", session_id, "UserQuery", "2025-01-10T10:00:00"),
+        )
+        cursor.execute(
+            """
+            INSERT INTO agent_events (event_id, session_id, tool_name, timestamp)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("evt-newest", session_id, "UserQuery", "2025-01-10T12:00:00"),
+        )
+        cursor.execute(
+            """
+            INSERT INTO agent_events (event_id, session_id, tool_name, timestamp)
+            VALUES (?, ?, ?, ?)
+            """,
+            ("evt-middle", session_id, "UserQuery", "2025-01-10T11:00:00"),
+        )
+        conn.commit()
+        conn.close()
+
+        # Create mock db with connection
+        mock_db = mock.MagicMock()
+        mock_db.connection = sqlite3.connect(str(db_path))
+
+        result = get_parent_user_query(mock_db, session_id)
+        assert result == "evt-newest"
+
+        mock_db.connection.close()
+
+    def test_get_parent_user_query_not_found(self, tmp_graph_dir):
+        """Test when no UserQuery event exists for session."""
+        import sqlite3
+
+        session_id = "sess-abc123"
+
+        # Create SQLite database without UserQuery events
+        db_path = tmp_graph_dir / "htmlgraph.db"
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agent_events (
+                event_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                tool_name TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Insert only non-UserQuery events
         cursor.execute(
             """
             INSERT INTO agent_events (event_id, session_id, tool_name)
@@ -575,26 +519,61 @@ class TestUserQueryEventPersistence:
         conn.commit()
         conn.close()
 
-        # Load should return None since no UserQuery exists
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded is None
+        # Create mock db with connection
+        mock_db = mock.MagicMock()
+        mock_db.connection = sqlite3.connect(str(db_path))
 
-    def test_clear_user_query_event(self, tmp_graph_dir):
-        """Test clearing UserQuery event."""
-        session_id = "sess-abc123"
-        event_id = "event-001"
+        result = get_parent_user_query(mock_db, session_id)
+        assert result is None
 
-        save_user_query_event(tmp_graph_dir, session_id, event_id)
+        mock_db.connection.close()
 
-        # Verify it exists
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded == event_id
+    def test_get_parent_user_query_different_session(self, tmp_graph_dir):
+        """Test that only events from specified session are returned."""
+        import sqlite3
 
-        # Clear it
-        save_user_query_event(tmp_graph_dir, session_id, None)
+        # Create SQLite database with UserQuery in different session
+        db_path = tmp_graph_dir / "htmlgraph.db"
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
 
-        loaded = load_user_query_event(tmp_graph_dir, session_id)
-        assert loaded is None
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agent_events (
+                event_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                tool_name TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Insert UserQuery event for different session
+        cursor.execute(
+            """
+            INSERT INTO agent_events (event_id, session_id, tool_name)
+            VALUES (?, ?, ?)
+            """,
+            ("evt-other-session", "sess-other", "UserQuery"),
+        )
+        conn.commit()
+        conn.close()
+
+        # Create mock db with connection
+        mock_db = mock.MagicMock()
+        mock_db.connection = sqlite3.connect(str(db_path))
+
+        # Query for a different session should return None
+        result = get_parent_user_query(mock_db, "sess-abc123")
+        assert result is None
+
+        mock_db.connection.close()
+
+    def test_get_parent_user_query_handles_db_error(self, tmp_graph_dir):
+        """Test graceful handling of database errors."""
+        mock_db = mock.MagicMock()
+        mock_db.connection.cursor.side_effect = Exception("Database error")
+
+        result = get_parent_user_query(mock_db, "sess-abc123")
+        assert result is None
 
 
 # ============================================================================
@@ -1159,15 +1138,15 @@ class TestErrorHandlingAndEdgeCases:
         paths = extract_file_paths({}, "Read")
         assert paths == []
 
-    def test_load_malformed_json_files(self, tmp_graph_dir):
-        """Test handling of malformed JSON in persistence files."""
-        # Write malformed JSON to parent activity file
-        activity_file = tmp_graph_dir / "parent-activity.json"
-        activity_file.write_text("{ invalid json }")
+    def test_malformed_drift_queue_json(self, tmp_graph_dir):
+        """Test handling of malformed JSON in drift queue file."""
+        # Write malformed JSON to drift queue file
+        queue_file = tmp_graph_dir / "drift-queue.json"
+        queue_file.write_text("{ invalid json }")
 
-        # Should return empty dict instead of crashing
-        loaded = load_parent_activity(tmp_graph_dir)
-        assert loaded == {}
+        # Should return empty queue instead of crashing
+        loaded = load_drift_queue(tmp_graph_dir)
+        assert loaded == {"activities": [], "last_classification": None}
 
     @mock.patch("htmlgraph.hooks.event_tracker.SessionManager")
     @mock.patch("htmlgraph.hooks.event_tracker.HtmlGraphDB")
@@ -1260,16 +1239,45 @@ class TestIntegration:
         assert mock_db.insert_event.call_count == 3
 
     def test_parent_child_event_linking(self, tmp_graph_dir, mock_htmlgraph_db):
-        """Test parent-child event linking through UserQuery."""
+        """Test parent-child event linking through UserQuery in database."""
+        import sqlite3
+
         session_id = "sess-abc123"
-
-        # 1. Create UserQuery parent event
         user_query_event_id = "event-user-query-001"
-        save_user_query_event(tmp_graph_dir, session_id, user_query_event_id)
 
-        # 2. Load it back and use as parent
-        parent_event_id = load_user_query_event(tmp_graph_dir, session_id)
+        # 1. Create database with UserQuery parent event
+        db_path = tmp_graph_dir / "htmlgraph.db"
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agent_events (
+                event_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                tool_name TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Insert UserQuery event
+        cursor.execute(
+            """
+            INSERT INTO agent_events (event_id, session_id, tool_name)
+            VALUES (?, ?, ?)
+            """,
+            (user_query_event_id, session_id, "UserQuery"),
+        )
+        conn.commit()
+        conn.close()
+
+        # 2. Query database for parent event using real connection
+        db_mock = mock.MagicMock()
+        db_mock.connection = sqlite3.connect(str(db_path))
+
+        parent_event_id = get_parent_user_query(db_mock, session_id)
         assert parent_event_id == user_query_event_id
+
+        db_mock.connection.close()
 
         # 3. Record child events linked to this parent
         for i in range(3):

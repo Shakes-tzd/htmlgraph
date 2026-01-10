@@ -39,7 +39,11 @@ class TestHookContextInitialization:
         assert context.hook_input == {"type": "pretooluse"}
 
     def test_from_input_with_minimal_input(self, tmp_path):
-        """Test HookContext.from_input with minimal hook input."""
+        """Test HookContext.from_input with minimal hook input falls back to unknown.
+
+        Note: We intentionally do NOT use SessionManager fallback because it's global
+        and would cause cross-window event contamination in multi-window scenarios.
+        """
         with mock.patch(
             "htmlgraph.hooks.bootstrap.resolve_project_dir",
             return_value=str(tmp_path),
@@ -52,6 +56,8 @@ class TestHookContextInitialization:
                 context = HookContext.from_input(hook_input)
 
                 assert context.project_dir == str(tmp_path)
+                # Without session_id in hook_input or env, defaults to "unknown"
+                # This is intentional - better than cross-window contamination
                 assert context.session_id == "unknown"
                 assert context.agent_id == "unknown"
 

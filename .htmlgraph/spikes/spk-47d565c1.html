@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 1: Update Gemini-Spawner Agent Definition</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-47d565c1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T17:01:15.992233"
+             data-updated="2026-01-10T17:01:15.992236" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Phase 1: Update Gemini-Spawner Agent Definition</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Phase 1 Completion: Gemini-Spawner Agent Definition Updated
+
+## Summary
+Successfully updated the gemini-spawner.md agent definition file to implement Phase 1 of the multi-AI orchestration plan. The agent is now properly configured as a thin CLI wrapper with transparent error handling and clear instructions.
+
+## Changes Made
+
+### 1. YAML Frontmatter Updates
+- **name**: Confirmed as `gemini-spawner`
+- **description**: Updated to clear, concise language
+  - Old: Long verbose description with example tags
+  - New: "For exploratory research, large codebase analysis, batch operations. FREE tier with 2M tokens/min. Use when you need fast iteration over large contexts without cost concerns."
+- **model**: Confirmed as `haiku`
+- **color**: Confirmed as `green`
+- **tools**: Updated to include Bash first, then other tools
+  - Added: `["Bash", "Read", "Write", "Glob", "Grep", "WebSearch", "WebFetch"]`
+
+### 2. System Prompt Enhancement
+Added critical CLI wrapper directives at the beginning of the document:
+- "You are a CLI wrapper around Google Gemini 2.0-Flash."
+- Explicit role statement: "Your role is to invoke the Gemini spawner and return results."
+- Error handling policy: "If the gemini CLI is not installed, return the error to the orchestrator. Do NOT try to do the work yourself."
+- Decision delegation: "The orchestrator will decide: install CLI, use different agent, or try a different approach."
+
+### 3. New Bash Invocation Pattern Section
+Added comprehensive section with:
+- Step-by-step shell script showing CLI invocation pattern
+- 4-step workflow: Check CLI → Invoke → Capture result → Return to orchestrator
+- Python example showing HeadlessSpawner usage
+- Emphasis on transparent error reporting without fallback attempts
+
+### 4. Enhanced Error Handling Section
+Completely rewrote error handling to enforce CLI wrapper behavior:
+- **Gemini CLI Not Found**: Report error, don't try to install
+- **Timeout Error**: Report with context, don't retry
+- **JSON Parse Error**: Report with output, don't try alternative formats
+- **General CLI Failure**: New section with explicit directives
+  - "Do NOT try to do the work yourself"
+  - "Do NOT fall back to Haiku"
+  - "The orchestrator will decide"
+
+## Key Design Principles Implemented
+
+1. **Thin CLI Wrapper Pattern**
+   - Agent acts as transparent pass-through to Gemini CLI
+   - No attempt at self-recovery or fallback logic
+   - All decisions deferred to orchestrator
+
+2. **Transparent Error Reporting**
+   - Capture exact error messages
+   - Return with full context
+   - No error suppression or masking
+
+3. **Clear Tool Availability**
+   - Bash: Primary tool for CLI invocation
+   - Read/Write/Glob/Grep: For context gathering
+   - WebSearch/WebFetch: For external research fallback
+
+4. **Cost Optimization**
+   - Clearly documented FREE tier benefits
+   - Model specified: gemini-2.0-flash (not pro)
+   - Use cases optimized for batch operations
+
+## File Location
+`/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/agents/gemini-spawner.md`
+
+## Validation
+- YAML frontmatter is valid and complete
+- All required tools are present with Bash prioritized
+- CLI wrapper directives are explicit and clear
+- Error handling section enforces transparent reporting
+- Bash invocation pattern includes step-by-step example
+- Existing use cases and documentation preserved
+
+## Next Steps
+1. Update other spawner agent definitions (Codex-Spawner, Copilot-Spawner) with similar CLI wrapper patterns
+2. Create orchestrator-level logic to handle spawner errors
+3. Add integration tests for error handling workflows
+4. Document orchestrator decision tree for spawner failures
+            </div>
+        </section>
+    </article>
+</body>
+</html>

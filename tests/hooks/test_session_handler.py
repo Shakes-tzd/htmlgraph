@@ -12,14 +12,10 @@ Tests session lifecycle management and tracking including:
 from __future__ import annotations
 
 import json
-import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 from unittest import mock
 
 import pytest
-
 from htmlgraph.hooks.session_handler import (
     check_version_status,
     handle_session_end,
@@ -27,7 +23,6 @@ from htmlgraph.hooks.session_handler import (
     init_or_get_session,
     record_user_query_event,
 )
-
 
 # ============================================================================
 # Fixtures
@@ -865,7 +860,6 @@ class TestGetInstalledVersion:
 
     def test_gets_version_from_import(self):
         """Test getting version from htmlgraph.__version__."""
-        from htmlgraph.hooks.session_handler import _get_installed_version
 
         with mock.patch("htmlgraph.__version__", "0.9.0", create=True):
             with mock.patch("htmlgraph") as mock_hg:

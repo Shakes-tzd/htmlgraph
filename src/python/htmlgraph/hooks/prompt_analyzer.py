@@ -526,8 +526,8 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
     Create UserQuery event in HtmlGraph database.
 
     Records the user prompt as a UserQuery event that serves as the parent
-    for subsequent tool calls and delegations. The event ID is saved to a
-    session-scoped file for retrieval by PreToolUse hook.
+    for subsequent tool calls and delegations. Database is the single source
+    of truth - no file-based state is used.
 
     Args:
         context: HookContext with session and database access
@@ -548,7 +548,6 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
     """
     try:
         session_id = context.session_id
-        graph_dir = context.graph_dir
 
         if not session_id or session_id == "unknown":
             logger.debug("No valid session ID for UserQuery event")
@@ -556,8 +555,6 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
 
         # Create UserQuery event in database
         try:
-            from htmlgraph.hooks.event_tracker import save_user_query_event
-
             db = context.database
 
             # Ensure session exists in database before creating event
@@ -588,6 +585,8 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
             input_summary = prompt[:200]
 
             # Insert UserQuery event into agent_events
+            # Database is the single source of truth for parent-child linking
+            # Subsequent tool calls query database via get_parent_user_query()
             success = db.insert_event(
                 event_id=user_query_event_id,
                 agent_id="user",
@@ -604,15 +603,6 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
             if not success:
                 logger.warning("Failed to insert UserQuery event into database")
                 return None
-
-            # Save event ID to session-scoped file for subsequent tool calls
-            # This is used by PreToolUse hook to link Task delegations
-            try:
-                save_user_query_event(graph_dir, session_id, user_query_event_id)
-                logger.debug(f"Saved UserQuery event file: {user_query_event_id}")
-            except Exception as e:
-                # If saving to file fails, still continue (database insert succeeded)
-                logger.warning(f"Could not save UserQuery event file: {e}")
 
             logger.info(f"Created UserQuery event: {user_query_event_id}")
             return user_query_event_id

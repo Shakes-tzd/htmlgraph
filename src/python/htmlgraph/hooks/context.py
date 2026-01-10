@@ -88,8 +88,38 @@ class HookContext:
             resolve_project_dir,
         )
 
-        # Extract session ID from hook input
-        session_id = hook_input.get("session_id", "unknown")
+        # Resolve project directory first
+        project_dir = resolve_project_dir()
+        graph_dir = get_graph_dir(project_dir)
+
+        # Extract session ID with multiple fallbacks
+        # Priority order:
+        # 1. hook_input["session_id"] (if Claude Code passes it)
+        # 2. hook_input["sessionId"] (camelCase variant)
+        # 3. HTMLGRAPH_SESSION_ID environment variable
+        # 4. CLAUDE_SESSION_ID environment variable
+        # 5. "unknown" as last resort
+        #
+        # NOTE: We intentionally do NOT use SessionManager.get_active_session()
+        # as a fallback because the "active session" is stored in a global file
+        # (.htmlgraph/session.json) that's shared across all Claude windows.
+        # Using it would cause cross-window event contamination where tool calls
+        # from Window B get linked to UserQuery events from Window A.
+        session_id = (
+            hook_input.get("session_id")
+            or hook_input.get("sessionId")
+            or os.environ.get("HTMLGRAPH_SESSION_ID")
+            or os.environ.get("CLAUDE_SESSION_ID")
+        )
+
+        # Fallback to "unknown" - better than cross-window contamination
+        if not session_id:
+            session_id = "unknown"
+            logger.warning(
+                "Could not resolve session_id from hook_input or environment. "
+                "Events will not be linked to parent UserQuery. "
+                "For multi-window support, set HTMLGRAPH_SESSION_ID env var."
+            )
 
         # Detect agent ID (priority order)
         # 1. Explicit agent_id in hook input
@@ -101,12 +131,6 @@ class HookContext:
             or os.environ.get("HTMLGRAPH_AGENT_ID")
             or os.environ.get("CLAUDE_AGENT_NICKNAME", "unknown")
         )
-
-        # Resolve project directory with fallbacks
-        project_dir = resolve_project_dir()
-
-        # Get or create graph directory
-        graph_dir = get_graph_dir(project_dir)
 
         logger.info(
             f"Initializing hook context: session={session_id}, "
