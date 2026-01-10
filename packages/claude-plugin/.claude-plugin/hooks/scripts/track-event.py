@@ -1,10 +1,4 @@
-#!/usr/bin/env -S uv run
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#   "htmlgraph @ file://${CLAUDE_PLUGIN_ROOT}/../..",
-# ]
-# ///
+#!/usr/bin/env -S uv run --with htmlgraph>=0.25.0
 """
 HtmlGraph Event Tracker
 
@@ -642,7 +636,7 @@ def main():
     # Initialize SQLite database for event recording
     db = None
     try:
-        db = HtmlGraphDB(str(graph_dir / "index.sqlite"))
+        db = HtmlGraphDB(str(graph_dir / "htmlgraph.db"))
     except Exception as e:
         print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
         # Continue without SQLite (graceful degradation)

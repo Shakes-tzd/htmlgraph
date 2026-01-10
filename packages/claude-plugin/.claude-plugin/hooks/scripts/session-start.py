@@ -1,10 +1,4 @@
-#!/usr/bin/env -S uv run
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#   "htmlgraph @ file://${CLAUDE_PLUGIN_ROOT}/../..",
-# ]
-# ///
+#!/usr/bin/env -S uv run --with htmlgraph>=0.25.0
 """
 HtmlGraph Session Start Hook
 

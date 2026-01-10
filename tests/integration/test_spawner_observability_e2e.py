@@ -15,7 +15,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.db.schema import HtmlGraphDB
 
 
@@ -37,12 +36,19 @@ class TestSpawnerObservabilityE2E:
             (session_id, agent_assigned, created_at, status)
             VALUES (?, ?, ?, ?)
             """,
-            (session_id, "claude-code", datetime.now(timezone.utc).isoformat(), "active"),
+            (
+                session_id,
+                "claude-code",
+                datetime.now(timezone.utc).isoformat(),
+                "active",
+            ),
         )
         db.connection.commit()  # type: ignore
 
         # Verify session exists
-        cursor.execute("SELECT COUNT(*) FROM sessions WHERE session_id = ?", (session_id,))
+        cursor.execute(
+            "SELECT COUNT(*) FROM sessions WHERE session_id = ?", (session_id,)
+        )
         count = cursor.fetchone()[0]
         assert count == 1, "Session should be created"
 
@@ -132,7 +138,15 @@ class TestSpawnerObservabilityE2E:
              timestamp, status)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (userquery_event_id, "claude-code", session_id, "tool_call", "UserQuery", now, "completed"),
+            (
+                userquery_event_id,
+                "claude-code",
+                session_id,
+                "tool_call",
+                "UserQuery",
+                now,
+                "completed",
+            ),
         )
 
         # Create delegation event with parent_event_id linking to UserQuery
@@ -252,7 +266,9 @@ class TestSpawnerObservabilityE2E:
         rows = cursor.fetchall()
         assert rows[0][0] == child_event_1
         assert rows[1][0] == child_event_2
-        assert rows[0][1] == "gemini-2.0-flash"  # Child events attributed to spawned agent
+        assert (
+            rows[0][1] == "gemini-2.0-flash"
+        )  # Child events attributed to spawned agent
         assert rows[1][1] == "gemini-2.0-flash"
 
         db.disconnect()
@@ -390,8 +406,12 @@ class TestSpawnerObservabilityE2E:
             (delegation_id,),
         )
         child_agents = [row[0] for row in cursor.fetchall()]
-        assert "gemini-2.0-flash" in child_agents, "Child events should be attributed to spawned agent"
-        assert "claude-code" not in child_agents, "Child events should NOT be attributed to orchestrator"
+        assert "gemini-2.0-flash" in child_agents, (
+            "Child events should be attributed to spawned agent"
+        )
+        assert "claude-code" not in child_agents, (
+            "Child events should NOT be attributed to orchestrator"
+        )
 
         db.disconnect()
 
@@ -425,7 +445,15 @@ class TestSpawnerObservabilityE2E:
              timestamp, status)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (userquery_id, "claude-code", session_id, "tool_call", "UserQuery", now, "completed"),
+            (
+                userquery_id,
+                "claude-code",
+                session_id,
+                "tool_call",
+                "UserQuery",
+                now,
+                "completed",
+            ),
         )
 
         # Create delegation
@@ -520,9 +548,9 @@ class TestSpawnerObservabilityE2E:
             """
         )
         delegations_to_uq = cursor.fetchone()[0]
-        assert (
-            delegations_to_uq > 0
-        ), f"Should have delegations linked to UserQueries (found {userquery_count} UserQueries)"
+        assert delegations_to_uq > 0, (
+            f"Should have delegations linked to UserQueries (found {userquery_count} UserQueries)"
+        )
 
         # Check that we have child events linked to delegations
         cursor.execute(
@@ -535,7 +563,9 @@ class TestSpawnerObservabilityE2E:
             """
         )
         children_to_delegations = cursor.fetchone()[0]
-        assert children_to_delegations > 0, "Should have child events linked to delegations"
+        assert children_to_delegations > 0, (
+            "Should have child events linked to delegations"
+        )
 
         # Verify proper agent attribution
         cursor.execute(

@@ -2105,8 +2105,8 @@ def get_app(db_path: str) -> FastAPI:
 def create_app(db_path: str | None = None) -> FastAPI:
     """Create FastAPI app with default database path."""
     if db_path is None:
-        # Use default database location - index.sqlite is the unified database
-        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
+        # Use default database location - htmlgraph.db is the unified database
+        db_path = str(Path.home() / ".htmlgraph" / "htmlgraph.db")
 
     return get_app(db_path)
 

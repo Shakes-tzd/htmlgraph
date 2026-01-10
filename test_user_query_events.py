@@ -15,15 +15,10 @@ This script:
 4. Tests the full hierarchy: UserQuery → Delegation → Child Events
 """
 
-import json
-import os
 import sys
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
 
 from htmlgraph.db.schema import HtmlGraphDB
-from htmlgraph.hooks.event_tracker import save_user_query_event
 
 
 def test_user_query_event_creation():
@@ -57,37 +52,38 @@ def test_user_query_event_creation():
             context={
                 "prompt": prompt[:500],
                 "session": session_id,
-            }
+            },
         )
 
         if success:
             print(f"✅ UserQuery event created: {user_query_event_id}")
         else:
-            print(f"❌ Failed to create UserQuery event")
+            print("❌ Failed to create UserQuery event")
             return False
 
         # Verify event exists in database
         cursor = db.connection.cursor()  # type: ignore[union-attr]
         cursor.execute(
             "SELECT event_id, tool_name, agent_id FROM agent_events WHERE event_id = ?",
-            (user_query_event_id,)
+            (user_query_event_id,),
         )
         row = cursor.fetchone()
 
         if row:
             event_id, tool_name, agent_id = row
-            print(f"✅ Event verified in database:")
+            print("✅ Event verified in database:")
             print(f"   - event_id: {event_id}")
             print(f"   - tool_name: {tool_name}")
             print(f"   - agent_id: {agent_id}")
             return True
         else:
-            print(f"❌ Event not found in database")
+            print("❌ Event not found in database")
             return False
 
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -142,24 +138,25 @@ def test_delegation_parent_linking():
             """SELECT event_id, parent_event_id, event_type
                FROM agent_events
                WHERE event_id = ? AND parent_event_id = ?""",
-            (task_event_id, user_query_event_id)
+            (task_event_id, user_query_event_id),
         )
         row = cursor.fetchone()
 
         if row:
             event_id, parent_id, event_type = row
-            print(f"✅ Delegation properly linked:")
+            print("✅ Delegation properly linked:")
             print(f"   - event_id: {event_id}")
             print(f"   - parent_event_id: {parent_id}")
             print(f"   - event_type: {event_type}")
             return True
         else:
-            print(f"❌ Delegation not linked to UserQuery")
+            print("❌ Delegation not linked to UserQuery")
             return False
 
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -227,7 +224,7 @@ def test_full_hierarchy():
         # Check UserQuery exists
         cursor.execute(
             "SELECT event_id FROM agent_events WHERE event_id = ? AND event_type = 'tool_call'",
-            (user_query_id,)
+            (user_query_id,),
         )
         if not cursor.fetchone():
             print("❌ UserQuery event not found")
@@ -235,8 +232,7 @@ def test_full_hierarchy():
 
         # Check Task links to UserQuery
         cursor.execute(
-            "SELECT parent_event_id FROM agent_events WHERE event_id = ?",
-            (task_id,)
+            "SELECT parent_event_id FROM agent_events WHERE event_id = ?", (task_id,)
         )
         task_parent = cursor.fetchone()
         if not task_parent or task_parent[0] != user_query_id:
@@ -246,23 +242,24 @@ def test_full_hierarchy():
         # Check Child links to Task
         cursor.execute(
             "SELECT parent_event_id FROM agent_events WHERE event_id = ?",
-            (child_event_id,)
+            (child_event_id,),
         )
         child_parent = cursor.fetchone()
         if not child_parent or child_parent[0] != task_id:
             print(f"❌ Child not linked to Task: {child_parent}")
             return False
 
-        print(f"\n✅ Full hierarchy verified:")
-        print(f"   UserQuery (root)")
-        print(f"   ├── Task Delegation")
-        print(f"   │   └── Read (child event)")
+        print("\n✅ Full hierarchy verified:")
+        print("   UserQuery (root)")
+        print("   ├── Task Delegation")
+        print("   │   └── Read (child event)")
 
         return True
 
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -323,7 +320,7 @@ def test_query_hierarchy():
                FROM agent_events
                WHERE parent_event_id = ?
                ORDER BY timestamp ASC""",
-            (user_query_id,)
+            (user_query_id,),
         )
         direct_children = cursor.fetchall()
         print(f"✅ Direct children of UserQuery: {len(direct_children)}")
@@ -343,7 +340,7 @@ def test_query_hierarchy():
                )
                SELECT event_id, tool_name, event_type, depth FROM descendants
                ORDER BY depth, event_id""",
-            (user_query_id,)
+            (user_query_id,),
         )
         all_descendants = cursor.fetchall()
         print(f"✅ All descendants of UserQuery (recursive): {len(all_descendants)}")
@@ -361,6 +358,7 @@ def test_query_hierarchy():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

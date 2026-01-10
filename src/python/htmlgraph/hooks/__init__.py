@@ -16,6 +16,11 @@ from pathlib import Path
 
 from htmlgraph.hooks.posttooluse import posttooluse_hook
 from htmlgraph.hooks.pretooluse import pretooluse_hook
+from htmlgraph.hooks.state_manager import (
+    DriftQueueManager,
+    ParentActivityTracker,
+    UserQueryEventTracker,
+)
 
 # Directory containing hook scripts
 HOOKS_DIR = Path(__file__).parent
@@ -32,6 +37,9 @@ AVAILABLE_HOOKS = [
 __all__ = [
     "pretooluse_hook",
     "posttooluse_hook",
+    "ParentActivityTracker",
+    "UserQueryEventTracker",
+    "DriftQueueManager",
     "AVAILABLE_HOOKS",
     "HOOKS_DIR",
 ]

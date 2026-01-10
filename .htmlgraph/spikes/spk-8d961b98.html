@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>UserQuery Prompt Capture Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-8d961b98"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T08:11:04.926083"
+             data-updated="2026-01-10T08:11:04.926089" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder">
+
+        <header>
+            <h1>UserQuery Prompt Capture Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause Analysis
+
+**Problem**: Activity Feed showed literal "prompt" string instead of actual user query text.
+Example: Should show "Fix missing prompt content display" but shows "prompt"
+
+**Root Cause**: Missing UserQuery handler in format_tool_summary()
+- File: packages/claude-plugin/.claude-plugin/hooks/scripts/track-event.py
+- Lines: 528-578 (format_tool_summary function)
+- Issue: No elif clause for tool_name == "UserQuery"
+- When UserQuery events were formatted, they fell through to the default case:
+  `return f"{tool_name}: {str(tool_input)[:50]}"`
+- This returned string representation of dict, not actual prompt text
+
+**Comparison**: event_tracker.py (src/python/htmlgraph/hooks/event_tracker.py) 
+already had the correct handler at lines 478-484, extracting actual prompt text.
+The plugin script track-event.py was out of sync.
+
+## Fix Applied
+
+**Location**: packages/claude-plugin/.claude-plugin/hooks/scripts/track-event.py
+**Lines**: 577-583 (new UserQuery handler)
+
+```python
+elif tool_name == "UserQuery":
+    # Extract the actual prompt text from the tool_input
+    prompt = str(tool_input.get("prompt", ""))
+    preview = prompt[:100].replace("\n", " ")
+    if len(prompt) > 100:
+        preview += "..."
+    return preview
+```
+
+**How it works**:
+1. Extracts prompt from tool_input dict
+2. Creates 100-char preview with newlines replaced by spaces
+3. Adds "..." for longer prompts
+4. Returns actual prompt text (not string repr of dict)
+
+## Verification
+
+**Test Results**:
+- Event tracking tests: PASSED
+- All event-related tests: PASSED (47+ event tests passing)
+- Pre-commit checks: PASSED (ruff, mypy, formatting)
+
+**Activity Feed Impact**:
+- Before: "prompt" or "{'prompt': 'Fix missing...}"
+- After: "Fix missing prompt content display" (actual text)
+
+## Commit
+
+Commit: 8b3cc75
+Message: "fix: add UserQuery handler to format_tool_summary in track-event.py"
+
+The fix ensures UserQuery events are properly captured with actual prompt content
+in the Activity Feed, matching the behavior already present in event_tracker.py.
+            </div>
+        </section>
+    </article>
+</body>
+</html>
