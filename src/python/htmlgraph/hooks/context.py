@@ -45,12 +45,12 @@ class HookContext:
     graph_dir: Path
     session_id: str
     agent_id: str
-    hook_input: dict
+    hook_input: dict[str, Any]
     _session_manager: Any | None = field(default=None, repr=False)
     _database: Any | None = field(default=None, repr=False)
 
     @classmethod
-    def from_input(cls, hook_input: dict) -> "HookContext":
+    def from_input(cls, hook_input: dict[str, Any]) -> "HookContext":
         """
         Create HookContext from raw hook input.
 

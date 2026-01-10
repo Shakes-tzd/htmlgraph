@@ -25,6 +25,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class ParentActivityTracker:
         """Ensure .htmlgraph directory exists."""
         self.graph_dir.mkdir(parents=True, exist_ok=True)
 
-    def load(self, max_age_minutes: int = 5) -> dict:
+    def load(self, max_age_minutes: int = 5) -> dict[str, Any]:
         """
         Load parent activity state.
 
@@ -334,7 +335,7 @@ class DriftQueueManager:
         """Ensure .htmlgraph directory exists."""
         self.graph_dir.mkdir(parents=True, exist_ok=True)
 
-    def load(self, max_age_hours: int = 48) -> dict:
+    def load(self, max_age_hours: int = 48) -> dict[str, Any]:
         """
         Load drift queue and filter by age.
 
@@ -393,7 +394,7 @@ class DriftQueueManager:
             logger.warning(f"Error loading drift queue: {e}")
             return {"activities": [], "last_classification": None}
 
-    def save(self, queue: dict) -> None:
+    def save(self, queue: dict[str, Any]) -> None:
         """
         Save drift queue to file.
 
@@ -425,7 +426,9 @@ class DriftQueueManager:
         except Exception as e:
             logger.error(f"Unexpected error saving drift queue: {e}")
 
-    def add_activity(self, activity: dict, timestamp: datetime | None = None) -> None:
+    def add_activity(
+        self, activity: dict[str, Any], timestamp: datetime | None = None
+    ) -> None:
         """
         Add activity to drift queue.
 

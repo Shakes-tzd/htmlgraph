@@ -66,5 +66,9 @@
   "spike-init-sess-e1f": {
     "spike_subtype": "session-init",
     "session_id": "sess-e1f8958b"
+  },
+  "spike-init-sess-703": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-703b29b4"
   }
 }

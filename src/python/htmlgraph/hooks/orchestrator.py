@@ -21,7 +21,7 @@ Enforcement Levels:
 - guidance: ALLOWS but provides warnings and suggestions
 
 Public API:
-- enforce_orchestrator_mode(tool: str, params: dict) -> dict
+- enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict
     Main entry point for hook scripts. Returns hook response dict.
 """
 
@@ -93,7 +93,9 @@ def add_to_tool_history(tool: str) -> None:
     save_tool_history(history)
 
 
-def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, str, str]:
+def is_allowed_orchestrator_operation(
+    tool: str, params: dict[str, Any]
+) -> tuple[bool, str, str]:
     """
     Check if operation is allowed for orchestrators.
 
@@ -268,7 +270,7 @@ def is_allowed_orchestrator_operation(tool: str, params: dict) -> tuple[bool, st
         return True, "Allowed in guidance mode", "guidance-allowed"
 
 
-def create_task_suggestion(tool: str, params: dict) -> str:
+def create_task_suggestion(tool: str, params: dict[str, Any]) -> str:
     """
     Create Task tool suggestion based on blocked operation.
 
@@ -370,7 +372,7 @@ def create_task_suggestion(tool: str, params: dict) -> str:
     )
 
 
-def enforce_orchestrator_mode(tool: str, params: dict) -> dict:
+def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, Any]:
     """
     Enforce orchestrator mode rules.
 

@@ -22,7 +22,7 @@ Usage:
 """
 
 import re
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class HookSpecificOutput(TypedDict):
@@ -93,7 +93,7 @@ def is_python_execution(command: str) -> bool:
     return False
 
 
-def should_reflect(hook_input: dict) -> tuple[bool, str]:
+def should_reflect(hook_input: dict[str, Any]) -> tuple[bool, str]:
     """
     Check if we should show reflection prompt.
 
@@ -156,7 +156,7 @@ Ask yourself:
 Continue, but consider delegation for similar future tasks."""
 
 
-def orchestrator_reflect(tool_input: dict) -> dict:
+def orchestrator_reflect(tool_input: dict[str, Any]) -> dict[str, Any]:
     """
     Main API function for orchestrator reflection.
 
@@ -184,7 +184,7 @@ def orchestrator_reflect(tool_input: dict) -> dict:
     should_show, command_preview = should_reflect(tool_input)
 
     # Build response
-    response: dict = {"continue": True}
+    response: dict[str, Any] = {"continue": True}
 
     if should_show:
         reflection = build_reflection_message(command_preview)

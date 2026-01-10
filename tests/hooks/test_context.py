@@ -149,7 +149,7 @@ class TestLazyLoading:
         # Should be None until accessed
         assert context._database is None
 
-    @mock.patch("htmlgraph.hooks.context.SessionManager")
+    @mock.patch("htmlgraph.session_manager.SessionManager")
     def test_session_manager_lazy_loading(self, mock_sm_class, tmp_path):
         """SessionManager should be loaded on first property access."""
         mock_sm_instance = mock.MagicMock()
@@ -176,7 +176,7 @@ class TestLazyLoading:
         assert sm2 is sm
         assert mock_sm_class.call_count == 1  # Only called once
 
-    @mock.patch("htmlgraph.hooks.context.HtmlGraphDB")
+    @mock.patch("htmlgraph.db.schema.HtmlGraphDB")
     def test_database_lazy_loading(self, mock_db_class, tmp_path):
         """HtmlGraphDB should be loaded on first property access."""
         mock_db_instance = mock.MagicMock()
@@ -204,7 +204,7 @@ class TestLazyLoading:
         assert db2 is db
         assert mock_db_class.call_count == 1  # Only called once
 
-    @mock.patch("htmlgraph.hooks.context.SessionManager")
+    @mock.patch("htmlgraph.session_manager.SessionManager")
     def test_session_manager_import_error(self, mock_sm_class, tmp_path):
         """SessionManager import failure should raise ImportError."""
         mock_sm_class.side_effect = ImportError("Module not found")
@@ -223,7 +223,7 @@ class TestLazyLoading:
         with pytest.raises(ImportError):
             _ = context.session_manager
 
-    @mock.patch("htmlgraph.hooks.context.HtmlGraphDB")
+    @mock.patch("htmlgraph.db.schema.HtmlGraphDB")
     def test_database_initialization_error(self, mock_db_class, tmp_path):
         """Database initialization failure should raise Exception."""
         mock_db_class.side_effect = Exception("Database connection failed")
@@ -246,7 +246,7 @@ class TestLazyLoading:
 class TestResourceCleanup:
     """Test resource cleanup and context manager protocol."""
 
-    @mock.patch("htmlgraph.hooks.context.HtmlGraphDB")
+    @mock.patch("htmlgraph.db.schema.HtmlGraphDB")
     def test_close_database(self, mock_db_class, tmp_path):
         """Test that close() closes database connection."""
         mock_db_instance = mock.MagicMock()
@@ -291,7 +291,7 @@ class TestResourceCleanup:
         context.close()
         context.close()
 
-    @mock.patch("htmlgraph.hooks.context.HtmlGraphDB")
+    @mock.patch("htmlgraph.db.schema.HtmlGraphDB")
     def test_context_manager_protocol(self, mock_db_class, tmp_path):
         """Test HookContext works as context manager."""
         mock_db_instance = mock.MagicMock()
@@ -313,7 +313,7 @@ class TestResourceCleanup:
         # Should be cleaned up after exiting context
         mock_db_instance.close.assert_called_once()
 
-    @mock.patch("htmlgraph.hooks.context.HtmlGraphDB")
+    @mock.patch("htmlgraph.db.schema.HtmlGraphDB")
     def test_context_manager_exception_handling(self, mock_db_class, tmp_path):
         """Test that context manager cleans up even on exception."""
         mock_db_instance = mock.MagicMock()

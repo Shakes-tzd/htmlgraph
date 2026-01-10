@@ -144,11 +144,12 @@ class TestHookScriptImport:
         )
         content = script_path.read_text()
 
+        # Updated: Hook script is now a thin wrapper with main() function only
+        # Heavy lifting delegated to htmlgraph.hooks.session_handler
         required_functions = [
             "def main(",
-            "def output_response(",
-            "def get_features(",
-            "def activate_orchestrator_mode(",
+            "from htmlgraph.hooks.context import HookContext",
+            "from htmlgraph.hooks.session_handler import",
         ]
 
         for func in required_functions:
@@ -724,14 +725,15 @@ class TestRealHookScriptValidation:
         assert "def main" in content
 
     def test_hook_script_has_output_response_function(self):
-        """Hook should have output_response function."""
+        """Hook should output JSON responses."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
             / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         content = script_path.read_text()
 
-        assert "def output_response" in content
+        # Updated: Hook now uses main() function (thin wrapper architecture)
+        assert "def main(" in content
         # Function should output JSON
         assert "json.dumps" in content
 
@@ -747,8 +749,9 @@ class TestRealHookScriptValidation:
         assert '"continue"' in content or "'continue'" in content
         # Should output hookSpecificOutput
         assert "hookSpecificOutput" in content
-        # Should have additionalContext
-        assert "additionalContext" in content
+        # Updated: Hook now delegates session handling to session_handler
+        # hookSpecificOutput contains sessionFeatureContext, not additionalContext
+        assert "sessionFeatureContext" in content or "hookEventName" in content
 
 
 if __name__ == "__main__":

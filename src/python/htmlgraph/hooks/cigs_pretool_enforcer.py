@@ -87,7 +87,7 @@ class CIGSPreToolEnforcer:
 
         return graph_dir
 
-    def enforce(self, tool: str, params: dict) -> dict[str, Any]:
+    def enforce(self, tool: str, params: dict[str, Any]) -> dict[str, Any]:
         """
         Enforce CIGS delegation rules with escalating guidance.
 
@@ -223,7 +223,7 @@ class CIGSPreToolEnforcer:
             }
         }
 
-    def _is_sdk_operation(self, tool: str, params: dict) -> bool:
+    def _is_sdk_operation(self, tool: str, params: dict[str, Any]) -> bool:
         """Check if operation is an SDK operation (always allowed)."""
         if tool != "Bash":
             return False

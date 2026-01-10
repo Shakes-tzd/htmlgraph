@@ -79,7 +79,7 @@ def load_tool_history() -> list[dict]:
             data = json.loads(TOOL_HISTORY_FILE.read_text())
 
             # Handle both formats: {"history": [...]} and [...] (legacy)
-            if isinstance(data, dict):
+            if isinstance(data, dict):  # type: ignore[arg-type]
                 data = data.get("history", [])
 
             # Filter to last hour only
@@ -149,7 +149,7 @@ def detect_optimal_pattern(tool: str, history: list[dict]) -> str | None:
     return OPTIMAL_PATTERNS.get(pair)
 
 
-def get_pattern_guidance(tool: str, history: list[dict]) -> dict:
+def get_pattern_guidance(tool: str, history: list[dict]) -> dict[str, Any]:
     """Get guidance based on tool patterns."""
     # Check for anti-patterns first
     anti_pattern = detect_anti_pattern(tool, history)
@@ -192,7 +192,7 @@ def get_session_health_hint(history: list[dict]) -> str | None:
     return None
 
 
-def load_validation_config() -> dict:
+def load_validation_config() -> dict[str, Any]:
     """Load validation config with defaults."""
     config_path = (
         Path(__file__).parent.parent.parent.parent.parent
@@ -218,7 +218,9 @@ def load_validation_config() -> dict:
     }
 
 
-def is_always_allowed(tool: str, params: dict, config: dict) -> bool:
+def is_always_allowed(
+    tool: str, params: dict[str, Any], config: dict[str, Any]
+) -> bool:
     """Check if tool is always allowed (read-only operations)."""
     # Always-allow tools
     if tool in config.get("always_allow", {}).get("tools", []):
@@ -234,7 +236,7 @@ def is_always_allowed(tool: str, params: dict, config: dict) -> bool:
     return False
 
 
-def is_direct_htmlgraph_write(tool: str, params: dict) -> tuple[bool, str]:
+def is_direct_htmlgraph_write(tool: str, params: dict[str, Any]) -> tuple[bool, str]:
     """Check if attempting direct write to .htmlgraph/ (always denied)."""
     if tool not in ["Write", "Edit", "Delete", "NotebookEdit"]:
         return False, ""
@@ -246,7 +248,7 @@ def is_direct_htmlgraph_write(tool: str, params: dict) -> tuple[bool, str]:
     return False, ""
 
 
-def is_sdk_command(tool: str, params: dict, config: dict) -> bool:
+def is_sdk_command(tool: str, params: dict[str, Any], config: dict[str, Any]) -> bool:
     """Check if Bash command is an SDK command."""
     if tool != "Bash":
         return False
@@ -259,7 +261,9 @@ def is_sdk_command(tool: str, params: dict, config: dict) -> bool:
     return False
 
 
-def is_code_operation(tool: str, params: dict, config: dict) -> bool:
+def is_code_operation(
+    tool: str, params: dict[str, Any], config: dict[str, Any]
+) -> bool:
     """Check if operation modifies code."""
     # Direct file operations
     if tool in config.get("code_operations", {}).get("tools", []):
@@ -288,7 +292,7 @@ def get_active_work_item() -> dict | None:
         return None
 
 
-def check_orchestrator_violation(tool: str, params: dict) -> dict | None:
+def check_orchestrator_violation(tool: str, params: dict[str, Any]) -> dict | None:
     """
     Check if operation violates orchestrator mode rules.
 
@@ -363,8 +367,8 @@ def check_orchestrator_violation(tool: str, params: dict) -> dict | None:
 
 
 def validate_tool_call(
-    tool: str, params: dict, config: dict, history: list[dict]
-) -> dict:
+    tool: str, params: dict[str, Any], config: dict[str, Any], history: list[dict]
+) -> dict[str, Any]:
     """
     Validate tool call and return GUIDANCE with active learning.
 
@@ -375,7 +379,7 @@ def validate_tool_call(
         history: Tool usage history (from load_tool_history())
 
     Returns:
-        dict: {"decision": "allow" | "block", "guidance": "...", "suggestion": "...", ...}
+        dict[str, Any]: {"decision": "allow" | "block", "guidance": "...", "suggestion": "...", ...}
               All operations are ALLOWED unless blocked for safety reasons.
 
     Example:

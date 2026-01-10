@@ -5,7 +5,7 @@ Reusable event tracking logic for hook integrations.
 Provides session management, drift detection, activity logging, and SQLite persistence.
 
 Public API:
-    track_event(hook_type: str, tool_input: dict) -> dict
+    track_event(hook_type: str, tool_input: dict[str, Any]) -> dict
         Main entry point for tracking hook events (PostToolUse, Stop, UserPromptSubmit)
 
 Events are recorded to both:
@@ -39,7 +39,7 @@ def get_user_query_event_file(graph_dir: Path, session_id: str) -> Path:
     return graph_dir / f"user-query-event-{session_id}.json"
 
 
-def load_drift_config() -> dict:
+def load_drift_config() -> dict[str, Any]:
     """Load drift configuration from plugin config or project .claude directory."""
     config_paths = [
         Path(__file__).parent.parent.parent.parent.parent
@@ -80,7 +80,7 @@ def load_drift_config() -> dict:
     }
 
 
-def load_parent_activity(graph_dir: Path) -> dict:
+def load_parent_activity(graph_dir: Path) -> dict[str, Any]:
     """Load the active parent activity state."""
     path = graph_dir / PARENT_ACTIVITY_FILE
     if path.exists():
@@ -126,6 +126,64 @@ def save_parent_activity(
         print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
 
 
+def _get_latest_user_query_from_db(graph_dir: Path, session_id: str) -> str | None:
+    """
+    Query SQLite database for the most recent UserQuery event in a session.
+
+    This is a fallback mechanism when the session-scoped file has expired or is missing.
+    Ensures parent-child linking works for the entire session duration, not just 10 minutes.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        session_id: Session ID to query
+
+    Returns:
+        event_id of the most recent UserQuery event, or None if not found
+    """
+    try:
+        db_path = graph_dir / "index.sqlite"
+        if not db_path.exists():
+            return None
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Query for the most recent UserQuery event in this session
+        # UserQuery events are recorded with tool_name='UserQuery'
+        cursor.execute(
+            """
+            SELECT event_id FROM agent_events
+            WHERE session_id = ? AND tool_name = 'UserQuery'
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """,
+            (session_id,),
+        )
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            event_id: str = str(row["event_id"])
+            print(
+                f"Debug: Found UserQuery {event_id} from database fallback for session {session_id}",
+                file=sys.stderr,
+            )
+            return event_id
+
+        return None
+
+    except Exception as e:
+        print(
+            f"Debug: Database fallback for UserQuery failed: {e}",
+            file=sys.stderr,
+        )
+        return None
+
+
 def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
     """
     Load the active UserQuery event ID for parent-child linking.
@@ -133,26 +191,49 @@ def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
     Session-scoped: Each session maintains its own parent context via
     user-query-event-{SESSION_ID}.json to support multiple concurrent
     Claude windows in the same project.
+
+    When the session-scoped file expires (after 10 minutes) or is missing,
+    falls back to querying the SQLite database for the most recent UserQuery
+    in the session. This ensures parent-child linking works for the entire
+    session duration, not just 10 minutes.
+
+    Args:
+        graph_dir: Path to .htmlgraph directory
+        session_id: Session ID to look up
+
+    Returns:
+        event_id of the active UserQuery event, or None if not found
     """
+    # Fast path: check session-scoped file first
     path = get_user_query_event_file(graph_dir, session_id)
     if path.exists():
         try:
             with open(path) as f:
                 data = cast(dict[Any, Any], json.load(f))
-                # Clean up stale UserQuery events (older than 10 minutes)
+                # Check if file-based event is still fresh (within 10 minutes)
                 if data.get("timestamp"):
                     ts = datetime.fromisoformat(data["timestamp"])
                     now = datetime.now(timezone.utc)
                     if ts.tzinfo is None:
                         ts = ts.replace(tzinfo=timezone.utc)
-                    # UserQuery events expire after 10 minutes (conversation turn boundary)
-                    # This allows tool calls up to 10 minutes after a user query to be linked as children
-                    if now - ts > timedelta(minutes=10):
-                        return None
-                return data.get("event_id")
-        except Exception:
-            pass
-    return None
+                    # UserQuery events in file expire after 10 minutes
+                    # If fresh, return directly without database query
+                    if now - ts <= timedelta(minutes=10):
+                        return data.get("event_id")
+                    # File expired - fall through to database fallback
+                else:
+                    # No timestamp in file, assume it's valid
+                    return data.get("event_id")
+        except Exception as e:
+            print(
+                f"Debug: Could not read UserQuery file: {e}",
+                file=sys.stderr,
+            )
+            # Fall through to database fallback
+
+    # Fallback: Query database for most recent UserQuery in this session
+    # This ensures parent-child linking works even after 10+ minutes
+    return _get_latest_user_query_from_db(graph_dir, session_id)
 
 
 def save_user_query_event(
@@ -183,7 +264,7 @@ def save_user_query_event(
         print(f"Warning: Could not save UserQuery event: {e}", file=sys.stderr)
 
 
-def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
+def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict[str, Any]:
     """
     Load the drift queue from file and clean up stale entries.
 
@@ -232,7 +313,7 @@ def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
     return {"activities": [], "last_classification": None}
 
 
-def save_drift_queue(graph_dir: Path, queue: dict) -> None:
+def save_drift_queue(graph_dir: Path, queue: dict[str, Any]) -> None:
     """Save the drift queue to file."""
     queue_path = graph_dir / DRIFT_QUEUE_FILE
     try:
@@ -266,7 +347,9 @@ def clear_drift_queue_activities(graph_dir: Path) -> None:
         print(f"Warning: Could not clear drift queue: {e}", file=sys.stderr)
 
 
-def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
+def add_to_drift_queue(
+    graph_dir: Path, activity: dict[str, Any], config: dict[str, Any]
+) -> dict[str, Any]:
     """Add a high-drift activity to the queue."""
     max_age_hours = config.get("queue", {}).get("max_age_hours", 48)
     queue = load_drift_queue(graph_dir, max_age_hours=max_age_hours)
@@ -289,7 +372,9 @@ def add_to_drift_queue(graph_dir: Path, activity: dict, config: dict) -> dict:
     return queue
 
 
-def should_trigger_classification(queue: dict, config: dict) -> bool:
+def should_trigger_classification(
+    queue: dict[str, Any], config: dict[str, Any]
+) -> bool:
     """Check if we should trigger auto-classification."""
     drift_config = config.get("drift_detection", {})
 
@@ -316,7 +401,7 @@ def should_trigger_classification(queue: dict, config: dict) -> bool:
     return True
 
 
-def build_classification_prompt(queue: dict, feature_id: str) -> str:
+def build_classification_prompt(queue: dict[str, Any], feature_id: str) -> str:
     """Build the prompt for the classification agent."""
     activities = queue.get("activities", [])
 
@@ -402,7 +487,7 @@ def detect_agent_from_environment() -> str:
     return "claude-code"
 
 
-def extract_file_paths(tool_input: dict, tool_name: str) -> list[str]:
+def extract_file_paths(tool_input: dict[str, Any], tool_name: str) -> list[str]:
     """Extract file paths from tool input based on tool type."""
     paths = []
 
@@ -427,7 +512,7 @@ def extract_file_paths(tool_input: dict, tool_name: str) -> list[str]:
 
 
 def format_tool_summary(
-    tool_name: str, tool_input: dict, tool_result: dict | None = None
+    tool_name: str, tool_input: dict[str, Any], tool_result: dict | None = None
 ) -> str:
     """Format a human-readable summary of the tool call."""
     if tool_name == "Read":
@@ -491,8 +576,8 @@ def record_event_to_sqlite(
     db: HtmlGraphDB,
     session_id: str,
     tool_name: str,
-    tool_input: dict,
-    tool_response: dict,
+    tool_input: dict[str, Any],
+    tool_response: dict[str, Any],
     is_error: bool,
     file_paths: list[str] | None = None,
     parent_event_id: str | None = None,
@@ -523,7 +608,7 @@ def record_event_to_sqlite(
 
         # Build output summary from tool response
         output_summary = ""
-        if isinstance(tool_response, dict):
+        if isinstance(tool_response, dict):  # type: ignore[arg-type]
             if is_error:
                 output_summary = tool_response.get("error", "error")[:200]
             else:
@@ -573,7 +658,7 @@ def record_delegation_to_sqlite(
     from_agent: str,
     to_agent: str,
     task_description: str,
-    task_input: dict,
+    task_input: dict[str, Any],
 ) -> str | None:
     """
     Record a Task() delegation to agent_collaboration table.
@@ -619,7 +704,7 @@ def record_delegation_to_sqlite(
         return None
 
 
-def track_event(hook_type: str, hook_input: dict) -> dict:
+def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     """
     Track a hook event and log it to HtmlGraph (both HTML files and SQLite).
 
@@ -792,7 +877,7 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
         summary = format_tool_summary(tool_name, tool_input_data, tool_response)
 
         # Determine success
-        if isinstance(tool_response, dict):
+        if isinstance(tool_response, dict):  # type: ignore[arg-type]
             success_field = tool_response.get("success")
             if isinstance(success_field, bool):
                 is_error = not success_field
