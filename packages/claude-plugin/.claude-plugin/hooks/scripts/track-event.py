@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "htmlgraph",
+#   "htmlgraph @ file://${CLAUDE_PLUGIN_ROOT}/../..",
 # ]
 # ///
 """
@@ -529,6 +529,9 @@ def format_tool_summary(
     tool_name: str, tool_input: dict, tool_result: dict = None
 ) -> str:
     """Format a human-readable summary of the tool call."""
+    # Normalize tool_name to handle whitespace or None
+    tool_name = (tool_name or "").strip()
+
     if tool_name == "Read":
         path = tool_input.get("file_path", "unknown")
         return f"Read: {path}"
@@ -576,14 +579,29 @@ def format_tool_summary(
 
     elif tool_name == "UserQuery":
         # Extract the actual prompt text from the tool_input
-        prompt = str(tool_input.get("prompt", ""))
-        preview = prompt[:100].replace("\n", " ")
-        if len(prompt) > 100:
-            preview += "..."
-        return preview
+        try:
+            prompt = str(tool_input.get("prompt", ""))
+            preview = prompt[:100].replace("\n", " ")
+            if len(prompt) > 100:
+                preview += "..."
+            return preview
+        except Exception:
+            # Fallback if tool_input is not a dict (defensive programming)
+            pass
 
-    else:
-        return f"{tool_name}: {str(tool_input)[:50]}"
+    # Default: format as tool: input
+    # Special case: if tool_input looks like a UserQuery, extract just the prompt
+    if isinstance(tool_input, dict) and "prompt" in tool_input:
+        try:
+            prompt = str(tool_input.get("prompt", ""))
+            preview = prompt[:100].replace("\n", " ")
+            if len(prompt) > 100:
+                preview += "..."
+            return preview
+        except Exception:
+            pass
+
+    return f"{tool_name}: {str(tool_input)[:50]}"
 
 
 def output_response(nudge: str | None = None) -> None:

@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#   "htmlgraph",
+#   "htmlgraph @ file://${CLAUDE_PLUGIN_ROOT}/../..",
 # ]
 # ///
 """
