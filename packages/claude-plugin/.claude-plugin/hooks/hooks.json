@@ -7,12 +7,12 @@
           {
             "type": "command",
             "comment": "Record UserQuery event to SQLite",
-            "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit uv run \".claude/hooks/scripts/track-event.py\""
+            "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
           },
           {
             "type": "command",
             "comment": "CIGS analysis and workflow guidance",
-            "command": "uv run \".claude/hooks/scripts/user-prompt-submit.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/user-prompt-submit.py\""
           }
         ]
       }
@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HTMLGRAPH_HOOK_TYPE=Stop uv run \".claude/hooks/scripts/track-event.py\""
+            "command": "HTMLGRAPH_HOOK_TYPE=Stop uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
           }
         ]
       }
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \".claude/hooks/scripts/session-start.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.py\""
           }
         ]
       }
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \".claude/hooks/scripts/session-end.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-end.py\""
           }
         ]
       }
@@ -57,12 +57,12 @@
           {
             "type": "command",
             "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
-            "command": "uv run \".claude/hooks/scripts/pretooluse-integrator.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-integrator.py\""
           },
           {
             "type": "command",
             "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
-            "command": "uv run \".claude/hooks/scripts/pretooluse-spawner-router.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-spawner-router.py\""
           }
         ]
       }
@@ -73,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \".claude/hooks/scripts/posttooluse-integrator.py\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/posttooluse-integrator.py\""
           }
         ]
       }
@@ -84,7 +84,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run \".claude/hooks/scripts/subagent-stop.py\""
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/subagent-stop.py\""
           }
         ]
       }
