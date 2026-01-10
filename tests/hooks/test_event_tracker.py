@@ -296,10 +296,9 @@ class TestDetectAgentFromEnvironment:
         ):
             # Clear HTMLGRAPH_AGENT to test priority
             with mock.patch.dict(os.environ, {"HTMLGRAPH_AGENT": ""}, clear=False):
-                agent = detect_agent_from_environment()
+                detect_agent_from_environment()
                 # Priority: HTMLGRAPH_AGENT > others
                 # So we need to test without HTMLGRAPH_AGENT set
-                pass
 
     def test_detect_claude_model(self):
         """Test detection with CLAUDE_MODEL env var."""

@@ -1,5 +1,62 @@
 #!/usr/bin/env python3
-"""Copilot Spawner Agent - Executable wrapper for Copilot CLI with event tracking."""
+"""
+Copilot Spawner Agent - Executable wrapper for GitHub Copilot CLI with event tracking.
+
+ARCHITECTURE:
+  This spawner agent is invoked by the HtmlGraph orchestrator via Task() delegation.
+  It acts as a transparent wrapper around the GitHub CLI (gh), providing:
+
+  1. Argument parsing for Copilot-specific options (tool permissions, etc.)
+  2. Environment context propagation (parent session, event tracking)
+  3. Event tracking in HtmlGraph database
+  4. Transparent error handling with JSON responses
+  5. Result aggregation and reporting
+
+ERROR HANDLING:
+  All errors are returned as JSON to stderr with "success": false.
+  The orchestrator interprets error types:
+
+  - CLI not found: Suggests installation (brew install gh or apt install gh)
+  - Not authenticated: Prompts for GitHub authentication (gh auth login)
+  - Tool denied: Provides fallback permissions or asks user for approval
+  - Timeout: Increases timeout or breaks task into smaller chunks
+  - GitHub API error: Retries with backoff or suggests checking GitHub status
+
+  This transparent error format allows orchestrator to implement smart
+  fallback strategies without parsing stdout/stderr text.
+
+BASH INVOCATION (for orchestrator):
+  Standard Task() delegation handles invocation:
+
+    Task(
+        subagent_type="copilot",
+        prompt="Create a pull request for the auth feature",
+        allow_tools=["shell", "git"],
+        timeout=120
+    )
+
+  The spawner-router hook converts this to:
+
+    /path/to/copilot-spawner.py \
+      -p "Create a pull request for the auth feature" \
+      --allow-tool shell \
+      --allow-tool git \
+      --timeout 120
+
+  Environment variables are set by router before spawning:
+
+    HTMLGRAPH_PARENT_SESSION=session-xyz
+    HTMLGRAPH_PARENT_EVENT=event-abc
+    HTMLGRAPH_PARENT_QUERY_EVENT=query-123
+    HTMLGRAPH_PARENT_AGENT=orchestrator
+
+TOOL PERMISSIONS:
+  Copilot can use various tools with explicit permission:
+  - shell: Execute shell commands
+  - git: Git operations (commit, push, pull, etc.)
+  - gh: GitHub CLI operations (pr create, issues, etc.)
+  - Use --allow-all-tools for full permissions (dangerous)
+"""
 
 import argparse
 import json

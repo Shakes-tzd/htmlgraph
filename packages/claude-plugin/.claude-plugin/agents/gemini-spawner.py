@@ -1,5 +1,53 @@
 #!/usr/bin/env python3
-"""Gemini Spawner Agent - Executable wrapper for Gemini CLI with event tracking."""
+"""
+Gemini Spawner Agent - Executable wrapper for Gemini CLI with event tracking.
+
+ARCHITECTURE:
+  This spawner agent is invoked by the HtmlGraph orchestrator via Task() delegation.
+  It acts as a transparent wrapper around the Gemini CLI, providing:
+
+  1. Argument parsing for Gemini-specific options
+  2. Environment context propagation (parent session, event tracking)
+  3. Event tracking in HtmlGraph database
+  4. Transparent error handling with JSON responses
+  5. Result aggregation and reporting
+
+ERROR HANDLING:
+  All errors are returned as JSON to stderr with "success": false.
+  The orchestrator interprets error types:
+
+  - CLI not found: Suggests installation or tries fallback agent
+  - Authentication failed: Prompts for API key setup
+  - Timeout: Increases timeout or breaks task into chunks
+  - Network error: Retries with backoff
+
+  This transparent error format allows orchestrator to implement smart
+  fallback strategies without parsing stdout/stderr text.
+
+BASH INVOCATION (for orchestrator):
+  Standard Task() delegation handles invocation:
+
+    Task(
+        subagent_type="gemini",
+        prompt="Find all API endpoints",
+        include_directories=["src/api/"],
+        timeout=120
+    )
+
+  The spawner-router hook converts this to:
+
+    /path/to/gemini-spawner.py \
+      -p "Find all API endpoints" \
+      --include-directories src/api/ \
+      --timeout 120
+
+  Environment variables are set by router before spawning:
+
+    HTMLGRAPH_PARENT_SESSION=session-xyz
+    HTMLGRAPH_PARENT_EVENT=event-abc
+    HTMLGRAPH_PARENT_QUERY_EVENT=query-123
+    HTMLGRAPH_PARENT_AGENT=orchestrator
+"""
 
 import argparse
 import json
