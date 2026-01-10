@@ -994,11 +994,37 @@ def get_app(db_path: str) -> FastAPI:
                 uq_status = uq_row[4]
 
                 # Extract prompt text from input_summary
-                # Format is now just the prompt text directly (set in format_tool_summary for UserQuery)
-                # Previously was: "UserQuery: {'prompt': '...'}" but now simplified to just the preview
-                prompt_text = (
-                    uq_input  # input_summary now contains just the prompt text
-                )
+                # Format is typically: "UserQuery: {'prompt': '...'}" (stored in track_event.py line 741)
+                prompt_text = uq_input
+                try:
+                    import re
+
+                    if "UserQuery:" in uq_input:
+                        # Extract the dict part: "UserQuery: {'prompt': '...'}"
+                        parts = uq_input.split("UserQuery:", 1)
+                        if len(parts) > 1:
+                            dict_str = parts[1].strip()
+                            # Convert single quotes to double quotes for valid JSON
+                            dict_str = dict_str.replace("'", '"')
+                            try:
+                                prompt_dict = json.loads(dict_str)
+                                prompt_text = prompt_dict.get("prompt", uq_input)
+                            except json.JSONDecodeError:
+                                # Fallback to regex extraction - look for quoted text
+                                match = re.search(
+                                    r'["\']([^"\']+)["\']',
+                                    dict_str,
+                                )
+                                if match:
+                                    prompt_text = match.group(1)
+                                else:
+                                    # Last resort: use dict_str as-is (without "UserQuery:" prefix)
+                                    prompt_text = dict_str
+                    else:
+                        # No "UserQuery:" prefix - use input as-is
+                        prompt_text = uq_input
+                except Exception:
+                    pass
 
                 # Step 2a: Query child events linked via parent_event_id
                 children_query = """
