@@ -223,6 +223,108 @@ class SpawnerEventTracker:
         """Get all recorded phase events."""
         return self.phase_events
 
+    def record_tool_call(
+        self,
+        tool_name: str,
+        tool_input: dict | None,
+        phase_event_id: str,
+        spawned_agent: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Record a tool call within a spawned execution phase.
+
+        Args:
+            tool_name: Name of the tool (bash, read_file, write_file, etc.)
+            tool_input: Input parameters to the tool
+            phase_event_id: Parent phase event ID to link to
+            spawned_agent: Agent making the tool call (optional)
+
+        Returns:
+            Event dictionary with event_id and metadata
+        """
+        if not self.db:
+            return {}
+
+        event_id = f"event-{uuid.uuid4().hex[:8]}"
+
+        try:
+            context = {
+                "tool_name": tool_name,
+                "spawner_type": self.spawner_type,
+                "parent_phase_event": phase_event_id,
+            }
+            if spawned_agent:
+                context["spawned_agent"] = spawned_agent
+
+            self.db.insert_event(
+                event_id=event_id,
+                agent_id=spawned_agent or self.parent_agent,
+                event_type="tool_call",
+                session_id=self.session_id,
+                tool_name=tool_name,
+                input_summary=(
+                    str(tool_input)[:200] if tool_input else f"Call to {tool_name}"
+                ),
+                context=context,
+                parent_event_id=phase_event_id,
+                subagent_type=self.spawner_type,
+            )
+
+            tool_event = {
+                "event_id": event_id,
+                "tool_name": tool_name,
+                "tool_input": tool_input,
+                "phase_event_id": phase_event_id,
+                "spawned_agent": spawned_agent,
+                "status": "running",
+                "start_time": time.time(),
+            }
+            return tool_event
+
+        except Exception:
+            # Non-fatal - tracking is best-effort
+            return {}
+
+    def complete_tool_call(
+        self,
+        event_id: str,
+        output_summary: str | None = None,
+        success: bool = True,
+    ) -> bool:
+        """
+        Mark a tool call as complete with results.
+
+        Args:
+            event_id: Event ID from record_tool_call
+            output_summary: Summary of tool output/result
+            success: Whether the tool call succeeded
+
+        Returns:
+            True if update successful, False otherwise
+        """
+        if not self.db or not event_id:
+            return False
+
+        try:
+            cursor = self.db.connection.cursor()
+            cursor.execute(
+                """
+                UPDATE agent_events
+                SET output_summary = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE event_id = ?
+            """,
+                (
+                    output_summary,
+                    "completed" if success else "failed",
+                    event_id,
+                ),
+            )
+            self.db.connection.commit()
+            return True
+        except Exception:
+            # Non-fatal
+            return False
+
     def get_event_hierarchy(self) -> dict[str, Any]:
         """
         Get the event hierarchy for this spawner execution.

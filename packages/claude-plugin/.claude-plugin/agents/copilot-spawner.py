@@ -258,6 +258,35 @@ Examples:
             timeout=args.timeout,
         )
 
+        # 4.5 RECORD GH TOOL CALL (Copilot uses gh CLI internally)
+        if tracker and exec_event:
+            try:
+                tool_input = {
+                    "allow_tools": args.allow_tools,
+                    "allow_all_tools": args.allow_all_tools,
+                    "deny_tools": args.deny_tools,
+                }
+
+                gh_tool_event = tracker.record_tool_call(
+                    tool_name="gh",
+                    tool_input=tool_input,
+                    phase_event_id=exec_event["event_id"],
+                    spawned_agent="github-copilot",
+                )
+
+                # Complete the gh tool call
+                if gh_tool_event:
+                    tracker.complete_tool_call(
+                        event_id=gh_tool_event["event_id"],
+                        output_summary=str(result.response)[:500]
+                        if result.success
+                        else str(result.error)[:500],
+                        success=result.success,
+                    )
+            except Exception:
+                # Non-fatal - tool tracking is best-effort
+                pass
+
         duration = time.time() - start_time
 
         # 5. COMPLETE EXECUTION PHASE

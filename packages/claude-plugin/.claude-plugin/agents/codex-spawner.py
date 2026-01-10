@@ -64,6 +64,72 @@ import uuid
 from typing import Any
 
 
+def _parse_codex_events(
+    output: str,
+    tracker: Any,
+    phase_event_id: str,
+) -> None:
+    """
+    Parse Codex CLI JSON output and record tool calls as child events.
+
+    The Codex CLI with --output-json produces JSON output with tool events:
+    {"type": "tool_use", "tool": "bash", "input": {"command": "..."}}
+    {"type": "tool_result", "tool": "bash", "output": "...", "success": true}
+
+    Args:
+        output: JSON/JSONL output from Codex CLI
+        tracker: SpawnerEventTracker instance
+        phase_event_id: Parent execution phase event ID
+    """
+    tool_call_ids: dict[
+        str, str
+    ] = {}  # Maps tool_name -> event_id for matching results
+
+    for line in output.strip().splitlines():
+        if not line.strip():
+            continue
+
+        try:
+            event = json.loads(line)
+            event_type = event.get("type")
+
+            if event_type == "tool_use":
+                tool_name = event.get("tool", "unknown")
+                tool_input = event.get("input", {})
+
+                # Record the tool call
+                result = tracker.record_tool_call(
+                    tool_name=tool_name,
+                    tool_input=tool_input,
+                    phase_event_id=phase_event_id,
+                    spawned_agent="gpt-4",
+                )
+
+                if result:
+                    tool_call_ids[tool_name] = result.get("event_id")
+
+            elif event_type == "tool_result":
+                tool_name = event.get("tool", "unknown")
+
+                # Complete the tool call if we have a matching record
+                if tool_name in tool_call_ids:
+                    tool_output = event.get("output", "")
+                    success = event.get("success", True)
+
+                    tracker.complete_tool_call(
+                        event_id=tool_call_ids[tool_name],
+                        output_summary=str(tool_output)[:500],
+                        success=success,
+                    )
+
+        except json.JSONDecodeError:
+            # Skip non-JSON lines (e.g., raw output)
+            continue
+        except Exception:
+            # Non-fatal - continue processing remaining events
+            continue
+
+
 def main() -> None:
     """Execute Codex spawner with comprehensive event tracking and delegation records."""
     parser = argparse.ArgumentParser(
@@ -320,6 +386,18 @@ Examples:
             track_in_htmlgraph=args.track,
             timeout=args.timeout,
         )
+
+        # 4.5 PARSE AND RECORD INTERNAL TOOL CALLS (if output_json is enabled)
+        if tracker and exec_event and args.output_json:
+            try:
+                _parse_codex_events(
+                    result.response if result.success else "",
+                    tracker,
+                    exec_event["event_id"],
+                )
+            except Exception:
+                # Non-fatal - tool tracking is best-effort
+                pass
 
         duration = time.time() - start_time
 
