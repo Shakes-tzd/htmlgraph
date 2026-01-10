@@ -105,10 +105,11 @@ class TestHookScriptImport:
     """Test that hook script can be imported and initialized without errors."""
 
     def test_session_start_script_exists(self):
-        """Verify session-start.py script exists in expected location."""
+        """Verify session-start.py script exists in plugin source location."""
+        # Hook scripts are now in the plugin source, not .claude/
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         assert script_path.exists(), f"Hook script not found at {script_path}"
 
@@ -116,7 +117,7 @@ class TestHookScriptImport:
         """Hook script should be executable."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         # Check if file is readable (executable check is OS-dependent)
         assert script_path.is_file()
@@ -125,7 +126,7 @@ class TestHookScriptImport:
         """Hook script should have valid Python syntax."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         content = script_path.read_text()
 
@@ -139,7 +140,7 @@ class TestHookScriptImport:
         """Hook script should contain required function definitions."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         content = script_path.read_text()
 
@@ -713,7 +714,7 @@ class TestRealHookScriptValidation:
         """Hook script should load without import errors."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         content = script_path.read_text()
 
@@ -726,7 +727,7 @@ class TestRealHookScriptValidation:
         """Hook should have output_response function."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         content = script_path.read_text()
 
@@ -738,7 +739,7 @@ class TestRealHookScriptValidation:
         """Hook script outputs match Claude Code hook JSON spec."""
         script_path = (
             Path("/Users/shakes/DevProjects/htmlgraph")
-            / ".claude/hooks/scripts/session-start.py"
+            / "packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py"
         )
         content = script_path.read_text()
 
