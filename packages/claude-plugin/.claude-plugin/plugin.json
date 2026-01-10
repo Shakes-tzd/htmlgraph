@@ -26,7 +26,11 @@
       "description": "Google Gemini 2.0-Flash spawner - FREE exploratory research and batch analysis",
       "requires_cli": "gemini",
       "fallback": null,
-      "capabilities": ["exploration", "analysis", "batch_processing"],
+      "capabilities": [
+        "exploration",
+        "analysis",
+        "batch_processing"
+      ],
       "context_window": "2M tokens",
       "cost": "FREE"
     },
@@ -36,7 +40,11 @@
       "description": "OpenAI Codex spawner - Code generation and completions with sandbox execution",
       "requires_cli": "codex",
       "fallback": null,
-      "capabilities": ["code_generation", "implementation", "file_operations"],
+      "capabilities": [
+        "code_generation",
+        "implementation",
+        "file_operations"
+      ],
       "context_window": "128K tokens",
       "cost": "Paid (OpenAI)"
     },
@@ -46,7 +54,11 @@
       "description": "GitHub Copilot spawner - GitHub-integrated workflows and git operations",
       "requires_cli": "gh",
       "fallback": null,
-      "capabilities": ["github_integration", "git_operations", "pr_handling"],
+      "capabilities": [
+        "github_integration",
+        "git_operations",
+        "pr_handling"
+      ],
       "context_window": "100K tokens",
       "cost": "Subscription (GitHub Copilot)"
     }
