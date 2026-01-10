@@ -175,7 +175,7 @@ Examples:
                     from_agent=parent_agent,
                     to_agent="gpt-4",
                     session_id=parent_session or f"session-{uuid.uuid4().hex[:8]}",
-                    handoff_type="spawner_delegation",
+                    handoff_type="delegation",
                     reason=args.prompt[:200],
                     context={
                         "model": args.model or "gpt-4-turbo",
