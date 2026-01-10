@@ -1,9 +1,5 @@
 """Dashboard integration tests for spawner observability."""
 
-import pytest
-from unittest.mock import Mock, patch
-import json
-
 
 class TestDashboardSpawnerDisplay:
     """Test dashboard displays spawner activities correctly."""
@@ -19,7 +15,7 @@ class TestDashboardSpawnerDisplay:
             "tool_name": "Task",
             "event_type": "delegation",
             "status": "completed",
-            "timestamp": "2025-01-10T12:00:00"
+            "timestamp": "2025-01-10T12:00:00",
         }
 
         # Badge should have spawner-specific styling
@@ -38,15 +34,15 @@ class TestDashboardSpawnerDisplay:
                 "agent_id": "orchestrator",
                 "tool_name": "ReadFile",
                 "event_type": "direct",
-                "status": "completed"
+                "status": "completed",
             },
             {
                 "event_id": "event-spawner-001",
                 "agent_id": "orchestrator",
                 "spawner_type": "gemini",
                 "event_type": "delegation",
-                "status": "completed"
-            }
+                "status": "completed",
+            },
         ]
 
         # Apply 'all' filter
@@ -65,15 +61,15 @@ class TestDashboardSpawnerDisplay:
                 "agent_id": "orchestrator",
                 "tool_name": "ReadFile",
                 "event_type": "direct",
-                "status": "completed"
+                "status": "completed",
             },
             {
                 "event_id": "event-spawner-001",
                 "agent_id": "orchestrator",
                 "spawner_type": "gemini",
                 "event_type": "delegation",
-                "status": "completed"
-            }
+                "status": "completed",
+            },
         ]
 
         # Apply 'direct' filter
@@ -94,15 +90,15 @@ class TestDashboardSpawnerDisplay:
                 "agent_id": "orchestrator",
                 "tool_name": "ReadFile",
                 "event_type": "direct",
-                "status": "completed"
+                "status": "completed",
             },
             {
                 "event_id": "event-spawner-001",
                 "agent_id": "orchestrator",
                 "spawner_type": "gemini",
                 "event_type": "delegation",
-                "status": "completed"
-            }
+                "status": "completed",
+            },
         ]
 
         # Apply 'spawner' filter
@@ -119,18 +115,18 @@ class TestDashboardSpawnerDisplay:
             {
                 "event_id": "event-gemini-001",
                 "spawner_type": "gemini",
-                "event_type": "delegation"
+                "event_type": "delegation",
             },
             {
                 "event_id": "event-codex-001",
                 "spawner_type": "codex",
-                "event_type": "delegation"
+                "event_type": "delegation",
             },
             {
                 "event_id": "event-copilot-001",
                 "spawner_type": "copilot",
-                "event_type": "delegation"
-            }
+                "event_type": "delegation",
+            },
         ]
 
         # Apply gemini filter
@@ -153,7 +149,7 @@ class TestDashboardSpawnerDisplay:
                     "status": "completed",
                     "duration_seconds": 2.5,
                     "cost": 0.0,
-                    "timestamp": "2025-01-10T12:00:00"
+                    "timestamp": "2025-01-10T12:00:00",
                 },
                 {
                     "event_id": "event-spawner-002",
@@ -163,10 +159,10 @@ class TestDashboardSpawnerDisplay:
                     "status": "completed",
                     "duration_seconds": 3.1,
                     "cost": 0.05,
-                    "timestamp": "2025-01-10T12:05:00"
-                }
+                    "timestamp": "2025-01-10T12:05:00",
+                },
             ],
-            "total_count": 2
+            "total_count": 2,
         }
 
         # Verify response includes spawner activities
@@ -187,25 +183,24 @@ class TestDashboardSpawnerDisplay:
                 {
                     "event_id": "event-gemini-001",
                     "spawner_type": "gemini",
-                    "session_id": "session-001"
+                    "session_id": "session-001",
                 },
                 {
                     "event_id": "event-gemini-002",
                     "spawner_type": "gemini",
-                    "session_id": "session-002"
+                    "session_id": "session-002",
                 },
                 {
                     "event_id": "event-codex-001",
                     "spawner_type": "codex",
-                    "session_id": "session-001"
-                }
+                    "session_id": "session-001",
+                },
             ]
         }
 
         # Filter by spawner_type=gemini
         filtered = [
-            a for a in api_response["activities"]
-            if a["spawner_type"] == "gemini"
+            a for a in api_response["activities"] if a["spawner_type"] == "gemini"
         ]
 
         # Verify returns only Gemini events
@@ -215,12 +210,10 @@ class TestDashboardSpawnerDisplay:
     def test_spawner_api_endpoint_pagination(self):
         """API endpoint supports pagination (limit, offset)."""
         api_response = {
-            "activities": [
-                {"event_id": f"event-{i}"} for i in range(50)
-            ],
+            "activities": [{"event_id": f"event-{i}"} for i in range(50)],
             "total_count": 50,
             "limit": 10,
-            "offset": 20
+            "offset": 20,
         }
 
         # Simulate pagination: limit=10, offset=20
@@ -241,7 +234,7 @@ class TestDashboardSpawnerDisplay:
                     "avg_duration": 2.3,
                     "total_tokens": 15000,
                     "total_cost": 0.0,
-                    "cost_per_delegation": 0.0
+                    "cost_per_delegation": 0.0,
                 },
                 "codex": {
                     "total_delegations": 8,
@@ -249,7 +242,7 @@ class TestDashboardSpawnerDisplay:
                     "avg_duration": 3.1,
                     "total_tokens": 10000,
                     "total_cost": 0.35,
-                    "cost_per_delegation": 0.044
+                    "cost_per_delegation": 0.044,
                 },
                 "copilot": {
                     "total_delegations": 12,
@@ -257,15 +250,15 @@ class TestDashboardSpawnerDisplay:
                     "avg_duration": 2.8,
                     "total_tokens": 12000,
                     "total_cost": 0.0,
-                    "cost_per_delegation": 0.0
-                }
+                    "cost_per_delegation": 0.0,
+                },
             },
             "overall": {
                 "total_delegations": 35,
                 "avg_success_rate": 0.92,
                 "total_tokens": 37000,
-                "total_cost": 0.35
-            }
+                "total_cost": 0.35,
+            },
         }
 
         # Verify statistics for each spawner
@@ -325,19 +318,14 @@ class TestDashboardSpawnerDisplay:
     def test_spawners_dashboard_shows_cost(self):
         """Dashboard displays cost metrics."""
         # Mock cost data
-        cost_data = {
-            "gemini": 0.0,
-            "codex": 0.35,
-            "copilot": 0.0,
-            "total": 0.35
-        }
+        cost_data = {"gemini": 0.0, "codex": 0.35, "copilot": 0.0, "total": 0.35}
 
         # Mock summary cards HTML
         summary_html = f"""
-        <div class="cost-total">${cost_data['total']:.2f}</div>
-        <div class="cost-gemini">${cost_data['gemini']:.2f}</div>
-        <div class="cost-codex">${cost_data['codex']:.2f}</div>
-        <div class="cost-copilot">${cost_data['copilot']:.2f}</div>
+        <div class="cost-total">${cost_data["total"]:.2f}</div>
+        <div class="cost-gemini">${cost_data["gemini"]:.2f}</div>
+        <div class="cost-codex">${cost_data["codex"]:.2f}</div>
+        <div class="cost-copilot">${cost_data["copilot"]:.2f}</div>
         """
 
         # Verify cost shown in cards
@@ -351,18 +339,18 @@ class TestDashboardSpawnerDisplay:
             {
                 "spawner_type": "gemini",
                 "spawned_agent": "gemini-2.0-flash",  # Actual model
-                "display_name": "Gemini 2.0-Flash"
+                "display_name": "Gemini 2.0-Flash",
             },
             {
                 "spawner_type": "codex",
                 "spawned_agent": "gpt-4",  # Actual model
-                "display_name": "GPT-4"
+                "display_name": "GPT-4",
             },
             {
                 "spawner_type": "copilot",
                 "spawned_agent": "github-copilot",  # Actual model
-                "display_name": "GitHub Copilot"
-            }
+                "display_name": "GitHub Copilot",
+            },
         ]
 
         # Verify shows actual AI model, not wrapper
@@ -372,7 +360,7 @@ class TestDashboardSpawnerDisplay:
             assert activity["spawned_agent"] in [
                 "gemini-2.0-flash",
                 "gpt-4",
-                "github-copilot"
+                "github-copilot",
             ]
 
     def test_spawner_activity_feed_entry(self):
@@ -386,7 +374,7 @@ class TestDashboardSpawnerDisplay:
             "status": "completed",
             "duration": "2.5s",
             "tokens": 1000,
-            "cost": "$0.00"
+            "cost": "$0.00",
         }
 
         # Verify entry has all required fields
@@ -401,13 +389,13 @@ class TestDashboardSpawnerDisplay:
         color_map = {
             "gemini": "bg-gemini",
             "codex": "bg-codex",
-            "copilot": "bg-copilot"
+            "copilot": "bg-copilot",
         }
 
         html_templates = {
             "gemini": f'<div class="{color_map["gemini"]}">Gemini</div>',
             "codex": f'<div class="{color_map["codex"]}">Codex</div>',
-            "copilot": f'<div class="{color_map["copilot"]}">Copilot</div>'
+            "copilot": f'<div class="{color_map["copilot"]}">Copilot</div>',
         }
 
         # Verify distinct CSS classes
@@ -421,14 +409,14 @@ class TestDashboardSpawnerDisplay:
                 "event_id": "event-1",
                 "status": "completed",
                 "status_icon": "✅",
-                "status_class": "status-success"
+                "status_class": "status-success",
             },
             {
                 "event_id": "event-2",
                 "status": "failed",
                 "status_icon": "❌",
-                "status_class": "status-failure"
-            }
+                "status_class": "status-failure",
+            },
         ]
 
         # Verify status indicators
@@ -443,18 +431,18 @@ class TestDashboardSpawnerDisplay:
             {
                 "event_id": "event-1",
                 "timestamp": "2025-01-10T12:00:00",
-                "spawner_type": "gemini"
+                "spawner_type": "gemini",
             },
             {
                 "event_id": "event-2",
                 "timestamp": "2025-01-10T12:05:00",
-                "spawner_type": "codex"
+                "spawner_type": "codex",
             },
             {
                 "event_id": "event-3",
                 "timestamp": "2025-01-10T12:10:00",
-                "spawner_type": "copilot"
-            }
+                "spawner_type": "copilot",
+            },
         ]
 
         # Verify chronological order
@@ -468,7 +456,7 @@ class TestDashboardSpawnerDisplay:
             "parent_agent": "orchestrator",
             "delegation_event_id": "event-spawner-001",
             "spawned_agent": "gemini-2.0-flash",
-            "relationship": "parent -> spawner -> child"
+            "relationship": "parent -> spawner -> child",
         }
 
         # Verify chain relationships captured
@@ -484,7 +472,7 @@ class TestDashboardSpawnerDisplay:
             "success_rate": "95%",
             "avg_duration": "2.3s",
             "cost": "$0.00",
-            "tokens": "15,000"
+            "tokens": "15,000",
         }
 
         codex_card = {
@@ -493,7 +481,7 @@ class TestDashboardSpawnerDisplay:
             "success_rate": "88%",
             "avg_duration": "3.1s",
             "cost": "$0.35",
-            "tokens": "10,000"
+            "tokens": "10,000",
         }
 
         copilot_card = {
@@ -502,7 +490,7 @@ class TestDashboardSpawnerDisplay:
             "success_rate": "92%",
             "avg_duration": "2.8s",
             "cost": "$0.00",
-            "tokens": "12,000"
+            "tokens": "12,000",
         }
 
         cards = [gemini_card, codex_card, copilot_card]

@@ -228,7 +228,7 @@ def create_task_parent_event(
     - event_type: 'task_delegation'
     - subagent_type: Extracted from tool input
     - status: 'started'
-    - parent_event_id: None (this is a parent)
+    - parent_event_id: UserQuery event ID (links back to conversation root)
 
     This event will be linked to child events created by the subagent
     and updated when SubagentStop fires.
@@ -243,12 +243,24 @@ def create_task_parent_event(
         Parent event_id if successful, None otherwise
     """
     try:
+        from pathlib import Path
+
         if not db.connection:
             db.connect()
 
         parent_event_id = f"evt-{str(uuid.uuid4())[:8]}"
         subagent_type = extract_subagent_type(tool_input)
         prompt = str(tool_input.get("prompt", ""))[:200]
+
+        # Load UserQuery event ID for parent-child linking
+        graph_dir = Path.cwd() / ".htmlgraph"
+        user_query_event_id = None
+        try:
+            from htmlgraph.hooks.event_tracker import load_user_query_event
+
+            user_query_event_id = load_user_query_event(graph_dir, session_id)
+        except Exception:
+            pass
 
         # Build input summary
         input_summary = json.dumps(
@@ -265,8 +277,8 @@ def create_task_parent_event(
             """
             INSERT INTO agent_events
             (event_id, agent_id, event_type, timestamp, tool_name,
-             input_summary, session_id, status, subagent_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             input_summary, session_id, status, subagent_type, parent_event_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 parent_event_id,
@@ -278,6 +290,7 @@ def create_task_parent_event(
                 session_id,
                 "started",
                 subagent_type or "general-purpose",
+                user_query_event_id,  # Link to UserQuery event
             ),
         )
 
@@ -285,11 +298,15 @@ def create_task_parent_event(
 
         # Export to environment for subagent reference
         os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+        os.environ["HTMLGRAPH_PARENT_QUERY_EVENT"] = (
+            user_query_event_id or ""
+        )  # For spawners to use
         os.environ["HTMLGRAPH_SUBAGENT_TYPE"] = subagent_type or "general-purpose"
 
         logger.debug(
             f"Created parent event for Task delegation: "
-            f"event_id={parent_event_id}, subagent_type={subagent_type}"
+            f"event_id={parent_event_id}, subagent_type={subagent_type}, "
+            f"parent_query_event={user_query_event_id}"
         )
 
         return parent_event_id

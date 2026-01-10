@@ -1,11 +1,10 @@
 """Integration tests for spawner routing with mocked CLIs."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import tempfile
 import json
 import subprocess
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestSpawnerIntegration:
@@ -20,13 +19,15 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Gemini analysis complete",
-            "tokens": 1500,
-            "agent": "gemini-2.0-flash",
-            "delegation_event_id": "event-abc123"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Gemini analysis complete",
+                "tokens": 1500,
+                "agent": "gemini-2.0-flash",
+                "delegation_event_id": "event-abc123",
+            }
+        )
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
@@ -39,7 +40,7 @@ class TestSpawnerIntegration:
             input="Analyze this code",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         # Verify execution successful
@@ -79,14 +80,16 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Analysis complete",
-            "tokens": 1000,
-            "agent": "gemini-2.0-flash",
-            "duration": 2.5,
-            "delegation_event_id": "event-xyz789"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Analysis complete",
+                "tokens": 1000,
+                "agent": "gemini-2.0-flash",
+                "duration": 2.5,
+                "delegation_event_id": "event-xyz789",
+            }
+        )
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
@@ -96,7 +99,7 @@ class TestSpawnerIntegration:
             input="Test prompt",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         # Verify event tracking created
@@ -143,24 +146,42 @@ class TestSpawnerIntegration:
 
         # Setup multiple mock results
         results = [
-            Mock(returncode=0, stdout=json.dumps({
-                "success": True,
-                "agent": "gemini-2.0-flash",
-                "tokens": 1000,
-                "delegation_event_id": "event-1"
-            }), stderr=""),
-            Mock(returncode=0, stdout=json.dumps({
-                "success": True,
-                "agent": "gpt-4",
-                "tokens": 1200,
-                "delegation_event_id": "event-2"
-            }), stderr=""),
-            Mock(returncode=0, stdout=json.dumps({
-                "success": True,
-                "agent": "github-copilot",
-                "tokens": 800,
-                "delegation_event_id": "event-3"
-            }), stderr=""),
+            Mock(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "success": True,
+                        "agent": "gemini-2.0-flash",
+                        "tokens": 1000,
+                        "delegation_event_id": "event-1",
+                    }
+                ),
+                stderr="",
+            ),
+            Mock(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "success": True,
+                        "agent": "gpt-4",
+                        "tokens": 1200,
+                        "delegation_event_id": "event-2",
+                    }
+                ),
+                stderr="",
+            ),
+            Mock(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "success": True,
+                        "agent": "github-copilot",
+                        "tokens": 800,
+                        "delegation_event_id": "event-3",
+                    }
+                ),
+                stderr="",
+            ),
         ]
 
         mock_run.side_effect = results
@@ -175,7 +196,7 @@ class TestSpawnerIntegration:
                 input="Test prompt",
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
             responses.append(json.loads(result.stdout))
 
@@ -195,13 +216,15 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Analysis",
-            "agent": "gemini-2.0-flash",
-            "tokens": 1000,
-            "delegation_event_id": "event-123"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Analysis",
+                "agent": "gemini-2.0-flash",
+                "tokens": 1000,
+                "delegation_event_id": "event-123",
+            }
+        )
         mock_run.return_value = mock_result
 
         # Execute spawner
@@ -210,7 +233,7 @@ class TestSpawnerIntegration:
             input="Prompt",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         output = json.loads(result.stdout)
@@ -227,13 +250,15 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Done",
-            "agent": "gemini-2.0-flash",
-            "tokens": 500,
-            "delegation_event_id": "event-456"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Done",
+                "agent": "gemini-2.0-flash",
+                "tokens": 500,
+                "delegation_event_id": "event-456",
+            }
+        )
         mock_run.return_value = mock_result
 
         # Execute spawner
@@ -242,7 +267,7 @@ class TestSpawnerIntegration:
             input="Task",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         output = json.loads(result.stdout)
@@ -259,13 +284,15 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Code generated",
-            "tokens": 2000,
-            "agent": "gpt-4",
-            "delegation_event_id": "event-codex-1"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Code generated",
+                "tokens": 2000,
+                "agent": "gpt-4",
+                "delegation_event_id": "event-codex-1",
+            }
+        )
         mock_run.return_value = mock_result
 
         assert mock_which("codex") is not None
@@ -275,7 +302,7 @@ class TestSpawnerIntegration:
             input="Generate function",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         output = json.loads(result.stdout)
@@ -290,13 +317,15 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "PR created",
-            "tokens": 1500,
-            "agent": "github-copilot",
-            "delegation_event_id": "event-copilot-1"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "PR created",
+                "tokens": 1500,
+                "agent": "github-copilot",
+                "delegation_event_id": "event-copilot-1",
+            }
+        )
         mock_run.return_value = mock_result
 
         assert mock_which("gh") is not None
@@ -306,7 +335,7 @@ class TestSpawnerIntegration:
             input="Create PR",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         output = json.loads(result.stdout)
@@ -316,15 +345,12 @@ class TestSpawnerIntegration:
     @patch("subprocess.run")
     def test_spawner_execution_with_timeout(self, mock_run):
         """Test spawner execution respects timeout."""
-        import subprocess
         mock_run.side_effect = subprocess.TimeoutExpired("cmd", 300)
 
         # Should raise TimeoutExpired
         with pytest.raises(subprocess.TimeoutExpired) as exc_info:
             mock_run(
-                ["uv", "run", "agents/gemini-spawner.py"],
-                input="Prompt",
-                timeout=300
+                ["uv", "run", "agents/gemini-spawner.py"], input="Prompt", timeout=300
             )
 
         assert exc_info.value.timeout == 300
@@ -334,15 +360,17 @@ class TestSpawnerIntegration:
         """Test spawner returns valid JSON."""
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Result",
-            "tokens": 1000,
-            "agent": "gemini-2.0-flash",
-            "duration": 1.5,
-            "cost": 0.0,
-            "delegation_event_id": "event-json-1"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Result",
+                "tokens": 1000,
+                "agent": "gemini-2.0-flash",
+                "duration": 1.5,
+                "cost": 0.0,
+                "delegation_event_id": "event-json-1",
+            }
+        )
         mock_run.return_value = mock_result
 
         result = mock_run(["uv", "run", "agents/gemini-spawner.py"])
@@ -361,11 +389,13 @@ class TestSpawnerIntegration:
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stdout = ""
-        mock_result.stderr = json.dumps({
-            "success": False,
-            "error": "SDK not installed",
-            "agent": "gemini-2.0-flash"
-        })
+        mock_result.stderr = json.dumps(
+            {
+                "success": False,
+                "error": "SDK not installed",
+                "agent": "gemini-2.0-flash",
+            }
+        )
         mock_run.return_value = mock_result
 
         result = mock_run(["uv", "run", "agents/gemini-spawner.py"])
@@ -386,13 +416,15 @@ class TestSpawnerIntegration:
 
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Result",
-            "tokens": 1000,
-            "agent": "gemini-2.0-flash",
-            "delegation_event_id": "event-parent-123"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Result",
+                "tokens": 1000,
+                "agent": "gemini-2.0-flash",
+                "delegation_event_id": "event-parent-123",
+            }
+        )
         mock_run.return_value = mock_result
 
         # Execute with parent context
@@ -401,7 +433,7 @@ class TestSpawnerIntegration:
             input="Prompt",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=300,
         )
 
         output = json.loads(result.stdout)
@@ -417,7 +449,7 @@ class TestSpawnerIntegration:
             "response": "Result",
             "tokens": 1000,
             "agent": "gemini-2.0-flash",
-            "cost": 0.0
+            "cost": 0.0,
         }
 
         response_codex = {
@@ -425,7 +457,7 @@ class TestSpawnerIntegration:
             "response": "Result",
             "tokens": 1200,
             "agent": "gpt-4",
-            "cost": 0.05
+            "cost": 0.05,
         }
 
         response_copilot = {
@@ -433,7 +465,7 @@ class TestSpawnerIntegration:
             "response": "Result",
             "tokens": 800,
             "agent": "github-copilot",
-            "cost": 0.0
+            "cost": 0.0,
         }
 
         # Gemini is free
@@ -455,11 +487,13 @@ class TestSpawnerErrorHandling:
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stdout = ""
-        mock_result.stderr = json.dumps({
-            "success": False,
-            "error": "HtmlGraph SDK not installed. Install with: pip install htmlgraph",
-            "agent": "gemini-2.0-flash"
-        })
+        mock_result.stderr = json.dumps(
+            {
+                "success": False,
+                "error": "HtmlGraph SDK not installed. Install with: pip install htmlgraph",
+                "agent": "gemini-2.0-flash",
+            }
+        )
         mock_run.return_value = mock_result
 
         result = mock_run(["uv", "run", "agents/gemini-spawner.py"])
@@ -474,11 +508,13 @@ class TestSpawnerErrorHandling:
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stdout = ""
-        mock_result.stderr = json.dumps({
-            "success": False,
-            "error": "Unexpected error: KeyError: 'key'",
-            "agent": "gemini-2.0-flash"
-        })
+        mock_result.stderr = json.dumps(
+            {
+                "success": False,
+                "error": "Unexpected error: KeyError: 'key'",
+                "agent": "gemini-2.0-flash",
+            }
+        )
         mock_run.return_value = mock_result
 
         result = mock_run(["uv", "run", "agents/gemini-spawner.py"])

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix Spawner Event Type Constraints</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bf9bc11b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T07:30:12.826622"
+             data-updated="2026-01-10T07:30:12.826625" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Fix Spawner Event Type Constraints</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Fix Summary
+Fixed database constraint violations in spawner_event_tracker.py where invalid event_type values were being used.
+
+### Problem
+The record_phase() method was creating events with event_type='tool_use', which violates the CHECK constraint in the agent_events table.
+
+### Solution
+Changed event_type from 'tool_use' (invalid) to 'tool_call' (valid).
+
+Valid event_type values per schema:
+- tool_call ✓
+- tool_result ✓
+- error ✓
+- delegation ✓
+- completion ✓
+- start ✓
+- end ✓
+- check_point ✓
+- task_delegation ✓
+
+### Files Modified
+1. packages/claude-plugin/.claude-plugin/agents/spawner_event_tracker.py
+   - Line 95: Changed event_type = "tool_use" → event_type = "tool_call"
+   - record_phase() method now uses valid event_type
+
+### Testing Results
+✅ Database constraint no longer violated
+✅ Child events created successfully with valid event_type
+✅ No "CHECK constraint failed" errors
+✅ Event hierarchy properly maintained with parent_event_id references
+
+### Verification
+Sample child events in database (verified):
+- Event event-3cc30cfc: type=tool_call, tool=HeadlessSpawner.initialize
+- Event event-d61544ed: type=tool_call, tool=HeadlessSpawner.authenticate_github
+- Event event-7a4f65fb: type=tool_call, tool=copilot-cli
+
+All child events now have valid event_type values and parent_event_id links.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

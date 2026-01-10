@@ -1,11 +1,10 @@
 """Unit tests for spawner agent executable scripts."""
 
-import json
-import pytest
-from unittest.mock import patch, Mock, MagicMock
-import subprocess
 import argparse
-import sys
+import json
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 class TestGeminiSpawnerAgent:
@@ -16,15 +15,17 @@ class TestGeminiSpawnerAgent:
         """Gemini agent returns successful result."""
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Analysis complete",
-            "tokens": 1500,
-            "agent": "gemini-2.0-flash",
-            "duration": 2.5,
-            "cost": 0.0,
-            "delegation_event_id": "event-gemini-001"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Analysis complete",
+                "tokens": 1500,
+                "agent": "gemini-2.0-flash",
+                "duration": 2.5,
+                "cost": 0.0,
+                "delegation_event_id": "event-gemini-001",
+            }
+        )
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
@@ -44,11 +45,13 @@ class TestGeminiSpawnerAgent:
         mock_result = Mock()
         mock_result.returncode = 1
         mock_result.stdout = ""
-        mock_result.stderr = json.dumps({
-            "success": False,
-            "error": "HtmlGraph SDK not installed",
-            "agent": "gemini-2.0-flash"
-        })
+        mock_result.stderr = json.dumps(
+            {
+                "success": False,
+                "error": "HtmlGraph SDK not installed",
+                "agent": "gemini-2.0-flash",
+            }
+        )
         mock_run.return_value = mock_result
 
         # Execute agent
@@ -72,9 +75,7 @@ class TestGeminiSpawnerAgent:
 
         # --output-format with choices
         parser.add_argument(
-            "--output-format",
-            choices=["json", "stream-json"],
-            default="stream-json"
+            "--output-format", choices=["json", "stream-json"], default="stream-json"
         )
 
         # --timeout accepts int
@@ -106,9 +107,7 @@ class TestGeminiSpawnerAgent:
         parser = argparse.ArgumentParser()
         parser.add_argument("-p", "--prompt", required=True)
         parser.add_argument(
-            "--output-format",
-            choices=["json", "stream-json"],
-            default="stream-json"
+            "--output-format", choices=["json", "stream-json"], default="stream-json"
         )
 
         # Test valid format
@@ -155,7 +154,7 @@ class TestGeminiSpawnerAgent:
             "agent": "gemini-2.0-flash",
             "duration": 2.5,
             "cost": 0.0,
-            "delegation_event_id": "event-123"
+            "delegation_event_id": "event-123",
         }
 
         # Verify all required fields
@@ -171,7 +170,7 @@ class TestGeminiSpawnerAgent:
             "success": False,
             "error": "SDK not installed",
             "tokens": 0,
-            "agent": "gemini-2.0-flash"
+            "agent": "gemini-2.0-flash",
         }
 
         # Verify error fields
@@ -188,15 +187,17 @@ class TestCodexSpawnerAgent:
         """Codex agent returns successful result."""
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Code generated",
-            "tokens": 2000,
-            "agent": "gpt-4",
-            "duration": 3.1,
-            "cost": 0.05,
-            "delegation_event_id": "event-codex-001"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Code generated",
+                "tokens": 2000,
+                "agent": "gpt-4",
+                "duration": 3.1,
+                "cost": 0.05,
+                "delegation_event_id": "event-codex-001",
+            }
+        )
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
@@ -213,9 +214,7 @@ class TestCodexSpawnerAgent:
         parser = argparse.ArgumentParser()
         parser.add_argument("-p", "--prompt", required=True)
         parser.add_argument(
-            "--sandbox",
-            choices=["read-only", "workspace-write"],
-            default="read-only"
+            "--sandbox", choices=["read-only", "workspace-write"], default="read-only"
         )
 
         # Test valid sandbox modes
@@ -235,19 +234,27 @@ class TestCodexSpawnerAgent:
         parser.add_argument("-p", "--prompt", required=True)
         parser.add_argument("-m", "--model", default=None)
         parser.add_argument("--timeout", type=int, default=120)
-        parser.add_argument("--sandbox", choices=["read-only", "workspace-write"], default="read-only")
+        parser.add_argument(
+            "--sandbox", choices=["read-only", "workspace-write"], default="read-only"
+        )
 
         # Test required argument
         with pytest.raises(SystemExit):
             parser.parse_args([])
 
         # Test valid arguments
-        args = parser.parse_args([
-            "-p", "Write function",
-            "-m", "gpt-4",
-            "--sandbox", "workspace-write",
-            "--timeout", "300"
-        ])
+        args = parser.parse_args(
+            [
+                "-p",
+                "Write function",
+                "-m",
+                "gpt-4",
+                "--sandbox",
+                "workspace-write",
+                "--timeout",
+                "300",
+            ]
+        )
 
         assert args.prompt == "Write function"
         assert args.model == "gpt-4"
@@ -263,7 +270,7 @@ class TestCodexSpawnerAgent:
             "agent": "gpt-4",
             "duration": 3.1,
             "cost": 0.05,
-            "delegation_event_id": "event-codex-123"
+            "delegation_event_id": "event-codex-123",
         }
 
         # Verify fields
@@ -280,15 +287,17 @@ class TestCopilotSpawnerAgent:
         """Copilot agent returns successful result."""
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "PR created",
-            "tokens": 1500,
-            "agent": "github-copilot",
-            "duration": 2.8,
-            "cost": 0.0,
-            "delegation_event_id": "event-copilot-001"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "PR created",
+                "tokens": 1500,
+                "agent": "github-copilot",
+                "duration": 2.8,
+                "cost": 0.0,
+                "delegation_event_id": "event-copilot-001",
+            }
+        )
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
@@ -313,11 +322,9 @@ class TestCopilotSpawnerAgent:
         assert args.allow_tool == ["git"]
 
         # Test multiple --allow-tool
-        args = parser.parse_args([
-            "-p", "Prompt",
-            "--allow-tool", "git",
-            "--allow-tool", "gh"
-        ])
+        args = parser.parse_args(
+            ["-p", "Prompt", "--allow-tool", "git", "--allow-tool", "gh"]
+        )
         assert args.allow_tool == ["git", "gh"]
 
         # Test --allow-all-tools
@@ -339,12 +346,18 @@ class TestCopilotSpawnerAgent:
         parser.add_argument("--deny-tool", action="append")
 
         # Test valid arguments
-        args = parser.parse_args([
-            "-p", "Create PR",
-            "-m", "gpt-4",
-            "--allow-tool", "git",
-            "--allow-tool", "gh"
-        ])
+        args = parser.parse_args(
+            [
+                "-p",
+                "Create PR",
+                "-m",
+                "gpt-4",
+                "--allow-tool",
+                "git",
+                "--allow-tool",
+                "gh",
+            ]
+        )
 
         assert args.prompt == "Create PR"
         assert args.model == "gpt-4"
@@ -359,7 +372,7 @@ class TestCopilotSpawnerAgent:
             "agent": "github-copilot",
             "duration": 2.8,
             "cost": 0.0,
-            "delegation_event_id": "event-copilot-123"
+            "delegation_event_id": "event-copilot-123",
         }
 
         # Verify fields
@@ -373,11 +386,7 @@ class TestSpawnerAgentCommon:
     def test_all_agents_return_json(self):
         """All agents return valid JSON output."""
         # Verify JSON structure for all agents
-        agents = [
-            "gemini-spawner.py",
-            "codex-spawner.py",
-            "copilot-spawner.py"
-        ]
+        agents = ["gemini-spawner.py", "codex-spawner.py", "copilot-spawner.py"]
 
         for agent in agents:
             # All agents should output JSON
@@ -385,11 +394,7 @@ class TestSpawnerAgentCommon:
 
     def test_all_agents_have_required_fields(self):
         """All agent responses have required fields."""
-        required_fields = [
-            "success",
-            "agent",
-            "delegation_event_id"
-        ]
+        required_fields = ["success", "agent", "delegation_event_id"]
 
         # Test success response
         success_response = {
@@ -397,7 +402,7 @@ class TestSpawnerAgentCommon:
             "response": "Result",
             "tokens": 1000,
             "agent": "gemini-2.0-flash",
-            "delegation_event_id": "event-123"
+            "delegation_event_id": "event-123",
         }
 
         for field in required_fields:
@@ -407,7 +412,7 @@ class TestSpawnerAgentCommon:
         error_response = {
             "success": False,
             "error": "Error message",
-            "agent": "gemini-2.0-flash"
+            "agent": "gemini-2.0-flash",
         }
 
         assert error_response["success"] is False
@@ -429,7 +434,7 @@ class TestSpawnerAgentCommon:
         error_messages = [
             "HtmlGraph SDK not installed. Install with: pip install htmlgraph",
             "Unexpected error: KeyError: 'key'",
-            "Timeout waiting for response (300s)"
+            "Timeout waiting for response (300s)",
         ]
 
         for msg in error_messages:
@@ -445,7 +450,7 @@ class TestSpawnerAgentCommon:
         timeout_error = {
             "success": False,
             "error": "Timeout waiting for response (300s)",
-            "agent": "gemini-2.0-flash"
+            "agent": "gemini-2.0-flash",
         }
 
         # Verify timeout error structure
@@ -460,7 +465,7 @@ class TestSpawnerAgentCommon:
             "tokens": 1000,
             "agent": "gemini-2.0-flash",
             "duration": 2.5,  # seconds
-            "delegation_event_id": "event-123"
+            "delegation_event_id": "event-123",
         }
 
         # Duration should be numeric
@@ -469,17 +474,9 @@ class TestSpawnerAgentCommon:
 
     def test_agent_token_count_tracking(self):
         """Agent tracks token usage."""
-        response_gemini = {
-            "success": True,
-            "tokens": 1500,
-            "agent": "gemini-2.0-flash"
-        }
+        response_gemini = {"success": True, "tokens": 1500, "agent": "gemini-2.0-flash"}
 
-        response_codex = {
-            "success": True,
-            "tokens": 2000,
-            "agent": "gpt-4"
-        }
+        response_codex = {"success": True, "tokens": 2000, "agent": "gpt-4"}
 
         # Tokens should be numeric
         assert isinstance(response_gemini["tokens"], int)
@@ -493,14 +490,14 @@ class TestSpawnerAgentCommon:
         costs = {
             "gemini": 0.0,  # Free
             "codex": 0.05,  # Paid
-            "copilot": 0.0  # Subscription
+            "copilot": 0.0,  # Subscription
         }
 
         for agent_type, expected_cost in costs.items():
             response = {
                 "success": True,
                 "cost": expected_cost,
-                "agent": f"agent-{agent_type}"
+                "agent": f"agent-{agent_type}",
             }
 
             assert isinstance(response["cost"], (int, float))
@@ -509,19 +506,18 @@ class TestSpawnerAgentCommon:
     def test_agent_parent_context_preservation(self):
         """Agent preserves parent context in event linking."""
         # Mock environment variables
-        import os
 
         parent_context = {
             "HTMLGRAPH_PARENT_SESSION": "session-123",
             "HTMLGRAPH_PARENT_EVENT": "event-parent-456",
-            "HTMLGRAPH_PARENT_AGENT": "orchestrator"
+            "HTMLGRAPH_PARENT_AGENT": "orchestrator",
         }
 
         response = {
             "success": True,
             "agent": "gemini-2.0-flash",
             "delegation_event_id": "event-child-789",
-            "parent_event_id": parent_context.get("HTMLGRAPH_PARENT_EVENT")
+            "parent_event_id": parent_context.get("HTMLGRAPH_PARENT_EVENT"),
         }
 
         # Verify parent linking
@@ -534,7 +530,7 @@ class TestSpawnerAgentCommon:
             "success": True,
             "agent": "gemini-2.0-flash",
             "session_id": "session-abc123",
-            "delegation_event_id": "event-123"
+            "delegation_event_id": "event-123",
         }
 
         # Session ID should be present and valid
@@ -548,7 +544,7 @@ class TestSpawnerAgentCommon:
         safe_vars = [
             "HTMLGRAPH_PARENT_SESSION",
             "HTMLGRAPH_PARENT_EVENT",
-            "HTMLGRAPH_PARENT_AGENT"
+            "HTMLGRAPH_PARENT_AGENT",
         ]
 
         # Should read these safely without side effects

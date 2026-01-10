@@ -47,7 +47,6 @@
 
                             <!-- User Prompt Text -->
                             <div class="prompt-section">
-                                <span class="prompt-icon">💬</span>
                                 <span class="prompt-text" title="{{ turn.userQuery.prompt }}">
                                     {{ turn.userQuery.prompt[:100] }}{% if turn.userQuery.prompt|length > 100 %}...{% endif %}
                                 </span>
@@ -301,7 +300,7 @@
     flex-direction: column;
     background: rgba(163, 230, 53, 0.02);
     border-top: 1px solid var(--border-subtle);
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.25rem;
 }
 
 .turn-children.collapsed {
@@ -313,10 +312,10 @@
     display: flex;
     align-items: center;
     gap: 0.3rem;
-    padding: 0.6rem 0;
+    padding: 0.5rem 0;
     border-bottom: 1px solid rgba(163, 230, 53, 0.1);
     font-size: 0.75rem;
-    margin-left: -0.5rem;
+    margin-left: -0.15rem;
 }
 
 .child-event-row:last-child {

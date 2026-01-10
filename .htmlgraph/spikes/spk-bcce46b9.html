@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SDK Issues Encountered During Spawner Testing</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bcce46b9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T04:21:38.550196"
+             data-updated="2026-01-10T04:21:38.550206" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>SDK Issues Encountered During Spawner Testing</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Issues Recorded
+
+### Issue 1: SDK Feature API - Node.feature_id Attribute Missing
+**Error:** AttributeError: 'Node' object has no attribute 'feature_id'
+**Context:** After creating and saving a feature, cannot access feature ID
+**Code that failed:**
+```python
+feature = sdk.features.create("Title").set_track("track_id").save()
+print(feature.feature_id)  # AttributeError
+```
+**Severity:** Medium - blocks feature tracking workflow
+**Status:** Open for investigation
+
+### Issue 2: SDK Feature API - to_feature_id() Not Callable  
+**Error:** TypeError: 'NoneType' object is not callable
+**Context:** Attempting to call to_feature_id() method on feature object
+**Code that failed:**
+```python
+feature = sdk.features.create("Title").set_track("track_id").save()
+print(feature.to_feature_id())  # TypeError
+```
+**Severity:** Medium - blocks feature ID retrieval
+**Status:** Open for investigation
+
+### Issue 3: SDK Bug API - BugBuilder Missing set_details Method
+**Error:** AttributeError: 'BugBuilder' object has no attribute 'set_details'
+**Context:** Trying to create bug record with details
+**Code that failed:**
+```python
+bug = sdk.bugs.create("Title").set_details("...").save()
+```
+**Severity:** Low - affects bug tracking, but workaround exists
+**Status:** Open for investigation
+
+## Impact
+These SDK issues prevent proper feature/bug tracking during spawner testing workflow.
+
+## Next Steps
+1. Review SDK builder implementations
+2. Document correct API usage patterns
+3. Fix missing methods or attributes
+4. Add integration tests for builder APIs
+            </div>
+        </section>
+    </article>
+</body>
+</html>

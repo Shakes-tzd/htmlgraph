@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>5 Key Principles of Effective API Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-fea9d595"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T07:17:49.931265"
+             data-updated="2026-01-10T07:17:49.931268" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>5 Key Principles of Effective API Design</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # 5 Key Principles of Effective API Design
+
+## Summary
+Research on effective API design principles for 2025, identifying the core concepts that drive successful API development, adoption, and long-term maintainability.
+
+## Key Findings
+
+### 1. Consistency
+Maintain uniform naming conventions, structure, and behavior across all endpoints. Developers should know what to expect whether working on their first or fiftieth endpoint, reducing cognitive load and minimizing confusion.
+
+### 2. Discoverability & Documentation
+Provide clear, comprehensive documentation with well-named endpoints, methods, and responses. Excellent documentation is critical for adoption, reduces onboarding time, and empowers developers to integrate and innovate with your API.
+
+### 3. Developer Experience (DX)
+Treat your API as a product with developers as your primary users. Prioritize ease of use, intuitive design, and clear error messages. Poor DX directly impacts adoption rates, integration speed, and user satisfaction.
+
+### 4. Resource-Oriented Design
+Use HTTP methods (GET, POST, PUT, DELETE) to define actions rather than including verbs in resource paths. Specify resources clearly in request paths to make the API predictable, discoverable, and aligned with REST principles.
+
+### 5. Security & Performance
+Implement industry-standard authentication (API keys, OAuth 2.0, JWT) and authorization mechanisms. Incorporate rate limiting, caching, and response compression to ensure API stability, fair usage, and optimal performance for all users.
+
+## Details
+
+### Principle 1: Consistency
+- Reduces developer cognitive load
+- Makes APIs more predictable and trustworthy
+- Simplifies learning curve for new developers
+- Examples: consistent naming patterns, uniform error response formats, standard HTTP status codes
+
+### Principle 2: Discoverability & Documentation
+- Endpoints and methods should be clearly named
+- Comprehensive API documentation is essential
+- Documentation sets clear expectations and empowers innovation
+- Without clear documentation, even brilliant designs go unused or are misunderstood
+
+### Principle 3: Developer Experience (DX)
+- Your API is a product; developers are your users
+- If it's hard to use, adoption suffers
+- DX directly affects: adoption rates, speed of integration, developer satisfaction
+- Key components: intuitive design, clear error messages, helpful examples
+
+### Principle 4: Resource-Oriented Design (REST)
+- Founded on Roy Fielding's REST architecture (2000)
+- Use web's own architecture, making APIs predictable and discoverable
+- Use resource names in paths, not verbs (HTTP method defines the action)
+- Example: GET /users/123 instead of /getUser?id=123
+
+### Principle 5: Security & Performance
+- **Authentication**: Verify identity (API keys, OAuth 2.0, JWT)
+- **Authorization**: Determine what authenticated identity can do
+- **Rate Limiting**: Control request frequency to prevent degradation
+- **Performance**: Implement caching, compression, optimized queries
+- Ensures API stability and fair usage for all clients
+
+## Recommendations
+
+1. **Implement consistency frameworks** - Define and enforce naming conventions, response formats, and error handling patterns early
+2. **Invest in documentation** - Use tools like Swagger/OpenAPI, maintain up-to-date examples and tutorials
+3. **Prioritize developer feedback** - Collect feedback from actual API consumers and iterate on UX
+4. **Use REST standards** - Follow resource-oriented design patterns consistently across your API
+5. **Security by default** - Implement authentication/authorization from day one, not as an afterthought
+6. **Monitor performance** - Track response times, set SLAs, and continuously optimize
+
+## JSON Output
+
+```json
+{
+  "principles": [
+    {
+      "name": "Consistency",
+      "description": "Maintain uniform naming conventions, structure, and behavior across all endpoints. Developers should know what to expect whether working on their first or fiftieth endpoint, reducing cognitive load and minimizing confusion."
+    },
+    {
+      "name": "Discoverability & Documentation",
+      "description": "Provide clear, comprehensive documentation with well-named endpoints, methods, and responses. Excellent documentation is critical for adoption, reduces onboarding time, and empowers developers to integrate and innovate with your API."
+    },
+    {
+      "name": "Developer Experience (DX)",
+      "description": "Treat your API as a product with developers as your primary users. Prioritize ease of use, intuitive design, and clear error messages. Poor DX directly impacts adoption rates, integration speed, and user satisfaction."
+    },
+    {
+      "name": "Resource-Oriented Design",
+      "description": "Use HTTP methods (GET, POST, PUT, DELETE) to define actions rather than including verbs in resource paths. Specify resources clearly in request paths to make the API predictable, discoverable, and aligned with REST principles."
+    },
+    {
+      "name": "Security & Performance",
+      "description": "Implement industry-standard authentication (API keys, OAuth 2.0, JWT) and authorization mechanisms. Incorporate rate limiting, caching, and response compression to ensure API stability, fair usage, and optimal performance for all users."
+    }
+  ]
+}
+```
+            </div>
+        </section>
+    </article>
+</body>
+</html>

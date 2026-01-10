@@ -1,11 +1,9 @@
 """Unit tests for spawner routing in PreToolUse hook."""
 
 import json
+from unittest.mock import Mock, patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
-import sys
-import io
 
 
 class TestSpawnerRouting:
@@ -13,12 +11,7 @@ class TestSpawnerRouting:
 
     def test_non_task_tool_passes_through(self):
         """Non-Task tools should not be intercepted."""
-        hook_input = {
-            "name": "ReadFile",
-            "input": {
-                "path": "/tmp/test.txt"
-            }
-        }
+        hook_input = {"name": "ReadFile", "input": {"path": "/tmp/test.txt"}}
 
         # Simulate hook behavior - non-Task tools pass through
         tool_name = hook_input.get("name", "")
@@ -33,10 +26,7 @@ class TestSpawnerRouting:
         # Test Task(subagent_type="haiku") passes through
         hook_input = {
             "name": "Task",
-            "input": {
-                "subagent_type": "haiku",
-                "prompt": "Analyze this code"
-            }
+            "input": {"subagent_type": "haiku", "prompt": "Analyze this code"},
         }
 
         tool_name = hook_input.get("name", "")
@@ -54,10 +44,7 @@ class TestSpawnerRouting:
         """Task() with empty subagent_type should pass through."""
         hook_input = {
             "name": "Task",
-            "input": {
-                "subagent_type": "",
-                "prompt": "Do something"
-            }
+            "input": {"subagent_type": "", "prompt": "Do something"},
         }
 
         tool_name = hook_input.get("name", "")
@@ -70,12 +57,7 @@ class TestSpawnerRouting:
 
     def test_task_with_missing_subagent_type_passes_through(self):
         """Task() without subagent_type should pass through."""
-        hook_input = {
-            "name": "Task",
-            "input": {
-                "prompt": "Do something"
-            }
-        }
+        hook_input = {"name": "Task", "input": {"prompt": "Do something"}}
 
         tool_name = hook_input.get("name", "")
         tool_input = hook_input.get("input", {})
@@ -88,10 +70,7 @@ class TestSpawnerRouting:
         """Task(subagent_type='gemini') routes to gemini-spawner.py."""
         hook_input = {
             "name": "Task",
-            "input": {
-                "subagent_type": "gemini",
-                "prompt": "Analyze this"
-            }
+            "input": {"subagent_type": "gemini", "prompt": "Analyze this"},
         }
 
         tool_name = hook_input.get("name", "")
@@ -106,10 +85,7 @@ class TestSpawnerRouting:
         """Task(subagent_type='codex') routes to codex-spawner.py."""
         hook_input = {
             "name": "Task",
-            "input": {
-                "subagent_type": "codex",
-                "prompt": "Write code"
-            }
+            "input": {"subagent_type": "codex", "prompt": "Write code"},
         }
 
         tool_name = hook_input.get("name", "")
@@ -124,10 +100,7 @@ class TestSpawnerRouting:
         """Task(subagent_type='copilot') routes to copilot-spawner.py."""
         hook_input = {
             "name": "Task",
-            "input": {
-                "subagent_type": "copilot",
-                "prompt": "Create PR"
-            }
+            "input": {"subagent_type": "copilot", "prompt": "Create PR"},
         }
 
         tool_name = hook_input.get("name", "")
@@ -151,7 +124,7 @@ class TestSpawnerRouting:
         assert result is None
 
         # Error should be explicit
-        error_msg = f"❌ Google Gemini CLI not available\n\nSpawner 'gemini' requires the 'gemini' CLI."
+        error_msg = "❌ Google Gemini CLI not available\n\nSpawner 'gemini' requires the 'gemini' CLI."
         assert "gemini" in error_msg.lower()
         assert "not available" in error_msg.lower()
 
@@ -181,12 +154,14 @@ class TestSpawnerRouting:
         """Successful spawner execution returns response."""
         mock_result = Mock()
         mock_result.returncode = 0
-        mock_result.stdout = json.dumps({
-            "success": True,
-            "response": "Analysis complete",
-            "tokens": 1000,
-            "agent": "gemini-2.0-flash"
-        })
+        mock_result.stdout = json.dumps(
+            {
+                "success": True,
+                "response": "Analysis complete",
+                "tokens": 1000,
+                "agent": "gemini-2.0-flash",
+            }
+        )
         mock_result.stderr = ""
         mock_run.return_value = mock_result
 
@@ -214,6 +189,7 @@ class TestSpawnerRouting:
     def test_spawner_execution_timeout(self, mock_run):
         """Spawner execution timeout handled gracefully."""
         import subprocess
+
         mock_run.side_effect = subprocess.TimeoutExpired("cmd", 300)
 
         # Verify timeout is caught
@@ -222,9 +198,7 @@ class TestSpawnerRouting:
 
     def test_missing_agent_config(self):
         """Missing agent config in plugin.json handled gracefully."""
-        manifest = {
-            "agents": {}
-        }
+        manifest = {"agents": {}}
 
         agents = manifest.get("agents", {})
         config = agents.get("unknown_spawner")
@@ -241,21 +215,21 @@ class TestSpawnerRouting:
                     "executable": "agents/gemini-spawner.py",
                     "model": "haiku",
                     "requires_cli": "gemini",
-                    "fallback": None
+                    "fallback": None,
                 },
                 "codex": {
                     "executable": "agents/codex-spawner.py",
                     "model": "haiku",
                     "requires_cli": "codex",
-                    "fallback": None
+                    "fallback": None,
                 },
                 "copilot": {
                     "executable": "agents/copilot-spawner.py",
                     "model": "haiku",
                     "requires_cli": "gh",
-                    "fallback": None
-                }
-            }
+                    "fallback": None,
+                },
+            },
         }
 
         # Verify plugin.json structure
@@ -333,8 +307,8 @@ class TestSpawnerRouting:
             "input": {
                 "subagent_type": "gemini",
                 "prompt": "Analyze this code",
-                "model": "gemini-2.0-flash"
-            }
+                "model": "gemini-2.0-flash",
+            },
         }
 
         tool_input = hook_input.get("input", {})
@@ -346,12 +320,7 @@ class TestSpawnerRouting:
 
     def test_task_without_prompt_passes_through(self):
         """Task() without prompt should pass through."""
-        hook_input = {
-            "name": "Task",
-            "input": {
-                "subagent_type": "gemini"
-            }
-        }
+        hook_input = {"name": "Task", "input": {"subagent_type": "gemini"}}
 
         tool_input = hook_input.get("input", {})
         prompt = tool_input.get("prompt", "")
@@ -471,18 +440,13 @@ class TestSpawnerManifestParsing:
 
     def test_manifest_agents_section_exists(self):
         """Plugin manifest has agents section."""
-        manifest = {
-            "name": "htmlgraph",
-            "agents": {}
-        }
+        manifest = {"name": "htmlgraph", "agents": {}}
 
         assert "agents" in manifest
 
     def test_manifest_missing_agents_section(self):
         """Plugin manifest without agents section handled."""
-        manifest = {
-            "name": "htmlgraph"
-        }
+        manifest = {"name": "htmlgraph"}
 
         agents = manifest.get("agents", {})
         assert agents == {}
@@ -492,7 +456,7 @@ class TestSpawnerManifestParsing:
         agent_config = {
             "executable": "agents/gemini-spawner.py",
             "model": "haiku",
-            "requires_cli": "gemini"
+            "requires_cli": "gemini",
         }
 
         assert "executable" in agent_config
@@ -503,7 +467,7 @@ class TestSpawnerManifestParsing:
         agent_config = {
             "executable": "agents/gemini-spawner.py",
             "model": "haiku",
-            "requires_cli": "gemini"
+            "requires_cli": "gemini",
         }
 
         assert "requires_cli" in agent_config
@@ -511,13 +475,7 @@ class TestSpawnerManifestParsing:
 
     def test_invalid_spawner_type_not_in_manifest(self):
         """Invalid spawner types not in agent registry."""
-        manifest = {
-            "agents": {
-                "gemini": {},
-                "codex": {},
-                "copilot": {}
-            }
-        }
+        manifest = {"agents": {"gemini": {}, "codex": {}, "copilot": {}}}
 
         agents = manifest.get("agents", {})
         assert "invalid_spawner" not in agents
