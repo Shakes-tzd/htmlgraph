@@ -1229,6 +1229,37 @@ def main():
             )
         logger.info(f"Session active: {active.id if active else 'None'}")
 
+        # Ensure session exists in database (for event tracking)
+        if active and active.id:
+            try:
+                from htmlgraph.db.schema import HtmlGraphDB
+
+                db = HtmlGraphDB()
+                cursor = db.connection.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM sessions WHERE session_id = ?",
+                    (active.id,),
+                )
+                session_exists = cursor.fetchone()[0] > 0
+
+                if not session_exists:
+                    # Create database session entry
+                    cursor.execute(
+                        """
+                        INSERT INTO sessions (session_id, agent_assigned, created_at, status)
+                        VALUES (?, ?, ?, 'active')
+                        """,
+                        (
+                            active.id,
+                            "claude-code",
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
+                    )
+                    db.connection.commit()
+                    logger.info(f"Created database session: {active.id}")
+            except Exception as e:
+                logger.warning(f"Could not create database session: {e}")
+
         # Check if this is a new conversation
         last_conversation_id = getattr(active, "last_conversation_id", None)
         is_new_conversation = last_conversation_id != external_session_id
