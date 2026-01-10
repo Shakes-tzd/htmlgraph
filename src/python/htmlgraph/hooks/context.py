@@ -37,6 +37,7 @@ class HookContext:
         session_id: Unique session identifier for this execution
         agent_id: Agent/tool that's executing (e.g., 'claude-code', 'codex')
         hook_input: Raw hook input data from Claude Code
+        model_name: Specific Claude model name (e.g., 'claude-haiku', 'claude-opus', 'claude-sonnet')
         _session_manager: Cached SessionManager instance (lazy-loaded)
         _database: Cached HtmlGraphDB instance (lazy-loaded)
     """
@@ -46,6 +47,7 @@ class HookContext:
     session_id: str
     agent_id: str
     hook_input: dict[str, Any]
+    model_name: str | None = field(default=None, repr=False)
     _session_manager: Any | None = field(default=None, repr=False)
     _database: Any | None = field(default=None, repr=False)
 
@@ -57,6 +59,7 @@ class HookContext:
         Performs automatic environment resolution:
         - Extracts session_id from hook_input
         - Detects agent_id from environment or hook_input
+        - Detects model_name (e.g., claude-haiku, claude-opus, claude-sonnet)
         - Resolves project directory via bootstrap
         - Initializes graph directory
 
@@ -79,7 +82,7 @@ class HookContext:
                 ...
             }
             context = HookContext.from_input(hook_input)
-            logger.info(f"Session: {context.session_id}, Agent: {context.agent_id}")
+            logger.info(f"Session: {context.session_id}, Agent: {context.agent_id}, Model: {context.model_name}")
             ```
         """
         # Import bootstrap locally to avoid circular imports
@@ -132,9 +135,21 @@ class HookContext:
             or os.environ.get("CLAUDE_AGENT_NICKNAME", "unknown")
         )
 
+        # Detect model name (priority order)
+        # 1. Explicit model_name in hook input
+        # 2. CLAUDE_MODEL environment variable
+        # 3. HTMLGRAPH_MODEL environment variable
+        # 4. None (not available)
+        model_name = (
+            hook_input.get("model_name")
+            or hook_input.get("model")
+            or os.environ.get("CLAUDE_MODEL")
+            or os.environ.get("HTMLGRAPH_MODEL")
+        )
+
         logger.info(
             f"Initializing hook context: session={session_id}, "
-            f"agent={agent_id}, project={project_dir}"
+            f"agent={agent_id}, model={model_name}, project={project_dir}"
         )
 
         return cls(
@@ -143,6 +158,7 @@ class HookContext:
             session_id=session_id,
             agent_id=agent_id,
             hook_input=hook_input,
+            model_name=model_name,
         )
 
     @property

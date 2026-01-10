@@ -196,9 +196,16 @@ Examples:
         db = None
         delegation_event_id = None
         try:
+            from pathlib import Path
+
             from htmlgraph.db.schema import HtmlGraphDB
 
-            db = HtmlGraphDB()
+            # Get correct database path from environment or project root
+            project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
+            db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+
+            if db_path.exists():
+                db = HtmlGraphDB(str(db_path))
         except Exception:
             # Tracking is optional, continue without it
             pass

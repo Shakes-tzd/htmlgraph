@@ -151,13 +151,15 @@ class TestInitOrGetSession:
 
     def test_session_manager_unavailable_returns_none(self, mock_hook_context):
         """Test graceful degradation when SessionManager unavailable."""
-        mock_hook_context.session_manager = None
-        with mock.patch.object(
-            mock_hook_context, "session_manager", side_effect=ImportError()
-        ):
-            with pytest.raises(ImportError):
-                # Direct access raises ImportError
-                _ = mock_hook_context.session_manager
+        # Make session_manager a property that raises ImportError
+        type(mock_hook_context).session_manager = mock.PropertyMock(
+            side_effect=ImportError("SessionManager not available")
+        )
+
+        result = init_or_get_session(mock_hook_context)
+
+        assert result is None
+        mock_hook_context.log.assert_called_with("error", mock.ANY)
 
     def test_session_initialization_error_returns_none(self, mock_hook_context):
         """Test error handling when session initialization fails."""
@@ -171,7 +173,9 @@ class TestInitOrGetSession:
         assert result is None
         mock_hook_context.log.assert_called_with("error", mock.ANY)
 
-    def test_logs_session_id(self, mock_hook_context, mock_session_manager, mock_session):
+    def test_logs_session_id(
+        self, mock_hook_context, mock_session_manager, mock_session
+    ):
         """Test that session ID is logged for debugging."""
         mock_hook_context.session_manager = mock_session_manager
         mock_session_manager.get_active_session_for_agent.return_value = mock_session
@@ -510,7 +514,7 @@ class TestHandleSessionEnd:
 
         with mock.patch.dict("os.environ", {}, clear=True):
             with mock.patch(
-                "htmlgraph.hooks.session_handler.TranscriptReader"
+                "htmlgraph.transcript.TranscriptReader"
             ) as mock_reader_class:
                 mock_reader = mock.MagicMock()
                 mock_reader_class.return_value = mock_reader
@@ -523,18 +527,25 @@ class TestHandleSessionEnd:
         assert call_kwargs["transcript_id"] == "external-session-123"
         assert call_kwargs["transcript_path"] == "/path/to/transcript.txt"
 
-    def test_cleans_up_temp_files(self, mock_hook_context):
+    def test_cleans_up_temp_files(self, mock_hook_context, tmp_path):
         """Test that temporary files are cleaned up."""
+        # Create a temporary graph_dir for testing
         mock_hook_context.session_manager = mock.MagicMock()
         mock_hook_context.session_manager.get_active_session.return_value = None
+        mock_hook_context.graph_dir = Path(tmp_path)
+        mock_hook_context.log = mock.MagicMock()
 
-        with mock.patch(
-            "htmlgraph.hooks.session_handler._cleanup_temp_files"
-        ) as mock_cleanup:
-            handle_session_end(mock_hook_context)
+        # Create some temp files
+        temp_file = Path(tmp_path) / "parent-activity.json"
+        temp_file.write_text("{}")
+        assert temp_file.exists()
 
-        mock_cleanup.assert_called_once()
-        assert mock_cleanup.call_args[0][0] == mock_hook_context.graph_dir
+        result = handle_session_end(mock_hook_context)
+
+        # File should be cleaned up after session end
+        # The _cleanup_temp_files function is always called at the end of handle_session_end
+        assert not temp_file.exists(), f"Temp file still exists: {temp_file}"
+        assert result["continue"] is True
 
     def test_returns_partial_status_on_handoff_error(
         self, mock_hook_context, mock_session, mock_session_manager
@@ -550,14 +561,19 @@ class TestHandleSessionEnd:
 
         assert result["status"] == "partial"
 
-    def test_returns_error_status_on_session_manager_unavailable(self, mock_hook_context):
+    def test_returns_error_status_on_session_manager_unavailable(
+        self, mock_hook_context
+    ):
         """Test that status is 'error' when SessionManager unavailable."""
-        with mock.patch.object(
-            mock_hook_context, "session_manager", side_effect=ImportError()
-        ):
-            with pytest.raises(ImportError):
-                # This will raise, but we're testing the error path
-                _ = mock_hook_context.session_manager
+        # Make session_manager a property that raises ImportError
+        type(mock_hook_context).session_manager = mock.PropertyMock(
+            side_effect=ImportError("SessionManager not available")
+        )
+
+        result = handle_session_end(mock_hook_context)
+
+        assert result["status"] == "error"
+        mock_hook_context.log.assert_called_with("error", mock.ANY)
 
 
 # ============================================================================
@@ -568,9 +584,7 @@ class TestHandleSessionEnd:
 class TestRecordUserQueryEvent:
     """Test user query event recording."""
 
-    def test_creates_event_with_correct_fields(
-        self, mock_hook_context, mock_database
-    ):
+    def test_creates_event_with_correct_fields(self, mock_hook_context, mock_database):
         """Test that event is created with correct fields."""
         mock_hook_context.database = mock_database
         mock_database.insert_event.return_value = True
@@ -638,10 +652,12 @@ class TestRecordUserQueryEvent:
 
     def test_handles_database_import_error(self, mock_hook_context):
         """Test graceful handling when database unavailable."""
-        with mock.patch.object(
-            mock_hook_context, "database", side_effect=ImportError()
-        ):
-            result = record_user_query_event(mock_hook_context, "Query")
+        # Make database a property that raises ImportError
+        type(mock_hook_context).database = mock.PropertyMock(
+            side_effect=ImportError("Database not available")
+        )
+
+        result = record_user_query_event(mock_hook_context, "Query")
 
         assert result is None
         mock_hook_context.log.assert_called_with("debug", mock.ANY)
@@ -775,9 +791,7 @@ class TestGetHeadCommit:
         from htmlgraph.hooks.session_handler import _get_head_commit
 
         with mock.patch("subprocess.run") as mock_run:
-            mock_run.return_value = mock.MagicMock(
-                returncode=0, stdout="abc1234\n"
-            )
+            mock_run.return_value = mock.MagicMock(returncode=0, stdout="abc1234\n")
             result = _get_head_commit("/test/project")
 
         assert result == "abc1234"
@@ -808,18 +822,22 @@ class TestGetHeadCommit:
 class TestLoadFeatures:
     """Test _load_features helper function."""
 
-    def test_loads_features_from_graph(self):
+    def test_loads_features_from_graph(self, tmp_path):
         """Test loading features from HtmlGraph."""
         from htmlgraph.hooks.session_handler import _load_features
+
+        # Create a features directory with a test HTML file
+        features_dir = tmp_path / "features"
+        features_dir.mkdir()
+        feature_file = features_dir / "feature-1.html"
+        feature_file.write_text("<html><body>Feature 1</body></html>")
 
         mock_features = [
             {"id": "feat-1", "title": "Feature 1"},
             {"id": "feat-2", "title": "Feature 2"},
         ]
 
-        with mock.patch(
-            "htmlgraph.hooks.session_handler.HtmlGraph"
-        ) as mock_graph_class:
+        with mock.patch("htmlgraph.graph.HtmlGraph") as mock_graph_class:
             mock_graph = mock.MagicMock()
             mock_graph_class.return_value = mock_graph
             mock_node_1 = mock.MagicMock()
@@ -827,10 +845,10 @@ class TestLoadFeatures:
             mock_graph.nodes.values.return_value = [mock_node_1, mock_node_2]
 
             with mock.patch(
-                "htmlgraph.hooks.session_handler.node_to_dict",
+                "htmlgraph.converter.node_to_dict",
                 side_effect=mock_features,
             ):
-                result = _load_features(Path("/test/.htmlgraph"))
+                result = _load_features(tmp_path)
 
         assert len(result) == 2
         assert result == mock_features
@@ -847,9 +865,7 @@ class TestLoadFeatures:
         """Test that empty list is returned on error."""
         from htmlgraph.hooks.session_handler import _load_features
 
-        with mock.patch(
-            "htmlgraph.hooks.session_handler.HtmlGraph", side_effect=Exception()
-        ):
+        with mock.patch("htmlgraph.graph.HtmlGraph", side_effect=Exception()):
             result = _load_features(Path("/test/.htmlgraph"))
 
         assert result == []
@@ -860,33 +876,62 @@ class TestGetInstalledVersion:
 
     def test_gets_version_from_import(self):
         """Test getting version from htmlgraph.__version__."""
+        from htmlgraph.hooks.session_handler import _get_installed_version
 
-        with mock.patch("htmlgraph.__version__", "0.9.0", create=True):
-            with mock.patch("htmlgraph") as mock_hg:
-                mock_hg.__version__ = "0.9.0"
-                # Note: This test demonstrates the pattern, actual implementation
-                # will vary based on import mechanics
-                pass
+        # Mock the htmlgraph module import to return a version
+        mock_htmlgraph = mock.MagicMock()
+        mock_htmlgraph.__version__ = "0.9.0"
+
+        with mock.patch.dict("sys.modules", {"htmlgraph": mock_htmlgraph}):
+            # Force reimport by patching the import in the function
+            with mock.patch("htmlgraph.__version__", "0.9.0", create=True):
+                result = _get_installed_version()
+
+        # Should either get 0.9.0 or actual installed version (0.26.0)
+        assert result is not None
+        assert isinstance(result, str)
 
     def test_falls_back_to_pip_show(self):
         """Test fallback to pip show command."""
+        # Mock the import to fail so it falls back to pip show
+        import builtins
+
         from htmlgraph.hooks.session_handler import _get_installed_version
 
-        with mock.patch("subprocess.run") as mock_run:
-            mock_run.return_value = mock.MagicMock(
-                returncode=0, stdout="Version: 0.9.0\n"
-            )
-            result = _get_installed_version()
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "htmlgraph":
+                raise Exception("htmlgraph import failed")
+            return original_import(name, *args, **kwargs)
+
+        with mock.patch("builtins.__import__", side_effect=mock_import):
+            with mock.patch("subprocess.run") as mock_run:
+                mock_run.return_value = mock.MagicMock(
+                    returncode=0, stdout="Version: 0.9.0\n"
+                )
+                result = _get_installed_version()
 
         assert result == "0.9.0"
 
     def test_returns_none_when_unavailable(self):
         """Test that None is returned when version unavailable."""
+        # Mock both import and pip show to fail
+        import builtins
+
         from htmlgraph.hooks.session_handler import _get_installed_version
 
-        with mock.patch("subprocess.run") as mock_run:
-            mock_run.return_value = mock.MagicMock(returncode=1)
-            result = _get_installed_version()
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "htmlgraph":
+                raise Exception("htmlgraph import failed")
+            return original_import(name, *args, **kwargs)
+
+        with mock.patch("builtins.__import__", side_effect=mock_import):
+            with mock.patch("subprocess.run") as mock_run:
+                mock_run.return_value = mock.MagicMock(returncode=1)
+                result = _get_installed_version()
 
         assert result is None
 
@@ -1018,9 +1063,7 @@ class TestSessionHandlerIntegration:
             assert start_result["continue"] is True
 
         # Record event
-        with mock.patch(
-            "htmlgraph.ids.generate_id", return_value="evt-123"
-        ):
+        with mock.patch("htmlgraph.ids.generate_id", return_value="evt-123"):
             event_id = record_user_query_event(mock_hook_context, "Test query")
             assert event_id is not None
 
@@ -1038,9 +1081,7 @@ class TestSessionHandlerIntegration:
         mock_hook_context.database.insert_event.side_effect = Exception()
 
         # Should continue even if event recording fails
-        with mock.patch(
-            "htmlgraph.ids.generate_id", return_value="evt-123"
-        ):
+        with mock.patch("htmlgraph.ids.generate_id", return_value="evt-123"):
             event_id = record_user_query_event(mock_hook_context, "Query")
             assert event_id is None  # Failed to insert
 

@@ -304,38 +304,56 @@ def resolve_project_path(cwd: str | None = None) -> str:
     return start_dir
 
 
-def detect_agent_from_environment() -> str:
+def detect_agent_from_environment() -> tuple[str, str | None]:
     """
     Detect the agent/model name from environment variables.
 
     Checks multiple environment variables in order of priority:
     1. HTMLGRAPH_AGENT - Explicit agent name set by user
     2. HTMLGRAPH_SUBAGENT_TYPE - For subagent sessions
-    3. CLAUDE_MODEL - Model name if exposed by Claude Code
-    4. ANTHROPIC_MODEL - Alternative model env var
-    5. HTMLGRAPH_PARENT_AGENT - Parent agent context
+    3. HTMLGRAPH_MODEL - Model name (e.g., claude-haiku, claude-opus)
+    4. CLAUDE_MODEL - Model name if exposed by Claude Code
+    5. ANTHROPIC_MODEL - Alternative model env var
+    6. HTMLGRAPH_PARENT_AGENT - Parent agent context
 
     Falls back to 'claude-code' if no environment variable is set.
 
     Returns:
-        Agent/model identifier string
+        Tuple of (agent_id, model_name). Model name may be None if not detected.
     """
-    # Check environment variables in priority order
-    env_vars = [
+    # Check for explicit agent name first
+    agent_id = None
+    env_vars_agent = [
         "HTMLGRAPH_AGENT",
         "HTMLGRAPH_SUBAGENT_TYPE",
-        "CLAUDE_MODEL",
-        "ANTHROPIC_MODEL",
         "HTMLGRAPH_PARENT_AGENT",
     ]
 
-    for var in env_vars:
+    for var in env_vars_agent:
         value = os.environ.get(var)
         if value and value.strip():
-            return value.strip()
+            agent_id = value.strip()
+            break
 
-    # Default fallback
-    return "claude-code"
+    # Check for model name separately
+    model_name = None
+    env_vars_model = [
+        "HTMLGRAPH_MODEL",
+        "CLAUDE_MODEL",
+        "ANTHROPIC_MODEL",
+    ]
+
+    for var in env_vars_model:
+        value = os.environ.get(var)
+        if value and value.strip():
+            model_name = value.strip()
+            break
+
+    # Default fallback for agent_id
+    if not agent_id:
+        agent_id = "claude-code"
+
+    return agent_id, model_name
 
 
 def extract_file_paths(tool_input: dict[str, Any], tool_name: str) -> list[str]:
@@ -434,6 +452,7 @@ def record_event_to_sqlite(
     parent_event_id: str | None = None,
     agent_id: str | None = None,
     subagent_type: str | None = None,
+    model: str | None = None,
 ) -> str | None:
     """
     Record a tool call event to SQLite database for dashboard queries.
@@ -449,6 +468,7 @@ def record_event_to_sqlite(
         parent_event_id: Parent event ID if this is a child event
         agent_id: Agent identifier (optional)
         subagent_type: Subagent type for Task delegations (optional)
+        model: Claude model name (e.g., claude-haiku, claude-opus) (optional)
 
     Returns:
         event_id if successful, None otherwise
@@ -492,6 +512,7 @@ def record_event_to_sqlite(
             parent_event_id=parent_event_id,
             cost_tokens=0,
             subagent_type=subagent_type,
+            model=model,
         )
 
         if success:
@@ -588,8 +609,8 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
         # Continue without SQLite (graceful degradation)
 
-    # Detect agent from environment
-    detected_agent = detect_agent_from_environment()
+    # Detect agent and model from environment
+    detected_agent, detected_model = detect_agent_from_environment()
 
     # Get active session ID
     active_session = manager.get_active_session()
@@ -668,6 +689,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     tool_response={"content": "Agent stopped"},
                     is_error=False,
                     agent_id=detected_agent,
+                    model=detected_model,
                 )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
@@ -697,6 +719,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     tool_response={"content": "Query received"},
                     is_error=False,
                     agent_id=detected_agent,
+                    model=detected_model,
                 )
 
         except Exception as e:
@@ -754,7 +777,9 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
 
         # Check environment variable FIRST for cross-process parent linking
         # This is set by PreToolUse hook when Task() spawns a subagent
-        env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+        env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT") or os.environ.get(
+            "HTMLGRAPH_PARENT_QUERY_EVENT"
+        )
         if env_parent:
             parent_activity_id = env_parent
         # Query database for most recent UserQuery event as parent
@@ -794,6 +819,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     parent_event_id=parent_activity_id,  # Link to parent event
                     agent_id=detected_agent,
                     subagent_type=task_subagent_type,
+                    model=detected_model,
                 )
 
             # If this was a Task() delegation, also record to agent_collaboration

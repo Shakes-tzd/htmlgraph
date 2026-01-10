@@ -412,7 +412,9 @@ class TestClassifyCigsIntent:
     def test_classify_confidence_with_multiple_keywords(self):
         """Test confidence increases with multiple matching keywords."""
         single = classify_cigs_intent("Search for files")
-        multiple = classify_cigs_intent("Search for and analyze all files in the project")
+        multiple = classify_cigs_intent(
+            "Search for and analyze all files in the project"
+        )
         # Multiple keywords should give higher confidence
         assert multiple["intent_confidence"] >= single["intent_confidence"]
 
@@ -435,7 +437,9 @@ class TestClassifyCigsIntent:
         """Test that CIGS classification is case-insensitive."""
         result_lower = classify_cigs_intent("search for all files")
         result_upper = classify_cigs_intent("SEARCH FOR ALL FILES")
-        assert result_lower["involves_exploration"] == result_upper["involves_exploration"]
+        assert (
+            result_lower["involves_exploration"] == result_upper["involves_exploration"]
+        )
 
     def test_classify_cigs_multiple_intents(self):
         """Test CIGS intent with multiple activity types."""
@@ -477,7 +481,9 @@ class TestGetSessionViolationCount:
             mock_summary.total_waste_tokens = 5000
             mock_tracker.get_session_violations.return_value = mock_summary
 
-            violation_count, waste_tokens = get_session_violation_count(mock_hook_context)
+            violation_count, waste_tokens = get_session_violation_count(
+                mock_hook_context
+            )
 
             assert violation_count == 2
             assert waste_tokens == 5000
@@ -494,7 +500,9 @@ class TestGetSessionViolationCount:
             mock_summary.total_waste_tokens = 0
             mock_tracker.get_session_violations.return_value = mock_summary
 
-            violation_count, waste_tokens = get_session_violation_count(mock_hook_context)
+            violation_count, waste_tokens = get_session_violation_count(
+                mock_hook_context
+            )
 
             assert violation_count == 0
             assert waste_tokens == 0
@@ -504,7 +512,9 @@ class TestGetSessionViolationCount:
         with patch("htmlgraph.cigs.ViolationTracker") as mock_tracker_class:
             mock_tracker_class.side_effect = ImportError("CIGS not available")
 
-            violation_count, waste_tokens = get_session_violation_count(mock_hook_context)
+            violation_count, waste_tokens = get_session_violation_count(
+                mock_hook_context
+            )
 
             assert violation_count == 0
             assert waste_tokens == 0
@@ -514,7 +524,9 @@ class TestGetSessionViolationCount:
         with patch("htmlgraph.cigs.ViolationTracker") as mock_tracker_class:
             mock_tracker_class.side_effect = Exception("Database error")
 
-            violation_count, waste_tokens = get_session_violation_count(mock_hook_context)
+            violation_count, waste_tokens = get_session_violation_count(
+                mock_hook_context
+            )
 
             assert violation_count == 0
             assert waste_tokens == 0
@@ -932,9 +944,7 @@ class TestCreateUserQueryEvent:
         with patch("htmlgraph.hooks.prompt_analyzer.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value = Mock(hex="abcdefghijklmnop")
 
-            event_id = create_user_query_event(
-                mock_hook_context, "Test prompt"
-            )
+            event_id = create_user_query_event(mock_hook_context, "Test prompt")
 
             assert event_id is not None
             assert event_id.startswith("uq-")
@@ -950,18 +960,16 @@ class TestCreateUserQueryEvent:
         mock_cursor.fetchone.return_value = (0,)  # Session doesn't exist
         mock_hook_context.database.connection.cursor.return_value = mock_cursor
 
-        event_id = create_user_query_event(
-            mock_hook_context, "Test prompt"
-        )
+        event_id = create_user_query_event(mock_hook_context, "Test prompt")
 
         # Should still create event even if session didn't exist
         assert event_id is not None
 
-    def test_create_user_query_event_unknown_session(self, mock_hook_context_no_session):
+    def test_create_user_query_event_unknown_session(
+        self, mock_hook_context_no_session
+    ):
         """Test handling of unknown session."""
-        event_id = create_user_query_event(
-            mock_hook_context_no_session, "Test prompt"
-        )
+        event_id = create_user_query_event(mock_hook_context_no_session, "Test prompt")
 
         assert event_id is None
 
@@ -1009,16 +1017,16 @@ class TestCreateUserQueryEvent:
         assert event_id.startswith("uq-")
         assert len(event_id) == 11  # "uq-" + 8 hex chars
 
-    def test_create_user_query_event_stores_in_database(self, mock_hook_context, tmp_graph_dir):
+    def test_create_user_query_event_stores_in_database(
+        self, mock_hook_context, tmp_graph_dir
+    ):
         """Test that event is stored in database (single source of truth)."""
         mock_hook_context.graph_dir = tmp_graph_dir
         mock_cursor = Mock()
         mock_cursor.fetchone.return_value = (1,)
         mock_hook_context.database.connection.cursor.return_value = mock_cursor
 
-        event_id = create_user_query_event(
-            mock_hook_context, "Test prompt"
-        )
+        event_id = create_user_query_event(mock_hook_context, "Test prompt")
 
         if event_id:
             # Verify database insert was called

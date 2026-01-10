@@ -59,9 +59,16 @@ class SpawnerEventTracker:
 
         # Try to initialize database for event tracking
         try:
+            from pathlib import Path
+
             from htmlgraph.db.schema import HtmlGraphDB
 
-            self.db = HtmlGraphDB()
+            # Get correct database path from environment or project root
+            project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
+            db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+
+            if db_path.exists():
+                self.db = HtmlGraphDB(str(db_path))
         except Exception:
             # Tracking is optional, continue without it
             pass

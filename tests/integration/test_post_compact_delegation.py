@@ -43,6 +43,7 @@ def temp_htmlgraph_dir(tmp_path):
     (graph_dir / "insights").mkdir()
     (graph_dir / "metrics").mkdir()
     (graph_dir / "todos").mkdir()
+    (graph_dir / "tracks").mkdir()
     return graph_dir
 
 
@@ -239,8 +240,11 @@ class TestFullDelegationWorkflowPostCompact:
         sdk1 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
         assert sdk1.agent == "orchestrator"
 
+        # Create track first
+        track1 = sdk1.tracks.create("Test Track").save()
+
         # Create work item
-        feature1 = sdk1.features.create("Feature 1").save()
+        feature1 = sdk1.features.create("Feature 1").set_track(track1.id).save()
         assert feature1.agent_assigned == "orchestrator"
 
         # Record session and end it
@@ -270,8 +274,11 @@ class TestFullDelegationWorkflowPostCompact:
         assert state2["is_post_compact"] is True
         assert state2["delegation_enabled"] is True
 
+        # Create track first
+        track2 = sdk2.tracks.create("Test Track 2").save()
+
         # Create another work item
-        feature2 = sdk2.features.create("Feature 2").save()
+        feature2 = sdk2.features.create("Feature 2").set_track(track2.id).save()
         assert feature2.agent_assigned == "orchestrator"
 
 
@@ -293,7 +300,8 @@ class TestSubagentSessionLinking:
         monkeypatch.setenv("CLAUDE_SESSION_ID", parent_session_id)
 
         sdk_parent = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
-        feature = sdk_parent.features.create("Parent Feature").save()
+        track = sdk_parent.tracks.create("Parent Track").save()
+        feature = sdk_parent.features.create("Parent Feature").set_track(track.id).save()
         assert feature is not None
 
         # Simulate subagent environment setup
@@ -341,8 +349,11 @@ class TestSDKMandatoryAgentParameter:
         sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explicit-agent-1")
         assert sdk1.agent == "explicit-agent-1"
 
+        # Create track first
+        track1 = sdk1.tracks.create("Test Track").save()
+
         # Create work item to verify agent attribution
-        feature1 = sdk1.features.create("Feature 1").save()
+        feature1 = sdk1.features.create("Feature 1").set_track(track1.id).save()
         assert feature1.agent_assigned == "explicit-agent-1"
 
         # Record and end first session
@@ -368,8 +379,11 @@ class TestSDKMandatoryAgentParameter:
         sdk2 = SDK(directory=temp_htmlgraph_dir, agent="explicit-agent-2")
         assert sdk2.agent == "explicit-agent-2"
 
+        # Create track first
+        track2 = sdk2.tracks.create("Test Track 2").save()
+
         # Create work item to verify agent attribution in post-compact session
-        feature2 = sdk2.features.create("Feature 2").save()
+        feature2 = sdk2.features.create("Feature 2").set_track(track2.id).save()
         assert feature2.agent_assigned == "explicit-agent-2"
 
 
@@ -393,6 +407,9 @@ class TestAllBuilderEnforceAgent:
         # SDK with agent should work
         sdk = SDK(directory=temp_htmlgraph_dir, agent="test-agent")
 
+        # Create track first (required for features, bugs, chores, epics, phases)
+        track = sdk.tracks.create("Test Track").save()
+
         # Verify all collections are accessible
         assert sdk.features is not None
         assert sdk.bugs is not None
@@ -402,22 +419,22 @@ class TestAllBuilderEnforceAgent:
         assert sdk.phases is not None
 
         # Verify all collections have builder support and assign agent
-        feature = sdk.features.create("Test Feature").save()
+        feature = sdk.features.create("Test Feature").set_track(track.id).save()
         assert feature.agent_assigned == "test-agent"
 
-        bug = sdk.bugs.create("Test Bug").save()
+        bug = sdk.bugs.create("Test Bug").set_track(track.id).save()
         assert bug.agent_assigned == "test-agent"
 
-        chore = sdk.chores.create("Test Chore").save()
+        chore = sdk.chores.create("Test Chore").set_track(track.id).save()
         assert chore.agent_assigned == "test-agent"
 
         spike = sdk.spikes.create("Test Spike").save()
         assert spike.agent_assigned == "test-agent"
 
-        epic = sdk.epics.create("Test Epic").save()
+        epic = sdk.epics.create("Test Epic").set_track(track.id).save()
         assert epic.agent_assigned == "test-agent"
 
-        phase = sdk.phases.create("Test Phase").save()
+        phase = sdk.phases.create("Test Phase").set_track(track.id).save()
         assert phase.agent_assigned == "test-agent"
 
 
@@ -503,8 +520,9 @@ class TestCompactCycleIntegration:
         monkeypatch.setenv("CLAUDE_ORCHESTRATOR_ACTIVE", "true")
 
         sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explorer")
+        track1 = sdk1.tracks.create("Explorer Track").save()
         features_session1 = [
-            sdk1.features.create(f"Research Task {i}").save() for i in range(3)
+            sdk1.features.create(f"Research Task {i}").set_track(track1.id).save() for i in range(3)
         ]
 
         assert all(f.agent_assigned == "explorer" for f in features_session1)
@@ -536,9 +554,12 @@ class TestCompactCycleIntegration:
         assert state2["is_post_compact"] is True
         assert state2["previous_session_id"] == session_id_1
 
+        # Create track in session 2
+        track2 = sdk2.tracks.create("Coder Track").save()
+
         # Create features in session 2
         features_session2 = [
-            sdk2.features.create(f"Implementation Task {i}").save() for i in range(3)
+            sdk2.features.create(f"Implementation Task {i}").set_track(track2.id).save() for i in range(3)
         ]
 
         assert all(f.agent_assigned == "coder" for f in features_session2)
@@ -580,9 +601,12 @@ class TestCompactCycleIntegration:
 
             sdk = SDK(directory=temp_htmlgraph_dir, agent=agent)
 
+            # Create track first
+            track = sdk.tracks.create(f"{agent.title()} Track").save()
+
             # Create features
             created = [
-                sdk.features.create(f"{agent.title()} Feature {j}").save()
+                sdk.features.create(f"{agent.title()} Feature {j}").set_track(track.id).save()
                 for j in range(2)
             ]
             items_per_agent.append((agent, created))

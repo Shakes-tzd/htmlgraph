@@ -161,6 +161,18 @@ def main():
                 "HtmlGraph: add handoff notes with 'uv run htmlgraph session handoff --notes ...'",
                 file=sys.stderr,
             )
+
+        # Mark session as completed
+        if active:
+            try:
+                manager.end_session(
+                    session_id=active.id,
+                    handoff_notes=handoff_notes,
+                    recommended_next=recommended_next,
+                    blockers=blockers,
+                )
+            except Exception as e:
+                print(f"Warning: Failed to end session: {e}", file=sys.stderr)
     except Exception as e:
         print(f"Warning: Could not end session: {e}", file=sys.stderr)
 

@@ -24,7 +24,7 @@ Tables:
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -103,6 +103,7 @@ class HtmlGraphDB:
             ("status", "TEXT DEFAULT 'recorded'"),
             ("created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
             ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
+            ("model", "TEXT"),
         ]
 
         for col_name, col_type in migrations:
@@ -158,6 +159,8 @@ class HtmlGraphDB:
             ("features_worked_on", "TEXT"),
             ("metadata", "TEXT"),
             ("completed_at", "DATETIME"),
+            ("last_user_query_at", "DATETIME"),
+            ("last_user_query", "TEXT"),
         ]
 
         # Refresh columns after potential rename
@@ -220,6 +223,7 @@ class HtmlGraphDB:
                 cost_tokens INTEGER DEFAULT 0,
                 execution_duration_seconds REAL DEFAULT 0.0,
                 status TEXT DEFAULT 'recorded',
+                model TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -280,6 +284,8 @@ class HtmlGraphDB:
                 is_subagent BOOLEAN DEFAULT FALSE,
                 features_worked_on JSON,
                 metadata JSON,
+                last_user_query_at DATETIME,
+                last_user_query TEXT,
                 FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE,
                 FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE
             )
@@ -488,6 +494,7 @@ class HtmlGraphDB:
         cost_tokens: int = 0,
         execution_duration_seconds: float = 0.0,
         subagent_type: str | None = None,
+        model: str | None = None,
     ) -> bool:
         """
         Insert an agent event into the database.
@@ -511,6 +518,7 @@ class HtmlGraphDB:
             cost_tokens: Token usage estimate (optional)
             execution_duration_seconds: Execution time in seconds (optional)
             subagent_type: Subagent type for Task delegations (optional)
+            model: Claude model name (e.g., claude-haiku, claude-opus, claude-sonnet) (optional)
 
         Returns:
             True if insert successful, False otherwise
@@ -529,8 +537,8 @@ class HtmlGraphDB:
                 INSERT INTO agent_events
                 (event_id, agent_id, event_type, session_id, tool_name,
                  input_summary, output_summary, context, parent_agent_id,
-                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
@@ -546,6 +554,7 @@ class HtmlGraphDB:
                     cost_tokens,
                     execution_duration_seconds,
                     subagent_type,
+                    model,
                 ),
             )
             # Re-enable foreign key constraints
@@ -1327,6 +1336,75 @@ class HtmlGraphDB:
             return [dict(row) for row in rows]
         except sqlite3.Error as e:
             logger.error(f"Error querying tool traces: {e}")
+            return []
+
+    def update_session_activity(self, session_id: str, user_query: str) -> None:
+        """
+        Update session with latest user query activity.
+
+        Args:
+            session_id: Session ID to update
+            user_query: The user query text (will be truncated to 200 chars)
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                UPDATE sessions
+                SET last_user_query_at = ?, last_user_query = ?
+                WHERE session_id = ?
+            """,
+                (
+                    datetime.now(timezone.utc).isoformat(),
+                    user_query[:200] if user_query else None,
+                    session_id,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+        except sqlite3.Error as e:
+            logger.error(f"Error updating session activity: {e}")
+
+    def get_concurrent_sessions(
+        self, current_session_id: str, minutes: int = 30
+    ) -> list[dict[str, Any]]:
+        """
+        Get other sessions active in the last N minutes.
+
+        Args:
+            current_session_id: Current session ID to exclude from results
+            minutes: Time window in minutes (default: 30)
+
+        Returns:
+            List of concurrent session dictionaries
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cutoff = (
+                datetime.now(timezone.utc) - timedelta(minutes=minutes)
+            ).isoformat()
+            cursor.execute(
+                """
+                SELECT session_id, agent_assigned, created_at, last_user_query_at,
+                       last_user_query, status
+                FROM sessions
+                WHERE session_id != ?
+                  AND status = 'active'
+                  AND (last_user_query_at > ? OR created_at > ?)
+                ORDER BY last_user_query_at DESC
+            """,
+                (current_session_id, cutoff, cutoff),
+            )
+
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except sqlite3.Error as e:
+            logger.error(f"Error querying concurrent sessions: {e}")
             return []
 
     def close(self) -> None:

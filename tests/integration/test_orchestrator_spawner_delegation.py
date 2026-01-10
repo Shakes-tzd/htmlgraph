@@ -22,15 +22,29 @@ class TestOrchestratorSpawnerDescriptions:
     @pytest.fixture
     def plugin_agents_dir(self) -> Path:
         """Load agent definitions from plugin source."""
-        agent_dir = Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / ".claude-plugin" / "agents"
+        agent_dir = (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / ".claude-plugin"
+            / "agents"
+        )
         return agent_dir
 
     @pytest.fixture
     def plugin_json_path(self) -> Path:
         """Path to plugin.json for agent metadata."""
-        return Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / ".claude-plugin" / "plugin.json"
+        return (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / ".claude-plugin"
+            / "plugin.json"
+        )
 
-    def load_agent_description(self, agent_dir: Path, agent_name: str) -> dict[str, Any]:
+    def load_agent_description(
+        self, agent_dir: Path, agent_name: str
+    ) -> dict[str, Any]:
         """Load agent markdown and extract frontmatter description."""
         agent_file = agent_dir / f"{agent_name}.md"
         if not agent_file.exists():
@@ -71,10 +85,13 @@ class TestOrchestratorSpawnerDescriptions:
 
         # Verify required keywords
         assert any(
-            keyword in description.lower() for keyword in ["exploration", "research", "exploratory"]
+            keyword in description.lower()
+            for keyword in ["exploration", "research", "exploratory"]
         ), f"Description missing exploration/research keywords: {description}"
 
-        assert "free" in description.lower(), f"Description missing FREE cost indicator: {description}"
+        assert "free" in description.lower(), (
+            f"Description missing FREE cost indicator: {description}"
+        )
 
         # Load from plugin.json
         plugin_json = json.loads(plugin_json_path.read_text())
@@ -85,7 +102,9 @@ class TestOrchestratorSpawnerDescriptions:
         assert any(
             keyword in plugin_agent["description"].lower()
             for keyword in ["exploration", "research", "exploratory"]
-        ), f"Description missing exploration/research keywords: {plugin_agent['description']}"
+        ), (
+            f"Description missing exploration/research keywords: {plugin_agent['description']}"
+        )
         assert plugin_agent["cost"] == "FREE"
 
         # Verify capabilities
@@ -110,7 +129,8 @@ class TestOrchestratorSpawnerDescriptions:
 
         # Verify required keywords
         assert any(
-            keyword in description.lower() for keyword in ["code", "implementation", "generation"]
+            keyword in description.lower()
+            for keyword in ["code", "implementation", "generation"]
         ), f"Description missing code/implementation keywords: {description}"
 
         # Load from plugin.json
@@ -119,7 +139,10 @@ class TestOrchestratorSpawnerDescriptions:
 
         plugin_agent = plugin_json["agents"]["codex"]
         assert "description" in plugin_agent
-        assert any(kw in plugin_agent["description"].lower() for kw in ["code", "implementation"])
+        assert any(
+            kw in plugin_agent["description"].lower()
+            for kw in ["code", "implementation"]
+        )
         assert "code_generation" in plugin_agent["capabilities"]
 
     def test_orchestrator_reads_copilot_spawner_description(
@@ -150,7 +173,9 @@ class TestOrchestratorSpawnerDescriptions:
 
         plugin_agent = plugin_json["agents"]["copilot"]
         assert "description" in plugin_agent
-        assert any(kw in plugin_agent["description"].lower() for kw in ["git", "github"])
+        assert any(
+            kw in plugin_agent["description"].lower() for kw in ["git", "github"]
+        )
         assert "git_operations" in plugin_agent["capabilities"]
 
 
@@ -176,7 +201,9 @@ class TestSpawnerMissingCliHandling:
         mock_cli_check.return_value = None
 
         # Verify CLI is reported as unavailable
-        assert shutil.which("gemini") is None, "Mock failed: gemini CLI should be unavailable"
+        assert shutil.which("gemini") is None, (
+            "Mock failed: gemini CLI should be unavailable"
+        )
 
         # Expected error response from spawner when CLI missing
         error_response = {
@@ -196,12 +223,15 @@ class TestSpawnerMissingCliHandling:
 
         # Verify installation guidance
         assert error_response.get("install_url"), "Should provide installation URL"
-        assert "install" in error_response["install_url"].lower() or "gemini" in error_response[
-            "install_url"
-        ].lower()
+        assert (
+            "install" in error_response["install_url"].lower()
+            or "gemini" in error_response["install_url"].lower()
+        )
 
         # Verify NO fallback indicator
-        assert "fallback" not in error_response or error_response.get("fallback") is None
+        assert (
+            "fallback" not in error_response or error_response.get("fallback") is None
+        )
         assert "claude" not in error_response.get("message", "").lower()
 
     def test_codex_spawner_handles_missing_cli(self, mock_cli_check: Mock) -> None:
@@ -217,7 +247,9 @@ class TestSpawnerMissingCliHandling:
         mock_cli_check.return_value = None
 
         # Verify CLI is reported as unavailable
-        assert shutil.which("codex") is None, "Mock failed: codex CLI should be unavailable"
+        assert shutil.which("codex") is None, (
+            "Mock failed: codex CLI should be unavailable"
+        )
 
         # Expected error response from spawner when CLI missing
         error_response = {
@@ -236,11 +268,15 @@ class TestSpawnerMissingCliHandling:
         assert "not available" in error_response["message"].lower()
 
         # Verify installation guidance
-        assert error_response.get("install_instructions"), "Should provide install instructions"
+        assert error_response.get("install_instructions"), (
+            "Should provide install instructions"
+        )
         assert "pip" in error_response["install_instructions"].lower()
 
         # Verify NO fallback indicator
-        assert "fallback" not in error_response or error_response.get("fallback") is None
+        assert (
+            "fallback" not in error_response or error_response.get("fallback") is None
+        )
 
     def test_copilot_spawner_handles_missing_cli(self, mock_cli_check: Mock) -> None:
         """Test Copilot spawner returns error when CLI not available.
@@ -271,17 +307,24 @@ class TestSpawnerMissingCliHandling:
         # Verify error message structure
         assert error_response["continue"] is False, "Should signal failure to continue"
         assert error_response["error"] is True, "Should mark as error"
-        assert "github" in error_response["message"].lower() or "gh" in error_response["message"].lower()
+        assert (
+            "github" in error_response["message"].lower()
+            or "gh" in error_response["message"].lower()
+        )
         assert "not available" in error_response["message"].lower()
 
         # Verify installation guidance
-        assert error_response.get("install_instructions"), "Should provide install instructions"
+        assert error_response.get("install_instructions"), (
+            "Should provide install instructions"
+        )
 
         # Verify authentication requirement mentioned
         assert "auth" in error_response.get("authentication_required", "").lower()
 
         # Verify NO fallback indicator
-        assert "fallback" not in error_response or error_response.get("fallback") is None
+        assert (
+            "fallback" not in error_response or error_response.get("fallback") is None
+        )
 
 
 class TestOrchestratorDelegationLogic:
@@ -290,9 +333,17 @@ class TestOrchestratorDelegationLogic:
     @pytest.fixture
     def plugin_json_path(self) -> Path:
         """Path to plugin.json for agent metadata."""
-        return Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / ".claude-plugin" / "plugin.json"
+        return (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / ".claude-plugin"
+            / "plugin.json"
+        )
 
-    def test_orchestrator_delegates_to_gemini_for_exploration(self, plugin_json_path: Path) -> None:
+    def test_orchestrator_delegates_to_gemini_for_exploration(
+        self, plugin_json_path: Path
+    ) -> None:
         """Verify orchestrator routes exploration tasks to Gemini spawner."""
         plugin_json = json.loads(plugin_json_path.read_text())
         gemini_agent = plugin_json["agents"]["gemini"]
@@ -311,12 +362,18 @@ class TestOrchestratorDelegationLogic:
         best_agent = None
         for agent_name, agent_config in plugin_json["agents"].items():
             if task_type in agent_config["capabilities"]:
-                if best_agent is None or (cost_sensitive and agent_config["cost"] == "FREE"):
+                if best_agent is None or (
+                    cost_sensitive and agent_config["cost"] == "FREE"
+                ):
                     best_agent = agent_name
 
-        assert best_agent == "gemini", f"Expected gemini for exploration, got {best_agent}"
+        assert best_agent == "gemini", (
+            f"Expected gemini for exploration, got {best_agent}"
+        )
 
-    def test_orchestrator_delegates_to_codex_for_implementation(self, plugin_json_path: Path) -> None:
+    def test_orchestrator_delegates_to_codex_for_implementation(
+        self, plugin_json_path: Path
+    ) -> None:
         """Verify orchestrator routes implementation tasks to Codex spawner."""
         plugin_json = json.loads(plugin_json_path.read_text())
         codex_agent = plugin_json["agents"]["codex"]
@@ -335,9 +392,13 @@ class TestOrchestratorDelegationLogic:
                 best_agent = agent_name
                 break
 
-        assert best_agent == "codex", f"Expected codex for implementation, got {best_agent}"
+        assert best_agent == "codex", (
+            f"Expected codex for implementation, got {best_agent}"
+        )
 
-    def test_orchestrator_delegates_to_copilot_for_git_operations(self, plugin_json_path: Path) -> None:
+    def test_orchestrator_delegates_to_copilot_for_git_operations(
+        self, plugin_json_path: Path
+    ) -> None:
         """Verify orchestrator routes git operations to Copilot spawner."""
         plugin_json = json.loads(plugin_json_path.read_text())
         copilot_agent = plugin_json["agents"]["copilot"]
@@ -355,9 +416,13 @@ class TestOrchestratorDelegationLogic:
                 best_agent = agent_name
                 break
 
-        assert best_agent == "copilot", f"Expected copilot for git_operations, got {best_agent}"
+        assert best_agent == "copilot", (
+            f"Expected copilot for git_operations, got {best_agent}"
+        )
 
-    def test_orchestrator_failure_handling_transparent(self, plugin_json_path: Path) -> None:
+    def test_orchestrator_failure_handling_transparent(
+        self, plugin_json_path: Path
+    ) -> None:
         """Verify orchestrator receives transparent error when spawner CLI unavailable.
 
         Orchestrator should receive error response (not fallback) when:
@@ -431,7 +496,13 @@ class TestSpawnerCliRequirements:
     @pytest.fixture
     def plugin_json_path(self) -> Path:
         """Path to plugin.json for agent metadata."""
-        return Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / ".claude-plugin" / "plugin.json"
+        return (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / ".claude-plugin"
+            / "plugin.json"
+        )
 
     def test_all_spawners_declare_cli_requirement(self, plugin_json_path: Path) -> None:
         """Verify each spawner declares which CLI it requires."""
@@ -447,17 +518,21 @@ class TestSpawnerCliRequirements:
             assert agent_name in plugin_json["agents"], f"Agent {agent_name} not found"
             agent_config = plugin_json["agents"][agent_name]
 
-            assert "requires_cli" in agent_config, f"Agent {agent_name} missing requires_cli"
-            assert (
-                agent_config["requires_cli"] == expected_cli
-            ), f"Agent {agent_name} requires {agent_config['requires_cli']}, expected {expected_cli}"
+            assert "requires_cli" in agent_config, (
+                f"Agent {agent_name} missing requires_cli"
+            )
+            assert agent_config["requires_cli"] == expected_cli, (
+                f"Agent {agent_name} requires {agent_config['requires_cli']}, expected {expected_cli}"
+            )
 
     def test_spawners_have_no_fallback(self, plugin_json_path: Path) -> None:
         """Verify spawners explicitly have no fallback behavior."""
         plugin_json = json.loads(plugin_json_path.read_text())
 
         for agent_name, agent_config in plugin_json["agents"].items():
-            assert "fallback" in agent_config, f"Agent {agent_name} missing fallback field"
+            assert "fallback" in agent_config, (
+                f"Agent {agent_name} missing fallback field"
+            )
             assert agent_config["fallback"] is None, (
                 f"Agent {agent_name} has fallback: {agent_config['fallback']}. "
                 f"Spawners must not fallback silently; they must return transparent errors."
@@ -470,7 +545,13 @@ class TestAgentCapabilityMatching:
     @pytest.fixture
     def plugin_json_path(self) -> Path:
         """Path to plugin.json for agent metadata."""
-        return Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / ".claude-plugin" / "plugin.json"
+        return (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / ".claude-plugin"
+            / "plugin.json"
+        )
 
     def test_exploration_capability_routing(self, plugin_json_path: Path) -> None:
         """Test tasks with exploration capability route to correct agent."""
@@ -481,7 +562,9 @@ class TestAgentCapabilityMatching:
             if "exploration" in agent_config.get("capabilities", []):
                 exploration_agents.append(agent_name)
 
-        assert "gemini" in exploration_agents, "Gemini should have exploration capability"
+        assert "gemini" in exploration_agents, (
+            "Gemini should have exploration capability"
+        )
 
     def test_code_generation_capability_routing(self, plugin_json_path: Path) -> None:
         """Test tasks with code_generation capability route to correct agent."""
@@ -492,7 +575,9 @@ class TestAgentCapabilityMatching:
             if "code_generation" in agent_config.get("capabilities", []):
                 code_gen_agents.append(agent_name)
 
-        assert "codex" in code_gen_agents, "Codex should have code_generation capability"
+        assert "codex" in code_gen_agents, (
+            "Codex should have code_generation capability"
+        )
 
     def test_git_operations_capability_routing(self, plugin_json_path: Path) -> None:
         """Test tasks with git_operations capability route to correct agent."""
@@ -512,7 +597,13 @@ class TestSpawnerAgentMetadata:
     @pytest.fixture
     def plugin_json_path(self) -> Path:
         """Path to plugin.json for agent metadata."""
-        return Path(__file__).parent.parent.parent / "packages" / "claude-plugin" / ".claude-plugin" / "plugin.json"
+        return (
+            Path(__file__).parent.parent.parent
+            / "packages"
+            / "claude-plugin"
+            / ".claude-plugin"
+            / "plugin.json"
+        )
 
     def test_spawner_metadata_completeness(self, plugin_json_path: Path) -> None:
         """Verify all spawer metadata is complete."""

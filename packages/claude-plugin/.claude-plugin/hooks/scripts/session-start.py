@@ -40,6 +40,8 @@ except ImportError as e:
     print(json.dumps({}))
     sys.exit(0)
 
+from typing import Any
+
 logger = init_logger(__name__)
 
 
@@ -71,20 +73,25 @@ def main() -> None:
         session_output = handle_session_start(context, session)
 
         # Merge outputs
-        output = {
+        output: dict[str, Any] = {
             "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "SessionStart",
                 "sessionFeatureContext": session_output.get(
                     "hookSpecificOutput", {}
                 ).get("sessionFeatureContext", ""),
+                "sessionContext": session_output.get("hookSpecificOutput", {}).get(
+                    "sessionContext", ""
+                ),
             },
         }
 
         # Add version info if available
         version_info = session_output.get("hookSpecificOutput", {}).get("versionInfo")
         if version_info:
-            output["hookSpecificOutput"]["versionInfo"] = version_info
+            hook_output = output["hookSpecificOutput"]
+            if isinstance(hook_output, dict):
+                hook_output["versionInfo"] = version_info
 
         # Output response
         print(json.dumps(output))

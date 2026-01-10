@@ -99,6 +99,7 @@ def handle_session_start(context: HookContext, session: Any | None) -> dict[str,
     - Builds feature context string
     - Records session start event
     - Creates conversation-init spike if new conversation
+    - Injects concurrent session and recent work context
 
     Args:
         context: HookContext with project and graph directory information
@@ -110,6 +111,7 @@ def handle_session_start(context: HookContext, session: Any | None) -> dict[str,
                 "continue": True,
                 "hookSpecificOutput": {
                     "sessionFeatureContext": str with feature context,
+                    "sessionContext": optional concurrent/recent work context,
                     "versionInfo": optional version check result
                 }
             }
@@ -118,6 +120,7 @@ def handle_session_start(context: HookContext, session: Any | None) -> dict[str,
         "continue": True,
         "hookSpecificOutput": {
             "sessionFeatureContext": "",
+            "sessionContext": "",
             "versionInfo": None,
         },
     }
@@ -201,6 +204,57 @@ Activity will be attributed to these features based on file patterns and keyword
     except Exception as e:
         context.log("debug", f"Could not check version: {e}")
 
+    # Build concurrent session context
+    try:
+        from htmlgraph.hooks.concurrent_sessions import (
+            format_concurrent_sessions_markdown,
+            format_recent_work_markdown,
+            get_concurrent_sessions,
+            get_recent_completed_sessions,
+        )
+
+        db = context.database
+
+        # Get concurrent sessions (other active windows)
+        concurrent = get_concurrent_sessions(db, context.session_id, minutes=30)
+        concurrent_md = format_concurrent_sessions_markdown(concurrent)
+
+        # Get recent completed work
+        recent = get_recent_completed_sessions(db, hours=24, limit=5)
+        recent_md = format_recent_work_markdown(recent)
+
+        # Build session context
+        session_context = ""
+        if concurrent_md:
+            session_context += concurrent_md + "\n"
+        if recent_md:
+            session_context += recent_md + "\n"
+
+        if session_context:
+            output["hookSpecificOutput"]["sessionContext"] = session_context.strip()
+            context.log(
+                "info",
+                f"Injected context: {len(concurrent)} concurrent, {len(recent)} recent",
+            )
+
+    except ImportError:
+        context.log("debug", "Concurrent session module not available")
+    except Exception as e:
+        context.log("warning", f"Failed to get concurrent session context: {e}")
+
+    # Update session with user's current query (if available from hook input)
+    try:
+        user_query = context.hook_input.get("prompt", "")
+        if user_query and session:
+            context.session_manager.track_activity(
+                session_id=session.id,
+                tool="UserQuery",
+                summary=user_query[:100],
+                payload={"query_length": len(user_query)},
+            )
+    except Exception as e:
+        context.log("warning", f"Failed to update session activity: {e}")
+
     return output
 
 
@@ -233,76 +287,75 @@ def handle_session_end(context: HookContext) -> dict[str, Any]:
         session = context.session_manager.get_active_session()
         if not session:
             context.log("debug", "No active session to close")
-            return output
-
-        # Capture handoff context if provided
-        handoff_notes = context.hook_input.get("handoff_notes") or os.environ.get(
-            "HTMLGRAPH_HANDOFF_NOTES"
-        )
-        recommended_next = context.hook_input.get("recommended_next") or os.environ.get(
-            "HTMLGRAPH_HANDOFF_RECOMMEND"
-        )
-        blockers_raw = context.hook_input.get("blockers") or os.environ.get(
-            "HTMLGRAPH_HANDOFF_BLOCKERS"
-        )
-
-        blockers = None
-        if isinstance(blockers_raw, str):
-            blockers = [b.strip() for b in blockers_raw.split(",") if b.strip()]
-        elif isinstance(blockers_raw, list):
-            blockers = [str(b).strip() for b in blockers_raw if str(b).strip()]
-
-        if handoff_notes or recommended_next or blockers:
-            try:
-                context.session_manager.set_session_handoff(
-                    session_id=session.id,
-                    handoff_notes=handoff_notes,
-                    recommended_next=recommended_next,
-                    blockers=blockers,
-                )
-                context.log("info", "Session handoff recorded")
-            except Exception as e:
-                context.log("warning", f"Could not set handoff: {e}")
-                output["status"] = "partial"
-
-        # Link transcript if external session ID provided
-        external_session_id = context.hook_input.get("session_id") or os.environ.get(
-            "CLAUDE_SESSION_ID"
-        )
-        if external_session_id:
-            try:
-                from htmlgraph.transcript import TranscriptReader
-
-                reader = TranscriptReader()
-                transcript = reader.read_session(external_session_id)
-                if transcript:
-                    context.session_manager.link_transcript(
-                        session_id=session.id,
-                        transcript_id=external_session_id,
-                        transcript_path=str(transcript.path),
-                        git_branch=transcript.git_branch
-                        if hasattr(transcript, "git_branch")
-                        else None,
-                    )
-                    context.log("info", "Transcript linked to session")
-            except ImportError:
-                context.log("debug", "Transcript reader not available")
-            except Exception as e:
-                context.log("warning", f"Could not link transcript: {e}")
-                output["status"] = "partial"
-
-        # Record session end activity
-        try:
-            context.session_manager.track_activity(
-                session_id=session.id,
-                tool="SessionEnd",
-                summary="Session ended",
+        else:
+            # Capture handoff context if provided
+            handoff_notes = context.hook_input.get("handoff_notes") or os.environ.get(
+                "HTMLGRAPH_HANDOFF_NOTES"
             )
-        except Exception as e:
-            context.log("warning", f"Could not track session end: {e}")
-            output["status"] = "partial"
+            recommended_next = context.hook_input.get(
+                "recommended_next"
+            ) or os.environ.get("HTMLGRAPH_HANDOFF_RECOMMEND")
+            blockers_raw = context.hook_input.get("blockers") or os.environ.get(
+                "HTMLGRAPH_HANDOFF_BLOCKERS"
+            )
 
-        context.log("info", f"Session closed: {session.id}")
+            blockers = None
+            if isinstance(blockers_raw, str):
+                blockers = [b.strip() for b in blockers_raw.split(",") if b.strip()]
+            elif isinstance(blockers_raw, list):
+                blockers = [str(b).strip() for b in blockers_raw if str(b).strip()]
+
+            if handoff_notes or recommended_next or blockers:
+                try:
+                    context.session_manager.set_session_handoff(
+                        session_id=session.id,
+                        handoff_notes=handoff_notes,
+                        recommended_next=recommended_next,
+                        blockers=blockers,
+                    )
+                    context.log("info", "Session handoff recorded")
+                except Exception as e:
+                    context.log("warning", f"Could not set handoff: {e}")
+                    output["status"] = "partial"
+
+            # Link transcript if external session ID provided
+            external_session_id = context.hook_input.get(
+                "session_id"
+            ) or os.environ.get("CLAUDE_SESSION_ID")
+            if external_session_id:
+                try:
+                    from htmlgraph.transcript import TranscriptReader
+
+                    reader = TranscriptReader()
+                    transcript = reader.read_session(external_session_id)
+                    if transcript:
+                        context.session_manager.link_transcript(
+                            session_id=session.id,
+                            transcript_id=external_session_id,
+                            transcript_path=str(transcript.path),
+                            git_branch=transcript.git_branch
+                            if hasattr(transcript, "git_branch")
+                            else None,
+                        )
+                        context.log("info", "Transcript linked to session")
+                except ImportError:
+                    context.log("debug", "Transcript reader not available")
+                except Exception as e:
+                    context.log("warning", f"Could not link transcript: {e}")
+                    output["status"] = "partial"
+
+            # Record session end activity
+            try:
+                context.session_manager.track_activity(
+                    session_id=session.id,
+                    tool="SessionEnd",
+                    summary="Session ended",
+                )
+            except Exception as e:
+                context.log("warning", f"Could not track session end: {e}")
+                output["status"] = "partial"
+
+            context.log("info", f"Session closed: {session.id}")
 
     except ImportError:
         context.log("error", "SessionManager not available")

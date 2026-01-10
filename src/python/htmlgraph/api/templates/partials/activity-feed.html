@@ -107,6 +107,9 @@
                                           <!-- Spawner delegation: show orchestrator → spawned AI -->
                                           <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
                                               {{ child.agent }}
+                                              {% if child.model %}
+                                                <span class="model-indicator">{{ child.model }}</span>
+                                              {% endif %}
                                           </span>
                                           <span class="delegation-arrow">→</span>
                                           <span class="spawner-badge spawner-{{ child.spawner_type|lower }}">
@@ -116,9 +119,12 @@
                                               {% endif %}
                                           </span>
                                         {% else %}
-                                          <!-- Regular agent: just show agent name -->
+                                          <!-- Regular agent: just show agent name + model if available -->
                                           <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
                                               {{ child.agent }}
+                                              {% if child.model %}
+                                                <span class="model-indicator">{{ child.model }}</span>
+                                              {% endif %}
                                           </span>
                                         {% endif %}
 
@@ -356,7 +362,9 @@
 
 /* Child Agent Badge */
 .child-agent-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     padding: 0.1rem 0.35rem;
     font-size: 0.6rem;
     font-weight: 600;
@@ -366,6 +374,19 @@
     background: rgba(255, 255, 255, 0.08);
     color: var(--text-secondary);
     flex-shrink: 0;
+}
+
+/* Model Indicator Badge */
+.model-indicator {
+    display: inline-block;
+    padding: 0.05rem 0.2rem;
+    font-size: 0.55rem;
+    background: rgba(100, 200, 255, 0.15);
+    color: #64c8ff;
+    border-radius: 1px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: capitalize;
 }
 
 .child-agent-badge.agent-claude-code,

@@ -14,8 +14,10 @@ def test_node_to_dict(tmp_path):
     graph_dir = tmp_path / ".htmlgraph"
     graph_dir.mkdir(parents=True)
     (graph_dir / "features").mkdir()
+    (graph_dir / "tracks").mkdir()
     sdk = SDK(directory=str(graph_dir), agent="test")
-    feature = sdk.features.create("Test Feature").save()
+    track = sdk.tracks.create("Test Track").save()
+    feature = sdk.features.create("Test Feature").set_track(track.id).save()
 
     # Test to_dict() exists and works
     data = feature.to_dict()
@@ -70,9 +72,12 @@ def test_to_dict_contains_all_fields(tmp_path):
     graph_dir = tmp_path / ".htmlgraph"
     graph_dir.mkdir(parents=True)
     (graph_dir / "features").mkdir()
+    (graph_dir / "tracks").mkdir()
     sdk = SDK(directory=str(graph_dir), agent="test")
+    track = sdk.tracks.create("Test Track").save()
     feature = (
         sdk.features.create("Feature with fields")
+        .set_track(track.id)
         .set_priority("high")
         .set_status("in-progress")
         .add_step("Step 1")
@@ -97,8 +102,10 @@ def test_to_dict_serializable(tmp_path):
     graph_dir = tmp_path / ".htmlgraph"
     graph_dir.mkdir(parents=True)
     (graph_dir / "features").mkdir()
+    (graph_dir / "tracks").mkdir()
     sdk = SDK(directory=str(graph_dir), agent="test")
-    feature = sdk.features.create("Test Feature").save()
+    track = sdk.tracks.create("Test Track").save()
+    feature = sdk.features.create("Test Feature").set_track(track.id).save()
 
     data = feature.to_dict()
 

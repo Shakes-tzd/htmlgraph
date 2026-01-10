@@ -161,7 +161,7 @@ def get_spawner_agent_config(
 
         if config:
             logger.info(f"Found agent config for '{spawner_type}'")
-            return config
+            return config  # type: ignore[return-value]
         else:
             logger.warning(f"No agent config found for '{spawner_type}'")
             return None
@@ -222,7 +222,19 @@ def get_parent_query_event_id() -> str | None:
     try:
         from htmlgraph.db.schema import HtmlGraphDB
 
-        db = HtmlGraphDB()
+        # Get correct database path from project root
+        project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
+        db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+
+        if not db_path.exists():
+            logger.debug(f"Database not found at {db_path}")
+            return None
+
+        db = HtmlGraphDB(str(db_path))
+        if db.connection is None:
+            logger.debug("Failed to connect to database")
+            return None
+
         cursor = db.connection.cursor()
 
         cursor.execute(
@@ -237,7 +249,7 @@ def get_parent_query_event_id() -> str | None:
         if row:
             parent_id = row[0]
             logger.info(f"Found parent UserQuery event: {parent_id}")
-            return parent_id
+            return str(parent_id)
         else:
             logger.debug("No UserQuery event found in database")
             return None
@@ -308,7 +320,7 @@ def route_to_spawner(
             }
 
         # Build command: uv run <executable> with prompt as stdin
-        cmd = ["uv", "run", agent_executable]
+        cmd: list[str] = ["uv", "run", str(agent_executable)]
 
         logger.info(f"Spawning {spawner_type} agent: {' '.join(cmd)}")
 
@@ -318,7 +330,7 @@ def route_to_spawner(
         # Build environment with parent context
         env = os.environ.copy()
         if parent_query_event_id:
-            env["HTMLGRAPH_PARENT_QUERY_EVENT"] = parent_query_event_id
+            env["HTMLGRAPH_PARENT_EVENT"] = parent_query_event_id
             logger.info(
                 f"Passing parent query event to spawner: {parent_query_event_id}"
             )

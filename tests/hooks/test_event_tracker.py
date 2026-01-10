@@ -199,9 +199,7 @@ class TestFormatToolSummary:
 
     def test_format_userquery_tool(self, sample_tool_inputs):
         """Test formatting for UserQuery tool."""
-        summary = format_tool_summary(
-            "UserQuery", sample_tool_inputs["UserQuery"]
-        )
+        summary = format_tool_summary("UserQuery", sample_tool_inputs["UserQuery"])
         assert "What is the meaning of life?" in summary
 
     def test_format_userquery_truncation(self):
@@ -284,61 +282,68 @@ class TestDetectAgentFromEnvironment:
     def test_detect_explicit_htmlgraph_agent(self):
         """Test detection with HTMLGRAPH_AGENT env var."""
         with mock.patch.dict(os.environ, {"HTMLGRAPH_AGENT": "explicit-agent"}):
-            agent = detect_agent_from_environment()
-            assert agent == "explicit-agent"
+            agent_id, model = detect_agent_from_environment()
+            assert agent_id == "explicit-agent"
+            assert model is None
 
     def test_detect_subagent_type(self):
         """Test detection with HTMLGRAPH_SUBAGENT_TYPE env var."""
         with mock.patch.dict(
-            os.environ,
-            {"HTMLGRAPH_SUBAGENT_TYPE": "researcher", "HTMLGRAPH_AGENT": ""},
-            clear=False,
+            os.environ, {"HTMLGRAPH_SUBAGENT_TYPE": "researcher"}, clear=True
         ):
-            # Clear HTMLGRAPH_AGENT to test priority
-            with mock.patch.dict(os.environ, {"HTMLGRAPH_AGENT": ""}, clear=False):
-                detect_agent_from_environment()
-                # Priority: HTMLGRAPH_AGENT > others
-                # So we need to test without HTMLGRAPH_AGENT set
+            agent_id, model = detect_agent_from_environment()
+            assert agent_id == "researcher"
+            assert model is None
 
     def test_detect_claude_model(self):
-        """Test detection with CLAUDE_MODEL env var."""
+        """Test detection with CLAUDE_MODEL env var returns model separately."""
         env = {"CLAUDE_MODEL": "claude-opus"}
         with mock.patch.dict(os.environ, env, clear=True):
-            agent = detect_agent_from_environment()
-            assert agent == "claude-opus"
+            agent_id, model = detect_agent_from_environment()
+            # agent_id should default to 'claude-code' when no agent env vars set
+            assert agent_id == "claude-code"
+            # model should be detected from CLAUDE_MODEL
+            assert model == "claude-opus"
 
     def test_detect_anthropic_model(self):
         """Test detection with ANTHROPIC_MODEL env var."""
         env = {"ANTHROPIC_MODEL": "claude-haiku"}
         with mock.patch.dict(os.environ, env, clear=True):
-            agent = detect_agent_from_environment()
-            assert agent == "claude-haiku"
+            agent_id, model = detect_agent_from_environment()
+            # agent_id should default to 'claude-code' when no agent env vars set
+            assert agent_id == "claude-code"
+            # model should be detected from ANTHROPIC_MODEL
+            assert model == "claude-haiku"
 
     def test_detect_parent_agent(self):
         """Test detection with HTMLGRAPH_PARENT_AGENT env var."""
         env = {"HTMLGRAPH_PARENT_AGENT": "parent-agent"}
         with mock.patch.dict(os.environ, env, clear=True):
-            agent = detect_agent_from_environment()
-            assert agent == "parent-agent"
+            agent_id, model = detect_agent_from_environment()
+            assert agent_id == "parent-agent"
+            assert model is None
 
     def test_detect_fallback_to_claude_code(self):
         """Test fallback to 'claude-code' when no env vars set."""
         with mock.patch.dict(os.environ, {}, clear=True):
-            agent = detect_agent_from_environment()
-            assert agent == "claude-code"
+            agent_id, model = detect_agent_from_environment()
+            assert agent_id == "claude-code"
+            assert model is None
 
     def test_detect_priority_order(self):
         """Test environment variable priority order."""
-        # HTMLGRAPH_AGENT has highest priority
+        # HTMLGRAPH_AGENT has highest priority for agent_id, HTMLGRAPH_MODEL has priority for model
         env = {
             "HTMLGRAPH_AGENT": "first",
             "HTMLGRAPH_SUBAGENT_TYPE": "second",
-            "CLAUDE_MODEL": "third",
-            "ANTHROPIC_MODEL": "fourth",
+            "HTMLGRAPH_MODEL": "model-first",
+            "CLAUDE_MODEL": "model-second",
+            "ANTHROPIC_MODEL": "model-third",
         }
         with mock.patch.dict(os.environ, env, clear=True):
-            agent = detect_agent_from_environment()
-            assert agent == "first"
+            agent_id, model = detect_agent_from_environment()
+            assert agent_id == "first"
+            assert model == "model-first"
 
 
 # ============================================================================
@@ -357,9 +362,7 @@ class TestResolveProjectPath:
 
         with mock.patch(
             "subprocess.run",
-            return_value=mock.MagicMock(
-                returncode=0, stdout=str(tmp_path) + "\n"
-            ),
+            return_value=mock.MagicMock(returncode=0, stdout=str(tmp_path) + "\n"),
         ):
             result = resolve_project_path(str(tmp_path))
             assert result == str(tmp_path)
@@ -611,9 +614,7 @@ class TestDriftQueueManagement:
 
     def test_add_activity_to_drift_queue(self, tmp_graph_dir):
         """Test adding activity to drift queue."""
-        config = {
-            "queue": {"max_pending_classifications": 5, "max_age_hours": 48}
-        }
+        config = {"queue": {"max_pending_classifications": 5, "max_age_hours": 48}}
         activity = {
             "tool": "Edit",
             "summary": "Edit: file.py",
@@ -630,9 +631,7 @@ class TestDriftQueueManagement:
 
     def test_max_pending_classifications_limit(self, tmp_graph_dir):
         """Test that max pending classifications limit is enforced."""
-        config = {
-            "queue": {"max_pending_classifications": 3, "max_age_hours": 48}
-        }
+        config = {"queue": {"max_pending_classifications": 3, "max_age_hours": 48}}
 
         # Add 5 activities
         for i in range(5):
@@ -836,7 +835,7 @@ class TestLoadDriftConfig:
         custom_config = {
             "drift_detection": {"enabled": False, "warning_threshold": 0.5},
             "classification": {"enabled": True},
-            "queue": {"max_pending_classifications": 5, "max_age_hours": 48}
+            "queue": {"max_pending_classifications": 5, "max_age_hours": 48},
         }
         config_file.write_text(json.dumps(custom_config))
 
