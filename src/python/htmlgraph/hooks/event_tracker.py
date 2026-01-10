@@ -475,6 +475,14 @@ def format_tool_summary(
         url = tool_input.get("url", "")[:40]
         return f"WebFetch: {url}"
 
+    elif tool_name == "UserQuery":
+        # Extract the actual prompt text from the tool_input
+        prompt = str(tool_input.get("prompt", ""))
+        preview = prompt[:100].replace("\n", " ")
+        if len(prompt) > 100:
+            preview += "..."
+        return preview
+
     else:
         return f"{tool_name}: {str(tool_input)[:50]}"
 
