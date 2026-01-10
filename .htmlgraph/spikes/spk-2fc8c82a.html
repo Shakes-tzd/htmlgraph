@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Display Fixes</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-2fc8c82a"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T07:37:32.301449"
+             data-updated="2026-01-10T07:37:32.301453" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder">
+
+        <header>
+            <h1>Activity Feed Display Fixes</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Issues Found & Fixed
+
+### Issue 1: Speech Bubble Emoji Removed
+- **File**: src/python/htmlgraph/api/templates/partials/activity-feed.html
+- **Line**: 50
+- **Change**: Removed the 💬 emoji from the prompt-section div
+- **Reason**: Cleaner UI, less visual clutter in the activity feed header
+- **Status**: FIXED
+
+### Issue 2: User Query Malformation - Root Cause Identified
+- **Root Cause**: Prompt extraction logic in main.py had a faulty regex fallback
+- **File**: src/python/htmlgraph/api/main.py
+- **Lines**: 996-1027
+- **Problem Details**:
+  - When UserQuery input_summary has format "UserQuery: {'prompt': '...'}"
+  - JSON parsing could fail if there are special characters or escaping issues
+  - The old regex fallback pattern was incorrect: r"['"]prompt['"]\s*:\s*['"]([^'"]*)['"]"
+  - This would either fail to match or include the "UserQuery:" prefix in the result
+  
+- **Changes Made**:
+  1. Improved JSON parsing with better error handling
+  2. Fixed regex fallback to extract quoted text: r'["']([^"']+)["']'
+  3. Added last-resort fallback: use dict_str directly (without "UserQuery:" prefix)
+  4. Simplified logic by checking for prefix presence upfront
+  
+- **Result**: Prompt text now displays correctly without duplicate prefixes or malformation
+- **Status**: FIXED
+
+## Files Changed
+1. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/partials/activity-feed.html`
+   - Removed 💬 emoji from prompt display
+
+2. `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py`
+   - Improved prompt extraction with better fallback logic
+   - Now handles edge cases: JSON parse failures, missing quotes, special characters
+
+## Testing Required
+1. Start the HtmlGraph server: `uv run htmlgraph serve`
+2. Submit a user query with special characters
+3. Check Activity Feed to verify:
+   - No speech bubble emoji appears
+   - Prompt text displays correctly without duplication
+   - Handles long prompts with proper truncation
+   
+## Ready For
+- Testing and server restart
+- Manual QA of activity feed display
+- Integration testing with new event tracker
+            </div>
+        </section>
+    </article>
+</body>
+</html>

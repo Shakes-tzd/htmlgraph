@@ -428,6 +428,105 @@ def generate_guidance(
     return None
 
 
+def create_user_query_event(prompt: str) -> str | None:
+    """
+    Create a UserQuery event in the HtmlGraph database.
+
+    This ensures that user prompts are recorded as events that can serve as
+    parent events for subsequent tool calls and delegations. The event ID is
+    saved to a session-scoped file for later retrieval by PreToolUse hook.
+
+    Args:
+        prompt: User's prompt text
+
+    Returns:
+        UserQuery event_id if successful, None otherwise
+    """
+    try:
+        import uuid
+        import os
+        from pathlib import Path
+        from datetime import datetime, timezone
+
+        # Get session ID from environment
+        session_id = os.environ.get("HTMLGRAPH_SESSION_ID")
+        if not session_id:
+            # Fallback: Try to load from .htmlgraph/sessions
+            try:
+                cwd = os.getcwd()
+                graph_dir = Path(cwd) / ".htmlgraph"
+                sessions_dir = graph_dir / "sessions"
+
+                if sessions_dir.exists():
+                    import re
+                    session_files = sorted(
+                        sessions_dir.glob("sess-*.html"),
+                        key=lambda p: p.stat().st_mtime,
+                        reverse=True,
+                    )
+
+                    for session_file in session_files:
+                        match = re.search(r"sess-([a-f0-9]+)", session_file.name)
+                        if match:
+                            session_id = f"sess-{match.group(1)}"
+                            break
+            except Exception:
+                pass
+
+        if not session_id:
+            return None
+
+        # Create UserQuery event in database
+        try:
+            from htmlgraph.db.schema import HtmlGraphDB
+            from htmlgraph.hooks.event_tracker import save_user_query_event
+
+            db = HtmlGraphDB()
+
+            # Generate event ID
+            user_query_event_id = f"uq-{uuid.uuid4().hex[:8]}"
+
+            # Prepare event details
+            input_summary = prompt[:200]
+
+            # Insert UserQuery event into agent_events
+            success = db.insert_event(
+                event_id=user_query_event_id,
+                agent_id="user",
+                event_type="tool_call",  # UserQuery appears as a tool_call event
+                session_id=session_id,
+                tool_name="UserQuery",
+                input_summary=input_summary,
+                context={
+                    "prompt": prompt[:500],
+                    "session": session_id,
+                }
+            )
+
+            if not success:
+                return None
+
+            # Save event ID to session-scoped file for subsequent tool calls
+            # This is used by PreToolUse hook to link Task delegations
+            try:
+                cwd = os.getcwd()
+                graph_dir = Path(cwd) / ".htmlgraph"
+                save_user_query_event(graph_dir, session_id, user_query_event_id)
+            except Exception:
+                # If saving to file fails, still continue (database insert succeeded)
+                pass
+
+            return user_query_event_id
+
+        except Exception:
+            # Database tracking is optional - graceful degradation
+            return None
+
+    except Exception:
+        # Silent failure - don't block user interaction
+        return None
+
+
 def main():
     """Main entry point with CIGS integration."""
     try:
@@ -439,6 +538,9 @@ def main():
             # No prompt - no guidance
             print(json.dumps({}))
             sys.exit(0)
+
+        # 0. Create UserQuery event in database for parent-child linking
+        user_query_event_id = create_user_query_event(prompt)
 
         # 1. Classify the prompt (existing workflow guidance)
         classification = classify_prompt(prompt)
@@ -492,6 +594,9 @@ def main():
                 "cigs_session_status": {
                     "violation_count": violation_count,
                     "waste_tokens": waste_tokens,
+                },
+                "user_query_event": {
+                    "event_id": user_query_event_id,
                 },
             }
             print(json.dumps(result))

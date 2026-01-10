@@ -994,7 +994,7 @@ def get_app(db_path: str) -> FastAPI:
                 uq_status = uq_row[4]
 
                 # Extract prompt text from input_summary
-                # Format is typically: "UserQuery: {'prompt': '...'}"
+                # Format is typically: "UserQuery: {'prompt': '...'}" (stored in track_event.py line 741)
                 prompt_text = uq_input
                 try:
                     import re
@@ -1010,13 +1010,19 @@ def get_app(db_path: str) -> FastAPI:
                                 prompt_dict = json.loads(dict_str)
                                 prompt_text = prompt_dict.get("prompt", uq_input)
                             except json.JSONDecodeError:
-                                # Fallback to regex extraction
+                                # Fallback to regex extraction - look for quoted text
                                 match = re.search(
-                                    r"['\"]prompt['\"]\\s*:\\s*['\"]([^'\"]*)['\"]",
-                                    uq_input,
+                                    r'["\']([^"\']+)["\']',
+                                    dict_str,
                                 )
                                 if match:
                                     prompt_text = match.group(1)
+                                else:
+                                    # Last resort: use dict_str as-is (without "UserQuery:" prefix)
+                                    prompt_text = dict_str
+                    else:
+                        # No "UserQuery:" prefix - use input as-is
+                        prompt_text = uq_input
                 except Exception:
                     pass
 

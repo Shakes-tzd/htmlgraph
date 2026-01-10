@@ -56,7 +56,7 @@ if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     sys.exit(0)
 
 
-def load_plugin_manifest() -> dict:
+def load_plugin_manifest() -> dict[str, object]:
     """
     Load agents registry from plugin.json.
 
@@ -82,7 +82,7 @@ def load_plugin_manifest() -> dict:
 
         if plugin_json.exists():
             with open(plugin_json) as f:
-                manifest = json.load(f)
+                manifest: dict[str, object] = json.load(f)
             logger.info(f"Loaded plugin manifest from {plugin_json}")
             return manifest
         else:
@@ -142,7 +142,9 @@ def get_spawner_cli_requirements() -> dict:
     }
 
 
-def get_spawner_agent_config(manifest: dict, spawner_type: str) -> dict | None:
+def get_spawner_agent_config(
+    manifest: dict[str, object], spawner_type: str
+) -> dict[str, object] | None:
     """
     Get spawner agent configuration from manifest.
 
@@ -155,7 +157,7 @@ def get_spawner_agent_config(manifest: dict, spawner_type: str) -> dict | None:
     """
     try:
         agents = manifest.get("agents", {})
-        config = agents.get(spawner_type)
+        config = agents.get(spawner_type) if isinstance(agents, dict) else None
 
         if config:
             logger.info(f"Found agent config for '{spawner_type}'")
@@ -170,7 +172,7 @@ def get_spawner_agent_config(manifest: dict, spawner_type: str) -> dict | None:
 
 
 def check_spawner_requirements(
-    spawner_type: str, agent_config: dict
+    spawner_type: str, agent_config: dict[str, object]
 ) -> tuple[bool, str]:
     """
     Check if spawner has all required dependencies.
@@ -210,7 +212,47 @@ def check_spawner_requirements(
     return True, ""
 
 
-def route_to_spawner(spawner_type: str, prompt: str, manifest: dict, **kwargs) -> dict:
+def get_parent_query_event_id() -> str | None:
+    """
+    Query HtmlGraph database for the most recent UserQuery event.
+
+    Returns:
+        Event ID string, or None if not found or database unavailable
+    """
+    try:
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        db = HtmlGraphDB()
+        cursor = db.connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT event_id FROM agent_events
+            WHERE event_type = 'user_query'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        )
+        row = cursor.fetchone()
+        if row:
+            parent_id = row[0]
+            logger.info(f"Found parent UserQuery event: {parent_id}")
+            return parent_id
+        else:
+            logger.debug("No UserQuery event found in database")
+            return None
+
+    except ImportError:
+        logger.debug("HtmlGraphDB not available")
+        return None
+    except Exception as e:
+        logger.debug(f"Failed to query parent UserQuery event: {e}")
+        return None
+
+
+def route_to_spawner(
+    spawner_type: str, prompt: str, manifest: dict[str, object], **kwargs: object
+) -> dict[str, object]:
     """
     Route Task() call to appropriate spawner agent.
 
@@ -270,6 +312,17 @@ def route_to_spawner(spawner_type: str, prompt: str, manifest: dict, **kwargs) -
 
         logger.info(f"Spawning {spawner_type} agent: {' '.join(cmd)}")
 
+        # Get parent query event ID for context
+        parent_query_event_id = get_parent_query_event_id()
+
+        # Build environment with parent context
+        env = os.environ.copy()
+        if parent_query_event_id:
+            env["HTMLGRAPH_PARENT_QUERY_EVENT"] = parent_query_event_id
+            logger.info(
+                f"Passing parent query event to spawner: {parent_query_event_id}"
+            )
+
         # Execute spawner agent with prompt as stdin
         result = subprocess.run(
             cmd,
@@ -277,6 +330,7 @@ def route_to_spawner(spawner_type: str, prompt: str, manifest: dict, **kwargs) -
             capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
+            env=env,
         )
 
         if result.returncode != 0:
@@ -337,7 +391,7 @@ def is_spawner_type(subagent_type: str) -> bool:
     return subagent_type.lower() in ["gemini", "codex", "copilot"]
 
 
-def main():
+def main() -> None:
     """Main hook entry point for PreToolUse event."""
     try:
         hook_input = json.load(sys.stdin)
