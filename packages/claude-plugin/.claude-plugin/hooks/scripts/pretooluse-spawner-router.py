@@ -228,7 +228,7 @@ def get_parent_query_event_id() -> str | None:
         cursor.execute(
             """
             SELECT event_id FROM agent_events
-            WHERE event_type = 'user_query'
+            WHERE tool_name = 'UserQuery'
             ORDER BY created_at DESC
             LIMIT 1
             """

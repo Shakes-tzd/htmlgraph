@@ -493,7 +493,7 @@ def create_user_query_event(prompt: str) -> str | None:
             success = db.insert_event(
                 event_id=user_query_event_id,
                 agent_id="user",
-                event_type="user_query",  # ← Must match PreToolUse hook's query!
+                event_type="tool_call",  # Valid event_type; find by tool_name='UserQuery'
                 session_id=session_id,
                 tool_name="UserQuery",
                 input_summary=input_summary,
