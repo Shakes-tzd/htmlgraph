@@ -65,6 +65,46 @@ for feat in high_priority_todos:
     print(f"- {feat.id}: {feat.title}")
 ```
 
+### Delegating Complex Work with Task()
+
+For complex tasks that require multiple operations, delegate to subagents to preserve your context. This is especially useful when you need to:
+- Run multiple test suites in parallel
+- Explore a large codebase (many Grep/Glob calls)
+- Make coordinated changes across many files
+
+**Example: Delegating test execution**
+
+```python
+from htmlgraph import SDK
+
+sdk = SDK(agent="orchestrator")
+
+# Delegate test runs to parallel subagents
+Task(subagent_type="general-purpose",
+     prompt="Run unit tests in tests/unit/ and report failures")
+
+Task(subagent_type="general-purpose",
+     prompt="Run integration tests in tests/integration/ and report failures")
+
+# Orchestrator preserves context while subagents work in parallel
+```
+
+**Parent-Child Session Tracking**
+
+HtmlGraph automatically links parent and child sessions:
+```python
+# After delegation completes, view results
+session = sdk.sessions.get(session_id)
+print(f"Child sessions: {session.child_session_ids}")
+# → Results from parallel subagents
+
+# Find all work related to a feature
+sessions = sdk.get_feature_sessions("feature-001")
+# → Includes both orchestrator and delegated subagent sessions
+```
+
+→ [Complete delegation guide](docs/guide/delegation.md) - Best practices, patterns, cost optimization
+
 **New to HtmlGraph?** See [Architecture Guide](./docs/ARCHITECTURE.md) for design philosophy and common patterns.
 
 ---

@@ -20,69 +20,69 @@
             <table class="activity-table">
                 <thead>
                     <tr>
-                        <th class="col-timestamp" title="Click to sort">Timestamp</th>
                         <th class="col-agent">Agent</th>
                         <th class="col-tool">Tool</th>
                         <th class="col-input">Input</th>
                         <th class="col-output">Output</th>
                         <th class="col-status">Status</th>
-                        <th class="col-id">ID</th>
+                        <th class="col-timestamp">Timestamp</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for group in hierarchical_events %}
                         <!-- Parent Event -->
-                        <tr class="activity-row parent-row event-{{ group.parent.status }}" 
+                        <tr class="activity-row parent-row event-{{ group.parent.status }} {% if group.has_children %}has-children{% endif %}"
                             data-event-id="{{ group.parent.event_id }}"
+                            {% if group.has_children %}onclick="toggleChildren(this)"{% endif %}
                             style="border-left: 4px solid var(--accent);">
-                            <td class="col-timestamp">
-                                <span class="event-type-badge" title="{{ group.parent.event_type }}">
-                                    {% if group.parent.event_type == 'delegation' %}
-                                        🔗
-                                    {% elif group.parent.event_type == 'tool_call' %}
-                                        🔨
-                                    {% elif group.parent.event_type == 'completion' %}
-                                        🎉
-                                    {% else %}
-                                        📋
-                                    {% endif %}
-                                </span>
-                                <span class="timestamp-text" data-utc-time="{{ group.parent.timestamp }}">{{ group.parent.timestamp }}</span>
-                            </td>
                             <td class="col-agent">
+                                {% if group.has_children %}
+                                    <span class="expand-icon">&#9654;</span>
+                                {% endif %}
                                 <span class="agent-badge agent-{{ group.parent.agent_id|lower }}">{{ group.parent.agent_id }}</span>
                                 {% if group.has_children %}
-                                    <span class="parent-indicator" title="Parent task with {{ group.children|length }} child event(s)">📌</span>
+                                    <span class="child-count" title="{{ group.children|length }} child event(s)">({{ group.children|length }})</span>
                                 {% endif %}
                             </td>
                             <td class="col-tool">
+                                <span class="event-type-badge" title="{{ group.parent.event_type }}">
+                                    {% if group.parent.event_type == 'delegation' %}
+                                        &#128279;
+                                    {% elif group.parent.event_type == 'tool_call' %}
+                                        &#128296;
+                                    {% elif group.parent.event_type == 'completion' %}
+                                        &#127881;
+                                    {% else %}
+                                        &#128203;
+                                    {% endif %}
+                                </span>
                                 {% if group.parent.tool_name %}
                                     <code class="tool-name">{{ group.parent.tool_name }}</code>
                                 {% else %}
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td class="col-input">
                                 {% if group.parent.input_summary %}
-                                    <span class="truncate" title="{{ group.parent.input_summary }}">{{ group.parent.input_summary[:100] }}{% if group.parent.input_summary|length > 100 %}…{% endif %}</span>
+                                    <span class="truncate" title="{{ group.parent.input_summary }}">{{ group.parent.input_summary[:150] }}{% if group.parent.input_summary|length > 150 %}...{% endif %}</span>
                                 {% else %}
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td class="col-output">
                                 {% if group.parent.output_summary %}
-                                    <span class="truncate" title="{{ group.parent.output_summary }}">{{ group.parent.output_summary[:100] }}{% if group.parent.output_summary|length > 100 %}…{% endif %}</span>
+                                    <span class="truncate" title="{{ group.parent.output_summary }}">{{ group.parent.output_summary[:150] }}{% if group.parent.output_summary|length > 150 %}...{% endif %}</span>
                                 {% else %}
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
-                                
+
                                 {% if group.parent.cost_tokens or group.parent.execution_duration_seconds %}
-                                    <div class="event-metrics" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                    <div class="event-metrics">
                                         {% if group.parent.cost_tokens %}
-                                            <span class="metric-item">🪙 {{ group.parent.cost_tokens }} tokens</span>
+                                            <span class="metric-item">{{ group.parent.cost_tokens }} tokens</span>
                                         {% endif %}
                                         {% if group.parent.execution_duration_seconds %}
-                                            <span class="metric-item">⏱️ {{ "%.2f"|format(group.parent.execution_duration_seconds) }}s</span>
+                                            <span class="metric-item">{{ "%.2f"|format(group.parent.execution_duration_seconds) }}s</span>
                                         {% endif %}
                                     </div>
                                 {% endif %}
@@ -90,68 +90,64 @@
                             <td class="col-status">
                                 <span class="status-badge status-{{ group.parent.status }}">{{ group.parent.status }}</span>
                             </td>
-                            <td class="col-id">
-                                <code class="event-id-code" title="{{ group.parent.event_id }}">{{ group.parent.event_id[:8] }}</code>
+                            <td class="col-timestamp">
+                                <span class="timestamp-text" data-utc-time="{{ group.parent.timestamp }}">{{ group.parent.timestamp }}</span>
                             </td>
                         </tr>
 
-                        <!-- Child Events (Sub-traces) -->
+                        <!-- Child Events (Sub-traces) - Hidden by default -->
                         {% if group.has_children %}
                             {% for child in group.children %}
-                            <tr class="activity-row child-row event-{{ child.status }}" 
-                                data-event-id="{{ child.event_id }}" 
-                                data-parent-id="{{ group.parent.event_id }}"
-                                style="background-color: rgba(255, 255, 255, 0.02); border-left: 4px solid var(--text-muted);">
-                                <td class="col-timestamp" style="padding-left: 2rem;">
-                                    <span class="event-type-badge" title="{{ child.event_type }}">
-                                        {% if child.event_type == 'tool_call' %}
-                                            🔨
-                                        {% elif child.event_type == 'tool_result' %}
-                                            ✅
-                                        {% elif child.event_type == 'error' %}
-                                            ❌
-                                        {% elif child.event_type == 'delegation' %}
-                                            🔗
-                                        {% elif child.event_type == 'completion' %}
-                                            🎉
-                                        {% else %}
-                                            📌
-                                        {% endif %}
-                                    </span>
-                                    <span class="timestamp-text" data-utc-time="{{ child.timestamp }}">{{ child.timestamp }}</span>
-                                </td>
+                            <tr class="activity-row child-row event-{{ child.status }} hidden"
+                                data-event-id="{{ child.event_id }}"
+                                data-parent="{{ group.parent.event_id }}">
                                 <td class="col-agent">
+                                    <span class="child-indicator">&#8627;</span>
                                     <span class="agent-badge agent-{{ child.agent_id|lower }}">{{ child.agent_id }}</span>
-                                    <span class="child-indicator" title="Child of {{ group.parent.event_id[:8] }}">↳</span>
                                 </td>
                                 <td class="col-tool">
+                                    <span class="event-type-badge" title="{{ child.event_type }}">
+                                        {% if child.event_type == 'tool_call' %}
+                                            &#128296;
+                                        {% elif child.event_type == 'tool_result' %}
+                                            &#9989;
+                                        {% elif child.event_type == 'error' %}
+                                            &#10060;
+                                        {% elif child.event_type == 'delegation' %}
+                                            &#128279;
+                                        {% elif child.event_type == 'completion' %}
+                                            &#127881;
+                                        {% else %}
+                                            &#128204;
+                                        {% endif %}
+                                    </span>
                                     {% if child.tool_name %}
                                         <code class="tool-name">{{ child.tool_name }}</code>
                                     {% else %}
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
                                 <td class="col-input">
                                     {% if child.input_summary %}
-                                        <span class="truncate" title="{{ child.input_summary }}">{{ child.input_summary[:100] }}{% if child.input_summary|length > 100 %}…{% endif %}</span>
+                                        <span class="truncate" title="{{ child.input_summary }}">{{ child.input_summary[:150] }}{% if child.input_summary|length > 150 %}...{% endif %}</span>
                                     {% else %}
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
                                 <td class="col-output">
                                     {% if child.output_summary %}
-                                        <span class="truncate" title="{{ child.output_summary }}">{{ child.output_summary[:100] }}{% if child.output_summary|length > 100 %}…{% endif %}</span>
+                                        <span class="truncate" title="{{ child.output_summary }}">{{ child.output_summary[:150] }}{% if child.output_summary|length > 150 %}...{% endif %}</span>
                                     {% else %}
-                                        <span class="text-muted">—</span>
+                                        <span class="text-muted">-</span>
                                     {% endif %}
 
                                     {% if child.cost_tokens or child.execution_duration_seconds %}
-                                        <div class="event-metrics" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                        <div class="event-metrics">
                                             {% if child.cost_tokens %}
-                                                <span class="metric-item">🪙 {{ child.cost_tokens }} tokens</span>
+                                                <span class="metric-item">{{ child.cost_tokens }} tokens</span>
                                             {% endif %}
                                             {% if child.execution_duration_seconds %}
-                                                <span class="metric-item">⏱️ {{ "%.2f"|format(child.execution_duration_seconds) }}s</span>
+                                                <span class="metric-item">{{ "%.2f"|format(child.execution_duration_seconds) }}s</span>
                                             {% endif %}
                                         </div>
                                     {% endif %}
@@ -159,8 +155,8 @@
                                 <td class="col-status">
                                     <span class="status-badge status-{{ child.status }}">{{ child.status }}</span>
                                 </td>
-                                <td class="col-id">
-                                    <code class="event-id-code" title="{{ child.event_id }}">{{ child.event_id[:8] }}</code>
+                                <td class="col-timestamp">
+                                    <span class="timestamp-text" data-utc-time="{{ child.timestamp }}">{{ child.timestamp }}</span>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -182,3 +178,149 @@
         Live updates enabled (via WebSocket)
     </div>
 </div>
+
+<style>
+/* Activity Feed Column Widths - Redesigned */
+.activity-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.activity-table .col-agent { width: 120px; }
+.activity-table .col-tool { width: 100px; }
+.activity-table .col-input { width: auto; }
+.activity-table .col-output { width: auto; }
+.activity-table .col-status { width: 100px; }
+.activity-table .col-timestamp { width: 140px; }
+
+/* Make input/output columns flexible and wide */
+.activity-table td.col-input,
+.activity-table td.col-output {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activity-table .truncate {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Expandable Tracing Structure */
+.expand-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-right: 0.5rem;
+    transition: transform 0.2s ease;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.expand-icon.expanded {
+    transform: rotate(90deg);
+}
+
+.parent-row.has-children {
+    cursor: pointer;
+}
+
+.parent-row.has-children:hover {
+    background: var(--bg-hover);
+}
+
+.child-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: 0.5rem;
+}
+
+.child-row {
+    background: rgba(0, 0, 0, 0.3);
+    border-left: 4px solid var(--text-muted) !important;
+}
+
+.child-row.hidden {
+    display: none;
+}
+
+.child-indicator {
+    color: var(--text-muted);
+    margin-right: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Event Metrics styling */
+.event-metrics {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.event-metrics .metric-item {
+    margin-right: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .activity-table .col-agent { width: 100px; }
+    .activity-table .col-tool { width: 90px; }
+    .activity-table .col-status { width: 90px; }
+    .activity-table .col-timestamp { width: 120px; }
+}
+
+@media (max-width: 900px) {
+    .activity-table .col-agent { width: 80px; }
+    .activity-table .col-tool { width: 80px; }
+    .activity-table .col-status { width: 80px; }
+    .activity-table .col-timestamp { width: 100px; }
+}
+</style>
+
+<script>
+// Toggle child rows visibility
+function toggleChildren(parentRow) {
+    const eventId = parentRow.dataset.eventId;
+    const children = document.querySelectorAll(`[data-parent="${eventId}"]`);
+    const expandIcon = parentRow.querySelector('.expand-icon');
+
+    children.forEach(child => {
+        child.classList.toggle('hidden');
+    });
+
+    if (expandIcon) {
+        expandIcon.classList.toggle('expanded');
+    }
+}
+
+// Expand all parent rows
+function expandAll() {
+    document.querySelectorAll('.parent-row.has-children').forEach(row => {
+        const eventId = row.dataset.eventId;
+        const children = document.querySelectorAll(`[data-parent="${eventId}"]`);
+        const expandIcon = row.querySelector('.expand-icon');
+
+        children.forEach(child => {
+            child.classList.remove('hidden');
+        });
+
+        if (expandIcon) {
+            expandIcon.classList.add('expanded');
+        }
+    });
+}
+
+// Collapse all parent rows
+function collapseAll() {
+    document.querySelectorAll('.child-row').forEach(child => {
+        child.classList.add('hidden');
+    });
+    document.querySelectorAll('.expand-icon').forEach(icon => {
+        icon.classList.remove('expanded');
+    });
+}
+</script>

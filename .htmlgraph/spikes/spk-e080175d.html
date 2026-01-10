@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestrator Architecture Documentation Complete</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e080175d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T02:41:23.552794"
+             data-updated="2026-01-10T02:41:23.552798" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder">
+
+        <header>
+            <h1>Orchestrator Architecture Documentation Complete</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Comprehensive documentation of HtmlGraph orchestrator pattern</p>
+        </section>
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Orchestrator Architecture Documentation Complete
+
+Created comprehensive guide documenting HtmlGraph's flexible multi-agent orchestrator pattern:
+
+### Documentation Created:
+1. **docs/orchestrator-architecture.md** (1,800+ lines)
+   - Core principle: Flexibility over rigidity
+   - Architecture overview with visual diagrams
+   - Four spawner types: Gemini, Copilot, Codex, Claude
+   - Decision framework for model selection
+   - 4 pattern examples (parallel exploration, cost optimization, fallback chains, mixed workflows)
+   - Model flexibility within spawners
+   - Cost optimization strategies
+   - Advanced subagent capabilities
+   - Troubleshooting and best practices
+
+2. **README.md Updated**
+   - New "Orchestrator Architecture" section
+   - 2-3 sentence summary of pattern
+   - Link to comprehensive guide
+   - Example showing parallel multi-spawner execution
+   - List of spawner types
+
+### Key Concepts Documented:
+
+**Core Principle**: Flexible model selection based on task needs, not rigid rules
+- Any model can do any work
+- Choose based on task fit and cost
+- Mix spawner types within workflows
+- Cost optimization through strategic model selection
+
+**Spawner Types**:
+1. Gemini Spawner - FREE exploratory research (2M tokens/min)
+2. Copilot Spawner - GitHub integrated workflows
+3. Codex Spawner - Code generation and completions
+4. Claude Spawner - Deep reasoning (any Claude model)
+
+**Architecture Pattern**:
+- Orchestrator (Haiku) coordinates, stays cheap
+- Subagents (parallel) do heavy lifting
+- Flexible spawner selection based on task
+- Automatic fallbacks within spawners
+- Context preservation through delegation
+
+**Decision Framework Documented**:
+- Exploratory → Gemini spawner
+- GitHub ops → Copilot spawner  
+- Code generation → Codex spawner
+- Reasoning/analysis → Claude spawner
+
+**Optimization Strategies**:
+- Parallel execution over sequential
+- Cheap models for exploration, expensive for reasoning
+- Cost-optimal workflow patterns
+- Progressive disclosure (escalate only if needed)
+
+### Files Modified:
+- Created: docs/orchestrator-architecture.md (1,800+ lines, 100% new content)
+- Modified: README.md (150 lines added, old section replaced)
+
+### Documentation Coverage:
+- ✅ Architecture overview with ASCII diagrams
+- ✅ Spawner type details and use cases
+- ✅ Decision framework and selection logic
+- ✅ 4 detailed pattern examples with code
+- ✅ Model flexibility documentation
+- ✅ Cost optimization strategies
+- ✅ Comparison tables (spawners, benefits)
+- ✅ Troubleshooting and best practices
+- ✅ Links between documents
+
+### Link Verification:
+- ✅ README.md → docs/orchestrator-architecture.md
+- ✅ docs/orchestrator-architecture.md → docs/guide/delegation.md
+- ✅ docs/orchestrator-architecture.md → AGENTS.md
+- ✅ Clear cross-references established
+
+### Design Principles Emphasized:
+- "Coordination, Not Control" - flexible over rigid
+- "Capability-First Thinking" - choose right tool for task
+- "No Rigid Rules" - emphasize flexibility
+- "Cost Optimization" - strategic model selection
+- "Parallel Execution" - run independent tasks simultaneously
+
+This documentation becomes the authoritative reference for understanding HtmlGraph's orchestrator pattern and how to use it effectively.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

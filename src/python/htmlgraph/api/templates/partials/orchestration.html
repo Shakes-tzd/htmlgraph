@@ -1,86 +1,163 @@
 <div class="view-container orchestration-view">
     <div class="view-header">
-        <h2>Agent Orchestration & Delegation</h2>
+        <h2>Agent Orchestration Graph</h2>
         <div class="view-description">
-            Real-time view of delegation chains and agent handoffs
+            Real-time visualization of agent delegation chains and multi-hop workflows
         </div>
-    </div>
-
-    <div class="orchestration-chains">
-        {% if delegations %}
-            {% for delegation in delegations %}
-            <div class="delegation-chain">
-                <div class="chain-header">
-                    <span class="timestamp-badge">{{ delegation.timestamp }}</span>
-                </div>
-
-                <div class="chain-flow">
-                    <div class="agent-node from-agent">
-                        <div class="agent-icon">→</div>
-                        <div class="agent-label">{{ delegation.from_agent }}</div>
-                    </div>
-
-                    <div class="delegation-arrow">
-                        <span class="arrow-icon">⟹</span>
-                        <span class="delegation-label">delegated</span>
-                    </div>
-
-                    <div class="agent-node to-agent">
-                        <div class="agent-icon">←</div>
-                        <div class="agent-label">{{ delegation.to_agent }}</div>
-                    </div>
-                </div>
-
-                <div class="chain-details">
-                    {% if delegation.task %}
-                    <div class="delegation-task">
-                        <span class="detail-label">Task:</span>
-                        <span class="detail-value">{{ delegation.task[:80] }}{% if delegation.task|length > 80 %}...{% endif %}</span>
-                    </div>
-                    {% endif %}
-
-                    {% if delegation.result %}
-                    <div class="delegation-result">
-                        <span class="detail-label">Result:</span>
-                        <span class="detail-value">{{ delegation.result[:80] }}{% if delegation.result|length > 80 %}...{% endif %}</span>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="chain-footer">
-                    <span class="event-id" title="{{ delegation.event_id }}">{{ delegation.event_id[:8] }}</span>
-                    <span class="session-info" title="{{ delegation.session_id }}">Session: {{ delegation.session_id[:8] }}</span>
-                </div>
+        <div class="view-filters">
+            <div class="filter-group">
+                <label>Filter by Agent:</label>
+                <select class="filter-select" id="agent-filter">
+                    <option value="all">All Agents</option>
+                    {% set agents = [] %}
+                    {% for d in delegations %}
+                        {% if d.from_agent not in agents %}
+                            {% set _ = agents.append(d.from_agent) %}
+                        {% endif %}
+                        {% if d.to_agent not in agents %}
+                            {% set _ = agents.append(d.to_agent) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for agent in agents|sort %}
+                    <option value="{{ agent }}">{{ agent }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <p>No delegation chains found</p>
-                <small>Agent-to-agent delegations and handoffs will appear here</small>
-            </div>
-        {% endif %}
+        </div>
     </div>
 
-    <!-- Orchestration stats -->
-    <div class="orchestration-stats">
-        <div class="stat-card">
-            <span class="stat-title">Total Delegations</span>
-            <span class="stat-value">{{ delegations|length }}</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-title">Unique Agents</span>
-            <span class="stat-value">
-                {% set unique_agents = {} %}
-                {% for d in delegations %}
-                    {% if d.from_agent not in unique_agents %}
-                        {% set _ = unique_agents.update({d.from_agent: True}) %}
-                    {% endif %}
-                    {% if d.to_agent not in unique_agents %}
-                        {% set _ = unique_agents.update({d.to_agent: True}) %}
-                    {% endif %}
-                {% endfor %}
-                {{ unique_agents|length }}
-            </span>
+    <!-- Stats -->
+    <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+        <h3 style="color: var(--accent-lime); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; font-size: 0.85rem;">
+            Orchestration Statistics
+        </h3>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Delegations</div>
+                <div class="metric-value">{{ delegations|length }}</div>
+                <div class="metric-trend">Agent-to-agent handoffs</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Unique Agents</div>
+                <div class="metric-value" id="unique-agents">
+                    {% set unique_agents = {} %}
+                    {% for d in delegations %}
+                        {% if d.from_agent not in unique_agents %}
+                            {% set _ = unique_agents.update({d.from_agent: True}) %}
+                        {% endif %}
+                        {% if d.to_agent not in unique_agents %}
+                            {% set _ = unique_agents.update({d.to_agent: True}) %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ unique_agents|length }}
+                </div>
+                <div class="metric-trend">In network</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Deepest Chain</div>
+                <div class="metric-value" id="deepest-chain">—</div>
+                <div class="metric-trend">Hops in longest path</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Chain Length</div>
+                <div class="metric-value" id="avg-chain-length">—</div>
+                <div class="metric-trend">Mean delegation depth</div>
+            </div>
         </div>
     </div>
+
+    <!-- Delegation List -->
+    {% if delegations %}
+    <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+        <h3 style="color: var(--accent-lime); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; font-size: 0.85rem;">
+            Recent Delegations
+        </h3>
+        <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 2px; overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background: var(--bg-darker); border-bottom: 1px solid var(--border-subtle);">
+                    <tr>
+                        <th style="padding: 0.5rem 0.75rem; text-align: left; color: var(--accent-lime); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">From</th>
+                        <th style="padding: 0.5rem 0.75rem; text-align: left; color: var(--accent-lime); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">To</th>
+                        <th style="padding: 0.5rem 0.75rem; text-align: left; color: var(--accent-lime); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Task</th>
+                        <th style="padding: 0.5rem 0.75rem; text-align: left; color: var(--accent-lime); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for delegation in delegations[:20] %}
+                    <tr style="border-bottom: 1px solid var(--border-subtle);">
+                        <td style="padding: 0.4rem 0.75rem;">
+                            <span style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.15rem 0.4rem; border-radius: 2px; color: var(--agent-claude); font-size: 0.75rem; font-weight: 600;">
+                                {{ delegation.from_agent }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.4rem 0.75rem;">
+                            <span style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 0.15rem 0.4rem; border-radius: 2px; color: var(--agent-gemini); font-size: 0.75rem; font-weight: 600;">
+                                {{ delegation.to_agent }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.4rem 0.75rem; color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem;">
+                            {% if delegation.task %}
+                                {{ delegation.task[:60] }}{% if delegation.task|length > 60 %}...{% endif %}
+                            {% else %}
+                                <span style="color: var(--text-muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.4rem 0.75rem; color: var(--text-secondary); font-family: 'Courier New', monospace; font-size: 0.75rem;">
+                            {{ delegation.timestamp }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 2px; text-align: center; color: var(--text-muted);">
+        <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">No delegation chains found</p>
+        <small style="font-size: 0.75rem;">Agent-to-agent delegations will appear here as tasks are assigned</small>
+    </div>
+    {% endif %}
 </div>
+
+<style>
+    /* Compact view header */
+    .orchestration-view .view-header {
+        margin-bottom: 0.75rem;
+    }
+
+    .orchestration-view .view-description {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Compact stats section */
+    .orchestration-view .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .orchestration-view .metric-card {
+        padding: 0.75rem 1rem;
+        min-height: auto;
+    }
+
+    .orchestration-view .metric-value {
+        font-size: 1.5rem;
+        margin: 0.25rem 0;
+    }
+
+    .orchestration-view .metric-label {
+        font-size: 0.7rem;
+    }
+
+    .orchestration-view .metric-trend {
+        font-size: 0.65rem;
+    }
+
+    @media (max-width: 768px) {
+        .orchestration-view .metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>

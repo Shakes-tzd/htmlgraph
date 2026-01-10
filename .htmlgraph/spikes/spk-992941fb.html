@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Orchestration Gap Removal</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-992941fb"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T18:42:24.623601"
+             data-updated="2026-01-09T18:42:24.623606" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="orchestration-fixer">
+
+        <header>
+            <h1>Orchestration Gap Removal</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## What I Found
+
+The orchestration.html template contained an empty DAG visualization container:
+
+```html
+<!-- DAG Visualization Container -->
+{% if delegations %}
+<div class="orchestration-graph">
+    <div class="graph-container">
+        <svg class="graph-edges" id="graph-edges"></svg>
+        <div class="graph-nodes" id="graph-nodes"></div>
+    </div>
+</div>
+{% endif %}
+```
+
+This created a 300px tall dark container that appeared empty because:
+1. The JavaScript OrchestrationGraph class required DOM elements that were not properly rendering
+2. The graph was meant for DAG visualization but showed as a dark gap
+3. Associated CSS set `height: 300px` creating the visible empty space
+
+## What I Removed
+
+1. **HTML** (lines 29-37): The entire DAG visualization container div
+2. **JavaScript** (~220 lines): The OrchestrationGraph class and initialization code
+3. **CSS** (~80 lines): All graph-related styles including:
+   - .orchestration-graph
+   - .graph-container
+   - .graph-edges
+   - .graph-nodes
+   - .graph-node and variants
+   - .node-label
+   - .node-cost
+
+## Result
+
+The page now flows directly:
+- Filter section -> Stats cards -> Delegations table
+
+No more dark gap/empty container. The orchestration page is cleaner and more compact.
+
+**File:** /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/templates/partials/orchestration.html
+**Lines removed:** ~310 lines reduced to ~163 lines
+            </div>
+        </section>
+    </article>
+</body>
+</html>

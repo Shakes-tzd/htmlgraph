@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fixed: Hook Changes Copied to Plugin Source</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-978c3014"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:23:50.155646"
+             data-updated="2026-01-09T20:23:50.155650" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="plugin-syncer">
+
+        <header>
+            <h1>Fixed: Hook Changes Copied to Plugin Source</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+# Sync Complete ✅
+
+## Problem
+Hook changes were made to local `.claude/` directory but needed to be copied to plugin source for persistence across updates.
+
+## Files Copied
+1. **hooks.json**
+   - Source: `.claude/hooks/hooks.json` (1.9 KB)
+   - Destination: `packages/claude-plugin/.claude-plugin/hooks/hooks.json` (was 1.6 KB)
+   - Changes: Added second UserPromptSubmit hook for track-event.py
+
+2. **track-event.py**
+   - Source: `.claude/hooks/scripts/track-event.py` (32 KB)
+   - Destination: `packages/claude-plugin/.claude-plugin/hooks/scripts/track-event.py` (was 25 KB)
+   - Changes: Added SQLite recording for UserPromptSubmit, Stop, PostToolUse events
+
+## Verification Results
+- ✅ Backups created successfully
+- ✅ Files copied to plugin source
+- ✅ File sizes match (hooks.json: 1.9 KB, track-event.py: 32 KB)
+- ✅ Diff checks passed (files identical)
+- ✅ Plugin source now has all SQLite tracking changes
+
+## Impact
+- Changes now persist in plugin source at `packages/claude-plugin/.claude-plugin/`
+- Future plugin updates/publishes will include these changes
+- UserQuery recording will work correctly
+- Session tracking via SQLite now complete
+
+## Next Steps
+- Test UserQuery recording to verify SQLite writes
+- Changes will be included in next plugin version publish
+- Local development continues with persistent hooks
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

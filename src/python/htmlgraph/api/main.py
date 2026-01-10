@@ -223,7 +223,7 @@ def get_app(db_path: str) -> FastAPI:
     async def dashboard(request: Request) -> HTMLResponse:
         """Main dashboard view with navigation tabs."""
         return templates.TemplateResponse(
-            "dashboard.html",
+            "dashboard-redesign.html",
             {
                 "request": request,
                 "title": "HtmlGraph Agent Observability",
@@ -333,123 +333,23 @@ def get_app(db_path: str) -> FastAPI:
         session_id: str | None = None,
         agent_id: str | None = None,
     ) -> HTMLResponse:
-        """Get latest agent events as HTMX partial with hierarchical parent-child grouping."""
+        """Get latest agent events grouped by conversation turn (user prompt).
+
+        Returns grouped activity feed showing conversation turns with their child events.
+        """
         db = await get_db()
         cache = app.state.query_cache
-        query_start_time = time.time()
 
         try:
-            # Create cache key from query parameters
-            cache_key = (
-                f"activity_feed:{limit}:{session_id or 'all'}:{agent_id or 'all'}"
-            )
-
-            # Check cache first
-            cached_rows = cache.get(cache_key)
-            if cached_rows is not None:
-                query_time_ms = (time.time() - query_start_time) * 1000
-                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
-                logger.debug(
-                    f"Cache HIT for activity_feed (key={cache_key}, time={query_time_ms:.2f}ms)"
-                )
-                rows = cached_rows
-            else:
-                # Build query using 'agent_events' table from Phase 1 PreToolUse hook implementation
-                # Optimized with index hints and selective columns
-                query = """
-                    SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
-                           e.input_summary, e.output_summary, e.session_id,
-                           e.status
-                    FROM agent_events e
-                    WHERE 1=1
-                """
-                params: list = []
-
-                if session_id:
-                    query += " AND e.session_id = ?"
-                    params.append(session_id)
-
-                if agent_id:
-                    query += " AND e.agent_id = ?"
-                    params.append(agent_id)
-
-                query += " ORDER BY e.timestamp DESC LIMIT ?"
-                params.append(limit)
-
-                # Execute query with timing
-                exec_start = time.time()
-                cursor = await db.execute(query, params)
-                rows = list(await cursor.fetchall())
-                exec_time_ms = (time.time() - exec_start) * 1000
-
-                # Cache the results
-                cache.set(cache_key, rows)
-                query_time_ms = (time.time() - query_start_time) * 1000
-                cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
-                logger.debug(
-                    f"Cache MISS for activity_feed (key={cache_key}, "
-                    f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms)"
-                )
-
-            events = [
-                {
-                    "event_id": row[0],
-                    "agent_id": row[1] or "unknown",
-                    "event_type": row[2],
-                    "timestamp": row[3],
-                    "tool_name": row[4],
-                    "input_summary": row[5],
-                    "output_summary": row[6],
-                    "session_id": row[7],
-                    "status": row[8],
-                    "parent_event_id": None,
-                    "cost_tokens": 0,
-                    "execution_duration_seconds": 0.0,
-                }
-                for row in rows
-            ]
-
-            # Group events by parent_event_id for hierarchical display
-            # Organize as: parent events with their children nested
-            events_by_parent: dict = {}
-            root_events = []
-
-            # First pass: organize into hierarchy
-            for event in events:
-                parent_id = event.get("parent_event_id")
-                if parent_id:
-                    # This is a child event
-                    if parent_id not in events_by_parent:
-                        events_by_parent[parent_id] = []
-                    events_by_parent[parent_id].append(event)
-                else:
-                    # This is a root-level event
-                    root_events.append(event)
-
-            # Query returns DESC order which is preserved by iteration
-
-            # Structure for template: list of parent events with children
-            hierarchical_events = []
-            for parent_event in root_events:
-                parent_id = parent_event["event_id"]
-                children = events_by_parent.get(parent_id, [])
-                hierarchical_events.append(
-                    {
-                        "parent": parent_event,
-                        "children": children,
-                        "has_children": len(children) > 0,
-                    }
-                )
-
-            # Reverse to preserve DESC order from database query (newest first)
-            hierarchical_events.reverse()
+            # Call the helper function to get grouped events
+            grouped_result = await _get_events_grouped_by_prompt_impl(db, cache, limit)
 
             return templates.TemplateResponse(
-                "partials/activity-feed-hierarchical.html",
+                "partials/activity-feed.html",
                 {
                     "request": request,
-                    "hierarchical_events": hierarchical_events,
-                    "all_events": events,
+                    "conversation_turns": grouped_result.get("conversation_turns", []),
+                    "total_turns": grouped_result.get("total_turns", 0),
                     "limit": limit,
                 },
             )
@@ -1023,6 +923,231 @@ def get_app(db_path: str) -> FastAPI:
 
             return result
 
+        finally:
+            await db.close()
+
+    # ========== HELPER: Grouped Events Logic ==========
+
+    async def _get_events_grouped_by_prompt_impl(
+        db: aiosqlite.Connection, cache: QueryCache, limit: int = 50
+    ) -> dict[str, Any]:
+        """
+        Implementation helper: Return activity events grouped by user prompt (conversation turns).
+
+        Each conversation turn includes:
+        - userQuery: The original UserQuery event with prompt text
+        - children: All child events triggered by this prompt
+        - stats: Aggregated statistics for the conversation turn
+
+        Args:
+            db: Database connection
+            cache: Query cache instance
+            limit: Maximum number of conversation turns to return (default 50)
+
+        Returns:
+            Dictionary with conversation turns and metadata
+        """
+        query_start_time = time.time()
+
+        try:
+            # Create cache key
+            cache_key = f"events_grouped_by_prompt:{limit}"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                logger.debug(
+                    f"Cache HIT for events_grouped_by_prompt (key={cache_key}, time={query_time_ms:.2f}ms)"
+                )
+                return cached_result  # type: ignore[no-any-return]
+
+            exec_start = time.time()
+
+            # Step 1: Query UserQuery events (most recent first)
+            user_query_query = """
+                SELECT
+                    event_id,
+                    timestamp,
+                    input_summary,
+                    execution_duration_seconds,
+                    status,
+                    agent_id
+                FROM agent_events
+                WHERE tool_name = 'UserQuery'
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+
+            cursor = await db.execute(user_query_query, [limit])
+            user_query_rows = await cursor.fetchall()
+
+            conversation_turns: list[dict[str, Any]] = []
+
+            # Step 2: For each UserQuery, fetch child events
+            for uq_row in user_query_rows:
+                uq_event_id = uq_row[0]
+                uq_timestamp = uq_row[1]
+                uq_input = uq_row[2] or ""
+                uq_duration = uq_row[3] or 0.0
+                uq_status = uq_row[4]
+
+                # Extract prompt text from input_summary
+                # Format is typically: "UserQuery: {'prompt': '...'}"
+                prompt_text = uq_input
+                try:
+                    import re
+
+                    if "UserQuery:" in uq_input:
+                        # Extract the dict part: "UserQuery: {'prompt': '...'}"
+                        parts = uq_input.split("UserQuery:", 1)
+                        if len(parts) > 1:
+                            dict_str = parts[1].strip()
+                            # Convert single quotes to double quotes for valid JSON
+                            dict_str = dict_str.replace("'", '"')
+                            try:
+                                prompt_dict = json.loads(dict_str)
+                                prompt_text = prompt_dict.get("prompt", uq_input)
+                            except json.JSONDecodeError:
+                                # Fallback to regex extraction
+                                match = re.search(
+                                    r"['\"]prompt['\"]\\s*:\\s*['\"]([^'\"]*)['\"]",
+                                    uq_input,
+                                )
+                                if match:
+                                    prompt_text = match.group(1)
+                except Exception:
+                    pass
+
+                # Step 2a: Query child events linked via parent_event_id
+                children_query = """
+                    SELECT
+                        event_id,
+                        tool_name,
+                        timestamp,
+                        input_summary,
+                        execution_duration_seconds,
+                        status,
+                        COALESCE(subagent_type, agent_id) as agent_id
+                    FROM agent_events
+                    WHERE parent_event_id = ?
+                    ORDER BY timestamp ASC
+                """
+
+                children_cursor = await db.execute(children_query, [uq_event_id])
+                children_rows = await children_cursor.fetchall()
+
+                # Step 3: Build child events with proper formatting
+                children: list[dict[str, Any]] = []
+                total_duration = uq_duration
+                success_count = (
+                    1 if uq_status == "recorded" or uq_status == "success" else 0
+                )
+                error_count = (
+                    0 if uq_status == "recorded" or uq_status == "success" else 1
+                )
+
+                for child_row in children_rows:
+                    child_event_id = child_row[0]
+                    child_tool = child_row[1]
+                    child_timestamp = child_row[2]
+                    child_input = child_row[3] or ""
+                    child_duration = child_row[4] or 0.0
+                    child_status = child_row[5]
+                    child_agent = child_row[6] or "unknown"
+
+                    # Build summary: "ToolName: description"
+                    summary = f"{child_tool}: {child_input[:60]}..."
+                    if len(child_input) <= 60:
+                        summary = f"{child_tool}: {child_input}"
+
+                    children.append(
+                        {
+                            "event_id": child_event_id,
+                            "tool_name": child_tool,
+                            "timestamp": child_timestamp,
+                            "summary": summary,
+                            "duration_seconds": round(child_duration, 2),
+                            "agent": child_agent,
+                        }
+                    )
+
+                    # Update stats
+                    total_duration += child_duration
+                    if child_status == "recorded" or child_status == "success":
+                        success_count += 1
+                    else:
+                        error_count += 1
+
+                # Step 4: Build conversation turn object
+                conversation_turn = {
+                    "userQuery": {
+                        "event_id": uq_event_id,
+                        "timestamp": uq_timestamp,
+                        "prompt": prompt_text[:200],  # Truncate for display
+                        "duration_seconds": round(uq_duration, 2),
+                    },
+                    "children": children,
+                    "stats": {
+                        "tool_count": len(children),
+                        "total_duration": round(total_duration, 2),
+                        "success_count": success_count,
+                        "error_count": error_count,
+                    },
+                }
+
+                conversation_turns.append(conversation_turn)
+
+            exec_time_ms = (time.time() - exec_start) * 1000
+
+            # Build response
+            result = {
+                "timestamp": datetime.now().isoformat(),
+                "total_turns": len(conversation_turns),
+                "conversation_turns": conversation_turns,
+                "note": "Groups events by UserQuery prompt (conversation turn). Child events are linked via parent_event_id.",
+            }
+
+            # Cache the result
+            cache.set(cache_key, result)
+            query_time_ms = (time.time() - query_start_time) * 1000
+            cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+            logger.debug(
+                f"Cache MISS for events_grouped_by_prompt (key={cache_key}, "
+                f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms, "
+                f"turns={len(conversation_turns)})"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in _get_events_grouped_by_prompt_impl: {e}")
+            raise
+
+    # ========== EVENTS GROUPED BY PROMPT ENDPOINT ==========
+
+    @app.get("/api/events-grouped-by-prompt")
+    async def events_grouped_by_prompt(limit: int = 50) -> dict[str, Any]:
+        """
+        Return activity events grouped by user prompt (conversation turns).
+
+        Each conversation turn includes:
+        - userQuery: The original UserQuery event with prompt text
+        - children: All child events triggered by this prompt
+        - stats: Aggregated statistics for the conversation turn
+
+        Args:
+            limit: Maximum number of conversation turns to return (default 50)
+
+        Returns:
+            Dictionary with conversation_turns list and metadata
+        """
+        db = await get_db()
+        cache = app.state.query_cache
+
+        try:
+            return await _get_events_grouped_by_prompt_impl(db, cache, limit)
         finally:
             await db.close()
 
@@ -1638,12 +1763,52 @@ def get_app(db_path: str) -> FastAPI:
                     f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms)"
                 )
 
+            # Provide default values for metrics template variables
+            # These prevent Jinja2 UndefinedError for variables the template expects
+            exec_time_dist = {
+                "very_fast": 0,
+                "fast": 0,
+                "medium": 0,
+                "slow": 0,
+                "very_slow": 0,
+            }
+
+            # Count active sessions from the fetched sessions
+            active_sessions = sum(1 for s in sessions if s.get("status") == "active")
+
+            # Default token stats (empty until we compute real values)
+            token_stats = {
+                "total_tokens": 0,
+                "avg_per_event": 0,
+                "peak_usage": 0,
+                "estimated_cost": 0.0,
+            }
+
+            # Default activity timeline (last 24 hours with 0 counts)
+            activity_timeline = {str(h): 0 for h in range(24)}
+            max_hourly_count = 1  # Avoid division by zero in template
+
+            # Default agent performance (empty list)
+            agent_performance = []
+
+            # Default system health metrics
+            error_rate = 0.0
+            avg_response_time = 0.5  # seconds
+
             return templates.TemplateResponse(
                 "partials/metrics.html",
                 {
                     "request": request,
                     "sessions": sessions,
                     "stats": stats,
+                    "exec_time_dist": exec_time_dist,
+                    "active_sessions": active_sessions,
+                    "token_stats": token_stats,
+                    "activity_timeline": activity_timeline,
+                    "max_hourly_count": max_hourly_count,
+                    "agent_performance": agent_performance,
+                    "error_rate": error_rate,
+                    "avg_response_time": avg_response_time,
                 },
             )
         finally:

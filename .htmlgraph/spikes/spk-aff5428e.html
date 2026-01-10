@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Metrics View Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-aff5428e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T14:38:35.989964"
+             data-updated="2026-01-09T14:38:35.989970" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="metrics-fixer">
+
+        <header>
+            <h1>Metrics View Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem
+The metrics view at /views/metrics was failing with:
+```
+jinja2.exceptions.UndefinedError: 'exec_time_dist' is undefined
+```
+
+## Root Cause
+The redesigned metrics.html template (partials/metrics.html) expects several variables
+that the backend route (metrics_view in main.py) was not providing:
+
+Missing variables:
+- exec_time_dist (execution time distribution)
+- active_sessions
+- token_stats (total_tokens, avg_per_event, peak_usage, estimated_cost)
+- activity_timeline (dict of hour -> count)
+- max_hourly_count
+- agent_performance
+- error_rate
+- avg_response_time
+
+## Fix Applied
+Added default values for all missing variables in the metrics_view route at line 1672-1704
+in /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py
+
+Key changes:
+1. exec_time_dist: dict with very_fast, fast, medium, slow, very_slow (all 0)
+2. active_sessions: computed from sessions list
+3. token_stats: dict with zeros for all fields
+4. activity_timeline: 24-hour dict with zero counts
+5. max_hourly_count: 1 (avoid division by zero)
+6. agent_performance: empty list
+7. error_rate: 0.0
+8. avg_response_time: 0.5 seconds
+
+## Verification
+- curl http://localhost:8080/views/metrics returns HTTP 200
+- Full HTML template renders without Jinja2 errors
+- All sections display with default values
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>HeadlessSpawner and Agent Integration Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f1a2ac1c"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T02:46:31.500612"
+             data-updated="2026-01-10T02:46:31.500616" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="explorer-spawner-integration">
+
+        <header>
+            <h1>HeadlessSpawner and Agent Integration Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # HeadlessSpawner and Spawner Agent Integration Analysis
+
+## Executive Summary
+
+The HeadlessSpawner class provides programmatic access to external AI CLIs (Gemini, Codex, Copilot, Claude), while spawner agents (gemini-spawner.md, codex-spawner.md, copilot-spawner.md) serve as **documentation and workflow guides** for Claude Code users. There is a **critical integration gap**: spawner agents are scaffolds that document how to USE HeadlessSpawner but are NOT automatically invoked by the system.
+
+## Key Findings
+
+### 1. HeadlessSpawner Implementation
+
+**Location**: src/python/htmlgraph/orchestration/headless_spawner.py (1065 lines)
+
+**Core Methods**:
+- spawn_gemini() - Lines 371-564: Google Gemini 2.0-Flash (FREE tier, 2M tokens/min)
+- spawn_codex() - Lines 566-781: OpenAI Codex/GPT-4 (sandboxed execution)
+- spawn_copilot() - Lines 783-917: GitHub Copilot (GitHub integration)
+- spawn_claude() - Lines 919-1064: Claude Code (same auth as Task tool)
+
+**Invocation Methods**:
+1. Python API (Primary): Direct instantiation and method calls
+2. SDK Integration: sdk.spawn_explorer(), sdk.spawn_coder() (wrapper methods)
+3. CLI: No direct CLI commands (only Python API)
+
+**Key Features**:
+- Subprocess-based CLI execution
+- Automatic HtmlGraph tracking via _get_sdk()
+- Parent session context propagation
+- Event parsing and tracking
+- Error handling with AIResult dataclass
+
+### 2. Spawner Agent Scaffolds
+
+**Files**:
+- gemini-spawner.md (213 lines)
+- codex-spawner.md (289 lines)
+- copilot-spawner.md (289 lines)
+
+**Content Structure**:
+1. Purpose & When to Use
+2. Workflow (5-6 step process)
+3. Use Cases (3+ examples with code)
+4. Code Pattern (comprehensive template)
+5. Error Handling
+6. Fallback Strategy
+7. HtmlGraph Integration
+8. Success Metrics
+
+**Critical Insight**: These are documentation agents, not executable code. They guide Claude Code on HOW to use HeadlessSpawner programmatically.
+
+### 3. Integration Gaps
+
+**Gap 1: No Automatic Invocation**
+- Spawner agents are passive documentation
+- No hook/skill automatically invokes them
+- Relies on Claude Code Auto-Agent description matching
+
+**Gap 2: No CLI Commands**
+- Cannot run: htmlgraph spawn-gemini "analyze code"
+- Only Python API available
+
+**Gap 3: Fallback Implementation**
+- HeadlessSpawner does not implement fallback internally
+- Each spawner agent must implement its own fallback
+
+**Gap 4: Cost Analysis**
+- HeadlessSpawner tracks tokens but not costs
+- No automated cost comparison before spawning
+
+## Recommendations
+
+1. Add CLI commands for spawner invocation
+2. Centralize fallback logic in HeadlessSpawner
+3. Add cost estimation methods
+4. Create auto-invocation hooks for spawner agents
+            </div>
+        </section>
+    </article>
+</body>
+</html>

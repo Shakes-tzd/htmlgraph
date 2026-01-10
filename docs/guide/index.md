@@ -8,6 +8,9 @@ This guide covers:
 
 - **[Features & Tracks](features-tracks.md)** - Creating and managing features and tracks
 - **[TrackBuilder](track-builder.md)** - Mastering the TrackBuilder fluent API
+- **[Delegation](delegation.md)** - Distributing work to parallel subagents with Task()
+- **[Skills](skills.md)** - Specialized guides for orchestration, deployment, and debugging
+- **[Session Hierarchies](session-hierarchies.md)** - Understanding parent-child session relationships
 - **[Sessions](sessions.md)** - Understanding session tracking and attribution
 - **[Agents](agents.md)** - Integrating HtmlGraph with AI agents
 - **[Dashboard](dashboard.md)** - Using the interactive dashboard
@@ -26,17 +29,23 @@ Start with these guides in order:
 
 Jump to these sections:
 
-1. [Agents](agents.md) - Agent integration patterns
-2. [TrackBuilder](track-builder.md) - Deterministic track creation
-3. [Sessions](sessions.md) - Session management and attribution
+1. [Delegation](delegation.md) - Task distribution and orchestration patterns
+2. [Skills](skills.md) - Specialized guides for complex workflows
+3. [Session Hierarchies](session-hierarchies.md) - Parent-child session relationships
+4. [Agents](agents.md) - Agent integration patterns
+5. [TrackBuilder](track-builder.md) - Deterministic track creation
+6. [Sessions](sessions.md) - Session management and attribution
 
 ### For Power Users
 
 Advanced topics:
 
-1. [TrackBuilder](track-builder.md) - Complex track workflows
-2. [Sessions](sessions.md) - Custom session handling
-3. [API Reference](../api/index.md) - Complete API documentation
+1. [Skills](skills.md) - Master all specialized guides and decision frameworks
+2. [Session Hierarchies](session-hierarchies.md) - Advanced session querying and analysis
+3. [Delegation](delegation.md) - Complex delegation patterns and cost optimization
+4. [TrackBuilder](track-builder.md) - Complex track workflows
+5. [Sessions](sessions.md) - Custom session handling
+6. [API Reference](../api/index.md) - Complete API documentation
 
 ## Common Workflows
 

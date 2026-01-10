@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix: UserPromptSubmit Hook Now Records to SQLite</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-2fdb3136"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:05:51.527396"
+             data-updated="2026-01-09T20:05:51.527401" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="hook-fixer">
+
+        <header>
+            <h1>Fix: UserPromptSubmit Hook Now Records to SQLite</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Implementation Complete
+
+## Root Cause
+The UserPromptSubmit hook was only calling user-prompt-submit.py for CIGS analysis. It did NOT call track-event.py to record UserQuery events to SQLite.
+
+## Changes Made
+Modified .claude/hooks/hooks.json to include TWO hooks for UserPromptSubmit:
+1. Existing: user-prompt-submit.py - CIGS analysis and workflow guidance
+2. New: track-event.py - Record UserQuery events to SQLite database
+
+## Pattern Applied
+Followed the same pattern as the Stop hook, which successfully records events.
+
+## Testing
+Next user prompt will trigger both hooks:
+- user-prompt-submit.py → CIGS guidance (existing functionality preserved)
+- track-event.py → SQLite recording (new functionality added)
+
+## Verification Command
+sqlite3 .htmlgraph/index.sqlite "SELECT * FROM events WHERE tool = 'UserQuery' ORDER BY ts DESC LIMIT 5"
+
+## Impact
+- UserQuery events now recorded to SQLite
+- Existing CIGS functionality preserved
+- Consistent with other hook patterns (Stop, SessionStart, SessionEnd)
+- No breaking changes
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Jaeger-style nesting fix for Activity Feed</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-016ed964"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T19:23:28.549056"
+             data-updated="2026-01-09T19:23:28.549061" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="ui-fixer">
+
+        <header>
+            <h1>Jaeger-style nesting fix for Activity Feed</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Changes Made
+
+### 1. Enhanced Expand/Collapse Toggle (activity-feed.html CSS)
+- Increased size from 20x20px to 24x24px
+- Increased font-size from 0.6rem to 1rem (much more visible)
+- Added background color (rgba(163, 230, 53, 0.1))
+- Added border (1px solid rgba(163, 230, 53, 0.2))
+- Changed default color to accent-lime for visibility
+
+### 2. Child Row Visual Indentation (activity-feed.html CSS)
+- Added padding-left: 32px for depth-1 children
+- Added support for deeper nesting (56px for depth-2, 80px for depth-3)
+- Added subtle background color difference for child rows
+- Added last-child styling with bottom border
+
+### 3. Indent Guide System (activity-feed.html CSS)
+- Fixed indent guide positioning (left: 16px for level-1)
+- Increased opacity from 0.2 to 0.4 for better visibility
+- Added last-child truncation (guide stops at row center)
+- Enhanced hover glow effect
+
+### 4. Tree Connector Characters (activity-feed.html HTML + CSS)
+- Moved tree connectors to dedicated column (tree-connector-col)
+- Using ├─ for middle children, └─ for last child via Jinja2 loop.last
+- Increased font-size to 1rem with bold weight
+- Added lime green color for visibility
+
+### 5. Parent Row Expanded State (activity-feed.html CSS + dashboard.html JS)
+- Added .expanded class styling with background highlight
+- Added ::after pseudo-element for vertical connector to first child
+- Updated toggleTrace() to add/remove expanded class on parent row
+- Updated expandAllTraces() and collapseAllTraces() to manage parent row classes
+
+## Files Modified
+1. /src/python/htmlgraph/api/templates/partials/activity-feed.html - HTML structure + CSS
+2. /src/python/htmlgraph/api/templates/dashboard.html - JavaScript functions
+
+## Visual Verification
+Screenshot saved: .playwright-mcp/jaeger-nesting-with-test-rows.png
+
+Shows:
+- Large visible expand arrow (▼) on parent rows
+- Child rows clearly indented with 32px padding
+- Tree connectors (├─, └─) in lime green
+- Child count badge (2) on parent row
+- Visual hierarchy with background color differences
+            </div>
+        </section>
+    </article>
+</body>
+</html>

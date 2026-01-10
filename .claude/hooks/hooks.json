@@ -6,6 +6,12 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Record UserQuery event to SQLite",
+            "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit uv run \".claude/hooks/scripts/track-event.py\""
+          },
+          {
+            "type": "command",
+            "comment": "CIGS analysis and workflow guidance",
             "command": "uv run \".claude/hooks/scripts/user-prompt-submit.py\""
           }
         ]

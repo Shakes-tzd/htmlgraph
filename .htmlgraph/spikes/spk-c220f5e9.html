@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Investigation: Agent Attribution Issue - All events show claude-code</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c220f5e9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:24:19.537215"
+             data-updated="2026-01-09T20:24:19.537219" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="investigation-agent">
+
+        <header>
+            <h1>Investigation: Agent Attribution Issue - All events show claude-code</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Root Cause Analysis: Agent Attribution Issue
+
+## Problem
+All events in the Activity Feed display "claude-code" as the agent, even for delegations to subagents like Codex, Gemini, Copilot. No differentiation between orchestrator and delegated subagents.
+
+## Root Cause: Agent Detection Always Returns Default Value
+
+HtmlGraph tracks events in the `agent_events` table with an `agent_id` column, but this column is always populated with "claude-code" because the agent detection logic cannot find any environment variables.
+
+### Key Code Path
+
+1. **Event Recording** (event_tracker.py:628)
+   - Calls `detect_agent_from_environment()`
+   - Returns "claude-code" (default fallback)
+
+2. **Agent Detection Logic** (event_tracker.py:351-382)
+   - Checks 5 environment variables: HTMLGRAPH_AGENT, HTMLGRAPH_SUBAGENT_TYPE, CLAUDE_MODEL, ANTHROPIC_MODEL, HTMLGRAPH_PARENT_AGENT
+   - None are set in current environment
+   - Always returns "claude-code" default
+
+3. **Event Storage** (event_tracker.py:849)
+   - Passes `agent_id=detected_agent` (always "claude-code")
+   - BUT also passes `subagent_type=task_subagent_type` for Task events
+   - The `subagent_type` column IS populated correctly!
+
+## Why This Happens
+
+**For Task() delegations:**
+- Tool name: "Task"
+- `subagent_type` column IS populated correctly (e.g., "gemini-2.0-flash-exp", "gpt-4", "copilot")
+- BUT `agent_id` column shows who DELEGATED the task ("claude-code"), not who EXECUTED it
+- The Activity Feed displays `agent_id`, not `subagent_type`
+
+**For SubagentStop events:**
+- These events record when a subagent completes
+- But they also use `detected_agent` from the orchestrator's environment
+- No mechanism to capture the subagent's actual name
+
+## Evidence from Database
+
+The `agent_events` table has both columns:
+- `agent_id TEXT NOT NULL` - Currently always "claude-code"
+- `subagent_type TEXT` - Correctly populated for Task events
+
+Activity Feed query (main.py:360-378) reads `e.agent_id` which is always "claude-code".
+
+## Fix: Use COALESCE in SQL Query
+
+**Modify Activity Feed query** to prefer `subagent_type` over `agent_id`:
+
+```sql
+SELECT 
+    e.event_id,
+    COALESCE(e.subagent_type, e.agent_id) as agent_id,
+    e.event_type,
+    e.timestamp,
+    e.tool_name,
+    e.input_summary,
+    e.output_summary,
+    e.session_id,
+    e.status,
+    e.parent_event_id,
+    e.cost_tokens,
+    e.execution_duration_seconds,
+    e.subagent_type
+FROM agent_events e
+ORDER BY e.timestamp DESC LIMIT ?
+```
+
+This will:
+- Show "gemini-2.0-flash-exp", "gpt-4", "copilot" for Task delegations
+- Fall back to "claude-code" for direct orchestrator actions
+- Work with existing data immediately
+
+## Alternative: Template-Based Fix
+
+Modify activity-feed.html template to check subagent_type.
+
+## Related Files
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/event_tracker.py` (agent detection)
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py` (activity feed query, line 360)
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/db/schema.py` (table schema)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -209,17 +209,17 @@
             if (emptyState) {
                 emptyState.remove();
                 if (!activityList.querySelector('.activity-table')) {
+                    // New column order: Agent | Tool | Input | Output | Status | Timestamp (no ID)
                     const table = `
                         <table class="activity-table">
                             <thead>
                                 <tr>
-                                    <th class="col-timestamp">Timestamp</th>
                                     <th class="col-agent">Agent</th>
                                     <th class="col-tool">Tool</th>
                                     <th class="col-input">Input</th>
                                     <th class="col-output">Output</th>
                                     <th class="col-status">Status</th>
-                                    <th class="col-id">ID</th>
+                                    <th class="col-timestamp">Timestamp</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -278,51 +278,50 @@
         }
 
         function createActivityRowHTML(eventData) {
-            let eventEmoji = '📋';
-            if (eventData.event_type === 'delegation') eventEmoji = '🔗';
-            else if (eventData.event_type === 'tool_call') eventEmoji = '🔨';
-            else if (eventData.event_type === 'completion') eventEmoji = '🎉';
-            else if (eventData.event_type === 'tool_result') eventEmoji = '✅';
-            else if (eventData.event_type === 'error') eventEmoji = '❌';
+            // Event type emoji mapping
+            let eventEmoji = '&#128203;'; // clipboard
+            if (eventData.event_type === 'delegation') eventEmoji = '&#128279;'; // link
+            else if (eventData.event_type === 'tool_call') eventEmoji = '&#128296;'; // hammer
+            else if (eventData.event_type === 'completion') eventEmoji = '&#127881;'; // party
+            else if (eventData.event_type === 'tool_result') eventEmoji = '&#9989;'; // check
+            else if (eventData.event_type === 'error') eventEmoji = '&#10060;'; // x
 
-            const inputSummary = eventData.input_summary ? eventData.input_summary.substring(0, 100) : '';
-            const inputTruncated = eventData.input_summary && eventData.input_summary.length > 100 ? '…' : '';
-            const outputSummary = eventData.output_summary ? eventData.output_summary.substring(0, 100) : '';
-            const outputTruncated = eventData.output_summary && eventData.output_summary.length > 100 ? '…' : '';
+            const inputSummary = eventData.input_summary ? eventData.input_summary.substring(0, 150) : '';
+            const inputTruncated = eventData.input_summary && eventData.input_summary.length > 150 ? '...' : '';
+            const outputSummary = eventData.output_summary ? eventData.output_summary.substring(0, 150) : '';
+            const outputTruncated = eventData.output_summary && eventData.output_summary.length > 150 ? '...' : '';
 
             const isChild = !!eventData.parent_event_id;
-            const rowClass = isChild ? 'child-row' : 'parent-row';
-            const indentStyle = isChild ? 'padding-left: 2rem;' : '';
+            const rowClass = isChild ? 'child-row hidden' : 'parent-row';
             const borderStyle = isChild ? 'border-left: 4px solid var(--text-muted);' : 'border-left: 4px solid var(--accent-lime);';
 
+            // New column order: Agent | Tool | Input | Output | Status | Timestamp (no ID column)
             const html = `
                 <tr class="activity-row ${rowClass} event-${eventData.status || 'pending'}"
                     data-event-id="${escapeHtml(eventData.event_id)}"
+                    ${isChild ? `data-parent="${escapeHtml(eventData.parent_event_id)}"` : ''}
                     style="${borderStyle}">
-                    <td class="col-timestamp" style="${indentStyle}">
+                    <td class="col-agent">
+                        ${isChild ? '<span class="child-indicator">&#8627;</span>' : ''}
+                        <span class="agent-badge agent-${escapeHtml(eventData.agent_id.toLowerCase())}">${escapeHtml(eventData.agent_id)}</span>
+                    </td>
+                    <td class="col-tool">
                         <span class="event-type-badge" title="${escapeHtml(eventData.event_type)}">
                             ${eventEmoji}
                         </span>
-                        <span class="timestamp-text" data-utc-time="${escapeHtml(eventData.timestamp)}">${escapeHtml(eventData.timestamp)}</span>
-                    </td>
-                    <td class="col-agent">
-                        <span class="agent-badge agent-${escapeHtml(eventData.agent_id.toLowerCase())}">${escapeHtml(eventData.agent_id)}</span>
-                        ${isChild ? `<span class="child-indicator" title="Child of ${escapeHtml(eventData.parent_event_id.substring(0, 8))}">↳</span>` : ''}
-                    </td>
-                    <td class="col-tool">
-                        ${eventData.tool_name ? `<code class="tool-name">${escapeHtml(eventData.tool_name)}</code>` : '<span class="text-muted">—</span>'}
+                        ${eventData.tool_name ? `<code class="tool-name">${escapeHtml(eventData.tool_name)}</code>` : '<span class="text-muted">-</span>'}
                     </td>
                     <td class="col-input">
-                        ${inputSummary ? `<span class="truncate" title="${escapeHtml(eventData.input_summary)}">${escapeHtml(inputSummary)}${inputTruncated}</span>` : '<span class="text-muted">—</span>'}
+                        ${inputSummary ? `<span class="truncate" title="${escapeHtml(eventData.input_summary)}">${escapeHtml(inputSummary)}${inputTruncated}</span>` : '<span class="text-muted">-</span>'}
                     </td>
                     <td class="col-output">
-                        ${outputSummary ? `<span class="truncate" title="${escapeHtml(eventData.output_summary)}">${escapeHtml(outputSummary)}${outputTruncated}</span>` : '<span class="text-muted">—</span>'}
+                        ${outputSummary ? `<span class="truncate" title="${escapeHtml(eventData.output_summary)}">${escapeHtml(outputSummary)}${outputTruncated}</span>` : '<span class="text-muted">-</span>'}
                     </td>
                     <td class="col-status">
                         <span class="status-badge status-${eventData.status || 'pending'}">${escapeHtml(eventData.status || 'pending')}</span>
                     </td>
-                    <td class="col-id">
-                        <code class="event-id-code" title="${escapeHtml(eventData.event_id)}">${escapeHtml(eventData.event_id.substring(0, 8))}</code>
+                    <td class="col-timestamp">
+                        <span class="timestamp-text" data-utc-time="${escapeHtml(eventData.timestamp)}">${escapeHtml(eventData.timestamp)}</span>
                     </td>
                 </tr>
             `;
@@ -370,6 +369,202 @@
                 }
             }
         });
+
+        // Toggle child rows visibility (for expandable tracing)
+        function toggleChildren(parentRow) {
+            const eventId = parentRow.dataset.eventId;
+            const children = document.querySelectorAll(`[data-parent="${eventId}"]`);
+            const expandIcon = parentRow.querySelector('.expand-icon');
+
+            children.forEach(child => {
+                child.classList.toggle('hidden');
+            });
+
+            if (expandIcon) {
+                expandIcon.classList.toggle('expanded');
+            }
+        }
+
+        // Expand all parent rows
+        function expandAll() {
+            document.querySelectorAll('.parent-row.has-children').forEach(row => {
+                const eventId = row.dataset.eventId;
+                const children = document.querySelectorAll(`[data-parent="${eventId}"]`);
+                const expandIcon = row.querySelector('.expand-icon');
+
+                children.forEach(child => {
+                    child.classList.remove('hidden');
+                });
+
+                if (expandIcon) {
+                    expandIcon.classList.add('expanded');
+                }
+            });
+        }
+
+        // Collapse all parent rows
+        function collapseAll() {
+            document.querySelectorAll('.child-row').forEach(child => {
+                child.classList.add('hidden');
+            });
+            document.querySelectorAll('.expand-icon').forEach(icon => {
+                icon.classList.remove('expanded');
+            });
+        }
+
+        // ============================================
+        // Jaeger-Style Trace Interactivity Functions
+        // (Must be global for HTMX-loaded partials)
+        // ============================================
+
+        // Toggle expand/collapse with animation
+        function toggleTrace(id, event) {
+            if (event) event.stopPropagation();
+
+            const children = document.querySelectorAll(`[data-parent="${id}"]`);
+            const toggle = document.querySelector(`[data-id="${id}"] .expand-toggle`);
+
+            children.forEach(child => {
+                child.classList.toggle('collapsed');
+            });
+
+            if (toggle) {
+                toggle.classList.toggle('expanded');
+            }
+
+            // Update breadcrumbs if drilling into a trace
+            updateBreadcrumbs(id);
+        }
+
+        // Highlight ancestor path on hover (Jaeger pattern)
+        function highlightAncestors(row) {
+            clearAncestorHighlight();
+
+            let parentId = row.dataset.parent;
+            while (parentId) {
+                const parent = document.querySelector(`[data-id="${parentId}"]`);
+                if (parent) {
+                    parent.classList.add('ancestor-highlight');
+                    parentId = parent.dataset.parent;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Clear all ancestor highlights
+        function clearAncestorHighlight() {
+            document.querySelectorAll('.ancestor-highlight').forEach(el => {
+                el.classList.remove('ancestor-highlight');
+            });
+        }
+
+        // Expand all traces
+        function expandAllTraces() {
+            document.querySelectorAll('.child-row').forEach(child => {
+                child.classList.remove('collapsed');
+            });
+            document.querySelectorAll('.expand-toggle').forEach(toggle => {
+                toggle.classList.add('expanded');
+            });
+        }
+
+        // Collapse all traces
+        function collapseAllTraces() {
+            document.querySelectorAll('.child-row').forEach(child => {
+                child.classList.add('collapsed');
+            });
+            document.querySelectorAll('.expand-toggle').forEach(toggle => {
+                toggle.classList.remove('expanded');
+            });
+        }
+
+        // Breadcrumb management
+        let breadcrumbStack = ['root'];
+
+        function updateBreadcrumbs(id) {
+            const breadcrumbsContainer = document.getElementById('trace-breadcrumbs');
+            if (!breadcrumbsContainer) return;
+
+            const row = document.querySelector(`[data-id="${id}"]`);
+            if (!row) return;
+
+            // Only show breadcrumbs when we have nested navigation
+            const depth = parseInt(row.dataset.depth || '0');
+            if (depth > 0 || breadcrumbStack.length > 1) {
+                breadcrumbsContainer.style.display = 'flex';
+            }
+
+            // Get tool name or operation for breadcrumb label
+            const toolName = row.querySelector('.tool-name');
+            const label = toolName ? toolName.textContent : `Trace ${id.substring(0, 8)}`;
+
+            // Add to breadcrumb stack if not already present
+            if (!breadcrumbStack.includes(id)) {
+                breadcrumbStack.push(id);
+
+                const separator = document.createElement('span');
+                separator.className = 'separator';
+                separator.textContent = '>';
+
+                const crumb = document.createElement('span');
+                crumb.className = 'breadcrumb active';
+                crumb.dataset.id = id;
+                crumb.textContent = label;
+                crumb.onclick = () => navigateToBreadcrumb(id);
+
+                // Remove active class from previous breadcrumbs
+                breadcrumbsContainer.querySelectorAll('.breadcrumb').forEach(b => {
+                    b.classList.remove('active');
+                });
+
+                breadcrumbsContainer.appendChild(separator);
+                breadcrumbsContainer.appendChild(crumb);
+            }
+        }
+
+        function navigateToBreadcrumb(id) {
+            // Find position in stack and remove everything after
+            const index = breadcrumbStack.indexOf(id);
+            if (index === -1) return;
+
+            // Remove breadcrumbs after this one
+            const breadcrumbsContainer = document.getElementById('trace-breadcrumbs');
+            if (!breadcrumbsContainer) return;
+
+            const allCrumbs = breadcrumbsContainer.querySelectorAll('.breadcrumb, .separator');
+
+            let removing = false;
+            allCrumbs.forEach(el => {
+                if (removing) {
+                    el.remove();
+                }
+                if (el.dataset && el.dataset.id === id) {
+                    el.classList.add('active');
+                    removing = true;
+                }
+            });
+
+            // Update stack
+            breadcrumbStack = breadcrumbStack.slice(0, index + 1);
+
+            // Hide breadcrumbs if back to root
+            if (breadcrumbStack.length <= 1) {
+                breadcrumbsContainer.style.display = 'none';
+            }
+        }
+
+        function resetBreadcrumbs() {
+            const breadcrumbsContainer = document.getElementById('trace-breadcrumbs');
+            if (!breadcrumbsContainer) return;
+
+            breadcrumbsContainer.innerHTML = '<span class="breadcrumb" data-id="root" onclick="resetBreadcrumbs()">Session</span>';
+            breadcrumbsContainer.style.display = 'none';
+            breadcrumbStack = ['root'];
+
+            // Collapse all traces when resetting
+            collapseAllTraces();
+        }
     </script>
 
     <style>
@@ -555,22 +750,52 @@
             color: var(--text-secondary);
         }
 
-        .col-timestamp { width: 200px; }
-        .col-agent { width: 150px; }
-        .col-tool { width: 150px; }
-        .col-input { width: 200px; }
-        .col-output { width: 200px; }
-        .col-status { width: 120px; }
-        .col-id { width: 100px; }
+        /* New column widths - Input/Output are flexible, others fixed */
+        .col-agent { width: 120px; }
+        .col-tool { width: 100px; }
+        .col-input { width: auto; }
+        .col-output { width: auto; }
+        .col-status { width: 100px; }
+        .col-timestamp { width: 140px; }
+
+        /* Make table use fixed layout for predictable column widths */
+        .activity-table {
+            table-layout: fixed;
+        }
+
+        /* Expandable tracing structure */
+        .expand-icon {
+            cursor: pointer;
+            display: inline-block;
+            margin-right: 0.5rem;
+            transition: transform 0.2s ease;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .parent-row.has-children {
+            cursor: pointer;
+        }
+
+        .child-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: 0.5rem;
+        }
+
+        .child-row.hidden {
+            display: none;
+        }
 
         @media (max-width: 1024px) {
-            .col-timestamp { width: 150px; }
-            .col-agent { width: 120px; }
-            .col-tool { width: 100px; }
-            .col-input { width: 150px; }
-            .col-output { width: 150px; }
-            .col-status { width: 100px; }
-            .col-id { width: 80px; }
+            .col-agent { width: 100px; }
+            .col-tool { width: 90px; }
+            .col-status { width: 90px; }
+            .col-timestamp { width: 120px; }
 
             .activity-table th,
             .activity-table td {
@@ -579,7 +804,7 @@
             }
 
             .truncate {
-                max-width: 100px;
+                max-width: 100%;
             }
         }
     </style>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Expandable Tracing Implementation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a60a2075"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T18:49:39.237571"
+             data-updated="2026-01-09T18:49:39.237575" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="expandable-design">
+
+        <header>
+            <h1>Expandable Tracing Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Approach Taken
+
+Implemented expandable tracing for the Activity Feed in the HtmlGraph dashboard with the following components:
+
+### Backend Changes (main.py)
+- Modified the `activity_feed` endpoint to use timestamp-based heuristic grouping
+- Since `parent_event_id` is not populated in the database, implemented intelligent matching:
+  1. Task events are identified as potential parents
+  2. SubagentStop events within 30 minutes of a Task are matched as children
+  3. Matching considers the subagent_type (general-purpose, gemini, codex)
+
+### Frontend Changes (activity-feed.html)
+- Template already had hierarchical structure with parent/child rows
+- Enhanced CSS styling:
+  - `.child-count` badge: lime green background with rounded pill shape
+  - `.child-row`: subtle background, lime green left border (3px)
+  - `.child-indicator`: lime green arrow symbol
+  - Smooth transitions on hover
+
+### Features Working
+1. **Expand/Collapse Individual Rows** - Click on Task row to toggle children
+2. **Expand All / Collapse All Buttons** - Bulk operations for all expandable rows
+3. **Visual Indicators**:
+   - Expand icon (triangle) on rows with children
+   - Child count badge showing number of nested events
+   - Indented child rows with left accent border
+   - Arrow indicator for child relationship
+
+### Parent-Child Linking
+Since `parent_event_id` is not populated by hooks, used timestamp-based heuristic:
+- Task events (tool_name=Task) are parents
+- SubagentStop events occurring 0-30 minutes after are children
+- Matching by subagent_type extracted from input_summary
+
+### Test Results
+- Expandable rows display correctly
+- Click to expand shows SubagentStop child events
+- Click again collapses child rows
+- Expand All reveals all children
+- Collapse All hides all children
+- Visual styling is consistent with dashboard theme
+            </div>
+        </section>
+    </article>
+</body>
+</html>

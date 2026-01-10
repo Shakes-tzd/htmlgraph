@@ -1,77 +1,119 @@
+<!-- Grouped Activity Feed - Display events organized by conversation turn (user prompt) -->
 <div class="view-container activity-feed-view">
     <div class="view-header">
         <h2>Agent Activity Feed</h2>
+        <div class="view-info">
+            <small>Events grouped by conversation turn. Click to expand/collapse child events.</small>
+        </div>
         <div class="view-filters">
-            <input type="text"
-                   class="filter-input"
-                   placeholder="Filter by agent..."
-                   hx-get="/views/activity-feed"
-                   hx-target="#content-area"
-                   hx-trigger="input changed delay:500ms"
-                   name="agent_id">
+            <div class="trace-controls">
+                <button type="button" class="btn-small" onclick="expandAllConversationTurns()" title="Expand all conversation turns">Expand All</button>
+                <button type="button" class="btn-small" onclick="collapseAllConversationTurns()" title="Collapse all conversation turns">Collapse All</button>
+            </div>
         </div>
     </div>
 
-    <div class="activity-list">
-        {% if events %}
-            {% for event in events %}
-            {% set is_child = event.parent_event_id is defined and event.parent_event_id %}
-            <div class="activity-item event-{{ event.status }} {{ 'child-activity' if is_child else '' }}"
-                 style="{{ 'margin-left: 2rem; border-left: 2px solid var(--border); padding-left: 1rem;' if is_child else '' }}">
-                <div class="activity-item-header">
-                    <span class="event-type-badge" title="{{ event.event_type }}">
-                        {% if event.event_type == 'tool_call' %}
-                            🔨
-                        {% elif event.event_type == 'tool_result' %}
-                            ✅
-                        {% elif event.event_type == 'error' %}
-                            ❌
-                        {% elif event.event_type == 'delegation' %}
-                            🔗
-                        {% elif event.event_type == 'completion' %}
-                            🎉
-                        {% else %}
-                            📋
-                        {% endif %}
-                    </span>
-                    <span class="agent-name agent-{{ event.agent_id|lower }}">{{ event.agent_id }}</span>
-                    {% if is_child %}
-                        <span class="child-indicator">↳ sub-task</span>
-                    {% endif %}
-                    <span class="event-timestamp" data-utc-time="{{ event.timestamp }}">{{ event.timestamp }}</span>
-                </div>
+    <div class="conversation-feed">
+        {% if conversation_turns %}
+            <div class="conversation-turns-list">
+                {% for turn in conversation_turns %}
+                    <!-- Conversation Turn Container -->
+                    <div class="conversation-turn" data-turn-id="{{ turn.userQuery.event_id }}">
+                        <!-- User Query Parent Row (Clickable) -->
+                        <div class="userquery-parent"
+                             onclick="toggleConversationTurn('{{ turn.userQuery.event_id }}')"
+                             data-turn-id="{{ turn.userQuery.event_id }}">
 
-                {% if event.tool_name %}
-                <div class="activity-item-tool">
-                    <code class="tool-name">{{ event.tool_name }}</code>
-                </div>
-                {% endif %}
+                            <!-- Expand/Collapse Toggle -->
+                            <span class="expand-toggle-turn" id="toggle-{{ turn.userQuery.event_id }}">▶</span>
 
-                <div class="activity-item-content">
-                    {% if event.input_summary %}
-                    <div class="event-input">
-                        <span class="summary-label">Input:</span>
-                        <span class="summary-text">{{ event.input_summary[:100] }}{% if event.input_summary|length > 100 %}...{% endif %}</span>
+                            <!-- User Prompt Text -->
+                            <div class="prompt-section">
+                                <span class="prompt-icon">💬</span>
+                                <span class="prompt-text" title="{{ turn.userQuery.prompt }}">
+                                    {{ turn.userQuery.prompt[:100] }}{% if turn.userQuery.prompt|length > 100 %}...{% endif %}
+                                </span>
+                            </div>
+
+                            <!-- Stats Badges -->
+                            <div class="turn-stats">
+                                {% if turn.stats.tool_count > 0 %}
+                                    <span class="stat-badge tool-count" title="Tool calls">
+                                        {{ turn.stats.tool_count }}
+                                    </span>
+                                {% endif %}
+
+                                <span class="stat-badge duration" title="Total duration">
+                                    {{ "%.2f"|format(turn.stats.total_duration) }}s
+                                </span>
+
+                                {% if turn.stats.success_count > 0 %}
+                                    <span class="stat-badge success" title="Successful operations">
+                                        ✓ {{ turn.stats.success_count }}
+                                    </span>
+                                {% endif %}
+
+                                {% if turn.stats.error_count > 0 %}
+                                    <span class="stat-badge error" title="Errors">
+                                        ✗ {{ turn.stats.error_count }}
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <!-- Timestamp -->
+                            <div class="turn-timestamp">
+                                {{ turn.userQuery.timestamp }}
+                            </div>
+                        </div>
+
+                        <!-- Child Events Container (Hidden by default) -->
+                        <div class="turn-children collapsed" id="children-{{ turn.userQuery.event_id }}">
+                            {% if turn.children %}
+                                {% for child in turn.children %}
+                                    <!-- Child Event Row -->
+                                    <div class="child-event-row" data-event-id="{{ child.event_id }}">
+                                        <!-- Tree Connector -->
+                                        <span class="tree-connector">
+                                            {% if loop.last %}└─{% else %}├─{% endif %}
+                                        </span>
+
+                                        <!-- Tool Name -->
+                                        <span class="child-tool-name">{{ child.tool_name }}</span>
+
+                                        <!-- Summary/Input -->
+                                        <span class="child-summary" title="{{ child.summary }}">
+                                            {{ child.summary[:80] }}{% if child.summary|length > 80 %}...{% endif %}
+                                        </span>
+
+                                        <!-- Agent Badge -->
+                                        <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
+                                            {{ child.agent }}
+                                        </span>
+
+                                        <!-- Duration -->
+                                        <span class="child-duration">
+                                            {{ "%.2f"|format(child.duration_seconds) }}s
+                                        </span>
+
+                                        <!-- Timestamp -->
+                                        <span class="child-timestamp">
+                                            {{ child.timestamp }}
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="no-children-message">
+                                    <span class="tree-connector">└─</span>
+                                    <span class="text-muted">No child events</span>
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% endif %}
-
-                    {% if event.output_summary %}
-                    <div class="event-output">
-                        <span class="summary-label">Output:</span>
-                        <span class="summary-text">{{ event.output_summary[:100] }}{% if event.output_summary|length > 100 %}...{% endif %}</span>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="activity-item-footer">
-                    <span class="event-id" title="{{ event.event_id }}">{{ event.event_id[:8] }}</span>
-                    <span class="session-id" title="{{ event.session_id }}">Session: {{ event.session_id[:8] }}</span>
-                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         {% else %}
             <div class="empty-state">
-                <p>No events found</p>
+                <p>No conversation turns found</p>
                 <small>Agent activity will appear here as tasks are executed</small>
             </div>
         {% endif %}
@@ -83,3 +125,413 @@
         Live updates enabled (via WebSocket)
     </div>
 </div>
+
+<style>
+/* ============================================
+   Grouped Activity Feed - Conversation Turns
+   ============================================ */
+
+.conversation-feed {
+    display: flex;
+    flex-direction: column;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+    font-size: 0.8rem;
+}
+
+/* Conversation Turns List Container */
+.conversation-turns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+/* Individual Conversation Turn */
+.conversation-turn {
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+}
+
+/* User Query Parent Row - Clickable Header */
+.userquery-parent {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(200, 255, 0, 0.08);
+    border-left: 3px solid var(--accent, #c8ff00);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.userquery-parent:hover {
+    background: rgba(200, 255, 0, 0.12);
+    border-left-color: #a3e635;
+}
+
+/* Expand/Collapse Toggle */
+.expand-toggle-turn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 0.8rem;
+    color: var(--accent-lime, #a3e635);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.expand-toggle-turn.expanded {
+    transform: rotate(90deg);
+}
+
+/* Prompt Section */
+.prompt-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.prompt-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.prompt-text {
+    color: var(--text-primary);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Turn Stats Container */
+.turn-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+/* Stat Badges */
+.stat-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.stat-badge.tool-count {
+    background: rgba(163, 230, 53, 0.2);
+    color: #a3e635;
+}
+
+.stat-badge.duration {
+    background: rgba(100, 200, 255, 0.2);
+    color: #64c8ff;
+}
+
+.stat-badge.success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.stat-badge.error {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* Turn Timestamp */
+.turn-timestamp {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    min-width: 140px;
+    text-align: right;
+}
+
+/* Child Events Container */
+.turn-children {
+    display: flex;
+    flex-direction: column;
+    background: rgba(163, 230, 53, 0.02);
+    border-top: 1px solid var(--border-subtle);
+    padding: 0.5rem 1rem;
+}
+
+.turn-children.collapsed {
+    display: none;
+}
+
+/* Child Event Row */
+.child-event-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(163, 230, 53, 0.1);
+    font-size: 0.75rem;
+}
+
+.child-event-row:last-child {
+    border-bottom: none;
+}
+
+/* Tree Connector */
+.tree-connector {
+    color: var(--accent-lime, #a3e635);
+    font-size: 0.9rem;
+    font-weight: bold;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', monospace;
+    white-space: pre;
+    flex-shrink: 0;
+    min-width: 16px;
+}
+
+/* Child Tool Name */
+.child-tool-name {
+    display: inline-block;
+    padding: 0.1rem 0.3rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    border-radius: 2px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+/* Child Summary */
+.child-summary {
+    color: var(--text-secondary);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Child Agent Badge */
+.child-agent-badge {
+    display: inline-block;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.child-agent-badge.agent-claude-code,
+.child-agent-badge.agent-claude {
+    background: rgba(200, 255, 0, 0.15);
+    color: #c8ff00;
+}
+
+.child-agent-badge.agent-gemini,
+.child-agent-badge.agent-gemini-2-0-flash-exp {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+}
+
+/* Child Duration */
+.child-duration {
+    display: inline-block;
+    padding: 0.1rem 0.3rem;
+    background: rgba(100, 200, 255, 0.1);
+    color: #64c8ff;
+    border-radius: 2px;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+}
+
+/* Child Timestamp */
+.child-timestamp {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    flex-shrink: 0;
+    min-width: 140px;
+    text-align: right;
+}
+
+/* No Children Message */
+.no-children-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+/* ============================================
+   Control Buttons
+   ============================================ */
+
+.trace-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-small {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.65rem;
+    background: var(--bg-darker);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: inherit;
+}
+
+.btn-small:hover {
+    background: rgba(163, 230, 53, 0.1);
+    border-color: var(--accent-lime, #a3e635);
+    color: var(--accent-lime, #a3e635);
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.empty-state p {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ============================================
+   Auto-refresh Indicator
+   ============================================ */
+
+.auto-refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: var(--bg-darker);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.refresh-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent-lime, #a3e635);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 1200px) {
+    .turn-timestamp,
+    .child-timestamp {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .turn-stats {
+        flex-wrap: wrap;
+    }
+
+    .child-summary {
+        max-width: 150px;
+    }
+}
+
+@media (max-width: 700px) {
+    .userquery-parent {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .prompt-section {
+        width: 100%;
+        order: 2;
+    }
+
+    .turn-stats {
+        order: 3;
+    }
+
+    .child-event-row {
+        flex-wrap: wrap;
+    }
+
+    .child-summary {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+// JavaScript functions for expand/collapse functionality
+// Called from onclick handlers in the template
+
+function toggleConversationTurn(turnId) {
+    const childrenContainer = document.getElementById(`children-${turnId}`);
+    const toggleButton = document.getElementById(`toggle-${turnId}`);
+
+    if (childrenContainer) {
+        childrenContainer.classList.toggle('collapsed');
+        if (toggleButton) {
+            toggleButton.classList.toggle('expanded');
+        }
+    }
+}
+
+function expandAllConversationTurns() {
+    // Get all child containers and remove the 'collapsed' class
+    document.querySelectorAll('.turn-children').forEach(container => {
+        container.classList.remove('collapsed');
+    });
+
+    // Rotate all toggle buttons
+    document.querySelectorAll('.expand-toggle-turn').forEach(toggle => {
+        toggle.classList.add('expanded');
+    });
+}
+
+function collapseAllConversationTurns() {
+    // Get all child containers and add the 'collapsed' class
+    document.querySelectorAll('.turn-children').forEach(container => {
+        container.classList.add('collapsed');
+    });
+
+    // Rotate all toggle buttons back
+    document.querySelectorAll('.expand-toggle-turn').forEach(toggle => {
+        toggle.classList.remove('expanded');
+    });
+}
+</script>

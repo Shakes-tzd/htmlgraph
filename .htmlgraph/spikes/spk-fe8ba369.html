@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>HeadlessSpawner and Agent Integration Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-fe8ba369"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T02:46:44.171508"
+             data-updated="2026-01-10T02:46:44.171513" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="explorer-spawner-integration">
+
+        <header>
+            <h1>HeadlessSpawner and Agent Integration Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # HeadlessSpawner and Spawner Agent Integration Analysis
+
+## Executive Summary
+
+HeadlessSpawner provides programmatic access to external AI CLIs while spawner agents serve as documentation guides. Critical gap: spawner agents document HOW to use HeadlessSpawner but are NOT automatically invoked.
+
+## Key Findings
+
+### 1. HeadlessSpawner Implementation (1065 lines)
+
+**Core Methods**:
+- spawn_gemini() - Gemini 2.0-Flash (FREE tier)
+- spawn_codex() - OpenAI Codex/GPT-4 (sandboxed)
+- spawn_copilot() - GitHub Copilot
+- spawn_claude() - Claude Code
+
+**Invocation**: Python API only, no CLI commands
+
+**Features**: Subprocess execution, HtmlGraph tracking, parent session context, event parsing
+
+### 2. Spawner Agents (Documentation Scaffolds)
+
+**Files**: gemini-spawner.md, codex-spawner.md, copilot-spawner.md
+
+**Content**: Purpose, Workflow, Use Cases, Code Patterns, Error Handling, Fallback Strategy, Success Metrics
+
+**Role**: Document HOW to use HeadlessSpawner, not executable code
+
+### 3. Integration Gaps
+
+1. No automatic invocation (passive docs only)
+2. No CLI commands (only Python API)
+3. No centralized fallback logic
+4. No cost estimation/comparison
+
+### 4. Recommendations
+
+1. Add CLI: htmlgraph spawn gemini/codex/copilot
+2. Centralize fallback in HeadlessSpawner
+3. Add cost estimation methods
+4. Create auto-invocation hooks
+            </div>
+        </section>
+    </article>
+</body>
+</html>

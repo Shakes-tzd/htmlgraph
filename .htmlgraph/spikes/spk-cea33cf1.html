@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Hierarchical Event Grouping Implementation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-cea33cf1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T14:33:31.845802"
+             data-updated="2026-01-09T14:33:31.845807" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="hierarchical-impl">
+
+        <header>
+            <h1>Hierarchical Event Grouping Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Implementation Summary
+
+### Problem
+The Activity Feed was showing flat rows despite the template expecting hierarchical `hierarchical_events` with grouped parent-child structure.
+
+### Root Causes Identified
+1. **Orphan children not handled**: Child events whose parent was outside the query result window were silently dropped from display
+2. **Type conversion errors**: Some older database rows had invalid data types (timestamps stored as execution_duration_seconds)
+3. **Parent events missing**: Most `parent_event_id` values reference events that don't exist in the database (data capture issue)
+
+### Code Changes Made
+
+**File: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py**
+
+1. **Fixed orphan child handling** (lines 420-440):
+   - Build set of event IDs in result set
+   - Check if child's parent exists in result set
+   - If parent missing, treat child as root-level event
+   - Only nest children when parent is present in results
+
+2. **Added safe type conversion** (lines 395-411):
+   - Added `safe_int()` and `safe_float()` helper functions
+   - Handle invalid data types gracefully (return 0/0.0)
+   - Prevents template rendering errors with malformed data
+
+### Verification Results
+- Server restarted: YES
+- Test with limit=50: 50 parent-row elements displayed
+- Test with limit=1400: 1350 parent-row + 1 child-row elements displayed
+- Child row correctly nested under parent evt-691377be
+- Ruff linter: All checks passed
+- Mypy type checker: Success, no issues found
+
+### Data Quality Issue Noted
+163 events have `parent_event_id` set, but the referenced parent events don't exist in the database. This is a separate data capture issue - the hierarchical display now handles this gracefully by showing orphan children as standalone events.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

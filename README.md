@@ -39,71 +39,47 @@ This bootstraps:
 - `.htmlgraph/index.sqlite` analytics cache (rebuildable; gitignored via `.gitignore`)
 - versioned hook scripts under `.htmlgraph/hooks/` (installed into `.git/hooks/` with `--install-hooks`)
 
-### Python
+### Python (SDK - Recommended)
 
 ```python
-from htmlgraph import HtmlGraph, Node, Edge, Step
+from htmlgraph import SDK
 
-# Initialize graph from directory
-graph = HtmlGraph("features/")
+# Initialize (auto-discovers .htmlgraph directory)
+sdk = SDK(agent="claude")
 
-# Create a node
-node = Node(
-    id="feature-001",
-    title="User Authentication",
-    type="feature",
-    status="in-progress",
-    priority="high",
-    steps=[
-        Step(description="Create auth routes"),
-        Step(description="Add middleware"),
-        Step(description="Implement OAuth"),
-    ],
-    edges={
-        "blocked_by": [Edge(target_id="feature-002", title="Database Schema")]
-    }
-)
+# Create and configure a feature with fluent API
+feature = sdk.features.create("User Authentication") \
+    .set_priority("high") \
+    .set_description("Implement OAuth 2.0 login") \
+    .add_steps([
+        "Create login endpoint",
+        "Add JWT middleware",
+        "Write integration tests"
+    ]) \
+    .save()
 
-# Add to graph (creates HTML file)
-graph.add(node)
+print(f"Created: {feature.id}")
 
-# Query with CSS selectors
-blocked = graph.query("[data-status='blocked']")
-high_priority = graph.query("[data-priority='high']")
+# Work on features
+with sdk.features.edit(feature.id) as f:
+    f.status = "in-progress"
+    f.agent_assigned = "claude"
+    f.steps[0].completed = True
 
-# Graph traversal
-path = graph.shortest_path("feature-001", "feature-010")
-deps = graph.transitive_deps("feature-001")
-bottlenecks = graph.find_bottlenecks()
+# Query features
+high_priority_todos = sdk.features.where(status="todo", priority="high")
+for feat in high_priority_todos:
+    print(f"- {feat.id}: {feat.title}")
 
-# Get lightweight context for AI agents (~50 tokens)
-print(node.to_context())
-# Output:
-# # feature-001: User Authentication
-# Status: in-progress | Priority: high
-# Progress: 0/3 steps (0%)
-# ⚠️  Blocked by: Database Schema
-# Next: Create auth routes
-```
+# Create and configure a track with TrackBuilder
+track = sdk.tracks.builder() \
+    .title("Q1 Security Initiative") \
+    .priority("high") \
+    .add_feature("feature-001") \
+    .add_feature("feature-002") \
+    .create()
 
-### Agent Interface
-
-```python
-from htmlgraph.agents import AgentInterface
-
-agent = AgentInterface("features/", agent_id="claude")
-
-# Get next available task
-task = agent.get_next_task(priority="high")
-
-# Get lightweight context
-context = agent.get_context(task.id)
-
-# Update progress
-agent.complete_step(task.id, step_index=0)
-
-# Complete task
-agent.complete_task(task.id)
+print(f"Created track: {track.id}")
 ```
 
 ### HTML File Format
@@ -160,6 +136,43 @@ HtmlGraph nodes are standard HTML files:
 - **Capability Routing** - Automatic task assignment based on agent skills
 - **Deployment Automation** - One-command releases with version management
 - **Unified Backend** - Operations layer shared by CLI and SDK for consistency
+
+## Orchestrator Architecture: Flexible Multi-Agent Coordination
+
+HtmlGraph implements an orchestrator pattern that coordinates multiple AI agents in parallel, preserving context efficiency while maintaining complete flexibility in model selection. Instead of rigid rules, the pattern uses **capability-first thinking** to choose the right tool (and model) for each task.
+
+**Key Principles:**
+- ✅ **Flexible model selection** - Any model can do any work; choose based on task fit and cost
+- ✅ **Dynamic spawner composition** - Mix and match spawner types (Gemini, Copilot, Codex, Claude) within the same workflow
+- ✅ **Cost optimization** - Use cheaper models for exploratory work, expensive models only for reasoning
+- ✅ **Parallel execution** - Independent tasks run simultaneously, reducing total time
+
+**Example: Parallel Exploration with Multiple Spawners**
+
+```python
+# All run in parallel - each uses the best tool for the job
+Task(subagent_type="gemini-spawner",    # FREE exploration
+     prompt="Find all authentication patterns in src/auth/")
+
+Task(subagent_type="copilot-spawner",   # GitHub integration
+     prompt="Check GitHub issues related to auth",
+     allow_tools=["github(*)"])
+
+Task(subagent_type="claude-spawner",    # Deep reasoning
+     prompt="Analyze auth patterns for security issues")
+
+# Orchestrator coordinates, subagents work in parallel
+# Total time = slowest task (not sum of all)
+# Cost = optimized (cheap exploration + expensive reasoning only)
+```
+
+**Spawner Types:**
+- **Gemini Spawner** - FREE exploratory research, batch analysis (2M tokens/min)
+- **Copilot Spawner** - GitHub-integrated workflows, git operations
+- **Codex Spawner** - Code generation, coding completions
+- **Claude Spawner** - Deep reasoning, analysis, strategic planning (any Claude model)
+
+→ [Complete Orchestrator Architecture Guide](docs/orchestrator-architecture.md) - Detailed patterns, cost optimization, decision framework, and advanced examples
 
 ## Comparison
 
@@ -219,11 +232,10 @@ MIT
 
 For Claude Code users and teams using HtmlGraph for AI agent coordination:
 
-- **[System Prompt Customization Guide](docs/SYSTEM_PROMPT_CUSTOMIZATION.md)** - Create your system prompt in 5 minutes
+- **[System Prompt Quick Start](docs/SYSTEM_PROMPT_QUICK_START.md)** - Setup your system prompt in 5 minutes (start here!)
+- **[System Prompt Architecture](docs/SYSTEM_PROMPT_ARCHITECTURE.md)** - Technical deep dive + troubleshooting
 - **[Delegation Enforcement Admin Guide](docs/DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md)** - Setup cost-optimal delegation for your team
-- **[System Prompt Architecture](docs/SYSTEM_PROMPT_ARCHITECTURE.md)** - Technical deep dive into persistence system
-- **[System Prompt Developer Guide](docs/SYSTEM_PROMPT_DEVELOPER_GUIDE.md)** - Extend with custom layers and skills
-- **[System Prompt Troubleshooting](docs/SYSTEM_PROMPT_TROUBLESHOOTING.md)** - Diagnose and fix common issues
+- **[System Prompt Developer Guide](docs/SYSTEM_PROMPT_DEVELOPER_GUIDE.md)** - Extend with custom layers, hooks, and skills
 
 ## Links
 

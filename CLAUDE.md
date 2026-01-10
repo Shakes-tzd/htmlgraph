@@ -74,13 +74,12 @@ Your project's critical guidance (model selection, delegation patterns, quality 
 
 | Guide | Audience | Purpose |
 |-------|----------|---------|
-| [System Prompt Customization](./docs/SYSTEM_PROMPT_CUSTOMIZATION.md) | Users | Create and customize your system prompt (5-min quick start) |
+| [System Prompt Quick Start](./docs/SYSTEM_PROMPT_QUICK_START.md) | Users | Create and customize your system prompt (5-min setup) |
+| [System Prompt Architecture](./docs/SYSTEM_PROMPT_ARCHITECTURE.md) | Developers | Deep technical dive + troubleshooting |
 | [Delegation Enforcement Admin Guide](./docs/DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md) | Admins/Teams | Setup and monitor delegation enforcement across your team |
-| [System Prompt Architecture](./docs/SYSTEM_PROMPT_ARCHITECTURE.md) | Developers | Deep technical dive into three-layer persistence system |
 | [System Prompt Developer Guide](./docs/SYSTEM_PROMPT_DEVELOPER_GUIDE.md) | Developers | Extend system with custom layers, hooks, and skills |
-| [System Prompt Troubleshooting](./docs/SYSTEM_PROMPT_TROUBLESHOOTING.md) | Everyone | Diagnose and fix common issues with detailed workflows |
 
-**Start here**: [System Prompt Customization Guide](./docs/SYSTEM_PROMPT_CUSTOMIZATION.md)
+**Start here**: [System Prompt Quick Start](./docs/SYSTEM_PROMPT_QUICK_START.md)
 
 ---
 

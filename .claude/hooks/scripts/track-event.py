@@ -78,6 +78,8 @@ _bootstrap_pythonpath(project_dir_for_import)
 
 try:
     from htmlgraph.session_manager import SessionManager
+    from htmlgraph.db.schema import HtmlGraphDB
+    from htmlgraph.ids import generate_id
 except Exception as e:
     # Do not break Claude execution if the dependency isn't installed.
     print(
@@ -92,6 +94,8 @@ except Exception as e:
 DRIFT_QUEUE_FILE = "drift-queue.json"
 # Active parent activity tracker (for Skill/Task invocations)
 PARENT_ACTIVITY_FILE = "parent-activity.json"
+# UserQuery event tracker (for parent-child linking)
+USER_QUERY_EVENT_FILE = "user-query-event.json"
 
 
 def load_drift_config() -> dict:
@@ -171,6 +175,46 @@ def save_parent_activity(
             path.unlink(missing_ok=True)
     except Exception as e:
         print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
+
+
+def load_user_query_event(graph_dir: Path) -> str | None:
+    """Load the active UserQuery event ID for parent-child linking."""
+    path = graph_dir / USER_QUERY_EVENT_FILE
+    if path.exists():
+        try:
+            with open(path) as f:
+                data = json.load(f)
+                # Clean up stale UserQuery events (older than 10 minutes)
+                if data.get("timestamp"):
+                    ts = datetime.fromisoformat(data["timestamp"])
+                    # UserQuery events expire after 10 minutes (conversation turn boundary)
+                    # This allows tool calls up to 10 minutes after a user query to be linked as children
+                    if datetime.now() - ts > timedelta(minutes=10):
+                        return None
+                return data.get("event_id")
+        except Exception:
+            pass
+    return None
+
+
+def save_user_query_event(graph_dir: Path, event_id: str | None) -> None:
+    """Save the active UserQuery event ID for parent-child linking."""
+    path = graph_dir / USER_QUERY_EVENT_FILE
+    try:
+        if event_id:
+            with open(path, "w") as f:
+                json.dump(
+                    {
+                        "event_id": event_id,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                    f,
+                )
+        else:
+            # Clear UserQuery event
+            path.unlink(missing_ok=True)
+    except Exception as e:
+        print(f"Warning: Could not save UserQuery event: {e}", file=sys.stderr)
 
 
 def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
@@ -382,6 +426,86 @@ def extract_file_paths(tool_input: dict, tool_name: str) -> list[str]:
     return paths
 
 
+def record_event_to_sqlite(
+    db,
+    session_id: str,
+    tool_name: str,
+    tool_input: dict,
+    tool_response: dict,
+    is_error: bool,
+    file_paths: list[str] | None = None,
+    parent_event_id: str | None = None,
+    agent_id: str | None = None,
+    subagent_type: str | None = None,
+) -> str | None:
+    """
+    Record a tool call event to SQLite database for dashboard queries.
+
+    Args:
+        db: HtmlGraphDB instance
+        session_id: Session ID from HtmlGraph
+        tool_name: Name of the tool called
+        tool_input: Tool input parameters
+        tool_response: Tool response/result
+        is_error: Whether the tool call resulted in an error
+        file_paths: File paths affected by the tool
+        parent_event_id: Parent event ID if this is a child event
+        agent_id: Agent identifier (optional)
+        subagent_type: Subagent type for Task delegations (optional)
+
+    Returns:
+        event_id if successful, None otherwise
+    """
+    try:
+        event_id = generate_id("event")
+        input_summary = format_tool_summary(tool_name, tool_input, tool_response)
+
+        # Build output summary from tool response
+        output_summary = ""
+        if isinstance(tool_response, dict):
+            if is_error:
+                output_summary = tool_response.get("error", "error")[:200]
+            else:
+                # Extract summary from response
+                content = tool_response.get("content", tool_response.get("output", ""))
+                if isinstance(content, str):
+                    output_summary = content[:200]
+                elif isinstance(content, list):
+                    output_summary = f"{len(content)} items"
+                else:
+                    output_summary = "success"
+
+        # Build context metadata
+        context = {
+            "file_paths": file_paths or [],
+            "tool_input_keys": list(tool_input.keys()),
+            "is_error": is_error,
+        }
+
+        # Insert event to SQLite
+        success = db.insert_event(
+            event_id=event_id,
+            agent_id=agent_id or "claude-code",
+            event_type="tool_call",
+            session_id=session_id,
+            tool_name=tool_name,
+            input_summary=input_summary,
+            output_summary=output_summary,
+            context=context,
+            parent_event_id=parent_event_id,
+            cost_tokens=0,
+            subagent_type=subagent_type,
+        )
+
+        if success:
+            return event_id
+        return None
+
+    except Exception as e:
+        print(f"Warning: Could not record event to SQLite: {e}", file=sys.stderr)
+        return None
+
+
 def format_tool_summary(
     tool_name: str, tool_input: dict, tool_result: dict = None
 ) -> str:
@@ -470,6 +594,17 @@ def main():
         output_response()
         return
 
+    # Initialize SQLite database for event recording
+    db = None
+    try:
+        db = HtmlGraphDB(str(graph_dir / "index.sqlite"))
+    except Exception as e:
+        print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
+        # Continue without SQLite (graceful degradation)
+
+    # Detect agent from environment
+    detected_agent = os.environ.get("HTMLGRAPH_AGENT", "claude-code")
+
     # Get active session ID
     active_session = manager.get_active_session()
     if not active_session:
@@ -486,6 +621,20 @@ def main():
 
     active_session_id = active_session.id
 
+    # Ensure session exists in SQLite database (for foreign key constraints)
+    if db:
+        try:
+            db.insert_session(
+                session_id=active_session_id,
+                agent_assigned=getattr(active_session, "agent", None) or detected_agent,
+                is_subagent=getattr(active_session, "is_subagent", False),
+                transcript_id=getattr(active_session, "transcript_id", None),
+                transcript_path=getattr(active_session, "transcript_path", None),
+            )
+        except Exception:
+            # Session may already exist, that's OK - continue
+            pass
+
     # Handle different hook types
     if hook_type == "Stop":
         # Session is ending - track stop event
@@ -493,6 +642,18 @@ def main():
             manager.track_activity(
                 session_id=active_session_id, tool="Stop", summary="Agent stopped"
             )
+
+            # Record to SQLite if available
+            if db:
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name="Stop",
+                    tool_input={},
+                    tool_response={"content": "Agent stopped"},
+                    is_error=False,
+                    agent_id=detected_agent,
+                )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
         output_response()
@@ -509,6 +670,24 @@ def main():
             manager.track_activity(
                 session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
+
+            # Record to SQLite if available and capture event_id for parent-child linking
+            user_query_event_id = None
+            if db:
+                user_query_event_id = record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name="UserQuery",
+                    tool_input={"prompt": prompt},
+                    tool_response={"content": "Query received"},
+                    is_error=False,
+                    agent_id=detected_agent,
+                )
+
+                # Store the UserQuery event_id for subsequent tool calls to use as parent
+                if user_query_event_id:
+                    save_user_query_event(graph_dir, user_query_event_id)
+
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
         output_response()
@@ -575,9 +754,21 @@ def main():
             is_parent_tool = True
         else:
             is_parent_tool = False
-            # Check if there's an active parent context
-            if parent_activity_state.get("parent_id"):
-                parent_activity_id = parent_activity_state["parent_id"]
+            # Check environment variable FIRST for cross-process parent linking
+            # This is set by PreToolUse hook when Task() spawns a subagent
+            env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+            if env_parent:
+                parent_activity_id = env_parent
+            # Next, check for UserQuery event as parent (for prompt-based grouping)
+            # UserQuery takes priority over parent_activity_json to ensure each conversation turn
+            # has its tool calls properly grouped together
+            else:
+                user_query_event_id = load_user_query_event(graph_dir)
+                if user_query_event_id:
+                    parent_activity_id = user_query_event_id
+                # Fall back to parent-activity.json only if no UserQuery event (backward compatibility)
+                elif parent_activity_state.get("parent_id"):
+                    parent_activity_id = parent_activity_state["parent_id"]
 
         # Track the activity
         nudge = None
@@ -590,6 +781,28 @@ def main():
                 success=not is_error,
                 parent_activity_id=parent_activity_id,
             )
+
+            # Record to SQLite if available
+            if db:
+                # Extract subagent_type for Task delegations
+                task_subagent_type = None
+                if tool_name == "Task":
+                    task_subagent_type = tool_input_data.get(
+                        "subagent_type", "general-purpose"
+                    )
+
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name=tool_name,
+                    tool_input=tool_input_data,
+                    tool_response=tool_response,
+                    is_error=is_error,
+                    file_paths=file_paths if file_paths else None,
+                    parent_event_id=parent_activity_id,  # Link to parent event
+                    agent_id=detected_agent,
+                    subagent_type=task_subagent_type,
+                )
 
             # If this was a parent tool, save its ID for subsequent activities
             if is_parent_tool and result:

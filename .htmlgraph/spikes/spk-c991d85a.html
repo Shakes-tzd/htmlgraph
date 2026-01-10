@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Jaeger-Style Trace UI Implementation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-c991d85a"
+             data-type="spike"
+             data-status="completed"
+             data-priority="medium"
+             data-created="2026-01-09T19:04:15.484961"
+             data-updated="2026-01-09T19:13:00.000000" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="trace-ui-implementer">
+
+        <header>
+            <h1>Jaeger-Style Trace UI Implementation</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Implementation Summary
+
+Successfully implemented Jaeger-style trace visualization for the HtmlGraph Activity Feed, transforming the previous table-based layout into a modern trace tree with proper visual hierarchy.
+
+## Key Features Implemented
+
+### 1. Indent Guides (Jaeger Pattern)
+- Vertical lines showing nesting depth
+- Highlight on hover with glow effect
+- Multiple indent levels supported (level-1, level-2, level-3)
+- CSS transitions for smooth highlighting
+
+### 2. Tree Structure
+- Replaced table-based layout with flexbox div-based trace tree
+- Parent rows with expand/collapse toggles
+- Child rows with tree connector characters (└─)
+- Proper data attributes for hierarchy (data-id, data-parent, data-depth)
+
+### 3. Breadcrumb Trail
+- Dynamic breadcrumb navigation appears when drilling into traces
+- Shows path: Session > Task > ...
+- Clickable breadcrumbs to navigate back
+- Reset functionality to collapse all
+
+### 4. Visual Improvements
+- Monospace font (JetBrains Mono, SF Mono, Monaco)
+- Agent badges with color coding (Claude-Code = lime, Subagent = accent-lime)
+- Tool icons with emoji indicators
+- Status pills with semantic colors:
+  - Green: completed/success
+  - Yellow: in_progress/running/pending
+  - Red: error/failed/blocked
+- Duration bars showing relative execution time
+- Sticky header row for column labels
+
+### 5. Interactivity (JavaScript)
+- toggleTrace(): Expand/collapse with animation
+- highlightAncestors(): Highlight parent path on hover
+- expandAllTraces() / collapseAllTraces(): Batch operations
+- updateBreadcrumbs(): Dynamic breadcrumb management
+- Timestamp conversion to local time
+
+## CSS Architecture
+
+- Organized into logical sections with comment headers
+- CSS custom properties for theming (--accent, --accent-lime, etc.)
+- Responsive breakpoints at 1200px, 900px, 700px
+- Smooth transitions (0.15s-0.2s) for all interactive elements
+
+## Files Modified
+
+- `src/python/htmlgraph/api/templates/partials/activity-feed.html` - Jaeger-style HTML structure with CSS
+- `src/python/htmlgraph/api/templates/dashboard-redesign.html` - Added JavaScript functions for trace interactivity
+
+## Bug Fix Applied
+
+The initial implementation had JavaScript functions defined in `dashboard.html` but the app serves `dashboard-redesign.html`.
+Fixed by adding all required JavaScript functions to `dashboard-redesign.html`:
+- toggleTrace()
+- highlightAncestors()
+- clearAncestorHighlight()
+- expandAllTraces()
+- collapseAllTraces()
+- updateBreadcrumbs()
+- navigateToBreadcrumb()
+- resetBreadcrumbs()
+
+## Visual Test Results
+
+Screenshots captured:
+1. `activity-feed-fixed.png` - Jaeger-style trace view with all columns working
+
+All features verified working:
+- Expand/collapse toggles rotate properly
+- Child rows show/hide with collapsed class
+- Parent-child hierarchy displayed correctly (Task with child count badge)
+- Status pills color-coded correctly (recorded, completed)
+- Agent badges styled (claude-code, subagent-general-purpose)
+- Tool names in monospace code blocks
+- Live updates indicator showing WebSocket connection
+- Expand All / Collapse All buttons functional
+- Filter input available
+
+## Test Results
+
+69 tests passed (dashboard and activity related tests):
+- Dashboard attribution tests: PASSED
+- Activity tracking tests: PASSED
+- Parent-child event linking tests: PASSED
+- Session integration tests: PASSED
+
+## Completion Status
+
+Implementation complete. The Activity Feed now displays a Jaeger-style trace visualization with:
+- Hierarchical parent-child event display
+- Interactive expand/collapse
+- Visual indent guides
+- Agent and tool badges
+- Status pills with semantic colors
+- Duration indicators
+- Live WebSocket updates
+            </div>
+        </section>
+    </article>
+</body>
+</html>

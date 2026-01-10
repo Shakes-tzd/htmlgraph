@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spawner agents not integrated as Task() routing options</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-c719e4e7"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T23:35:58.897177"
+             data-updated="2026-01-10T04:35:58.902388+00:00" data-agent-assigned="orchestrator">
+
+        <header>
+            <h1>Spawner agents not integrated as Task() routing options</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-422f9b54.html" data-relationship="implemented-in" data-since="2026-01-09T23:35:58.902378">sess-422f9b54</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>HeadlessSpawner has working implementations:
+    - spawn_gemini() 
+    - spawn_codex()
+    - spawn_copilot()
+    
+    But Task() tool doesn't route to them. Options:
+    1. Add routing in Task() to use spawner methods
+    2. Remove spawner agents and update docs
+    3. Clarify spawners are for standalone Python, not Task()
+    
+    Current state is confusing - agents exist but aren't accessible via documented API
+    
+    Severity: MEDIUM - architectural confusion</p>
+        </section>
+    </article>
+</body>
+</html>

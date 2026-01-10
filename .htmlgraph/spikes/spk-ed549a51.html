@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Grouping Design - User Prompt as Parent</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-ed549a51"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T19:42:39.202402"
+             data-updated="2026-01-09T19:42:39.202407" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="designer">
+
+        <header>
+            <h1>Activity Feed Grouping Design - User Prompt as Parent</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Executive Summary
+
+Design a hierarchical Activity Feed that groups tool calls under their originating user prompt, providing clear "unit of work" context similar to Jaeger/Logfire trace views.
+
+## Current State Analysis
+
+### Data Available
+- **agent_events table**: 1,800+ events with tool_name, timestamp, session_id, parent_event_id
+- **Tool distribution**: Bash (701), Read (391), Edit (158), SubagentStop (105), Task (64)
+- **UserQuery events**: NOT currently recorded to SQLite (only HTML)
+- **parent_event_id**: Column exists but largely unused
+
+### Current Hierarchy
+The Activity Feed currently groups Task -> SubagentStop (1 level of nesting).
+No concept of "user prompt" as a grouping boundary.
+
+## Recommended Approach: Option 1 + Option 3 Hybrid
+
+**User Prompt as Collapsible Parent with Nested Tool/Task Hierarchy**
+
+```
++-----------------------------------------------------+
+| User: "Fix the Jaeger-style trace visualization"    |
+| 5 tool calls | 2m 30s | Completed                   |
++-----------------------------------------------------+
+| > Task: Fix Jaeger-style trace nesting...           |
+|    +-- SubagentStop: completed (25s)                |
+| > Read: main.py                                     |
+| > Edit: main.py                                     |
+| > Bash: Restart server                              |
++-----------------------------------------------------+
+
++-----------------------------------------------------+
+| User: "how come there is only one nested..."        |
+| 2 tool calls | 1m 05s | Completed                   |
++-----------------------------------------------------+
+| > Task: Investigate why only one...                 |
+|    +-- SubagentStop: completed                      |
++-----------------------------------------------------+
+```
+
+### Why This Approach
+
+1. **User prompts define work boundaries** - Each prompt is a discrete "ask"
+2. **Maintains existing Task->SubagentStop nesting** - 2 levels deep when needed
+3. **Collapsible cards** - Clean UI, expand to see details
+4. **Summary stats per prompt** - Tool count, duration, status at a glance
+
+## Data Requirements
+
+### 1. Record UserQuery Events to SQLite (CRITICAL)
+
+The UserPromptSubmit hook currently tracks to HTML but NOT SQLite.
+Must add SQLite recording in `event_tracker.py`:
+
+```python
+# In track_event() for UserPromptSubmit
+if db:
+    record_event_to_sqlite(
+        db=db,
+        session_id=active_session_id,
+        tool_name="UserQuery",
+        tool_input={"prompt": prompt},
+        tool_response={"content": "Query received"},
+        is_error=False,
+        agent_id=detected_agent,
+    )
+```
+
+### 2. Link Tool Calls to UserQuery Events
+
+Two options:
+
+**Option A: Explicit parent_event_id (Preferred)**
+- Set parent_event_id on each event to the most recent UserQuery event_id
+- Store current UserQuery ID in parent-activity.json or environment variable
+
+**Option B: Timestamp Proximity Grouping**
+- Group events by finding UserQuery events and collecting all events between UserQuery timestamps
+- Less reliable but works with existing data
+
+### 3. Database Schema (No Changes Needed)
+
+Existing schema supports this:
+- `agent_events.parent_event_id` - Link to UserQuery
+- `agent_events.tool_name = "UserQuery"` - Marker for prompt events
+
+## Implementation Plan
+
+### Phase 1: Data Layer (Backend)
+1. **Modify event_tracker.py** - Record UserQuery to SQLite
+2. **Track UserQuery as parent** - Set HTMLGRAPH_CURRENT_USER_QUERY env var or save to parent-activity.json
+3. **Link subsequent events** - Each tool call gets parent_event_id = current UserQuery ID
+
+### Phase 2: API Layer
+4. **New query function** - `get_events_grouped_by_prompt(session_id, limit)`
+5. **Build hierarchical structure**:
+   ```python
+   def build_prompt_hierarchy(events):
+       prompts = []
+       current_prompt = None
+       
+       for event in sorted(events, key=lambda e: e["timestamp"]):
+           if event["tool_name"] == "UserQuery":
+               if current_prompt:
+                   prompts.append(current_prompt)
+               current_prompt = {
+                   "prompt": event,
+                   "children": [],
+                   "stats": {"tool_count": 0, "duration": 0}
+               }
+           elif current_prompt:
+               current_prompt["children"].append(event)
+               current_prompt["stats"]["tool_count"] += 1
+       
+       if current_prompt:
+           prompts.append(current_prompt)
+       
+       return prompts
+   ```
+
+### Phase 3: Frontend (Template)
+6. **New template** - `activity-feed-prompt-grouped.html`
+7. **Collapsible prompt cards** - CSS + minimal JS
+8. **Nested hierarchy** - UserQuery > Tool/Task > SubagentStop
+
+### Phase 4: Integration
+9. **Update /views/activity-feed route** - Use new grouped structure
+10. **Add toggle** - Option to switch between flat/grouped views
+
+## Alternative Considered: Session-Level Grouping (Option 2)
+
+Rejected because:
+- Sessions can span multiple user prompts
+- Too coarse-grained for understanding "unit of work"
+- User prompt is the natural conversation boundary
+
+## Technical Debt to Address
+
+1. **UserQuery not in SQLite** - Must fix this first
+2. **parent_event_id unused** - Should populate for all events
+3. **Timestamp precision** - Ensure millisecond precision for ordering
+
+## Success Criteria
+
+- [ ] UserQuery events recorded to SQLite
+- [ ] Tool calls linked to originating UserQuery
+- [ ] Activity Feed shows prompt-grouped hierarchy
+- [ ] Collapsible cards with stats (tool count, duration)
+- [ ] Existing Task->SubagentStop nesting preserved
+- [ ] Toggle between flat/grouped views
+
+## Estimated Effort
+
+- Phase 1 (Data): 2-3 hours
+- Phase 2 (API): 1-2 hours  
+- Phase 3 (Frontend): 2-3 hours
+- Phase 4 (Integration): 1 hour
+- **Total: 6-9 hours**
+
+## Dependencies
+
+- UserPromptSubmit hook must be firing (it is)
+- SQLite database must be accessible (it is)
+- No new npm/pip dependencies needed
+            </div>
+        </section>
+    </article>
+</body>
+</html>

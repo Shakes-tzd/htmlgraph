@@ -30,6 +30,8 @@ from htmlgraph.session_manager import SessionManager
 DRIFT_QUEUE_FILE = "drift-queue.json"
 # Active parent activity tracker (for Skill/Task invocations)
 PARENT_ACTIVITY_FILE = "parent-activity.json"
+# UserQuery event tracker (for parent-child linking)
+USER_QUERY_EVENT_FILE = "user-query-event.json"
 
 
 def load_drift_config() -> dict:
@@ -117,6 +119,49 @@ def save_parent_activity(
             path.unlink(missing_ok=True)
     except Exception as e:
         print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
+
+
+def load_user_query_event(graph_dir: Path) -> str | None:
+    """Load the active UserQuery event ID for parent-child linking."""
+    path = graph_dir / USER_QUERY_EVENT_FILE
+    if path.exists():
+        try:
+            with open(path) as f:
+                data = cast(dict[Any, Any], json.load(f))
+                # Clean up stale UserQuery events (older than 10 minutes)
+                if data.get("timestamp"):
+                    ts = datetime.fromisoformat(data["timestamp"])
+                    now = datetime.now(timezone.utc)
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    # UserQuery events expire after 10 minutes (conversation turn boundary)
+                    # This allows tool calls up to 10 minutes after a user query to be linked as children
+                    if now - ts > timedelta(minutes=10):
+                        return None
+                return data.get("event_id")
+        except Exception:
+            pass
+    return None
+
+
+def save_user_query_event(graph_dir: Path, event_id: str | None) -> None:
+    """Save the active UserQuery event ID for parent-child linking."""
+    path = graph_dir / USER_QUERY_EVENT_FILE
+    try:
+        if event_id:
+            with open(path, "w") as f:
+                json.dump(
+                    {
+                        "event_id": event_id,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
+                    f,
+                )
+        else:
+            # Clear UserQuery event
+            path.unlink(missing_ok=True)
+    except Exception as e:
+        print(f"Warning: Could not save UserQuery event: {e}", file=sys.stderr)
 
 
 def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict:
@@ -677,9 +722,10 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                 session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
 
-            # Record to SQLite if available
+            # Record to SQLite if available and capture event_id for parent-child linking
+            user_query_event_id = None
             if db:
-                record_event_to_sqlite(
+                user_query_event_id = record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
                     tool_name="UserQuery",
@@ -688,6 +734,11 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
                     is_error=False,
                     agent_id=detected_agent,
                 )
+
+                # Store the UserQuery event_id for subsequent tool calls to use as parent
+                if user_query_event_id:
+                    save_user_query_event(graph_dir, user_query_event_id)
+
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
         return {"continue": True}
@@ -757,9 +808,16 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
             env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
             if env_parent:
                 parent_activity_id = env_parent
-            # Fall back to file-based parent context if no env var set
-            elif parent_activity_state.get("parent_id"):
-                parent_activity_id = parent_activity_state["parent_id"]
+            # Next, check for UserQuery event as parent (for prompt-based grouping)
+            # UserQuery takes priority over parent_activity_json to ensure each conversation turn
+            # has its tool calls properly grouped together
+            else:
+                user_query_event_id = load_user_query_event(graph_dir)
+                if user_query_event_id:
+                    parent_activity_id = user_query_event_id
+                # Fall back to parent-activity.json only if no UserQuery event (backward compatibility)
+                elif parent_activity_state.get("parent_id"):
+                    parent_activity_id = parent_activity_state["parent_id"]
 
         # Track the activity
         nudge = None

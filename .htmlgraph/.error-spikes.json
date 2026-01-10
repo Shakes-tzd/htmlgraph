@@ -298,5 +298,35 @@
     "spike_id": "spk-880d3b01",
     "created": "2026-01-09T13:46:12.434377",
     "occurrences": 3
+  },
+  "Bash:Exit code 1\n\n\u001b[0;34m========================================\u001b[0m\n\u001b[0;34mHtmlGraph Deployment - Versi": {
+    "spike_id": "spk-ee724434",
+    "created": "2026-01-09T13:52:23.524550",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 6, in <module>\n  File \"/Librar": {
+    "spike_id": "spk-8855b960",
+    "created": "2026-01-09T13:57:58.099603",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"<strin": {
+    "spike_id": "spk-8af4ccf6",
+    "created": "2026-01-09T18:14:16.138206",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 5, in <module>\n  File \"/Users": {
+    "spike_id": "spk-d7542a8e",
+    "created": "2026-01-09T19:55:19.802772",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\n\u2718 Failed to update plugin \"htmlgraph\": Plugin \"htmlgraph\" not found\n\nChecking for update": {
+    "spike_id": "spk-e490d3b9",
+    "created": "2026-01-09T20:24:24.274145",
+    "occurrences": 3
+  },
+  "Bash:Exit code 1\nTraceback (most recent call last):\n  File \"<stdin>\", line 1, in <module>\nNameError: name": {
+    "spike_id": "spk-c2f5f0e5",
+    "created": "2026-01-09T20:38:13.665471",
+    "occurrences": 3
   }
 }

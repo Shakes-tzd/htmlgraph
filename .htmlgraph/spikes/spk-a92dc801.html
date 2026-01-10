@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix: UserPromptSubmit Hook Now Records to SQLite</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a92dc801"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:05:41.973298"
+             data-updated="2026-01-09T20:05:41.973304" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="hook-fixer">
+
+        <header>
+            <h1>Fix: UserPromptSubmit Hook Now Records to SQLite</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Implementation Complete
+
+## Root Cause
+The UserPromptSubmit hook was only calling  for CIGS analysis. It did NOT call  to record UserQuery events to SQLite.
+
+## Changes Made
+Modified  to include TWO hooks for UserPromptSubmit:
+1. **Existing**:  - CIGS analysis and workflow guidance
+2. **New**:  - Record UserQuery events to SQLite database
+
+## Pattern Applied
+Followed the same pattern as the Stop hook, which successfully records events:
+```json
+{
+  "type": "command",
+  "comment": "Record UserQuery event to SQLite",
+  "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit uv run ".claude/hooks/scripts/track-event.py""
+}
+```
+
+## Testing
+Next user prompt will trigger both hooks:
+-  → CIGS guidance (existing functionality preserved)
+-  → SQLite recording (new functionality added)
+
+## Verification Command
+```bash
+sqlite3 .htmlgraph/index.sqlite "SELECT * FROM events WHERE tool = 'UserQuery' ORDER BY ts DESC LIMIT 5"
+```
+
+## Impact
+- ✅ UserQuery events now recorded to SQLite
+- ✅ Existing CIGS functionality preserved
+- ✅ Consistent with other hook patterns (Stop, SessionStart, SessionEnd)
+- ✅ No breaking changes
+            </div>
+        </section>
+    </article>
+</body>
+</html>

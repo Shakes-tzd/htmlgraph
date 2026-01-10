@@ -2,11 +2,17 @@
 
 Real-world examples of using HtmlGraph.
 
-## Basic Examples
+## Examples by Type
 
+### Getting Started
 - **[Basic Usage](basic.md)** - Simple feature creation and management
-- **[Agent Workflows](agents.md)** - Agent integration patterns
 - **[Track Creation](tracks.md)** - Creating tracks with specs and plans
+- **[Agent Workflows](agents.md)** - Agent integration patterns
+
+### Multi-Agent Orchestration
+- **[Multi-Agent Workflow](multi-agent-workflow.md)** - Real-world: Parallel delegation of backend, frontend, and testing work (⭐ **Start here for orchestration**)
+- **[Agent Coordination](agent-coordination.md)** - Two-phase explorer+coder pattern
+- **[Delegation](delegation.md)** - How to delegate work to subagents
 
 ## Use Cases
 

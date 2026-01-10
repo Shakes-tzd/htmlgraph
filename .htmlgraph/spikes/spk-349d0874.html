@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fixed: Agent Attribution Now Shows Subagent Names</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-349d0874"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:26:39.709961"
+             data-updated="2026-01-09T20:26:39.709966" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="attribution-fixer">
+
+        <header>
+            <h1>Fixed: Agent Attribution Now Shows Subagent Names</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Root Cause Analysis
+
+## Problem
+The Activity Feed query in main.py was using `agent_id` column which is always "claude-code" (the orchestrator). The `subagent_type` column IS correctly populated for Task delegations but wasn't being used in the display.
+
+## Solution Implemented
+Modified `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py`:
+
+### Query Change (line ~360)
+**Before:**
+```sql
+SELECT e.event_id, e.agent_id, e.event_type, ...
+FROM agent_events e
+```
+
+**After:**
+```sql
+SELECT e.event_id, COALESCE(e.subagent_type, e.agent_id) as agent_id,
+       e.event_type, e.timestamp, e.tool_name,
+       e.input_summary, e.output_summary, e.session_id,
+       e.status, e.parent_event_id, e.cost_tokens, e.execution_duration_seconds,
+       e.subagent_type
+FROM agent_events e
+```
+
+### What COALESCE Does
+- Prefers `subagent_type` when available (Task delegations)
+- Falls back to `agent_id` when `subagent_type` is NULL (direct orchestrator actions)
+- No schema changes needed - just better use of existing data
+
+## Expected Behavior After Fix
+- Task delegations show actual subagent names:
+  - "gemini-2.0-flash-exp" for Gemini delegations
+  - "gpt-4" for Codex delegations
+  - "copilot" for Copilot delegations
+- Direct orchestrator actions still show "claude-code"
+- Proper agent attribution in Activity Feed and Agents panel
+
+## Testing Steps
+1. Restart the dashboard server: `uv run htmlgraph serve`
+2. Open Activity Feed
+3. Look for Task delegation events
+4. Verify they show subagent names, not "claude-code"
+
+## Files Modified
+- `src/python/htmlgraph/api/main.py` (lines 360-366, 416-433)
+
+## Credit
+Root cause identified by Gemini investigation, implemented by Claude.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

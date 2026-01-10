@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Logfire Tracing UI Research</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f353e24e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T18:59:38.531630"
+             data-updated="2026-01-09T18:59:38.531635" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="logfire-researcher">
+
+        <header>
+            <h1>Logfire Tracing UI Research</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Logfire Trace Visualization Research
+
+### Executive Summary
+
+Researched Pydantic Logfire, Jaeger, Datadog, and OpenTelemetry visualization patterns to identify improvements for HtmlGraph's Activity Feed expandable tracing.
+
+---
+
+## 1. Key Visual Design Patterns
+
+### Logfire (Pydantic)
+- **Tree structure of spans**: Traces displayed as hierarchical trees showing the complete path of requests
+- **Expandable + symbol**: Collapsed spans show a + icon indicating child spans exist
+- **Level icons**: Visual severity indicators showing highest level of span and descendants
+- **Scope labels**: Pill-shaped labels with otel_scope_name to identify instrumentation source
+- **Token usage badges**: Differentiated badges for direct spans vs aggregated descendant totals (uses sigma symbol for aggregates)
+- **Details panel**: Side panel with pinned attributes, arguments as Python dicts, and full OTel attributes
+
+### Jaeger
+- **Waterfall/Gantt chart view**: Left side shows call hierarchy, right side shows timing bars
+- **Indent guides**: Low-contrast persistent vertical lines at each indentation level
+- **Hover highlighting**: Relevant indent guides highlight in color (orange) when hovering over spans
+- **Color by service**: Spans colored by originating service for quick visual grouping
+- **Collapsible sections**: Expandable details with toggle functionality
+
+### Datadog
+- **Multiple visualization modes**:
+  - Flame Graph (default): Color-coded spans on timeline with minimap navigation
+  - Waterfall View: Rows with duration bars, chevron expand/collapse
+  - Span List: Grouped by service with sortable columns
+  - Trace Map: Node-based service dependency visualization
+- **Span search**: Key-value expressions like `service:web-ui`, `duration:>200ms`
+- **Large trace handling**: Preview mode showing "most critical spans" with numbered pills for collapsed groups
+
+---
+
+## 2. Parent-Child Connection Patterns
+
+### Visual Connection Methods
+1. **Indentation** - Most common, 20-30px per nesting level
+2. **Vertical guide lines** - Persistent low-contrast lines showing ancestry (Jaeger pattern)
+3. **Border coloring** - Child rows have different border-left color than parents
+4. **Arrow/connector symbols** - Unicode characters like corner arrow (U+21B3) for children
+5. **Background shading** - Subtle background color difference for nested levels
+
+### Hover Interactions
+- **Jaeger pattern**: On hover, highlight only the ancestor guide lines while dimming others
+- **Logfire pattern**: Show detailed tooltip with token counts, model info, and costs
+- **Datadog pattern**: Click to open side panel with full span metadata
+
+---
+
+## 3. Breadcrumb Implementation Patterns
+
+### For Trace Context
+- **Trace ID and Span ID pills**: Clickable links to navigate to full trace or specific span
+- **Path display**: "Service A > Service B > Operation" showing call path
+- **Context propagation**: Visual indicators showing cross-service trace continuation
+
+### For Navigation
+- **Hierarchical breadcrumbs**: Current location in trace tree structure
+- **Separator symbols**: Greater-than sign (>) between hierarchy levels
+- **Clickable ancestors**: Each breadcrumb level navigable to jump up the hierarchy
+
+---
+
+## 4. Information Displayed at Each Level
+
+### Parent Span (Root/Delegation)
+- Agent/Service identifier
+- Operation name/tool name
+- Total duration (aggregate)
+- Child count badge
+- Highest severity indicator
+- Timestamp
+- Status (completed/in_progress/error)
+- **Aggregate metrics**: Total tokens, total cost with sigma symbol
+
+### Child Span (Nested Operations)
+- Nesting indicator (arrow, indentation)
+- Tool/operation type icon
+- Input summary (truncated)
+- Output summary (truncated)
+- Individual duration
+- Individual token count
+- Status badge
+- Relative timestamp
+
+---
+
+## 5. Current HtmlGraph Implementation Analysis
+
+### What HtmlGraph Already Has
+- **Expand/collapse**: Triangle icon rotates on expand, hidden class toggles
+- **Child indicator**: Unicode arrow character (U+21B3)
+- **Child count badge**: Shows (N) next to parent
+- **Border-left styling**: Different colors for parent vs child rows
+- **Event type icons**: Different emoji/unicode for delegation, tool_call, completion
+- **Metrics display**: Tokens and duration in small text below output
+
+### Gaps Compared to Industry Standards
+
+1. **No indent guides**: Missing persistent vertical lines showing nesting depth
+2. **Only single nesting level**: Current implementation is parent/child only, not recursive
+3. **No breadcrumb trail**: Cannot see full path to root for deeply nested spans
+4. **No duration bars**: Missing visual timeline/waterfall representation
+5. **No aggregated metrics**: Parent does not show summed child metrics
+6. **No hover highlighting**: No visual emphasis of ancestry on hover
+7. **Limited color coding**: Not using service/agent colors effectively for quick identification
+8. **No span details panel**: Missing dedicated sidebar for expanded span info
+9. **No search/filter by duration**: Cannot filter spans by execution time
+
+---
+
+## 6. Recommendations for HtmlGraph
+
+### Priority 1: Visual Hierarchy Improvements
+1. **Add indent guides** - Implement Jaeger-style vertical lines:
+   ```css
+   .child-row::before {
+     content: "";
+     position: absolute;
+     left: 15px;
+     top: 0;
+     bottom: 0;
+     width: 1px;
+     background: var(--indent-guide-color, rgba(255,255,255,0.1));
+   }
+   .child-row:hover::before {
+     background: var(--accent-lime);
+   }
+   ```
+
+2. **Support multi-level nesting** - Recursively render children with increasing indentation
+3. **Add nesting depth indicator** - Data attribute showing depth level
+
+### Priority 2: Aggregated Metrics
+1. **Sum child metrics on parent** - Show total tokens/duration with sigma symbol
+2. **Progress indicator** - Show completion percentage when children complete
+
+### Priority 3: Breadcrumb Trail
+1. **Add breadcrumb row** when viewing deeply nested spans
+2. **Format**: "Root Agent > Task > Subtask > Current Span"
+3. **Make each segment clickable** to jump to that level
+
+### Priority 4: Enhanced Interactions
+1. **Hover to highlight ancestors** - Light up indent guides on mouseover
+2. **Side panel for details** - Click span to open detailed view with full attributes
+3. **Duration bars** - Add small timing bars in timestamp column
+
+### Priority 5: Advanced Features
+1. **Span search** - Filter by agent, tool, status, or duration range
+2. **Flame graph view** - Alternative visualization showing proportional durations
+3. **Trace map** - Service dependency graph for multi-agent workflows
+
+---
+
+## 7. Implementation CSS Snippet
+
+```css
+/* Indent Guides - Jaeger Pattern */
+.activity-table tbody {
+  position: relative;
+}
+
+.child-row {
+  position: relative;
+}
+
+.child-row .indent-guide {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  border-left: 1px solid rgba(163, 230, 53, 0.2); /* Low contrast */
+}
+
+.child-row:hover .indent-guide,
+.child-row.ancestor-highlight .indent-guide {
+  border-left-color: var(--accent-lime); /* Highlight on hover */
+}
+
+/* Nested Depth Levels */
+.child-row[data-depth="1"] { padding-left: 30px; }
+.child-row[data-depth="2"] { padding-left: 50px; }
+.child-row[data-depth="3"] { padding-left: 70px; }
+
+/* Aggregated Metrics Badge */
+.aggregate-badge::before {
+  content: "\03A3"; /* Greek Sigma */
+  margin-right: 4px;
+  opacity: 0.7;
+}
+```
+
+---
+
+## Sources
+
+- [Logfire Concepts: Spans, Traces](https://logfire.pydantic.dev/docs/concepts/)
+- [Logfire Live View](https://logfire.pydantic.dev/docs/guides/web-ui/live/)
+- [Logfire LLM Panels](https://logfire.pydantic.dev/docs/guides/web-ui/llm-panels/)
+- [Jaeger UI Indent Guides Issue](https://github.com/jaegertracing/jaeger-ui/issues/172)
+- [Datadog Trace View](https://docs.datadoghq.com/tracing/trace_explorer/trace_view/)
+- [OpenTelemetry Visualization Best Practices](https://signoz.io/blog/opentelemetry-visualization/)
+- [SigNoz Flamegraphs Guide](https://signoz.io/blog/flamegraphs/)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

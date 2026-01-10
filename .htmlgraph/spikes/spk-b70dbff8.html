@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Delegation grouping investigation - Task/SubagentStop timing issue</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b70dbff8"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T19:34:33.140514"
+             data-updated="2026-01-09T19:34:33.140519" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="investigator">
+
+        <header>
+            <h1>Delegation grouping investigation - Task/SubagentStop timing issue</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Task/SubagentStop Event Counts
+- Task events: 62
+- SubagentStop events: 101
+
+## Timestamp Analysis - ROOT CAUSE IDENTIFIED
+
+**CRITICAL FINDING**: SubagentStop events are consistently recorded 1 second BEFORE their corresponding Task events.
+
+Example data:
+| Task Event | Task Timestamp | SubagentStop Event | SubagentStop Timestamp | Diff (seconds) |
+|------------|---------------|-------------------|----------------------|----------------|
+| evt-683635cc | 00:27:59 | subevt-e5f9ca4c | 00:27:58 | **-1.0** |
+| evt-37c22755 | 00:23:35 | subevt-1d1e4a96 | 00:23:34 | **-1.0** |
+| evt-ebd11e53 | 00:14:39 | subevt-b19e7172 | 00:14:38 | **-1.0** |
+| evt-86b6c7f8 | 00:09:20 | subevt-c233012e | 00:09:19 | **-1.0** |
+
+This pattern is consistent across ALL 62 Task events.
+
+## Grouping Logic Issue
+
+**Location**: `/src/python/htmlgraph/api/main.py` lines 497-499
+
+**Current logic (BROKEN)**:
+```python
+# SubagentStop should be after Task and within 30 min window
+time_diff = (stop_ts - task_ts).total_seconds()
+if 0 <= time_diff <= 1800:  # 0 to 30 minutes
+```
+
+**Problem**: The condition `0 <= time_diff` requires SubagentStop to be AFTER Task, but it occurs BEFORE.
+
+## Why SubagentStop Occurs Before Task
+
+The hooks record events in this order:
+1. **SubagentStop hook fires** when subagent completes (records at T-1)
+2. **PostToolUse hook fires** for the Task tool result (records at T)
+
+This is because SubagentStop fires at completion, while Task PostToolUse fires after processing the result.
+
+## Recommended Fix
+
+Change the time window to allow SubagentStop events 5 seconds BEFORE or 30 minutes AFTER the Task:
+
+```python
+# SubagentStop can be slightly before Task (hook timing) or up to 30 min after
+time_diff = (stop_ts - task_ts).total_seconds()
+if -5 <= time_diff <= 1800:  # -5 seconds to 30 minutes
+```
+
+**Why -5 seconds**: Provides buffer for hook timing variations while being tight enough to avoid false matches.
+
+## Alternative Fix - Use Absolute Value for Close Matches
+
+```python
+# For very close timestamps (within 5 seconds), allow either order
+time_diff = (stop_ts - task_ts).total_seconds()
+if -5 <= time_diff <= 1800:  # Allow SubagentStop up to 5s before Task
+    # Match logic here
+```
+
+## Impact
+
+- Currently: Only 1-2 Task events show child relationships
+- After fix: All 62 Task events should properly nest with their SubagentStop children
+            </div>
+        </section>
+    </article>
+</body>
+</html>

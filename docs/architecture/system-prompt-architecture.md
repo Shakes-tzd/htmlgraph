@@ -904,14 +904,87 @@ Not measurable by user (dominated by Claude Code's context operations).
 
 ---
 
+---
+
+## Troubleshooting Common Issues
+
+### System Prompt Not Appearing
+
+**Diagnosis:**
+```bash
+# Check file exists
+ls -lh .claude/system-prompt.md
+
+# Check plugin installed
+claude plugin list | grep htmlgraph
+
+# Check environment variable
+echo $CLAUDE_SYSTEM_PROMPT | head -50
+```
+
+**Solutions:**
+1. **File missing** → Create it: `touch .claude/system-prompt.md`
+2. **Plugin not installed** → Install: `claude plugin install htmlgraph@latest`
+3. **Hook not running** → Verify: `ls -lh .claude/hooks/scripts/session-start.py`
+4. **File too large** → Reduce size to <1000 tokens
+
+### Post-Compact Not Persisting
+
+**Diagnosis:**
+```bash
+# Before /compact, check environment
+echo "Before: $CLAUDE_DELEGATION_ENABLED"
+
+# Use /compact command in Claude Code
+
+# After compact, check again
+echo "After: $CLAUDE_DELEGATION_ENABLED"
+```
+
+**Solutions:**
+1. **File deleted** → Restore from backup: `cp .htmlgraph/.system-prompt-backup.md .claude/system-prompt.md`
+2. **Environment not persisting** → Use file-based recovery (Layer 3)
+3. **Hook not re-running** → Reinstall plugin
+
+### Orchestrator Skill Not Activating
+
+**Diagnosis:**
+```bash
+# Check environment variable
+echo $CLAUDE_ORCHESTRATOR_ACTIVE
+
+# Try to invoke skill
+/orchestrator-directives
+```
+
+**Solutions:**
+1. **Variable not set** → Hook should set it. Verify hook ran.
+2. **Plugin not installed** → Install: `claude plugin install htmlgraph@latest`
+3. **Plugin needs update** → Update: `claude plugin update htmlgraph`
+
+### Agent Attribution Missing
+
+**Diagnosis:**
+```python
+from htmlgraph import SDK
+
+# Check if agent parameter used
+sdk = SDK()  # WRONG - no agent
+sdk = SDK(agent="claude")  # CORRECT
+```
+
+**Solution:** Always use `SDK(agent="name")` to ensure attribution.
+
+For complete troubleshooting workflows, see [System Prompt Architecture](../SYSTEM_PROMPT_ARCHITECTURE.md#troubleshooting-common-issues).
+
+---
+
 ## Next Steps
 
-1. **Implementation**: Follow [System Prompt Customization Guide](SYSTEM_PROMPT_CUSTOMIZATION.md)
-2. **Admin Setup**: Follow [Delegation Enforcement Guide](DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md)
+1. **Quick Start**: Follow [System Prompt Quick Start](../SYSTEM_PROMPT_QUICK_START.md) (5-minute setup)
+2. **Admin Setup**: Follow [Delegation Enforcement Guide](../contributing/DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md)
 3. **Testing**: Run `uv run pytest tests/hooks/ tests/integration/ -v`
 4. **Monitoring**: Use HtmlGraph SDK to track delegation patterns
-5. **Optimization**: Adjust system prompt based on post-compact behavior
+5. **Troubleshooting**: See [System Prompt Architecture](../SYSTEM_PROMPT_ARCHITECTURE.md#troubleshooting-common-issues) for issues
 
-For user-facing guides, see [System Prompt Customization Guide](SYSTEM_PROMPT_CUSTOMIZATION.md).
-
-For developer extension patterns, see [System Prompt Developer Guide](SYSTEM_PROMPT_DEVELOPER_GUIDE.md).
+For extending the system, see [System Prompt Developer Guide](../SYSTEM_PROMPT_DEVELOPER_GUIDE.md).

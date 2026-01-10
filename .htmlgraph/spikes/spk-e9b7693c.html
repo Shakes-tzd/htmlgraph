@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Investigation: Agent Attribution Issue - All events show claude-code</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e9b7693c"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:24:02.921982"
+             data-updated="2026-01-09T20:24:02.921985" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="investigation-agent">
+
+        <header>
+            <h1>Investigation: Agent Attribution Issue - All events show claude-code</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Root Cause Analysis: Agent Attribution Issue
+
+## Problem
+All events in the Activity Feed display "claude-code" as the agent, even for delegations to subagents like Codex, Gemini, Copilot. No differentiation between orchestrator and delegated subagents.
+
+## Root Cause: Agent Detection Always Returns Default Value
+
+HtmlGraph tracks events in the `agent_events` table with an `agent_id` column, but this column is always populated with "claude-code" because the agent detection logic cannot find any environment variables.
+
+### Key Code Path
+
+1. **Event Recording** (event_tracker.py:628)
+   ```python
+   detected_agent = detect_agent_from_environment()
+   ```
+
+2. **Agent Detection Logic** (event_tracker.py:351-382)
+   ```python
+   def detect_agent_from_environment() -> str:
+       env_vars = [
+           "HTMLGRAPH_AGENT",
+           "HTMLGRAPH_SUBAGENT_TYPE",
+           "CLAUDE_MODEL",
+           "ANTHROPIC_MODEL",
+           "HTMLGRAPH_PARENT_AGENT",
+       ]
+       
+       for var in env_vars:
+           value = os.environ.get(var)
+           if value and value.strip():
+               return value.strip()
+       
+       return "claude-code"  # Always reached!
+   ```
+
+3. **Event Storage** (event_tracker.py:849)
+   ```python
+   record_event_to_sqlite(
+       db=db,
+       session_id=active_session_id,
+       tool_name=tool_name,
+       tool_input=tool_input_data,
+       tool_response=tool_response,
+       is_error=is_error,
+       file_paths=file_paths if file_paths else None,
+       parent_event_id=parent_activity_id,
+       agent_id=detected_agent,  # <- Always "claude-code"
+       subagent_type=task_subagent_type,
+   )
+   ```
+
+## Why This Happens
+
+**For Task() delegations:**
+- Tool name: "Task"
+- `subagent_type` column IS populated correctly (e.g., "gemini-2.0-flash-exp", "gpt-4", "copilot")
+- BUT `agent_id` column shows who DELEGATED the task ("claude-code"), not who EXECUTED it
+- The Activity Feed displays `agent_id`, not `subagent_type`
+
+**For SubagentStop events:**
+- These events record when a subagent completes
+- But they also use `detected_agent` from the orchestrator's environment
+- No mechanism to capture the subagent's actual name
+
+## Evidence from Database
+
+The `agent_events` table has both columns:
+- `agent_id TEXT NOT NULL` - Currently always "claude-code"
+- `subagent_type TEXT` - Correctly populated for Task events
+
+Activity Feed query (main.py:360-378):
+```sql
+SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+       e.input_summary, e.output_summary, e.session_id,
+       e.status, e.parent_event_id, e.cost_tokens, e.execution_duration_seconds
+FROM agent_events e
+WHERE 1=1
+ORDER BY e.timestamp DESC LIMIT ?
+```
+
+The query reads `e.agent_id` which is always "claude-code".
+
+## Fix Options
+
+### Option 1: Display subagent_type for Task events (QUICK FIX)
+
+Modify Activity Feed query to use `subagent_type` when available:
+
+```sql
+SELECT 
+    e.event_id,
+    COALESCE(e.subagent_type, e.agent_id) as display_agent,
+    e.event_type,
+    e.timestamp,
+    e.tool_name,
+    e.input_summary,
+    e.output_summary,
+    e.session_id,
+    e.status,
+    e.parent_event_id,
+    e.cost_tokens,
+    e.execution_duration_seconds
+FROM agent_events e
+ORDER BY e.timestamp DESC LIMIT ?
+```
+
+This will show "gemini-2.0-flash-exp", "gpt-4", "copilot" for Task delegations.
+
+### Option 2: Update template to show subagent_type (TEMPLATE FIX)
+
+Modify the Activity Feed template to check for subagent_type:
+```jinja2
+{% if event.tool_name == 'Task' and event.subagent_type %}
+    <span class="agent-name">{{ event.subagent_type }}</span>
+{% else %}
+    <span class="agent-name">{{ event.agent_id }}</span>
+{% endif %}
+```
+
+### Option 3: Set environment variables in spawners (PROPER FIX)
+
+Update spawner implementations to set HTMLGRAPH_AGENT:
+- HeadlessSpawner: Set env var before subprocess
+- Gemini spawner: `HTMLGRAPH_AGENT=gemini-2.0-flash-exp`
+- Codex spawner: `HTMLGRAPH_AGENT=gpt-4`
+- Copilot spawner: `HTMLGRAPH_AGENT=copilot`
+
+This requires changes to spawner code, not just tracking.
+
+## Recommendation
+
+**Implement Option 1 (QUICK FIX) immediately:**
+1. Modify Activity Feed query in main.py to use COALESCE
+2. This will show proper agent names for delegations
+3. No template changes needed
+4. Works with existing data
+
+**Then implement Option 3 (PROPER FIX) for future:**
+1. Update spawner code to set HTMLGRAPH_AGENT environment variable
+2. This will make agent_id correct from the start
+3. Benefits: clearer data model, easier debugging
+
+## Testing
+
+Verify the fix works:
+```bash
+# Check current subagent_type values
+sqlite3 .htmlgraph/index.sqlite "SELECT tool_name, agent_id, subagent_type FROM agent_events WHERE tool_name = 'Task' LIMIT 10"
+
+# After fix, verify display_agent shows subagent names
+# Check Activity Feed in dashboard
+```
+
+## Related Files
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/event_tracker.py` (agent detection)
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py` (activity feed query)
+- `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/db/schema.py` (table schema)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

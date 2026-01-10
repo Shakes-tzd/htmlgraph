@@ -1,183 +1,317 @@
-<div class="view-container agents-view fade-in">
+<div class="view-container agents-view">
     <div class="view-header">
-        <h2>Agent Workload & Performance</h2>
-        <div class="view-controls">
-            <span class="refresh-badge auto-refresh-indicator" title="Live Updates Active">
-                <span class="refresh-dot"></span> Live
-            </span>
+        <h2>Agent Fleet Status</h2>
+        <div class="view-description">
+            Real-time performance metrics for all active agents
         </div>
     </div>
 
-    <!-- Agent Stats Cards -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">🤖</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ total_agents }}</div>
-                <div class="stat-label">Active Agents</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ total_actions }}</div>
-                <div class="stat-label">Total Actions</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">💰</div>
-            <div class="stat-content">
-                <div class="stat-value">{{ total_tokens | format_number }}</div>
-                <div class="stat-label">Total Tokens</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Agents List -->
     <div class="agents-grid">
-        {% for agent in agents %}
-        <div class="agent-card">
-            <div class="agent-header">
-                <div class="agent-identity">
-                    <span class="agent-avatar agent-{{ agent.agent_id.lower() }}">{{ agent.agent_id[:2].upper() }}</span>
-                    <h3 class="agent-name">{{ agent.agent_id }}</h3>
+        {% if agents %}
+            {% for agent in agents %}
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div class="agent-icon {{ agent.model|lower }}">
+                        {% if agent.model == 'claude' %}
+                            C
+                        {% elif agent.model == 'gemini' %}
+                            G
+                        {% elif agent.model == 'copilot' %}
+                            M
+                        {% else %}
+                            A
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h4 class="agent-name">{{ agent.name or agent.id }}</h4>
+                        <div class="agent-status {% if agent.status == 'active' %}active{% else %}idle{% endif %}">
+                            <span class="status-dot"></span>
+                            {{ agent.status or 'idle' }}
+                        </div>
+                    </div>
                 </div>
-                <span class="agent-status status-active">Active</span>
-            </div>
-            
-            <div class="agent-metrics">
-                <div class="metric-row">
-                    <span class="metric-label">Actions</span>
-                    <span class="metric-value">{{ agent.event_count }}</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Tokens</span>
-                    <span class="metric-value">{{ agent.total_tokens | format_number }}</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Sessions</span>
-                    <span class="metric-value">{{ agent.session_count }}</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Last Active</span>
-                    <span class="metric-value" data-utc-time="{{ agent.last_active }}">{{ agent.last_active }}</span>
-                </div>
-            </div>
 
-            <div class="agent-workload-bar">
-                <div class="workload-fill" style="width: {{ agent.workload_pct }}%"></div>
+                <div class="agent-stats">
+                    <div class="stat-item">
+                        <span class="stat-item-label">Model</span>
+                        <span class="stat-item-value">{{ agent.model or 'unknown' }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-item-label">Activity</span>
+                        <span class="stat-item-value">{{ agent.event_count or 0 }}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-item-label">Tokens</span>
+                        <span class="stat-item-value">{% if agent.total_tokens %}{{ "{:,}".format(agent.total_tokens) }}{% else %}0{% endif %}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-item-label">Avg Time</span>
+                        <span class="stat-item-value">{% if agent.avg_duration %}{{ "%.2f"|format(agent.avg_duration) }}s{% else %}—{% endif %}</span>
+                    </div>
+                </div>
+
+                <div class="agent-details" style="border-top: 1px solid var(--border-subtle); padding-top: var(--spacing-lg); margin-top: var(--spacing-lg);">
+                    {% if agent.last_activity %}
+                    <div class="detail-row">
+                        <span class="detail-label">Last Activity</span>
+                        <span class="detail-value" data-utc-time="{{ agent.last_activity }}">{{ agent.last_activity }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if agent.success_rate %}
+                    <div class="detail-row" style="margin-top: var(--spacing-md);">
+                        <span class="detail-label">Success Rate</span>
+                        <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                            <div style="flex: 1; height: 6px; background: var(--bg-darker); border-radius: 2px; overflow: hidden;">
+                                <div style="height: 100%; background: linear-gradient(90deg, var(--status-success) 0%, var(--accent-lime) 100%); width: {{ agent.success_rate }}%;"></div>
+                            </div>
+                            <span class="stat-item-value" style="min-width: 50px;">{{ agent.success_rate }}%</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if agent.error_count %}
+                    <div class="detail-row" style="margin-top: var(--spacing-md);">
+                        <span class="detail-label">Errors</span>
+                        <span class="stat-item-value" style="color: var(--status-blocked);">{{ agent.error_count }}</span>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            
-            <div class="agent-actions">
-                <button class="action-btn small" 
-                        hx-get="/views/activity-feed?agent_id={{ agent.agent_id }}"
-                        hx-target="#content-area">
-                    View Activity
-                </button>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="grid-column: 1 / -1;">
+                <p>No agents found</p>
+                <small>Agent activity will appear here as tasks are delegated</small>
             </div>
-        </div>
-        {% endfor %}
+        {% endif %}
     </div>
 </div>
+
+<script>
+    // Convert timestamps after load
+    function convertTimestampsToLocal() {
+        const timestampElements = document.querySelectorAll('[data-utc-time]');
+        timestampElements.forEach(element => {
+            const utcTime = element.getAttribute('data-utc-time');
+            if (utcTime) {
+                try {
+                    const date = new Date(utcTime.replace(' ', 'T') + 'Z');
+                    const localTime = new Intl.DateTimeFormat('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false,
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    }).format(date);
+                    element.textContent = localTime;
+                    element.setAttribute('title', `UTC: ${utcTime} | Local: ${localTime}`);
+                } catch (err) {
+                    console.warn('Failed to convert timestamp:', utcTime, err);
+                }
+            }
+        });
+    }
+
+    document.addEventListener('htmx:afterSettle', function(evt) {
+        if (evt.detail.target.id === 'content-area' &&
+            document.querySelector('.agents-view')) {
+            convertTimestampsToLocal();
+        }
+    });
+
+    if (document.querySelector('.agents-view')) {
+        convertTimestampsToLocal();
+    }
+</script>
 
 <style>
     .agents-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-        margin-top: 2rem;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: var(--spacing-lg);
     }
 
     .agent-card {
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        transition: transform 0.2s, box-shadow 0.2s;
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 2px;
+        padding: var(--spacing-xl);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-lg);
+        transition: all var(--transition-base);
     }
 
     .agent-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        border-color: var(--accent);
+        border-color: var(--accent-lime);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
     }
 
     .agent-header {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
+        gap: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+        border-bottom: 1px solid var(--border-subtle);
     }
 
-    .agent-identity {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .agent-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: var(--accent);
-        color: white;
+    .agent-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: bold;
-        font-size: 1.1rem;
+        font-size: 1.8rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .agent-icon.claude {
+        background: rgba(139, 92, 246, 0.2);
+        color: var(--agent-claude);
+    }
+
+    .agent-icon.gemini {
+        background: rgba(59, 130, 246, 0.2);
+        color: var(--agent-gemini);
+    }
+
+    .agent-icon.copilot {
+        background: rgba(107, 114, 128, 0.2);
+        color: var(--agent-copilot);
+    }
+
+    .agent-icon.openai {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--agent-openai);
     }
 
     .agent-name {
-        margin: 0;
-        font-size: 1.1rem;
         color: var(--text-primary);
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .agent-metrics {
-        display: flex;
-        flex-direction: column;
-        gap: 0.8rem;
-        margin-bottom: 1.5rem;
+    .agent-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        color: var(--status-success);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
-    .metric-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.9rem;
-    }
-
-    .metric-label {
+    .agent-status.idle {
         color: var(--text-muted);
     }
 
-    .metric-value {
-        color: var(--text-primary);
-        font-weight: 500;
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse-dot 2s infinite;
     }
 
-    .agent-workload-bar {
-        height: 6px;
-        background: var(--bg-tertiary);
-        border-radius: 3px;
-        margin-bottom: 1.5rem;
-        overflow: hidden;
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
     }
 
-    .workload-fill {
-        height: 100%;
-        background: var(--accent);
-        border-radius: 3px;
+    .agent-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-md);
     }
 
-    .agent-actions {
+    .stat-item {
         display: flex;
-        justify-content: flex-end;
+        flex-direction: column;
+        gap: var(--spacing-xs);
     }
 
-    /* Agent-specific colors */
-    .agent-claude { background-color: #7c3aed; }
-    .agent-gemini { background-color: #2563eb; }
-    .agent-codex { background-color: #059669; }
-    .agent-gpt4 { background-color: #10b981; }
+    .stat-item-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .stat-item-value {
+        font-size: 1.4rem;
+        color: var(--accent-lime);
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .agent-details {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .detail-row {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+    }
+
+    .detail-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .detail-value {
+        color: var(--text-secondary);
+        font-family: 'Courier New', monospace;
+        word-break: break-all;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 300px;
+        color: var(--text-muted);
+        text-align: center;
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 2px;
+    }
+
+    .empty-state p {
+        font-size: 1.1rem;
+        margin-bottom: var(--spacing-md);
+    }
+
+    .empty-state small {
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 1024px) {
+        .agents-grid {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .agents-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fixed: Agent Attribution Now Shows Subagent Names</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f4f37e4b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T20:26:21.535685"
+             data-updated="2026-01-09T20:26:21.535690" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="attribution-fixer">
+
+        <header>
+            <h1>Fixed: Agent Attribution Now Shows Subagent Names</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Root Cause Analysis
+
+## Problem
+The Activity Feed query in main.py was using  column which is always "claude-code" (the orchestrator). The  column IS correctly populated for Task delegations but wasn't being used in the display.
+
+## Solution Implemented
+Modified :
+
+### Query Change (line ~360)
+**Before:**
+
+
+**After:**
+
+
+### What COALESCE Does
+- Prefers  when available (Task delegations)
+- Falls back to  when  is NULL (direct orchestrator actions)
+- No schema changes needed - just better use of existing data
+
+## Expected Behavior After Fix
+- ✅ Task delegations show actual subagent names:
+  - "gemini-2.0-flash-exp" for Gemini delegations
+  - "gpt-4" for Codex delegations
+  - "copilot" for Copilot delegations
+- ✅ Direct orchestrator actions still show "claude-code"
+- ✅ Proper agent attribution in Activity Feed and Agents panel
+
+## Testing Steps
+1. Restart the dashboard server: 
+Error: Port 8080 is already in use. Use auto_port=True or choose a different 
+port.
+2. Open Activity Feed
+3. Look for Task delegation events
+4. Verify they show subagent names, not "claude-code"
+
+## Files Modified
+-  (lines 360-366, 416-433)
+
+## Credit
+Root cause identified by Gemini investigation, implemented by Claude.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

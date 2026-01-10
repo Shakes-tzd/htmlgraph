@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Hierarchical Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-44f75fb1"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-09T14:12:58.288640"
+             data-updated="2026-01-09T14:12:58.288643" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="activity-feed-fixer">
+
+        <header>
+            <h1>Activity Feed Hierarchical Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Changes Made
+
+### Backend Fix (src/python/htmlgraph/api/main.py)
+
+1. **Updated SQL query** to include missing columns:
+   - Added `parent_event_id` (was missing, needed for hierarchical grouping)
+   - Added `cost_tokens` (was missing, needed for metrics display)
+   - Added `execution_duration_seconds` (was missing, needed for metrics display)
+
+2. **Fixed event dictionary population**:
+   - `parent_event_id`: Now reads from `row[9]` instead of hardcoded `None`
+   - `cost_tokens`: Now reads from `row[10]` with `or 0` fallback
+   - `execution_duration_seconds`: Now reads from `row[11]` with `or 0.0` fallback
+
+3. **Fixed hierarchical ordering**:
+   - Removed incorrect `.reverse()` call that was breaking DESC order
+   - Events now display in correct order (newest first)
+
+### Template
+- No changes needed - `partials/activity-feed-hierarchical.html` was already correct
+- Template correctly expects `hierarchical_events` with `group.parent`, `group.children`, `group.has_children`
+
+### Server Status
+- Server restarted: **yes**
+- Template now receives: `hierarchical_events` with proper parent-child structure
+- Verified working via curl test
+
+### Root Cause
+The SQL query was not selecting `parent_event_id` column from the database, so all events had `parent_event_id = None` and appeared as flat list (all root events, no children).
+            </div>
+        </section>
+    </article>
+</body>
+</html>
