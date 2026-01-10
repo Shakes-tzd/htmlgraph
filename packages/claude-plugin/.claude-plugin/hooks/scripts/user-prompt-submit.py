@@ -518,12 +518,24 @@ def create_user_query_event(prompt: str) -> str | None:
 
             return user_query_event_id
 
-        except Exception:
+        except Exception as e:
             # Database tracking is optional - graceful degradation
+            import sys
+            import traceback
+
+            print(f"DEBUG: UserQuery event creation failed: {e}", file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
             return None
 
-    except Exception:
+    except Exception as e:
         # Silent failure - don't block user interaction
+        import sys
+        import traceback
+
+        print(
+            f"DEBUG: Outer exception in create_user_query_event: {e}", file=sys.stderr
+        )
+        print(traceback.format_exc(), file=sys.stderr)
         return None
 
 
