@@ -498,7 +498,7 @@ def create_user_query_event(prompt: str) -> str | None:
 
                 cursor.execute(
                     """
-                    INSERT INTO sessions (session_id, started_at, status)
+                    INSERT INTO sessions (session_id, created_at, status)
                     VALUES (?, ?, 'active')
                     """,
                     (session_id, datetime.now(timezone.utc).isoformat()),
