@@ -119,49 +119,168 @@ This project uses HtmlGraph to develop HtmlGraph. The `.htmlgraph/` directory co
 
 ## Hook & Plugin Development
 
-**CRITICAL: All hook and system changes must be made to the PLUGIN SOURCE, not the local `.claude/` directory.**
+**CRITICAL: ALL Claude Code integrations (hooks, agents, skills) must be built in the PLUGIN SOURCE.**
+
+**Plugin Source:** `packages/claude-plugin/.claude-plugin/`
+**Do NOT edit:** `.claude/` directory (auto-synced from plugin)
+
+### Plugin Components - What Belongs in the Plugin
+
+Everything that extends Claude Code functionality should be in `packages/claude-plugin/.claude-plugin/`:
+
+#### 1. **Hooks** (All CloudEvent handlers)
+   - **Location:** `packages/claude-plugin/.claude-plugin/hooks/`
+   - **What:** Python scripts that respond to Claude Code events
+   - **Examples:**
+     - `session-start.py` - Runs when Claude Code session starts
+     - `user-prompt-submit.py` - Runs when user submits a prompt (creates UserQuery events)
+     - `track-event.py` - Records all tool calls and completions to database
+     - `pretooluse-spawner-router.py` - Routes Task() calls to spawner agents
+     - `session-end.py` - Cleanup when session ends
+     - `subagent-stop.py` - Handles subagent completion
+   - **Why plugin:** Hooks are Claude Code infrastructure—must be packaged for distribution
+
+#### 2. **Subagent Agents** (AI agents spawned via Task())
+   - **Location:** `packages/claude-plugin/.claude-plugin/agents/`
+   - **What:** Python executables that run as autonomous subagents
+   - **Current Examples:**
+     - `gemini-spawner.py` - Routes exploration tasks to Google Gemini (FREE)
+     - `codex-spawner.py` - Routes code implementation to OpenAI Codex
+     - `copilot-spawner.py` - Routes git/GitHub operations to GitHub Copilot
+   - **Pattern:** All must track their own activities via `spawner_event_tracker.py`
+   - **Why plugin:** Agents are re-usable across projects, distributed with plugin
+
+#### 3. **Skills** (User-invocable commands)
+   - **Location:** `packages/claude-plugin/.claude-plugin/skills/`
+   - **What:** Markdown skill definitions + embedded Python for orchestration
+   - **Current Examples:**
+     - `/orchestrator-directives` - Delegation patterns
+     - `/multi-ai-orchestration` - Spawner model selection
+     - `/code-quality` - Quality gate workflow
+     - `/deployment-automation` - Release process
+     - `/debugging-workflow` - Debug methodology
+     - `/memory-sync` - Doc synchronization
+   - **Why plugin:** Skills are Claude Code UI components—must be packaged for distribution
+
+#### 4. **Plugin Configuration**
+   - **Location:** `packages/claude-plugin/.claude-plugin/plugin.json`
+   - **What:** Plugin metadata, agent definitions, capabilities
+   - **Includes:**
+     - Plugin name, version, description
+     - Agent registry (name → executable mapping)
+     - MCP server configurations
+     - Capabilities and model info
+   - **Why plugin:** Defines how Claude Code loads and runs the plugin
+
+#### 5. **Configuration & Prompts**
+   - **Location:** `packages/claude-plugin/.claude-plugin/config/`
+   - **What:** System prompts, classification rules, drift thresholds
+   - **Examples:**
+     - `classification-prompt.md` - Prompt for work type classification
+     - `drift-config.json` - Context drift detection settings
+   - **Why plugin:** Shared across all users; updates distributed via plugin
 
 ### Directory Structure
 
 ```
 packages/claude-plugin/.claude-plugin/  <-- SOURCE (make changes here)
 ├── hooks/
-│   ├── hooks.json
+│   ├── hooks.json                   ← Hook event routing
 │   └── scripts/
-│       ├── session-start.py
-│       ├── posttooluse-integrator.py
-│       └── ...
+│       ├── session-start.py         ← Database session creation
+│       ├── user-prompt-submit.py    ← UserQuery event creation
+│       ├── track-event.py           ← All event tracking
+│       ├── pretooluse-spawner-router.py  ← Task() delegation routing
+│       ├── posttooluse-integrator.py     ← Activity linking
+│       ├── session-end.py           ← Session cleanup
+│       └── subagent-stop.py         ← Subagent completion
 ├── agents/
+│   ├── gemini-spawner.py            ← Gemini exploration agent
+│   ├── codex-spawner.py             ← Code implementation agent
+│   ├── copilot-spawner.py           ← Git/GitHub agent
+│   └── spawner_event_tracker.py     ← Child activity recording
 ├── skills/
-└── plugin.json
+│   ├── orchestrator-directives/     ← Delegation patterns
+│   ├── multi-ai-orchestration/      ← Spawner selection
+│   ├── code-quality/                ← Quality gates
+│   ├── deployment-automation/       ← Release workflow
+│   ├── debugging-workflow/          ← Debug methodology
+│   └── memory-sync/                 ← Doc synchronization
+├── config/
+│   ├── classification-prompt.md     ← Work classification AI
+│   └── drift-config.json            ← Drift thresholds
+└── plugin.json                      ← Plugin metadata
 
-.claude/  <-- LOCAL COPY (synced from plugin, don't edit directly)
+.claude/  <-- AUTO-SYNCED (do not edit)
+├── hooks/ (synced from plugin)
+├── agents/ (synced from plugin)
+├── skills/ (synced from plugin)
+└── config/ (synced from plugin)
 ```
 
-### Why This Matters
+### Critical Rule: Single Source of Truth
 
-1. **Publishability** - The plugin at `packages/claude-plugin/` is what gets published
-2. **Dogfooding** - We use our own plugin to develop HtmlGraph
-3. **Sync** - Changes to `.claude/` are overwritten when plugin is updated
+**NEVER edit `.claude/` expecting changes to persist.**
 
-### Workflow
+- ❌ Edit `.claude/hooks/hooks.json` → Changes lost on plugin update
+- ❌ Edit `.claude/hooks/scripts/*.py` → Changes lost on plugin update
+- ❌ Edit `.claude/agents/` → Changes lost on plugin update
+- ❌ Add hooks to `.claude/` → Not published, not shareable
 
-1. Make changes in `packages/claude-plugin/.claude-plugin/`
-2. Run `claude plugin update htmlgraph` to sync to `.claude/`
-3. Test the changes
-4. Commit changes to plugin source
+**ALWAYS edit in plugin source:**
+
+- ✅ Edit `packages/claude-plugin/.claude-plugin/hooks/hooks.json`
+- ✅ Edit `packages/claude-plugin/.claude-plugin/hooks/scripts/*.py`
+- ✅ Add agents to `packages/claude-plugin/.claude-plugin/agents/`
+- ✅ Add skills to `packages/claude-plugin/.claude-plugin/skills/`
+
+### Workflow: Making Changes to Plugin
+
+1. **Make changes in plugin source:**
+   ```bash
+   # Edit files in packages/claude-plugin/.claude-plugin/
+   vim packages/claude-plugin/.claude-plugin/hooks/scripts/user-prompt-submit.py
+   vim packages/claude-plugin/.claude-plugin/plugin.json
+   ```
+
+2. **Run quality checks:**
+   ```bash
+   uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest
+   ```
+
+3. **Verify plugin is synced (in dev mode, hooks run from plugin source):**
+   ```bash
+   # In dev mode, Claude Code runs hooks from plugin source directly
+   # No need to manually sync during development
+   ```
+
+4. **Commit changes:**
+   ```bash
+   git add packages/claude-plugin/.claude-plugin/
+   git commit -m "fix: update hook X with Y changes"
+   ```
+
+5. **Deploy (publishes plugin update):**
+   ```bash
+   ./scripts/deploy-all.sh 0.9.7 --no-confirm
+   # This updates version in plugin.json and publishes to distribution
 
 ### Never Do This
 
 - Edit `.claude/hooks/hooks.json` directly
 - Edit `.claude/hooks/scripts/*.py` directly
+- Edit `.claude/agents/` directly
+- Add new hooks to `.claude/` expecting them to run
 - Make changes to `.claude/` expecting them to persist
 
 ### Always Do This
 
 - Edit `packages/claude-plugin/.claude-plugin/hooks/hooks.json`
 - Edit `packages/claude-plugin/.claude-plugin/hooks/scripts/*.py`
-- Sync via `claude plugin update htmlgraph` after changes
+- Add agents to `packages/claude-plugin/.claude-plugin/agents/`
+- Add skills to `packages/claude-plugin/.claude-plugin/skills/`
+- Commit plugin source files
+- Test in dev mode (hooks run from plugin automatically)
 
 ---
 
