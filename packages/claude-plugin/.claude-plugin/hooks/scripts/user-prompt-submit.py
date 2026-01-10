@@ -483,6 +483,28 @@ def create_user_query_event(prompt: str) -> str | None:
 
             db = HtmlGraphDB()
 
+            # Ensure session exists in database before creating event
+            # (sessions table has foreign key references, so we need to ensure it exists)
+            cursor = db.connection.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM sessions WHERE session_id = ?",
+                (session_id,),
+            )
+            session_exists = cursor.fetchone()[0] > 0
+
+            if not session_exists:
+                # Create session entry if it doesn't exist
+                from datetime import datetime, timezone
+
+                cursor.execute(
+                    """
+                    INSERT INTO sessions (session_id, started_at, status)
+                    VALUES (?, ?, 'active')
+                    """,
+                    (session_id, datetime.now(timezone.utc).isoformat()),
+                )
+                db.connection.commit()
+
             # Generate event ID
             user_query_event_id = f"uq-{uuid.uuid4().hex[:8]}"
 
