@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from htmlgraph.mcp_server import _resolve_project_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,9 +75,17 @@ def start_fastapi_server(
     warnings: list[str] = []
     original_port = port
 
-    # Default database path - use index.sqlite (unified database)
+    # Default database path - prefer project-local database if available
     if db_path is None:
-        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
+        # Check for project-local database first
+        project_dir = _resolve_project_dir()
+        project_db = Path(project_dir) / ".htmlgraph" / "index.sqlite"
+        if project_db.exists():
+            db_path = str(project_db)  # Use project-local database
+        else:
+            db_path = str(
+                Path.home() / ".htmlgraph" / "index.sqlite"
+            )  # Fall back to home
 
     # Ensure database exists
     db_path_obj = Path(db_path)

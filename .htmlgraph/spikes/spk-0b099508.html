@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 5 Complete: Spawner Agent Routing Documentation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0b099508"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:54:39.889662"
+             data-updated="2026-01-10T03:54:39.889666" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-phase5">
+
+        <header>
+            <h1>Phase 5 Complete: Spawner Agent Routing Documentation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                PHASE 5 COMPLETION: Spawner Agent Routing Documentation Updated
+
+FILES MODIFIED (3 files):
+==================
+
+1. packages/claude-plugin/skills/orchestrator-directives-skill/SKILL.md
+   Location: /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/skills/orchestrator-directives-skill/SKILL.md
+   Changes:
+   - Updated 6+ instances of Task() examples to use simple spawner names
+   - Changed from: Task(subagent_type="htmlgraph:gemini-spawner", ...)
+   - Changed to: Task(subagent_type="gemini", ...)
+   - Similarly for codex and copilot spawners
+   - Updated Spawner Subagent Types list with clear descriptions
+   - All 10+ Task() examples now use simple names (gemini, codex, copilot, haiku)
+
+2. packages/claude-plugin/rules/orchestration.md
+   Location: /Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/rules/orchestration.md
+   Changes:
+   - Updated all Task() examples to use simple names (10+ instances)
+   - Added comprehensive "Troubleshooting Spawner Issues" section with:
+     * "Spawner 'gemini' requires 'gemini' CLI" - diagnosis & solutions
+     * Spawner Execution Timeout - handling long-running tasks
+     * "Operation cannot proceed without required CLI" - explicit failures
+     * Spawner Returns Empty/Malformed Results - format request patterns
+     * Spawner Cost Higher Than Expected - cost optimization tips
+   - All examples demonstrate simple names and transparent error handling
+
+3. docs/architecture/orchestrator-architecture.md
+   Location: /Users/shakes/DevProjects/htmlgraph/docs/architecture/orchestrator-architecture.md
+   Changes:
+   - Added NEW SECTION: "Using Spawner Agents via Task()"
+     * Syntax examples with simple names
+     * Explanation of transparent failures (no silent fallbacks)
+     * Attribution & cost tracking example
+     * Error handling patterns
+     * Model flexibility discussion
+   - Updated Decision Framework with simple names (gemini, codex, copilot)
+   - Updated 4+ pattern examples to use simple names
+   - All examples now use Task(subagent_type="gemini", ...) pattern
+
+KEY FEATURES DOCUMENTED:
+========================
+
+Simple Names (No Namespace):
+✅ gemini - Google Gemini 2.0-Flash (FREE, 2M tokens/min)
+✅ codex - OpenAI Codex/GPT-4 (code generation)
+✅ copilot - GitHub Copilot (GitHub integration)
+✅ haiku - Claude Haiku (fallback)
+✅ sonnet - Claude Sonnet (balanced reasoning)
+✅ opus - Claude Opus (expensive, deep reasoning)
+
+Transparent Failures:
+✅ Explicit error when CLI missing (no silent fallback)
+✅ Orchestrator decides: install, use different spawner, or fallback
+✅ Clear error messages with installation instructions
+✅ Attribution tracking for all spawner executions
+
+Cost & Attribution:
+✅ Shows actual AI model used (not wrapper)
+✅ Token counts and execution cost
+✅ Dashboard distinguishes spawner activities
+✅ Fallback chains documented
+
+Error Handling:
+✅ CLINotFound exception handling pattern
+✅ Timeout handling with smaller subtasks
+✅ Result format validation patterns
+✅ Cost optimization strategies
+
+VERIFICATION:
+=============
+- SKILL.md: 6 instances of simple "gemini" names confirmed
+- orchestration.md: 10 instances of simple spawner names confirmed
+- orchestration.md: Troubleshooting section added with 5 subsections
+- orchestrator-architecture.md: New "Using Spawner Agents via Task()" section
+- All examples are copy-pasteable and immediately usable
+- Documentation properly formatted markdown with code blocks
+
+DOCUMENTATION COMPLETENESS:
+===========================
+✅ Simple names explained (no htmlgraph: prefix)
+✅ Explicit error handling demonstrated
+✅ Attribution transparency shown
+✅ Cost awareness integrated
+✅ Flexibility (models, parameters) documented
+✅ Troubleshooting guide comprehensive
+✅ Examples clear and practical
+✅ Files properly formatted
+
+NEXT PHASE:
+===========
+Phase 6: Event tracking and delegation records
+- Track spawner invocations in HtmlGraph events
+- Record delegation decisions in spikes
+- Monitor spawner cost accumulation
+- Analyze spawner usage patterns
+            </div>
+        </section>
+    </article>
+</body>
+</html>

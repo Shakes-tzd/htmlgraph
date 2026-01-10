@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HtmlGraph Data Architecture Diagnosis - Critical System Issue</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #f8f9fa;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            margin: -2rem -2rem 2rem -2rem;
+            border-radius: 0 0 8px 8px;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        header .subtitle { font-size: 1.1rem; opacity: 0.9; }
+        header .timestamp { font-size: 0.9rem; opacity: 0.8; margin-top: 0.5rem; }
+
+        .critical-banner {
+            background: #fee;
+            border-left: 4px solid #d32f2f;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: 4px;
+        }
+        .critical-banner h2 {
+            color: #d32f2f;
+            margin-bottom: 0.5rem;
+        }
+
+        section {
+            background: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        section h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #667eea;
+        }
+
+        section h3 {
+            color: #333;
+            font-size: 1.2rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .status-box {
+            background: #f5f5f5;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-box.good {
+            border-left-color: #4caf50;
+            background: #f1f8e9;
+        }
+
+        .status-box.bad {
+            border-left-color: #d32f2f;
+            background: #ffebee;
+        }
+
+        .status-box.warning {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1.5rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .file-path {
+            background: #fff3cd;
+            border-left: 3px solid #ffc107;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.95rem;
+        }
+
+        ul, ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        .comparison > div {
+            padding: 1.5rem;
+            border-radius: 6px;
+            background: #f5f5f5;
+        }
+
+        .comparison h4 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .comparison .hook {
+            border-top: 3px solid #d32f2f;
+        }
+
+        .comparison .api {
+            border-top: 3px solid #1976d2;
+        }
+
+        .fix-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .fix-box h4 {
+            color: #2e7d32;
+            margin-bottom: 0.5rem;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .metric-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .metric-card .label {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin: 1.5rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #667eea;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2.25rem;
+            top: 0.3rem;
+            width: 14px;
+            height: 14px;
+            background: #667eea;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .timeline-item h5 {
+            margin-bottom: 0.3rem;
+            color: #333;
+        }
+
+        .timeline-item p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .action-item {
+            background: #e3f2fd;
+            border-left: 4px solid #1976d2;
+            padding: 1rem;
+            margin: 0.75rem 0;
+            border-radius: 4px;
+        }
+
+        .action-item strong {
+            color: #1976d2;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>HtmlGraph Data Architecture Diagnosis</h1>
+        <p class="subtitle">Critical System Issue: Database Path Mismatch</p>
+        <p class="timestamp">Generated: 2026-01-10 08:45 UTC</p>
+    </header>
+
+    <div class="container">
+        <div class="critical-banner">
+            <h2>⚠️ CRITICAL ISSUE IDENTIFIED</h2>
+            <p>The hook system writes events to a <strong>project-local database</strong> while the API dashboard reads from a <strong>home-level database</strong>. These are completely separate SQLite files, causing:</p>
+            <ul style="margin-top: 1rem;">
+                <li>2,941 events recorded locally but 0 shown in dashboard</li>
+                <li>Parent-child linking broken for new events (1,214 events properly linked in local DB, 0 in API DB)</li>
+                <li>Dashboard showing stale/empty data despite active development</li>
+            </ul>
+        </div>
+
+        <section>
+            <h2>1. Current State: The Facts</h2>
+
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="label">Project Database</div>
+                    <div class="number">2,941</div>
+                    <div class="label">Events Recorded</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Dashboard Database</div>
+                    <div class="number">0</div>
+                    <div class="label">Events Shown</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Parent-Child Links</div>
+                    <div class="number">1,214</div>
+                    <div class="label">In Local DB</div>
+                </div>
+            </div>
+
+            <h3>Database Locations (The Root Cause)</h3>
+
+            <div class="comparison">
+                <div class="hook">
+                    <h4>Hooks Write To</h4>
+                    <div class="file-path">/Users/shakes/DevProjects/htmlgraph/<br>.htmlgraph/index.sqlite</div>
+                    <p><strong>Location:</strong> Project-local (inside project)</p>
+                    <p><strong>Size:</strong> 2.7 MB</p>
+                    <p><strong>Last Modified:</strong> 2026-01-10 03:43 UTC</p>
+                    <p><strong>Contains:</strong> 2,941 events</p>
+                </div>
+                <div class="api">
+                    <h4>API Reads From</h4>
+                    <div class="file-path">/Users/shakes/.htmlgraph/<br>index.sqlite</div>
+                    <p><strong>Location:</strong> Home-level (user's home directory)</p>
+                    <p><strong>Size:</strong> 220 KB</p>
+                    <p><strong>Last Modified:</strong> 2026-01-08 19:06 UTC</p>
+                    <p><strong>Contains:</strong> 0 events</p>
+                </div>
+            </div>
+
+            <h3>Event Recording Status</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Project Database</th>
+                        <th>Dashboard Database</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Total Events</td>
+                        <td>2,941</td>
+                        <td>0</td>
+                        <td>❌ Mismatch (2,941 hidden)</td>
+                    </tr>
+                    <tr>
+                        <td>Events with Parent</td>
+                        <td>1,214 (41%)</td>
+                        <td>0</td>
+                        <td>❌ Parent-child linking broken</td>
+                    </tr>
+                    <tr>
+                        <td>Latest Event</td>
+                        <td>2026-01-10 08:43:19</td>
+                        <td>None (stale)</td>
+                        <td>❌ Dashboard shows no recent activity</td>
+                    </tr>
+                    <tr>
+                        <td>Database Schema</td>
+                        <td>✅ Present & populated</td>
+                        <td>✅ Present but empty</td>
+                        <td>⚠️ Schema ok, no data</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>2. Root Cause Analysis</h2>
+
+            <h3>The Data Flow Problem</h3>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <h5>Hook Execution (track-event.py)</h5>
+                    <p><strong>Line 600:</strong> <code>db = HtmlGraphDB(str(graph_dir / "index.sqlite"))</code></p>
+                    <p>Resolves project directory using <code>CLAUDE_PROJECT_DIR</code> → git root → current directory</p>
+                    <p>Writes to: <code>PROJECT_ROOT/.htmlgraph/index.sqlite</code></p>
+                    <p style="color: #2e7d32; margin-top: 0.5rem;">✅ This is correct behavior</p>
+                </div>
+
+                <div class="timeline-item">
+                    <h5>API Server Initialization (fastapi_server.py)</h5>
+                    <p><strong>Lines 77-78:</strong> <code>if db_path is None: db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")</code></p>
+                    <p>Uses hardcoded home directory path</p>
+                    <p>Reads from: <code>HOME_DIR/.htmlgraph/index.sqlite</code></p>
+                    <p style="color: #d32f2f; margin-top: 0.5rem;">❌ This is the bug</p>
+                </div>
+
+                <div class="timeline-item">
+                    <h5>Result</h5>
+                    <p>Two separate databases exist:</p>
+                    <ul style="margin-top: 0.5rem;">
+                        <li><strong>Writes:</strong> 2,941 events → project-local DB</li>
+                        <li><strong>Reads:</strong> 0 events ← home-level DB (empty)</li>
+                    </ul>
+                    <p style="color: #d32f2f; margin-top: 0.5rem;">❌ Write and read paths don't match</p>
+                </div>
+            </div>
+
+            <h3>Why Parent-Child Linking Breaks for New Events</h3>
+
+            <div class="status-box bad">
+                <strong>Symptom:</strong> New events don't show parent-child relationships in dashboard
+                <br><br>
+                <strong>Cause:</strong> The API reads from the empty home-level database where no parent-child relationships exist. Meanwhile, the project database has proper parent-child linking (1,214 out of 2,941 events have parent_event_id).
+                <br><br>
+                <strong>Why it works in hooks:</strong> The hooks use the project-local database, so parent-child linking works correctly there.
+            </div>
+
+            <h3>Evidence of Correct Parent-Child Linking (in project DB)</h3>
+
+            <pre>event_id    | parent_event_id | tool_name | timestamp
+evt-dadee877 | evt-0b7cdcc4    | Bash      | 2026-01-10 08:43:19
+evt-967dc704 | evt-0b7cdcc4    | Read      | 2026-01-10 08:43:11
+evt-b7558dd7 | evt-0b7cdcc4    | Bash      | 2026-01-10 08:43:07
+evt-cbc92e39 | evt-0b7cdcc4    | Bash      | 2026-01-10 08:43:02
+evt-55891bfa | evt-0b7cdcc4    | Bash      | 2026-01-10 08:42:57</pre>
+
+            <p style="color: #666; font-size: 0.95rem;">These events ARE properly linked in the project database, but invisible to the dashboard because it reads from a different database.</p>
+        </section>
+
+        <section>
+            <h2>3. The Architecture: What We Have vs What We Need</h2>
+
+            <h3>Current (Broken) Architecture</h3>
+
+            <pre>
+Hooks System          |  API Dashboard
+(track-event.py)      |  (FastAPI)
+        |             |        |
+        ↓             |        ↓
+PROJECT/.htmlgraph/   |  HOME/.htmlgraph/
+index.sqlite ✅       |  index.sqlite ❌
+(2,941 events)        |  (0 events, stale)
+        |             |        |
+        └─────────────┴────────┘
+           MISMATCH: Separate databases!
+</pre>
+
+            <h3>Required Architecture (After Fix)</h3>
+
+            <pre>
+Hooks System          |  API Dashboard
+(track-event.py)      |  (FastAPI)
+        |             |        |
+        ↓             |        ↓
+     SAME DATABASE ←──┴────→ index.sqlite
+     (single source
+      of truth)
+     • 2,941 events
+     • 1,214 parent-child links
+     • Real-time updates
+</pre>
+
+            <h3>Design Decision: Which Path to Use?</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Pros</th>
+                        <th>Cons</th>
+                        <th>Recommendation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Use Project-Local DB</strong><br>(current hooks behavior)</td>
+                        <td>
+                            • Per-project tracking<br>
+                            • Committed to git if desired<br>
+                            • Already working in hooks<br>
+                            • Dogfooding feature
+                        </td>
+                        <td>
+                            • Different per project<br>
+                            • Harder to implement shared dashboards
+                        </td>
+                        <td><strong>✅ RECOMMENDED</strong><br>Keep project-local, fix API</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Use Home-Level DB</strong><br>(current API behavior)</td>
+                        <td>
+                            • Single unified database<br>
+                            • Easier for system-wide tracking
+                        </td>
+                        <td>
+                            • Breaks per-project isolation<br>
+                            • Can't commit to git<br>
+                            • Not dogfooding<br>
+                            • Loses HtmlGraph as git artifact
+                        </td>
+                        <td>❌ NOT RECOMMENDED<br>Degrades product value</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>4. The Fix: Two Complementary Approaches</h2>
+
+            <h3>Option A: Fix the API (Recommended - Minimal Change)</h3>
+
+            <div class="fix-box">
+                <h4>Change Required</h4>
+                <p>Update <code>/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/operations/fastapi_server.py</code></p>
+                <p style="margin-top: 1rem;"><strong>Lines 77-78:</strong></p>
+                <pre>
+# Current (broken):
+if db_path is None:
+    db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
+
+# Fixed:
+if db_path is None:
+    # Use project-local database if in a project, else use home database
+    project_dir = _resolve_project_dir()
+    project_graph_dir = Path(project_dir) / ".htmlgraph" / "index.sqlite"
+    if project_graph_dir.exists():
+        db_path = str(project_graph_dir)
+    else:
+        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")</pre>
+
+                <h4>Rationale</h4>
+                <ul style="margin-top: 1rem;">
+                    <li>Uses project database if available (per-project tracking)</li>
+                    <li>Falls back to home database for system-wide tracking</li>
+                    <li>Maintains backward compatibility</li>
+                    <li>Single line fix basically</li>
+                </ul>
+
+                <h4>Result</h4>
+                <ul style="margin-top: 1rem;">
+                    <li>✅ Dashboard shows 2,941 events</li>
+                    <li>✅ Parent-child linking works (1,214 relationships visible)</li>
+                    <li>✅ Real-time activity feed populated</li>
+                    <li>✅ Per-project isolation maintained</li>
+                </ul>
+            </div>
+
+            <h3>Option B: Make hooks write to home database (Not Recommended)</h3>
+
+            <div class="status-box warning">
+                <p>Change <code>.claude/hooks/scripts/track-event.py</code> line 600 to use home directory instead of project directory.</p>
+                <p><strong>Disadvantage:</strong> Breaks per-project tracking (events from multiple projects mix in home DB). Degrades HtmlGraph's value as a dogfooding tool.</p>
+            </div>
+
+            <h3>Implementation Checklist</h3>
+
+            <div class="action-item">
+                <strong>1. Fix fastapi_server.py</strong><br>
+                Update lines 77-78 to use project-local database when available
+            </div>
+
+            <div class="action-item">
+                <strong>2. Test the fix locally</strong><br>
+                <code>uv run htmlgraph serve --dir /Users/shakes/DevProjects/htmlgraph/.htmlgraph</code><br>
+                Verify dashboard shows 2,941 events and parent-child relationships
+            </div>
+
+            <div class="action-item">
+                <strong>3. Verify parent-child linking</strong><br>
+                Check that recent events show hierarchy in Activity Feed (should show parent events grouped with children)
+            </div>
+
+            <div class="action-item">
+                <strong>4. Test backward compatibility</strong><br>
+                <code>uv run htmlgraph serve</code> (without --dir)<br>
+                Should still work with home database for projects without .htmlgraph
+            </div>
+
+            <div class="action-item">
+                <strong>5. Run tests</strong><br>
+                <code>uv run pytest tests/hooks/test_hybrid_event_capture.py</code><br>
+                Ensure parent-child linking tests pass with new fix
+            </div>
+        </section>
+
+        <section>
+            <h2>5. Impact Analysis</h2>
+
+            <h3>What This Bug Hides</h3>
+
+            <ul>
+                <li><strong>2,941 events of development work:</strong> Completely invisible to dashboard despite being recorded</li>
+                <li><strong>1,214 parent-child relationships:</strong> Working correctly in hooks but not visible in UI</li>
+                <li><strong>Real-time activity feed:</strong> Shows as empty/stale instead of active</li>
+                <li><strong>Development progress:</strong> Can't be tracked or visualized</li>
+                <li><strong>Orchestration patterns:</strong> Parent-child delegation chains not visible</li>
+            </ul>
+
+            <h3>User Experience Impact</h3>
+
+            <ol>
+                <li>Run <code>htmlgraph serve</code></li>
+                <li>Dashboard shows 0 events (or stale old data)</li>
+                <li>Activity Feed is empty</li>
+                <li>No parent-child relationships visible</li>
+                <li>User thinks tracking isn't working</li>
+                <li>User spends 30 minutes investigating database location mismatch</li>
+                <li>Users lose confidence in HtmlGraph data integrity</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>6. Testing Evidence</h2>
+
+            <h3>SQL Verification</h3>
+
+            <p><strong>Project Database (Real Events):</strong></p>
+            <pre>
+$ sqlite3 /Users/shakes/DevProjects/htmlgraph/.htmlgraph/index.sqlite
+sqlite> SELECT COUNT(*) FROM agent_events;
+2941
+
+sqlite> SELECT COUNT(*) FROM agent_events
+        WHERE parent_event_id IS NOT NULL
+        AND parent_event_id != '';
+1214
+
+sqlite> SELECT event_id, parent_event_id, tool_name
+        FROM agent_events
+        WHERE parent_event_id IS NOT NULL
+        ORDER BY timestamp DESC LIMIT 3;
+evt-dadee877|evt-0b7cdcc4|Bash
+evt-967dc704|evt-0b7cdcc4|Read
+evt-b7558dd7|evt-0b7cdcc4|Bash
+</pre>
+
+            <p style="margin-top: 1rem;"><strong>Dashboard Database (Empty):</strong></p>
+            <pre>
+$ sqlite3 /Users/shakes/.htmlgraph/index.sqlite
+sqlite> SELECT COUNT(*) FROM agent_events;
+0
+
+sqlite> SELECT COUNT(*) FROM agent_events
+        WHERE parent_event_id IS NOT NULL;
+0
+</pre>
+        </section>
+
+        <section>
+            <h2>7. Recommended Next Steps</h2>
+
+            <h3>Immediate Actions (Phase 1)</h3>
+
+            <div class="action-item">
+                <strong>Apply the fix</strong><br>
+                Update fastapi_server.py to use project-local database when available (5 minutes)
+            </div>
+
+            <div class="action-item">
+                <strong>Verify locally</strong><br>
+                Test dashboard shows 2,941 events and parent-child relationships work (10 minutes)
+            </div>
+
+            <div class="action-item">
+                <strong>Run tests</strong><br>
+                Execute full test suite to ensure no regressions (5 minutes)
+            </div>
+
+            <h3>Follow-up Actions (Phase 2)</h3>
+
+            <div class="action-item">
+                <strong>Document the architecture</strong><br>
+                Add clear documentation about database path resolution in CLAUDE.md
+            </div>
+
+            <div class="action-item">
+                <strong>Create diagnostic command</strong><br>
+                <code>htmlgraph doctor --check-database</code> to show which database is being used
+            </div>
+
+            <div class="action-item">
+                <strong>Add schema validation</strong><br>
+                Detect mismatches between project and home databases; warn users
+            </div>
+
+            <h3>Long-term Improvements (Phase 3)</h3>
+
+            <div class="action-item">
+                <strong>CLI option for database path</strong><br>
+                <code>htmlgraph serve --db-path /custom/path/index.sqlite</code>
+            </div>
+
+            <div class="action-item">
+                <strong>Environment variable support</strong><br>
+                <code>HTMLGRAPH_DB_PATH=/custom/path/index.sqlite htmlgraph serve</code>
+            </div>
+
+            <div class="action-item">
+                <strong>Multi-database sync</strong><br>
+                Allow syncing events between project and home databases
+            </div>
+        </section>
+
+        <section>
+            <h2>Summary</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Current State</th>
+                        <th>Expected State</th>
+                        <th>Fix</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Events Visible</strong></td>
+                        <td>0 (dashboard)</td>
+                        <td>2,941 (total)</td>
+                        <td>Update API to use project DB</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Parent-Child Links</strong></td>
+                        <td>0 (in API DB)</td>
+                        <td>1,214 (total)</td>
+                        <td>Same fix</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Hook Database</strong></td>
+                        <td>✅ Project-local (correct)</td>
+                        <td>✅ Project-local</td>
+                        <td>No change needed</td>
+                    </tr>
+                    <tr>
+                        <td><strong>API Database</strong></td>
+                        <td>❌ Home-level (wrong)</td>
+                        <td>✅ Project-local when available</td>
+                        <td>5-line code change</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data Integrity</strong></td>
+                        <td>✅ Complete (locally)</td>
+                        <td>✅ Complete (visible)</td>
+                        <td>Fix visibility</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="margin-top: 2rem;">Key Insight</h3>
+
+            <div class="status-box good">
+                <p><strong>The data is NOT lost or corrupted.</strong> All 2,941 events with proper parent-child linking are safely recorded in the project database. The issue is purely a database path mismatch between where hooks write and where the API reads.</p>
+                <p style="margin-top: 1rem;">This is a straightforward fix: make the API read from the same database the hooks write to.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>File References</h2>
+
+            <p><strong>Files to Modify:</strong></p>
+            <ul>
+                <li><code>/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/operations/fastapi_server.py</code> (lines 77-78)</li>
+                <li><code>/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py</code> (optional: update create_app function)</li>
+            </ul>
+
+            <p style="margin-top: 1rem;"><strong>Related Code:</strong></p>
+            <ul>
+                <li><code>/Users/shakes/DevProjects/htmlgraph/.claude/hooks/scripts/track-event.py</code> (line 600) - shows correct pattern</li>
+                <li><code>/Users/shakes/DevProjects/htmlgraph/tests/hooks/test_hybrid_event_capture.py</code> - testing parent-child linking</li>
+            </ul>
+
+            <p style="margin-top: 1rem;"><strong>Database Locations:</strong></p>
+            <ul>
+                <li>Project DB: <code>/Users/shakes/DevProjects/htmlgraph/.htmlgraph/index.sqlite</code> (2.7 MB, 2,941 events)</li>
+                <li>Home DB: <code>/Users/shakes/.htmlgraph/index.sqlite</code> (220 KB, 0 events)</li>
+            </ul>
+        </section>
+    </div>
+
+    <footer>
+        <p>This diagnostic spike documents a critical data architecture issue in HtmlGraph preventing event visibility and parent-child linking in the dashboard. The issue is understood, isolated, and ready for implementation.</p>
+        <p>Generated during HtmlGraph dogfooding - this tool tracks its own development.</p>
+    </footer>
+</body>
+</html>

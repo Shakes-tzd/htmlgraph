@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 4 Complete: Hook Registration in hooks.json</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-d6e13a4f"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:50:15.949873"
+             data-updated="2026-01-10T03:50:15.949877" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-phase4">
+
+        <header>
+            <h1>Phase 4 Complete: Hook Registration in hooks.json</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                FILE MODIFIED: packages/claude-plugin/.claude-plugin/hooks/hooks.json
+
+HOOK REGISTERED:
+- Event: PreToolUse
+- Script: scripts/pretooluse-spawner-router.py
+- Command: uv run ".claude/hooks/scripts/pretooluse-spawner-router.py"
+- Comment: Route Task() calls to spawner agents (gemini, codex, copilot)
+- Enabled: true (part of hooks array)
+
+HOOK BEHAVIOR:
+1. Intercepts PreToolUse events before tool execution
+2. Checks for Task() calls with spawner subagent_type (gemini, codex, copilot)
+3. Routes to appropriate spawner agent
+4. Returns explicit error if CLI unavailable
+
+VERIFICATION COMPLETED:
+✅ JSON syntax valid
+✅ Hook properly registered in PreToolUse array
+✅ Script path correct (relative to hooks directory)
+✅ Comment describes spawner routing behavior
+✅ Entry formatted consistently with existing hooks
+
+SPAWNER ROUTING IMPLEMENTATION COMPLETE:
+- Phase 1: Created spawner agents (gemini.md, codex.md, copilot.md)
+- Phase 2: Built spawner registry (SpawnerRegistry class)
+- Phase 3: Implemented PreToolUse router hook (pretooluse-spawner-router.py)
+- Phase 4: Registered hook in hooks.json ✅ COMPLETE
+
+NEXT PHASES:
+- Phase 5: Documentation updates (SPAWNER_REGISTRY.md)
+- Phase 6: Event tracking and observability
+- Phase 7: Performance monitoring and metrics
+
+READY FOR DEPLOYMENT:
+- All 4 phases complete
+- Hook registration validated
+- Ready to sync and test spawner routing
+            </div>
+        </section>
+    </article>
+</body>
+</html>

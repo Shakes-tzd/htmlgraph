@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Indentation Adjustment</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1d2d7b34"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:22:59.900009"
+             data-updated="2026-01-10T03:22:59.900012" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder">
+
+        <header>
+            <h1>Activity Feed Indentation Adjustment</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Changes Made
+
+### File: `src/python/htmlgraph/api/templates/partials/activity-feed.html`
+
+#### 1. Child Event Row Styling (`.child-event-row`)
+- **Gap reduction**: Changed from `gap: 0.5rem` to `gap: 0.3rem`
+  - Reduces spacing between child event elements (tool name, summary, badges, duration, timestamp)
+  - Makes the row more compact and visually proportional
+  
+- **Left margin adjustment**: Added `margin-left: -0.5rem`
+  - Pulls the child event rows slightly left to reduce excessive indentation
+  - Maintains visual hierarchy while achieving more proportional spacing
+
+#### 2. Child Events Container Padding (`.turn-children`)
+- **Horizontal padding reduction**: Changed from `padding: 0.5rem 1rem` to `padding: 0.5rem 0.75rem`
+  - Reduces the left padding of the entire child events container from 1rem to 0.75rem
+  - Works in conjunction with the row-level margin adjustment for cumulative indentation reduction
+  - Vertical padding (0.5rem) unchanged to preserve visual separation
+
+## Result
+
+Child event rows now have reduced indentation that appears more proportional and compact while maintaining clear visual distinction from parent user query rows. The changes are minimal and preserve the visual hierarchy:
+- Still indented beneath parent rows (clear hierarchy maintained)
+- Less excessive spacing (more compact layout)
+- Better proportional balance across the Activity Feed
+
+The combination of reduced gap spacing (0.5rem → 0.3rem), negative left margin on rows (-0.5rem), and reduced container padding (1rem → 0.75rem) creates a tighter, more professional appearance without sacrificing readability.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

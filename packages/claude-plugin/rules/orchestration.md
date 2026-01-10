@@ -24,21 +24,21 @@ Use this decision tree IN ORDER (check each before falling back):
 
 # Exploration (FREE!)
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Analyze codebase patterns",
     prompt="Analyze codebase patterns for authentication..."
 )
 
 # Code implementation (cheaper than Claude)
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement JWT middleware",
     prompt="Implement JWT authentication middleware..."
 )
 
 # Git operations (specialized for GitHub)
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit changes",
     prompt="Commit changes with message: 'feat: add auth'"
 )
@@ -112,7 +112,7 @@ Direct execution: 7+ tool calls (context pollution)
 ```
 # ✅ CORRECT - Use Task with Copilot spawner for git
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit and push changes",
     prompt="""
     Commit and push changes to git:
@@ -151,7 +151,7 @@ Task(prompt="commit changes...", subagent_type="general-purpose")
 ```
 # ✅ CORRECT - Use Task with Codex spawner for code
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement authentication middleware",
     prompt="Implement authentication middleware with JWT..."
 )
@@ -174,7 +174,7 @@ Task(prompt="implement feature...", subagent_type="general-purpose")
 ```
 # ✅ CORRECT - Use Task with Gemini spawner for exploration (FREE!)
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Analyze authentication patterns",
     prompt="Analyze all authentication patterns in codebase..."
 )
@@ -196,7 +196,7 @@ Task(prompt="analyze codebase...", subagent_type="explorer")
 ```
 # Use Task with Codex spawner for testing (specialized)
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Run pytest and fix failures",
     prompt="Run pytest suite and fix any failures..."
 )
@@ -315,21 +315,21 @@ Then delegate using Task() tool with spawner subagent types:
 ```
 # Research (FREE!)
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Research auth patterns",
     prompt="Find all auth-related code and analyze patterns"
 )
 
 # Implementation
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement OAuth flow",
     prompt="Implement OAuth flow based on research findings"
 )
 
 # Git operations
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit changes",
     prompt="Commit changes with message: 'feat: add OAuth'"
 )
@@ -406,7 +406,7 @@ When operating as orchestrator, ALWAYS use Copilot spawner for git operations:
 ```
 # ✅ CORRECT - Use Task with Copilot spawner for git workflow
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit and push changes",
     prompt="""
     Commit and push changes to git:
@@ -447,3 +447,98 @@ Task(
 - Direct execution: 5-10+ tool calls (with failures and retries)
 - Task() delegation: $5-10 per workflow
 - Copilot delegation: $2-3 per workflow (60% savings)
+
+## Troubleshooting Spawner Issues
+
+### "Spawner 'gemini' requires 'gemini' CLI"
+
+**Meaning:** The Gemini CLI is not installed on the system.
+
+**Solution 1: Install the CLI**
+```bash
+# Install Gemini CLI
+# See: https://ai.google.dev/gemini-api/docs/cli
+
+# Verify installation
+which gemini
+```
+
+**Solution 2: Use different spawner**
+```python
+# Try Codex instead
+Task(subagent_type="codex", prompt="Same task")
+
+# Or fallback to Claude
+Task(subagent_type="haiku", prompt="Same task")
+```
+
+### Spawner Execution Timeout
+
+**Meaning:** The spawner took longer than expected to complete.
+
+**Solution:**
+```python
+# Increase timeout (if supported by spawner)
+Task(subagent_type="gemini", prompt="...", timeout=600)  # 10 minutes
+
+# Or break into smaller subtasks
+Task(subagent_type="gemini", prompt="Analyze first 50 files")
+Task(subagent_type="gemini", prompt="Analyze next 50 files")
+```
+
+### "Operation cannot proceed without required CLI"
+
+**Meaning:** The CLI is genuinely not installed, not a transient error.
+
+**This is TRANSPARENT - not a silent fallback:**
+- Orchestrator receives explicit error
+- You decide: install, use different spawner, or fallback to Claude
+- Do NOT silently fallback
+
+**Example:**
+```python
+# This fails explicitly if CLI missing (no silent fallback)
+try:
+    result = Task(subagent_type="gemini", prompt="...")
+except CLINotFound as e:
+    # Orchestrator handles explicitly
+    if ask_user("Install Gemini CLI?"):
+        install_gemini()
+        result = Task(subagent_type="gemini", prompt="...")
+    else:
+        # Explicit fallback
+        result = Task(subagent_type="haiku", prompt="...")
+```
+
+### Spawner Returns Empty/Malformed Results
+
+**Solution:**
+```python
+# Request explicit output format
+Task(
+    subagent_type="gemini",
+    prompt="""Find all API endpoints and return as JSON:
+    {
+        "endpoints": [
+            {"path": "/api/users", "method": "GET", "file": "src/api/users.py"}
+        ]
+    }"""
+)
+```
+
+### Spawner Cost Higher Than Expected
+
+**Solution:**
+```python
+# Use cheaper spawner for exploration
+Task(subagent_type="gemini", prompt="Quick analysis")  # FREE
+
+# Use Codex for code (cheaper than Claude)
+Task(subagent_type="codex", prompt="Code generation")  # 70% cheaper
+
+# Use Copilot for git (cheaper than Claude)
+Task(subagent_type="copilot", prompt="Git operations")  # 60% cheaper
+
+# Only use Claude for strategic reasoning
+Task(subagent_type="sonnet", prompt="Architecture analysis")  # Necessary cost
+```

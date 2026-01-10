@@ -19,8 +19,12 @@ app = create_app()
 
 # Get templates
 from fastapi.templating import Jinja2Templates
-template_dir = Path(__file__).parent / "src" / "python" / "htmlgraph" / "api" / "templates"
+
+template_dir = (
+    Path(__file__).parent / "src" / "python" / "htmlgraph" / "api" / "templates"
+)
 templates = Jinja2Templates(directory=str(template_dir))
+
 
 @app.get("/redesign", response_class=HTMLResponse)
 async def dashboard_redesign(request: Request) -> HTMLResponse:
@@ -33,7 +37,11 @@ async def dashboard_redesign(request: Request) -> HTMLResponse:
         },
     )
 
+
 if __name__ == "__main__":
     import uvicorn
-    print("Starting test server with redesigned dashboard at http://localhost:8000/redesign")
+
+    print(
+        "Starting test server with redesigned dashboard at http://localhost:8000/redesign"
+    )
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

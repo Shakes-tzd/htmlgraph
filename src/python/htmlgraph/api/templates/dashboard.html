@@ -75,6 +75,14 @@
                 <span class="tab-icon">📊</span>
                 Metrics
             </button>
+            <button class="tab-button"
+                    hx-get="/views/spawners"
+                    hx-target="#content-area"
+                    hx-trigger="click"
+                    data-tab="spawners">
+                <span class="tab-icon">🚀</span>
+                Spawners
+            </button>
         </nav>
 
         <!-- Content Area -->
@@ -619,12 +627,122 @@
                 initializeActivityFeedTimestamps();
             }
         });
+
+        // ============================================
+        // Spawner Activity Filtering
+        // ============================================
+
+        function filterByAgentType(filterType) {
+            const turns = document.querySelectorAll('.conversation-turn');
+            turns.forEach(turn => {
+                const spawnerType = turn.dataset.spawnerType || 'direct';
+
+                let shouldShow = false;
+                if (filterType === 'all') {
+                    shouldShow = true;
+                } else if (filterType === 'direct') {
+                    shouldShow = spawnerType === 'direct';
+                } else if (filterType === 'spawner') {
+                    shouldShow = spawnerType !== 'direct';
+                } else {
+                    // Specific spawner type (gemini, codex, copilot)
+                    shouldShow = spawnerType === filterType;
+                }
+
+                if (shouldShow) {
+                    turn.classList.remove('hidden');
+                } else {
+                    turn.classList.add('hidden');
+                }
+            });
+        }
     </script>
 
-    <!-- Styles for real-time event highlighting -->
+    <!-- Styles for real-time event highlighting and spawner badges -->
     <style>
         .new-event-highlight {
             animation: highlightPulse 2s ease-out;
+        }
+
+        /* ============================================
+           Spawner Badge Styling
+           ============================================ */
+
+        .delegation-arrow {
+            color: var(--text-secondary);
+            margin: 0 0.5rem;
+            font-size: 0.9em;
+            font-weight: normal;
+        }
+
+        .spawner-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid;
+            background: white;
+        }
+
+        .spawner-badge.spawner-gemini {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-color: #4caf50;
+        }
+
+        .spawner-badge.spawner-codex {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-color: #2196f3;
+        }
+
+        .spawner-badge.spawner-copilot {
+            background: #f3e5f5;
+            color: #6a1b9a;
+            border-color: #9c27b0;
+        }
+
+        .cost-badge {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-left: 0.25rem;
+        }
+
+        /* Activity feed spawner filter */
+        .spawner-filter {
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0.5rem 1rem 0.5rem;
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            background: rgba(163, 230, 53, 0.02);
+        }
+
+        .spawner-filter label {
+            margin-right: 0.5rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .spawner-filter select {
+            padding: 0.4rem 0.6rem;
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .spawner-filter select:hover {
+            border-color: var(--accent, #c8ff00);
+        }
+
+        /* Hide turns based on filter */
+        .conversation-turn.hidden {
+            display: none;
         }
 
         @keyframes highlightPulse {

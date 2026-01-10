@@ -6,6 +6,7 @@ This script verifies:
 1. UserQuery events are recorded to SQLite
 2. Subsequent tool calls have parent_event_id linking to UserQuery
 """
+
 import sqlite3
 from pathlib import Path
 
@@ -39,15 +40,18 @@ if user_queries:
         print(f"   - {uq['event_id']}: {uq['input_summary'][:60]}...")
 
     # Test 2: Check for child events linked to UserQuery
-    latest_query_id = user_queries[0]['event_id']
+    latest_query_id = user_queries[0]["event_id"]
     print(f"\n2. Checking for child events linked to UserQuery {latest_query_id}...")
 
-    cursor = conn.execute("""
+    cursor = conn.execute(
+        """
         SELECT event_id, tool_name, parent_event_id, input_summary
         FROM agent_events
         WHERE parent_event_id = ?
         ORDER BY created_at
-    """, (latest_query_id,))
+    """,
+        (latest_query_id,),
+    )
 
     child_events = cursor.fetchall()
 
@@ -56,10 +60,14 @@ if user_queries:
         for child in child_events:
             print(f"   - {child['tool_name']}: {child['input_summary'][:60]}...")
     else:
-        print("⚠️  No child events found linked to UserQuery (may need to wait for next prompt)")
+        print(
+            "⚠️  No child events found linked to UserQuery (may need to wait for next prompt)"
+        )
 else:
     print("⚠️  No UserQuery events found yet")
-    print("   This is expected if no user prompts have been submitted since the implementation.")
+    print(
+        "   This is expected if no user prompts have been submitted since the implementation."
+    )
 
 # Test 3: Show recent events with parent linking
 print("\n3. Recent events with parent linking:")
@@ -79,8 +87,10 @@ cursor = conn.execute("""
 print(f"{'Event ID':<15} {'Tool':<12} {'Parent Tool':<12} {'Summary':<40}")
 print("-" * 80)
 for row in cursor.fetchall():
-    parent_tool = row['parent_tool'] or 'None'
-    print(f"{row['event_id']:<15} {row['tool_name']:<12} {parent_tool:<12} {row['summary'] or 'N/A':<40}")
+    parent_tool = row["parent_tool"] or "None"
+    print(
+        f"{row['event_id']:<15} {row['tool_name']:<12} {parent_tool:<12} {row['summary'] or 'N/A':<40}"
+    )
 
 conn.close()
 

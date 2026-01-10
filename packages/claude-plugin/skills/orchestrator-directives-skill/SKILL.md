@@ -22,7 +22,7 @@ Orchestration means delegating tactical work to specialized subagents while you 
 **Basic pattern:**
 ```python
 Task(
-    subagent_type="htmlgraph:gemini-spawner",  # FREE - use for exploration
+    subagent_type="gemini",  # FREE - use for exploration
     description="Find auth patterns",
     prompt="Search codebase for authentication patterns..."
 )
@@ -46,13 +46,13 @@ Task(
 Ask these questions IN ORDER:
 
 1. **Can Gemini do this?** → Exploration, research, batch ops, file analysis
-   - YES = MUST use Gemini spawner (FREE - 2M tokens/min)
+   - YES = MUST use `gemini` spawner (FREE - 2M tokens/min)
 
 2. **Is this code work?** → Implementation, fixes, tests, refactoring
-   - YES = MUST use Codex spawner (70% cheaper than Claude)
+   - YES = MUST use `codex` spawner (70% cheaper than Claude)
 
 3. **Is this git/GitHub?** → Commits, PRs, issues, branches
-   - YES = MUST use Copilot spawner (60% cheaper, GitHub-native)
+   - YES = MUST use `copilot` spawner (60% cheaper, GitHub-native)
 
 4. **Does this need deep reasoning?** → Architecture, complex planning
    - YES = Use Claude Opus (expensive, but strategically needed)
@@ -240,10 +240,10 @@ Everything else MUST be delegated.
 6. **All else fails** → Task() with Haiku (fallback)
 
 **Spawner Subagent Types:**
-- `htmlgraph:gemini-spawner` - FREE, 2M tokens/min
-- `htmlgraph:codex-spawner` - Cheap code specialist
-- `htmlgraph:copilot-spawner` - Cheap git specialist
-- `general-purpose` - Generic Claude (use as fallback or when spawners fail)
+- `gemini` - FREE, 2M tokens/min, exploration & research
+- `codex` - Cheap code specialist, implementation & testing
+- `copilot` - Cheap git specialist, GitHub integration
+- `haiku` - Generic Claude Haiku (use as fallback or when spawners fail)
 
 </details>
 
@@ -253,7 +253,7 @@ Everything else MUST be delegated.
 ### Gemini Spawner (FREE - Exploration)
 ```python
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Analyze authentication patterns",
     prompt="""
     Analyze codebase for:
@@ -274,7 +274,7 @@ Task(
 ### Codex Spawner (Cheap - Code)
 ```python
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement OAuth middleware",
     prompt="""
     Implement OAuth authentication:
@@ -296,7 +296,7 @@ Task(
 ### Copilot Spawner (Cheap - Git)
 ```python
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit and create PR",
     prompt="""
     Commit changes and create PR:
@@ -318,7 +318,7 @@ Task(
 ```python
 Task(
     prompt="Design authentication architecture...",
-    subagent_type="sonnet"  # or "opus"
+    subagent_type="sonnet"  # or "opus" for deep reasoning
 )
 ```
 
@@ -345,7 +345,7 @@ Task(
 **Simple exploration:**
 ```python
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Find all auth patterns",
     prompt="Search codebase for authentication patterns and summarize findings"
 )
@@ -354,7 +354,7 @@ Task(
 **Code implementation:**
 ```python
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement OAuth endpoint",
     prompt="Implement OAuth authentication endpoint with JWT support"
 )
@@ -363,7 +363,7 @@ Task(
 **Git operations:**
 ```python
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit changes",
     prompt="Commit changes with message: 'feat: add OAuth authentication'"
 )
@@ -379,19 +379,19 @@ Task(
 ```python
 # Create all tasks in parallel (single message)
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Research auth patterns",
     prompt="Analyze existing authentication patterns..."
 )
 
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement OAuth",
     prompt="Implement OAuth flow..."
 )
 
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Create PR",
     prompt="Commit and create pull request..."
 )
@@ -417,7 +417,7 @@ Task(
 ```python
 # 1. Research existing patterns
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Research OAuth patterns",
     prompt="Find all OAuth implementations in codebase..."
 )
@@ -427,7 +427,7 @@ Task(
 research_findings = "..."  # Read from previous task result
 
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement OAuth based on research",
     prompt=f"""
     Implement OAuth using discovered patterns:
@@ -437,7 +437,7 @@ Task(
 
 # 3. Wait for implementation, then commit
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit implementation",
     prompt="Commit OAuth implementation..."
 )
@@ -468,7 +468,7 @@ findings = spike.get_findings()
 ```python
 # 1. Delegate exploration
 Task(
-    subagent_type="htmlgraph:gemini-spawner",
+    subagent_type="gemini",
     description="Analyze auth patterns",
     prompt="Find all authentication patterns..."
 )
@@ -480,7 +480,7 @@ findings = recent_spike.get_findings()
 
 # 3. Use findings in next delegation
 Task(
-    subagent_type="htmlgraph:codex-spawner",
+    subagent_type="codex",
     description="Implement based on findings",
     prompt=f"Implement authentication:\n{findings}"
 )
@@ -502,7 +502,7 @@ if failed:
 
 # CORRECT - Subagent handles retries
 Task(
-    subagent_type="htmlgraph:copilot-spawner",
+    subagent_type="copilot",
     description="Commit changes with retry",
     prompt="""
     Commit changes:

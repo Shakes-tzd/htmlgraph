@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Activity Feed Data Source Investigation - ROOT CAUSE FOUND</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1f637ac6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:34:00.131686"
+             data-updated="2026-01-10T03:34:00.131691" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Activity Feed Data Source Investigation - ROOT CAUSE FOUND</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem Statement
+Activity Feed header displayed "2766 events" but SQLite agent_events table appeared empty (0 rows).
+This caused confusion about parent-child event linking functionality.
+
+## Root Cause: Database Mismatch
+**THE API IS USING THE WRONG DATABASE**
+
+Two databases are running in parallel:
+1. **htmlgraph.db** (0 events) - Where hooks are writing new events
+2. **index.sqlite** (2862 events) - Where the API is reading from
+
+### Evidence
+Location of databases:
+- `.htmlgraph/htmlgraph.db` - Written to by PostToolUse hooks (EMPTY - 0 events)
+- `.htmlgraph/index.sqlite` - Used by FastAPI API (FULL - 2862 events)
+
+Database contents:
+- index.sqlite: 2862 total events, 1147 with parent_event_id set, 69 unique parent events
+- htmlgraph.db: 0 events (created but never populated)
+- test_linking.db: 10 events (historical test data)
+
+### Why This Matters
+1. **Parent-Child Linking Works** - 1147 events (40%) have parent_event_id set
+2. **Historical Data Preserved** - Data from 2026-01-08 17:48:23 to 2026-01-10 08:33:40
+3. **But New Events Go Nowhere** - Hooks write to htmlgraph.db which the API ignores
+
+### The Actual Problem
+The mismatch between where hooks write and where API reads:
+- Hooks → Write to htmlgraph.db (via track-event.py)
+- API → Reads from index.sqlite (via create_app() default path)
+
+Result: New events aren't linked because:
+1. Hooks write to htmlgraph.db
+2. API queries index.sqlite
+3. Two databases never sync
+4. New parent-child relationships are lost
+
+## Schema Analysis
+index.sqlite agent_events table has proper parent-child support:
+- parent_event_id column exists and is populated
+- Foreign key constraint to self (FOREIGN KEY parent_event_id REFERENCES agent_events)
+- Index on parent_event_id for efficient queries
+- 69 unique parent events created in historical data
+
+## Impact Assessment
+- ✅ Parent-child linking IS implemented and WORKS for historical data
+- ✅ Schema supports all required fields
+- ❌ New events bypass the linking mechanism due to database mismatch
+- ❌ API always uses index.sqlite, never sees new events from htmlgraph.db
+
+## Recommended Fix
+1. **Option A (Preferred)**: Make hooks write to index.sqlite instead of htmlgraph.db
+   - Single source of truth
+   - API reads what hooks write
+   - New parent-child relationships work immediately
+
+2. **Option B**: Make API read from htmlgraph.db
+   - Requires updating create_app() default database path
+   - May need migration of historical data
+
+3. **Option C**: Implement database synchronization
+   - Complex, error-prone
+   - Unnecessary if Option A or B chosen
+
+## Conclusion
+Parent-child event linking is NOT broken. The functionality exists and works perfectly 
+(1147 linked events prove it). The issue is architectural: hooks and API use different databases.
+Once they're unified, all new events will automatically be linked.
+
+This is a **DATA FLOW ISSUE**, not a functionality issue.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

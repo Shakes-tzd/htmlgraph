@@ -56,7 +56,13 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
             "command": "uv run \".claude/hooks/scripts/pretooluse-integrator.py\""
+          },
+          {
+            "type": "command",
+            "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
+            "command": "uv run \".claude/hooks/scripts/pretooluse-spawner-router.py\""
           }
         ]
       }

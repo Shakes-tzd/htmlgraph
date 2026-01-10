@@ -77,9 +77,9 @@ project_dir_for_import = _resolve_project_dir()
 _bootstrap_pythonpath(project_dir_for_import)
 
 try:
-    from htmlgraph.session_manager import SessionManager
     from htmlgraph.db.schema import HtmlGraphDB
     from htmlgraph.ids import generate_id
+    from htmlgraph.session_manager import SessionManager
 except Exception as e:
     # Do not break Claude execution if the dependency isn't installed.
     print(
@@ -95,7 +95,13 @@ DRIFT_QUEUE_FILE = "drift-queue.json"
 # Active parent activity tracker (for Skill/Task invocations)
 PARENT_ACTIVITY_FILE = "parent-activity.json"
 # UserQuery event tracker (for parent-child linking)
+# NOTE: This is a legacy global file name - now replaced with session-scoped files
 USER_QUERY_EVENT_FILE = "user-query-event.json"
+
+
+def get_user_query_event_file(graph_dir: Path, session_id: str) -> Path:
+    """Get the session-scoped user query event file path."""
+    return graph_dir / f"user-query-event-{session_id}.json"
 
 
 def load_drift_config() -> dict:
@@ -177,9 +183,15 @@ def save_parent_activity(
         print(f"Warning: Could not save parent activity: {e}", file=sys.stderr)
 
 
-def load_user_query_event(graph_dir: Path) -> str | None:
-    """Load the active UserQuery event ID for parent-child linking."""
-    path = graph_dir / USER_QUERY_EVENT_FILE
+def load_user_query_event(graph_dir: Path, session_id: str) -> str | None:
+    """
+    Load the active UserQuery event ID for parent-child linking.
+
+    Session-scoped: Each session maintains its own parent context via
+    user-query-event-{SESSION_ID}.json to support multiple concurrent
+    Claude windows in the same project.
+    """
+    path = get_user_query_event_file(graph_dir, session_id)
     if path.exists():
         try:
             with open(path) as f:
@@ -196,9 +208,17 @@ def load_user_query_event(graph_dir: Path) -> str | None:
     return None
 
 
-def save_user_query_event(graph_dir: Path, event_id: str | None) -> None:
-    """Save the active UserQuery event ID for parent-child linking."""
-    path = graph_dir / USER_QUERY_EVENT_FILE
+def save_user_query_event(
+    graph_dir: Path, session_id: str, event_id: str | None
+) -> None:
+    """
+    Save the active UserQuery event ID for parent-child linking.
+
+    Session-scoped: Each session maintains its own parent context via
+    user-query-event-{SESSION_ID}.json to support multiple concurrent
+    Claude windows in the same project.
+    """
+    path = get_user_query_event_file(graph_dir, session_id)
     try:
         if event_id:
             with open(path, "w") as f:
@@ -685,7 +705,9 @@ def main():
 
                 # Store the UserQuery event_id for subsequent tool calls to use as parent
                 if user_query_event_id:
-                    save_user_query_event(graph_dir, user_query_event_id)
+                    save_user_query_event(
+                        graph_dir, active_session_id, user_query_event_id
+                    )
 
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
@@ -763,7 +785,9 @@ def main():
                 parent_activity_id = parent_activity_state["parent_id"]
             # Finally, check for UserQuery event as parent (for prompt-based grouping)
             elif not parent_activity_id:
-                user_query_event_id = load_user_query_event(graph_dir)
+                user_query_event_id = load_user_query_event(
+                    graph_dir, active_session_id
+                )
                 if user_query_event_id:
                     parent_activity_id = user_query_event_id
 

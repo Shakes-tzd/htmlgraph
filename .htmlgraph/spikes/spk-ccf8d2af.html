@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 2 Complete: Agent Registry in plugin.json</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-ccf8d2af"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:47:31.883215"
+             data-updated="2026-01-10T03:47:31.883220" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-phase2">
+
+        <header>
+            <h1>Phase 2 Complete: Agent Registry in plugin.json</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                FILE MODIFIED: packages/claude-plugin/.claude-plugin/plugin.json
+
+AGENTS ADDED:
+1. gemini spawner
+   - Executable: agents/gemini-spawner.py
+   - Model: haiku
+   - Requires CLI: gemini
+   - Cost: FREE
+   - Capabilities: exploration, analysis, batch_processing
+   - Context Window: 2M tokens
+
+2. codex spawner
+   - Executable: agents/codex-spawner.py
+   - Model: haiku
+   - Requires CLI: codex
+   - Cost: Paid (OpenAI)
+   - Capabilities: code_generation, implementation, file_operations
+   - Context Window: 128K tokens
+
+3. copilot spawner
+   - Executable: agents/copilot-spawner.py
+   - Model: haiku
+   - Requires CLI: gh
+   - Cost: Subscription (GitHub Copilot)
+   - Capabilities: github_integration, git_operations, pr_handling
+   - Context Window: 100K tokens
+
+VERIFICATION:
+- JSON validation: PASSED
+- All three spawners configured: PASSED
+- Executable paths relative to plugin root: PASSED
+- All required fields present: PASSED
+- No duplicate keys: PASSED
+
+STRUCTURE:
+{
+  "agents": {
+    "gemini": {...},
+    "codex": {...},
+    "copilot": {...}
+  }
+}
+
+STATUS: Ready for Phase 3 router hook implementation
+            </div>
+        </section>
+    </article>
+</body>
+</html>

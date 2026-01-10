@@ -1656,6 +1656,42 @@ def get_app(db_path: str) -> FastAPI:
         finally:
             await db.close()
 
+    # ========== SPAWNERS ENDPOINTS ==========
+
+    @app.get("/views/spawners", response_class=HTMLResponse)
+    async def spawners_view(request: Request) -> HTMLResponse:
+        """Get spawner activity dashboard as HTMX partial."""
+        db = await get_db()
+        try:
+            # Get spawner statistics
+            stats_response = await get_spawner_statistics()
+            spawner_stats = stats_response.get("spawner_statistics", [])
+
+            # Get recent spawner activities
+            activities_response = await get_spawner_activities(limit=50)
+            recent_activities = activities_response.get("spawner_activities", [])
+
+            return templates.TemplateResponse(
+                "partials/spawners.html",
+                {
+                    "request": request,
+                    "spawner_stats": spawner_stats,
+                    "recent_activities": recent_activities,
+                },
+            )
+        except Exception as e:
+            logger.error(f"spawners_view ERROR: {e}")
+            return templates.TemplateResponse(
+                "partials/spawners.html",
+                {
+                    "request": request,
+                    "spawner_stats": [],
+                    "recent_activities": [],
+                },
+            )
+        finally:
+            await db.close()
+
     # ========== METRICS ENDPOINTS ==========
 
     @app.get("/views/metrics", response_class=HTMLResponse)
@@ -1789,7 +1825,7 @@ def get_app(db_path: str) -> FastAPI:
             max_hourly_count = 1  # Avoid division by zero in template
 
             # Default agent performance (empty list)
-            agent_performance = []
+            agent_performance: list[dict[str, str | float]] = []
 
             # Default system health metrics
             error_rate = 0.0
@@ -1811,6 +1847,200 @@ def get_app(db_path: str) -> FastAPI:
                     "avg_response_time": avg_response_time,
                 },
             )
+        finally:
+            await db.close()
+
+    # ========== SPAWNER OBSERVABILITY ENDPOINTS ==========
+
+    @app.get("/api/spawner-activities")
+    async def get_spawner_activities(
+        spawner_type: str | None = None,
+        session_id: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """
+        Get spawner delegation activities with clear attribution.
+
+        Returns events where spawner_type IS NOT NULL, ordered by recency.
+        Shows which orchestrator delegated to which spawned AI.
+
+        Args:
+            spawner_type: Filter by spawner type (gemini, codex, copilot)
+            session_id: Filter by session
+            limit: Maximum results (default 100)
+            offset: Result offset for pagination
+
+        Returns:
+            Dict with spawner_activities array and metadata
+        """
+        db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
+        try:
+            # Create cache key
+            cache_key = f"spawner_activities:{spawner_type or 'all'}:{session_id or 'all'}:{limit}:{offset}"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                return cached_result  # type: ignore[no-any-return]
+
+            exec_start = time.time()
+
+            query = """
+                SELECT
+                    event_id,
+                    agent_id AS orchestrator_agent,
+                    spawner_type,
+                    subagent_type AS spawned_agent,
+                    tool_name,
+                    input_summary AS task,
+                    output_summary AS result,
+                    status,
+                    execution_duration_seconds AS duration,
+                    cost_tokens AS tokens,
+                    cost_usd,
+                    child_spike_count AS artifacts,
+                    timestamp,
+                    created_at
+                FROM agent_events
+                WHERE spawner_type IS NOT NULL
+            """
+
+            params: list[Any] = []
+            if spawner_type:
+                query += " AND spawner_type = ?"
+                params.append(spawner_type)
+            if session_id:
+                query += " AND session_id = ?"
+                params.append(session_id)
+
+            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
+
+            cursor = await db.execute(query, params)
+            events = [
+                dict(zip([c[0] for c in cursor.description], row))
+                for row in await cursor.fetchall()
+            ]
+
+            # Get total count
+            count_query = (
+                "SELECT COUNT(*) FROM agent_events WHERE spawner_type IS NOT NULL"
+            )
+            count_params: list[Any] = []
+            if spawner_type:
+                count_query += " AND spawner_type = ?"
+                count_params.append(spawner_type)
+            if session_id:
+                count_query += " AND session_id = ?"
+                count_params.append(session_id)
+
+            count_cursor = await db.execute(count_query, count_params)
+            count_row = await count_cursor.fetchone()
+            total_count = int(count_row[0]) if count_row else 0
+
+            exec_time_ms = (time.time() - exec_start) * 1000
+
+            result = {
+                "spawner_activities": events,
+                "count": len(events),
+                "total": total_count,
+                "offset": offset,
+                "limit": limit,
+            }
+
+            # Cache the result
+            cache.set(cache_key, result)
+            query_time_ms = (time.time() - query_start_time) * 1000
+            cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+            logger.debug(
+                f"Cache MISS for spawner_activities (key={cache_key}, "
+                f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms, "
+                f"activities={len(events)})"
+            )
+
+            return result
+        finally:
+            await db.close()
+
+    @app.get("/api/spawner-statistics")
+    async def get_spawner_statistics(session_id: str | None = None) -> dict[str, Any]:
+        """
+        Get aggregated statistics for each spawner type.
+
+        Shows delegations, success rate, average duration, token usage, and costs
+        broken down by spawner type (Gemini, Codex, Copilot).
+
+        Args:
+            session_id: Filter by session (optional)
+
+        Returns:
+            Dict with spawner_statistics array
+        """
+        db = await get_db()
+        cache = app.state.query_cache
+        query_start_time = time.time()
+
+        try:
+            # Create cache key
+            cache_key = f"spawner_statistics:{session_id or 'all'}"
+
+            # Check cache first
+            cached_result = cache.get(cache_key)
+            if cached_result is not None:
+                query_time_ms = (time.time() - query_start_time) * 1000
+                cache.record_metric(cache_key, query_time_ms, cache_hit=True)
+                return cached_result  # type: ignore[no-any-return]
+
+            exec_start = time.time()
+
+            query = """
+                SELECT
+                    spawner_type,
+                    COUNT(*) as total_delegations,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+                    ROUND(100.0 * SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) / COUNT(*), 1) as success_rate,
+                    ROUND(AVG(execution_duration_seconds), 2) as avg_duration,
+                    SUM(cost_tokens) as total_tokens,
+                    ROUND(SUM(cost_usd), 2) as total_cost,
+                    MIN(timestamp) as first_used,
+                    MAX(timestamp) as last_used
+                FROM agent_events
+                WHERE spawner_type IS NOT NULL
+            """
+
+            params: list[Any] = []
+            if session_id:
+                query += " AND session_id = ?"
+                params.append(session_id)
+
+            query += " GROUP BY spawner_type ORDER BY total_delegations DESC"
+
+            cursor = await db.execute(query, params)
+            stats = [
+                dict(zip([c[0] for c in cursor.description], row))
+                for row in await cursor.fetchall()
+            ]
+
+            exec_time_ms = (time.time() - exec_start) * 1000
+
+            result = {"spawner_statistics": stats}
+
+            # Cache the result
+            cache.set(cache_key, result)
+            query_time_ms = (time.time() - query_start_time) * 1000
+            cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
+            logger.debug(
+                f"Cache MISS for spawner_statistics (key={cache_key}, "
+                f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms)"
+            )
+
+            return result
         finally:
             await db.close()
 

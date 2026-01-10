@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 3 Complete: PreToolUse Router Hook</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-6f69cbf5"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:49:08.575117"
+             data-updated="2026-01-10T03:49:08.575122" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-phase3">
+
+        <header>
+            <h1>Phase 3 Complete: PreToolUse Router Hook</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                FILE CREATED: packages/claude-plugin/.claude-plugin/hooks/scripts/pretooluse-spawner-router.py
+
+FILE STATS:
+- Size: 12345 bytes
+- Permissions: 644 (needs executable bit)
+- Lines: 393
+
+IMPLEMENTATION COMPLETE:
+
+1. ✅ PreToolUse hook entry point
+   - Reads JSON event from stdin
+   - Extracts tool_name and params
+
+2. ✅ Task() call interception
+   - Only intercepts when tool_name == "Task"
+   - Non-spawner types pass through unmodified
+
+3. ✅ Spawner type detection
+   - Checks if subagent_type in ["gemini", "codex", "copilot"]
+   - Pass through for other subagent types
+
+4. ✅ Plugin manifest loading
+   - load_plugin_manifest() - Loads agents registry from plugin.json
+   - Searches multiple paths for plugin.json
+   - Returns empty dict if not found (graceful degradation)
+
+5. ✅ CLI availability checking
+   - is_cli_available(cli_name) - Uses shutil.which() to check
+   - get_spawner_cli_requirements() - Maps spawners to required CLIs
+   - Returns human-readable installation URLs
+
+6. ✅ Agent configuration retrieval
+   - get_spawner_agent_config() - Gets config from manifest
+   - check_spawner_requirements() - Validates all dependencies
+
+7. ✅ Spawner routing
+   - route_to_spawner() - Main routing logic
+   - Validates agent config exists
+   - Checks CLI availability
+   - Executes spawner via subprocess with timeout
+
+8. ✅ Error handling
+   - Missing CLI → Block with installation instructions
+   - Missing config → Block with error message
+   - Execution failure → Block and return error
+   - Timeout → Block with timeout message
+   - Success → Return with spawner output
+
+SPAWNER ROUTING MAP:
+- gemini → agents/gemini-spawner.py (requires: gemini CLI)
+- codex → agents/codex-spawner.py (requires: codex CLI)
+- copilot → agents/copilot-spawner.py (requires: gh CLI)
+
+ERROR MESSAGES INCLUDE:
+- Which CLI is required
+- Installation URL
+- Orchestrator decision options
+- Clear "🚫 SPAWNER" error prefixes
+
+LOGGING:
+- INFO: Manifest loaded, agent config found, spawner executed
+- WARNING: Manifest not found, agent config not found, CLI check failed
+- ERROR: Invalid spawner type, missing executable, execution failed
+
+SUBPROCESS EXECUTION:
+- Command: uv run <agent_executable>
+- Input: Task prompt via stdin
+- Timeout: 300 seconds (5 minutes)
+- Output: Spawner stdout captured
+
+NEXT PHASE: Phase 4 - Register hook in hooks.json
+
+The PreToolUse router is ready to intercept Task() calls and route
+them to spawner agents based on subagent_type parameter.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

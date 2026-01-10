@@ -66,6 +66,99 @@ The orchestrator pattern is **NOT a rigid hierarchy** with fixed rules. Instead:
 
 ---
 
+## Using Spawner Agents via Task()
+
+You can now invoke spawner agents directly through Task() using simple names:
+
+**Syntax:**
+```python
+# Invoke Gemini spawner (FREE - 2M tokens/min)
+Task(subagent_type="gemini", prompt="Search codebase for auth patterns")
+
+# Invoke Codex spawner (Paid - OpenAI)
+Task(subagent_type="codex", prompt="Implement user authentication")
+
+# Invoke Copilot spawner (Subscription - GitHub)
+Task(subagent_type="copilot", prompt="Review and approve PR")
+```
+
+**Simple Names (No Namespace):**
+- `"gemini"` - Google Gemini 2.0-Flash (FREE tier, 2M tokens/min, best for exploration)
+- `"codex"` - OpenAI Codex/GPT-4 (code generation, 128K context)
+- `"copilot"` - GitHub Copilot (GitHub integration, git operations)
+
+**Transparent Failures - Orchestrator Decides:**
+
+If a spawner CLI is not installed, Task() fails explicitly:
+
+```python
+# This fails with clear error (CLI not installed)
+Task(subagent_type="gemini", prompt="Analyze codebase")
+# Error: Spawner 'gemini' requires 'gemini' CLI.
+# Install: https://ai.google.dev/gemini-api/docs/cli
+# Orchestrator can now decide: install, use different spawner, or fallback to Claude
+
+# Orchestrator handles fallback explicitly
+try:
+    result = Task(subagent_type="gemini", prompt="Analyze code")
+except CLINotFound:
+    # Try alternative spawner
+    result = Task(subagent_type="codex", prompt="Analyze code")
+
+# OR
+if gemini_cli_available():
+    Task(subagent_type="gemini", ...)
+else:
+    Task(subagent_type="haiku", ...)  # Fallback to Claude
+```
+
+**Attribution & Cost:**
+
+Every spawner execution shows clear attribution:
+
+```json
+{
+  "response": "Analysis complete: 15 auth patterns found",
+  "agent": "gemini-2.0-flash",      // Actual AI (not wrapper)
+  "tokens": 245000,
+  "cost": 0.0,                        // FREE for Gemini
+  "duration": 8.3
+}
+```
+
+The dashboard distinguishes spawner activities from direct Claude actions:
+
+```
+claude-code → gemini-2.0-flash   (Gemini spawner - FREE)
+claude-code → gpt-4              (Codex spawner - Paid)
+claude-code → github-copilot     (Copilot spawner - Subscription)
+```
+
+**Error Handling Pattern:**
+
+```python
+# Explicit failure - orchestrator makes decision
+Task(subagent_type="gemini", prompt="...", description="Search with Gemini")
+# If fails: Shows CLI requirement + options
+# Orchestrator receives error and chooses:
+# 1. Install the CLI and retry
+# 2. Use different spawner
+# 3. Fallback to Claude (haiku, sonnet, opus)
+# 4. Cancel operation
+```
+
+**Model Flexibility:**
+
+While each spawner has a preferred model, all can use alternative Claude models:
+
+```python
+# Spawner agents default to their preferred model but can call different models
+Task(subagent_type="codex", prompt="...", model="gpt-4-turbo")  # Override model
+Task(subagent_type="copilot", prompt="...", allow_tools=["shell", "git"])
+```
+
+---
+
 ## The Four Spawner Types
 
 ### 1. Gemini Spawner
@@ -274,36 +367,36 @@ Task starts here
       │
       ▼
 Is it exploratory research?
-├─ YES → Gemini spawner (FREE, fast, 2M tokens/min)
+├─ YES → Use subagent_type="gemini" (FREE, fast, 2M tokens/min)
 └─ NO → Continue...
         │
         ▼
 Does it need GitHub integration?
-├─ YES → Copilot spawner (GitHub API, git ops)
+├─ YES → Use subagent_type="copilot" (GitHub API, git ops)
 └─ NO → Continue...
         │
         ▼
 Is it a code generation task?
-├─ YES → Codex spawner (code completions)
+├─ YES → Use subagent_type="codex" (code completions)
 └─ NO → Continue...
         │
         ▼
 Does it need reasoning/analysis?
-├─ YES → Claude spawner (any Claude model)
-└─ NO → Default to Claude spawner
+├─ YES → Use subagent_type="sonnet" or "opus" (Claude models)
+└─ NO → Default to subagent_type="haiku"
 ```
 
 **But remember:** These are suggestions, not rules. Mix and match based on actual task needs:
 
 ```python
 # ✅ Flexible approach - use best tool for each subtask
-Task(subagent_type="gemini-spawner",
+Task(subagent_type="gemini",
      prompt="Explore codebase and list all API endpoints")
 
-Task(subagent_type="copilot-spawner",
+Task(subagent_type="copilot",
      prompt="Create GitHub issue for findings")
 
-Task(subagent_type="claude-spawner",
+Task(subagent_type="sonnet",
      prompt="Analyze endpoints for security issues")
 ```
 
@@ -322,17 +415,17 @@ sdk = SDK(agent="orchestrator")
 
 # Parallel exploration - all run at same time
 gemini_task = Task(
-    subagent_type="gemini-spawner",
+    subagent_type="gemini",
     prompt="Find all authentication patterns in src/auth/. Return JSON with pattern names, file locations, and brief descriptions."
 )
 
 codex_task = Task(
-    subagent_type="codex-spawner",
+    subagent_type="codex",
     prompt="Generate unit tests for src/auth/login.py based on common auth patterns."
 )
 
 claude_task = Task(
-    subagent_type="claude-spawner",
+    subagent_type="sonnet",
     prompt="Analyze auth patterns for security vulnerabilities. Focus on: token handling, session management, input validation."
 )
 
@@ -356,13 +449,13 @@ Use cheaper models for heavy lifting, expensive models only for reasoning:
 ```python
 # Step 1: Cheap exploration (Gemini FREE)
 gemini_result = Task(
-    subagent_type="gemini-spawner",
+    subagent_type="gemini",
     prompt="Analyze 500+ Python files for security issues. Return structured list of potential issues found."
 )
 
 # Step 2: Expensive analysis (Claude Opus - only on findings)
 analysis_result = Task(
-    subagent_type="claude-spawner",  # Uses expensive model
+    subagent_type="opus",  # Uses expensive model
     prompt=f"""Given these potential security issues found by exploration:
 
 {gemini_result.findings}
@@ -423,15 +516,15 @@ Combine different spawners for optimal cost and capability:
 # Part 1: Cheap, parallel exploration (multiple spawners)
 exploration_results = {
     "auth": Task(
-        subagent_type="gemini-spawner",
+        subagent_type="gemini",
         prompt="Explore src/auth/ security"
     ),
     "api": Task(
-        subagent_type="gemini-spawner",
+        subagent_type="gemini",
         prompt="Explore src/api/ endpoints"
     ),
     "github": Task(
-        subagent_type="copilot-spawner",
+        subagent_type="copilot",
         prompt="Check GitHub issues and PRs",
         allow_tools=["github(*)"]
     )
@@ -439,7 +532,7 @@ exploration_results = {
 
 # Part 2: Consolidation (expensive reasoning, once only)
 consolidation = Task(
-    subagent_type="claude-spawner",
+    subagent_type="sonnet",
     prompt=f"""Based on exploration findings:
 
 Auth findings: {exploration_results['auth'].response}
@@ -463,29 +556,26 @@ Create a unified plan for next steps."""
 
 ```python
 # ✅ Gemini spawner usually uses Gemini 2.0-Flash
-spawner = HeadlessSpawner()
-result = spawner.spawn_gemini(
-    prompt="Explore codebase",
-    model="gemini-2.0-flash"  # Primary
-)
+Task(subagent_type="gemini",
+     prompt="Explore codebase")
 
 # ✅ But it can also use Haiku for cost optimization
-Task(subagent_type="general-purpose",
+Task(subagent_type="haiku",
      prompt="Explore codebase (faster alternative)")
 
 # ✅ Copilot spawner usually uses Copilot
-result = spawner.spawn_copilot(
-    prompt="GitHub workflow",
-    allow_tools=["github(*)"]
-)
+Task(subagent_type="copilot",
+     prompt="GitHub workflow",
+     allow_tools=["github(*)"])
 
-# ✅ But fallback uses Sonnet
-# (automatic in spawner, or explicit Task())
+# ✅ But fallback uses Sonnet (if Copilot unavailable)
+Task(subagent_type="sonnet",
+     prompt="GitHub workflow (fallback)")
 
 # ✅ Claude spawner can use ANY Claude model
-result = spawner.spawn_claude(model="claude-haiku")   # Cheap
-result = spawner.spawn_claude(model="claude-sonnet")  # Balanced
-result = spawner.spawn_claude(model="claude-opus-4-5") # Expensive
+Task(subagent_type="haiku", prompt="...")   # Cheap
+Task(subagent_type="sonnet", prompt="...")  # Balanced
+Task(subagent_type="opus", prompt="...")    # Expensive
 ```
 
 **Principle:** Models are tools, not rigid assignments.

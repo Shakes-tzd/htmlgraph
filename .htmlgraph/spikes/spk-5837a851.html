@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 6 Complete: Event Tracking in Spawner Agents</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5837a851"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T03:59:44.721445"
+             data-updated="2026-01-10T03:59:44.721450" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-phase6">
+
+        <header>
+            <h1>Phase 6 Complete: Event Tracking in Spawner Agents</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                PHASE 6 COMPLETE: Event Tracking in Spawner Agents
+================================================
+
+EVENT TRACKING IMPLEMENTATION:
+1. ✅ Delegation start recorded (agent_events table)
+2. ✅ Collaboration handoff recorded (agent_collaboration table)
+3. ✅ Spawner execution tracked (individual events)
+4. ✅ Delegation completion recorded (with metrics)
+5. ✅ Agent attribution clear (actual AI, NOT wrapper)
+
+FILES UPDATED:
+- gemini-spawner.py: 2 tracking calls, 11 delegation refs
+- codex-spawner.py: 2 tracking calls, 11 delegation refs
+- copilot-spawner.py: 2 tracking calls, 11 delegation refs
+
+DATABASE RECORDS CREATED PER INVOCATION:
+1. agent_events: Delegation event with parent linking
+   - event_id: auto-generated (event-XXXXXXXX)
+   - agent_id: parent agent (orchestrator)
+   - event_type: "delegation"
+   - spawned_agent: actual AI (gemini-2.0-flash, gpt-4, github-copilot)
+   - spawner_type: (gemini, codex, copilot)
+   - status: completed/failed
+   - execution_duration_seconds: actual time
+   - cost_tokens: token usage
+
+2. agent_collaboration: Handoff record
+   - from_agent: parent agent (orchestrator)
+   - to_agent: actual AI (NOT wrapper)
+   - handoff_type: spawner_delegation
+   - reason: task prompt
+   - metadata: model, spawner, cost
+
+ATTRIBUTION TRANSPARENCY:
+✅ All spawner activities attributed to actual AI:
+  - Gemini -> gemini-2.0-flash
+  - Codex -> gpt-4
+  - Copilot -> github-copilot
+✅ Haiku wrapper identity never exposed
+✅ Parent event linking maintains event chain
+✅ Cost tracking per spawner:
+  - Gemini: FREE
+  - Codex: PAID (gpt-4 token cost)
+  - Copilot: INCLUDED (subscription)
+
+EVENT FLOW FOR EACH SPAWNER INVOCATION:
+1. Load parent context from environment (HTMLGRAPH_PARENT_SESSION, HTMLGRAPH_PARENT_EVENT)
+2. Initialize database connection
+3. Record delegation start (agent_events table)
+4. Record collaboration handoff (agent_collaboration table)
+5. Set agent environment (HTMLGRAPH_AGENT -> actual AI)
+6. Execute spawner with HeadlessSpawner
+7. Track completion with metrics
+8. Return JSON output with:
+   - success: true/false
+   - response/error: actual content
+   - tokens: token usage
+   - agent: actual AI identifier
+   - duration: execution time
+   - cost: model cost (0.0 for free models)
+   - delegation_event_id: for cross-process linking
+
+ERROR HANDLING:
+✅ Database tracking is best-effort (non-fatal)
+✅ Tracking failures don't prevent spawner execution
+✅ All errors reported in JSON output
+✅ Agent attribution clear even on error
+
+VERIFICATION:
+✅ All three spawners implement identical tracking pattern
+✅ Code compiles without errors
+✅ Ruff linting passes
+✅ No type errors
+✅ Environment variable passing works correctly
+
+NEXT PHASE: Phase 7 - Dashboard observability
+- Add badges for spawner attribution
+- Filter by spawner type (gemini, codex, copilot)
+- Cost dashboard per spawner
+- Delegation chain visualization
+            </div>
+        </section>
+    </article>
+</body>
+</html>
