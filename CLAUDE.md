@@ -60,6 +60,102 @@ uv run pytest                              # Run tests
 
 ---
 
+## Development Mode
+
+**CRITICAL: Hooks load htmlgraph from PyPI, not local source, even in dev mode.**
+
+### Starting Dev Mode
+
+```bash
+uv run htmlgraph claude --dev
+```
+
+This launches Claude Code with:
+- Plugin loaded from `packages/claude-plugin/.claude-plugin/`
+- Orchestrator system prompt injected
+- Multi-AI delegation rules enabled
+
+### How Hooks Load HtmlGraph
+
+**Hook shebangs use:**
+```python
+#!/usr/bin/env -S uv run --with htmlgraph
+```
+
+**Key behavior:**
+- `--with htmlgraph` always pulls **latest version from PyPI**
+- Even when running from project root, hooks use PyPI package
+- No version pinning (always gets latest)
+- No need to edit hooks when releasing new versions
+
+### Why PyPI in Dev Mode?
+
+**Testing in production-like environment:**
+- Ensures changes work the same way for users
+- Catches integration issues before distribution
+- No surprises when hooks run in production
+- Single source of truth (PyPI package)
+
+### Development Workflow
+
+1. **Make changes** to `src/python/htmlgraph/`
+2. **Run tests** locally: `uv run pytest`
+3. **Deploy to PyPI**: `./scripts/deploy-all.sh X.Y.Z --no-confirm`
+4. **Restart Claude**: Hooks automatically load new version from PyPI
+5. **Verify**: Check that changes work correctly
+
+### Session ID Fix (v0.26.3)
+
+**Problem:** PostToolUse hooks don't receive `session_id` in hook_input from Claude Code.
+
+**Solution:** Database fallback query finds session with most recent UserQuery event:
+```python
+# In src/python/htmlgraph/hooks/context.py
+cursor.execute("""
+    SELECT session_id FROM agent_events
+    WHERE tool_name = 'UserQuery'
+    ORDER BY timestamp DESC
+    LIMIT 1
+""")
+```
+
+**Why this works:**
+- UserPromptSubmit hooks DO receive `session_id` from Claude Code
+- They create UserQuery events with correct session_id
+- PostToolUse hooks query database for that session
+- All events (UserQuery + tool events) share same session_id
+
+**Verification after restart:**
+```bash
+sqlite3 .htmlgraph/htmlgraph.db "
+SELECT session_id, tool_name, COUNT(*)
+FROM agent_events
+WHERE session_id = (SELECT session_id FROM sessions ORDER BY created_at DESC LIMIT 1)
+GROUP BY tool_name
+ORDER BY COUNT(*) DESC;
+"
+# Should show UserQuery, Bash, Read, etc. all with SAME session_id
+```
+
+### Troubleshooting Dev Mode
+
+**Hooks not executing?**
+- Check PyPI package is latest: `pip show htmlgraph`
+- Verify hooks are executable: `ls -la packages/claude-plugin/.claude-plugin/hooks/scripts/`
+- Check hook shebangs: `head -1 packages/claude-plugin/.claude-plugin/hooks/scripts/*.py`
+
+**Session IDs still mismatched?**
+- Query database for UserQuery events: `sqlite3 .htmlgraph/htmlgraph.db "SELECT session_id FROM agent_events WHERE tool_name='UserQuery' ORDER BY timestamp DESC LIMIT 1;"`
+- Check active sessions: `sqlite3 .htmlgraph/htmlgraph.db "SELECT session_id, status FROM sessions WHERE status='active';"`
+- Verify fix is deployed: Check that v0.26.3+ is on PyPI
+
+**Local changes not reflected?**
+- Hooks load from PyPI, not local source
+- Must deploy to PyPI for hooks to see changes
+- Use incremental versions (0.26.2 → 0.26.3 → 0.26.4)
+
+---
+
 ## System Prompt Persistence & Delegation Enforcement
 
 **Automatic context injection across session boundaries with cost-optimal delegation.**
