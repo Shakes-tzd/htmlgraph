@@ -86,12 +86,14 @@
                         <!-- Child Events Container (Hidden by default) -->
                         <div class="turn-children collapsed" id="children-{{ turn.userQuery.event_id }}">
                             {% if turn.children %}
-                                {% for child in turn.children %}
+                                {% for child in turn.children recursive %}
                                     <!-- Child Event Row -->
-                                    <div class="child-event-row" data-event-id="{{ child.event_id }}">
+                                    <div class="child-event-row depth-{{ child.depth|default(0) }}"
+                                         data-event-id="{{ child.event_id }}"
+                                         style="margin-left: {{ (child.depth|default(0)) * 20 }}px;">
                                         <!-- Tree Connector -->
                                         <span class="tree-connector">
-                                            {% if loop.last %}└─{% else %}├─{% endif %}
+                                            {% if loop.last and not child.children %}└─{% else %}├─{% endif %}
                                         </span>
 
                                         <!-- Tool Name -->
@@ -138,6 +140,10 @@
                                             {{ child.timestamp }}
                                         </span>
                                     </div>
+                                    <!-- Recursively render nested children -->
+                                    {% if child.children %}
+                                        {{ loop(child.children) }}
+                                    {% endif %}
                                 {% endfor %}
                             {% else %}
                                 <div class="no-children-message">

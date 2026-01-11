@@ -1013,50 +1013,86 @@ def get_app(db_path: str) -> FastAPI:
                     ORDER BY timestamp ASC
                 """
 
-                children_cursor = await db.execute(children_query, [uq_event_id])
-                children_rows = await children_cursor.fetchall()
+                # Recursive helper to fetch children at any depth
+                async def fetch_children_recursive(
+                    parent_id: str, depth: int = 0, max_depth: int = 4
+                ) -> tuple[list[dict[str, Any]], float, int, int]:
+                    """Recursively fetch children up to max_depth levels."""
+                    if depth >= max_depth:
+                        return [], 0.0, 0, 0
 
-                # Step 3: Build child events with proper formatting
-                children: list[dict[str, Any]] = []
-                total_duration = uq_duration
+                    cursor = await db.execute(children_query, [parent_id])
+                    rows = await cursor.fetchall()
+
+                    children_list: list[dict[str, Any]] = []
+                    total_dur = 0.0
+                    success_cnt = 0
+                    error_cnt = 0
+
+                    for row in rows:
+                        evt_id = row[0]
+                        tool = row[1]
+                        timestamp = row[2]
+                        input_text = row[3] or ""
+                        duration = row[4] or 0.0
+                        status = row[5]
+                        agent = row[6] or "unknown"
+
+                        # Build summary
+                        summary = f"{tool}: {input_text[:60]}..."
+                        if len(input_text) <= 60:
+                            summary = f"{tool}: {input_text}"
+
+                        # Recursively fetch this child's children
+                        (
+                            nested_children,
+                            nested_dur,
+                            nested_success,
+                            nested_error,
+                        ) = await fetch_children_recursive(evt_id, depth + 1, max_depth)
+
+                        child_dict: dict[str, Any] = {
+                            "event_id": evt_id,
+                            "tool_name": tool,
+                            "timestamp": timestamp,
+                            "summary": summary,
+                            "duration_seconds": round(duration, 2),
+                            "agent": agent,
+                            "depth": depth,
+                        }
+
+                        # Only add children key if there are nested children
+                        if nested_children:
+                            child_dict["children"] = nested_children
+
+                        children_list.append(child_dict)
+
+                        # Update stats (include nested)
+                        total_dur += duration + nested_dur
+                        if status == "recorded" or status == "success":
+                            success_cnt += 1
+                        else:
+                            error_cnt += 1
+                        success_cnt += nested_success
+                        error_cnt += nested_error
+
+                    return children_list, total_dur, success_cnt, error_cnt
+
+                # Step 3: Build child events with recursive nesting
+                (
+                    children,
+                    children_duration,
+                    children_success,
+                    children_error,
+                ) = await fetch_children_recursive(uq_event_id, depth=0, max_depth=4)
+
+                total_duration = uq_duration + children_duration
                 success_count = (
                     1 if uq_status == "recorded" or uq_status == "success" else 0
-                )
+                ) + children_success
                 error_count = (
                     0 if uq_status == "recorded" or uq_status == "success" else 1
-                )
-
-                for child_row in children_rows:
-                    child_event_id = child_row[0]
-                    child_tool = child_row[1]
-                    child_timestamp = child_row[2]
-                    child_input = child_row[3] or ""
-                    child_duration = child_row[4] or 0.0
-                    child_status = child_row[5]
-                    child_agent = child_row[6] or "unknown"
-
-                    # Build summary: "ToolName: description"
-                    summary = f"{child_tool}: {child_input[:60]}..."
-                    if len(child_input) <= 60:
-                        summary = f"{child_tool}: {child_input}"
-
-                    children.append(
-                        {
-                            "event_id": child_event_id,
-                            "tool_name": child_tool,
-                            "timestamp": child_timestamp,
-                            "summary": summary,
-                            "duration_seconds": round(child_duration, 2),
-                            "agent": child_agent,
-                        }
-                    )
-
-                    # Update stats
-                    total_duration += child_duration
-                    if child_status == "recorded" or child_status == "success":
-                        success_count += 1
-                    else:
-                        error_count += 1
+                ) + children_error
 
                 # Step 4: Build conversation turn object
                 conversation_turn = {
