@@ -1050,10 +1050,10 @@ def get_app(db_path: str) -> FastAPI:
                         agent = row[6] or "unknown"
                         model = row[7]  # Add model field
 
-                        # Build summary
-                        summary = f"{tool}: {input_text[:60]}..."
-                        if len(input_text) <= 60:
-                            summary = f"{tool}: {input_text}"
+                        # Build summary (input_text already contains formatted summary)
+                        summary = input_text[:80] + (
+                            "..." if len(input_text) > 80 else ""
+                        )
 
                         # Recursively fetch this child's children
                         (
