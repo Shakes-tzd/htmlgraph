@@ -437,11 +437,7 @@ def detect_agent_from_environment() -> tuple[str, str | None]:
 
     # Fallback: Try to read model from status line cache
     if not model_name:
-        session_id = os.environ.get("HTMLGRAPH_SESSION_ID") or os.environ.get(
-            "CLAUDE_SESSION_ID"
-        )
-        if session_id:
-            model_name = get_model_from_status_cache(session_id)
+        model_name = get_model_from_status_cache()
 
     # Default fallback for agent_id
     if not agent_id:
