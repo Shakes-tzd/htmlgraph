@@ -6,11 +6,6 @@
         "hooks": [
           {
             "type": "command",
-            "comment": "Record UserQuery event to SQLite",
-            "command": "HTMLGRAPH_HOOK_TYPE=UserPromptSubmit uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
-          },
-          {
-            "type": "command",
             "comment": "CIGS analysis and workflow guidance",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/user-prompt-submit.py\""
           }
@@ -58,11 +53,6 @@
             "type": "command",
             "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-integrator.py\""
-          },
-          {
-            "type": "command",
-            "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
-            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-spawner-router.py\""
           }
         ]
       }
@@ -71,11 +61,6 @@
       {
         "matcher": "",
         "hooks": [
-          {
-            "type": "command",
-            "comment": "Record tool execution to SQLite",
-            "command": "HTMLGRAPH_HOOK_TYPE=PostToolUse uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-event.py\""
-          },
           {
             "type": "command",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/posttooluse-integrator.py\""
