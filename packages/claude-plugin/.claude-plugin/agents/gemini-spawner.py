@@ -229,7 +229,7 @@ Examples:
             try:
                 delegation_event_id = f"event-{uuid.uuid4().hex[:8]}"
                 # Use parent_query_event (UserQuery) as the root parent, with parent_event_id (task_delegation) as the intermediate parent
-                db.insert_event(
+                insert_success = db.insert_event(
                     event_id=delegation_event_id,
                     agent_id=parent_agent,
                     event_type="delegation",
@@ -247,6 +247,17 @@ Examples:
                     subagent_type="gemini",
                     cost_tokens=0,
                 )
+
+                if not insert_success:
+                    print(
+                        f"DEBUG: ❌ insert_event() returned False for {delegation_event_id}",
+                        file=sys.stderr,
+                    )
+                else:
+                    print(
+                        f"DEBUG: ✅ insert_event() succeeded for {delegation_event_id}",
+                        file=sys.stderr,
+                    )
 
                 # Record collaboration handoff
                 db.record_collaboration(
@@ -270,6 +281,24 @@ Examples:
                         f"DEBUG: Delegation event committed: {delegation_event_id}",
                         file=sys.stderr,
                     )
+
+                    # VERIFY: Check if event actually exists after commit
+                    cursor = db.connection.cursor()
+                    cursor.execute(
+                        "SELECT event_id, event_type FROM agent_events WHERE event_id = ?",
+                        (delegation_event_id,),
+                    )
+                    result = cursor.fetchone()
+                    if result:
+                        print(
+                            f"DEBUG: ✅ Verified delegation event in database: {result}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            "DEBUG: ❌ WARNING - Delegation event NOT in database after commit!",
+                            file=sys.stderr,
+                        )
 
             except Exception as e:
                 # Non-fatal - tracking is best-effort
@@ -334,6 +363,9 @@ Examples:
                     spawned_agent="gemini-2.0-flash",
                     tool_name="gemini-cli",
                     input_summary=args.prompt[:200],
+                    parent_phase_event_id=init_event.get("event_id")
+                    if init_event
+                    else None,
                 )
             except Exception:
                 pass

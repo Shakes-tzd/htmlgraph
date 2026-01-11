@@ -59,13 +59,11 @@ class SpawnerEventTracker:
 
         # Try to initialize database for event tracking
         try:
-            from pathlib import Path
-
+            from htmlgraph.config import get_database_path
             from htmlgraph.db.schema import HtmlGraphDB
 
             # Get correct database path from environment or project root
-            project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
-            db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+            db_path = get_database_path()
 
             if db_path.exists():
                 self.db = HtmlGraphDB(str(db_path))
@@ -80,6 +78,7 @@ class SpawnerEventTracker:
         tool_name: str | None = None,
         input_summary: str | None = None,
         status: str = "running",
+        parent_phase_event_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Record the start of a phase in spawner execution.
@@ -90,6 +89,7 @@ class SpawnerEventTracker:
             tool_name: Tool being executed (optional)
             input_summary: Summary of input (optional)
             status: Current status (running, completed, failed)
+            parent_phase_event_id: Parent phase event ID for proper nesting (optional)
 
         Returns:
             Event dictionary with event_id and metadata
@@ -111,6 +111,9 @@ class SpawnerEventTracker:
             if tool_name:
                 context["tool"] = tool_name
 
+            # Use parent_phase_event_id if provided, otherwise use delegation_event_id
+            actual_parent_event_id = parent_phase_event_id or self.delegation_event_id
+
             self.db.insert_event(
                 event_id=event_id,
                 agent_id=spawned_agent or self.parent_agent,
@@ -120,7 +123,7 @@ class SpawnerEventTracker:
                 or f"HeadlessSpawner.{phase_name.replace(' ', '_').lower()}",
                 input_summary=input_summary or phase_name,
                 context=context,
-                parent_event_id=self.delegation_event_id,
+                parent_event_id=actual_parent_event_id,
                 subagent_type=self.spawner_type,
             )
 
@@ -211,7 +214,7 @@ class SpawnerEventTracker:
         """
         total_duration = time.time() - self.start_time
 
-        completion_event = {
+        completion_event: dict[str, Any] = {
             "success": success,
             "duration": total_duration,
             "tokens": tokens_used,

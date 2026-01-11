@@ -149,13 +149,11 @@ Examples:
         db = None
         delegation_event_id = None
         try:
-            from pathlib import Path
-
+            from htmlgraph.config import get_database_path
             from htmlgraph.db.schema import HtmlGraphDB
 
             # Get correct database path from environment or project root
-            project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
-            db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+            db_path = get_database_path()
 
             if db_path.exists():
                 db = HtmlGraphDB(str(db_path))
@@ -262,6 +260,9 @@ Examples:
                     spawned_agent="github-copilot",
                     tool_name="HeadlessSpawner.authenticate_github",
                     input_summary="Setting up GitHub authentication",
+                    parent_phase_event_id=init_event.get("event_id")
+                    if init_event
+                    else None,
                 )
             except Exception:
                 pass
@@ -275,6 +276,9 @@ Examples:
                     spawned_agent="github-copilot",
                     tool_name="copilot-cli",
                     input_summary=args.prompt[:200],
+                    parent_phase_event_id=auth_event.get("event_id")
+                    if auth_event
+                    else None,
                 )
             except Exception:
                 pass

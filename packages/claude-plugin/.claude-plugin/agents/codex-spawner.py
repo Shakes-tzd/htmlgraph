@@ -270,13 +270,11 @@ Examples:
         db = None
         delegation_event_id = None
         try:
-            from pathlib import Path
-
+            from htmlgraph.config import get_database_path
             from htmlgraph.db.schema import HtmlGraphDB
 
             # Get correct database path from environment or project root
-            project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
-            db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+            db_path = get_database_path()
 
             if db_path.exists():
                 db = HtmlGraphDB(str(db_path))
@@ -383,6 +381,9 @@ Examples:
                     spawned_agent="gpt-4",
                     tool_name="HeadlessSpawner.setup_sandbox",
                     input_summary=f"Sandbox mode: {args.sandbox}",
+                    parent_phase_event_id=init_event.get("event_id")
+                    if init_event
+                    else None,
                 )
             except Exception:
                 pass
@@ -391,11 +392,16 @@ Examples:
         exec_event = None
         if tracker:
             try:
+                # If sandbox event exists, make exec a child of sandbox; otherwise child of init
+                parent_phase_event = sandbox_event or init_event
                 exec_event = tracker.record_phase(
                     "Executing Codex",
                     spawned_agent="gpt-4",
                     tool_name="codex-cli",
                     input_summary=args.prompt[:200],
+                    parent_phase_event_id=parent_phase_event.get("event_id")
+                    if parent_phase_event
+                    else None,
                 )
             except Exception:
                 pass
