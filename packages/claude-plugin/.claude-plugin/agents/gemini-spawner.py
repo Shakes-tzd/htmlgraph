@@ -206,19 +206,23 @@ Examples:
         db = None
         delegation_event_id = None
         try:
-            from pathlib import Path
-
+            from htmlgraph.config import get_database_path
             from htmlgraph.db.schema import HtmlGraphDB
 
             # Get correct database path from environment or project root
-            project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
-            db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+            db_path = get_database_path()
+            print(f"DEBUG: Database path: {db_path}", file=sys.stderr)
+            print(f"DEBUG: Database exists: {db_path.exists()}", file=sys.stderr)
 
             if db_path.exists():
                 db = HtmlGraphDB(str(db_path))
-        except Exception:
+                print(f"DEBUG: Database initialized: {db is not None}", file=sys.stderr)
+        except Exception as e:
             # Tracking is optional, continue without it
-            pass
+            print(f"DEBUG: Database initialization failed: {e}", file=sys.stderr)
+            import traceback
+
+            traceback.print_exc()
 
         # 1. RECORD DELEGATION START
         if db and args.track:
@@ -258,9 +262,21 @@ Examples:
                         "cost": "FREE",
                     },
                 )
-            except Exception:
+
+                # CRITICAL: Commit the transaction!
+                if db.connection:
+                    db.connection.commit()
+                    print(
+                        f"DEBUG: Delegation event committed: {delegation_event_id}",
+                        file=sys.stderr,
+                    )
+
+            except Exception as e:
                 # Non-fatal - tracking is best-effort
-                pass
+                print(f"DEBUG: Failed to record delegation event: {e}", file=sys.stderr)
+                import traceback
+
+                traceback.print_exc()
 
         # Initialize internal activity tracker
         tracker = None

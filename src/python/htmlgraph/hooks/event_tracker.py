@@ -694,7 +694,9 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     # Initialize SQLite database for event recording
     db = None
     try:
-        db = HtmlGraphDB(str(graph_dir / "index.sqlite"))
+        from htmlgraph.config import get_database_path
+
+        db = HtmlGraphDB(str(get_database_path()))
     except Exception as e:
         print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
         # Continue without SQLite (graceful degradation)
@@ -707,18 +709,64 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     if model_from_input:
         detected_model = model_from_input
 
-    # Get active session ID
-    active_session = manager.get_active_session()
-    if not active_session:
-        # No active HtmlGraph session yet; start one (stable internal id).
-        try:
-            active_session = manager.start_session(
-                session_id=None,
-                agent=detected_agent,
-                title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+    active_session = None
+
+    # Check if we're in a subagent context (environment variables set by spawner router)
+    # This MUST be checked BEFORE using get_active_session() to avoid attributing
+    # subagent events to the parent orchestrator session
+    subagent_type = os.environ.get("HTMLGRAPH_SUBAGENT_TYPE")
+    parent_session_id = os.environ.get("HTMLGRAPH_PARENT_SESSION")
+
+    if subagent_type and parent_session_id:
+        # We're in a subagent - create or get subagent session
+        # Use deterministic session ID based on parent + subagent type
+        subagent_session_id = f"{parent_session_id}-{subagent_type}"
+
+        # Check if subagent session already exists
+        existing = manager.session_converter.load(subagent_session_id)
+        if existing:
+            active_session = existing
+            print(
+                f"Debug: Using existing subagent session: {subagent_session_id}",
+                file=sys.stderr,
             )
-        except Exception:
-            return {"continue": True}
+        else:
+            # Create new subagent session with parent link
+            try:
+                active_session = manager.start_session(
+                    session_id=subagent_session_id,
+                    agent=f"{subagent_type}-spawner",
+                    is_subagent=True,
+                    parent_session_id=parent_session_id,
+                    title=f"{subagent_type.capitalize()} Subagent",
+                )
+                print(
+                    f"Debug: Created subagent session: {subagent_session_id} "
+                    f"(parent: {parent_session_id})",
+                    file=sys.stderr,
+                )
+            except Exception as e:
+                print(
+                    f"Warning: Could not create subagent session: {e}",
+                    file=sys.stderr,
+                )
+                return {"continue": True}
+
+        # Override detected agent for subagent context
+        detected_agent = f"{subagent_type}-spawner"
+    else:
+        # Normal orchestrator/parent context - use global session cache
+        active_session = manager.get_active_session()
+        if not active_session:
+            # No active HtmlGraph session yet; start one (stable internal id).
+            try:
+                active_session = manager.start_session(
+                    session_id=None,
+                    agent=detected_agent,
+                    title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                )
+            except Exception:
+                return {"continue": True}
 
     active_session_id = active_session.id
 
