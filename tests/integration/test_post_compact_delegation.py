@@ -301,7 +301,9 @@ class TestSubagentSessionLinking:
 
         sdk_parent = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
         track = sdk_parent.tracks.create("Parent Track").save()
-        feature = sdk_parent.features.create("Parent Feature").set_track(track.id).save()
+        feature = (
+            sdk_parent.features.create("Parent Feature").set_track(track.id).save()
+        )
         assert feature is not None
 
         # Simulate subagent environment setup
@@ -522,7 +524,8 @@ class TestCompactCycleIntegration:
         sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explorer")
         track1 = sdk1.tracks.create("Explorer Track").save()
         features_session1 = [
-            sdk1.features.create(f"Research Task {i}").set_track(track1.id).save() for i in range(3)
+            sdk1.features.create(f"Research Task {i}").set_track(track1.id).save()
+            for i in range(3)
         ]
 
         assert all(f.agent_assigned == "explorer" for f in features_session1)
@@ -559,7 +562,8 @@ class TestCompactCycleIntegration:
 
         # Create features in session 2
         features_session2 = [
-            sdk2.features.create(f"Implementation Task {i}").set_track(track2.id).save() for i in range(3)
+            sdk2.features.create(f"Implementation Task {i}").set_track(track2.id).save()
+            for i in range(3)
         ]
 
         assert all(f.agent_assigned == "coder" for f in features_session2)
@@ -606,7 +610,9 @@ class TestCompactCycleIntegration:
 
             # Create features
             created = [
-                sdk.features.create(f"{agent.title()} Feature {j}").set_track(track.id).save()
+                sdk.features.create(f"{agent.title()} Feature {j}")
+                .set_track(track.id)
+                .save()
                 for j in range(2)
             ]
             items_per_agent.append((agent, created))

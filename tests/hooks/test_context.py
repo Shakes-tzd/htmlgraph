@@ -52,14 +52,29 @@ class TestHookContextInitialization:
                 "htmlgraph.hooks.bootstrap.get_graph_dir",
                 return_value=tmp_path / ".htmlgraph",
             ):
-                hook_input = {}
-                context = HookContext.from_input(hook_input)
+                # Clear environment variables that could provide session_id or agent_id
+                # Use empty dict to simulate clean environment
+                clean_env = {
+                    k: v
+                    for k, v in os.environ.items()
+                    if k
+                    not in (
+                        "HTMLGRAPH_SESSION_ID",
+                        "CLAUDE_SESSION_ID",
+                        "HTMLGRAPH_AGENT_ID",
+                        "CLAUDE_AGENT_NICKNAME",
+                    )
+                }
 
-                assert context.project_dir == str(tmp_path)
-                # Without session_id in hook_input or env, defaults to "unknown"
-                # This is intentional - better than cross-window contamination
-                assert context.session_id == "unknown"
-                assert context.agent_id == "unknown"
+                with mock.patch.dict(os.environ, clean_env, clear=True):
+                    hook_input = {}
+                    context = HookContext.from_input(hook_input)
+
+                    assert context.project_dir == str(tmp_path)
+                    # Without session_id in hook_input or env, defaults to "unknown"
+                    # This is intentional - better than cross-window contamination
+                    assert context.session_id == "unknown"
+                    assert context.agent_id == "unknown"
 
     def test_from_input_with_session_id(self, tmp_path):
         """Test HookContext.from_input extracts session_id from hook input."""

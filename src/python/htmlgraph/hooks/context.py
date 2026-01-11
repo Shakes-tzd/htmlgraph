@@ -101,13 +101,19 @@ class HookContext:
         # 2. hook_input["sessionId"] (camelCase variant)
         # 3. HTMLGRAPH_SESSION_ID environment variable
         # 4. CLAUDE_SESSION_ID environment variable
-        # 5. "unknown" as last resort
+        # 5. Most recent active session from database (NEW)
+        # 6. "unknown" as last resort
         #
         # NOTE: We intentionally do NOT use SessionManager.get_active_session()
         # as a fallback because the "active session" is stored in a global file
         # (.htmlgraph/session.json) that's shared across all Claude windows.
         # Using it would cause cross-window event contamination where tool calls
         # from Window B get linked to UserQuery events from Window A.
+        #
+        # However, we DO query the database by status='active' and created_at,
+        # which is different because it retrieves the most recent session that
+        # was explicitly marked as active (e.g., by SessionStart hook), without
+        # relying on a shared global agent state file.
         session_id = (
             hook_input.get("session_id")
             or hook_input.get("sessionId")
@@ -115,14 +121,40 @@ class HookContext:
             or os.environ.get("CLAUDE_SESSION_ID")
         )
 
-        # Fallback to "unknown" - better than cross-window contamination
+        # Fallback: Query database for session with most recent UserQuery event
+        # This solves the issue where PostToolUse hooks don't receive session_id
+        # in hook_input. UserPromptSubmit hooks DO receive it and create UserQuery
+        # events with the correct session_id, so we use that as the source of truth.
         if not session_id:
-            session_id = "unknown"
-            logger.warning(
-                "Could not resolve session_id from hook_input or environment. "
-                "Events will not be linked to parent UserQuery. "
-                "For multi-window support, set HTMLGRAPH_SESSION_ID env var."
-            )
+            db_path = graph_dir / "htmlgraph.db"
+            if db_path.exists():
+                try:
+                    import sqlite3
+
+                    conn = sqlite3.connect(str(db_path), timeout=1.0)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT session_id FROM agent_events
+                        WHERE tool_name = 'UserQuery'
+                        ORDER BY timestamp DESC
+                        LIMIT 1
+                    """)
+                    row = cursor.fetchone()
+                    conn.close()
+                    if row:
+                        session_id = row[0]
+                        logger.info(f"Resolved session_id from database: {session_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to query active session from database: {e}")
+
+            # Final fallback to "unknown" if database query fails
+            if not session_id:
+                session_id = "unknown"
+                logger.warning(
+                    "Could not resolve session_id from hook_input, environment, or database. "
+                    "Events will not be linked to parent UserQuery. "
+                    "For multi-window support, set HTMLGRAPH_SESSION_ID env var."
+                )
 
         # Detect agent ID (priority order)
         # 1. Explicit agent_id in hook input
@@ -139,13 +171,20 @@ class HookContext:
         # 1. Explicit model_name in hook input
         # 2. CLAUDE_MODEL environment variable
         # 3. HTMLGRAPH_MODEL environment variable
-        # 4. None (not available)
+        # 4. Status line cache (from ~/.cache/claude-code/status-{session_id}.json)
+        # 5. None (not available)
         model_name = (
             hook_input.get("model_name")
             or hook_input.get("model")
             or os.environ.get("CLAUDE_MODEL")
             or os.environ.get("HTMLGRAPH_MODEL")
         )
+
+        # Fallback: Try status line cache if model not detected yet
+        if not model_name and session_id and session_id != "unknown":
+            from htmlgraph.hooks.event_tracker import get_model_from_status_cache
+
+            model_name = get_model_from_status_cache(session_id)
 
         logger.info(
             f"Initializing hook context: session={session_id}, "

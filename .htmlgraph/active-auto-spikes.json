@@ -70,5 +70,33 @@
   "spike-init-sess-703": {
     "spike_subtype": "session-init",
     "session_id": "sess-703b29b4"
+  },
+  "spike-init-sess-1ed": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-1ed990f2"
+  },
+  "spike-init-sess-550": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-550f9aca"
+  },
+  "spike-init-sess-ba8": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-ba8b4c02"
+  },
+  "spike-init-sess-9b8": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-9b8797ad"
+  },
+  "spike-init-sess-ab8": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-ab8a93be"
+  },
+  "spike-init-sess-6dc": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-6dc92d44"
+  },
+  "spike-init-38b6aa28": {
+    "spike_subtype": "session-init",
+    "session_id": "38b6aa28-e0c6-4f33-823a-3d99259023e0"
   }
 }

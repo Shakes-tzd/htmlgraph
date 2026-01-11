@@ -3,9 +3,10 @@
 import json
 import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from htmlgraph.orchestration.live_events import LiveEventPublisher
@@ -463,6 +464,8 @@ class HeadlessSpawner:
         include_directories: list[str] | None = None,
         track_in_htmlgraph: bool = True,
         timeout: int = 120,
+        tracker: Any = None,
+        parent_event_id: str | None = None,
     ) -> AIResult:
         """
         Spawn Gemini in headless mode.
@@ -474,6 +477,8 @@ class HeadlessSpawner:
             include_directories: Directories to include for context. Default: None
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
+            tracker: Optional SpawnerEventTracker for recording subprocess invocation
+            parent_event_id: Optional parent event ID for event hierarchy
 
         Returns:
             AIResult with response, error, and tracked events if tracking enabled
@@ -529,6 +534,45 @@ class HeadlessSpawner:
                 details="Running Gemini CLI",
             )
 
+            # Record subprocess invocation if tracker is available
+            subprocess_event_id = None
+            print(
+                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}",
+                file=sys.stderr,
+            )
+            if tracker and parent_event_id:
+                print(
+                    "DEBUG: Recording subprocess invocation for Gemini...",
+                    file=sys.stderr,
+                )
+                try:
+                    subprocess_event = tracker.record_tool_call(
+                        tool_name="subprocess.gemini",
+                        tool_input={"cmd": cmd},
+                        phase_event_id=parent_event_id,
+                        spawned_agent="gemini-2.0-flash",
+                    )
+                    if subprocess_event:
+                        subprocess_event_id = subprocess_event.get("event_id")
+                        print(
+                            f"DEBUG: Subprocess event created for Gemini: {subprocess_event_id}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print("DEBUG: subprocess_event was None", file=sys.stderr)
+                except Exception as e:
+                    # Tracking failure should not break execution
+                    print(
+                        f"DEBUG: Exception recording Gemini subprocess: {e}",
+                        file=sys.stderr,
+                    )
+                    pass
+            else:
+                print(
+                    f"DEBUG: Skipping Gemini subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}",
+                    file=sys.stderr,
+                )
+
             # Execute with timeout and stderr redirection
             # Note: Cannot use capture_output with stderr parameter
             result = subprocess.run(
@@ -538,6 +582,18 @@ class HeadlessSpawner:
                 text=True,
                 timeout=timeout,
             )
+
+            # Complete subprocess invocation tracking
+            if tracker and subprocess_event_id:
+                try:
+                    tracker.complete_tool_call(
+                        event_id=subprocess_event_id,
+                        output_summary=result.stdout[:500] if result.stdout else "",
+                        success=result.returncode == 0,
+                    )
+                except Exception:
+                    # Tracking failure should not break execution
+                    pass
 
             # Publish live event: processing response
             self._publish_live_event(
@@ -755,6 +811,8 @@ class HeadlessSpawner:
         bypass_approvals: bool = False,
         track_in_htmlgraph: bool = True,
         timeout: int = 120,
+        tracker: Any = None,
+        parent_event_id: str | None = None,
     ) -> AIResult:
         """
         Spawn Codex in headless mode.
@@ -774,6 +832,8 @@ class HeadlessSpawner:
             bypass_approvals: Bypass approval checks. Default: False
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
+            tracker: Optional SpawnerEventTracker for recording subprocess invocation
+            parent_event_id: Optional parent event ID for event hierarchy
 
         Returns:
             AIResult with response, error, and tracked events if tracking enabled
@@ -867,6 +927,45 @@ class HeadlessSpawner:
                 details="Running Codex CLI",
             )
 
+            # Record subprocess invocation if tracker is available
+            subprocess_event_id = None
+            print(
+                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}",
+                file=sys.stderr,
+            )
+            if tracker and parent_event_id:
+                print(
+                    "DEBUG: Recording subprocess invocation for Codex...",
+                    file=sys.stderr,
+                )
+                try:
+                    subprocess_event = tracker.record_tool_call(
+                        tool_name="subprocess.codex",
+                        tool_input={"cmd": cmd},
+                        phase_event_id=parent_event_id,
+                        spawned_agent="gpt-4",
+                    )
+                    if subprocess_event:
+                        subprocess_event_id = subprocess_event.get("event_id")
+                        print(
+                            f"DEBUG: Subprocess event created for Codex: {subprocess_event_id}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print("DEBUG: subprocess_event was None", file=sys.stderr)
+                except Exception as e:
+                    # Tracking failure should not break execution
+                    print(
+                        f"DEBUG: Exception recording Codex subprocess: {e}",
+                        file=sys.stderr,
+                    )
+                    pass
+            else:
+                print(
+                    f"DEBUG: Skipping Codex subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}",
+                    file=sys.stderr,
+                )
+
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -874,6 +973,18 @@ class HeadlessSpawner:
                 text=True,
                 timeout=timeout,
             )
+
+            # Complete subprocess invocation tracking
+            if tracker and subprocess_event_id:
+                try:
+                    tracker.complete_tool_call(
+                        event_id=subprocess_event_id,
+                        output_summary=result.stdout[:500] if result.stdout else "",
+                        success=result.returncode == 0,
+                    )
+                except Exception:
+                    # Tracking failure should not break execution
+                    pass
 
             # Publish live event: processing
             self._publish_live_event(
@@ -1035,6 +1146,8 @@ class HeadlessSpawner:
         deny_tools: list[str] | None = None,
         track_in_htmlgraph: bool = True,
         timeout: int = 120,
+        tracker: Any = None,
+        parent_event_id: str | None = None,
     ) -> AIResult:
         """
         Spawn GitHub Copilot in headless mode.
@@ -1046,6 +1159,8 @@ class HeadlessSpawner:
             deny_tools: Tools to deny (--deny-tool). Default: None
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
+            tracker: Optional SpawnerEventTracker for recording subprocess invocation
+            parent_event_id: Optional parent event ID for event hierarchy
 
         Returns:
             AIResult with response, error, and tracked events if tracking enabled
@@ -1101,12 +1216,63 @@ class HeadlessSpawner:
                 details="Running Copilot CLI",
             )
 
+            # Record subprocess invocation if tracker is available
+            subprocess_event_id = None
+            print(
+                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}",
+                file=sys.stderr,
+            )
+            if tracker and parent_event_id:
+                print(
+                    "DEBUG: Recording subprocess invocation for Copilot...",
+                    file=sys.stderr,
+                )
+                try:
+                    subprocess_event = tracker.record_tool_call(
+                        tool_name="subprocess.copilot",
+                        tool_input={"cmd": cmd},
+                        phase_event_id=parent_event_id,
+                        spawned_agent="github-copilot",
+                    )
+                    if subprocess_event:
+                        subprocess_event_id = subprocess_event.get("event_id")
+                        print(
+                            f"DEBUG: Subprocess event created for Copilot: {subprocess_event_id}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print("DEBUG: subprocess_event was None", file=sys.stderr)
+                except Exception as e:
+                    # Tracking failure should not break execution
+                    print(
+                        f"DEBUG: Exception recording Copilot subprocess: {e}",
+                        file=sys.stderr,
+                    )
+                    pass
+            else:
+                print(
+                    f"DEBUG: Skipping Copilot subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}",
+                    file=sys.stderr,
+                )
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
             )
+
+            # Complete subprocess invocation tracking
+            if tracker and subprocess_event_id:
+                try:
+                    tracker.complete_tool_call(
+                        event_id=subprocess_event_id,
+                        output_summary=result.stdout[:500] if result.stdout else "",
+                        success=result.returncode == 0,
+                    )
+                except Exception:
+                    # Tracking failure should not break execution
+                    pass
 
             # Publish live event: processing
             self._publish_live_event(

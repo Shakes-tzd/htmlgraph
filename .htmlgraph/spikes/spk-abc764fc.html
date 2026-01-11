@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix test_from_input_with_minimal_input failing test</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-abc764fc"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-10T22:52:38.308833"
+             data-updated="2026-01-10T22:52:38.308839" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Fix test_from_input_with_minimal_input failing test</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Fix test_from_input_with_minimal_input Failing Test
+
+## Summary
+Fixed the failing test in tests/hooks/test_context.py by properly isolating environment variables. The test expected session_id to be "unknown" when minimal input is provided, but HookContext.from_input() now attempts to detect session_id from environment variables, causing the test to fail when running in an environment with active session state.
+
+## Root Cause
+The test was failing because:
+1. HookContext.from_input() detects session_id from multiple sources in priority order:
+   - hook_input["session_id"] 
+   - hook_input["sessionId"]
+   - os.environ.get("HTMLGRAPH_SESSION_ID")
+   - os.environ.get("CLAUDE_SESSION_ID")
+   - Falls back to "unknown"
+
+2. When running tests in an active Claude Code session or CI environment, one of the environment variables (HTMLGRAPH_SESSION_ID or CLAUDE_SESSION_ID) could be set, causing from_input() to use that value instead of "unknown"
+
+3. The test was not isolating the environment, so it failed inconsistently depending on the execution context
+
+## Solution Implemented
+Modified test_from_input_with_minimal_input() in tests/hooks/test_context.py to:
+1. Create a clean environment dict by filtering out hook-related environment variables
+2. Use mock.patch.dict(os.environ, clean_env, clear=True) to create a clean, isolated test environment
+3. This ensures the test always gets "unknown" as the session_id since no environment variables are set
+
+## Code Changes
+File: /Users/shakes/DevProjects/htmlgraph/tests/hooks/test_context.py (lines 41-69)
+
+Before:
+- Test did not isolate environment variables
+- Would pick up CLAUDE_SESSION_ID or HTMLGRAPH_SESSION_ID from current session
+
+After:
+- Filters environment to remove: HTMLGRAPH_SESSION_ID, CLAUDE_SESSION_ID, HTMLGRAPH_AGENT_ID, CLAUDE_AGENT_NICKNAME
+- Uses mock.patch.dict with clear=True to ensure clean test environment
+- Guarantees session_id == "unknown" and agent_id == "unknown" as expected
+
+## Test Results
+✅ Single test: test_from_input_with_minimal_input PASSED
+✅ All 20 tests in test_context.py PASSED
+✅ All 491 tests in tests/hooks/ PASSED (no regressions)
+
+## Key Insight
+This fix demonstrates the importance of environment isolation in tests, especially when testing code that relies on environment variables. The solution maintains the original test intent while properly isolating the test environment.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

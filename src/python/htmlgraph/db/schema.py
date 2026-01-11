@@ -547,9 +547,9 @@ class HtmlGraphDB:
         try:
             cursor = self.connection.cursor()  # type: ignore[union-attr]
             # Temporarily disable foreign key constraints to allow inserting
-            # parent_event_id references that may not exist yet (will be created later)
-            if parent_event_id:
-                cursor.execute("PRAGMA foreign_keys=OFF")
+            # events even if parent_event_id or session_id don't exist yet
+            # (useful for cross-process event tracking where sessions are created asynchronously)
+            cursor.execute("PRAGMA foreign_keys=OFF")
             cursor.execute(
                 """
                 INSERT INTO agent_events
@@ -576,8 +576,7 @@ class HtmlGraphDB:
                 ),
             )
             # Re-enable foreign key constraints
-            if parent_event_id:
-                cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA foreign_keys=ON")
             self.connection.commit()  # type: ignore[union-attr]
             return True
         except sqlite3.IntegrityError as e:

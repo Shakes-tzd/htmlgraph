@@ -755,18 +755,40 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         # Override detected agent for subagent context
         detected_agent = f"{subagent_type}-spawner"
     else:
-        # Normal orchestrator/parent context - use global session cache
-        active_session = manager.get_active_session()
-        if not active_session:
-            # No active HtmlGraph session yet; start one (stable internal id).
-            try:
-                active_session = manager.start_session(
-                    session_id=None,
-                    agent=detected_agent,
-                    title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                )
-            except Exception:
-                return {"continue": True}
+        # Normal orchestrator/parent context
+        # CRITICAL: Use session_id from hook_input (Claude Code provides this)
+        # Only fall back to manager.get_active_session() if not in hook_input
+        hook_session_id = hook_input.get("session_id") or hook_input.get("sessionId")
+
+        if hook_session_id:
+            # Claude Code provided session_id - use it directly
+            # Check if session already exists
+            existing = manager.session_converter.load(hook_session_id)
+            if existing:
+                active_session = existing
+            else:
+                # Create new session with Claude's session_id
+                try:
+                    active_session = manager.start_session(
+                        session_id=hook_session_id,
+                        agent=detected_agent,
+                        title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    )
+                except Exception:
+                    return {"continue": True}
+        else:
+            # Fallback: No session_id in hook_input - use global session cache
+            active_session = manager.get_active_session()
+            if not active_session:
+                # No active HtmlGraph session yet; start one
+                try:
+                    active_session = manager.start_session(
+                        session_id=None,
+                        agent=detected_agent,
+                        title=f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                    )
+                except Exception:
+                    return {"continue": True}
 
     active_session_id = active_session.id
 

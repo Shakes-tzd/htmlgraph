@@ -79,12 +79,12 @@ def start_fastapi_server(
     if db_path is None:
         # Check for project-local database first
         project_dir = _resolve_project_dir()
-        project_db = Path(project_dir) / ".htmlgraph" / "index.sqlite"
+        project_db = Path(project_dir) / ".htmlgraph" / "htmlgraph.db"
         if project_db.exists():
             db_path = str(project_db)  # Use project-local database
         else:
             db_path = str(
-                Path.home() / ".htmlgraph" / "index.sqlite"
+                Path.home() / ".htmlgraph" / "htmlgraph.db"
             )  # Fall back to home
 
     # Ensure database exists

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Current Directory Overview - HtmlGraph Project Structure</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-30f3a650"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-11T06:43:47.766805"
+             data-updated="2026-01-11T06:43:47.766808" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Current Directory Overview - HtmlGraph Project Structure</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # HtmlGraph Project Directory Overview
+
+## Project Summary
+HtmlGraph is a lightweight graph database built on web standards (HTML, CSS, JS) for AI agent coordination and human observability. The project uses HTML files as graph nodes and hyperlinks as edges, with CSS selectors as a query language.
+
+## Directory Structure at a Glance
+
+**Total Size:** 2.6M across 195 files
+
+### Core Components
+
+#### 1. Source Code
+- **`src/python/htmlgraph/`** - Main Python package
+  - API server (FastAPI)
+  - Database schema and operations
+  - CLI interface
+  - Dashboard HTML (283KB)
+- **`packages/claude-plugin/`** - Claude Code plugin
+  - Hooks for session tracking and event management
+  - Spawner agents (Gemini, Codex, Copilot)
+  - Custom skills for orchestration
+- **`packages/gemini-extension/`** - Google Gemini extension
+- **`pyproject.toml`** - Package configuration
+- **`uv.lock`** - Dependency lock (253KB)
+
+#### 2. HtmlGraph Self-Tracking (`.htmlgraph/` directory)
+The project uses itself to track its own development:
+- **Features** - New capabilities being built
+- **Tracks** - Multi-feature initiatives
+- **Sessions** - Development work (auto-tracked)
+- **Spikes** - Research findings and debugging
+- **Events/Metrics** - Analytics and monitoring
+- **Task-delegations** - Work distributed to subagents
+- **Agents** - Multi-AI agent coordination logs
+
+#### 3. Tests & Quality Assurance
+- **`tests/`** directory structure:
+  - Unit tests
+  - Integration tests
+  - E2E tests (JavaScript)
+  - Hook tests
+  - Operations tests
+- **Coverage:** .coverage file indicates comprehensive test coverage
+- **Quality Tools:** pytest, mypy, ruff configured
+
+#### 4. Documentation (100+ files)
+Key documentation:
+- **CLAUDE.md** (26KB) - Project-specific instructions, deployment, debugging
+- **AGENTS.md** (48KB) - Complete SDK/API/CLI documentation
+- **GEMINI.md** (7KB) - Google Gemini platform notes
+- **README.md** - Project overview
+- **PRD.md** - Product requirements
+- **CONTRIBUTING.md** - Contribution guidelines
+
+Investigation & Research Files (~100+ documents):
+- Event tracking research
+- Hook investigation reports
+- Spawner agent verification
+- Orchestrator implementation guides
+- System prompt persistence studies
+- Session linking analysis
+- Feature integrity audits
+
+#### 5. Dashboard & UI
+- **`index.html`** (283KB) - Interactive web dashboard for viewing HtmlGraph data
+- **Source:** `src/python/htmlgraph/dashboard.html`
+- Built with HTMX for real-time updates
+- WebSocket support for live event streaming
+- Activity feed, feature tracking, session monitoring
+
+#### 6. Scripts & Deployment
+- **`scripts/deploy-all.sh`** - Comprehensive deployment automation
+  - Handles versioning, git operations
+  - PyPI publishing
+  - Plugin updates
+  - Quality gates (lint, type check, tests)
+- **`.pre-commit-config.yaml`** - Git pre-commit hooks
+- **`htmlgraph-aliases.sh`** - CLI aliases
+
+#### 7. Configuration & Cache
+- **`.claude/`** - Claude Code configuration (auto-synced from plugin)
+- **`.claude-plugin/`** - Symlink to Claude plugin source
+- **`.env`** - Environment variables
+- **`.mypy_cache/`, `.ruff_cache/`, `.uv-cache/`** - Tool caches
+- **`.pytest_cache/`** - Pytest cache
+
+### Project Architecture Highlights
+
+**Technology Stack:**
+- Python 3.x with `uv` package manager
+- FastAPI for REST API
+- SQLite for persistence (schema-driven)
+- HTMX for frontend interactivity
+- WebSocket for real-time updates
+- Pytest for testing
+- Ruff for linting/formatting
+- MyPy for type checking
+
+**Multi-AI Orchestration:**
+- Gemini spawner agent (FREE - exploration, 2M token context)
+- Codex spawner agent (PAID - code generation, 128K token context)
+- Copilot spawner agent (SUBSCRIPTION - git operations)
+- Automatic routing based on task type and cost
+
+**Plugin Architecture:**
+- Hooks for Claude Code event handling
+- Skills for user-invocable commands
+- Agents for autonomous subagent execution
+- Model Context Protocol (MCP) server integration
+
+### Key Observations
+
+1. **Dogfooding in Action** - Project uses `.htmlgraph/` to track its own development
+2. **Comprehensive Documentation** - 100+ markdown files document every aspect
+3. **Quality-First** - Tests, linting, type checking are mandatory before deployment
+4. **Event-Driven** - Hook-based architecture tracks all operations
+5. **Multi-Platform** - Supports Claude Code, Gemini, and other AI platforms
+6. **Self-Contained** - Can function offline with local HTML/CSS/JS
+
+### Recent Git Status (Snapshot)
+- Current branch: `main`
+- Multiple modified files in:
+  - Plugin code (hooks, agents)
+  - Session tracking
+  - Feature definitions
+  - Database schema
+- Untracked files: Research documents, test scripts, spikes
+
+### File Categories
+
+**Documentation**: ~100+ markdown files (analysis, research, guides)
+**Tests**: ~30+ Python test files
+**Source Code**: Python package in `src/` and `packages/`
+**Build Artifacts**: `dist/` directory
+**Investigation Reports**: Comprehensive debugging and research logs
+
+## Recommendations
+
+1. **Start with CLAUDE.md** - Quick reference for project-specific rules
+2. **Review AGENTS.md** - Complete API and SDK documentation
+3. **Check .htmlgraph/spikes/** - See past research and findings
+4. **Run tests** - `uv run pytest` to verify environment
+5. **Explore dashboard** - `uv run htmlgraph serve` to view live tracking
+            </div>
+        </section>
+    </article>
+</body>
+</html>

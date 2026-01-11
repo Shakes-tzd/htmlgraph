@@ -17,14 +17,13 @@ import socket
 import sys
 import urllib.parse
 from datetime import datetime, timezone
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Literal, cast
 
 from htmlgraph.analytics_index import AnalyticsIndex
 from htmlgraph.converter import dict_to_node, node_to_dict
 from htmlgraph.event_log import JsonlEventLog
-from htmlgraph.file_watcher import GraphWatcher
 from htmlgraph.graph import HtmlGraph
 from htmlgraph.ids import generate_id
 from htmlgraph.models import Node
@@ -211,7 +210,15 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
         return "api", collection, node_id, query_params
 
     def _serve_packaged_dashboard(self) -> bool:
-        """Serve the bundled dashboard HTML if available."""
+        """
+        DEPRECATED: Serve the bundled dashboard HTML if available.
+
+        NOTE: This server is LEGACY. The active server is FastAPI-based.
+        See: src/python/htmlgraph/operations/fastapi_server.py
+
+        The dashboard.html file was archived to .archived-templates/
+        Active templates are in src/python/htmlgraph/api/templates/
+        """
         dashboard_path = Path(__file__).parent / "dashboard.html"
         if not dashboard_path.exists():
             return False
@@ -1372,235 +1379,125 @@ def serve(
     quiet: bool = False,
 ) -> None:
     """
-    Start the HtmlGraph server.
-    Auto-syncs dashboard.html to index.html before starting.
+    Start the HtmlGraph server (FastAPI-based with WebSocket support).
+
+    This function launches the FastAPI server which provides:
+    - REST API for CRUD operations on graph nodes
+    - WebSocket endpoint at /ws/events for real-time event streaming
+    - HTMX-powered dashboard for agent observability
 
     Args:
-        port: Port to listen on
+        port: Port to listen on (default: 8080)
         graph_dir: Directory containing graph data (.htmlgraph/)
-        static_dir: Directory for static files (index.html, etc.)
-        host: Host to bind to
-        watch: Enable file watching for auto-reload (default: True)
+        static_dir: Directory for static files (index.html, etc.) - preserved for compatibility
+        host: Host to bind to (default: localhost)
+        watch: Enable file watching for auto-reload (default: True) - maps to reload in FastAPI
         auto_port: Automatically find available port if specified port is in use
-        show_progress: Show Rich progress during startup
+        show_progress: Show Rich progress during startup (not used with FastAPI)
         quiet: Suppress progress output when true
     """
-    from contextlib import nullcontext
+    import asyncio
+
+    from htmlgraph.operations.fastapi_server import (
+        FastAPIServerError,
+        PortInUseError,
+        run_fastapi_server,
+        start_fastapi_server,
+    )
 
     graph_dir = Path(graph_dir)
-    static_dir = Path(static_dir)
 
-    # Handle auto-port selection
-    if auto_port and check_port_in_use(port, host):
-        original_port = port
-        port = find_available_port(port + 1)
-        print(f"⚠️  Port {original_port} is in use, using {port} instead\n")
+    # Ensure graph directory exists
+    graph_dir.mkdir(parents=True, exist_ok=True)
+    for collection in HtmlGraphAPIHandler.COLLECTIONS:
+        (graph_dir / collection).mkdir(exist_ok=True)
 
-    progress = None
-    progress_console = None
-    if show_progress and not quiet:
-        try:
-            from rich.console import Console
-            from rich.progress import (
-                BarColumn,
-                Progress,
-                SpinnerColumn,
-                TextColumn,
-                TimeElapsedColumn,
-            )
-        except Exception:
-            progress = None
-        else:
-            progress_console = Console()
-            progress = Progress(
-                SpinnerColumn(),
-                TextColumn("{task.description}"),
-                BarColumn(),
-                TimeElapsedColumn(),
-                console=progress_console,
-                transient=True,
-            )
+    # Copy default stylesheet if not present
+    styles_dest = graph_dir / "styles.css"
+    if not styles_dest.exists():
+        styles_src = Path(__file__).parent / "styles.css"
+        if styles_src.exists():
+            styles_dest.write_text(styles_src.read_text())
 
-    def status_context(message: str) -> Any:
-        if progress_console is None:
-            return nullcontext()
-        return progress_console.status(message)
+    # Database path - use htmlgraph.db in the graph directory
+    db_path = str(graph_dir / "htmlgraph.db")
 
-    server = None
-    watcher = None
-
-    events_dir = graph_dir / "events"
-    db_path = graph_dir / "index.sqlite"
-    index_needs_build = (
-        not db_path.exists() and events_dir.exists() and any(events_dir.glob("*.jsonl"))
-    )
-
-    def sync_dashboard() -> None:
-        # Auto-sync dashboard files
-        try:
-            if sync_dashboard_files(static_dir):
-                print("⚠️  Dashboard files out of sync")
-                print("✅ Synced dashboard.html → index.html\n")
-        except PermissionError as e:
-            print(f"⚠️  Warning: Unable to sync dashboard files: {e}")
-            print(
-                f"   Run: cp src/python/htmlgraph/dashboard.html {static_dir / 'index.html'}\n"
-            )
-        except Exception as e:
-            print(f"⚠️  Warning: Error during dashboard sync: {e}\n")
-
-    def create_graph_dirs() -> None:
-        graph_dir.mkdir(parents=True, exist_ok=True)
-        for collection in HtmlGraphAPIHandler.COLLECTIONS:
-            (graph_dir / collection).mkdir(exist_ok=True)
-
-    def copy_stylesheet() -> None:
-        styles_dest = graph_dir / "styles.css"
-        if not styles_dest.exists():
-            styles_src = Path(__file__).parent / "styles.css"
-            if styles_src.exists():
-                styles_dest.write_text(styles_src.read_text())
-
-    def build_analytics_index() -> None:
-        if not index_needs_build:
-            return
-        with status_context("Building analytics index..."):
-            try:
-                log = JsonlEventLog(events_dir)
-                index = AnalyticsIndex(db_path)
-                events = (event for _, event in log.iter_events())
-                index.rebuild_from_events(events)
-            except Exception as e:
-                print(f"⚠️  Warning: Failed to build analytics index: {e}")
-
-    def configure_handler() -> None:
-        HtmlGraphAPIHandler.graph_dir = graph_dir
-        HtmlGraphAPIHandler.static_dir = static_dir
-        HtmlGraphAPIHandler.graphs = {}
-        HtmlGraphAPIHandler.analytics_db = None
-
-    def create_server() -> None:
-        nonlocal server
-        try:
-            server = HTTPServer((host, port), HtmlGraphAPIHandler)
-        except OSError as e:
-            # Handle "Address already in use" error
-            if e.errno == 48 or "Address already in use" in str(e):
-                print(f"\n❌ Port {port} is already in use\n")
-                print("Solutions:")
-                print("  1. Use a different port:")
-                print(f"     htmlgraph serve --port {port + 1}\n")
-                print("  2. Let htmlgraph automatically find an available port:")
-                print("     htmlgraph serve --auto-port\n")
-                print(f"  3. Find and kill the process using port {port}:")
-                print(f"     lsof -ti:{port} | xargs kill -9\n")
-
-                # Try to find and suggest an available port
-                try:
-                    alt_port = find_available_port(port + 1)
-                    print(f"💡 Found available port: {alt_port}")
-                    print(f"   Run: htmlgraph serve --port {alt_port}\n")
-                except OSError:
-                    pass
-
-                sys.exit(1)
-            # Re-raise other OSErrors
-            raise
-
-    def start_watcher() -> None:
-        nonlocal watcher
-        if not watch:
-            return
-
-        def get_graph(collection: str) -> HtmlGraph:
-            """Callback to get graph instance for a collection."""
-            handler = HtmlGraphAPIHandler
-            if collection not in handler.graphs:
-                collection_dir = handler.graph_dir / collection
-                handler.graphs[collection] = HtmlGraph(
-                    collection_dir, stylesheet_path="../styles.css", auto_load=True
-                )
-            return handler.graphs[collection]
-
-        watcher = GraphWatcher(
-            graph_dir=graph_dir,
-            collections=HtmlGraphAPIHandler.COLLECTIONS,
-            get_graph_callback=get_graph,
+    try:
+        result = start_fastapi_server(
+            port=port,
+            host=host,
+            db_path=db_path,
+            auto_port=auto_port,
+            reload=watch,  # Map watch to reload for FastAPI
         )
-        watcher.start()
 
-    steps: list[tuple[str, Any]] = [
-        ("Sync dashboard files", sync_dashboard),
-        ("Create graph directories", create_graph_dirs),
-        ("Copy default stylesheet", copy_stylesheet),
-    ]
-    if index_needs_build:
-        steps.append(("Build analytics index", build_analytics_index))
-    steps.extend(
-        [
-            ("Configure server", configure_handler),
-            ("Start HTTP server", create_server),
-            ("Start file watcher", start_watcher),
-        ]
-    )
+        # Print warnings if any
+        for warning in result.warnings:
+            if not quiet:
+                print(f"⚠️  {warning}")
 
-    def run_steps(step_list: list[tuple[str, Any]]) -> None:
-        if progress is None:
-            for _, fn in step_list:
-                fn()
-            return
-        with progress:
-            task_id = progress.add_task(
-                "Starting HtmlGraph server...", total=len(step_list)
-            )
-            for description, fn in step_list:
-                progress.update(task_id, description=description)
-                fn()
-                progress.advance(task_id)
-
-    run_steps(steps)
-
-    watch_status = "Enabled" if watch else "Disabled"
-    print(f"""
+        # Print server info
+        if not quiet:
+            actual_port = result.config_used["port"]
+            print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║                    HtmlGraph Server                          ║
+║              HtmlGraph Server (FastAPI)                      ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Dashboard:  http://{host}:{port}/
-║  API:        http://{host}:{port}/api/
-║  Graph Dir:  {graph_dir}
-║  Auto-reload: {watch_status}
+║  Dashboard:   http://{host}:{actual_port}/
+║  API:         http://{host}:{actual_port}/api/
+║  WebSocket:   ws://{host}:{actual_port}/ws/events
+║  Graph Dir:   {graph_dir}
+║  Database:    {db_path}
+║  Auto-reload: {"Enabled" if watch else "Disabled"}
 ╚══════════════════════════════════════════════════════════════╝
 
-API Endpoints:
-  GET    /api/status              - Overall status
-  GET    /api/collections         - List collections
-  GET    /api/query?status=todo   - Query across collections
-  GET    /api/analytics/overview  - Analytics overview (requires index)
-  GET    /api/analytics/features  - Top features (requires index)
-  GET    /api/analytics/continuity?feature_id=... - Feature continuity (requires index)
-  GET    /api/analytics/transitions - Tool transitions (requires index)
+Features:
+  • Real-time agent activity feed (HTMX + WebSocket)
+  • Orchestration chains visualization
+  • Feature tracker with Kanban view
+  • Session metrics & performance analytics
 
-  GET    /api/{{collection}}        - List nodes
-  POST   /api/{{collection}}        - Create node
-  GET    /api/{{collection}}/{{id}}    - Get node
-  PUT    /api/{{collection}}/{{id}}    - Replace node
-  PATCH  /api/{{collection}}/{{id}}    - Update node
-  DELETE /api/{{collection}}/{{id}}    - Delete node
+API Endpoints:
+  GET    /api/events              - List events
+  GET    /api/sessions            - List sessions
+  GET    /api/orchestration       - Orchestration data
+  GET    /api/initial-stats       - Dashboard statistics
+  WS     /ws/events               - Real-time event stream
 
 Collections: {", ".join(HtmlGraphAPIHandler.COLLECTIONS)}
 
 Press Ctrl+C to stop.
 """)
 
-    try:
-        if server is not None:
-            server.serve_forever()
+        # Run the server
+        asyncio.run(run_fastapi_server(result.handle))
+
+    except PortInUseError:
+        print(f"\n❌ Port {port} is already in use\n")
+        print("Solutions:")
+        print("  1. Use a different port:")
+        print(f"     htmlgraph serve --port {port + 1}\n")
+        print("  2. Let htmlgraph automatically find an available port:")
+        print("     htmlgraph serve --auto-port\n")
+        print(f"  3. Find and kill the process using port {port}:")
+        print(f"     lsof -ti:{port} | xargs kill -9\n")
+
+        # Try to find and suggest an available port
+        try:
+            alt_port = find_available_port(port + 1)
+            print(f"💡 Found available port: {alt_port}")
+            print(f"   Run: htmlgraph serve --port {alt_port}\n")
+        except OSError:
+            pass
+
+        sys.exit(1)
+
+    except FastAPIServerError as e:
+        print(f"\n❌ Server error: {e}\n")
+        sys.exit(1)
+
     except KeyboardInterrupt:
         print("\nShutting down...")
-        if watcher:
-            watcher.stop()
-        if server is not None:
-            server.shutdown()
 
 
 if __name__ == "__main__":

@@ -231,9 +231,10 @@ def handle_subagent_stop(hook_input: dict[str, Any]) -> dict[str, Any]:
 
     # Get project directory and database path
     try:
+        from htmlgraph.config import get_database_path
+
         cwd = hook_input.get("cwd", os.getcwd())
-        graph_dir = Path(cwd) / ".htmlgraph"
-        db_path = str(graph_dir / "index.sqlite")
+        db_path = str(get_database_path(cwd))
 
         if not Path(db_path).exists():
             logger.warning(f"Database not found: {db_path}")

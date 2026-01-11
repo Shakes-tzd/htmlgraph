@@ -142,6 +142,28 @@ Examples:
     parent_query_event = os.getenv("HTMLGRAPH_PARENT_QUERY_EVENT")
     parent_agent = os.getenv("HTMLGRAPH_PARENT_AGENT", "orchestrator")
 
+    # Helper to find parent Bash event when env vars not set
+    def find_parent_bash_event(db) -> str | None:
+        """Query database for most recent Bash tool event."""
+        try:
+            if not db or not db.connection:
+                return None
+            cursor = db.connection.cursor()
+            cursor.execute(
+                """
+                SELECT event_id FROM agent_events
+                WHERE tool_name = 'Bash'
+                  AND timestamp > datetime('now', '-5 minutes')
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """
+            )
+            row = cursor.fetchone()
+            return row[0] if row else None
+        except Exception as e:
+            print(f"DEBUG: Error finding parent Bash event: {e}", file=sys.stderr)
+            return None
+
     try:
         from htmlgraph.orchestration import HeadlessSpawner
 
@@ -165,6 +187,24 @@ Examples:
         if db and args.track:
             try:
                 delegation_event_id = f"event-{uuid.uuid4().hex[:8]}"
+
+                # Determine parent event (fallback to querying database for Bash event)
+                determined_parent = parent_query_event or parent_event_id
+                if not determined_parent:
+                    # Try to find parent Bash event from database
+                    bash_parent = find_parent_bash_event(db)
+                    if bash_parent:
+                        determined_parent = bash_parent
+                        print(
+                            f"DEBUG: Found parent Bash event from database: {bash_parent}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            "DEBUG: No parent event found (env vars not set, Bash event not found)",
+                            file=sys.stderr,
+                        )
+
                 # Use parent_query_event (UserQuery) as the root parent, with parent_event_id (task_delegation) as the intermediate parent
                 db.insert_event(
                     event_id=delegation_event_id,
@@ -181,7 +221,7 @@ Examples:
                         "deny_tools": args.deny_tools,
                         "timeout": args.timeout,
                     },
-                    parent_event_id=parent_query_event or parent_event_id,
+                    parent_event_id=determined_parent,
                     subagent_type="copilot",
                     cost_tokens=0,
                 )
@@ -304,6 +344,8 @@ Examples:
             deny_tools=args.deny_tools,
             track_in_htmlgraph=args.track,
             timeout=args.timeout,
+            tracker=tracker,
+            parent_event_id=exec_event.get("event_id") if exec_event else None,
         )
 
         # 4.5 RECORD GH TOOL CALL (Copilot uses gh CLI internally)

@@ -340,8 +340,6 @@ def create_start_event(
     """
     tool_use_id = None
     try:
-        from pathlib import Path
-
         tool_use_id = generate_tool_use_id()
         trace_id = os.environ.get("HTMLGRAPH_TRACE_ID", tool_use_id)
         start_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -349,9 +347,10 @@ def create_start_event(
         # Sanitize input before storing
         sanitized_input = sanitize_tool_input(tool_input)
 
-        # Connect to database (use project's .htmlgraph/index.sqlite, not home directory)
-        graph_dir = Path.cwd() / ".htmlgraph"
-        db_path = str(graph_dir / "index.sqlite")
+        # Connect to database (use project's .htmlgraph/htmlgraph.db, not home directory)
+        from htmlgraph.config import get_database_path
+
+        db_path = str(get_database_path())
         db = HtmlGraphDB(db_path)
 
         # Ensure session exists (create placeholder if needed)
@@ -364,10 +363,19 @@ def create_start_event(
 
         cursor = db.connection.cursor()  # type: ignore[union-attr]
 
+        # Get UserQuery event ID for ALL tool calls (links conversation turns)
+        user_query_event_id = None
+        try:
+            from htmlgraph.hooks.event_tracker import get_parent_user_query
+
+            user_query_event_id = get_parent_user_query(db, session_id)
+        except Exception:
+            pass
+
         # Check if this is a Task() call for parent event creation
-        parent_event_id = None
+        task_parent_event_id = None
         if tool_name == "Task":
-            parent_event_id = create_task_parent_event(
+            task_parent_event_id = create_task_parent_event(
                 db, tool_input, session_id, start_time
             )
 
@@ -375,6 +383,11 @@ def create_start_event(
         import uuid
 
         event_id = f"evt-{str(uuid.uuid4())[:8]}"
+
+        # Determine parent: Task() uses task_parent_event, others use UserQuery
+        parent_event_id = (
+            task_parent_event_id if tool_name == "Task" else user_query_event_id
+        )
 
         cursor.execute(
             """
@@ -392,9 +405,16 @@ def create_start_event(
                 json.dumps(sanitized_input)[:500],  # Truncate for summary
                 session_id,
                 "recorded",
-                parent_event_id,  # Link to parent if this is Task()
+                parent_event_id,  # Link to UserQuery or Task parent
             ),
         )
+
+        # Export Bash event as parent for child processes (e.g., spawner executables)
+        if tool_name == "Bash":
+            os.environ["HTMLGRAPH_PARENT_EVENT"] = event_id
+            logger.debug(
+                f"Exported HTMLGRAPH_PARENT_EVENT={event_id} for Bash tool call"
+            )
 
         # Also insert into tool_traces for correlation (if table exists)
         try:
@@ -450,36 +470,46 @@ async def run_event_tracing(
         Event tracing response: {"hookSpecificOutput": {"tool_use_id": "...", ...}}
     """
     try:
+        from htmlgraph.hooks.context import HookContext
+
         loop = asyncio.get_event_loop()
         tool_name = tool_input.get("name", "") or tool_input.get("tool_name", "")
-        session_id = get_current_session_id()
 
-        # Skip if no session ID
-        if not session_id:
-            logger.debug("No session ID found, skipping event tracing")
-            return {}
+        # Use HookContext to properly extract session_id (same as UserPromptSubmit)
+        context = HookContext.from_input(tool_input)
 
-        # Run in thread pool since it involves I/O
-        tool_use_id = await loop.run_in_executor(
-            None,
-            create_start_event,
-            tool_name,
-            tool_input,
-            session_id,
-        )
+        try:
+            session_id = context.session_id
 
-        if tool_use_id:
-            # Store in environment for PostToolUse correlation
-            os.environ["HTMLGRAPH_TOOL_USE_ID"] = tool_use_id
+            # Skip if no session ID
+            if not session_id or session_id == "unknown":
+                logger.debug("No session ID found, skipping event tracing")
+                return {}
 
-            return {
-                "hookSpecificOutput": {
-                    "tool_use_id": tool_use_id,
-                    "additionalContext": f"Event tracing started: {tool_use_id}",
+            # Run in thread pool since it involves I/O
+            tool_use_id = await loop.run_in_executor(
+                None,
+                create_start_event,
+                tool_name,
+                tool_input,
+                session_id,
+            )
+
+            if tool_use_id:
+                # Store in environment for PostToolUse correlation
+                os.environ["HTMLGRAPH_TOOL_USE_ID"] = tool_use_id
+
+                return {
+                    "hookSpecificOutput": {
+                        "tool_use_id": tool_use_id,
+                        "additionalContext": f"Event tracing started: {tool_use_id}",
+                    }
                 }
-            }
 
-        return {}
+            return {}
+        finally:
+            # Ensure context resources are properly closed
+            context.close()
     except Exception:
         # Graceful degradation - allow on error
         return {}

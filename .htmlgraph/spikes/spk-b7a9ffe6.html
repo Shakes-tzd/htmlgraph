@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix spawner event hierarchy to create proper 4-level nesting</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b7a9ffe6"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-11T06:13:56.550845"
+             data-updated="2026-01-11T06:13:56.550849" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Fix spawner event hierarchy to create proper 4-level nesting</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Spawner Event Hierarchy Fix - Complete Implementation
+
+## Summary
+Fixed the spawner event tracking to create proper parent-child nesting across 4 levels instead of making all phases siblings. This enables better observability and event drilling in HtmlGraph dashboards.
+
+## Root Cause
+In `spawner_event_tracker.py`, the `record_phase()` method always set `parent_event_id=self.delegation_event_id`, making all phases siblings of the delegation event instead of creating a proper hierarchy:
+
+**Before (Wrong):**
+```
+Task (delegation_event_id)
+├─ HeadlessSpawner.initialize (parent_event_id=delegation_event_id)
+└─ gemini-cli (parent_event_id=delegation_event_id)  ← SIBLINGS!
+```
+
+**After (Correct):**
+```
+Task (delegation_event_id)
+└─ HeadlessSpawner.initialize (parent_event_id=delegation_event_id)
+   └─ gemini-cli (parent_event_id=init_event["event_id"])  ← PROPERLY NESTED!
+```
+
+## Implementation Details
+
+### 1. spawner_event_tracker.py - Added parent_phase_event_id Parameter
+**File:** `packages/claude-plugin/.claude-plugin/agents/spawner_event_tracker.py`
+
+**Change:** Lines 74-145
+- Added optional `parent_phase_event_id` parameter to `record_phase()` method
+- Updated logic to use `parent_phase_event_id` if provided, otherwise default to `delegation_event_id`
+- Fixed type annotation issue in `record_completion()` method by explicitly typing `completion_event: dict[str, Any]`
+
+**Key Code (Lines 114-117):**
+```python
+# Use parent_phase_event_id if provided, otherwise use delegation_event_id
+actual_parent_event_id = (
+    parent_phase_event_id or self.delegation_event_id
+)
+```
+
+### 2. gemini-spawner.py - Simple 2-Level Nesting
+**File:** `packages/claude-plugin/.claude-plugin/agents/gemini-spawner.py`
+
+**Change:** Line 366
+- Pass `init_event["event_id"]` as parent when recording exec_event
+- Simple linear hierarchy: delegation → init → exec
+
+```python
+exec_event = tracker.record_phase(
+    "Executing Gemini",
+    spawned_agent="gemini-2.0-flash",
+    tool_name="gemini-cli",
+    input_summary=args.prompt[:200],
+    parent_phase_event_id=init_event.get("event_id") if init_event else None,
+)
+```
+
+### 3. codex-spawner.py - Complex 3-Level Nesting (with Sandbox)
+**File:** `packages/claude-plugin/.claude-plugin/agents/codex-spawner.py`
+
+**Changes:** Lines 384, 394-403
+- Line 384: Sandbox event nests under init event
+- Lines 394-403: Execution event nests under sandbox (if present) or init (if no sandbox)
+
+```python
+# Sandbox setup nests under init
+sandbox_event = tracker.record_phase(
+    "Setting Up Sandbox",
+    spawned_agent="gpt-4",
+    tool_name="HeadlessSpawner.setup_sandbox",
+    input_summary=f"Sandbox mode: {args.sandbox}",
+    parent_phase_event_id=init_event.get("event_id") if init_event else None,
+)
+
+# Execution nests under sandbox or init
+parent_phase_event = sandbox_event or init_event
+exec_event = tracker.record_phase(
+    "Executing Codex",
+    spawned_agent="gpt-4",
+    tool_name="codex-cli",
+    input_summary=args.prompt[:200],
+    parent_phase_event_id=parent_phase_event.get("event_id") if parent_phase_event else None,
+)
+```
+
+### 4. copilot-spawner.py - Complex 3-Level Nesting (with GitHub Auth)
+**File:** `packages/claude-plugin/.claude-plugin/agents/copilot-spawner.py`
+
+**Changes:** Lines 263, 277
+- Line 263: Auth event nests under init event
+- Line 277: Execution event nests under auth event
+
+```python
+# Auth nests under init
+auth_event = tracker.record_phase(
+    "Authenticating GitHub",
+    spawned_agent="github-copilot",
+    tool_name="HeadlessSpawner.authenticate_github",
+    input_summary="Setting up GitHub authentication",
+    parent_phase_event_id=init_event.get("event_id") if init_event else None,
+)
+
+# Execution nests under auth
+exec_event = tracker.record_phase(
+    "Executing Copilot",
+    spawned_agent="github-copilot",
+    tool_name="copilot-cli",
+    input_summary=args.prompt[:200],
+    parent_phase_event_id=auth_event.get("event_id") if auth_event else None,
+)
+```
+
+## Event Hierarchy Examples
+
+### Gemini Spawner (2-level nesting)
+```
+event-00e20886 | NULL           | Task                       | orchestrator
+event-d3e222e1 | event-00e20886 | HeadlessSpawner.initialize | gemini-2.0-flash
+event-af3dd88d | event-d3e222e1 | gemini-cli                 | gemini-2.0-flash
+```
+
+### Codex Spawner with Sandbox (3-level nesting)
+```
+event-00e20886 | NULL           | Task                           | orchestrator
+event-d3e222e1 | event-00e20886 | HeadlessSpawner.initialize     | gpt-4
+event-52f441ab | event-d3e222e1 | HeadlessSpawner.setup_sandbox  | gpt-4
+event-af3dd88d | event-52f441ab | codex-cli                      | gpt-4
+```
+
+### Copilot Spawner with Auth (3-level nesting)
+```
+event-00e20886 | NULL           | Task                                | orchestrator
+event-d3e222e1 | event-00e20886 | HeadlessSpawner.initialize         | github-copilot
+event-c8e552cd | event-d3e222e1 | HeadlessSpawner.authenticate_github | github-copilot
+event-af3dd88d | event-c8e552cd | copilot-cli                         | github-copilot
+```
+
+## Code Quality
+- ✅ All linting checks pass (`ruff check --fix`)
+- ✅ Code formatting updated (`ruff format`)
+- ✅ Type checking passes (`mypy`)
+- ✅ Existing tests unaffected (pre-existing failure in test_event_tracker.py unrelated to this change)
+
+## Testing
+Verified changes with Python inspection:
+```python
+✅ parent_phase_event_id parameter added to record_phase()
+✅ Documentation includes parent_phase_event_id
+✅ gemini-spawner.py has parent_phase_event_id parameter
+✅ codex-spawner.py has parent_phase_event_id for both sandbox and exec
+✅ copilot-spawner.py has parent_phase_event_id for both auth and exec
+```
+
+## Verification
+To verify in production after spawner execution:
+
+```sql
+-- Check event hierarchy
+SELECT event_id, parent_event_id, tool_name, agent_id, timestamp
+FROM agent_events 
+WHERE event_type IN ('tool_call', 'delegation')
+ORDER BY timestamp
+LIMIT 10;
+
+-- Verify delegation events have proper hierarchy
+SELECT COUNT(*) as level_count
+FROM agent_events e1
+LEFT JOIN agent_events e2 ON e1.parent_event_id = e2.event_id
+WHERE e1.event_type = 'delegation'
+```
+
+## Files Modified
+1. `packages/claude-plugin/.claude-plugin/agents/spawner_event_tracker.py` - Added parent_phase_event_id parameter
+2. `packages/claude-plugin/.claude-plugin/agents/gemini-spawner.py` - Pass init_event as parent for exec
+3. `packages/claude-plugin/.claude-plugin/agents/codex-spawner.py` - Pass init → sandbox → exec hierarchy
+4. `packages/claude-plugin/.claude-plugin/agents/copilot-spawner.py` - Pass init → auth → exec hierarchy
+
+## Impact
+- Better observability of spawner execution flow
+- Proper event drilling in HtmlGraph dashboards
+- Correct parent-child relationships for analytics
+- Foundation for more complex spawner chains in future
+            </div>
+        </section>
+    </article>
+</body>
+</html>

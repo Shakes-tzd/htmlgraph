@@ -1,0 +1,145 @@
+================================================================================
+DUPLICATE EVENTS INVESTIGATION - EXECUTIVE SUMMARY
+================================================================================
+
+ISSUE:
+Events appear duplicated in the HtmlGraph dashboard with identical content but
+different event IDs and timestamps (1 second apart).
+
+EXAMPLES:
+- "this is not how you invoke..."
+  - evt-0b51fc47 at 08:03:14
+  - uq-a43a48e4 at 08:03:15
+
+- "use playwrite to test this in the ui"
+  - evt-a6da1954 at 07:58:25
+  - uq-0e296212 at 07:58:26
+
+================================================================================
+ROOT CAUSE
+================================================================================
+
+THREE DUPLICATE HOOK CHAINS in hooks.json:
+
+1. UserPromptSubmit (Lines 3-18)
+   ✓ track-event.py → track_event() → record_event_to_sqlite() [CREATES EVENT]
+   ✓ user-prompt-submit.py → UNKNOWN (also creates events?)
+
+2. PostToolUse (Lines 70-85)
+   ✓ track-event.py → track_event() [CREATES EVENT]
+   ✓ posttooluse-integrator.py → posttooluse.main() → track_event() [CREATES DUPLICATE]
+
+3. PreToolUse (Lines 53-68)
+   ✓ pretooluse-integrator.py → orchestrator enforcement
+   ✓ pretooluse-spawner-router.py → Task() routing [DUPLICATE ROUTING]
+
+MECHANISM:
+Each hook generates a NEW random event_id via generate_id("event")
+Even though content is identical, IDs differ → appears as 2 separate events
+No duplicate detection based on content hash
+
+DATABASE EVIDENCE:
+SELECT input_summary, COUNT(*) FROM agent_events
+WHERE tool_name='UserQuery' AND input_summary LIKE '%invoke%'
+GROUP BY input_summary;
+
+Result: "this is not how you invoke..." | 2 duplicate records
+
+================================================================================
+FILES INVOLVED
+================================================================================
+
+Hook Configuration (Root Cause):
+  packages/claude-plugin/.claude-plugin/hooks/hooks.json
+    - UserPromptSubmit: 2 hooks (lines 3-18)
+    - PostToolUse: 2 hooks (lines 70-85)
+    - PreToolUse: 2 hooks (lines 53-68)
+
+Event Tracking Implementation:
+  src/python/htmlgraph/hooks/event_tracker.py
+    - track_event() - Main function
+    - record_event_to_sqlite() - Creates events (lines 534-614)
+    - No duplicate detection
+
+  src/python/htmlgraph/hooks/posttooluse.py
+    - run_event_tracking() calls track_event() (line 58)
+    - DUPLICATES track-event.py hook (line 77)
+
+Hook Scripts:
+  packages/claude-plugin/.claude-plugin/hooks/scripts/track-event.py
+    - Thin wrapper around track_event()
+
+  packages/claude-plugin/.claude-plugin/hooks/scripts/posttooluse-integrator.py
+    - Calls htmlgraph.hooks.posttooluse.main()
+    - Which ALSO calls track_event()
+
+================================================================================
+RECOMMENDED FIX
+================================================================================
+
+OPTION 1: Remove Duplicate Hooks (RECOMMENDED)
+
+In hooks.json, consolidate to single hook per event:
+
+1. UserPromptSubmit:
+   - KEEP: track-event.py (comprehensive tracking)
+   - REMOVE: user-prompt-submit.py (duplicate)
+
+2. PostToolUse:
+   - KEEP: posttooluse-integrator.py (unified parallel execution)
+   - REMOVE: track-event.py (already called by posttooluse.main())
+
+3. PreToolUse:
+   - KEEP: pretooluse-integrator.py (unified handling)
+   - REMOVE: pretooluse-spawner-router.py (should be in integrator)
+
+OPTION 2: Add Duplicate Detection
+
+In record_event_to_sqlite(), check for recent duplicate:
+
+  cursor.execute("""
+    SELECT event_id FROM agent_events
+    WHERE session_id = ? AND tool_name = ? AND input_summary = ?
+      AND datetime(timestamp) > datetime('now', '-2 seconds')
+    LIMIT 1
+  """)
+  if cursor.fetchone():
+    return None  # Skip duplicate
+
+================================================================================
+VERIFICATION STEPS
+================================================================================
+
+After fix, verify:
+
+1. Submit user query via Claude Code
+2. Check database:
+   sqlite3 .htmlgraph/htmlgraph.db
+   SELECT COUNT(*) FROM agent_events
+   WHERE tool_name='UserQuery' AND session_id='<current_session>';
+
+   Expected: 1 event (not 2+)
+
+3. Dashboard shows no duplicate events
+
+4. Run tests:
+   uv run pytest tests/hooks/ -v
+   All tests pass
+
+================================================================================
+IMPACT
+================================================================================
+
+Current State:
+- EVERY UserQuery creates 2 events
+- EVERY PostToolUse creates 2 events (via track-event.py + posttooluse.main())
+- Dashboard shows duplicate events
+- Database bloated with redundant records
+
+After Fix:
+- Single event per activity
+- Cleaner dashboard
+- Smaller database footprint
+- Correct activity tracking
+
+================================================================================

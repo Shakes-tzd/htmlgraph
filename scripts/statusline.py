@@ -25,6 +25,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 # ANSI color codes
 RESET = "\033[0m"
@@ -57,6 +58,44 @@ BG_RED = "\033[41m"
 BG_GREEN = "\033[42m"
 BG_YELLOW = "\033[43m"
 BG_BLUE = "\033[44m"
+
+
+def write_model_cache(data: dict, session_id: str) -> None:
+    """
+    Write current model info to cache for hooks to read.
+
+    Status line script receives model information from Claude Code.
+    This cache allows hooks to access the model without receiving it directly.
+
+    Cache location: ~/.cache/claude-code/status-{session_id}.json
+
+    Args:
+        data: Status line input data from Claude Code
+        session_id: Current session ID for cache file naming
+    """
+    if not session_id or session_id == "unknown":
+        return
+
+    try:
+        model = data.get("model", {})
+        model_name = model.get("display_name", "Claude")
+        model_id = model.get("id", "unknown")
+
+        cache_dir = Path.home() / ".cache" / "claude-code"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        cache_file = cache_dir / f"status-{session_id}.json"
+        cache_data: dict[str, Any] = {
+            "model": model_name,
+            "model_id": model_id,
+            "session_id": session_id,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        cache_file.write_text(json.dumps(cache_data))
+    except Exception:
+        # Silently fail - don't break status line
+        pass
 
 
 def get_context_percentage(data: dict) -> tuple[int, str]:
@@ -304,6 +343,11 @@ def format_status_line(data: dict) -> str:
     model = data.get("model", {})
     model_name = model.get("display_name", "Claude")
     parts.append(f"{CYAN}{model_name}{RESET}")
+
+    # Write model to cache for hooks to read
+    session_id = data.get("session_id")
+    if session_id:
+        write_model_cache(data, session_id)
 
     # Context usage
     percent, color = get_context_percentage(data)

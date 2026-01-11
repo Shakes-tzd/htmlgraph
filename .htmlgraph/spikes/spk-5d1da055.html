@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Spawner Event Hierarchy 4-Level Nesting Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5d1da055"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-11T06:18:22.363467"
+             data-updated="2026-01-11T06:18:22.363469" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="sonnet">
+
+        <header>
+            <h1>Spawner Event Hierarchy 4-Level Nesting Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Spawner Event Hierarchy 4-Level Nesting Fix
+
+## Summary
+Successfully implemented proper 4-level event hierarchy for spawner agents (Gemini, Codex, Copilot). This creates correct parent-child relationships in activity feeds, fixing event attribution and nesting structure.
+
+## Key Findings
+
+### Event Hierarchy Structure
+```
+Level 0: UserQuery (from user-prompt-submit hook)
+├─ Level 1: Task (from pretooluse-spawner-router hook)
+│  └─ Level 2: HeadlessSpawner.initialize (parent event)
+│     └─ Level 3: spawner-cli (child execution event)
+```
+
+### Implementation Details
+
+#### 1. spawner_event_tracker.py
+- Added `parent_phase_event_id` parameter to `record_phase()` method
+- Enables nesting execution phases under initialization phases
+- Supports 3 and 4-level hierarchies
+
+#### 2. Gemini Spawner (gemini-spawner.py)
+- **Execution Phase** nests under **Init Phase**
+- 4-level hierarchy: UserQuery → Task → Init → Execution
+- Proper parent_phase_event_id linking
+
+#### 3. Codex Spawner (codex-spawner.py)
+- **Execution Phase** nests under **Sandbox Phase**
+- 3-level hierarchy: UserQuery → Task → [Sandbox → Execution]
+- Sandbox setup and execution are properly nested
+
+#### 4. Copilot Spawner (copilot-spawner.py)
+- **Execution Phase** nests under **Auth Phase**
+- 3-level hierarchy: UserQuery → Task → [Auth → Execution]
+- GitHub authentication and operations are properly nested
+
+## Benefits
+
+1. **Correct Event Attribution** - Each event knows its parent context
+2. **Activity Feed Hierarchy** - Events display in proper tree structure
+3. **Cost Tracking** - Execution costs properly attributed to their parent phase
+4. **Debugging** - Clear trace of which spawner phase failed or succeeded
+5. **Analytics** - Can aggregate costs by phase and spawner type
+
+## Files Modified
+
+1. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/agents/spawner_event_tracker.py`
+2. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/agents/gemini-spawner.py`
+3. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/agents/codex-spawner.py`
+4. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/agents/copilot-spawner.py`
+
+## Git Commit
+- **Hash**: 8aac6403c264a00f6047f8eb4cdb47368faf3173
+- **Message**: "fix: implement proper 4-level event hierarchy for spawner agents"
+- **Status**: ✅ All pre-commit checks passed
+  - ✅ Ruff check (linting)
+  - ✅ Ruff format (formatting)
+  - ✅ Mypy (type checking)
+
+## Recommendations
+
+1. **Testing** - Run integration tests to verify event hierarchy in actual spawner executions
+2. **Dashboard** - Update activity feed templates to display multi-level hierarchy
+3. **Analytics** - Add queries to analyze phase durations and costs by spawner type
+4. **Documentation** - Update spawner agent documentation with new event hierarchy structure
+            </div>
+        </section>
+    </article>
+</body>
+</html>

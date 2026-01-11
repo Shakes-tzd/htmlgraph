@@ -804,6 +804,65 @@ function collapseAllConversationTurns() {
     });
 }
 
+/**
+ * Filter conversation turns by agent type
+ * @param {string} filterValue - Filter type: 'all', 'direct', 'spawner', or specific spawner type ('gemini', 'codex', 'copilot')
+ */
+function filterByAgentType(filterValue) {
+    const conversationTurns = document.querySelectorAll('.conversation-turn');
+
+    conversationTurns.forEach(turn => {
+        const spawnType = turn.getAttribute('data-spawner-type');
+        let shouldShow = false;
+
+        switch (filterValue) {
+            case 'all':
+                // Show all conversation turns
+                shouldShow = true;
+                break;
+
+            case 'direct':
+                // Show only direct (non-spawner) turns
+                shouldShow = spawnType === 'direct';
+                break;
+
+            case 'spawner':
+                // Show only spawner delegation turns
+                shouldShow = spawnType === 'spawner';
+                break;
+
+            case 'gemini':
+            case 'codex':
+            case 'copilot':
+                // Show only turns that contain child events with matching spawner type
+                shouldShow = hasChildWithSpawnerType(turn, filterValue);
+                break;
+
+            default:
+                shouldShow = true;
+        }
+
+        // Apply visibility
+        if (shouldShow) {
+            turn.style.display = '';
+        } else {
+            turn.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Check if a conversation turn has any child events with the specified spawner type
+ * @param {HTMLElement} turn - The conversation turn element
+ * @param {string} spawnerType - The spawner type to search for ('gemini', 'codex', 'copilot')
+ * @returns {boolean} True if the turn contains at least one child with the spawner type
+ */
+function hasChildWithSpawnerType(turn, spawnerType) {
+    // Look for spawner badges that match the spawner type
+    const spawnerBadges = turn.querySelectorAll(`.spawner-badge.spawner-${spawnerType}`);
+    return spawnerBadges.length > 0;
+}
+
 // ============================================
 // Live Spawner Event Handling via WebSocket
 // ============================================

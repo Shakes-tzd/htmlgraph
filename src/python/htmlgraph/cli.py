@@ -150,7 +150,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
         # Default to database in graph dir if not specified
         db_path = getattr(args, "db", None)
         if not db_path:
-            db_path = str(Path(args.graph_dir) / "index.sqlite")
+            db_path = str(Path(args.graph_dir) / "htmlgraph.db")
 
         result = start_fastapi_server(
             port=args.port,
@@ -4976,6 +4976,58 @@ def cmd_claude(args: argparse.Namespace) -> None:
             combined_prompt = system_prompt
             if orchestration_rules:
                 combined_prompt = f"{system_prompt}\n\n---\n\n{orchestration_rules}"
+
+            # Add dev mode specific guidance
+            dev_addendum = textwrap.dedent(
+                """
+
+                ═══════════════════════════════════════════════════════════
+                🔧 DEVELOPMENT MODE - HtmlGraph Project
+                ═══════════════════════════════════════════════════════════
+
+                CRITICAL: Hooks load htmlgraph from PyPI, NOT local source!
+
+                Development Workflow:
+                1. Make changes to src/python/htmlgraph/
+                2. Run tests: uv run pytest
+                3. Deploy to PyPI: ./scripts/deploy-all.sh X.Y.Z --no-confirm
+                4. Restart Claude Code (hooks auto-load new version from PyPI)
+                5. Verify changes work correctly
+
+                Why PyPI in Dev Mode?
+                - Hooks use: #!/usr/bin/env -S uv run --with htmlgraph
+                - Always pulls latest version from PyPI
+                - Tests in production-like environment
+                - No surprises when distributed to users
+                - Single source of truth (PyPI package)
+
+                Incremental Versioning:
+                - Use patch versions: 0.26.2 → 0.26.3 → 0.26.4
+                - No need to edit hook shebangs (always get latest)
+                - Deploy frequently for rapid iteration
+
+                Session ID Tracking (v0.26.3+):
+                - PostToolUse hooks query for most recent UserQuery session
+                - All events should share same session_id
+                - Verify: See "Development Mode" section in CLAUDE.md
+
+                Key References:
+                - Development workflow: CLAUDE.md "Development Mode" section
+                - Orchestrator patterns: /orchestrator-directives skill
+                - Code quality: /code-quality skill
+                - Deployment: /deployment-automation skill
+
+                Remember: You're dogfooding HtmlGraph!
+                - Use SDK to track your own work
+                - Delegate to spawner agents (Gemini, Codex, Copilot)
+                - Follow orchestration patterns
+                - Test in production-like environment
+
+                ═══════════════════════════════════════════════════════════
+                """
+            )
+
+            combined_prompt = f"{combined_prompt}\n{dev_addendum}"
 
             if args.quiet or args.format == "json":
                 cmd = [

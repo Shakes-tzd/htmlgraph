@@ -768,7 +768,8 @@ def get_app(db_path: str) -> FastAPI:
                     output_summary,
                     session_id,
                     status,
-                    model
+                    model,
+                    parent_event_id
                 FROM agent_events
                 WHERE event_type IN ({event_type_placeholders})
             """
@@ -799,6 +800,7 @@ def get_app(db_path: str) -> FastAPI:
                         "session_id": row[8],
                         "status": row[9],
                         "model": row[10],
+                        "parent_event_id": row[11],
                     }
                 )
 
@@ -1017,8 +1019,10 @@ def get_app(db_path: str) -> FastAPI:
                         input_summary,
                         execution_duration_seconds,
                         status,
-                        COALESCE(subagent_type, agent_id) as agent_id,
-                        model
+                        agent_id,
+                        model,
+                        context,
+                        subagent_type
                     FROM agent_events
                     WHERE parent_event_id = ?
                     ORDER BY timestamp ASC
@@ -1048,7 +1052,34 @@ def get_app(db_path: str) -> FastAPI:
                         duration = row[4] or 0.0
                         status = row[5]
                         agent = row[6] or "unknown"
-                        model = row[7]  # Add model field
+                        model = row[7]
+                        context_json = row[8]
+                        subagent_type = row[9]
+
+                        # Parse context to extract spawner metadata
+                        context = {}
+                        spawner_type = None
+                        spawned_agent = None
+                        if context_json:
+                            try:
+                                context = json.loads(context_json)
+                                spawner_type = context.get("spawner_type")
+                                spawned_agent = context.get("spawned_agent")
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+                        # If no spawner_type but subagent_type is set, treat it as a spawner delegation
+                        # This handles both HeadlessSpawner (spawner_type in context) and
+                        # Claude Code plugin agents (subagent_type field)
+                        if not spawner_type and subagent_type:
+                            # Extract spawner name from subagent_type (e.g., ".claude-plugin:gemini" -> "gemini")
+                            if ":" in subagent_type:
+                                spawner_type = subagent_type.split(":")[-1]
+                            else:
+                                spawner_type = subagent_type
+                            spawned_agent = (
+                                agent  # Use the agent_id as the spawned agent
+                            )
 
                         # Build summary (input_text already contains formatted summary)
                         summary = input_text[:80] + (
@@ -1071,8 +1102,16 @@ def get_app(db_path: str) -> FastAPI:
                             "duration_seconds": round(duration, 2),
                             "agent": agent,
                             "depth": depth,
-                            "model": model,  # Include model in child dict
+                            "model": model,
                         }
+
+                        # Include spawner metadata if present
+                        if spawner_type:
+                            child_dict["spawner_type"] = spawner_type
+                        if spawned_agent:
+                            child_dict["spawned_agent"] = spawned_agent
+                        if subagent_type:
+                            child_dict["subagent_type"] = subagent_type
 
                         # Only add children key if there are nested children
                         if nested_children:
@@ -1107,6 +1146,22 @@ def get_app(db_path: str) -> FastAPI:
                     0 if uq_status == "recorded" or uq_status == "success" else 1
                 ) + children_error
 
+                # Check if any child has spawner metadata
+                def has_spawner_in_children(
+                    children_list: list[dict[str, Any]],
+                ) -> bool:
+                    """Recursively check if any child has spawner metadata."""
+                    for child in children_list:
+                        if child.get("spawner_type") or child.get("spawned_agent"):
+                            return True
+                        if child.get("children") and has_spawner_in_children(
+                            child["children"]
+                        ):
+                            return True
+                    return False
+
+                has_spawner = has_spawner_in_children(children)
+
                 # Step 4: Build conversation turn object
                 conversation_turn = {
                     "userQuery": {
@@ -1114,8 +1169,10 @@ def get_app(db_path: str) -> FastAPI:
                         "timestamp": uq_timestamp,
                         "prompt": prompt_text[:200],  # Truncate for display
                         "duration_seconds": round(uq_duration, 2),
+                        "agent_id": uq_row[5],  # Include agent_id from UserQuery
                     },
                     "children": children,
+                    "has_spawner": has_spawner,
                     "stats": {
                         "tool_count": len(children),
                         "total_duration": round(total_duration, 2),
