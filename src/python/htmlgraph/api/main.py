@@ -1017,7 +1017,8 @@ def get_app(db_path: str) -> FastAPI:
                         input_summary,
                         execution_duration_seconds,
                         status,
-                        COALESCE(subagent_type, agent_id) as agent_id
+                        COALESCE(subagent_type, agent_id) as agent_id,
+                        model
                     FROM agent_events
                     WHERE parent_event_id = ?
                     ORDER BY timestamp ASC
@@ -1047,6 +1048,7 @@ def get_app(db_path: str) -> FastAPI:
                         duration = row[4] or 0.0
                         status = row[5]
                         agent = row[6] or "unknown"
+                        model = row[7]  # Add model field
 
                         # Build summary
                         summary = f"{tool}: {input_text[:60]}..."
@@ -1069,6 +1071,7 @@ def get_app(db_path: str) -> FastAPI:
                             "duration_seconds": round(duration, 2),
                             "agent": agent,
                             "depth": depth,
+                            "model": model,  # Include model in child dict
                         }
 
                         # Only add children key if there are nested children
