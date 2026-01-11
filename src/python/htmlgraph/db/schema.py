@@ -364,7 +364,22 @@ class HtmlGraphDB:
             )
         """)
 
-        # 8. TOOL_TRACES TABLE - Detailed tool execution tracing
+        # 8. LIVE_EVENTS TABLE - Real-time event streaming buffer
+        # Events are inserted here for WebSocket broadcasting, then auto-cleaned after broadcast
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS live_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                event_data TEXT NOT NULL,
+                parent_event_id TEXT,
+                session_id TEXT,
+                spawner_type TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                broadcast_at TIMESTAMP
+            )
+        """)
+
+        # 9. TOOL_TRACES TABLE - Detailed tool execution tracing
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tool_traces (
                 tool_use_id TEXT PRIMARY KEY,
@@ -471,6 +486,9 @@ class HtmlGraphDB:
             "CREATE INDEX IF NOT EXISTS idx_tool_traces_tool_name ON tool_traces(tool_name, status)",
             "CREATE INDEX IF NOT EXISTS idx_tool_traces_status ON tool_traces(status, start_time DESC)",
             "CREATE INDEX IF NOT EXISTS idx_tool_traces_start_time ON tool_traces(start_time DESC)",
+            # live_events indexes - optimized for real-time WebSocket streaming
+            "CREATE INDEX IF NOT EXISTS idx_live_events_pending ON live_events(broadcast_at) WHERE broadcast_at IS NULL",
+            "CREATE INDEX IF NOT EXISTS idx_live_events_created ON live_events(created_at DESC)",
         ]
 
         for index_sql in indexes:
@@ -1406,6 +1424,160 @@ class HtmlGraphDB:
         except sqlite3.Error as e:
             logger.error(f"Error querying concurrent sessions: {e}")
             return []
+
+    def insert_live_event(
+        self,
+        event_type: str,
+        event_data: dict[str, Any],
+        parent_event_id: str | None = None,
+        session_id: str | None = None,
+        spawner_type: str | None = None,
+    ) -> int | None:
+        """
+        Insert a live event for real-time WebSocket streaming.
+
+        These events are temporary and should be cleaned up after broadcast.
+
+        Args:
+            event_type: Type of live event (spawner_start, spawner_phase, spawner_complete, etc.)
+            event_data: Event payload as dictionary (will be JSON serialized)
+            parent_event_id: Parent event ID for hierarchical linking (optional)
+            session_id: Session this event belongs to (optional)
+            spawner_type: Spawner type (gemini, codex, copilot) if applicable (optional)
+
+        Returns:
+            Live event ID if successful, None otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                INSERT INTO live_events
+                (event_type, event_data, parent_event_id, session_id, spawner_type)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (
+                    event_type,
+                    json.dumps(event_data),
+                    parent_event_id,
+                    session_id,
+                    spawner_type,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            logger.error(f"Error inserting live event: {e}")
+            return None
+
+    def get_pending_live_events(self, limit: int = 100) -> list[dict[str, Any]]:
+        """
+        Get live events that haven't been broadcast yet.
+
+        Args:
+            limit: Maximum number of events to return
+
+        Returns:
+            List of pending live event dictionaries
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                SELECT id, event_type, event_data, parent_event_id, session_id,
+                       spawner_type, created_at
+                FROM live_events
+                WHERE broadcast_at IS NULL
+                ORDER BY created_at ASC
+                LIMIT ?
+            """,
+                (limit,),
+            )
+
+            rows = cursor.fetchall()
+            events = []
+            for row in rows:
+                event = dict(row)
+                # Parse JSON event_data
+                if event.get("event_data"):
+                    try:
+                        event["event_data"] = json.loads(event["event_data"])
+                    except json.JSONDecodeError:
+                        pass
+                events.append(event)
+            return events
+        except sqlite3.Error as e:
+            logger.error(f"Error fetching pending live events: {e}")
+            return []
+
+    def mark_live_events_broadcast(self, event_ids: list[int]) -> bool:
+        """
+        Mark live events as broadcast (sets broadcast_at timestamp).
+
+        Args:
+            event_ids: List of live event IDs to mark as broadcast
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.connection or not event_ids:
+            return False
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            placeholders = ",".join("?" for _ in event_ids)
+            cursor.execute(
+                f"""
+                UPDATE live_events
+                SET broadcast_at = CURRENT_TIMESTAMP
+                WHERE id IN ({placeholders})
+            """,
+                event_ids,
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error marking live events as broadcast: {e}")
+            return False
+
+    def cleanup_old_live_events(self, max_age_minutes: int = 5) -> int:
+        """
+        Delete live events that have been broadcast and are older than max_age_minutes.
+
+        Args:
+            max_age_minutes: Maximum age in minutes for broadcast events
+
+        Returns:
+            Number of deleted events
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cutoff = (
+                datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)
+            ).isoformat()
+            cursor.execute(
+                """
+                DELETE FROM live_events
+                WHERE broadcast_at IS NOT NULL
+                  AND created_at < ?
+            """,
+                (cutoff,),
+            )
+            deleted_count = cursor.rowcount
+            self.connection.commit()  # type: ignore[union-attr]
+            return deleted_count
+        except sqlite3.Error as e:
+            logger.error(f"Error cleaning up old live events: {e}")
+            return 0
 
     def close(self) -> None:
         """Clean up database connection."""

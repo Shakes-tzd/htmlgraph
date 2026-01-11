@@ -3,10 +3,12 @@
 import json
 import os
 import subprocess
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from htmlgraph.orchestration.live_events import LiveEventPublisher
     from htmlgraph.sdk import SDK
 
 
@@ -63,7 +65,92 @@ class HeadlessSpawner:
 
     def __init__(self) -> None:
         """Initialize spawner."""
-        pass
+        self._live_publisher: LiveEventPublisher | None = None
+
+    def _get_live_publisher(self) -> "LiveEventPublisher | None":
+        """
+        Get LiveEventPublisher instance for real-time WebSocket streaming.
+
+        Returns None if publisher unavailable (optional dependency).
+        """
+        if self._live_publisher is None:
+            try:
+                from htmlgraph.orchestration.live_events import LiveEventPublisher
+
+                self._live_publisher = LiveEventPublisher()
+            except Exception:
+                # Live events are optional
+                pass
+        return self._live_publisher
+
+    def _publish_live_event(
+        self,
+        event_type: str,
+        spawner_type: str,
+        **kwargs: str | int | float | bool | None,
+    ) -> None:
+        """
+        Publish a live event for WebSocket streaming.
+
+        Silently fails if publisher unavailable (optional feature).
+        """
+        publisher = self._get_live_publisher()
+        if publisher is None:
+            return
+
+        parent_event_id = os.getenv("HTMLGRAPH_PARENT_EVENT")
+
+        try:
+            if event_type == "spawner_start":
+                publisher.spawner_start(
+                    spawner_type=spawner_type,
+                    prompt=str(kwargs.get("prompt", "")),
+                    parent_event_id=parent_event_id,
+                    model=str(kwargs.get("model", "")) if kwargs.get("model") else None,
+                )
+            elif event_type == "spawner_phase":
+                progress_val = kwargs.get("progress")
+                publisher.spawner_phase(
+                    spawner_type=spawner_type,
+                    phase=str(kwargs.get("phase", "executing")),
+                    progress=int(progress_val) if progress_val is not None else None,
+                    details=str(kwargs.get("details", ""))
+                    if kwargs.get("details")
+                    else None,
+                    parent_event_id=parent_event_id,
+                )
+            elif event_type == "spawner_complete":
+                duration_val = kwargs.get("duration")
+                tokens_val = kwargs.get("tokens")
+                publisher.spawner_complete(
+                    spawner_type=spawner_type,
+                    success=bool(kwargs.get("success", False)),
+                    duration_seconds=float(duration_val)
+                    if duration_val is not None
+                    else None,
+                    response_preview=str(kwargs.get("response", ""))[:200]
+                    if kwargs.get("response")
+                    else None,
+                    tokens_used=int(tokens_val) if tokens_val is not None else None,
+                    error=str(kwargs.get("error", "")) if kwargs.get("error") else None,
+                    parent_event_id=parent_event_id,
+                )
+            elif event_type == "spawner_tool_use":
+                publisher.spawner_tool_use(
+                    spawner_type=spawner_type,
+                    tool_name=str(kwargs.get("tool_name", "unknown")),
+                    parent_event_id=parent_event_id,
+                )
+            elif event_type == "spawner_message":
+                publisher.spawner_message(
+                    spawner_type=spawner_type,
+                    message=str(kwargs.get("message", "")),
+                    role=str(kwargs.get("role", "assistant")),
+                    parent_event_id=parent_event_id,
+                )
+        except Exception:
+            # Live events should never break spawner execution
+            pass
 
     def _get_sdk(self) -> "SDK | None":
         """
@@ -397,6 +484,15 @@ class HeadlessSpawner:
         if track_in_htmlgraph:
             sdk = self._get_sdk()
 
+        # Publish live event: spawner starting
+        self._publish_live_event(
+            "spawner_start",
+            "gemini",
+            prompt=prompt,
+            model=model,
+        )
+        start_time = time.time()
+
         try:
             # Build command based on tested pattern from spike spk-4029eef3
             cmd = ["gemini", "-p", prompt, "--output-format", output_format]
@@ -425,6 +521,14 @@ class HeadlessSpawner:
                     # Tracking failure should not break execution
                     pass
 
+            # Publish live event: executing
+            self._publish_live_event(
+                "spawner_phase",
+                "gemini",
+                phase="executing",
+                details="Running Gemini CLI",
+            )
+
             # Execute with timeout and stderr redirection
             # Note: Cannot use capture_output with stderr parameter
             result = subprocess.run(
@@ -435,8 +539,24 @@ class HeadlessSpawner:
                 timeout=timeout,
             )
 
+            # Publish live event: processing response
+            self._publish_live_event(
+                "spawner_phase",
+                "gemini",
+                phase="processing",
+                details="Parsing Gemini response",
+            )
+
             # Check for command execution errors
             if result.returncode != 0:
+                duration = time.time() - start_time
+                self._publish_live_event(
+                    "spawner_complete",
+                    "gemini",
+                    success=False,
+                    duration=duration,
+                    error=f"CLI failed with exit code {result.returncode}",
+                )
                 return AIResult(
                     success=False,
                     response="",
@@ -485,6 +605,16 @@ class HeadlessSpawner:
                                     tokens = total_tokens if total_tokens > 0 else None
                                 break
 
+                        # Publish live event: complete
+                        duration = time.time() - start_time
+                        self._publish_live_event(
+                            "spawner_complete",
+                            "gemini",
+                            success=True,
+                            duration=duration,
+                            response=response_text,
+                            tokens=tokens,
+                        )
                         return AIResult(
                             success=True,
                             response=response_text,
@@ -502,6 +632,14 @@ class HeadlessSpawner:
             try:
                 output = json.loads(result.stdout)
             except json.JSONDecodeError as e:
+                duration = time.time() - start_time
+                self._publish_live_event(
+                    "spawner_complete",
+                    "gemini",
+                    success=False,
+                    duration=duration,
+                    error=f"Failed to parse JSON: {e}",
+                )
                 return AIResult(
                     success=False,
                     response="",
@@ -525,6 +663,16 @@ class HeadlessSpawner:
                     total_tokens += model_tokens
                 tokens = total_tokens if total_tokens > 0 else None
 
+            # Publish live event: complete
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "gemini",
+                success=True,
+                duration=duration,
+                response=response_text,
+                tokens=tokens,
+            )
             return AIResult(
                 success=True,
                 response=response_text,
@@ -535,6 +683,14 @@ class HeadlessSpawner:
             )
 
         except subprocess.TimeoutExpired as e:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "gemini",
+                success=False,
+                duration=duration,
+                error=f"Timed out after {timeout} seconds",
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -549,6 +705,14 @@ class HeadlessSpawner:
                 tracked_events=tracked_events,
             )
         except FileNotFoundError:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "gemini",
+                success=False,
+                duration=duration,
+                error="CLI not found",
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -558,6 +722,14 @@ class HeadlessSpawner:
                 tracked_events=tracked_events,
             )
         except Exception as e:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "gemini",
+                success=False,
+                duration=duration,
+                error=str(e),
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -611,6 +783,15 @@ class HeadlessSpawner:
         tracked_events: list[dict] = []
         if track_in_htmlgraph and output_json:
             sdk = self._get_sdk()
+
+        # Publish live event: spawner starting
+        self._publish_live_event(
+            "spawner_start",
+            "codex",
+            prompt=prompt,
+            model=model,
+        )
+        start_time = time.time()
 
         cmd = ["codex", "exec"]
 
@@ -678,6 +859,14 @@ class HeadlessSpawner:
                 pass
 
         try:
+            # Publish live event: executing
+            self._publish_live_event(
+                "spawner_phase",
+                "codex",
+                phase="executing",
+                details="Running Codex CLI",
+            )
+
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -686,13 +875,31 @@ class HeadlessSpawner:
                 timeout=timeout,
             )
 
+            # Publish live event: processing
+            self._publish_live_event(
+                "spawner_phase",
+                "codex",
+                phase="processing",
+                details="Parsing Codex response",
+            )
+
             if not output_json:
                 # Plain text mode - return as-is
+                duration = time.time() - start_time
+                success = result.returncode == 0
+                self._publish_live_event(
+                    "spawner_complete",
+                    "codex",
+                    success=success,
+                    duration=duration,
+                    response=result.stdout.strip()[:200] if success else None,
+                    error="Command failed" if not success else None,
+                )
                 return AIResult(
-                    success=result.returncode == 0,
+                    success=success,
                     response=result.stdout.strip(),
                     tokens_used=None,
-                    error=None if result.returncode == 0 else "Command failed",
+                    error=None if success else "Command failed",
                     raw_output=result.stdout,
                     tracked_events=tracked_events,
                 )
@@ -739,11 +946,23 @@ class HeadlessSpawner:
                     # Sum all token types
                     tokens = sum(usage.values())
 
+            # Publish live event: complete
+            duration = time.time() - start_time
+            success = result.returncode == 0
+            self._publish_live_event(
+                "spawner_complete",
+                "codex",
+                success=success,
+                duration=duration,
+                response=response[:200] if response else None,
+                tokens=tokens,
+                error="Command failed" if not success else None,
+            )
             return AIResult(
-                success=result.returncode == 0,
+                success=success,
                 response=response or "",
                 tokens_used=tokens,
-                error=None if result.returncode == 0 else "Command failed",
+                error=None if success else "Command failed",
                 raw_output={
                     "events": events,
                     "parse_errors": parse_errors if parse_errors else None,
@@ -752,6 +971,14 @@ class HeadlessSpawner:
             )
 
         except FileNotFoundError:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "codex",
+                success=False,
+                duration=duration,
+                error="CLI not found",
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -761,6 +988,14 @@ class HeadlessSpawner:
                 tracked_events=tracked_events,
             )
         except subprocess.TimeoutExpired as e:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "codex",
+                success=False,
+                duration=duration,
+                error=f"Timed out after {timeout} seconds",
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -775,6 +1010,14 @@ class HeadlessSpawner:
                 tracked_events=tracked_events,
             )
         except Exception as e:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "codex",
+                success=False,
+                duration=duration,
+                error=str(e),
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -813,6 +1056,14 @@ class HeadlessSpawner:
         if track_in_htmlgraph:
             sdk = self._get_sdk()
 
+        # Publish live event: spawner starting
+        self._publish_live_event(
+            "spawner_start",
+            "copilot",
+            prompt=prompt,
+        )
+        start_time = time.time()
+
         cmd = ["copilot", "-p", prompt]
 
         # Add allow all tools flag
@@ -842,11 +1093,27 @@ class HeadlessSpawner:
                 pass
 
         try:
+            # Publish live event: executing
+            self._publish_live_event(
+                "spawner_phase",
+                "copilot",
+                phase="executing",
+                details="Running Copilot CLI",
+            )
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+            )
+
+            # Publish live event: processing
+            self._publish_live_event(
+                "spawner_phase",
+                "copilot",
+                phase="processing",
+                details="Parsing Copilot response",
             )
 
             # Parse output: response is before stats block
@@ -878,16 +1145,36 @@ class HeadlessSpawner:
                     prompt, response, sdk
                 )
 
+            # Publish live event: complete
+            duration = time.time() - start_time
+            success = result.returncode == 0
+            self._publish_live_event(
+                "spawner_complete",
+                "copilot",
+                success=success,
+                duration=duration,
+                response=response[:200] if response else None,
+                tokens=tokens,
+                error=result.stderr if not success else None,
+            )
             return AIResult(
-                success=result.returncode == 0,
+                success=success,
                 response=response,
                 tokens_used=tokens,
-                error=None if result.returncode == 0 else result.stderr,
+                error=None if success else result.stderr,
                 raw_output=result.stdout,
                 tracked_events=tracked_events,
             )
 
         except FileNotFoundError:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "copilot",
+                success=False,
+                duration=duration,
+                error="CLI not found",
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -897,6 +1184,14 @@ class HeadlessSpawner:
                 tracked_events=tracked_events,
             )
         except subprocess.TimeoutExpired as e:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "copilot",
+                success=False,
+                duration=duration,
+                error=f"Timed out after {timeout} seconds",
+            )
             return AIResult(
                 success=False,
                 response="",
@@ -911,6 +1206,14 @@ class HeadlessSpawner:
                 tracked_events=tracked_events,
             )
         except Exception as e:
+            duration = time.time() - start_time
+            self._publish_live_event(
+                "spawner_complete",
+                "copilot",
+                success=False,
+                duration=duration,
+                error=str(e),
+            )
             return AIResult(
                 success=False,
                 response="",

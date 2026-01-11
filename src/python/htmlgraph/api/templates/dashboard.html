@@ -187,6 +187,15 @@
                         // Insert new event into Activity Feed if visible
                         insertNewEventIntoActivityFeed(data);
                     }
+                    // Handle live spawner events for real-time streaming
+                    else if (data.type === 'spawner_event') {
+                        // Delegate to activity-feed.html handler if available
+                        if (typeof window.handleSpawnerEvent === 'function') {
+                            window.handleSpawnerEvent(data);
+                        } else {
+                            console.log('[WebSocket] Spawner event received:', data.event_type, data.spawner_type);
+                        }
+                    }
                 } catch (e) {
                     console.error('WebSocket message error:', e);
                 }

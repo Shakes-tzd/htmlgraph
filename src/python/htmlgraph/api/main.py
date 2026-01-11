@@ -17,6 +17,7 @@ Architecture:
 import asyncio
 import json
 import logging
+import random
 import sqlite3
 import time
 from datetime import datetime
@@ -2070,17 +2071,23 @@ def get_app(db_path: str) -> FastAPI:
         IMPORTANT: Initializes last_timestamp to current time to only stream NEW events.
         Historical events are already counted in /api/initial-stats, so streaming them
         again would cause double-counting in the header stats.
+
+        LIVE EVENTS: Also polls live_events table for real-time spawner activity
+        streaming. These events are marked as broadcast after sending and cleaned up.
         """
         await websocket.accept()
         # Initialize to current time - only stream events created AFTER connection
         # This prevents double-counting: initial-stats already includes historical events
         last_timestamp: str = datetime.now().isoformat()
         poll_interval = 0.5  # OPTIMIZATION: Adaptive polling (reduced from 1s)
+        last_live_event_id = 0  # Track last broadcast live event ID
 
         try:
             while True:
                 db = await get_db()
+                has_activity = False
                 try:
+                    # ===== 1. Poll agent_events (existing logic) =====
                     # OPTIMIZATION: Only select needed columns, use DESC index
                     # Pattern uses index: idx_agent_events_timestamp DESC
                     # Only fetch events AFTER last_timestamp to stream new events only
@@ -2097,6 +2104,7 @@ def get_app(db_path: str) -> FastAPI:
                     rows = await cursor.fetchall()
 
                     if rows:
+                        has_activity = True
                         rows_list = [list(row) for row in rows]
                         # Update last timestamp (last row since ORDER BY ts ASC)
                         last_timestamp = rows_list[-1][3]
@@ -2119,9 +2127,91 @@ def get_app(db_path: str) -> FastAPI:
                                 "execution_duration_seconds": 0.0,
                             }
                             await websocket.send_json(event_data)
+
+                    # ===== 2. Poll live_events for spawner streaming =====
+                    # Fetch pending live events that haven't been broadcast yet
+                    live_query = """
+                        SELECT id, event_type, event_data, parent_event_id,
+                               session_id, spawner_type, created_at
+                        FROM live_events
+                        WHERE broadcast_at IS NULL AND id > ?
+                        ORDER BY created_at ASC
+                        LIMIT 50
+                    """
+                    live_cursor = await db.execute(live_query, [last_live_event_id])
+                    live_rows = await live_cursor.fetchall()
+
+                    if live_rows:
+                        has_activity = True
+                        broadcast_ids: list[int] = []
+
+                        for live_row in live_rows:
+                            live_id: int = live_row[0]
+                            event_type: str = live_row[1]
+                            event_data_json: str | None = live_row[2]
+                            parent_event_id: str | None = live_row[3]
+                            session_id: str | None = live_row[4]
+                            spawner_type: str | None = live_row[5]
+                            created_at: str = live_row[6]
+
+                            # Parse event_data JSON
+                            try:
+                                event_data_parsed = (
+                                    json.loads(event_data_json)
+                                    if event_data_json
+                                    else {}
+                                )
+                            except (json.JSONDecodeError, TypeError):
+                                event_data_parsed = {}
+
+                            # Send spawner event to client
+                            spawner_event = {
+                                "type": "spawner_event",
+                                "live_event_id": live_id,
+                                "event_type": event_type,
+                                "spawner_type": spawner_type,
+                                "parent_event_id": parent_event_id,
+                                "session_id": session_id,
+                                "timestamp": created_at,
+                                "data": event_data_parsed,
+                            }
+                            await websocket.send_json(spawner_event)
+
+                            broadcast_ids.append(live_id)
+                            last_live_event_id = max(last_live_event_id, live_id)
+
+                        # Mark events as broadcast
+                        if broadcast_ids:
+                            placeholders = ",".join("?" for _ in broadcast_ids)
+                            await db.execute(
+                                f"""
+                                UPDATE live_events
+                                SET broadcast_at = CURRENT_TIMESTAMP
+                                WHERE id IN ({placeholders})
+                                """,
+                                broadcast_ids,
+                            )
+                            await db.commit()
+
+                    # ===== 3. Periodic cleanup of old broadcast events =====
+                    # Clean up events older than 5 minutes (every ~10 poll cycles)
+                    if random.random() < 0.1:  # 10% chance each cycle
+                        await db.execute(
+                            """
+                            DELETE FROM live_events
+                            WHERE broadcast_at IS NOT NULL
+                              AND created_at < datetime('now', '-5 minutes')
+                            """
+                        )
+                        await db.commit()
+
+                    # Adjust poll interval based on activity
+                    if has_activity:
+                        poll_interval = 0.3  # Speed up when active
                     else:
                         # No new events, increase poll interval (exponential backoff)
                         poll_interval = min(poll_interval * 1.2, 2.0)
+
                 finally:
                     await db.close()
 
