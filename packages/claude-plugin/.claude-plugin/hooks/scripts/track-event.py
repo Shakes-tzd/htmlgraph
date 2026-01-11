@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --with htmlgraph>=0.26.0
+#!/usr/bin/env -S uv run
 """
 HtmlGraph Event Tracker - Thin Shell Wrapper
 
@@ -40,6 +40,44 @@ except ImportError as e:
     )
     print(json.dumps({"continue": True}))
     sys.exit(0)
+
+
+def detect_model_from_input(hook_input: dict) -> str | None:
+    """
+    Detect the Claude model from hook input.
+
+    Checks:
+    1. Task() model parameter (if tool_name == 'Task')
+    2. Environment variables (ANTHROPIC_MODEL, CLAUDE_MODEL, HTMLGRAPH_MODEL)
+
+    Args:
+        hook_input: Hook input dict containing tool_name and tool_input
+
+    Returns:
+        Model name (e.g., 'claude-opus', 'claude-sonnet') or None
+    """
+    # Get tool info
+    tool_name = hook_input.get("tool_name", "") or hook_input.get("name", "")
+    tool_input = hook_input.get("tool_input", {}) or hook_input.get("input", {})
+
+    # 1. Check for Task() model parameter
+    if tool_name == "Task" and "model" in tool_input:
+        model = tool_input.get("model")
+        if model and isinstance(model, str):
+            model = model.strip().lower()
+            if not model.startswith("claude-"):
+                model = f"claude-{model}"
+            return model
+
+    # 2. Check environment variables
+    for env_var in ["HTMLGRAPH_MODEL", "ANTHROPIC_MODEL", "CLAUDE_MODEL"]:
+        model = os.environ.get(env_var)
+        if model and isinstance(model, str):
+            model = model.strip()
+            if model:
+                return model
+
+    return None
 
 
 def main() -> None:

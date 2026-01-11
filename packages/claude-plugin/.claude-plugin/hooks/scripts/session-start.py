@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --with htmlgraph>=0.26.0
+#!/usr/bin/env -S uv run
 """
 HtmlGraph Session Start Hook - Thin Shell Wrapper
 

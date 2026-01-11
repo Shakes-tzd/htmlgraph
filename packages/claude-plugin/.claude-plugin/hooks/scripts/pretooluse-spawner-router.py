@@ -94,6 +94,69 @@ def load_plugin_manifest() -> dict[str, object]:
         return {}
 
 
+def detect_current_model(hook_input: dict) -> str | None:
+    """
+    Detect the current Claude model from multiple sources.
+
+    Checks in order of priority:
+    1. Task() model parameter (if tool_name == 'Task')
+    2. ANTHROPIC_MODEL or CLAUDE_MODEL environment variables
+    3. Claude settings file (.claude/settings.json)
+
+    Args:
+        hook_input: Hook input dict containing tool_name and tool_input
+
+    Returns:
+        Model name string (e.g., 'claude-opus', 'claude-sonnet', 'claude-haiku')
+        or None if not detected
+    """
+    # 1. Check for Task() model parameter
+    tool_name = hook_input.get("tool_name", "") or hook_input.get("name", "")
+    tool_input = hook_input.get("tool_input", {}) or hook_input.get("input", {})
+
+    if tool_name == "Task" and "model" in tool_input:
+        model = tool_input.get("model")
+        if model and isinstance(model, str):
+            # Normalize model name
+            model = model.strip().lower()
+            # Ensure claude- prefix
+            if not model.startswith("claude-"):
+                model = f"claude-{model}"
+            logger.info(f"Detected model from Task() parameter: {model}")
+            return model
+
+    # 2. Check environment variables
+    for env_var in ["ANTHROPIC_MODEL", "CLAUDE_MODEL", "HTMLGRAPH_MODEL"]:
+        model = os.environ.get(env_var)
+        if model and isinstance(model, str):
+            model = model.strip()
+            if model:
+                logger.info(f"Detected model from {env_var}: {model}")
+                return model
+
+    # 3. Check Claude settings file
+    settings_paths = [
+        Path.home() / ".claude" / "settings.json",
+        Path.cwd() / ".claude" / "settings.json",
+    ]
+    for settings_path in settings_paths:
+        if settings_path.exists():
+            try:
+                with open(settings_path) as f:
+                    settings = json.load(f)
+                    if "model" in settings:
+                        model = settings["model"]
+                        if isinstance(model, str):
+                            model = model.strip()
+                            logger.info(f"Detected model from {settings_path}: {model}")
+                            return model
+            except Exception as e:
+                logger.debug(f"Failed to read settings from {settings_path}: {e}")
+
+    logger.debug("No model detected from any source")
+    return None
+
+
 def is_cli_available(cli_name: str) -> bool:
     """
     Check if CLI tool is available (using shutil.which).
@@ -263,7 +326,11 @@ def get_parent_query_event_id() -> str | None:
 
 
 def route_to_spawner(
-    spawner_type: str, prompt: str, manifest: dict[str, object], **kwargs: object
+    spawner_type: str,
+    prompt: str,
+    manifest: dict[str, object],
+    hook_input: dict | None = None,
+    **kwargs: object,
 ) -> dict[str, object]:
     """
     Route Task() call to appropriate spawner agent.
@@ -272,6 +339,7 @@ def route_to_spawner(
         spawner_type: Type of spawner (gemini, codex, copilot)
         prompt: Task prompt to execute
         manifest: Plugin manifest for agent config
+        hook_input: Original hook input for model detection (optional)
         **kwargs: Additional Task() parameters
 
     Returns:
@@ -353,6 +421,13 @@ def route_to_spawner(
             logger.info(
                 f"Passing parent query event to spawner: {parent_query_event_id}"
             )
+
+        # Detect and pass model to spawner
+        if hook_input:
+            detected_model = detect_current_model(hook_input)
+            if detected_model:
+                env["HTMLGRAPH_MODEL"] = detected_model
+                logger.info(f"Passing model to spawner: {detected_model}")
 
         # Execute spawner agent
         result = subprocess.run(
@@ -519,7 +594,9 @@ def main() -> None:
     )
     # Remove prompt from tool_input to avoid duplicate argument
     extra_kwargs = {k: v for k, v in tool_input.items() if k != "prompt"}
-    response = route_to_spawner(base_spawner_type, prompt, manifest, **extra_kwargs)
+    response = route_to_spawner(
+        base_spawner_type, prompt, manifest, hook_input=hook_input, **extra_kwargs
+    )
 
     # Output JSON response
     print(json.dumps(response))

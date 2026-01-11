@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --with htmlgraph>=0.26.0
+#!/usr/bin/env -S uv run
 """
 UserPromptSubmit Hook - Thin shell for prompt analysis and workflow guidance.
 
