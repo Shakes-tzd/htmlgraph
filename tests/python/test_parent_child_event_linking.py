@@ -210,10 +210,13 @@ class TestParentChildEventLinking:
             session_id="sess-123",
             parent_event_id=parent_id,
             status="completed",
+            model="claude-haiku-4-5-20251001",
         )
 
         # Verify parent_event_id is captured
         assert event_model.parent_event_id == parent_id
+        # Verify model field is captured
+        assert event_model.model == "claude-haiku-4-5-20251001"
 
     def test_api_events_query_includes_parent_event_id(
         self, temp_htmlgraph_dir, tmp_path

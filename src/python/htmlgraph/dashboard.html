@@ -967,6 +967,20 @@
         .event-source-indicator.spike::before { background: #00C853; }
         .event-source-indicator.delegation::before { background: #FF9100; }
 
+        /* Model tracking badges - Display which AI model executed the event */
+        .badge.model {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.55rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .badge.model-haiku { background: #00BCD4; color: white; border-color: #00BCD4; }      /* Cyan for Haiku */
+        .badge.model-sonnet { background: #9C27B0; color: white; border-color: #9C27B0; }    /* Purple for Sonnet */
+        .badge.model-opus { background: #FFC107; color: #000; border-color: #FFC107; }       /* Amber/Gold for Opus */
+        .badge.model-default { background: #9E9E9E; color: white; border-color: #9E9E9E; }  /* Gray for unknown */
+
         .card-path {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.625rem;
@@ -5585,6 +5599,26 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     <ol class="activity-list" reversed>
                 `;
 
+                // Model name formatter - Extract short name from full model ID
+                function formatModelName(model) {
+                    if (!model) return null;
+                    const modelStr = String(model).toLowerCase();
+                    if (modelStr.includes('haiku')) return 'Haiku';
+                    if (modelStr.includes('sonnet')) return 'Sonnet 4.5';
+                    if (modelStr.includes('opus')) return 'Opus 4.5';
+                    return null; // Unknown model
+                }
+
+                // Determine model badge CSS class
+                function getModelBadgeClass(model) {
+                    if (!model) return 'model-default';
+                    const modelStr = String(model).toLowerCase();
+                    if (modelStr.includes('haiku')) return 'model-haiku';
+                    if (modelStr.includes('sonnet')) return 'model-sonnet';
+                    if (modelStr.includes('opus')) return 'model-opus';
+                    return 'model-default';
+                }
+
                 // Render helper function
                 function renderEvent(item, isChild = false, depth = 0) {
                     const ts = item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Unknown';
@@ -5623,6 +5657,12 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                     const agentBadge = agentClass ? `<span class="badge agent ${agentClass}">${agentId}</span>` :
                                                    `<span class="badge">${agentId}</span>`;
 
+                    // Model badge - display which AI model executed the event
+                    const model = item.model || null;
+                    const modelName = formatModelName(model);
+                    const modelBadgeClass = getModelBadgeClass(model);
+                    const modelBadge = modelName ? `<span class="badge model ${modelBadgeClass}">${modelName}</span>` : '';
+
                     // Add expand icon for parents
                     const expandIcon = hasChildren ? '<span class="expand-icon"></span>' : '';
                     const indent = isChild ? 'padding-left: ' + (1.5 + depth * 1.5) + 'rem;' : '';
@@ -5638,6 +5678,7 @@ ${node.ts ? node.ts.slice(0, 19).replace('T', ' ') : ''}`;
                                 ${sourceBadge}
                                 <span class="activity-tool">${tool}</span>
                                 ${agentBadge}
+                                ${modelBadge}
                             </div>
                             <div class="activity-content">${escapeHtml(content.substring(0, 200))}${content.length > 200 ? '...' : ''}</div>
                         </li>

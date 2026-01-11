@@ -89,6 +89,7 @@ class EventModel(BaseModel):
     session_id: str
     parent_event_id: str | None = None
     status: str
+    model: str | None = None
 
 
 class FeatureModel(BaseModel):
@@ -213,9 +214,12 @@ def get_app(db_path: str) -> FastAPI:
     # ========== DATABASE HELPERS ==========
 
     async def get_db() -> aiosqlite.Connection:
-        """Get database connection."""
+        """Get database connection with busy_timeout to prevent lock errors."""
         db = await aiosqlite.connect(app.state.db_path)
         db.row_factory = aiosqlite.Row
+        # Set busy_timeout to 5 seconds - prevents "database is locked" errors
+        # during concurrent access from spawner scripts and WebSocket polling
+        await db.execute("PRAGMA busy_timeout = 5000")
         return db
 
     # ========== ROUTES ==========
@@ -390,7 +394,7 @@ def get_app(db_path: str) -> FastAPI:
                 query = """
                     SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
                            e.input_summary, e.output_summary, e.session_id,
-                           e.status
+                           e.status, e.model
                     FROM agent_events e
                     WHERE 1=1
                 """
@@ -426,6 +430,7 @@ def get_app(db_path: str) -> FastAPI:
                         session_id=row[7],
                         parent_event_id=None,  # Not available in all schema versions
                         status=row[8],
+                        model=row[9],
                     )
                     for row in rows
                 ]
@@ -576,7 +581,7 @@ def get_app(db_path: str) -> FastAPI:
             # Query parent events (task delegations)
             parent_query = """
                 SELECT event_id, agent_id, subagent_type, timestamp, status,
-                       child_spike_count, output_summary
+                       child_spike_count, output_summary, model
                 FROM agent_events
                 WHERE event_type = 'task_delegation'
             """
@@ -602,6 +607,7 @@ def get_app(db_path: str) -> FastAPI:
                 status = parent_row[4]
                 child_spike_count = parent_row[5] or 0
                 output_summary = parent_row[6]
+                model = parent_row[7]
 
                 # Parse output summary to get child spike IDs if available
                 child_spikes = []
@@ -664,6 +670,7 @@ def get_app(db_path: str) -> FastAPI:
                     "child_events": child_events,
                     "child_spike_count": child_spike_count,
                     "child_spikes": child_spikes,
+                    "model": model,
                 }
 
                 traces.append(trace)
@@ -760,7 +767,8 @@ def get_app(db_path: str) -> FastAPI:
                     input_summary,
                     output_summary,
                     session_id,
-                    status
+                    status,
+                    model
                 FROM agent_events
                 WHERE event_type IN ({event_type_placeholders})
             """
@@ -790,6 +798,7 @@ def get_app(db_path: str) -> FastAPI:
                         "output_summary": row[7],
                         "session_id": row[8],
                         "status": row[9],
+                        "model": row[10],
                     }
                 )
 
@@ -2093,7 +2102,7 @@ def get_app(db_path: str) -> FastAPI:
                     # Only fetch events AFTER last_timestamp to stream new events only
                     query = """
                         SELECT event_id, agent_id, event_type, timestamp, tool_name,
-                               input_summary, output_summary, session_id, status
+                               input_summary, output_summary, session_id, status, model
                         FROM agent_events
                         WHERE timestamp > ?
                         ORDER BY timestamp ASC
@@ -2122,6 +2131,7 @@ def get_app(db_path: str) -> FastAPI:
                                 "output_summary": row[6],
                                 "session_id": row[7],
                                 "status": row[8],
+                                "model": row[9],
                                 "parent_event_id": None,
                                 "cost_tokens": 0,
                                 "execution_duration_seconds": 0.0,
@@ -2139,9 +2149,12 @@ def get_app(db_path: str) -> FastAPI:
                         LIMIT 50
                     """
                     live_cursor = await db.execute(live_query, [last_live_event_id])
-                    live_rows = await live_cursor.fetchall()
+                    live_rows = list(await live_cursor.fetchall())
 
                     if live_rows:
+                        logger.info(
+                            f"[WebSocket] Found {len(live_rows)} pending live_events to broadcast"
+                        )
                         has_activity = True
                         broadcast_ids: list[int] = []
 
@@ -2175,6 +2188,9 @@ def get_app(db_path: str) -> FastAPI:
                                 "timestamp": created_at,
                                 "data": event_data_parsed,
                             }
+                            logger.info(
+                                f"[WebSocket] Sending spawner_event: id={live_id}, type={event_type}, spawner={spawner_type}"
+                            )
                             await websocket.send_json(spawner_event)
 
                             broadcast_ids.append(live_id)
@@ -2182,6 +2198,9 @@ def get_app(db_path: str) -> FastAPI:
 
                         # Mark events as broadcast
                         if broadcast_ids:
+                            logger.info(
+                                f"[WebSocket] Marking {len(broadcast_ids)} events as broadcast: {broadcast_ids}"
+                            )
                             placeholders = ",".join("?" for _ in broadcast_ids)
                             await db.execute(
                                 f"""
