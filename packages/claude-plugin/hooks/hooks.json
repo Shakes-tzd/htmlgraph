@@ -6,6 +6,7 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "CIGS analysis and workflow guidance",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/user-prompt-submit.py\""
           }
         ]
@@ -50,6 +51,7 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-integrator.py\""
           }
         ]
@@ -62,17 +64,6 @@
           {
             "type": "command",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/posttooluse-integrator.py\""
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use-failure.py\""
           }
         ]
       }
