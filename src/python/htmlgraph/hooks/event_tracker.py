@@ -35,40 +35,42 @@ from htmlgraph.session_manager import SessionManager
 DRIFT_QUEUE_FILE = "drift-queue.json"
 
 
-def get_model_from_status_cache(session_id: str) -> str | None:
+def get_model_from_status_cache(session_id: str | None = None) -> str | None:
     """
-    Read current model from status line cache.
+    Read current model from SQLite model_cache table.
 
-    The status line script writes model info to:
-    ~/.cache/claude-code/status-{session_id}.json
-
+    The status line script writes model info to the model_cache table.
     This allows hooks to know which Claude model is currently running,
     even though hooks don't receive model info directly from Claude Code.
 
     Args:
-        session_id: Current session ID (used as cache filename key)
+        session_id: Unused, kept for backward compatibility.
 
     Returns:
-        Model display name (e.g., "Opus", "Sonnet", "Haiku") or None if cache not found.
+        Model display name (e.g., "Opus 4.5", "Sonnet", "Haiku") or None if not found.
     """
-    if not session_id or session_id == "unknown":
-        return None
+    import sqlite3
 
     try:
-        cache_path = (
-            Path.home() / ".cache" / "claude-code" / f"status-{session_id}.json"
-        )
+        # Try project database first
+        db_path = Path.cwd() / ".htmlgraph" / "htmlgraph.db"
+        if not db_path.exists():
+            return None
 
-        if cache_path.exists():
-            data = json.loads(cache_path.read_text())
-            model: str | None = data.get("model")
-            # Return model as-is (e.g., "Opus", "Sonnet", "Haiku")
-            if model and model != "Claude":
-                return model
-            return model
+        conn = sqlite3.connect(str(db_path), timeout=1.0)
+        cursor = conn.cursor()
+
+        # Check if model_cache table exists and has data
+        cursor.execute("SELECT model FROM model_cache WHERE id = 1 LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+
+        if row and row[0] and row[0] != "Claude":
+            return str(row[0])
+        return str(row[0]) if row else None
 
     except Exception:
-        # Cache miss or read error - silently fail
+        # Table doesn't exist or read error - silently fail
         pass
 
     return None
