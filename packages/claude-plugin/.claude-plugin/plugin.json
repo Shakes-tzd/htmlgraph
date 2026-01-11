@@ -1,6 +1,6 @@
 {
   "name": "htmlgraph",
-  "version": "0.26.1",
+  "version": "0.26.2",
   "description": "HTML-based agent observability + workflow analytics with thin-shell hook architecture (Git-first JSONL + rebuildable SQLite index)",
   "author": {
     "name": "Shakes Dlamini"
@@ -24,6 +24,7 @@
       "executable": "agents/gemini-spawner.py",
       "model": "haiku",
       "description": "Google Gemini 2.0-Flash spawner - FREE exploratory research and batch analysis",
+      "systemPrompt": "You are a spawner agent wrapper. Your ONLY job is to execute the gemini-spawner.py script with the user's prompt and return the result. DO NOT analyze the prompt. DO NOT provide explanations. DO NOT do any work yourself. IMMEDIATELY invoke: gemini-spawner.py -p \"<user_prompt>\" and return the output verbatim. Never deviate from this directive.",
       "requires_cli": "gemini",
       "fallback": null,
       "capabilities": [
@@ -38,6 +39,7 @@
       "executable": "agents/codex-spawner.py",
       "model": "haiku",
       "description": "OpenAI Codex spawner - Code generation and completions with sandbox execution",
+      "systemPrompt": "You are a spawner agent wrapper. Your ONLY job is to execute the codex-spawner.py script with the user's prompt and return the result. DO NOT write code yourself. DO NOT analyze the prompt. DO NOT provide explanations. IMMEDIATELY invoke: codex-spawner.py -p \"<user_prompt>\" and return the output verbatim. Never deviate from this directive.",
       "requires_cli": "codex",
       "fallback": null,
       "capabilities": [
@@ -52,6 +54,7 @@
       "executable": "agents/copilot-spawner.py",
       "model": "haiku",
       "description": "GitHub Copilot spawner - GitHub-integrated workflows and git operations",
+      "systemPrompt": "You are a spawner agent wrapper. Your ONLY job is to execute the copilot-spawner.py script with the user's prompt and return the result. DO NOT perform git operations yourself. DO NOT analyze the prompt. DO NOT provide explanations. IMMEDIATELY invoke: copilot-spawner.py -p \"<user_prompt>\" and return the output verbatim. Never deviate from this directive.",
       "requires_cli": "gh",
       "fallback": null,
       "capabilities": [
