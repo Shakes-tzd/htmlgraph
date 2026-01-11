@@ -455,16 +455,20 @@ class HeadlessSpawner:
                     # Only use stream-json parsing if we got valid events
                     if tracked_events:
                         # For stream-json, we need to extract response differently
-                        # Look for the last message or result event
+                        # Collect all assistant message content, then check result
                         response_text = ""
                         for event in tracked_events:
-                            if event.get("type") == "result":
-                                response_text = event.get("response", "")
-                                break
-                            elif event.get("type") == "message":
-                                content = event.get("content", "")
-                                if content:
-                                    response_text = content
+                            if event.get("type") == "message":
+                                # Only collect assistant messages
+                                if event.get("role") == "assistant":
+                                    content = event.get("content", "")
+                                    if content:
+                                        response_text += content
+                            elif event.get("type") == "result":
+                                # Result event may have response field (override if present)
+                                if "response" in event and event["response"]:
+                                    response_text = event["response"]
+                                # Don't break - we've already collected messages
 
                         # Token usage from stats in result event
                         tokens = None

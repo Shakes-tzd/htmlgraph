@@ -319,26 +319,44 @@ def route_to_spawner(
                 },
             }
 
-        # Build command: uv run <executable> with prompt as stdin
-        cmd: list[str] = ["uv", "run", str(agent_executable)]
+        # Resolve executable path relative to plugin root
+        plugin_root = Path(__file__).parent.parent.parent  # .claude-plugin/
+        executable_path = plugin_root / agent_executable
+        if not executable_path.exists():
+            error_msg = f"Spawner executable not found: {executable_path}"
+            logger.error(error_msg)
+            return {
+                "continue": False,
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": f"🚫 SPAWNER ERROR: {error_msg}",
+                },
+            }
 
-        logger.info(f"Spawning {spawner_type} agent: {' '.join(cmd)}")
+        # Build command: uv run <executable> -p <prompt>
+        cmd: list[str] = ["uv", "run", str(executable_path), "-p", prompt]
+
+        logger.info(f"Spawning {spawner_type} agent: {cmd[0]} ... -p '<prompt>'")
 
         # Get parent query event ID for context
         parent_query_event_id = get_parent_query_event_id()
 
         # Build environment with parent context
         env = os.environ.copy()
+
+        # Set project root for spawner database access
+        project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
+        env["HTMLGRAPH_PROJECT_ROOT"] = project_root
+
         if parent_query_event_id:
             env["HTMLGRAPH_PARENT_EVENT"] = parent_query_event_id
             logger.info(
                 f"Passing parent query event to spawner: {parent_query_event_id}"
             )
 
-        # Execute spawner agent with prompt as stdin
+        # Execute spawner agent
         result = subprocess.run(
             cmd,
-            input=prompt,
             capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
@@ -359,12 +377,22 @@ def route_to_spawner(
         # Success - spawner executed
         logger.info(f"Spawner {spawner_type} executed successfully")
 
-        # Return response with spawner output
+        # Parse spawner output for response
+        try:
+            spawner_result = json.loads(result.stdout)
+            response_text = spawner_result.get("response", result.stdout)
+        except json.JSONDecodeError:
+            response_text = result.stdout
+
+        # Return response - block normal Task and provide spawner result
+        # Using 'decision' field to substitute result (Claude Code 1.0.17+)
         return {
-            "continue": True,
+            "continue": False,
+            "decision": "block",
+            "reason": f"Handled by {spawner_type} spawner",
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
-                "additionalContext": f"✅ Spawned {spawner_type} agent\n\n{result.stdout}",
+                "additionalContext": f"✅ {spawner_type.upper()} SPAWNER RESULT:\n\n{response_text}",
             },
         }
 
@@ -395,12 +423,45 @@ def is_spawner_type(subagent_type: str) -> bool:
     Check if subagent_type is a spawner type.
 
     Args:
-        subagent_type: Type of subagent
+        subagent_type: Type of subagent (e.g., "gemini" or ".claude-plugin:gemini")
 
     Returns:
         True if it's a spawner type (gemini, codex, copilot)
     """
-    return subagent_type.lower() in ["gemini", "codex", "copilot"]
+    # Handle both bare names ("gemini") and prefixed names (".claude-plugin:gemini")
+    spawner_types = ["gemini", "codex", "copilot"]
+    name = subagent_type.lower().strip()
+
+    # Direct match
+    if name in spawner_types:
+        return True
+
+    # Check for prefixed format (e.g., ".claude-plugin:gemini")
+    if ":" in name:
+        suffix = name.split(":")[-1]
+        if suffix in spawner_types:
+            return True
+
+    return False
+
+
+def get_base_spawner_type(subagent_type: str) -> str:
+    """
+    Extract base spawner type from subagent_type.
+
+    Args:
+        subagent_type: Type of subagent (e.g., "gemini" or ".claude-plugin:gemini")
+
+    Returns:
+        Base spawner type (e.g., "gemini")
+    """
+    name = subagent_type.lower().strip()
+
+    # Handle prefixed format (e.g., ".claude-plugin:gemini")
+    if ":" in name:
+        return name.split(":")[-1]
+
+    return name
 
 
 def main() -> None:
@@ -451,9 +512,14 @@ def main() -> None:
         print(json.dumps({"continue": True}))
         return
 
-    # Route to spawner
-    logger.info(f"Routing Task() to spawner: {subagent_type}")
-    response = route_to_spawner(subagent_type, prompt, manifest, **tool_input)
+    # Route to spawner (use base type for config lookup)
+    base_spawner_type = get_base_spawner_type(subagent_type)
+    logger.info(
+        f"Routing Task() to spawner: {subagent_type} (base: {base_spawner_type})"
+    )
+    # Remove prompt from tool_input to avoid duplicate argument
+    extra_kwargs = {k: v for k, v in tool_input.items() if k != "prompt"}
+    response = route_to_spawner(base_spawner_type, prompt, manifest, **extra_kwargs)
 
     # Output JSON response
     print(json.dumps(response))
