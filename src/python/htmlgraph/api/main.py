@@ -394,7 +394,7 @@ def get_app(db_path: str) -> FastAPI:
                 query = """
                     SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
                            e.input_summary, e.output_summary, e.session_id,
-                           e.status, e.model
+                           e.parent_event_id, e.status, e.model
                     FROM agent_events e
                     WHERE 1=1
                 """
@@ -428,9 +428,9 @@ def get_app(db_path: str) -> FastAPI:
                         input_summary=row[5],
                         output_summary=row[6],
                         session_id=row[7],
-                        parent_event_id=None,  # Not available in all schema versions
-                        status=row[8],
-                        model=row[9],
+                        parent_event_id=row[8],
+                        status=row[9],
+                        model=row[10],
                     )
                     for row in rows
                 ]
