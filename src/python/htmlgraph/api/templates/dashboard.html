@@ -161,6 +161,7 @@
             ws.onmessage = function(event) {
                 try {
                     const data = JSON.parse(event.data);
+                    console.log('[WebSocket] Received message type:', data.type);
 
                     if (data.type === 'event') {
                         // Prevent duplicate event insertions
@@ -189,11 +190,12 @@
                     }
                     // Handle live spawner events for real-time streaming
                     else if (data.type === 'spawner_event') {
+                        console.log('[WebSocket] spawner_event received:', data.event_type, data.spawner_type, 'handler exists:', typeof window.handleSpawnerEvent === 'function');
                         // Delegate to activity-feed.html handler if available
                         if (typeof window.handleSpawnerEvent === 'function') {
                             window.handleSpawnerEvent(data);
                         } else {
-                            console.log('[WebSocket] Spawner event received:', data.event_type, data.spawner_type);
+                            console.warn('[WebSocket] handleSpawnerEvent not available, spawner event dropped:', data.event_type, data.spawner_type);
                         }
                     }
                 } catch (e) {
