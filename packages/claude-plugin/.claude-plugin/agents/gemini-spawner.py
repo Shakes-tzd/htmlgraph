@@ -126,6 +126,16 @@ def _parse_gemini_events(
 
 def main() -> None:
     """Execute Gemini spawner with comprehensive event tracking and delegation records."""
+    # Initialize live event publisher for real-time WebSocket streaming
+    live_publisher = None
+    try:
+        from htmlgraph.orchestration.live_events import LiveEventPublisher
+
+        live_publisher = LiveEventPublisher()
+    except ImportError:
+        # Live events are optional
+        pass
+
     parser = argparse.ArgumentParser(
         description="Spawn Gemini AI agent in headless mode",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -267,6 +277,20 @@ Examples:
             # Tracker is optional
             pass
 
+        # Publish live event: spawner started
+        if live_publisher:
+            try:
+                live_publisher.spawner_start(
+                    spawner_type="gemini",
+                    prompt=args.prompt,
+                    parent_event_id=parent_event_id,
+                    model=args.model or "gemini-2.0-flash",
+                    session_id=parent_session,
+                )
+            except Exception:
+                # Live events are best-effort
+                pass
+
         # Set environment for spawned process
         os.environ["HTMLGRAPH_AGENT"] = "gemini-2.0-flash"
         if delegation_event_id:
@@ -294,6 +318,19 @@ Examples:
                     spawned_agent="gemini-2.0-flash",
                     tool_name="gemini-cli",
                     input_summary=args.prompt[:200],
+                )
+            except Exception:
+                pass
+
+        # Publish live event: executing phase
+        if live_publisher:
+            try:
+                live_publisher.spawner_phase(
+                    spawner_type="gemini",
+                    phase="executing",
+                    details=f"Running Gemini CLI with model {args.model or 'gemini-2.0-flash'}...",
+                    parent_event_id=parent_event_id,
+                    session_id=parent_session,
                 )
             except Exception:
                 pass
@@ -377,6 +414,21 @@ Examples:
                 pass
 
         if not result.success:
+            # Publish live event: spawner failed
+            if live_publisher:
+                try:
+                    live_publisher.spawner_complete(
+                        spawner_type="gemini",
+                        success=False,
+                        duration_seconds=duration,
+                        error=result.error,
+                        tokens_used=result.tokens_used,
+                        parent_event_id=parent_event_id,
+                        session_id=parent_session,
+                    )
+                except Exception:
+                    pass
+
             # Return JSON error to stderr
             error_output: dict[str, Any] = {
                 "success": False,
@@ -388,6 +440,21 @@ Examples:
             }
             print(json.dumps(error_output), file=sys.stderr)
             sys.exit(1)
+
+        # Publish live event: spawner completed successfully
+        if live_publisher:
+            try:
+                live_publisher.spawner_complete(
+                    spawner_type="gemini",
+                    success=True,
+                    duration_seconds=duration,
+                    response_preview=result.response[:200] if result.response else None,
+                    tokens_used=result.tokens_used,
+                    parent_event_id=parent_event_id,
+                    session_id=parent_session,
+                )
+            except Exception:
+                pass
 
         # Return JSON success to stdout
         success_output: dict[str, Any] = {

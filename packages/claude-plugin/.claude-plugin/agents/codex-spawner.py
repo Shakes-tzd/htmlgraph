@@ -132,6 +132,16 @@ def _parse_codex_events(
 
 def main() -> None:
     """Execute Codex spawner with comprehensive event tracking and delegation records."""
+    # Initialize live event publisher for real-time WebSocket streaming
+    live_publisher = None
+    try:
+        from htmlgraph.orchestration.live_events import LiveEventPublisher
+
+        live_publisher = LiveEventPublisher()
+    except ImportError:
+        # Live events are optional
+        pass
+
     parser = argparse.ArgumentParser(
         description="Spawn Codex AI agent in headless mode",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -332,6 +342,20 @@ Examples:
             # Tracker is optional
             pass
 
+        # Publish live event: spawner started
+        if live_publisher:
+            try:
+                live_publisher.spawner_start(
+                    spawner_type="codex",
+                    prompt=args.prompt,
+                    parent_event_id=parent_event_id,
+                    model=args.model or "gpt-4-turbo",
+                    session_id=parent_session,
+                )
+            except Exception:
+                # Live events are best-effort
+                pass
+
         # Set environment for spawned process
         os.environ["HTMLGRAPH_AGENT"] = "gpt-4"
         if delegation_event_id:
@@ -372,6 +396,19 @@ Examples:
                     spawned_agent="gpt-4",
                     tool_name="codex-cli",
                     input_summary=args.prompt[:200],
+                )
+            except Exception:
+                pass
+
+        # Publish live event: executing phase
+        if live_publisher:
+            try:
+                live_publisher.spawner_phase(
+                    spawner_type="codex",
+                    phase="executing",
+                    details=f"Running Codex CLI with model {args.model or 'gpt-4-turbo'}, sandbox: {args.sandbox}...",
+                    parent_event_id=parent_event_id,
+                    session_id=parent_session,
                 )
             except Exception:
                 pass
@@ -474,6 +511,21 @@ Examples:
                 pass
 
         if not result.success:
+            # Publish live event: spawner failed
+            if live_publisher:
+                try:
+                    live_publisher.spawner_complete(
+                        spawner_type="codex",
+                        success=False,
+                        duration_seconds=duration,
+                        error=result.error,
+                        tokens_used=result.tokens_used,
+                        parent_event_id=parent_event_id,
+                        session_id=parent_session,
+                    )
+                except Exception:
+                    pass
+
             # Return JSON error to stderr
             error_output: dict[str, Any] = {
                 "success": False,
@@ -485,6 +537,21 @@ Examples:
             }
             print(json.dumps(error_output), file=sys.stderr)
             sys.exit(1)
+
+        # Publish live event: spawner completed successfully
+        if live_publisher:
+            try:
+                live_publisher.spawner_complete(
+                    spawner_type="codex",
+                    success=True,
+                    duration_seconds=duration,
+                    response_preview=result.response[:200] if result.response else None,
+                    tokens_used=result.tokens_used,
+                    parent_event_id=parent_event_id,
+                    session_id=parent_session,
+                )
+            except Exception:
+                pass
 
         # Return JSON success to stdout
         success_output: dict[str, Any] = {

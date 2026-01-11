@@ -25,7 +25,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, cast  # noqa: F401
 
 from htmlgraph.db.schema import HtmlGraphDB
 from htmlgraph.ids import generate_id
@@ -33,6 +33,45 @@ from htmlgraph.session_manager import SessionManager
 
 # Drift classification queue (stored in session directory)
 DRIFT_QUEUE_FILE = "drift-queue.json"
+
+
+def get_model_from_status_cache(session_id: str) -> str | None:
+    """
+    Read current model from status line cache.
+
+    The status line script writes model info to:
+    ~/.cache/claude-code/status-{session_id}.json
+
+    This allows hooks to know which Claude model is currently running,
+    even though hooks don't receive model info directly from Claude Code.
+
+    Args:
+        session_id: Current session ID (used as cache filename key)
+
+    Returns:
+        Model display name (e.g., "Opus", "Sonnet", "Haiku") or None if cache not found.
+    """
+    if not session_id or session_id == "unknown":
+        return None
+
+    try:
+        cache_path = (
+            Path.home() / ".cache" / "claude-code" / f"status-{session_id}.json"
+        )
+
+        if cache_path.exists():
+            data = json.loads(cache_path.read_text())
+            model: str | None = data.get("model")
+            # Return model as-is (e.g., "Opus", "Sonnet", "Haiku")
+            if model and model != "Claude":
+                return model
+            return model
+
+    except Exception:
+        # Cache miss or read error - silently fail
+        pass
+
+    return None
 
 
 def load_drift_config() -> dict[str, Any]:
@@ -304,17 +343,62 @@ def resolve_project_path(cwd: str | None = None) -> str:
     return start_dir
 
 
+def detect_model_from_hook_input(hook_input: dict[str, Any]) -> str | None:
+    """
+    Detect the Claude model from hook input data.
+
+    Checks in order of priority:
+    1. Task() model parameter (if tool_name == 'Task')
+    2. HTMLGRAPH_MODEL environment variable (set by hooks)
+    3. ANTHROPIC_MODEL or CLAUDE_MODEL environment variables
+
+    Args:
+        hook_input: Hook input dict containing tool_name and tool_input
+
+    Returns:
+        Model name (e.g., 'claude-opus', 'claude-sonnet', 'claude-haiku') or None
+    """
+    # Get tool info
+    tool_name_value: Any = hook_input.get("tool_name", "") or hook_input.get("name", "")
+    tool_name = tool_name_value if isinstance(tool_name_value, str) else ""
+    tool_input_value: Any = hook_input.get("tool_input", {}) or hook_input.get(
+        "input", {}
+    )
+    tool_input = tool_input_value if isinstance(tool_input_value, dict) else {}
+
+    # 1. Check for Task() model parameter first
+    if tool_name == "Task" and "model" in tool_input:
+        model_value: Any = tool_input.get("model")
+        if model_value and isinstance(model_value, str):
+            model = model_value.strip().lower()
+            if model:
+                if not model.startswith("claude-"):
+                    model = f"claude-{model}"
+                return cast(str, model)
+
+    # 2. Check environment variables (set by PreToolUse hook)
+    for env_var in ["HTMLGRAPH_MODEL", "ANTHROPIC_MODEL", "CLAUDE_MODEL"]:
+        value = os.environ.get(env_var)
+        if value and isinstance(value, str):
+            model = value.strip()
+            if model:
+                return model
+
+    return None
+
+
 def detect_agent_from_environment() -> tuple[str, str | None]:
     """
-    Detect the agent/model name from environment variables.
+    Detect the agent/model name from environment variables and status cache.
 
-    Checks multiple environment variables in order of priority:
+    Checks multiple sources in order of priority:
     1. HTMLGRAPH_AGENT - Explicit agent name set by user
     2. HTMLGRAPH_SUBAGENT_TYPE - For subagent sessions
-    3. HTMLGRAPH_MODEL - Model name (e.g., claude-haiku, claude-opus)
-    4. CLAUDE_MODEL - Model name if exposed by Claude Code
-    5. ANTHROPIC_MODEL - Alternative model env var
-    6. HTMLGRAPH_PARENT_AGENT - Parent agent context
+    3. HTMLGRAPH_PARENT_AGENT - Parent agent context
+    4. HTMLGRAPH_MODEL - Model name (e.g., claude-haiku, claude-opus)
+    5. CLAUDE_MODEL - Model name if exposed by Claude Code
+    6. ANTHROPIC_MODEL - Alternative model env var
+    7. Status line cache (model only) - ~/.cache/claude-code/status-{session_id}.json
 
     Falls back to 'claude-code' if no environment variable is set.
 
@@ -348,6 +432,14 @@ def detect_agent_from_environment() -> tuple[str, str | None]:
         if value and value.strip():
             model_name = value.strip()
             break
+
+    # Fallback: Try to read model from status line cache
+    if not model_name:
+        session_id = os.environ.get("HTMLGRAPH_SESSION_ID") or os.environ.get(
+            "CLAUDE_SESSION_ID"
+        )
+        if session_id:
+            model_name = get_model_from_status_cache(session_id)
 
     # Default fallback for agent_id
     if not agent_id:
@@ -611,6 +703,11 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
 
     # Detect agent and model from environment
     detected_agent, detected_model = detect_agent_from_environment()
+
+    # Also try to detect model from hook input (more specific than environment)
+    model_from_input = detect_model_from_hook_input(hook_input)
+    if model_from_input:
+        detected_model = model_from_input
 
     # Get active session ID
     active_session = manager.get_active_session()
