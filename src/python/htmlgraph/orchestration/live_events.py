@@ -51,8 +51,17 @@ class LiveEventPublisher:
                 if self._db_path:
                     self._db = HtmlGraphDB(self._db_path)
                 else:
-                    # Use default database path
-                    default_path = str(Path.home() / ".htmlgraph" / "htmlgraph.db")
+                    # Use project database path from environment or cwd
+                    project_root = os.getenv("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
+                    default_path = str(
+                        Path(project_root) / ".htmlgraph" / "index.sqlite"
+                    )
+
+                    # Check if database exists
+                    if not Path(default_path).exists():
+                        logger.debug(f"Database not found at {default_path}")
+                        return None
+
                     self._db = HtmlGraphDB(default_path)
             except Exception as e:
                 logger.warning(f"Failed to initialize database for live events: {e}")
