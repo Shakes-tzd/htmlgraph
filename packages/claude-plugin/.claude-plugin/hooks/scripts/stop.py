@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env -S uv run --with htmlgraph
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [

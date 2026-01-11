@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env -S uv run --with htmlgraph
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
@@ -283,11 +283,11 @@ def get_parent_query_event_id() -> str | None:
         Event ID string, or None if not found or database unavailable
     """
     try:
+        from htmlgraph.config import get_database_path
         from htmlgraph.db.schema import HtmlGraphDB
 
         # Get correct database path from project root
-        project_root = os.environ.get("HTMLGRAPH_PROJECT_ROOT", os.getcwd())
-        db_path = Path(project_root) / ".htmlgraph" / "index.sqlite"
+        db_path = get_database_path()
 
         if not db_path.exists():
             logger.debug(f"Database not found at {db_path}")
@@ -429,6 +429,22 @@ def route_to_spawner(
                 env["HTMLGRAPH_MODEL"] = detected_model
                 logger.info(f"Passing model to spawner: {detected_model}")
 
+        # Set subagent context environment variables for correct event attribution
+        # This ensures track-event.py creates a subagent session instead of using parent's
+        env["HTMLGRAPH_SUBAGENT_TYPE"] = spawner_type
+        logger.info(f"Setting HTMLGRAPH_SUBAGENT_TYPE={spawner_type}")
+
+        # Pass parent session ID so subagent session can link back to it
+        parent_session_id = os.environ.get("HTMLGRAPH_PARENT_SESSION")
+        if parent_session_id:
+            env["HTMLGRAPH_PARENT_SESSION"] = parent_session_id
+            logger.info(f"Setting HTMLGRAPH_PARENT_SESSION={parent_session_id}")
+
+        # Pass parent agent for attribution
+        parent_agent = os.environ.get("HTMLGRAPH_AGENT", "claude-code")
+        env["HTMLGRAPH_PARENT_AGENT"] = parent_agent
+        logger.info(f"Setting HTMLGRAPH_PARENT_AGENT={parent_agent}")
+
         # Execute spawner agent
         result = subprocess.run(
             cmd,
@@ -451,6 +467,10 @@ def route_to_spawner(
 
         # Success - spawner executed
         logger.info(f"Spawner {spawner_type} executed successfully")
+
+        # Log stderr (debug output) even on success
+        if result.stderr:
+            logger.info(f"Spawner stderr output:\n{result.stderr}")
 
         # Parse spawner output for response
         try:

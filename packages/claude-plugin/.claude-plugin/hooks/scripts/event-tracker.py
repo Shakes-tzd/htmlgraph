@@ -639,7 +639,9 @@ def track_event(hook_type: str, hook_input: dict) -> dict:
     # Initialize SQLite database for event recording
     db = None
     try:
-        db = HtmlGraphDB(str(graph_dir / "index.sqlite"))
+        from htmlgraph.config import get_database_path
+
+        db = HtmlGraphDB(str(get_database_path()))
     except Exception as e:
         print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
         # Continue without SQLite (graceful degradation)

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env -S uv run --with htmlgraph
 """
 HtmlGraph Event Tracker - Thin Shell Wrapper
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run
+#!/usr/bin/env -S uv run --with htmlgraph
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
@@ -422,9 +422,10 @@ def main() -> None:
     transcript_path = hook_input.get("transcript_path")
     cwd = hook_input.get("cwd")
 
+    from htmlgraph.config import get_database_path
+
     project_dir = _resolve_project_dir(cwd if cwd else None)
-    graph_dir = Path(project_dir) / ".htmlgraph"
-    db_path = str(graph_dir / "index.sqlite")
+    db_path = str(get_database_path(project_dir))
 
     # Initialize database
     try:
