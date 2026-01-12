@@ -295,9 +295,13 @@ class TestDetectAgentFromEnvironment:
         with mock.patch.dict(
             os.environ, {"HTMLGRAPH_SUBAGENT_TYPE": "researcher"}, clear=True
         ):
-            agent_id, model = detect_agent_from_environment()
-            assert agent_id == "researcher"
-            assert model is None
+            with mock.patch(
+                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                return_value=None,
+            ):
+                agent_id, model = detect_agent_from_environment()
+                assert agent_id == "researcher"
+                assert model is None
 
     def test_detect_claude_model(self):
         """Test detection with CLAUDE_MODEL env var returns model separately."""
@@ -323,16 +327,24 @@ class TestDetectAgentFromEnvironment:
         """Test detection with HTMLGRAPH_PARENT_AGENT env var."""
         env = {"HTMLGRAPH_PARENT_AGENT": "parent-agent"}
         with mock.patch.dict(os.environ, env, clear=True):
-            agent_id, model = detect_agent_from_environment()
-            assert agent_id == "parent-agent"
-            assert model is None
+            with mock.patch(
+                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                return_value=None,
+            ):
+                agent_id, model = detect_agent_from_environment()
+                assert agent_id == "parent-agent"
+                assert model is None
 
     def test_detect_fallback_to_claude_code(self):
         """Test fallback to 'claude-code' when no env vars set."""
         with mock.patch.dict(os.environ, {}, clear=True):
-            agent_id, model = detect_agent_from_environment()
-            assert agent_id == "claude-code"
-            assert model is None
+            with mock.patch(
+                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                return_value=None,
+            ):
+                agent_id, model = detect_agent_from_environment()
+                assert agent_id == "claude-code"
+                assert model is None
 
     def test_detect_priority_order(self):
         """Test environment variable priority order."""

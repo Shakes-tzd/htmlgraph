@@ -773,6 +773,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     # NOTE: Claude Code passes the SAME session_id to parent and subagent, so we CAN'T use
     # session_id to distinguish them. Instead, look for the most recent task_delegation event
     # and if found with status='started', we ARE the subagent.
+    task_event_id_from_db = None  # Track this for later use as parent_event_id
     if not subagent_type and db and db.connection:
         try:
             cursor = db.connection.cursor()
@@ -795,6 +796,9 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 # (Claude Code uses the same session_id for both parent and subagent)
                 subagent_type = detected_subagent_type or "general-purpose"
                 parent_session_id = parent_sess
+                task_event_id_from_db = (
+                    task_event_id  # Store for later use as parent_event_id
+                )
                 print(
                     f"DEBUG subagent detection (database): Detected active task_delegation "
                     f"type={subagent_type}, parent_session={parent_session_id}, "
@@ -1039,6 +1043,10 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         )
         if env_parent:
             parent_activity_id = env_parent
+        # If we detected a Task delegation event via database detection (Method 3),
+        # use that as the parent for all tool calls within the subagent
+        elif task_event_id_from_db:
+            parent_activity_id = task_event_id_from_db
         # Query database for most recent UserQuery event as parent
         # Database is the single source of truth for parent-child linking
         elif db:
