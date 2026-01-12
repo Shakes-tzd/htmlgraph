@@ -1339,5 +1339,102 @@ class TestIntegration:
         assert queue["activities"] == []
 
 
+class TestSubagentSessionPersistence:
+    """Test cases for subagent session persistence across multiple tool calls."""
+
+    def test_multiple_tool_calls_maintain_parent_linking(self, tmp_path):
+        """Test that multiple tool calls within same subagent session maintain parent_event_id."""
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        db_path = tmp_path / "htmlgraph.db"
+        db = HtmlGraphDB(str(db_path))
+        db.connect()
+
+        # Setup
+        parent_session_id = "sess-parent-123"
+        subagent_session_id = "sess-subagent-456"
+        task_delegation_event_id = "evt-task-001"
+
+        db.insert_session(
+            session_id=parent_session_id,
+            agent_assigned="claude-code",
+            is_subagent=False,
+        )
+
+        # Create task_delegation event (parent)
+        cursor = db.connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO agent_events
+            (event_id, agent_id, event_type, timestamp, tool_name,
+             input_summary, session_id, status, subagent_type)
+            VALUES (?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)
+            """,
+            (
+                task_delegation_event_id,
+                "claude-code",
+                "task_delegation",
+                "Task",
+                "Test task",
+                parent_session_id,
+                "started",
+                "general-purpose",
+            ),
+        )
+        db.connection.commit()
+
+        # Create subagent session with parent_event_id
+        db.insert_session(
+            session_id=subagent_session_id,
+            agent_assigned="general-purpose-spawner",
+            is_subagent=True,
+            parent_session_id=parent_session_id,
+            parent_event_id=task_delegation_event_id,
+        )
+
+        # Insert multiple tool calls in subagent
+        tool_calls = [
+            ("TodoWrite", "Write todos"),
+            ("Read", "Read file"),
+            ("Bash", "Run bash command"),
+        ]
+
+        for tool_name, summary in tool_calls:
+            cursor.execute(
+                """
+                INSERT INTO agent_events
+                (event_id, agent_id, event_type, timestamp, tool_name,
+                 input_summary, session_id, status, parent_event_id)
+                VALUES (?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)
+                """,
+                (
+                    f"evt-{tool_name.lower()}",
+                    "general-purpose-spawner",
+                    "tool_call",
+                    tool_name,
+                    summary,
+                    subagent_session_id,
+                    "completed",
+                    task_delegation_event_id,
+                ),
+            )
+        db.connection.commit()
+
+        # Verify all events have correct parent_event_id
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM agent_events
+            WHERE session_id = ? AND parent_event_id = ? AND event_type = 'tool_call'
+            """,
+            (subagent_session_id, task_delegation_event_id),
+        )
+        count = cursor.fetchone()[0]
+        assert count == 3, (
+            f"Expected 3 events with correct parent_event_id, got {count}"
+        )
+
+        db.disconnect()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

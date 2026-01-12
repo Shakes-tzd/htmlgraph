@@ -714,11 +714,58 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
 
     active_session = None
 
-    # Check if we're in a subagent context (environment variables set by spawner router)
-    # This MUST be checked BEFORE using get_active_session() to avoid attributing
-    # subagent events to the parent orchestrator session
-    subagent_type = os.environ.get("HTMLGRAPH_SUBAGENT_TYPE")
-    parent_session_id = os.environ.get("HTMLGRAPH_PARENT_SESSION")
+    # Check if we're in a subagent context using multiple methods:
+    #
+    # PRECEDENCE ORDER:
+    # 1. Sessions table - if THIS session is already marked as subagent, use stored parent info
+    #    (fixes persistence issue for subsequent tool calls in same subagent)
+    # 2. Environment variables - set by spawner router for first tool call
+    # 3. Fallback to normal orchestrator context
+    #
+    # Method 1: Check if current session is already a subagent (CRITICAL for persistence!)
+    # This fixes the issue where subsequent tool calls in the same subagent session
+    # lose the parent_event_id linkage.
+    subagent_type = None
+    parent_session_id = None
+    hook_session_id = hook_input.get("session_id") or hook_input.get("sessionId")
+
+    if db and db.connection and hook_session_id:
+        try:
+            cursor = db.connection.cursor()
+            cursor.execute(
+                """
+                SELECT parent_session_id, agent_assigned
+                FROM sessions
+                WHERE session_id = ? AND is_subagent = 1
+                LIMIT 1
+                """,
+                (hook_session_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                parent_session_id = row[0]
+                # Extract subagent_type from agent_assigned (e.g., "general-purpose-spawner" -> "general-purpose")
+                agent_assigned = row[1] or ""
+                if agent_assigned and agent_assigned.endswith("-spawner"):
+                    subagent_type = agent_assigned[:-8]  # Remove "-spawner" suffix
+                else:
+                    subagent_type = "general-purpose"  # Default if format unexpected
+
+                print(
+                    f"DEBUG subagent persistence: Found current session as subagent in sessions table: "
+                    f"type={subagent_type}, parent_session={parent_session_id}",
+                    file=sys.stderr,
+                )
+        except Exception as e:
+            print(
+                f"DEBUG: Error checking sessions table for subagent: {e}",
+                file=sys.stderr,
+            )
+
+    # Method 2: Environment variables (for first tool call before session table is populated)
+    if not subagent_type:
+        subagent_type = os.environ.get("HTMLGRAPH_SUBAGENT_TYPE")
+        parent_session_id = os.environ.get("HTMLGRAPH_PARENT_SESSION")
 
     if subagent_type and parent_session_id:
         # We're in a subagent - create or get subagent session
@@ -761,7 +808,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         # Normal orchestrator/parent context
         # CRITICAL: Use session_id from hook_input (Claude Code provides this)
         # Only fall back to manager.get_active_session() if not in hook_input
-        hook_session_id = hook_input.get("session_id") or hook_input.get("sessionId")
+        # hook_session_id already defined at line 730
 
         if hook_session_id:
             # Claude Code provided session_id - use it directly
