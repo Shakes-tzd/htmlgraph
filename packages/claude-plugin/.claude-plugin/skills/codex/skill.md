@@ -11,6 +11,12 @@ skill_type: executable
 
 # Codex - Sandboxed Code Generation
 
+⚠️ **IMPORTANT: This skill is DOCUMENTATION/COORDINATION ONLY - it does NOT directly execute code generation.**
+
+This skill provides embedded Python code that checks for the external Codex CLI and executes it if available. If the CLI is not installed, it shows you HOW to use Task() delegation for code generation work.
+
+**The embedded Python code is for INTERNAL coordination - not the primary execution path for users.**
+
 <python>
 import subprocess
 import sys
@@ -73,6 +79,60 @@ except Exception as e:
 </python>
 
 Use OpenAI Codex (GPT-4 Turbo) for code generation and implementation in sandboxed environments.
+
+## Skill vs Execution Model
+
+**CRITICAL DISTINCTION:**
+
+| What | Description |
+|------|-------------|
+| **This Skill** | Documentation + embedded coordination logic |
+| **Embedded Python** | Internal check for codex CLI → spawns if available |
+| **Task() Tool** | PRIMARY execution path for code generation |
+| **Bash Tool** | ALTERNATIVE for direct CLI invocation (if you have codex CLI) |
+
+**Workflow:**
+1. Read this skill to understand Codex capabilities
+2. Use **Task(subagent_type="general-purpose")** for actual code generation (PRIMARY)
+3. OR use **Bash** if you have codex CLI installed (ALTERNATIVE)
+
+## EXECUTION - Real Commands for Code Generation
+
+**⚠️ To actually generate code, use these approaches:**
+
+### PRIMARY: Task() Delegation (Recommended)
+```python
+# Use Claude for code generation (native approach)
+Task(
+    subagent_type="general-purpose",
+    prompt="Generate API endpoint for user authentication with JWT tokens and full tests"
+)
+
+# For complex implementations
+Task(
+    subagent_type="general-purpose",
+    model="sonnet",  # or "opus" for complex work
+    prompt="Refactor authentication system to support multi-tenancy across 15+ files"
+)
+```
+
+### ALTERNATIVE: Direct CLI (if codex CLI installed)
+```bash
+# If you have codex CLI installed on your system
+Bash("codex generate 'Create FastAPI endpoint with authentication'")
+
+# Or use the SDK spawner
+uv run python -c "
+from htmlgraph.orchestration.headless_spawner import HeadlessSpawner
+spawner = HeadlessSpawner()
+result = spawner.spawn_codex(
+    prompt='Generate auth endpoint',
+    sandbox='workspace-write',
+    track_in_htmlgraph=True
+)
+print(result.response)
+"
+```
 
 ## When to Use
 

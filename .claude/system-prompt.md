@@ -102,6 +102,93 @@ Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy
 | Lint | `uv run ruff check --fix` |
 | Deploy | `./scripts/deploy-all.sh VERSION --no-confirm` |
 
+## Skill Execution Model
+
+**CRITICAL: Skills are DOCUMENTATION layers, not execution tools.**
+
+Skills teach HOW to use external CLIs and tools. They do NOT execute operations directly.
+
+### The Three-Layer Model
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Layer 1: Skills (Documentation)                    │
+│ → Skill(skill=".claude-plugin:copilot")            │
+│ → Loads gh CLI documentation and examples          │
+│ → Shows WHAT commands exist and HOW to use them    │
+│ → Does NOT execute any commands                    │
+├─────────────────────────────────────────────────────┤
+│ Layer 2: Bash Tool (Direct Execution)              │
+│ → Bash("gh pr create --title 'X' --body 'Y'")      │
+│ → ACTUALLY executes gh CLI commands                │
+│ → Direct, immediate execution                      │
+│ → Use for simple CLI operations                    │
+├─────────────────────────────────────────────────────┤
+│ Layer 3: Task Tool (Delegation)                    │
+│ → Task(prompt="Create PR for feature X")           │
+│ → Delegates to subagent who reads docs & executes  │
+│ → Use for complex multi-step operations            │
+│ → Subagent uses Bash internally                    │
+└─────────────────────────────────────────────────────┘
+```
+
+### Example Workflow: Creating a GitHub PR
+
+**❌ WRONG (Skill doesn't execute):**
+```python
+Skill(skill=".claude-plugin:copilot", args="Create PR")
+# Result: Shows documentation, no PR created
+```
+
+**✅ CORRECT (Read docs, then execute):**
+```python
+# Step 1: Read skill to learn gh CLI syntax (optional if you know it)
+Skill(skill=".claude-plugin:copilot")
+
+# Step 2: Execute via Bash tool
+Bash("gh pr create --title 'Add feature' --body 'Description'")
+```
+
+**✅ ALSO CORRECT (Direct execution if you know the syntax):**
+```python
+Bash("gh pr create --title 'Add feature' --body 'Description'")
+```
+
+**✅ ALSO CORRECT (Delegate to subagent):**
+```python
+Task(prompt="Create GitHub PR for authentication feature")
+```
+
+### When to Use Each Layer
+
+**Use Skills when:**
+- Learning CLI syntax and options
+- Discovering available commands
+- Seeing example workflows
+- Reference documentation
+
+**Use Bash when:**
+- You know the exact command to run
+- Simple, direct CLI operations
+- GitHub operations (gh CLI)
+- Build/deploy commands
+
+**Use Task when:**
+- Complex multi-step operations
+- Exploration and research work
+- Code generation and implementation
+- When you don't know exact commands
+
+### Skills with "EXECUTION" Sections
+
+Each skill now includes an "EXECUTION" section showing real commands:
+
+- **Copilot skill**: Shows gh CLI commands for Bash
+- **Gemini skill**: Shows Task() delegation patterns
+- **Codex skill**: Shows Task() delegation patterns
+
+**Always read the EXECUTION section to see HOW to actually perform the operation.**
+
 ## Key Rules
 1. Always Read before Write/Edit/Update
 2. Use absolute paths only
@@ -109,3 +196,4 @@ Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy
 4. Batch tool calls when independent
 5. Fix all errors before committing
 6. Research first, then implement (debugging workflow)
+7. Skills are documentation - use Bash or Task for execution

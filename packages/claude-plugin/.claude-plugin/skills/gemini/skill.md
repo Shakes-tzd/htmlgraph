@@ -11,6 +11,12 @@ skill_type: executable
 
 # Gemini - Exploration & Research
 
+⚠️ **IMPORTANT: This skill is DOCUMENTATION/COORDINATION ONLY - it does NOT directly execute exploration.**
+
+This skill provides embedded Python code that checks for the external Gemini CLI and executes it if available. If the CLI is not installed, it shows you HOW to use Task() delegation for exploration work.
+
+**The embedded Python code is for INTERNAL coordination - not the primary execution path for users.**
+
 <python>
 import subprocess
 import sys
@@ -71,6 +77,58 @@ except Exception as e:
 </python>
 
 Use Google Gemini 2.0-Flash for exploration and research tasks via the HeadlessSpawner SDK.
+
+## Skill vs Execution Model
+
+**CRITICAL DISTINCTION:**
+
+| What | Description |
+|------|-------------|
+| **This Skill** | Documentation + embedded coordination logic |
+| **Embedded Python** | Internal check for gemini CLI → spawns if available |
+| **Task() Tool** | PRIMARY execution path for exploration work |
+| **Bash Tool** | ALTERNATIVE for direct CLI invocation (if you have gemini CLI) |
+
+**Workflow:**
+1. Read this skill to understand Gemini capabilities
+2. Use **Task(subagent_type="Explore")** for actual exploration (PRIMARY)
+3. OR use **Bash** if you have gemini CLI installed (ALTERNATIVE)
+
+## EXECUTION - Real Commands for Exploration
+
+**⚠️ To actually perform exploration, use these approaches:**
+
+### PRIMARY: Task() Delegation (Recommended)
+```python
+# Use Claude's Explore agent (automatically uses appropriate model)
+Task(
+    subagent_type="Explore",
+    prompt="Analyze all authentication patterns in the codebase and document findings"
+)
+
+# For large-context research
+Task(
+    subagent_type="Explore",
+    prompt="Review entire API documentation and extract deprecated endpoints"
+)
+```
+
+### ALTERNATIVE: Direct CLI (if gemini CLI installed)
+```bash
+# If you have gemini CLI installed on your system
+Bash("gemini analyze 'Find all authentication patterns'")
+
+# Or use the SDK spawner
+uv run python -c "
+from htmlgraph.orchestration.headless_spawner import HeadlessSpawner
+spawner = HeadlessSpawner()
+result = spawner.spawn_gemini(
+    prompt='Analyze auth patterns',
+    track_in_htmlgraph=True
+)
+print(result.response)
+"
+```
 
 ## When to Use
 
