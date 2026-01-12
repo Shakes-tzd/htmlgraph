@@ -53,8 +53,8 @@ from htmlgraph.orchestration import HeadlessSpawner
 spawner = HeadlessSpawner()
 result = spawner.spawn_gemini(
     prompt="Search codebase for all auth patterns",
-    include_directories=["src/", "tests/"],
-    model="gemini-2.0-flash"  # FREE tier
+    include_directories=["src/", "tests/"]
+    # model=None (default) - uses latest Gemini models (Gemini 3 preview)
 )
 ```
 

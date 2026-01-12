@@ -198,10 +198,9 @@ result = spawner.spawn_claude(
     approval="auto"
 )
 
-# Spawn Gemini
+# Spawn Gemini (model=None uses latest models including Gemini 3 preview)
 result = spawner.spawn_gemini(
-    prompt="Analyze performance",
-    model="gemini-2.0-flash"
+    prompt="Analyze performance"
 )
 
 # Spawn Codex

@@ -32,8 +32,8 @@ result = spawner.spawn_claude(
 )
 
 result = spawner.spawn_gemini(
-    prompt="Analyze codebase for performance issues",
-    model="gemini-2.0-flash"
+    prompt="Analyze codebase for performance issues"
+    # model=None (default) - uses latest Gemini models including Gemini 3 preview
 )
 
 result = spawner.spawn_codex(
@@ -88,7 +88,7 @@ else:
 ```python
 result = spawner.spawn_gemini(
     prompt="Analyze this code for security issues",
-    model="gemini-2.0-flash",     # Latest Gemini model
+    # model=None (default) - RECOMMENDED: uses latest Gemini models
     temperature=0.7,               # Creativity (0-1)
     output_json=False
 )
@@ -99,10 +99,17 @@ else:
     print(f"Error: {result.error}")
 ```
 
-**Gemini Models:**
-- `gemini-2.0-flash` - Latest, fastest
-- `gemini-1.5-pro` - More capable
-- `gemini-1.5-flash` - Faster, cheaper
+**Gemini Model Selection:**
+- `None` (default) - **RECOMMENDED**: CLI chooses best available model (gemini-2.5-flash-lite, gemini-3-flash-preview)
+- Explicit model specification is DISCOURAGED - older models may fail with newer CLI versions
+
+**Available models (if you must specify):**
+- `gemini-2.5-flash-lite` - Fast, efficient
+- `gemini-3-flash-preview` - Gemini 3 with enhanced capabilities
+- `gemini-2.5-pro` - More capable, slower
+
+**DEPRECATED models (may cause errors):**
+- `gemini-2.0-flash`, `gemini-1.5-pro`, `gemini-1.5-flash` - Use `None` instead
 
 ---
 
@@ -174,8 +181,8 @@ if model == "gpt-4-turbo":
     result = spawner.spawn_codex(prompt="...", model=model)
 elif model == "claude-opus":
     result = spawner.spawn_claude(prompt="...", model=model)
-elif model == "gemini-2.0-flash":
-    result = spawner.spawn_gemini(prompt="...", model=model)
+elif model.startswith("gemini"):
+    result = spawner.spawn_gemini(prompt="...")  # model=None recommended
 ```
 
 **Task Types:**
@@ -427,8 +434,8 @@ Decompose complex tasks into subtasks:
 ```python
 # Step 1: Analysis (cheap/fast)
 analysis_result = spawner.spawn_gemini(
-    prompt="Analyze the codebase structure",
-    model="gemini-2.0-flash"
+    prompt="Analyze the codebase structure"
+    # model=None - uses latest Gemini models (Gemini 3 preview)
 )
 
 # Step 2: Design (more capable)
@@ -559,8 +566,8 @@ def get_consensus(prompt, num_agents=3):
         prompt=prompt, model="claude-opus"
     )))
 
-    results.append(("gemini-2.0-flash", spawner.spawn_gemini(
-        prompt=prompt, model="gemini-2.0-flash"
+    results.append(("gemini", spawner.spawn_gemini(
+        prompt=prompt  # model=None uses latest Gemini models
     )))
 
     results.append(("gpt-4-turbo", spawner.spawn_codex(

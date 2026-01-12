@@ -13,7 +13,34 @@ if TYPE_CHECKING:
 
 
 class GeminiSpawner(BaseSpawner):
-    """Spawner for Google Gemini CLI."""
+    """Spawner for Google Gemini CLI.
+
+    Model Selection:
+        The `model` parameter defaults to None, which is the RECOMMENDED approach.
+        When model=None, the Gemini CLI automatically selects the best available model
+        based on the task and current availability.
+
+        As of Gemini CLI v0.22+, the default models include:
+        - gemini-2.5-flash-lite: Fast, efficient model for most tasks
+        - gemini-3-flash-preview: Preview of Gemini 3 with enhanced capabilities
+
+        Explicitly specifying a model is DISCOURAGED because:
+        1. Older models (gemini-2.0-flash, gemini-1.5-flash) may fail due to
+           "thinking mode" incompatibility in newer CLI versions
+        2. Using None automatically benefits from Google's model updates
+        3. The CLI handles model selection and fallback logic
+
+        Supported models (if you must specify):
+        - None (recommended): CLI chooses best available model
+        - "gemini-2.5-flash-lite": Fast, efficient
+        - "gemini-3-flash-preview": Gemini 3 preview (enhanced capabilities)
+        - "gemini-2.5-pro": More capable, slower
+
+        DEPRECATED models (may cause errors):
+        - "gemini-2.0-flash": Deprecated, use None instead
+        - "gemini-1.5-flash": Deprecated, use None instead
+        - "gemini-1.5-pro": Deprecated, use None instead
+    """
 
     def _parse_and_track_events(self, jsonl_output: str, sdk: "SDK") -> list[dict]:
         """
@@ -111,7 +138,21 @@ class GeminiSpawner(BaseSpawner):
         Args:
             prompt: Task description for Gemini
             output_format: "json" or "stream-json" (enables real-time tracking)
-            model: Model selection (e.g., "gemini-2.0-flash"). Default: None
+            model: Model selection. Default: None (RECOMMENDED).
+
+                   When model=None (default), the Gemini CLI automatically selects
+                   the best available model, which includes:
+                   - gemini-2.5-flash-lite: Fast, efficient model
+                   - gemini-3-flash-preview: Gemini 3 with enhanced capabilities
+
+                   Using None is STRONGLY RECOMMENDED because:
+                   1. Automatically benefits from Google's latest models
+                   2. Avoids deprecation issues with older model names
+                   3. CLI handles optimal model selection and fallback
+
+                   DEPRECATED models (may cause errors with CLI v0.22+):
+                   - gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro
+
             include_directories: Directories to include for context. Default: None
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
@@ -120,6 +161,14 @@ class GeminiSpawner(BaseSpawner):
 
         Returns:
             AIResult with response, error, and tracked events if tracking enabled
+
+        Example:
+            >>> spawner = GeminiSpawner()
+            >>> result = spawner.spawn(
+            ...     prompt="Analyze this codebase",
+            ...     # model=None is the default - uses latest Gemini models
+            ...     track_in_htmlgraph=True
+            ... )
         """
         # Initialize tracking if enabled
         sdk: SDK | None = None
@@ -185,7 +234,7 @@ class GeminiSpawner(BaseSpawner):
                         tool_name="subprocess.gemini",
                         tool_input={"cmd": cmd},
                         phase_event_id=parent_event_id,
-                        spawned_agent="gemini-2.0-flash",
+                        spawned_agent=model or "gemini-default",
                     )
                     if subprocess_event:
                         subprocess_event_id = subprocess_event.get("event_id")

@@ -138,7 +138,7 @@ tracker.db = db
 spawner = GeminiSpawner()
 result = spawner.spawn(
     prompt="Analyze the refactored spawner architecture for quality",
-    model="gemini-2.0-flash",
+    # model=None is RECOMMENDED - uses latest Gemini models (including Gemini 3 preview)
     output_format="stream-json",
     track_in_htmlgraph=True,      # Enable SDK activity tracking
     tracker=tracker,               # Enable subprocess event tracking
@@ -158,12 +158,17 @@ if result.tracked_events:
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `prompt` | str | ✅ | Research/analysis task for Gemini |
-| `model` | str | ❌ | Gemini model to use (default: "gemini-2.0-flash") |
+| `model` | str \| None | ❌ | Model selection (default: None = RECOMMENDED, uses latest models including Gemini 3 preview) |
 | `output_format` | str | ❌ | "json" or "stream-json" (default: "stream-json") |
 | `track_in_htmlgraph` | bool | ❌ | Enable SDK activity tracking (default: True) |
 | `tracker` | SpawnerEventTracker | ❌ | Tracker instance for subprocess events |
 | `parent_event_id` | str | ❌ | Parent event ID for event hierarchy |
 | `timeout` | int | ❌ | Max seconds to wait (default: 120) |
+
+**Model Selection Note:**
+- `model=None` (default): **RECOMMENDED** - CLI chooses best available model (gemini-2.5-flash-lite, gemini-3-flash-preview)
+- Explicitly setting a model is discouraged as older models may fail with newer CLI versions
+- DEPRECATED: `gemini-2.0-flash`, `gemini-1.5-flash` (may cause "thinking mode" errors)
 
 ### Real Example: Code Quality Analysis
 
@@ -185,7 +190,7 @@ Please evaluate:
 3. Error handling patterns
 4. Event tracking integration
     """,
-    model="gemini-2.0-flash",
+    # model=None uses latest Gemini models (Gemini 3 preview)
     output_format="stream-json",
     track_in_htmlgraph=True,
     tracker=tracker,
@@ -207,7 +212,7 @@ try:
     spawner = GeminiSpawner()
     result = spawner.spawn(
         prompt="Your analysis task",
-        model="gemini-2.0-flash",
+        # model=None (default) - uses latest Gemini models
         track_in_htmlgraph=True,
         tracker=tracker,
         parent_event_id=parent_event_id,
@@ -307,7 +312,7 @@ except Exception as e:
     sys.exit(1)
 </python>
 
-Use Google Gemini 2.0-Flash for exploration and research tasks via the HeadlessSpawner SDK.
+Use Google Gemini (latest models including Gemini 3 preview) for exploration and research tasks via the GeminiSpawner SDK.
 
 ## Skill vs Execution Model
 

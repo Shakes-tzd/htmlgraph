@@ -99,7 +99,8 @@ class HeadlessSpawner:
         Args:
             prompt: Task description for Gemini
             output_format: "json" or "stream-json" (enables real-time tracking)
-            model: Model selection (e.g., "gemini-2.0-flash"). Default: None
+            model: Model selection. Default: None (recommended - lets CLI choose
+                   thinking-compatible models). Older models may fail.
             include_directories: Directories to include for context. Default: None
             track_in_htmlgraph: Enable HtmlGraph activity tracking. Default: True
             timeout: Max seconds to wait
