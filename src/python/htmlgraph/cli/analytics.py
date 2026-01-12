@@ -1,0 +1,939 @@
+"""HtmlGraph CLI - Analytics and reporting commands.
+
+Commands for analytics and reporting:
+- analytics: Project-wide analytics
+- cigs: Cost dashboard and attribution
+- transcripts: Transcript management
+- sync-docs: Documentation synchronization
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import webbrowser
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, Field
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+from htmlgraph.cli.base import BaseCommand, CommandError, CommandResult
+from htmlgraph.cli.constants import DEFAULT_GRAPH_DIR
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
+
+console = Console()
+
+
+# ============================================================================
+# Command Registration
+# ============================================================================
+
+
+def register_commands(subparsers: _SubParsersAction) -> None:
+    """Register analytics and reporting commands with the argument parser.
+
+    Args:
+        subparsers: Subparser action from ArgumentParser.add_subparsers()
+    """
+    # Analytics command
+    analytics_parser = subparsers.add_parser(
+        "analytics", help="Project-wide analytics and insights"
+    )
+    analytics_parser.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    analytics_parser.add_argument("--session-id", help="Analyze specific session")
+    analytics_parser.add_argument(
+        "--recent", type=int, metavar="N", help="Analyze recent N sessions"
+    )
+    analytics_parser.add_argument(
+        "--agent", default="cli", help="Agent name for SDK initialization"
+    )
+    analytics_parser.add_argument(
+        "--quiet", "-q", action="store_true", help="Suppress progress indicators"
+    )
+    analytics_parser.set_defaults(func=AnalyticsCommand.from_args)
+
+    # CIGS commands
+    _register_cigs_commands(subparsers)
+
+    # Transcript commands
+    _register_transcript_commands(subparsers)
+
+    # Sync docs command
+    _register_sync_docs_command(subparsers)
+
+
+def _register_cigs_commands(subparsers: _SubParsersAction) -> None:
+    """Register CIGS (Cost Intelligence & Governance System) commands."""
+    cigs_parser = subparsers.add_parser("cigs", help="Cost dashboard and attribution")
+    cigs_subparsers = cigs_parser.add_subparsers(
+        dest="cigs_command", help="CIGS command"
+    )
+
+    # cigs cost-dashboard
+    cost_dashboard = cigs_subparsers.add_parser(
+        "cost-dashboard", help="Display cost summary dashboard"
+    )
+    cost_dashboard.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    cost_dashboard.add_argument(
+        "--save", action="store_true", help="Save to .htmlgraph/cost-dashboard.html"
+    )
+    cost_dashboard.add_argument(
+        "--open", action="store_true", help="Open in browser after generation"
+    )
+    cost_dashboard.add_argument(
+        "--json", action="store_true", help="Output JSON instead of HTML"
+    )
+    cost_dashboard.add_argument("--output", help="Custom output path")
+    cost_dashboard.set_defaults(func=CostDashboardCommand.from_args)
+
+    # cigs status
+    cigs_status = cigs_subparsers.add_parser("status", help="Show CIGS status")
+    cigs_status.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    cigs_status.set_defaults(func=CigsStatusCommand.from_args)
+
+    # cigs summary
+    cigs_summary = cigs_subparsers.add_parser("summary", help="Show cost summary")
+    cigs_summary.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    cigs_summary.add_argument("--session-id", help="Specific session ID")
+    cigs_summary.set_defaults(func=CigsSummaryCommand.from_args)
+
+
+def _register_transcript_commands(subparsers: _SubParsersAction) -> None:
+    """Register transcript management commands."""
+    transcript_parser = subparsers.add_parser(
+        "transcript", help="Transcript management"
+    )
+    transcript_subparsers = transcript_parser.add_subparsers(
+        dest="transcript_command", help="Transcript command"
+    )
+
+    # transcript list
+    transcript_list = transcript_subparsers.add_parser("list", help="List transcripts")
+    transcript_list.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    transcript_list.add_argument("--format", choices=["text", "json"], default="text")
+    transcript_list.add_argument("--limit", type=int, default=20)
+    transcript_list.add_argument("--project", help="Filter by project path")
+    transcript_list.set_defaults(func=TranscriptListCommand.from_args)
+
+    # transcript import
+    transcript_import = transcript_subparsers.add_parser(
+        "import", help="Import transcript"
+    )
+    transcript_import.add_argument("session_id", help="Transcript session ID to import")
+    transcript_import.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    transcript_import.add_argument("--to-session", help="Target HtmlGraph session ID")
+    transcript_import.add_argument("--agent", default="claude-code", help="Agent name")
+    transcript_import.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing events"
+    )
+    transcript_import.add_argument("--link-feature", help="Link to feature ID")
+    transcript_import.add_argument("--format", choices=["text", "json"], default="text")
+    transcript_import.set_defaults(func=TranscriptImportCommand.from_args)
+
+
+def _register_sync_docs_command(subparsers: _SubParsersAction) -> None:
+    """Register documentation synchronization command."""
+    sync_docs = subparsers.add_parser(
+        "sync-docs", help="Synchronize AI agent memory files"
+    )
+    sync_docs.add_argument(
+        "--project-root", help="Project root directory (default: current directory)"
+    )
+    sync_docs.add_argument(
+        "--check", action="store_true", help="Check synchronization status"
+    )
+    sync_docs.add_argument(
+        "--generate",
+        choices=["claude", "gemini"],
+        help="Generate specific platform file",
+    )
+    sync_docs.add_argument(
+        "--force", action="store_true", help="Force overwrite existing files"
+    )
+    sync_docs.set_defaults(func=SyncDocsCommand.from_args)
+
+
+# ============================================================================
+# Pydantic Models for Cost Analytics
+# ============================================================================
+
+
+class ToolCostData(BaseModel):
+    """Cost data for a specific tool."""
+
+    count: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
+
+
+class CategoryCostData(BaseModel):
+    """Cost data for a category (delegation/direct)."""
+
+    count: int = Field(ge=0)
+    total_tokens: int = Field(ge=0)
+
+
+class CostSummary(BaseModel):
+    """Complete cost analysis summary."""
+
+    total_cost_tokens: int = Field(ge=0)
+    total_events: int = Field(ge=0)
+    tool_costs: dict[str, ToolCostData] = Field(default_factory=dict)
+    session_costs: dict[str, ToolCostData] = Field(default_factory=dict)
+    delegation_count: int = Field(ge=0)
+    direct_execution_count: int = Field(ge=0)
+    cost_by_category: dict[str, CategoryCostData] = Field(default_factory=dict)
+
+    @property
+    def avg_cost_per_event(self) -> float:
+        """Average token cost per event."""
+        return (
+            self.total_cost_tokens / self.total_events if self.total_events > 0 else 0
+        )
+
+    @property
+    def delegation_percentage(self) -> float:
+        """Percentage of events that were delegated."""
+        return (
+            self.delegation_count / self.total_events * 100
+            if self.total_events > 0
+            else 0
+        )
+
+    @property
+    def estimated_cost_usd(self) -> float:
+        """Estimated cost in USD (rough approximation)."""
+        return self.total_cost_tokens / 1_000_000 * 5
+
+
+# ============================================================================
+# Command Implementations
+# ============================================================================
+
+
+class AnalyticsCommand(BaseCommand):
+    """Project-wide analytics and insights."""
+
+    def __init__(
+        self, *, session_id: str | None, recent: int | None, agent: str, quiet: bool
+    ) -> None:
+        super().__init__()
+        self.session_id = session_id
+        self.recent = recent
+        self.agent = agent
+        self.quiet = quiet
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> AnalyticsCommand:
+        return cls(
+            session_id=getattr(args, "session_id", None),
+            recent=getattr(args, "recent", None),
+            agent=getattr(args, "agent", "cli"),
+            quiet=getattr(args, "quiet", False),
+        )
+
+    def execute(self) -> CommandResult:
+        """Execute analytics analysis using analytics/cli.py implementation."""
+        from htmlgraph.analytics.cli import cmd_analytics
+
+        args = argparse.Namespace(
+            graph_dir=self.graph_dir,
+            session_id=self.session_id,
+            recent=self.recent,
+            agent=self.agent,
+            quiet=self.quiet,
+        )
+        exit_code = cmd_analytics(args)
+        if exit_code != 0:
+            raise CommandError("Analytics command failed", exit_code=exit_code)
+        return CommandResult(text="Analytics complete")
+
+
+class CostDashboardCommand(BaseCommand):
+    """Display cost summary dashboard."""
+
+    def __init__(
+        self,
+        *,
+        save: bool,
+        open_browser: bool,
+        json_output: bool,
+        output_path: str | None,
+    ) -> None:
+        super().__init__()
+        self.save = save
+        self.open_browser = open_browser
+        self.json_output = json_output
+        self.output_path = output_path
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> CostDashboardCommand:
+        return cls(
+            save=args.save,
+            open_browser=getattr(args, "open", False),
+            json_output=getattr(args, "json", False),
+            output_path=getattr(args, "output", None),
+        )
+
+    def execute(self) -> CommandResult:
+        """Generate and display cost dashboard."""
+        if not self.graph_dir:
+            raise CommandError("Graph directory not specified")
+        graph_dir = Path(self.graph_dir)
+
+        # Get events from database
+        with console.status(
+            "[blue]Analyzing HtmlGraph events...[/blue]", spinner="dots"
+        ):
+            try:
+                from htmlgraph.operations.events import query_events
+
+                result = query_events(graph_dir=graph_dir, limit=None)
+                events = result.events if hasattr(result, "events") else []
+
+                if not events:
+                    console.print(
+                        "[yellow]No events found. Run some work to generate analytics![/yellow]"
+                    )
+                    return CommandResult(text="No events to analyze")
+
+                # Calculate costs
+                cost_summary = self._analyze_event_costs(events)
+
+            except Exception as e:
+                console.print(f"[red]Error analyzing events: {e}[/red]")
+                raise CommandError(f"Failed to analyze events: {e}")
+
+        # Generate output
+        if self.json_output:
+            self._output_json(cost_summary)
+        else:
+            if self.save or self.output_path:
+                html_file = self._save_html_dashboard(cost_summary, graph_dir)
+                if self.open_browser:
+                    webbrowser.open(f"file://{html_file.absolute()}")
+                    console.print("[blue]Opening dashboard in browser...[/blue]")
+            else:
+                self._display_console_summary(cost_summary)
+
+        # Print recommendations
+        self._print_recommendations(cost_summary)
+
+        return CommandResult(text="Cost dashboard generated")
+
+    def _analyze_event_costs(self, events: list[dict]) -> CostSummary:
+        """Analyze events and calculate cost attribution."""
+        summary = CostSummary(
+            total_events=len(events),
+            total_cost_tokens=0,
+            delegation_count=0,
+            direct_execution_count=0,
+        )
+
+        for event in events:
+            try:
+                tool = event.get("tool", "unknown")
+                session_id = event.get("session_id", "unknown")
+                cost = (
+                    event.get("predicted_tokens", 0)
+                    or event.get("actual_tokens", 0)
+                    or 2000
+                )
+
+                # Track by tool
+                if tool not in summary.tool_costs:
+                    summary.tool_costs[tool] = ToolCostData(count=0, total_tokens=0)
+                summary.tool_costs[tool].count += 1
+                summary.tool_costs[tool].total_tokens += cost
+
+                # Track by session
+                if session_id not in summary.session_costs:
+                    summary.session_costs[session_id] = ToolCostData(
+                        count=0, total_tokens=0
+                    )
+                summary.session_costs[session_id].count += 1
+                summary.session_costs[session_id].total_tokens += cost
+
+                # Track delegation vs direct
+                delegation_tools = [
+                    "Task",
+                    "spawn_gemini",
+                    "spawn_codex",
+                    "spawn_copilot",
+                ]
+                if tool in delegation_tools:
+                    summary.delegation_count += 1
+                    category = "delegation"
+                else:
+                    summary.direct_execution_count += 1
+                    category = "direct"
+
+                if category not in summary.cost_by_category:
+                    summary.cost_by_category[category] = CategoryCostData(
+                        count=0, total_tokens=0
+                    )
+                summary.cost_by_category[category].count += 1
+                summary.cost_by_category[category].total_tokens += cost
+
+                summary.total_cost_tokens += cost
+
+            except Exception:
+                continue
+
+        return summary
+
+    def _output_json(self, summary: CostSummary) -> None:
+        """Output cost data as JSON."""
+        output_file = (
+            Path(self.output_path) if self.output_path else Path("cost-summary.json")
+        )
+        output_file.write_text(summary.model_dump_json(indent=2))
+        console.print(f"[green]✓ JSON output saved to: {output_file}[/green]")
+
+    def _save_html_dashboard(self, summary: CostSummary, graph_dir: Path) -> Path:
+        """Save HTML dashboard to file."""
+        from htmlgraph.cli.templates.cost_dashboard import generate_html
+
+        html_content = generate_html(summary)
+        output_file = (
+            Path(self.output_path)
+            if self.output_path
+            else graph_dir / "cost-dashboard.html"
+        )
+        output_file.write_text(html_content)
+        console.print(f"[green]✓ Dashboard saved to: {output_file}[/green]")
+        return output_file
+
+    def _display_console_summary(self, summary: CostSummary) -> None:
+        """Display cost summary in console."""
+        from htmlgraph.cli.base import TableBuilder
+
+        console.print("\n[bold cyan]Cost Dashboard Summary[/bold cyan]\n")
+
+        # Summary table
+        summary_builder = TableBuilder.create_list_table(title=None)
+        summary_builder.add_column("Metric", style="cyan")
+        summary_builder.add_column("Value", style="green")
+
+        summary_builder.add_row("Total Events", str(summary.total_events))
+        summary_builder.add_row("Total Cost", f"{summary.total_cost_tokens:,} tokens")
+        summary_builder.add_row(
+            "Average Cost", f"{summary.avg_cost_per_event:,.0f} tokens/event"
+        )
+        summary_builder.add_row("Estimated USD", f"${summary.estimated_cost_usd:.2f}")
+        summary_builder.add_row("Delegation Count", str(summary.delegation_count))
+        summary_builder.add_row(
+            "Delegation Rate", f"{summary.delegation_percentage:.1f}%"
+        )
+        summary_builder.add_row(
+            "Direct Executions", str(summary.direct_execution_count)
+        )
+
+        console.print(summary_builder.table)
+
+        # Top tools table
+        if summary.tool_costs:
+            console.print("\n[bold cyan]Top Cost Drivers (by Tool)[/bold cyan]\n")
+            tools_builder = TableBuilder.create_list_table(title=None)
+            tools_builder.add_column("Tool", style="cyan")
+            tools_builder.add_numeric_column("Count", style="green")
+            tools_builder.add_numeric_column("Tokens", style="yellow")
+            tools_builder.add_numeric_column("% Total", style="magenta")
+
+            sorted_tools = sorted(
+                summary.tool_costs.items(),
+                key=lambda x: x[1].total_tokens,
+                reverse=True,
+            )
+            for tool, data in sorted_tools[:10]:
+                pct = data.total_tokens / summary.total_cost_tokens * 100
+                tools_builder.add_row(
+                    tool, str(data.count), f"{data.total_tokens:,}", f"{pct:.1f}%"
+                )
+
+            console.print(tools_builder.table)
+
+    def _print_recommendations(self, summary: CostSummary) -> None:
+        """Print cost optimization recommendations."""
+        console.print("\n[bold cyan]Recommendations[/bold cyan]\n")
+
+        recommendations = []
+
+        if summary.delegation_percentage < 50:
+            recommendations.append(
+                "[yellow]→ Increase delegation usage[/yellow] - Consider using Task() and spawn_* for more operations"
+            )
+
+        if summary.tool_costs:
+            top_tool, top_data = max(
+                summary.tool_costs.items(), key=lambda x: x[1].total_tokens
+            )
+            top_pct = top_data.total_tokens / summary.total_cost_tokens * 100
+            if top_pct > 40:
+                recommendations.append(
+                    f"[yellow]→ Review {top_tool} usage[/yellow] - It accounts for {top_pct:.1f}% of total cost"
+                )
+
+        if summary.total_events > 100:
+            recommendations.append(
+                "[green]✓ Good event volume[/green] - Sufficient data for optimization analysis"
+            )
+
+        recommendations.append(
+            "[blue]💡 Tip: Use parallel Task() calls to reduce execution time by ~40%[/blue]"
+        )
+
+        for rec in recommendations:
+            console.print(f"  {rec}")
+
+        console.print()
+
+
+class CigsStatusCommand(BaseCommand):
+    """Show CIGS status."""
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> CigsStatusCommand:
+        return cls()
+
+    def execute(self) -> CommandResult:
+        """Show CIGS status."""
+        from htmlgraph.cigs.autonomy import AutonomyRecommender
+        from htmlgraph.cigs.pattern_storage import PatternStorage
+        from htmlgraph.cigs.tracker import ViolationTracker
+
+        if not self.graph_dir:
+            raise CommandError("Graph directory not specified")
+        graph_dir = Path(self.graph_dir)
+
+        # Get violation tracker
+        tracker = ViolationTracker(graph_dir)
+        summary = tracker.get_session_violations()
+
+        # Get pattern storage
+        pattern_storage = PatternStorage(graph_dir)
+        patterns = pattern_storage.get_anti_patterns()
+
+        # Get autonomy recommendation
+        recommender = AutonomyRecommender()
+        autonomy = recommender.recommend(summary, patterns)
+
+        # Display with Rich
+        status_table = Table(title="CIGS Status", box=box.ROUNDED)
+        status_table.add_column("Metric", style="cyan")
+        status_table.add_column("Value", style="green")
+
+        status_table.add_row("Session", summary.session_id)
+        status_table.add_row("Violations", f"{summary.total_violations}/3")
+        status_table.add_row("Compliance Rate", f"{summary.compliance_rate:.1%}")
+        status_table.add_row("Total Waste", f"{summary.total_waste_tokens} tokens")
+        status_table.add_row(
+            "Circuit Breaker",
+            "🚨 TRIGGERED" if summary.circuit_breaker_triggered else "Not triggered",
+        )
+
+        console.print(status_table)
+
+        if summary.violations_by_type:
+            console.print("\n[bold]Violation Breakdown:[/bold]")
+            for vtype, count in summary.violations_by_type.items():
+                console.print(f"  • {vtype}: {count}")
+
+        console.print(f"\n[bold]Autonomy Level:[/bold] {autonomy.level.upper()}")
+        console.print(
+            f"[bold]Messaging Intensity:[/bold] {autonomy.messaging_intensity}"
+        )
+        console.print(f"[bold]Enforcement Mode:[/bold] {autonomy.enforcement_mode}")
+
+        if patterns:
+            console.print(f"\n[bold]Anti-Patterns Detected:[/bold] {len(patterns)}")
+            for pattern in patterns[:3]:
+                console.print(f"  • {pattern.name} ({pattern.occurrence_count}x)")
+
+        return CommandResult(text="CIGS status displayed")
+
+
+class CigsSummaryCommand(BaseCommand):
+    """Show cost summary."""
+
+    def __init__(self, *, session_id: str | None) -> None:
+        super().__init__()
+        self.session_id = session_id
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> CigsSummaryCommand:
+        return cls(session_id=getattr(args, "session_id", None))
+
+    def execute(self) -> CommandResult:
+        """Show cost summary."""
+        from htmlgraph.cigs.tracker import ViolationTracker
+
+        if not self.graph_dir:
+            raise CommandError("Graph directory not specified")
+        graph_dir = Path(self.graph_dir)
+        tracker = ViolationTracker(graph_dir)
+
+        # Get session ID
+        session_id = self.session_id or tracker._session_id
+
+        if not session_id:
+            console.print(
+                "[yellow]⚠️  No active session. Specify --session-id to view past sessions.[/yellow]"
+            )
+            return CommandResult(text="No active session")
+
+        summary = tracker.get_session_violations(session_id)
+
+        # Display summary
+        panel = Panel(
+            f"[cyan]Session ID:[/cyan] {summary.session_id}\n"
+            f"[cyan]Total Violations:[/cyan] {summary.total_violations}\n"
+            f"[cyan]Compliance Rate:[/cyan] {summary.compliance_rate:.1%}\n"
+            f"[cyan]Total Waste:[/cyan] {summary.total_waste_tokens} tokens\n"
+            f"[cyan]Circuit Breaker:[/cyan] {'🚨 TRIGGERED' if summary.circuit_breaker_triggered else 'Not triggered'}",
+            title="CIGS Session Summary",
+            border_style="cyan",
+        )
+        console.print(panel)
+
+        if summary.violations_by_type:
+            console.print("\n[bold]Violation Breakdown:[/bold]")
+            for vtype, count in summary.violations_by_type.items():
+                console.print(f"  • {vtype}: {count}")
+
+        if summary.violations:
+            console.print(
+                f"\n[bold]Recent Violations ({len(summary.violations)}):[/bold]"
+            )
+            for v in summary.violations[-5:]:
+                console.print(
+                    f"  • {v.tool} - {v.violation_type} - {v.waste_tokens} tokens wasted"
+                )
+                console.print(f"    Should have: {v.should_have_delegated_to}")
+
+        return CommandResult(text="Cost summary displayed")
+
+
+class TranscriptListCommand(BaseCommand):
+    """List transcripts."""
+
+    def __init__(self, *, format: str, limit: int, project: str | None) -> None:
+        super().__init__()
+        self.format = format
+        self.limit = limit
+        self.project = project
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> TranscriptListCommand:
+        return cls(
+            format=getattr(args, "format", "text"),
+            limit=getattr(args, "limit", 20),
+            project=getattr(args, "project", None),
+        )
+
+    def execute(self) -> CommandResult:
+        """List all transcripts."""
+        from htmlgraph.transcript import TranscriptReader
+
+        reader = TranscriptReader()
+        sessions = reader.list_sessions(project_path=self.project, limit=self.limit)
+
+        if not sessions:
+            if self.format == "json":
+                console.print_json(json.dumps({"sessions": [], "count": 0}))
+            else:
+                console.print("[yellow]No Claude Code transcripts found.[/yellow]")
+                console.print(f"[dim]Looked in: {reader.claude_dir}[/dim]")
+            return CommandResult(text="No transcripts found")
+
+        if self.format == "json":
+            data = {
+                "sessions": [
+                    {
+                        "session_id": s.session_id,
+                        "path": str(s.path),
+                        "cwd": s.cwd,
+                        "git_branch": s.git_branch,
+                        "started_at": s.started_at.isoformat()
+                        if s.started_at
+                        else None,
+                        "user_messages": s.user_message_count,
+                        "tool_calls": s.tool_call_count,
+                        "duration_seconds": s.duration_seconds,
+                    }
+                    for s in sessions
+                ],
+                "count": len(sessions),
+            }
+            console.print_json(json.dumps(data))
+        else:
+            # Display with Rich table
+            table = Table(
+                title=f"Claude Code Transcripts ({len(sessions)} found)",
+                box=box.ROUNDED,
+            )
+            table.add_column("Session ID", style="cyan", no_wrap=False, max_width=20)
+            table.add_column("Started", style="dim")
+            table.add_column("Duration", justify="right")
+            table.add_column("Messages", justify="right")
+            table.add_column("Branch", style="blue")
+
+            for s in sessions:
+                started = (
+                    s.started_at.strftime("%Y-%m-%d %H:%M")
+                    if s.started_at
+                    else "unknown"
+                )
+                duration = (
+                    f"{int(s.duration_seconds / 60)}m" if s.duration_seconds else "?"
+                )
+                branch = s.git_branch or "no branch"
+
+                table.add_row(
+                    s.session_id[:20] + "...",
+                    started,
+                    duration,
+                    str(s.user_message_count),
+                    branch,
+                )
+
+            console.print(table)
+
+        return CommandResult(text=f"Listed {len(sessions)} transcripts")
+
+
+class TranscriptImportCommand(BaseCommand):
+    """Import transcript."""
+
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        to_session: str | None,
+        agent: str,
+        overwrite: bool,
+        link_feature: str | None,
+        format: str,
+    ) -> None:
+        super().__init__()
+        self.session_id = session_id
+        self.to_session = to_session
+        self.agent = agent
+        self.overwrite = overwrite
+        self.link_feature = link_feature
+        self.format = format
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> TranscriptImportCommand:
+        return cls(
+            session_id=args.session_id,
+            to_session=getattr(args, "to_session", None),
+            agent=getattr(args, "agent", "claude-code"),
+            overwrite=getattr(args, "overwrite", False),
+            link_feature=getattr(args, "link_feature", None),
+            format=getattr(args, "format", "text"),
+        )
+
+    def execute(self) -> CommandResult:
+        """Import a transcript file."""
+        from htmlgraph.session_manager import SessionManager
+        from htmlgraph.transcript import TranscriptReader
+
+        if not self.graph_dir:
+            raise CommandError("Graph directory not specified")
+
+        reader = TranscriptReader()
+        manager = SessionManager(self.graph_dir)
+
+        # Find the transcript
+        transcript = reader.read_session(self.session_id)
+        if not transcript:
+            console.print(f"[red]Error: Transcript not found: {self.session_id}[/red]")
+            return CommandResult(text="Transcript not found", exit_code=1)
+
+        # Find or create HtmlGraph session
+        htmlgraph_session_id = self.to_session
+        if not htmlgraph_session_id:
+            # Check if already linked
+            existing = manager.find_session_by_transcript(self.session_id)
+            if existing:
+                htmlgraph_session_id = existing.id
+                console.print(
+                    f"[blue]Found existing linked session: {htmlgraph_session_id}[/blue]"
+                )
+            else:
+                # Create new session
+                new_session = manager.start_session(
+                    agent=self.agent,
+                    title=f"Imported: {transcript.session_id[:12]}",
+                )
+                htmlgraph_session_id = new_session.id
+                console.print(
+                    f"[green]Created new session: {htmlgraph_session_id}[/green]"
+                )
+
+        # Import events
+        result = manager.import_transcript_events(
+            session_id=htmlgraph_session_id,
+            transcript_session=transcript,
+            overwrite=self.overwrite,
+        )
+
+        # Link to feature if specified
+        if self.link_feature:
+            session = manager.get_session(htmlgraph_session_id)
+            if session and self.link_feature not in session.worked_on:
+                session.worked_on.append(self.link_feature)
+                manager.session_converter.save(session)
+                result["linked_feature"] = self.link_feature
+
+        # Display results
+        if self.format == "json":
+            console.print_json(json.dumps(result))
+        else:
+            console.print(
+                f"[green]✅ Imported transcript {self.session_id[:12]}:[/green]"
+            )
+            console.print(f"   → HtmlGraph session: {htmlgraph_session_id}")
+            console.print(f"   → Events imported: {result.get('imported', 0)}")
+            console.print(f"   → Events skipped: {result.get('skipped', 0)}")
+            if result.get("linked_feature"):
+                console.print(f"   → Linked to feature: {result['linked_feature']}")
+
+        return CommandResult(text=f"Imported transcript: {self.session_id}")
+
+
+class SyncDocsCommand(BaseCommand):
+    """Synchronize AI agent memory files."""
+
+    def __init__(
+        self,
+        *,
+        project_root: str | None,
+        check: bool,
+        generate: str | None,
+        force: bool,
+    ) -> None:
+        super().__init__()
+        self.project_root = project_root
+        self.check = check
+        self.generate = generate
+        self.force = force
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> SyncDocsCommand:
+        return cls(
+            project_root=getattr(args, "project_root", None),
+            check=getattr(args, "check", False),
+            generate=getattr(args, "generate", None),
+            force=getattr(args, "force", False),
+        )
+
+    def execute(self) -> CommandResult:
+        """Synchronize AI agent memory files across platforms."""
+        import os
+
+        from htmlgraph.sync_docs import (
+            PLATFORM_TEMPLATES,
+            check_all_files,
+            generate_platform_file,
+            sync_all_files,
+        )
+
+        project_root = Path(self.project_root or os.getcwd()).resolve()
+
+        if self.check:
+            # Check mode
+            console.print("[blue]🔍 Checking memory files...[/blue]")
+            results = check_all_files(project_root)
+
+            table = Table(title="Memory File Status", box=box.ROUNDED)
+            table.add_column("File", style="cyan")
+            table.add_column("Status", style="green")
+
+            all_good = True
+            for filename, status in results.items():
+                if filename == "AGENTS.md":
+                    if status:
+                        table.add_row(filename, "✅ exists")
+                    else:
+                        table.add_row(filename, "❌ MISSING (required)")
+                        all_good = False
+                else:
+                    if status:
+                        table.add_row(filename, "✅ references AGENTS.md")
+                    else:
+                        table.add_row(filename, "⚠️  missing reference")
+                        all_good = False
+
+            console.print(table)
+
+            if all_good:
+                console.print(
+                    "\n[green]✅ All files are properly synchronized![/green]"
+                )
+                return CommandResult(text="All files synchronized", exit_code=0)
+            else:
+                console.print("\n[yellow]⚠️  Some files need attention[/yellow]")
+                return CommandResult(text="Files need attention", exit_code=1)
+
+        elif self.generate:
+            # Generate mode
+            platform = self.generate.lower()
+            console.print(
+                f"[blue]📝 Generating {platform.upper()} memory file...[/blue]"
+            )
+
+            try:
+                content = generate_platform_file(platform, project_root)
+                template = PLATFORM_TEMPLATES[platform]
+                filepath = project_root / template["filename"]
+
+                if filepath.exists() and not self.force:
+                    console.print(
+                        f"[yellow]⚠️  {filepath.name} already exists. Use --force to overwrite.[/yellow]"
+                    )
+                    raise CommandError("File already exists")
+
+                filepath.write_text(content)
+                console.print(f"[green]✅ Created: {filepath}[/green]")
+                console.print(
+                    "\n[dim]The file references AGENTS.md for core documentation.[/dim]"
+                )
+                return CommandResult(text=f"Generated {platform} file")
+
+            except ValueError as e:
+                console.print(f"[red]❌ Error: {e}[/red]")
+                return CommandResult(text=str(e), exit_code=1)
+
+        else:
+            # Sync mode (default)
+            console.print("[blue]🔄 Synchronizing memory files...[/blue]")
+            changes = sync_all_files(project_root)
+
+            console.print("\n[bold]Results:[/bold]")
+            for change in changes:
+                console.print(f"  {change}")
+
+            has_errors = any("⚠️" in c or "❌" in c for c in changes)
+            return CommandResult(
+                text="Synchronization complete",
+                exit_code=1 if has_errors else 0,
+            )
