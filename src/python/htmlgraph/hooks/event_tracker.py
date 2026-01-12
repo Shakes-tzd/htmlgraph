@@ -767,6 +767,44 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         subagent_type = os.environ.get("HTMLGRAPH_SUBAGENT_TYPE")
         parent_session_id = os.environ.get("HTMLGRAPH_PARENT_SESSION")
 
+    # Method 3: Database detection of active task_delegation events
+    # CRITICAL: When Task() subprocess is launched, environment variables don't propagate
+    # So we must query the database for active task_delegation events to detect subagent context
+    if not subagent_type and db and db.connection:
+        try:
+            cursor = db.connection.cursor()
+            # Find the most recent active task_delegation event
+            cursor.execute(
+                """
+                SELECT event_id, subagent_type, session_id
+                FROM agent_events
+                WHERE event_type = 'task_delegation'
+                  AND status = 'started'
+                  AND tool_name = 'Task'
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """,
+            )
+            row = cursor.fetchone()
+            if row:
+                task_event_id, detected_subagent_type, parent_sess = row
+                # Only treat as subagent if we're in a DIFFERENT session
+                # (same session = we're the orchestrator running Task())
+                if hook_session_id and hook_session_id != parent_sess:
+                    subagent_type = detected_subagent_type or "general-purpose"
+                    parent_session_id = parent_sess
+                    print(
+                        f"DEBUG subagent detection (database): Detected active task_delegation "
+                        f"type={subagent_type}, parent_session={parent_session_id}, "
+                        f"parent_event={task_event_id}",
+                        file=sys.stderr,
+                    )
+        except Exception as e:
+            print(
+                f"DEBUG: Error detecting subagent from database: {e}",
+                file=sys.stderr,
+            )
+
     if subagent_type and parent_session_id:
         # We're in a subagent - create or get subagent session
         # Use deterministic session ID based on parent + subagent type
