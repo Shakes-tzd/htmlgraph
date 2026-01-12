@@ -1,4 +1,4 @@
-#!/usr/bin/env -S uv run --with htmlgraph
+#!/usr/bin/env -S uv run --with htmlgraph>=0.26.5 python3
 """
 UserPromptSubmit Hook - Thin shell for prompt analysis and workflow guidance.
 

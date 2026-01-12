@@ -1,10 +1,4 @@
-#!/usr/bin/env -S uv run --with htmlgraph
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#   "htmlgraph",
-# ]
-# ///
+#!/usr/bin/env -S uv run --with htmlgraph>=0.26.5 python3
 """
 Link Activities to Work Item
 

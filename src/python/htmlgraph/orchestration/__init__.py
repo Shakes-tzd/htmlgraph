@@ -9,6 +9,15 @@ from .model_selection import (
     get_fallback_chain,
     select_model,
 )
+
+# Export modular spawners for advanced usage
+from .spawners import (
+    BaseSpawner,
+    ClaudeSpawner,
+    CodexSpawner,
+    CopilotSpawner,
+    GeminiSpawner,
+)
 from .task_coordination import (
     delegate_with_id,
     generate_task_id,
@@ -19,9 +28,15 @@ from .task_coordination import (
 )
 
 __all__ = [
-    # Headless AI spawning
+    # Headless AI spawning (unified interface)
     "HeadlessSpawner",
     "AIResult",
+    # Modular spawner implementations
+    "BaseSpawner",
+    "GeminiSpawner",
+    "CodexSpawner",
+    "CopilotSpawner",
+    "ClaudeSpawner",
     # Model selection
     "ModelSelection",
     "TaskType",

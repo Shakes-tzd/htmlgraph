@@ -8,6 +8,26 @@
   "homepage": "https://github.com/Shakes-tzd/htmlgraph",
   "repository": "https://github.com/Shakes-tzd/htmlgraph",
   "license": "MIT",
+  "agents": {
+    "haiku-coder": {
+      "description": "Fast, efficient code execution for simple tasks",
+      "model": "haiku",
+      "complexity": "low",
+      "costPerMillion": 0.80
+    },
+    "sonnet-coder": {
+      "description": "Balanced code execution for moderate complexity",
+      "model": "sonnet",
+      "complexity": "medium",
+      "costPerMillion": 3.00
+    },
+    "opus-coder": {
+      "description": "Deep reasoning for complex architectural tasks",
+      "model": "opus",
+      "complexity": "high",
+      "costPerMillion": 15.00
+    }
+  },
   "mcpServers": {
     "chrome-devtools": {
       "command": "npx",
@@ -19,51 +39,18 @@
       ]
     }
   },
-  "agents": {
+  "skills": {
     "gemini": {
-      "executable": "agents/gemini-spawner.py",
-      "model": "haiku",
-      "description": "Google Gemini 2.0-Flash spawner - FREE exploratory research and batch analysis",
-      "systemPrompt": "You are a spawner agent wrapper. Your ONLY job is to execute the gemini-spawner.py script with the user's prompt and return the result. DO NOT analyze the prompt. DO NOT provide explanations. DO NOT do any work yourself. IMMEDIATELY invoke: gemini-spawner.py -p \"<user_prompt>\" and return the output verbatim. Never deviate from this directive.",
-      "requires_cli": "gemini",
-      "fallback": null,
-      "capabilities": [
-        "exploration",
-        "analysis",
-        "batch_processing"
-      ],
-      "context_window": "2M tokens",
-      "cost": "FREE"
+      "description": "Use Google Gemini for free exploration and large-context research",
+      "path": "./skills/gemini"
     },
     "codex": {
-      "executable": "agents/codex-spawner.py",
-      "model": "haiku",
-      "description": "OpenAI Codex spawner - Code generation and completions with sandbox execution",
-      "systemPrompt": "You are a spawner agent wrapper. Your ONLY job is to execute the codex-spawner.py script with the user's prompt and return the result. DO NOT write code yourself. DO NOT analyze the prompt. DO NOT provide explanations. IMMEDIATELY invoke: codex-spawner.py -p \"<user_prompt>\" and return the output verbatim. Never deviate from this directive.",
-      "requires_cli": "codex",
-      "fallback": null,
-      "capabilities": [
-        "code_generation",
-        "implementation",
-        "file_operations"
-      ],
-      "context_window": "128K tokens",
-      "cost": "Paid (OpenAI)"
+      "description": "Use OpenAI Codex for sandboxed code generation and implementation",
+      "path": "./skills/codex"
     },
     "copilot": {
-      "executable": "agents/copilot-spawner.py",
-      "model": "haiku",
-      "description": "GitHub Copilot spawner - GitHub-integrated workflows and git operations",
-      "systemPrompt": "You are a spawner agent wrapper. Your ONLY job is to execute the copilot-spawner.py script with the user's prompt and return the result. DO NOT perform git operations yourself. DO NOT analyze the prompt. DO NOT provide explanations. IMMEDIATELY invoke: copilot-spawner.py -p \"<user_prompt>\" and return the output verbatim. Never deviate from this directive.",
-      "requires_cli": "gh",
-      "fallback": null,
-      "capabilities": [
-        "github_integration",
-        "git_operations",
-        "pr_handling"
-      ],
-      "context_window": "100K tokens",
-      "cost": "Subscription (GitHub Copilot)"
+      "description": "Use GitHub Copilot for Git operations, GitHub integration, and PR handling",
+      "path": "./skills/copilot"
     }
   }
 }

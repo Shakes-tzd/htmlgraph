@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "comment": "Route Task() calls to spawner agents (gemini, codex, copilot)",
+            "comment": "Track tool use and link to parent activities",
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-integrator.py\""
           }
         ]

@@ -224,54 +224,67 @@ class TestCLIOutputQuality:
     """Test CLI output quality standards."""
 
     def test_cli_file_imports_rich(self):
-        """Test cli.py imports Rich correctly."""
-        cli_path = PROJECT_ROOT / "src/python/htmlgraph/cli.py"
-        assert cli_path.exists(), "cli.py not found"
+        """Test CLI package imports Rich correctly."""
+        # Check base.py which has the core console setup
+        cli_base_path = PROJECT_ROOT / "src/python/htmlgraph/cli/base.py"
+        assert cli_base_path.exists(), "cli/base.py not found"
 
-        content = cli_path.read_text()
+        content = cli_base_path.read_text()
 
         # Check required Rich imports
         assert "from rich" in content
         assert "Console" in content
-        assert "Table" in content or "Panel" in content
+        assert "Table" in content
 
     def test_cli_initializes_console(self):
-        """Test cli.py initializes global console."""
-        cli_path = PROJECT_ROOT / "src/python/htmlgraph/cli.py"
-        content = cli_path.read_text()
+        """Test CLI package initializes global console."""
+        # Check base.py which has the console initialization
+        cli_base_path = PROJECT_ROOT / "src/python/htmlgraph/cli/base.py"
+        content = cli_base_path.read_text()
 
-        # Should initialize console = Console()
-        assert "console = Console()" in content or "= Console(" in content
+        # Should initialize _console = Console()
+        assert "_console = Console()" in content or "= Console(" in content
 
     def test_cli_uses_console_print(self):
-        """Test cli.py uses console.print() instead of print()."""
-        cli_path = PROJECT_ROOT / "src/python/htmlgraph/cli.py"
-        content = cli_path.read_text()
+        """Test CLI package uses console.print() instead of print()."""
+        # Count across all CLI modules
+        cli_dir = PROJECT_ROOT / "src/python/htmlgraph/cli"
+        assert cli_dir.exists(), "cli package directory not found"
 
-        # Count console.print() calls (should be significant)
-        console_print_count = content.count("console.print(")
+        console_print_count = 0
+        for py_file in cli_dir.rglob("*.py"):
+            if "__pycache__" not in str(py_file):
+                content = py_file.read_text()
+                console_print_count += content.count("console.print(")
+                console_print_count += content.count("_console.print(")
+
+        # Should have significant usage across the package
         assert console_print_count > 50, (
-            f"Only {console_print_count} console.print() calls found"
+            f"Only {console_print_count} console.print() calls found across CLI package"
         )
 
     def test_no_excessive_plain_prints(self):
         """Test minimal use of plain print() statements."""
-        cli_path = PROJECT_ROOT / "src/python/htmlgraph/cli.py"
-        content = cli_path.read_text()
-        lines = content.split("\n")
+        # Check across all CLI modules
+        cli_dir = PROJECT_ROOT / "src/python/htmlgraph/cli"
 
-        # Find plain print() calls (excluding comments and console.print)
         plain_prints = []
-        for i, line in enumerate(lines, 1):
-            stripped = line.strip()
-            # Skip comments, console.print, and function definitions
-            if (
-                "print(" in stripped
-                and "console.print" not in stripped
-                and not stripped.startswith("#")
-                and "def " not in stripped
-            ):
-                plain_prints.append((i, stripped[:70]))
+        for py_file in cli_dir.rglob("*.py"):
+            if "__pycache__" not in str(py_file):
+                content = py_file.read_text()
+                lines = content.split("\n")
+
+                for i, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    # Skip comments, console.print, and function definitions
+                    if (
+                        "print(" in stripped
+                        and "console.print" not in stripped
+                        and "_console.print" not in stripped
+                        and not stripped.startswith("#")
+                        and "def " not in stripped
+                    ):
+                        plain_prints.append((str(py_file), i, stripped[:70]))
 
         # PHASE 1A/1B: Tracking conversion progress
         # Baseline: 698 print() statements (as of 2026-01-04)

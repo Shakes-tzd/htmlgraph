@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Remove cost-related claims from skill documentation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-615a73fa"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-12T02:49:11.496085"
+             data-updated="2026-01-12T02:49:11.496088" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Remove cost-related claims from skill documentation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Cost Claims Removal - Complete
+
+## Summary
+Successfully removed ALL cost-related claims and pricing information from skill documentation across three skill files. The spawners are now presented as simple tools for accessing external services if installed, without any cost comparisons or pricing claims.
+
+## Changes Made
+
+### 1. Gemini Skill (`packages/claude-plugin/.claude-plugin/skills/gemini/skill.md`)
+**Removed:**
+- "Use Google Gemini for free exploration" → Changed to "Use Google Gemini for exploration"
+- Cost-sensitive workflows reference
+- "Free Tier" capability description
+- Complete "Cost Optimization" section with pricing table
+- All references to "FREE tier (Gemini 2.0-Flash)" or "FREE tier available"
+- Cost information from fallback strategy
+- Cost tracking in HtmlGraph integration example
+
+**Kept:**
+- Large context window capabilities (2M tokens)
+- Multimodal processing features
+- When to use vs Claude (functional differences only)
+- Exploration and research methodology
+- Integration patterns with HtmlGraph SDK
+
+### 2. Codex Skill (`packages/claude-plugin/.claude-plugin/skills/codex/skill.md`)
+**Removed:**
+- Complete "Cost Comparison" section with pricing table
+- "CRITICAL COST WARNING: 3-4x MORE EXPENSIVE" claim
+- "Simple tasks (use Claude Haiku - 40x cheaper)"
+- "Exploratory research (use Gemini - FREE)"
+- "Claude Sonnet is 3-4x cheaper" comparison
+- Cost information from fallback strategy
+- Cost references in capabilities and examples
+
+**Kept:**
+- Code generation capabilities
+- Sandboxed execution features
+- Structured JSON output support
+- When to use (functional criteria only)
+- GPT-4 vs Claude capability differences
+
+### 3. GitHub CLI Skill (`packages/claude-plugin/.claude-plugin/skills/github-cli/skill.md`)
+**Removed:**
+- Complete "Cost Model" section with pricing table
+- "$10/month", "$19/user/month" subscription pricing
+- "FREE for all GitHub operations" claim
+- "Minimal cost" references from fallback strategy
+- "Exploratory research (use Gemini - FREE)" from "When NOT to Use"
+
+**Kept:**
+- GitHub CLI installation and authentication instructions
+- Git operation examples and workflows
+- PR management and issue tracking features
+- GitHub Actions integration
+- When to use guidance (functional only)
+
+## Verification
+
+All three files verified for remaining cost-related terms:
+- ✅ No "cheaper", "70% cheaper", "60% cheaper" references
+- ✅ No "FREE" or "paid" billing language
+- ✅ No "$" dollar amounts or pricing tables
+- ✅ No cost comparisons or billing information
+- ✅ No cost-sensitivity claims
+
+## Files Modified
+
+1. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/skills/gemini/skill.md`
+2. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/skills/codex/skill.md`
+3. `/Users/shakes/DevProjects/htmlgraph/packages/claude-plugin/.claude-plugin/skills/github-cli/skill.md`
+
+## Remaining Content
+
+All skills now focus on:
+- **What the tool does** - Core functionality and capabilities
+- **When to use it** - Use case scenarios based on features, not cost
+- **How to use it** - Installation, configuration, and execution patterns
+- **What it requires** - Prerequisites and CLI dependencies
+- **Features and capabilities** - Technical specifications only
+
+## Impact
+
+The spawner documentation now presents external tools (Gemini, Codex, GitHub CLI) as capability enhancements for users who have them installed, without making claims about cost savings or pricing comparisons. This aligns with the intended purpose: simple access to external tools if available, with graceful fallbacks to Claude-native capabilities.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

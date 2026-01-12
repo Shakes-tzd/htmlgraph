@@ -588,14 +588,26 @@ class TranscriptReader:
         Returns:
             List of TranscriptSession objects, newest first
         """
+        from datetime import timezone
+
+        def normalize_dt(dt: datetime | None) -> datetime:
+            """Normalize datetime to UTC for comparison."""
+            if dt is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            if dt.tzinfo is None:
+                # Assume naive datetimes are UTC
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+
         sessions: list[TranscriptSession] = []
 
         for path in self.list_transcript_files(project_path):
             session = self.read_transcript(path)
 
             # Filter by time
-            if since and session.started_at and session.started_at < since:
-                continue
+            if since and session.started_at:
+                if normalize_dt(session.started_at) < normalize_dt(since):
+                    continue
 
             sessions.append(session)
 
@@ -604,8 +616,8 @@ class TranscriptReader:
         if deduplicate and sessions:
             sessions = self._deduplicate_context_snapshots(sessions)
 
-        # Sort by start time, newest first
-        sessions.sort(key=lambda s: s.started_at or datetime.min, reverse=True)
+        # Sort by start time, newest first (normalize for comparison)
+        sessions.sort(key=lambda s: normalize_dt(s.started_at), reverse=True)
 
         if limit:
             sessions = sessions[:limit]

@@ -2162,7 +2162,9 @@ def get_app(db_path: str) -> FastAPI:
                     # Only fetch events AFTER last_timestamp to stream new events only
                     query = """
                         SELECT event_id, agent_id, event_type, timestamp, tool_name,
-                               input_summary, output_summary, session_id, status, model
+                               input_summary, output_summary, session_id, status, model,
+                               parent_event_id, execution_duration_seconds, context,
+                               cost_tokens
                         FROM agent_events
                         WHERE timestamp > ?
                         ORDER BY timestamp ASC
@@ -2180,6 +2182,14 @@ def get_app(db_path: str) -> FastAPI:
 
                         # Send events in order (no need to reverse with ASC)
                         for row in rows_list:
+                            # Parse context JSON if present
+                            context_data = {}
+                            if row[12]:  # context column
+                                try:
+                                    context_data = json.loads(row[12])
+                                except (json.JSONDecodeError, TypeError):
+                                    pass
+
                             event_data = {
                                 "type": "event",
                                 "event_id": row[0],
@@ -2192,9 +2202,10 @@ def get_app(db_path: str) -> FastAPI:
                                 "session_id": row[7],
                                 "status": row[8],
                                 "model": row[9],
-                                "parent_event_id": None,
-                                "cost_tokens": 0,
-                                "execution_duration_seconds": 0.0,
+                                "parent_event_id": row[10],
+                                "execution_duration_seconds": row[11] or 0.0,
+                                "cost_tokens": row[13] or 0,
+                                "context": context_data,
                             }
                             await websocket.send_json(event_data)
 

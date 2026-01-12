@@ -53,6 +53,14 @@ Thumbs.db
 .htmlgraph/sessions/*.jsonl
 .htmlgraph/events/*.jsonl
 .htmlgraph/parent-activity.json
+.htmlgraph/logs/errors/
+
+# HtmlGraph backup and test files
+.htmlgraph/index.sqlite.backup
+.htmlgraph/*.backup
+.htmlgraph/test_*.db
+.htmlgraph/database.db
+.htmlgraph/.htmlgraph/  # Prevent nested structure corruption
 
 # Keep these (source of truth):
 # - .htmlgraph/features/

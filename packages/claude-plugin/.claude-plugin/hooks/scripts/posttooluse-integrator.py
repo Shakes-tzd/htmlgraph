@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --with htmlgraph>=0.26.5 python3
 """
 PostToolUse Hook - Thin wrapper around package logic.
 

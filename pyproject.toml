@@ -52,7 +52,7 @@ deploy = [
 ]
 
 [project.scripts]
-htmlgraph = "htmlgraph.cli:main"
+htmlgraph = "htmlgraph.cli.main:main"
 htmlgraph-deploy = "htmlgraph.scripts.deploy:main"
 
 [project.urls]

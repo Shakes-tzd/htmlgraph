@@ -7,6 +7,8 @@ Verifies that:
 3. Database schema supports parent-child relationships
 """
 
+from __future__ import annotations
+
 import os
 import tempfile
 from pathlib import Path
@@ -26,6 +28,7 @@ def clean_env_vars():
         "HTMLGRAPH_PARENT_ACTIVITY",
         "HTMLGRAPH_PARENT_SESSION",
         "HTMLGRAPH_PARENT_SESSION_ID",
+        "HTMLGRAPH_PROJECT_ROOT",
     ]:
         os.environ.pop(var, None)
     yield
@@ -35,6 +38,7 @@ def clean_env_vars():
         "HTMLGRAPH_PARENT_ACTIVITY",
         "HTMLGRAPH_PARENT_SESSION",
         "HTMLGRAPH_PARENT_SESSION_ID",
+        "HTMLGRAPH_PROJECT_ROOT",
     ]:
         os.environ.pop(var, None)
 
@@ -53,13 +57,23 @@ def mock_session_manager():
     """Mock SessionManager to avoid file I/O."""
     with patch("htmlgraph.hooks.event_tracker.SessionManager") as mock:
         instance = MagicMock()
-        # Create a proper mock session with all required attributes explicitly set
-        mock_session = MagicMock()
+
+        # Create a proper mock session with all required attributes as real values
+        # NOT MagicMock objects (to avoid SQLite binding errors)
+        mock_session = MagicMock(
+            spec=["id", "agent", "is_subagent", "transcript_id", "transcript_path"]
+        )
+        # Use spec to prevent MagicMock from auto-creating attributes
         mock_session.id = "sess-test-123"
         mock_session.agent = "claude-code"
         mock_session.is_subagent = False
         mock_session.transcript_id = None
         mock_session.transcript_path = None
+
+        # Mock the session converter for loading sessions
+        instance.session_converter = MagicMock()
+        instance.session_converter.load.return_value = mock_session
+
         instance.get_active_session.return_value = mock_session
         instance.track_activity.return_value = MagicMock(
             id="evt-child-001", drift_score=None
@@ -96,7 +110,9 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
     """Test parent event ID from HTMLGRAPH_PARENT_EVENT environment variable."""
     # Create parent event in database first
     parent_event_id = "evt-parent-002"
-    db = HtmlGraphDB(str(temp_graph_dir / "index.sqlite"))
+
+    # Use htmlgraph.db instead of index.sqlite (unified database)
+    db = HtmlGraphDB(str(temp_graph_dir / "htmlgraph.db"))
 
     # Create parent session
     db.insert_session("sess-test-123", "claude-code")
@@ -113,11 +129,14 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
 
     # Set up environment with parent event ID
     os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+    # CRITICAL: Set project root so get_database_path() finds our test database
+    os.environ["HTMLGRAPH_PROJECT_ROOT"] = str(temp_graph_dir.parent)
 
     try:
         # Create mock hook input for child Read event
         hook_input = {
             "cwd": str(temp_graph_dir.parent),
+            "session_id": "sess-test-123",  # Provide session_id in hook_input
             "tool_name": "Read",
             "tool_input": {"file_path": "/test/file.py"},
             "tool_response": {"content": "file contents"},
@@ -144,6 +163,7 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
     finally:
         # Clean up environment
         os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
+        os.environ.pop("HTMLGRAPH_PROJECT_ROOT", None)
 
 
 def test_parent_child_query_by_parent_id(temp_graph_dir):

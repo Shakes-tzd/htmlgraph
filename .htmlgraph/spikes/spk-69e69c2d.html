@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>CopilotSpawner Test: Version Update Workflow</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-69e69c2d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-12T04:59:45.853606"
+             data-updated="2026-01-12T04:59:45.853609" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>CopilotSpawner Test: Version Update Workflow</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                Search version fields in repo
+   $ set -euo pipefail
+   pwd
+   ls -1 | sed -n '1,200p'
+
+   # Find version fields
+   printf "\n-- pyproject.toml version --\n" && grep -nE "^version\s*=\s*\"[0-9]+\.[0-9]+\.[0-9]+\""
+    -n pyproject.toml || true
+
+   printf "\n-- __init__.py with __version__ --\n" && grep -RIn "__version__\s*=\s*\"[0-9]" src ||
+   true
+
+   printf "\n-- plugin.json candidates --\n" && grep -RIn "\"version\"\s*:\s*\"[0-9]" packages | sed
+    -n '1,200p' || true
+
+   printf "\n-- gemini-extension.json candidates --\n" && grep -RIn
+   "gemini-extension.json|\"version\"\s*:\s*\"[0-9]" packages | sed -n '1,200p' || true
+
+   # List specific known paths if exist
+   printf "\n-- Check known paths --\n" && ls -l packages/claude-plugin/.claude-plugin/plugin.json
+   2>/dev/null || true
+   ls -l packages/gemini-extension/gemini-extension.json 2>/dev/null || true
+   Permission denied and could not request permission from user
+
+✓ List directory src (8 files)
+
+✓ List directory packages (11 files)
+
+✓ List directory packages/claude-plugin/.claude-plugin (12 files)
+
+✓ List directory packages/gemini-extension (26 files)
+
+✓ Read pyproject.toml (139 lines)
+
+✓ Read packages/claude-plugin/.claude-plugin/plugin.json (61 lines)
+
+✓ Read src/python/htmlgraph/__init__.py (217 lines)
+
+✓ Read packages/gemini-extension/gemini-extension.json (19 lines)
+
+# Recommended next version: 0.27.0
+set -euo pipefail
+NEW_VERSION=0.27.0
+
+# Update versions
+sed -i '' -E 's/^(version[[:space:]]*=[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$NEW_VERSION"'\2/' pyproject.toml
+sed -i '' -E 's/^(__version__[[:space:]]*=[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$NEW_VERSION"'\2/' src/python/htmlgraph/__init__.py
+sed -i '' -E 's/^([[:space:]]*"version"[[:space:]]*:[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$NEW_VERSION"'\2/' packages/claude-plugin/.claude-plugin/plugin.json
+sed -i '' -E 's/^([[:space:]]*"version"[[:space:]]*:[[:space:]]*")[0-9]+\.[0-9]+\.[0-9]+(")/\1'"$NEW_VERSION"'\2/' packages/gemini-extension/gemini-extension.json
+
+# Commit, tag, push
+git add pyproject.toml src/python/htmlgraph/__init__.py packages/claude-plugin/.claude-plugin/plugin.json packages/gemini-extension/gemini-extension.json
+git commit -m "chore: bump version to ${NEW_VERSION}"
+git tag -a "v${NEW_VERSION}" -m "Release ${NEW_VERSION}"
+git push origin HEAD --tags
+            </div>
+        </section>
+    </article>
+</body>
+</html>

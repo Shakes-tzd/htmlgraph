@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix Copilot Skill Documentation - GitHub Copilot CLI vs GitHub CLI</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-56f23b77"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-12T02:59:43.122727"
+             data-updated="2026-01-12T02:59:43.122730" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Fix Copilot Skill Documentation - GitHub Copilot CLI vs GitHub CLI</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Fix Copilot Skill Documentation
+
+## Summary
+Corrected the Copilot skill to properly describe GitHub Copilot CLI (AI code assistant) instead of GitHub CLI (GitHub operations utility). This was a critical documentation error that could mislead users about the tool's capabilities.
+
+## Problem Identified
+The skill was incorrectly named "github-cli" and documented GitHub CLI (`gh`) commands for GitHub operations (PRs, issues, authentication) instead of GitHub Copilot CLI (`copilot` command) for AI code generation, testing, and debugging.
+
+### Confusion Between Tools
+| Tool | Purpose | Type |
+|------|---------|------|
+| **GitHub Copilot CLI** (`copilot`) | AI code generation & debugging | AI Assistant |
+| **GitHub CLI** (`gh`) | GitHub operations (PRs, issues, auth) | Utility Tool |
+
+## Changes Made
+
+### 1. Directory Rename
+- **From:** `packages/claude-plugin/.claude-plugin/skills/github-cli/`
+- **To:** `packages/claude-plugin/.claude-plugin/skills/copilot/`
+
+### 2. Documentation Rewrite
+Updated `SKILL.md` to correctly describe GitHub Copilot CLI with:
+
+#### Correct Features
+- AI code generation (functions, classes, workflows)
+- Test generation (unit tests, integration tests)
+- Code debugging and error analysis
+- Code explanation and learning
+
+#### Installation Instructions
+```bash
+# Install GitHub CLI
+brew install gh
+
+# Install GitHub Copilot extension
+gh extension install github/gh-copilot
+
+# Authenticate
+gh auth login
+
+# Verify
+gh copilot --version
+```
+
+#### Correct Usage Examples
+```python
+# Ask Copilot to generate code
+Skill(skill=".claude-plugin:copilot", args="Write a function that validates email addresses")
+
+# Get code explanation
+Skill(skill=".claude-plugin:copilot", args="Explain what this code does: [code snippet]")
+
+# Generate tests
+Skill(skill=".claude-plugin:copilot", args="Write unit tests for my function")
+
+# Debug code
+Skill(skill=".claude-plugin:copilot", args="Debug this error: Cannot read property 'map' of undefined")
+```
+
+#### When to Use
+✅ Use for:
+- Code generation
+- Test creation
+- Debugging and error analysis
+- Code understanding
+- Learning patterns
+
+❌ Don't use for:
+- GitHub operations (use `gh` CLI instead)
+- Repository exploration (use `/gemini` skill)
+- Simple scripting (use plain bash/python)
+
+### 3. Key Documentation Sections Added
+- Clear differentiation from GitHub CLI (`gh`)
+- Proper installation workflow
+- Example use cases (code generation, testing, debugging, explanation, review)
+- Error handling (CLI not installed, auth required, subscription required)
+- Tips for best results
+- Common patterns (Generate→Test, Debug→Improve, Understand→Extend)
+- Limitations (requires subscription, needs verification, not a replacement)
+- Related skills reference
+
+## Impact
+- Users will now understand that the Copilot skill is for AI code generation, not GitHub operations
+- Clearer separation between Copilot (AI assistant) and GitHub CLI (GitHub utility)
+- Comprehensive documentation covering installation, usage, and best practices
+- Integration examples showing how to track Copilot-generated code in HtmlGraph features
+
+## Files Modified
+- `/packages/claude-plugin/.claude-plugin/skills/copilot/SKILL.md` (complete rewrite)
+
+## Verification
+- Directory successfully renamed from `github-cli` to `copilot`
+- SKILL.md documentation updated with correct Copilot CLI information
+- All documentation now correctly describes GitHub Copilot CLI capabilities
+- Ready for distribution and user consumption
+
+## Recommendations
+1. Test the skill with actual Copilot CLI installation to verify commands work
+2. Update any other references to "github-cli" in the codebase
+3. Update plugin manifest if needed to reflect new skill name
+4. Consider creating a separate skill or section for GitHub CLI (`gh`) operations if needed
+            </div>
+        </section>
+    </article>
+</body>
+</html>

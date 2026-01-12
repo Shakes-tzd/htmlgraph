@@ -266,7 +266,7 @@ def test_node_priority_values(sample_graph, priority):
 def test_cli_init_bootstraps_events_index_and_hooks(temp_graph_dir):
     import argparse
 
-    from htmlgraph.cli import cmd_init
+    from htmlgraph.cli.core import InitCommand
 
     # Use a fresh temp project dir (with no .gitignore yet).
     args = argparse.Namespace(
@@ -278,7 +278,9 @@ def test_cli_init_bootstraps_events_index_and_hooks(temp_graph_dir):
         interactive=False,
     )
 
-    cmd_init(args)
+    # Use the new InitCommand class
+    command = InitCommand.from_args(args)
+    command.execute()
 
     graph_dir = temp_graph_dir / ".htmlgraph"
     index_path = temp_graph_dir / "index.html"

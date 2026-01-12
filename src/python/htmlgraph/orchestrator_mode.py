@@ -8,9 +8,14 @@ State is persisted in .htmlgraph/orchestrator-mode.json
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
+
+from htmlgraph.orchestrator_config import (
+    get_effective_violation_count,
+    load_orchestrator_config,
+)
 
 
 class OrchestratorMode(BaseModel):
@@ -41,9 +46,12 @@ class OrchestratorMode(BaseModel):
     """Timestamp of most recent violation."""
 
     circuit_breaker_triggered: bool = False
-    """Whether circuit breaker has been triggered (3+ violations)."""
+    """Whether circuit breaker has been triggered (N+ violations, configurable)."""
 
-    def to_dict(self) -> dict:
+    violation_history: list[dict[str, Any]] = []
+    """Full history of violations with timestamps for time-based decay."""
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dict for JSON serialization."""
         return {
             "enabled": self.enabled,
@@ -59,10 +67,11 @@ class OrchestratorMode(BaseModel):
                 self.last_violation_at.isoformat() if self.last_violation_at else None
             ),
             "circuit_breaker_triggered": self.circuit_breaker_triggered,
+            "violation_history": self.violation_history,
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "OrchestratorMode":
+    def from_dict(cls, data: dict[str, Any]) -> "OrchestratorMode":
         """Create from dict loaded from JSON."""
         activated_at = data.get("activated_at")
         if activated_at:
@@ -88,6 +97,7 @@ class OrchestratorMode(BaseModel):
             violations=data.get("violations", 0),
             last_violation_at=last_violation_at,
             circuit_breaker_triggered=data.get("circuit_breaker_triggered", False),
+            violation_history=data.get("violation_history", []),
         )
 
 
@@ -220,7 +230,7 @@ class OrchestratorModeManager:
         mode = self.load()
         return not mode.disabled_by_user
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """
         Get human-readable status.
 
@@ -242,19 +252,38 @@ class OrchestratorModeManager:
             "circuit_breaker_triggered": mode.circuit_breaker_triggered,
         }
 
-    def increment_violation(self) -> OrchestratorMode:
+    def increment_violation(self, tool: str | None = None) -> OrchestratorMode:
         """
         Increment violation counter and update timestamp.
+
+        Uses configurable thresholds and time-based decay.
+
+        Args:
+            tool: Optional tool name that caused violation
 
         Returns:
             Updated OrchestratorMode with incremented violations
         """
         mode = self.load()
-        mode.violations += 1
+        config = load_orchestrator_config()
+
+        # Add to violation history with timestamp
+        violation = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "tool": tool,
+        }
+        mode.violation_history.append(violation)
+
+        # Calculate effective violation count with decay and collapsing
+        effective_count = get_effective_violation_count(mode.violation_history, config)
+
+        # Update counters
+        mode.violations = effective_count
         mode.last_violation_at = datetime.now(timezone.utc)
 
-        # Trigger circuit breaker if threshold reached
-        if mode.violations >= 3:
+        # Trigger circuit breaker if threshold reached (configurable)
+        threshold = config.thresholds.circuit_breaker_violations
+        if effective_count >= threshold:
             mode.circuit_breaker_triggered = True
 
         self.save(mode)
@@ -271,6 +300,7 @@ class OrchestratorModeManager:
         mode.violations = 0
         mode.last_violation_at = None
         mode.circuit_breaker_triggered = False
+        mode.violation_history = []
         self.save(mode)
         return mode
 
@@ -286,10 +316,13 @@ class OrchestratorModeManager:
 
     def get_violation_count(self) -> int:
         """
-        Get current violation count.
+        Get current violation count (with time-based decay applied).
 
         Returns:
-            Number of violations in current session
+            Effective number of violations in current session
         """
         mode = self.load()
-        return mode.violations
+        config = load_orchestrator_config()
+
+        # Return effective count with decay and collapsing
+        return get_effective_violation_count(mode.violation_history, config)

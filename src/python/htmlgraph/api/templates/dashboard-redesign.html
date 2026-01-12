@@ -198,74 +198,462 @@
             }
         }
 
+        /**
+         * Insert new event into the grouped conversation turn activity feed
+         * Handles both UserQuery events (new turns) and child events (tool calls, etc.)
+         */
         function insertNewEventIntoActivityFeed(eventData) {
-            const activityFeed = document.querySelector('.activity-feed-view');
-            if (!activityFeed) return;
+            const conversationFeed = document.querySelector('.conversation-feed');
+            if (!conversationFeed) return;
 
-            const activityList = activityFeed.querySelector('.activity-list');
-            if (!activityList) return;
-
-            const emptyState = activityList.querySelector('.empty-state');
+            // Check for empty state and remove it
+            const emptyState = conversationFeed.querySelector('.empty-state');
             if (emptyState) {
                 emptyState.remove();
-                if (!activityList.querySelector('.activity-table')) {
-                    // New column order: Agent | Tool | Input | Output | Status | Timestamp (no ID)
-                    const table = `
-                        <table class="activity-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-agent">Agent</th>
-                                    <th class="col-tool">Tool</th>
-                                    <th class="col-input">Input</th>
-                                    <th class="col-output">Output</th>
-                                    <th class="col-status">Status</th>
-                                    <th class="col-timestamp">Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    `;
-                    activityList.insertAdjacentHTML('afterbegin', table);
-                }
             }
 
-            const table = activityList.querySelector('.activity-table');
-            if (!table) return;
+            // Get or create the turns list container
+            let turnsList = conversationFeed.querySelector('.conversation-turns-list');
+            if (!turnsList) {
+                turnsList = document.createElement('div');
+                turnsList.className = 'conversation-turns-list';
+                conversationFeed.appendChild(turnsList);
+            }
 
-            const tbody = table.querySelector('tbody');
-            if (!tbody) return;
+            // Check for duplicates
+            if (document.querySelector(`[data-event-id="${eventData.event_id}"]`)) {
+                console.log('Event already exists:', eventData.event_id);
+                return;
+            }
 
-            const eventRow = createActivityRowHTML(eventData);
+            // Handle UserQuery events - create new conversation turn
+            if (eventData.tool_name === 'UserQuery') {
+                insertNewConversationTurn(eventData, turnsList);
+                return;
+            }
 
+            // Handle child events (tool calls, etc.)
             if (eventData.parent_event_id) {
-                const parentRow = tbody.querySelector(`tr[data-event-id="${eventData.parent_event_id}"]`);
-                if (parentRow) {
-                    parentRow.insertAdjacentHTML('afterend', eventRow);
-                    highlightRow(tbody.querySelector(`tr[data-event-id="${eventData.event_id}"]`));
-                    return;
-                }
+                insertChildEvent(eventData);
+                return;
             }
 
-            const firstRow = tbody.querySelector('tr');
-            if (firstRow) {
-                firstRow.insertAdjacentHTML('beforebegin', eventRow);
+            console.warn('Event with no parent_event_id and not UserQuery:', eventData);
+        }
+
+        /**
+         * Create and insert a new conversation turn for a UserQuery event
+         */
+        function insertNewConversationTurn(userQueryEvent, turnsList) {
+            const turnId = userQueryEvent.event_id;
+            const prompt = userQueryEvent.input_summary || userQueryEvent.summary || '';
+            const timestamp = formatTimestamp(userQueryEvent.timestamp);
+
+            // Determine if this turn has spawner delegation
+            const hasSpawner = userQueryEvent.context && userQueryEvent.context.spawner_type ? 'spawner' : 'direct';
+            const agentId = userQueryEvent.agent_id || 'unknown';
+
+            const turnHtml = `
+                <div class="conversation-turn"
+                     data-turn-id="${turnId}"
+                     data-spawner-type="${hasSpawner}"
+                     data-agent="${agentId}">
+                    <!-- User Query Parent Row (Clickable) -->
+                    <div class="userquery-parent"
+                         onclick="toggleConversationTurn('${turnId}')"
+                         data-turn-id="${turnId}">
+
+                        <!-- Expand/Collapse Toggle -->
+                        <span class="expand-toggle-turn" id="toggle-${turnId}">▶</span>
+
+                        <!-- User Prompt Text -->
+                        <div class="prompt-section">
+                            <span class="prompt-text" title="${escapeHtml(prompt)}">
+                                ${escapeHtml(prompt.substring(0, 100))}${prompt.length > 100 ? '...' : ''}
+                            </span>
+                        </div>
+
+                        <!-- Stats Badges (initialized to 0) -->
+                        <div class="turn-stats">
+                            <span class="stat-badge tool-count" data-value="0" style="display: none;"></span>
+                            <span class="stat-badge duration" data-value="0">0s</span>
+                        </div>
+
+                        <!-- Timestamp -->
+                        <div class="turn-timestamp">
+                            ${timestamp}
+                        </div>
+                    </div>
+
+                    <!-- Child Events Container (Hidden by default) -->
+                    <div class="turn-children collapsed" id="children-${turnId}">
+                        <div class="no-children-message">
+                            <span class="tree-connector">└─</span>
+                            <span class="text-muted">No child events</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Insert at top of turns list
+            const firstTurn = turnsList.firstChild;
+            if (firstTurn) {
+                firstTurn.insertAdjacentHTML('beforebegin', turnHtml);
             } else {
-                tbody.insertAdjacentHTML('afterbegin', eventRow);
+                turnsList.insertAdjacentHTML('afterbegin', turnHtml);
             }
 
-            highlightRow(tbody.querySelector('tr:first-child'));
-
-            if (typeof convertTimestampsToLocal === 'function') {
-                convertTimestampsToLocal();
+            // Auto-expand the new turn
+            const childrenContainer = document.getElementById(`children-${turnId}`);
+            const toggleButton = document.getElementById(`toggle-${turnId}`);
+            if (childrenContainer && toggleButton) {
+                childrenContainer.classList.remove('collapsed');
+                toggleButton.classList.add('expanded');
             }
 
-            const allRows = tbody.querySelectorAll('tr');
-            if (allRows.length > 100) {
-                const itemsToRemove = allRows.length - 100;
-                for (let i = 0; i < itemsToRemove; i++) {
-                    allRows[allRows.length - 1 - i].remove();
+            // Highlight the new turn briefly
+            const newTurn = document.querySelector(`[data-turn-id="${turnId}"]`);
+            if (newTurn) {
+                highlightElement(newTurn.querySelector('.userquery-parent'));
+            }
+        }
+
+        /**
+         * Find the root conversation turn ID that contains this event in the DOM.
+         * Walks up the DOM tree to find the parent conversation-turn element.
+         *
+         * @param {string} eventId - The event ID to find
+         * @returns {string|null} - The root UserQuery event_id or null if not found
+         */
+        function findRootConversationTurn(eventId) {
+            // First, check if this event is already in the DOM
+            const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
+            if (!eventElement) {
+                return null; // Event not in DOM yet
+            }
+
+            // Walk up the DOM to find the nearest conversation turn container
+            let current = eventElement;
+            while (current && current.parentElement) {
+                current = current.parentElement;
+                if (current.classList && current.classList.contains('conversation-turn')) {
+                    return current.getAttribute('data-turn-id');
                 }
             }
+
+            return null;
+        }
+
+        /**
+         * Find or create a children container for an event.
+         * If the event is the root conversation turn, use children-${turnId}.
+         * If the event is a nested event, create a nested children container.
+         *
+         * @param {string} parentEventId - The parent event ID
+         * @returns {HTMLElement|null} - The children container or null if not found
+         */
+        function findOrCreateChildrenContainer(parentEventId) {
+            // First, check if this is a conversation turn (root level)
+            let container = document.getElementById(`children-${parentEventId}`);
+            if (container) {
+                return container;
+            }
+
+            // Otherwise, look for the parent event in the DOM
+            const parentElement = document.querySelector(`[data-event-id="${parentEventId}"]`);
+            if (!parentElement) {
+                return null; // Parent event not in DOM yet
+            }
+
+            // Check if parent event already has a nested children container
+            let nestedContainer = parentElement.querySelector(':scope > .event-children');
+            if (!nestedContainer) {
+                // Create a nested children container
+                nestedContainer = document.createElement('div');
+                nestedContainer.className = 'event-children';
+                nestedContainer.setAttribute('data-parent-id', parentEventId);
+                parentElement.appendChild(nestedContainer);
+            }
+
+            return nestedContainer;
+        }
+
+        /**
+         * Calculate the depth of an event based on how many containers separate it from the root turn.
+         * Walks up the DOM tree counting .turn-children and .event-children containers.
+         *
+         * @param {string} parentEventId - The parent event ID
+         * @returns {number} - The depth (0 for direct children of a UserQuery turn)
+         */
+        function calculateEventDepth(parentEventId) {
+            let depth = 0;
+
+            // Start by finding the children container for this parent
+            let container = document.getElementById(`children-${parentEventId}`);
+            if (!container) {
+                const parentElement = document.querySelector(`[data-event-id="${parentEventId}"]`);
+                if (parentElement) {
+                    container = parentElement.querySelector(':scope > .event-children');
+                }
+            }
+
+            if (!container) {
+                return 0; // Parent not yet in DOM or is a root turn
+            }
+
+            // Walk up the DOM to count nesting levels
+            let current = container.parentElement; // Start from parent of container
+            while (current) {
+                // Check if we're in a .turn-children container (root level)
+                if (current.classList && current.classList.contains('turn-children')) {
+                    return depth; // We've reached the root turn
+                }
+
+                // Check if we're in a child-event-row (nested event) that has children
+                if (current.classList && current.classList.contains('child-event-row')) {
+                    depth++;
+                    // Move up to find the next ancestor event row
+                    current = current.parentElement; // Move to .event-children container
+                    if (current) {
+                        current = current.parentElement; // Move to parent event row
+                    }
+                } else {
+                    current = current.parentElement;
+                }
+            }
+
+            return depth;
+        }
+
+        /**
+         * Insert a child event into its parent (which could be a conversation turn or another event).
+         * Handles multi-level nesting for spawner delegations.
+         */
+        function insertChildEvent(eventData) {
+            const parentEventId = eventData.parent_event_id;
+            if (!parentEventId) {
+                console.warn('Child event has no parent_event_id:', eventData.event_id);
+                return;
+            }
+
+            // Find or create the children container for this parent
+            const childrenContainer = findOrCreateChildrenContainer(parentEventId);
+            if (!childrenContainer) {
+                console.warn('Could not find or create children container for parent:', parentEventId);
+                return;
+            }
+
+            // Remove "no children" message if it exists
+            const noChildrenMsg = childrenContainer.querySelector('.no-children-message');
+            if (noChildrenMsg) {
+                noChildrenMsg.remove();
+            }
+
+            // Extract event data
+            const toolName = eventData.tool_name || 'unknown';
+            const summary = eventData.output_summary || eventData.input_summary || eventData.summary || '';
+            const duration = eventData.duration_seconds || 0;
+            const timestamp = formatTimestamp(eventData.timestamp);
+            const agentId = eventData.agent_id || 'Claude Code';
+            const model = eventData.context && eventData.context.model ? eventData.context.model : null;
+            const spawnerType = eventData.context && eventData.context.spawner_type ? eventData.context.spawner_type : null;
+            const spawnedAgent = eventData.context && eventData.context.spawned_agent ? eventData.context.spawned_agent : null;
+            const costUsd = eventData.context && eventData.context.cost_usd ? eventData.context.cost_usd : null;
+
+            // Calculate depth: count how many levels of nesting this event is at
+            const depth = calculateEventDepth(parentEventId);
+
+            // Determine tree connector based on whether this is the last child
+            const existingChildren = childrenContainer.querySelectorAll(':scope > .child-event-row');
+            const isLastChild = existingChildren.length === 0;
+            const hasChildren = eventData.context && eventData.context.has_children;
+            const treeConnector = (isLastChild && !hasChildren) ? '└─' : '├─';
+
+            // Build child event HTML with nested container placeholder
+            let childHtml = `
+                <div class="child-event-row depth-${depth}"
+                     data-event-id="${eventData.event_id}"
+                     data-parent-id="${parentEventId}"
+                     style="margin-left: ${depth * 20}px;">
+
+                    <!-- Tree Connector -->
+                    <span class="tree-connector">${treeConnector}</span>
+
+                    <!-- Tool Name -->
+                    <span class="child-tool-name">${escapeHtml(toolName)}</span>
+
+                    <!-- Summary/Input -->
+                    <span class="child-summary" title="${escapeHtml(summary)}">
+                        ${escapeHtml(summary.substring(0, 80))}${summary.length > 80 ? '...' : ''}
+                    </span>
+            `;
+
+            // Add agent badge with spawner support
+            if (spawnerType) {
+                // Spawner delegation: show orchestrator → spawned AI
+                childHtml += `
+                    <span class="child-agent-badge agent-${agentId.toLowerCase().replace(/\\s+/g, '-')}">
+                        ${escapeHtml(agentId)}
+                        ${model ? `<span class="model-indicator">${escapeHtml(model)}</span>` : ''}
+                    </span>
+                    <span class="delegation-arrow">→</span>
+                    <span class="spawner-badge spawner-${spawnerType.toLowerCase()}">
+                        ${escapeHtml(spawnedAgent || spawnerType)}
+                        ${costUsd ? `<span class="cost-badge">$${costUsd.toFixed(2)}</span>` : ''}
+                    </span>
+                `;
+            } else {
+                // Regular agent: just show agent name + model if available
+                childHtml += `
+                    <span class="child-agent-badge agent-${agentId.toLowerCase().replace(/\\s+/g, '-')}">
+                        ${escapeHtml(agentId)}
+                        ${model ? `<span class="model-indicator">${escapeHtml(model)}</span>` : ''}
+                    </span>
+                `;
+            }
+
+            // Add duration and timestamp
+            childHtml += `
+                    <!-- Duration -->
+                    <span class="child-duration">
+                        ${duration.toFixed(2)}s
+                    </span>
+
+                    <!-- Timestamp -->
+                    <span class="child-timestamp">
+                        ${timestamp}
+                    </span>
+                </div>
+            `;
+
+            // Insert child event
+            childrenContainer.insertAdjacentHTML('beforeend', childHtml);
+
+            // Update root conversation turn statistics
+            const rootTurnId = findRootConversationTurn(eventData.event_id);
+            if (rootTurnId) {
+                updateParentTurnStats(rootTurnId, eventData);
+            }
+
+            // Highlight the new child event
+            const newChild = document.querySelector(`[data-event-id="${eventData.event_id}"]`);
+            if (newChild) {
+                highlightElement(newChild);
+            }
+        }
+
+        /**
+         * Update the statistics of a parent conversation turn based on a child event
+         */
+        function updateParentTurnStats(parentTurnId, childEvent) {
+            const turnElement = document.querySelector(`[data-turn-id="${parentTurnId}"]`);
+            if (!turnElement) return;
+
+            const statsContainer = turnElement.querySelector('.turn-stats');
+            if (!statsContainer) return;
+
+            // Get current stats from badges
+            let toolCount = parseInt(statsContainer.querySelector('.stat-badge.tool-count')?.getAttribute('data-value') || '0', 10);
+            let totalDuration = parseFloat(statsContainer.querySelector('.stat-badge.duration')?.getAttribute('data-value') || '0');
+            let successCount = parseInt(statsContainer.querySelector('.stat-badge.success')?.getAttribute('data-value') || '0', 10);
+            let errorCount = parseInt(statsContainer.querySelector('.stat-badge.error')?.getAttribute('data-value') || '0', 10);
+
+            // Update counts based on event
+            if (childEvent.tool_name !== 'UserQuery') {
+                toolCount++;
+            }
+
+            totalDuration += (childEvent.duration_seconds || 0);
+
+            // Determine success/error based on status
+            const status = childEvent.status || 'completed';
+            if (status === 'completed' || status === 'success') {
+                successCount++;
+            } else if (status === 'error' || status === 'failed') {
+                errorCount++;
+            }
+
+            // Update tool count badge
+            const toolCountBadge = statsContainer.querySelector('.stat-badge.tool-count');
+            if (toolCountBadge) {
+                toolCountBadge.setAttribute('data-value', toolCount);
+                toolCountBadge.textContent = toolCount;
+                toolCountBadge.style.display = toolCount > 0 ? 'inline-block' : 'none';
+            }
+
+            // Update duration badge
+            const durationBadge = statsContainer.querySelector('.stat-badge.duration');
+            if (durationBadge) {
+                durationBadge.setAttribute('data-value', totalDuration.toFixed(2));
+                durationBadge.textContent = totalDuration.toFixed(2) + 's';
+            }
+
+            // Update success badge
+            let successBadge = statsContainer.querySelector('.stat-badge.success');
+            if (successCount > 0) {
+                if (!successBadge) {
+                    const badge = document.createElement('span');
+                    badge.className = 'stat-badge success';
+                    statsContainer.appendChild(badge);
+                    successBadge = badge;
+                }
+                successBadge.setAttribute('data-value', successCount);
+                successBadge.textContent = `✓ ${successCount}`;
+            } else if (successBadge) {
+                successBadge.remove();
+            }
+
+            // Update error badge
+            let errorBadge = statsContainer.querySelector('.stat-badge.error');
+            if (errorCount > 0) {
+                if (!errorBadge) {
+                    const badge = document.createElement('span');
+                    badge.className = 'stat-badge error';
+                    statsContainer.appendChild(badge);
+                    errorBadge = badge;
+                }
+                errorBadge.setAttribute('data-value', errorCount);
+                errorBadge.textContent = `✗ ${errorCount}`;
+            } else if (errorBadge) {
+                errorBadge.remove();
+            }
+        }
+
+        /**
+         * Format timestamp to readable format (HH:MM:SS)
+         */
+        function formatTimestamp(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                return `${hours}:${minutes}:${seconds}`;
+            } catch (e) {
+                return timestamp;
+            }
+        }
+
+        /**
+         * Escape HTML special characters to prevent XSS
+         */
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * Highlight an element briefly with a background color animation
+         */
+        function highlightElement(element) {
+            if (!element) return;
+            element.style.transition = 'background-color 0.3s ease';
+            element.style.backgroundColor = 'rgba(163, 230, 53, 0.2)';
+            setTimeout(() => {
+                element.style.backgroundColor = '';
+            }, 500);
         }
 
         function highlightRow(row) {
@@ -326,13 +714,6 @@
                 </tr>
             `;
             return html;
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
         }
 
         function convertTimestampsToLocal() {
@@ -791,6 +1172,168 @@
             display: none;
         }
 
+        /* Nested event children container styles */
+        .event-children {
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            border-left: 1px solid var(--border-subtle);
+            padding-left: var(--spacing-sm);
+        }
+
+        .child-event-row {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.1);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .child-event-row:hover {
+            background: rgba(0, 0, 0, 0.15);
+            border-color: var(--border-subtle);
+        }
+
+        .child-event-row.depth-0 {
+            margin-left: 0;
+        }
+
+        .child-event-row.depth-1 {
+            margin-left: 20px;
+        }
+
+        .child-event-row.depth-2 {
+            margin-left: 40px;
+        }
+
+        .child-event-row.depth-3 {
+            margin-left: 60px;
+        }
+
+        .child-event-row.depth-4 {
+            margin-left: 80px;
+        }
+
+        .child-event-row.depth-5 {
+            margin-left: 100px;
+        }
+
+        .tree-connector {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-family: monospace;
+            flex-shrink: 0;
+        }
+
+        .child-tool-name {
+            font-weight: 600;
+            color: var(--accent-lime);
+            flex-shrink: 0;
+        }
+
+        .child-summary {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .child-agent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background: rgba(205, 255, 0, 0.1);
+            border: 1px solid rgba(205, 255, 0, 0.3);
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent-lime);
+            flex-shrink: 0;
+        }
+
+        .child-agent-badge.agent-claude {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.3);
+            color: var(--agent-claude);
+        }
+
+        .child-agent-badge.agent-gemini {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: var(--agent-gemini);
+        }
+
+        .model-indicator {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        .delegation-arrow {
+            color: var(--text-muted);
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .spawner-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #8B5CF6;
+            flex-shrink: 0;
+        }
+
+        .spawner-badge.spawner-gemini {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #3B82F6;
+        }
+
+        .spawner-badge.spawner-codex {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #22C55E;
+        }
+
+        .spawner-badge.spawner-copilot {
+            background: rgba(251, 146, 60, 0.15);
+            border-color: rgba(251, 146, 60, 0.4);
+            color: #FB923C;
+        }
+
+        .cost-badge {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            margin-left: 2px;
+        }
+
+        .child-duration {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            font-family: monospace;
+        }
+
+        .child-timestamp {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            font-family: monospace;
+        }
+
         @media (max-width: 1024px) {
             .col-agent { width: 100px; }
             .col-tool { width: 90px; }
@@ -805,6 +1348,17 @@
 
             .truncate {
                 max-width: 100%;
+            }
+
+            .child-event-row {
+                flex-wrap: wrap;
+                gap: var(--spacing-xs);
+                padding: var(--spacing-sm);
+            }
+
+            .child-summary {
+                flex-basis: 100%;
+                order: 3;
             }
         }
     </style>

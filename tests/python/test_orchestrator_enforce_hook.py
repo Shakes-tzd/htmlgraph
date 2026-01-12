@@ -35,17 +35,21 @@ def hook_script():
 
 @pytest.fixture
 def clean_tool_history():
-    """Clean up tool history file before and after test."""
-    history_file = Path("/tmp/htmlgraph-tool-history.json")
-    if history_file.exists():
-        history_file.unlink()
+    """
+    Clean up tool history (no-op now that history is in database).
+
+    Tool history is now stored in SQLite database (.htmlgraph/htmlgraph.db)
+    and isolated by session_id. This fixture is kept for backward compatibility.
+    """
     yield
-    if history_file.exists():
-        history_file.unlink()
 
 
 def run_hook(
-    hook_script: Path, tool_name: str, tool_input: dict, cwd: Path = None
+    hook_script: Path,
+    tool_name: str,
+    tool_input: dict,
+    cwd: Path = None,
+    session_id: str = "test-session",
 ) -> dict:
     """
     Run the orchestrator enforcement hook.
@@ -55,6 +59,7 @@ def run_hook(
         tool_name: Name of tool being called
         tool_input: Tool input parameters
         cwd: Working directory (for .htmlgraph lookup)
+        session_id: Session identifier for tool history isolation
 
     Returns:
         Hook response dict
@@ -62,6 +67,7 @@ def run_hook(
     hook_input = {
         "tool_name": tool_name,
         "tool_input": tool_input,
+        "session_id": session_id,
     }
 
     # Use python directly instead of 'uv run' to avoid PEP 723 isolated environment

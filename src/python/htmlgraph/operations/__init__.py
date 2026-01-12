@@ -24,6 +24,16 @@ from .hooks import (
     list_hooks,
     validate_hook_config,
 )
+from .initialization import (
+    create_analytics_index,
+    create_config_files,
+    create_database,
+    create_directory_structure,
+    initialize_htmlgraph,
+    install_git_hooks,
+    update_gitignore,
+    validate_directory,
+)
 from .server import (
     ServerHandle,
     ServerStartResult,
@@ -58,4 +68,12 @@ __all__ = [
     "start_server",
     "stop_server",
     "get_server_status",
+    "initialize_htmlgraph",
+    "validate_directory",
+    "create_directory_structure",
+    "create_database",
+    "create_analytics_index",
+    "create_config_files",
+    "update_gitignore",
+    "install_git_hooks",
 ]

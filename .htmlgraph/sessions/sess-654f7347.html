@@ -10,18 +10,18 @@
 <body>
     <article id="sess-654f7347"
              data-type="session"
-             data-status="active"
+             data-status="ended"
              data-agent="fixer"
              data-started-at="2026-01-01T21:11:33.617195"
-             data-last-activity="2026-01-11T23:42:55.787026+00:00"
-             data-event-count="32" data-is-subagent="false" data-start-commit="0935b9c">
+             data-last-activity="2026-01-12T02:47:27.575861+00:00"
+             data-event-count="33" data-is-subagent="false" data-start-commit="0935b9c" data-ended-at="2026-01-12T02:47:27.575642+00:00" data-transcript-id="15638178-84c9-4ae2-bed1-54483a497796" data-transcript-path="/Users/shakes/.claude/projects/-Users-shakes-DevProjects-htmlgraph/15638178-84c9-4ae2-bed1-54483a497796.jsonl" data-transcript-synced="2026-01-11T21:47:27.574920">
 
         <header>
             <h1>Auto session (fixer)</h1>
             <div class="metadata">
-                <span class="badge status-active">Active</span>
+                <span class="badge status-ended">Ended</span>
                 <span class="badge">fixer</span>
-                <span class="badge">32 events</span>
+                <span class="badge">33 events</span>
             </div>
         </header>
 
@@ -42,7 +42,7 @@
             </section>
         </nav>
         <section data-detected-patterns>
-            <h3>Detected Patterns (1)</h3>
+            <h3>Detected Patterns (3)</h3>
             <table class="patterns-table">
                 <thead>
                     <tr>
@@ -57,14 +57,27 @@
                         <td class="sequence">FeatureComplete → FeatureComplete → FeatureComplete</td>
                         <td><span class="badge pattern-neutral">neutral</span></td>
                         <td>2</td>
-                        <td>2026-01-03T04:56:41.741254 / 2026-01-10T22:59:34.899369</td>
+                        <td>2026-01-03T04:56:41.741254 / 2026-01-11T21:37:44.639026</td>
+                    </tr>
+                    <tr data-pattern-type="anti-pattern">
+                        <td class="sequence">Bash → Bash → Bash</td>
+                        <td><span class="badge pattern-anti-pattern">anti-pattern</span></td>
+                        <td>9</td>
+                        <td>2026-01-11T21:37:44.639035 / 2026-01-11T21:37:44.639035</td>
+                    </tr>
+                    <tr data-pattern-type="neutral">
+                        <td class="sequence">Bash → Bash → TodoWrite</td>
+                        <td><span class="badge pattern-neutral">neutral</span></td>
+                        <td>2</td>
+                        <td>2026-01-11T21:37:44.639038 / 2026-01-11T21:37:44.639038</td>
                     </tr>
                 </tbody>
             </table>
         </section>
         <section data-activity-log>
-            <h3>Activity Log (32 events)</h3>
+            <h3>Activity Log (33 events)</h3>
             <ol reversed>
+                <li data-ts="2026-01-11T21:47:27.575839" data-tool="SessionEnd" data-success="true">Session ended</li>
                 <li data-ts="2026-01-11T18:42:55.779344" data-tool="Read" data-success="true" data-event-id="evt-bfef46c2">Read: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/hooks/event_tracker.py</li>
                 <li data-ts="2026-01-11T18:42:28.902685" data-tool="TodoWrite" data-success="true" data-event-id="evt-f66904c8">TodoWrite: 5 items</li>
                 <li data-ts="2026-01-11T18:42:14.650945" data-tool="Task" data-success="true" data-event-id="evt-8b43890b">Task (claude-code-guide): Research Claude Code hook session_id</li>
