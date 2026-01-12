@@ -28,7 +28,10 @@ This skill teaches HOW to use both. See "EXECUTION PATTERNS" below for when to u
 
 CopilotSpawner is the HtmlGraph-integrated way to invoke external CLIs (Copilot, Gemini, Codex) with **full parent event context and subprocess tracking**.
 
+**Key distinction**: CopilotSpawner is invoked directly via Python SDK - NOT wrapped in Task(). Task() is only for Claude subagents (Haiku, Sonnet, Opus).
+
 Instead of running CLI commands directly (which creates "black boxes"), CopilotSpawner:
+- ✅ Invokes external Copilot CLI directly
 - ✅ Creates parent event context in database
 - ✅ Links to parent Task delegation event
 - ✅ Records subprocess invocations as child events

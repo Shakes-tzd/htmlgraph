@@ -101,8 +101,11 @@ Think of yourself as a **strategic coordinator**, not a tactical executor. You m
 
 **Spawners** are HtmlGraph-integrated ways to invoke external CLIs (Copilot, Gemini, Codex) with **full parent event context and subprocess tracking**.
 
+**CRITICAL: Spawners are invoked DIRECTLY via Python SDK, NOT wrapped in Task(). Task() is ONLY for Claude subagents (Haiku, Sonnet, Opus).**
+
 Instead of running CLI commands directly (which creates "black boxes"), spawners:
-- ✅ Link to parent Task delegation event
+- ✅ Invoke external CLIs directly (not via Task())
+- ✅ Link to parent Task delegation event via environment variables
 - ✅ Record subprocess invocations as child events
 - ✅ Track all activities in HtmlGraph event hierarchy
 - ✅ Provide complete observability of external tool execution
