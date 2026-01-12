@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Research Claude Code OpenTelemetry Monitoring Capabilities</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-7bf5d98d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-12T09:10:00.453934"
+             data-updated="2026-01-12T09:10:00.453942" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Research Claude Code OpenTelemetry Monitoring Capabilities</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Claude Code OpenTelemetry Research - Complete Findings
+
+## Executive Summary
+
+Claude Code DOES support OpenTelemetry (OTel) monitoring, but **native OTEL capabilities are limited for work attribution and subagent nesting**. The most viable approach for solving the subagent nesting problem is **NOT** to leverage Claude Code's native OTEL, but rather to continue building on HtmlGraph's **database-driven event tracking system**, which actually provides superior work attribution capabilities.
+
+## Key Finding: Claude Code Native OpenTelemetry
+
+### What Claude Code Exports via OTEL
+
+Claude Code exposes the following metrics and events:
+
+**Metrics (Time Series Data):**
+- `claude_code.session.count` - CLI session frequency
+- `claude_code.lines_of_code.count` - Development velocity
+- `claude_code.commit.count` - Version control activity
+- `claude_code.cost.usage` - Spending in USD
+- `claude_code.token.usage` - Token consumption
+- `claude_code.active_time.total` - Engagement depth
+- `claude_code.code_edit_tool.decision` - User accept/reject patterns
+
+**Events/Logs:**
+- `claude_code.user_prompt` - User prompt submissions with metadata
+- `claude_code.tool_result` - Tool execution outcomes and decisions
+- `claude_code.api_request` - Model calls with cost, duration, tokens
+- `claude_code.api_error` - Failure tracking with error details
+- `claude_code.tool_decision` - Permission decisions and trust signals
+
+**Export Configuration:**
+- Opt-in via `CLAUDE_CODE_ENABLE_TELEMETRY=1`
+- Multiple exporters: OTLP/gRPC, HTTP, Prometheus, console
+- Default intervals: 10 seconds (metrics), 5 seconds (logs)
+- Configurable via environment variables
+
+### Critical Limitation: No Hook-Level Spans
+
+**Finding:** Claude Code does NOT provide OpenTelemetry spans at the hook execution level:
+- Hooks receive input JSON but cannot emit OTEL spans
+- Hooks have no built-in OTEL context propagation
+- No automatic span creation for PreToolUse/PostToolUse/SessionStart events
+- Cannot link hook operations to parent spans without custom instrumentation
+
+### Implication for Subagent Nesting
+
+Claude Code's native OTEL metrics are **high-level consumption metrics** (tokens, cost, usage), NOT **execution-level traces** needed for:
+- Parent-child work attribution
+- Subagent activity correlation
+- Delegation chain visibility
+- Task execution hierarchies
+
+## Why HtmlGraph's Database Approach is Superior
+
+### What HtmlGraph Built (Event-Driven Architecture)
+
+HtmlGraph implements a **database-driven event tracking system** that addresses the subagent nesting problem:
+
+1. **Complete Event Hierarchy:**
+   - UserQuery → Delegation → Child Events
+   - Full parent_event_id chain linking
+   - Visible in database with proper relationships
+
+2. **Hook-Level Instrumentation:**
+   - SessionStart: Creates database sessions
+   - PreToolUse: Records delegation start
+   - PostToolUse: Records delegation completion
+   - UserPromptSubmit: Creates UserQuery events
+   - SubagentStop: Updates delegation status
+
+3. **Work Attribution (agent_id field):**
+   - Orchestrator layer: agent_id = "claude-code"
+   - Spawner layer: agent_id = "gemini-2.0-flash" (actual agent, not wrapper)
+   - Clear distinction between orchestrator and spawned activities
+
+4. **Context Preservation:**
+   - Full JSON context field for metadata
+   - Subagent type stored for each delegation
+   - Child spike count tracked automatically
+   - Session linking across all events
+
+### Comparison: OTEL vs HtmlGraph Event System
+
+| Capability | Claude Code OTEL | HtmlGraph DB |
+|-----------|------------------|--------------|
+| Hook-level spans | ❌ No | ✅ Yes |
+| Parent-child nesting | ❌ No | ✅ Yes (parent_event_id) |
+| Work attribution | ⚠️ Partial (cost only) | ✅ Full (agent_id + context) |
+| Subagent visibility | ❌ No | ✅ Yes (proper hierarchy) |
+| Event-level context | ❌ No | ✅ Yes (JSON context field) |
+| Query API | ⚠️ Metrics only | ✅ Full SQL access |
+| Offline-first | ❌ Requires export config | ✅ Yes (local SQLite) |
+| Real-time dashboard | ❌ External tools needed | ✅ Built-in (.htmlgraph/index.html) |
+
+## Deep Dive: Why Native OTEL Doesn't Solve Subagent Nesting
+
+### Problem 1: Hook Input/Output Lacks OTEL Context
+
+Claude Code hook system works via JSON input/output:
+
+```json
+Hook Input: {
+  "session_id": "abc123",
+  "tool_name": "Task",
+  "tool_use_id": "def456"
+}
+
+Hook Output: {
+  "continue": true,
+  "hookSpecificOutput": {
+    "additionalContext": "Context injected to Claude"
+  }
+}
+```
+
+**Missing:** No `trace_id`, `span_id`, or `trace_context` field. No way for hook to emit spans.
+
+### Problem 2: OTEL Metrics Are Aggregated
+
+OTEL exports metrics like:
+```
+claude_code.token.usage{model="claude-3-5-sonnet"} = 150000
+claude_code.cost.usage{model="claude-3-5-sonnet"} = $0.45
+```
+
+These are **aggregate metrics**, not execution traces. You can see "total tokens spent" but NOT:
+- Which specific Task delegation used those tokens
+- Which tool calls within a spawner delegation consumed them
+- Parent-child attribution of token usage
+
+### Problem 3: No Span Context Propagation in Hooks
+
+Hooks execute as **isolated processes** with no automatic OTEL context:
+- Hook script is spawned as subprocess
+- Receives JSON input only
+- Must explicitly parse context if needed
+- No automatic parent span linking
+
+To emit OTEL spans from hook, you'd need to:
+1. Manually install OTEL SDK in hook environment
+2. Manually create spans for each activity
+3. Manually propagate context between hooks
+4. Manually export spans to collector
+
+This is much more complex than HtmlGraph's simple database approach.
+
+## What HtmlGraph is Actually Using (Better than OTEL)
+
+HtmlGraph's hook system creates a **complete event graph in SQLite**:
+
+### The Event Table Structure
+
+```sql
+CREATE TABLE agent_events (
+    event_id TEXT PRIMARY KEY,
+    session_id TEXT,
+    agent_id TEXT,
+    event_type TEXT,  -- 'tool_call', 'task_delegation', etc.
+    tool_name TEXT,
+    parent_event_id TEXT,  -- LINKS TO PARENT
+    subagent_type TEXT,
+    context JSON,
+    status TEXT,
+    created_at TIMESTAMP
+);
+```
+
+### Complete Flow Example
+
+```
+SessionStart Hook
+  ├─ INSERT INTO agent_events (event_id='s1', type='session_start', agent='claude-code')
+  └─ INSERT INTO sessions (session_id='sess-abc', agent='claude-code')
+
+UserPromptSubmit Hook
+  ├─ INSERT INTO agent_events (event_id='uq1', type='tool_call', tool='UserQuery', 
+  │                             parent_event_id='s1', agent='claude-code')
+  └─ User sees prompt submitted
+
+PreToolUse Hook (User calls Task())
+  ├─ INSERT INTO agent_events (event_id='del1', type='task_delegation', 
+  │                             parent_event_id='uq1', agent='claude-code',
+  │                             subagent_type='gemini')
+  └─ Spawner begins
+
+[Spawner Executes]
+
+SubagentStop Hook
+  ├─ UPDATE agent_events SET status='completed' WHERE event_id='del1'
+  └─ SELECT COUNT(*) FROM agent_events 
+     WHERE parent_event_id='del1' (count child spikes)
+
+Dashboard Query
+  └─ SELECT * FROM agent_events WHERE parent_event_id='uq1'
+     Returns: [UserQuery, Delegation, ChildEvents]
+     Shows complete hierarchy visually
+```
+
+### Key Advantage: Queryable Graph
+
+With HtmlGraph, you can ask:
+```sql
+-- "Show me all activity under this user prompt"
+SELECT * FROM agent_events 
+WHERE parent_event_id = 'uq1' 
+ORDER BY created_at;
+
+-- "Show me what the Gemini subagent did"
+SELECT * FROM agent_events 
+WHERE agent_id = 'gemini-2.0-flash' AND session_id = 'sess-abc';
+
+-- "Show me failed delegations"
+SELECT * FROM agent_events 
+WHERE event_type = 'task_delegation' AND status = 'failed';
+
+-- "Calculate total effort for each delegation type"
+SELECT subagent_type, COUNT(*) as count
+FROM agent_events
+WHERE event_type = 'task_delegation'
+GROUP BY subagent_type;
+```
+
+With OTEL metrics, you cannot ask these questions without aggregating raw span data yourself.
+
+## How Claude Code's Native OTEL Could Be Enhanced
+
+If Claude Code added these features, OTEL could be leveraged:
+
+1. **Hook Span Context:**
+   ```json
+   Hook Input: {
+     "span_context": {
+       "trace_id": "abc123",
+       "span_id": "def456"
+     }
+   }
+   ```
+
+2. **Hook Span Output:**
+   ```json
+   Hook Output: {
+     "spans": [
+       {
+         "name": "delegation_to_gemini",
+         "parent_span_id": "def456",
+         "attributes": {"subagent": "gemini-2.0-flash"}
+       }
+     ]
+   }
+   ```
+
+3. **Automatic Span Emission from Hooks** - Similar to how database triggers work
+
+But this doesn't exist yet in Claude Code.
+
+## Recommendation: Continue Database-Driven Approach
+
+**Strategic Decision:** HtmlGraph should NOT attempt to leverage Claude Code's native OTEL for subagent nesting because:
+
+1. **Native OTEL lacks required capabilities** - No hook-level spans, no context propagation
+2. **Database approach is proven and working** - Already implemented, tested, integrated
+3. **Database is more queryable** - Full SQL access beats OTEL metrics aggregation
+4. **Lower operational complexity** - No external infrastructure needed
+5. **Offline-first capability** - SQLite works anywhere, OTEL requires export config
+6. **Better for team workflows** - Dashboard shows actual execution graph, not metrics
+
+**Instead, focus on:**
+- Extending HtmlGraph's event system (already built)
+- Adding more metrics to database (cost, tokens, latency)
+- Building richer dashboard visualizations
+- Documenting the event architecture for other users
+
+## What Could Be Integrated with OTEL (Nice-to-Have)
+
+If you want OTEL integration for external observability platforms:
+
+1. **Export HtmlGraph events to OTEL Collector:**
+   - Read agent_events table
+   - Convert to OTEL span format
+   - Ship to Datadog/Honeycomb/SigNoz
+
+2. **Third-Party Libraries:**
+   - `claude-code-otel` (GitHub) - Wraps Claude Code CLI with OTEL instrumentation
+   - `claude_telemetry` (GitHub) - OpenTelemetry wrapper for token tracking
+   - `claude-code-monitor` (GitHub) - Real-time telemetry dashboard
+
+3. **Pattern:** Keep HtmlGraph database as source of truth, use OTEL for external reporting
+
+## Conclusion
+
+Claude Code's native OpenTelemetry capabilities are valuable for **cost and usage metrics** but **inadequate for work attribution and subagent nesting**. HtmlGraph's database-driven event system is:
+
+- **More complete** (parent-child relationships, full context)
+- **More queryable** (SQL vs metric aggregation)
+- **More reliable** (no external dependencies)
+- **Better for team collaboration** (shared dashboard)
+
+**Therefore: Continue building on HtmlGraph's event system. Don't attempt to replace with native OTEL. Consider OTEL export as future enhancement for external observability platforms.**
+
+## Sources Consulted
+
+- Claude Code Hook Architecture documentation (PLUGIN_ARCHITECTURE_RESEARCH.md)
+- HtmlGraph Event Tracing System (event-tracing.md)
+- HtmlGraph Observability Implementation (OBSERVABILITY_IMPLEMENTATION.md)
+- Claude Code OTEL ROI Analysis (OTEL_ROI_ANALYSIS_INDEX.md)
+- SigNoz Blog: Claude Code + OpenTelemetry
+- GitHub: ColeMurray/claude-code-otel
+- GitHub: TechNickAI/claude_telemetry
+- Honeycomb Blog: Claude Code Observability
+            </div>
+        </section>
+    </article>
+</body>
+</html>

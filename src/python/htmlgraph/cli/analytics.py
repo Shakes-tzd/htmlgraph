@@ -96,6 +96,25 @@ def _register_cigs_commands(subparsers: _SubParsersAction) -> None:
     cost_dashboard.add_argument("--output", help="Custom output path")
     cost_dashboard.set_defaults(func=CostDashboardCommand.from_args)
 
+    # cigs roi-analysis (Phase 1 OTEL ROI)
+    roi_analysis = cigs_subparsers.add_parser(
+        "roi-analysis", help="OTEL ROI analysis - cost attribution of Task delegations"
+    )
+    roi_analysis.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    roi_analysis.add_argument(
+        "--save", action="store_true", help="Save to .htmlgraph/cost-analysis.html"
+    )
+    roi_analysis.add_argument(
+        "--open", action="store_true", help="Open in browser after generation"
+    )
+    roi_analysis.add_argument(
+        "--json", action="store_true", help="Output JSON instead of HTML"
+    )
+    roi_analysis.add_argument("--output", help="Custom output path")
+    roi_analysis.set_defaults(func=OTELROIAnalysisCommand.from_args)
+
     # cigs status
     cigs_status = cigs_subparsers.add_parser("status", help="Show CIGS status")
     cigs_status.add_argument(
