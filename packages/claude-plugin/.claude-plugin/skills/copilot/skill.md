@@ -1,20 +1,195 @@
 ---
 name: copilot
-description: GitHub CLI (gh) operations - Create PRs, manage issues, work with GitHub repositories
+description: GitHub CLI (gh) operations and CopilotSpawner with full event tracking
 when_to_use:
   - Creating pull requests and issues
   - Managing GitHub repositories
-  - Git operations via gh CLI
+  - Git operations via gh CLI (direct execution via Bash)
+  - GitHub Copilot for code generation (via CopilotSpawner)
+  - Git workflows with full HtmlGraph tracking
   - GitHub authentication and configuration
-  - Repository cloning and forking
 skill_type: executable
 ---
 
-# GitHub CLI (gh) Operations
+# GitHub Copilot & GitHub CLI (gh) Operations
 
-⚠️ **IMPORTANT: This skill is DOCUMENTATION ONLY - it does NOT execute code.**
+⚠️ **IMPORTANT: This skill provides TWO EXECUTION PATTERNS**
 
-This skill teaches you HOW to use the GitHub CLI (`gh`). To actually execute commands, use the **Bash tool** with the examples shown in the "EXECUTION" section below.
+1. **GitHub CLI (gh)** - Documentation for command syntax. Execute via **Bash tool**.
+2. **CopilotSpawner** - AI-powered code generation. Invoke via **Python SDK with parent event context**.
+
+This skill teaches HOW to use both. See "EXECUTION PATTERNS" below for when to use each.
+
+---
+
+## 🚀 CopilotSpawner Pattern: Full Event Tracking
+
+### What is CopilotSpawner?
+
+CopilotSpawner is the HtmlGraph-integrated way to invoke external CLIs (Copilot, Gemini, Codex) with **full parent event context and subprocess tracking**.
+
+Instead of running CLI commands directly (which creates "black boxes"), CopilotSpawner:
+- ✅ Creates parent event context in database
+- ✅ Links to parent Task delegation event
+- ✅ Records subprocess invocations as child events
+- ✅ Tracks all activities in HtmlGraph event hierarchy
+- ✅ Provides full observability of external tool execution
+
+### When to Use CopilotSpawner
+
+**Use CopilotSpawner when:**
+- You need to invoke external CLIs (copilot, gemini, codex)
+- You want full event tracking in HtmlGraph
+- Parent event context is available (from hooks)
+- You need subprocess event recording
+- You're in a Claude Code session with hook system
+
+**Use Bash directly when:**
+- Running simple one-off commands
+- No tracking needed
+- Testing/debugging
+- Not in Claude Code environment
+
+### How to Use CopilotSpawner
+
+```python
+import os
+import sys
+from pathlib import Path
+from datetime import datetime, timezone
+import uuid
+
+# Add plugin agents directory to path
+PLUGIN_AGENTS_DIR = Path("/path/to/htmlgraph/packages/claude-plugin/.claude-plugin/agents")
+sys.path.insert(0, str(PLUGIN_AGENTS_DIR))
+
+from htmlgraph import SDK
+from htmlgraph.orchestration.spawners import CopilotSpawner
+from htmlgraph.db.schema import HtmlGraphDB
+from htmlgraph.config import get_database_path
+from spawner_event_tracker import SpawnerEventTracker
+
+# Initialize
+sdk = SDK(agent='claude')
+db = HtmlGraphDB(str(get_database_path()))
+session_id = f"sess-{uuid.uuid4().hex[:8]}"
+db._ensure_session_exists(session_id, "claude")
+
+# Create parent event context (like PreToolUse hook does)
+user_query_event_id = f"event-query-{uuid.uuid4().hex[:8]}"
+parent_event_id = f"event-{uuid.uuid4().hex[:8]}"
+start_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+# Insert UserQuery event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+    (user_query_event_id, "claude-code", "tool_call", session_id, "UserPromptSubmit",
+     "Test git workflow", "completed", start_time)
+)
+
+# Insert Task delegation event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary,
+        context, parent_event_id, subagent_type, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    (parent_event_id, "claude-code", "task_delegation", session_id, "Task",
+     "Guide git workflow", '{"subagent_type":"general-purpose"}',
+     user_query_event_id, "general-purpose", "started", start_time)
+)
+db.connection.commit()
+
+# Export parent context (like PreToolUse hook does)
+os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+os.environ["HTMLGRAPH_PARENT_SESSION"] = session_id
+os.environ["HTMLGRAPH_SESSION_ID"] = session_id
+
+# Create tracker with parent context
+tracker = SpawnerEventTracker(
+    delegation_event_id=parent_event_id,
+    parent_agent="claude",
+    spawner_type="copilot",
+    session_id=session_id
+)
+tracker.db = db
+
+# Invoke CopilotSpawner with FULL tracking
+spawner = CopilotSpawner()
+result = spawner.spawn(
+    prompt="Recommend next semantic version and git workflow commands",
+    track_in_htmlgraph=True,      # Enable SDK activity tracking
+    tracker=tracker,               # Enable subprocess event tracking
+    parent_event_id=parent_event_id,  # Link to parent event
+    allow_all_tools=True,
+    timeout=120
+)
+
+# Check results
+print(f"Success: {result.success}")
+print(f"Response: {result.response}")
+if result.tracked_events:
+    print(f"Tracked {len(result.tracked_events)} events in HtmlGraph")
+```
+
+### Key Parameters for CopilotSpawner.spawn()
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | str | ✅ | Task description for Copilot |
+| `track_in_htmlgraph` | bool | ❌ | Enable SDK activity tracking (default: True) |
+| `tracker` | SpawnerEventTracker | ❌ | Tracker instance for subprocess events |
+| `parent_event_id` | str | ❌ | Parent event ID for event hierarchy |
+| `allow_tools` | list[str] | ❌ | Tools to auto-approve (e.g., ["shell(git)"]) |
+| `allow_all_tools` | bool | ❌ | Auto-approve all tools (default: False) |
+| `deny_tools` | list[str] | ❌ | Tools to deny |
+| `timeout` | int | ❌ | Max seconds to wait (default: 120) |
+
+### Event Tracking Hierarchy
+
+With CopilotSpawner, you get this event hierarchy in HtmlGraph:
+
+```
+UserQuery Event (from UserPromptSubmit hook)
+├── Task Delegation Event (from PreToolUse hook)
+    ├── CopilotSpawner Start (activity tracking)
+    ├── Subprocess Invocation (subprocess event)
+    │   └── subprocess.copilot tool call
+    ├── CopilotSpawner Result (activity tracking)
+    └── All activities linked with parent_event_id
+```
+
+This provides complete observability - no "black boxes" for external tool execution.
+
+### Real Example: Version Update Workflow
+
+```python
+# See above code example + this prompt:
+result = spawner.spawn(
+    prompt="""HtmlGraph project status:
+    - Completed CLI module refactoring (all tests passing)
+    - Completed skill documentation clarification
+    - Completed spawner architecture modularization
+    - Current version: ~0.26.x
+
+    Please recommend:
+    1. Next semantic version (MAJOR.MINOR.PATCH)
+    2. Version update git workflow including all necessary files
+    3. Tag and push commands
+    """,
+    track_in_htmlgraph=True,
+    tracker=tracker,
+    parent_event_id=parent_event_id,
+    allow_all_tools=True,
+    timeout=120
+)
+
+# Result: Full tracking with Copilot's version recommendation (0.27.0)
+# All subprocess invocations recorded in HtmlGraph
+```
+
+---
 
 ## What is GitHub CLI (gh)?
 

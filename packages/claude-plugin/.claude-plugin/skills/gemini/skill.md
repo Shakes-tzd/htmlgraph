@@ -1,21 +1,194 @@
 ---
 name: gemini
-description: Use Google Gemini for exploration and large-context research
+description: GeminiSpawner with full event tracking for exploration and large-context research
 when_to_use:
-  - Large codebase exploration and analysis
+  - Large codebase exploration with full tracking
   - Research tasks requiring extensive context
-  - Large-context workflows
+  - Large-context workflows with event hierarchy
   - Multimodal tasks (images, PDFs, documents)
+  - AI-powered code analysis with observability
 skill_type: executable
 ---
 
-# Gemini - Exploration & Research
+# GeminiSpawner - Exploration & Research with Full Event Tracking
 
-⚠️ **IMPORTANT: This skill is DOCUMENTATION/COORDINATION ONLY - it does NOT directly execute exploration.**
+⚠️ **IMPORTANT: This skill teaches TWO EXECUTION PATTERNS**
 
-This skill provides embedded Python code that checks for the external Gemini CLI and executes it if available. If the CLI is not installed, it shows you HOW to use Task() delegation for exploration work.
+1. **Task(subagent_type="Explore")** - Built-in Claude Explore agent (simplest, recommended)
+2. **GeminiSpawner** - Direct Google Gemini CLI with full HtmlGraph parent event tracking
 
-**The embedded Python code is for INTERNAL coordination - not the primary execution path for users.**
+Choose based on your needs. See "EXECUTION PATTERNS" below.
+
+## Quick Summary
+
+| Pattern | Use Case | Tracking | Complexity |
+|---------|----------|----------|-----------|
+| **Task(Explore)** | General exploration, analysis, research | ✅ Yes (via Task) | Low (1 line) |
+| **GeminiSpawner** | Need precise Gemini control + full subprocess tracking | ✅ Yes (full parent context) | Medium (setup required) |
+
+---
+
+## 🚀 GeminiSpawner Pattern: Full Event Tracking
+
+### What is GeminiSpawner?
+
+GeminiSpawner is the HtmlGraph-integrated way to invoke Google Gemini CLI with **full parent event context and subprocess tracking**.
+
+Similar to CopilotSpawner, it:
+- ✅ Creates parent event context in database
+- ✅ Links to parent Task delegation event
+- ✅ Records subprocess invocations as child events
+- ✅ Tracks all activities in HtmlGraph event hierarchy
+- ✅ Provides full observability of Gemini execution
+
+### When to Use GeminiSpawner vs Task(Explore)
+
+**Use Task(Explore):**
+```python
+# Simple, recommended approach
+Task(subagent_type="Explore",
+     prompt="Analyze this codebase for patterns")
+# Task() handles everything - parent context, tracking, etc.
+```
+
+**Use GeminiSpawner:**
+```python
+# When you need:
+# - Direct control over Gemini parameters (model, output format)
+# - Full subprocess event recording
+# - Integration with other spawners in same session
+# - Access to raw JSON output
+```
+
+### How to Use GeminiSpawner
+
+```python
+import os
+import sys
+from pathlib import Path
+from datetime import datetime, timezone
+import uuid
+
+# Add plugin agents directory to path
+PLUGIN_AGENTS_DIR = Path("/path/to/htmlgraph/packages/claude-plugin/.claude-plugin/agents")
+sys.path.insert(0, str(PLUGIN_AGENTS_DIR))
+
+from htmlgraph import SDK
+from htmlgraph.orchestration.spawners import GeminiSpawner
+from htmlgraph.db.schema import HtmlGraphDB
+from htmlgraph.config import get_database_path
+from spawner_event_tracker import SpawnerEventTracker
+
+# Initialize
+sdk = SDK(agent='claude')
+db = HtmlGraphDB(str(get_database_path()))
+session_id = f"sess-{uuid.uuid4().hex[:8]}"
+db._ensure_session_exists(session_id, "claude")
+
+# Create parent event context (like PreToolUse hook does)
+user_query_event_id = f"event-query-{uuid.uuid4().hex[:8]}"
+parent_event_id = f"event-{uuid.uuid4().hex[:8]}"
+start_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+# Insert UserQuery event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+    (user_query_event_id, "claude-code", "tool_call", session_id, "UserPromptSubmit",
+     "Analyze codebase quality", "completed", start_time)
+)
+
+# Insert Task delegation event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary,
+        context, parent_event_id, subagent_type, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    (parent_event_id, "claude-code", "task_delegation", session_id, "Task",
+     "Analyze spawner architecture quality", '{"subagent_type":"general-purpose"}',
+     user_query_event_id, "general-purpose", "started", start_time)
+)
+db.connection.commit()
+
+# Export parent context (like PreToolUse hook does)
+os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+os.environ["HTMLGRAPH_PARENT_SESSION"] = session_id
+os.environ["HTMLGRAPH_SESSION_ID"] = session_id
+
+# Create tracker with parent context
+tracker = SpawnerEventTracker(
+    delegation_event_id=parent_event_id,
+    parent_agent="claude",
+    spawner_type="gemini",
+    session_id=session_id
+)
+tracker.db = db
+
+# Invoke GeminiSpawner with FULL tracking
+spawner = GeminiSpawner()
+result = spawner.spawn(
+    prompt="Analyze the refactored spawner architecture for quality",
+    model="gemini-2.0-flash",
+    output_format="stream-json",
+    track_in_htmlgraph=True,      # Enable SDK activity tracking
+    tracker=tracker,               # Enable subprocess event tracking
+    parent_event_id=parent_event_id,  # Link to parent event
+    timeout=120
+)
+
+# Check results
+print(f"Success: {result.success}")
+print(f"Response: {result.response}")
+if result.tracked_events:
+    print(f"Tracked {len(result.tracked_events)} events in HtmlGraph")
+```
+
+### Key Parameters for GeminiSpawner.spawn()
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | str | ✅ | Research/analysis task for Gemini |
+| `model` | str | ❌ | Gemini model to use (default: "gemini-2.0-flash") |
+| `output_format` | str | ❌ | "json" or "stream-json" (default: "stream-json") |
+| `track_in_htmlgraph` | bool | ❌ | Enable SDK activity tracking (default: True) |
+| `tracker` | SpawnerEventTracker | ❌ | Tracker instance for subprocess events |
+| `parent_event_id` | str | ❌ | Parent event ID for event hierarchy |
+| `timeout` | int | ❌ | Max seconds to wait (default: 120) |
+
+### Real Example: Code Quality Analysis
+
+```python
+# See above code example + this prompt:
+result = spawner.spawn(
+    prompt="""Analyze the quality of this refactored spawner architecture:
+
+src/python/htmlgraph/orchestration/spawners/
+├── base.py (BaseSpawner - 195 lines)
+├── gemini.py (GeminiSpawner - 430 lines)
+├── codex.py (CodexSpawner - 443 lines)
+├── copilot.py (CopilotSpawner - 300 lines)
+└── claude.py (ClaudeSpawner - 171 lines)
+
+Please evaluate:
+1. Separation of concerns
+2. Code reusability
+3. Error handling patterns
+4. Event tracking integration
+    """,
+    model="gemini-2.0-flash",
+    output_format="stream-json",
+    track_in_htmlgraph=True,
+    tracker=tracker,
+    parent_event_id=parent_event_id,
+    timeout=120
+)
+
+# Result: Full tracking with Gemini's quality analysis
+# All subprocess invocations recorded in HtmlGraph
+```
+
+---
 
 <python>
 import subprocess

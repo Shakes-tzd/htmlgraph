@@ -1,21 +1,191 @@
 ---
 name: codex
-description: Use OpenAI Codex for sandboxed code generation and implementation
+description: CodexSpawner with full event tracking for code generation and implementation
 when_to_use:
-  - Code generation requiring GPT-4 reasoning
-  - Sandboxed execution environments needed
-  - Structured JSON outputs required
-  - Prefer OpenAI models over Anthropic
+  - Code generation with full HtmlGraph tracking
+  - Sandboxed execution environments with event hierarchy
+  - Structured JSON outputs with subprocess recording
+  - Code generation integrating with other spawners
+  - AI-powered implementation with observability
 skill_type: executable
 ---
 
-# Codex - Sandboxed Code Generation
+# CodexSpawner - Code Generation with Full Event Tracking
 
-⚠️ **IMPORTANT: This skill is DOCUMENTATION/COORDINATION ONLY - it does NOT directly execute code generation.**
+⚠️ **IMPORTANT: This skill teaches TWO EXECUTION PATTERNS**
 
-This skill provides embedded Python code that checks for the external Codex CLI and executes it if available. If the CLI is not installed, it shows you HOW to use Task() delegation for code generation work.
+1. **Task(subagent_type="general-purpose")** - Built-in Claude code generation (simplest, recommended)
+2. **CodexSpawner** - Direct OpenAI Codex CLI with full HtmlGraph parent event tracking
 
-**The embedded Python code is for INTERNAL coordination - not the primary execution path for users.**
+Choose based on your needs. See "EXECUTION PATTERNS" below.
+
+## Quick Summary
+
+| Pattern | Use Case | Tracking | Complexity |
+|---------|----------|----------|-----------|
+| **Task(general-purpose)** | Code generation, implementation, debugging | ✅ Yes (via Task) | Low (1-2 lines) |
+| **CodexSpawner** | Need precise Codex control + full subprocess tracking | ✅ Yes (full parent context) | Medium (setup required) |
+
+---
+
+## 🚀 CodexSpawner Pattern: Full Event Tracking
+
+### What is CodexSpawner?
+
+CodexSpawner is the HtmlGraph-integrated way to invoke OpenAI Codex CLI with **full parent event context and subprocess tracking**.
+
+Similar to CopilotSpawner and GeminiSpawner, it:
+- ✅ Creates parent event context in database
+- ✅ Links to parent Task delegation event
+- ✅ Records subprocess invocations as child events
+- ✅ Tracks all activities in HtmlGraph event hierarchy
+- ✅ Provides full observability of Codex execution
+
+### When to Use CodexSpawner vs Task(general-purpose)
+
+**Use Task(general-purpose):**
+```python
+# Simple, recommended approach
+Task(subagent_type="general-purpose",
+     prompt="Implement JWT authentication middleware with tests")
+# Task() handles everything - parent context, tracking, etc.
+```
+
+**Use CodexSpawner:**
+```python
+# When you need:
+# - Direct control over Codex parameters (sandbox mode, output format)
+# - Full subprocess event recording
+# - Integration with other spawners in same session
+# - Access to raw JSON output
+```
+
+### How to Use CodexSpawner
+
+```python
+import os
+import sys
+from pathlib import Path
+from datetime import datetime, timezone
+import uuid
+
+# Add plugin agents directory to path
+PLUGIN_AGENTS_DIR = Path("/path/to/htmlgraph/packages/claude-plugin/.claude-plugin/agents")
+sys.path.insert(0, str(PLUGIN_AGENTS_DIR))
+
+from htmlgraph import SDK
+from htmlgraph.orchestration.spawners import CodexSpawner
+from htmlgraph.db.schema import HtmlGraphDB
+from htmlgraph.config import get_database_path
+from spawner_event_tracker import SpawnerEventTracker
+
+# Initialize
+sdk = SDK(agent='claude')
+db = HtmlGraphDB(str(get_database_path()))
+session_id = f"sess-{uuid.uuid4().hex[:8]}"
+db._ensure_session_exists(session_id, "claude")
+
+# Create parent event context (like PreToolUse hook does)
+user_query_event_id = f"event-query-{uuid.uuid4().hex[:8]}"
+parent_event_id = f"event-{uuid.uuid4().hex[:8]}"
+start_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+# Insert UserQuery event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+    (user_query_event_id, "claude-code", "tool_call", session_id, "UserPromptSubmit",
+     "Generate spawner usage documentation", "completed", start_time)
+)
+
+# Insert Task delegation event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary,
+        context, parent_event_id, subagent_type, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    (parent_event_id, "claude-code", "task_delegation", session_id, "Task",
+     "Generate documentation code examples", '{"subagent_type":"general-purpose"}',
+     user_query_event_id, "general-purpose", "started", start_time)
+)
+db.connection.commit()
+
+# Export parent context (like PreToolUse hook does)
+os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+os.environ["HTMLGRAPH_PARENT_SESSION"] = session_id
+os.environ["HTMLGRAPH_SESSION_ID"] = session_id
+
+# Create tracker with parent context
+tracker = SpawnerEventTracker(
+    delegation_event_id=parent_event_id,
+    parent_agent="claude",
+    spawner_type="codex",
+    session_id=session_id
+)
+tracker.db = db
+
+# Invoke CodexSpawner with FULL tracking
+spawner = CodexSpawner()
+result = spawner.spawn(
+    prompt="Generate Python code example for using CopilotSpawner",
+    sandbox="workspace-write",
+    output_json=True,
+    full_auto=True,
+    track_in_htmlgraph=True,      # Enable SDK activity tracking
+    tracker=tracker,               # Enable subprocess event tracking
+    parent_event_id=parent_event_id,  # Link to parent event
+    timeout=120
+)
+
+# Check results
+print(f"Success: {result.success}")
+print(f"Response: {result.response}")
+if result.tracked_events:
+    print(f"Tracked {len(result.tracked_events)} events in HtmlGraph")
+```
+
+### Key Parameters for CodexSpawner.spawn()
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | str | ✅ | Code generation task for Codex |
+| `sandbox` | str | ❌ | Sandbox mode: "workspace-write", "workspace-read", etc. |
+| `output_json` | bool | ❌ | Return structured JSON output (default: False) |
+| `full_auto` | bool | ❌ | Enable full-auto headless mode (default: False) |
+| `track_in_htmlgraph` | bool | ❌ | Enable SDK activity tracking (default: True) |
+| `tracker` | SpawnerEventTracker | ❌ | Tracker instance for subprocess events |
+| `parent_event_id` | str | ❌ | Parent event ID for event hierarchy |
+| `timeout` | int | ❌ | Max seconds to wait (default: 120) |
+
+### Real Example: Generate Code Documentation
+
+```python
+# See above code example + this prompt:
+result = spawner.spawn(
+    prompt="""Generate a Python code example showing how to:
+1. Create a CopilotSpawner instance
+2. Set up parent event context in database
+3. Invoke it with parent event linking
+4. Track the execution with SpawnerEventTracker
+5. Handle the AIResult
+
+Use real example from HtmlGraph project and show best practices.
+    """,
+    sandbox="workspace-write",
+    output_json=True,
+    full_auto=True,
+    track_in_htmlgraph=True,
+    tracker=tracker,
+    parent_event_id=parent_event_id,
+    timeout=120
+)
+
+# Result: Full tracking with Codex-generated code examples
+# All subprocess invocations recorded in HtmlGraph
+```
+
+---
 
 <python>
 import subprocess

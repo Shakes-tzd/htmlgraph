@@ -95,6 +95,174 @@ Think of yourself as a **strategic coordinator**, not a tactical executor. You m
 
 ---
 
+## 🚀 Advanced: Using Spawners for Full Event Tracking
+
+### What Are Spawners?
+
+**Spawners** are HtmlGraph-integrated ways to invoke external CLIs (Copilot, Gemini, Codex) with **full parent event context and subprocess tracking**.
+
+Instead of running CLI commands directly (which creates "black boxes"), spawners:
+- ✅ Link to parent Task delegation event
+- ✅ Record subprocess invocations as child events
+- ✅ Track all activities in HtmlGraph event hierarchy
+- ✅ Provide complete observability of external tool execution
+
+### Three Types of Spawners
+
+| Spawner | Use For | Parent Event | Full Tracking |
+|---------|---------|--------------|---------------|
+| **CopilotSpawner** | Git workflows, version updates, code guidance | ✅ Yes | ✅ Subprocess events recorded |
+| **GeminiSpawner** | Code analysis, exploration, research | ✅ Yes | ✅ Subprocess events recorded |
+| **CodexSpawner** | Code generation, implementation | ✅ Yes | ✅ Subprocess events recorded |
+
+### When to Use Spawners vs Task()
+
+**Use Task() (simple, recommended):**
+```python
+# Task() handles everything automatically
+Task(subagent_type="Explore", prompt="Analyze codebase")
+Task(subagent_type="general-purpose", prompt="Implement feature")
+```
+
+**Use Spawners (advanced, when you need):**
+- Direct control over CLI parameters (model, output format, sandbox)
+- Full subprocess event recording in same session
+- Integration with multiple spawners in sequence
+- Access to raw CLI output
+
+### How to Use Spawners with Full Tracking
+
+**CRITICAL: Spawners require parent event context to work properly.**
+
+Parent event context comes from the hook system:
+
+```python
+import os
+import sys
+from pathlib import Path
+from datetime import datetime, timezone
+import uuid
+
+# 1. Add plugin agents directory to path
+PLUGIN_AGENTS_DIR = Path("/path/to/htmlgraph/packages/claude-plugin/.claude-plugin/agents")
+sys.path.insert(0, str(PLUGIN_AGENTS_DIR))
+
+# 2. Import required modules
+from htmlgraph import SDK
+from htmlgraph.orchestration.spawners import CopilotSpawner
+from htmlgraph.db.schema import HtmlGraphDB
+from htmlgraph.config import get_database_path
+from spawner_event_tracker import SpawnerEventTracker
+
+# 3. Initialize database and SDK
+sdk = SDK(agent='claude')
+db = HtmlGraphDB(str(get_database_path()))
+session_id = f"sess-{uuid.uuid4().hex[:8]}"
+db._ensure_session_exists(session_id, "claude")
+
+# 4. CREATE PARENT EVENT CONTEXT (like PreToolUse hook does)
+user_query_event_id = f"event-query-{uuid.uuid4().hex[:8]}"
+parent_event_id = f"event-{uuid.uuid4().hex[:8]}"
+start_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+# Insert UserQuery event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+    (user_query_event_id, "claude-code", "tool_call", session_id, "UserPromptSubmit",
+     "Task description", "completed", start_time)
+)
+
+# Insert Task delegation event
+db.connection.cursor().execute(
+    """INSERT INTO agent_events
+       (event_id, agent_id, event_type, session_id, tool_name, input_summary,
+        context, parent_event_id, subagent_type, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    (parent_event_id, "claude-code", "task_delegation", session_id, "Task",
+     "Task description", '{"subagent_type":"general-purpose"}',
+     user_query_event_id, "general-purpose", "started", start_time)
+)
+db.connection.commit()
+
+# 5. EXPORT PARENT CONTEXT (like PreToolUse hook does)
+os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
+os.environ["HTMLGRAPH_PARENT_SESSION"] = session_id
+os.environ["HTMLGRAPH_SESSION_ID"] = session_id
+
+# 6. CREATE TRACKER WITH PARENT CONTEXT
+tracker = SpawnerEventTracker(
+    delegation_event_id=parent_event_id,
+    parent_agent="claude",
+    spawner_type="copilot",  # or gemini, codex
+    session_id=session_id
+)
+tracker.db = db
+
+# 7. INVOKE SPAWNER WITH FULL TRACKING
+spawner = CopilotSpawner()  # or GeminiSpawner(), CodexSpawner()
+result = spawner.spawn(
+    prompt="Your task here",
+    track_in_htmlgraph=True,        # Enable SDK tracking
+    tracker=tracker,                 # Enable subprocess tracking
+    parent_event_id=parent_event_id, # Link to parent
+    allow_all_tools=True,           # For Copilot: allow git operations
+    timeout=120
+)
+
+# 8. CHECK RESULTS
+print(f"Success: {result.success}")
+print(f"Response: {result.response}")
+if result.tracked_events:
+    print(f"Tracked {len(result.tracked_events)} events in HtmlGraph")
+```
+
+### Event Hierarchy with Spawners
+
+When using spawners with parent event context, you get:
+
+```
+UserQuery Event (from UserPromptSubmit hook)
+├── Task Delegation Event (from PreToolUse hook)
+    ├── Spawner Start Activity (activity tracking)
+    ├── Subprocess Invocation (subprocess event)
+    │   └── subprocess.copilot tool call
+    ├── Spawner Result Activity (activity tracking)
+    └── All linked with parent_event_id for full observability
+```
+
+### Production: Hook System Handles Parent Context
+
+In production (Claude Code with hooks):
+- **UserPromptSubmit hook** creates UserQuery event
+- **PreToolUse hook** creates Task delegation event + exports HTMLGRAPH_PARENT_EVENT
+- **Your code** calls spawner with parent context already set
+- **Spawner** automatically records subprocess events
+- **Result**: Full event hierarchy without manual setup
+
+### Key Parameters for All Spawners
+
+```python
+spawner.spawn(
+    prompt="Task description",                    # Required
+    track_in_htmlgraph=True,                      # Enable SDK tracking (default)
+    tracker=tracker,                              # SpawnerEventTracker instance
+    parent_event_id=parent_event_id,              # Link to parent event
+    timeout=120                                   # Max seconds to wait
+    # Plus spawner-specific parameters (model, sandbox, allow_tools, etc.)
+)
+```
+
+### Reference Documentation
+
+For complete examples and parameter details, see:
+- `/copilot` skill - CopilotSpawner pattern + GitHub CLI commands
+- `/gemini` skill - GeminiSpawner pattern + exploration examples
+- `/codex` skill - CodexSpawner pattern + code generation examples
+
+---
+
 ## Complexity Assessment for Code Execution
 
 **CRITICAL: Before delegating code implementation, assess task complexity to choose the right model.**
