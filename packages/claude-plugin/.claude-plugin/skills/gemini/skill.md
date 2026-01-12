@@ -21,10 +21,12 @@ Choose based on your needs. See "EXECUTION PATTERNS" below.
 
 ## Quick Summary
 
-| Pattern | Use Case | Tracking | Complexity |
-|---------|----------|----------|-----------|
-| **Task(Explore)** | General exploration, analysis, research | ✅ Yes (via Task) | Low (1 line) |
-| **GeminiSpawner** | Need precise Gemini control + full subprocess tracking | ✅ Yes (full parent context) | Medium (setup required) |
+| Pattern | Use Case | When to Use |
+|---------|----------|-----------|
+| **Task(Explore)** | General exploration via Claude Explore agent | When you want simplicity and Claude handles everything |
+| **GeminiSpawner** | Direct Gemini CLI invocation with full subprocess tracking | When you need precise Gemini control + full parent event context |
+
+**CRITICAL: GeminiSpawner is invoked DIRECTLY via Python SDK, NOT via Task().**
 
 ---
 
@@ -32,9 +34,12 @@ Choose based on your needs. See "EXECUTION PATTERNS" below.
 
 ### What is GeminiSpawner?
 
-GeminiSpawner is the HtmlGraph-integrated way to invoke Google Gemini CLI with **full parent event context and subprocess tracking**.
+GeminiSpawner is the HtmlGraph-integrated way to invoke Google Gemini CLI directly with **full parent event context and subprocess tracking**.
 
-Similar to CopilotSpawner, it:
+**Key distinction**: GeminiSpawner is invoked directly via Python SDK - NOT wrapped in Task(). Task() is only for Claude subagents (Haiku, Sonnet, Opus).
+
+GeminiSpawner:
+- ✅ Invokes external Gemini CLI directly
 - ✅ Creates parent event context in database
 - ✅ Links to parent Task delegation event
 - ✅ Records subprocess invocations as child events
@@ -45,19 +50,23 @@ Similar to CopilotSpawner, it:
 
 **Use Task(Explore):**
 ```python
-# Simple, recommended approach
+# Simple Claude exploration via subagent
 Task(subagent_type="Explore",
      prompt="Analyze this codebase for patterns")
-# Task() handles everything - parent context, tracking, etc.
+# Task() delegates to Claude Explore agent - no external CLI needed
 ```
 
-**Use GeminiSpawner:**
+**Use GeminiSpawner (direct Python invocation):**
 ```python
-# When you need:
-# - Direct control over Gemini parameters (model, output format)
-# - Full subprocess event recording
-# - Integration with other spawners in same session
-# - Access to raw JSON output
+# Direct Gemini CLI invocation with full tracking
+spawner = GeminiSpawner()
+result = spawner.spawn(
+    prompt="Analyze codebase",
+    track_in_htmlgraph=True,
+    tracker=tracker,
+    parent_event_id=parent_event_id
+)
+# NOT Task(GeminiSpawner) - invoke directly!
 ```
 
 ### How to Use GeminiSpawner
@@ -187,6 +196,55 @@ Please evaluate:
 # Result: Full tracking with Gemini's quality analysis
 # All subprocess invocations recorded in HtmlGraph
 ```
+
+### Fallback & Error Handling Pattern
+
+**CRITICAL: If external spawner fails, delegate to Claude sub-agent (NOT direct execution).**
+
+```python
+# Try external spawner first
+try:
+    spawner = GeminiSpawner()
+    result = spawner.spawn(
+        prompt="Your analysis task",
+        model="gemini-2.0-flash",
+        track_in_htmlgraph=True,
+        tracker=tracker,
+        parent_event_id=parent_event_id,
+        timeout=120
+    )
+
+    if result.success:
+        return result  # Success, use spawner result
+    else:
+        # Spawner returned error result
+        raise Exception(f"Spawner failed: {result.error}")
+
+except Exception as e:
+    # External spawner failed (CLI not installed, API issues, timeout, etc.)
+    # FALLBACK to Claude sub-agent - do NOT attempt direct execution
+    print(f"⚠️ GeminiSpawner failed: {e}")
+    print("📌 Falling back to Claude Explore agent...")
+
+    return Task(
+        subagent_type="Explore",
+        prompt="Your analysis task here"
+    )
+    # Task(Explore) guarantees execution via Claude Explore agent
+```
+
+**Why fallback to Task()?**
+- ✅ Gemini CLI may not be installed on user's system
+- ✅ Google API credentials/quota issues may affect external tool
+- ✅ Claude Explore agent provides guaranteed exploration fallback
+- ✅ Never attempt direct execution as fallback (violates orchestration principles)
+- ✅ Task() handles all retries, error recovery, and parent context automatically
+
+**Pattern Summary:**
+1. Try external spawner first (Gemini CLI)
+2. If spawner succeeds → return result
+3. If spawner fails → delegate to Claude sub-agent via Task(subagent_type="Explore")
+4. Never try direct execution as fallback
 
 ---
 

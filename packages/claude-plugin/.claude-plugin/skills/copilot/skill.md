@@ -192,6 +192,54 @@ result = spawner.spawn(
 # All subprocess invocations recorded in HtmlGraph
 ```
 
+### Fallback & Error Handling Pattern
+
+**CRITICAL: If external spawner fails, delegate to Claude sub-agent (NOT direct execution).**
+
+```python
+# Try external spawner first
+try:
+    spawner = CopilotSpawner()
+    result = spawner.spawn(
+        prompt="Your task",
+        tracker=tracker,
+        parent_event_id=parent_event_id,
+        allow_all_tools=True,
+        timeout=120
+    )
+
+    if result.success:
+        return result  # Success, use spawner result
+    else:
+        # Spawner returned error result
+        raise Exception(f"Spawner failed: {result.error}")
+
+except Exception as e:
+    # External spawner failed (CLI not installed, timeout, permission denied, etc.)
+    # FALLBACK to Claude sub-agent - do NOT attempt direct execution
+    print(f"⚠️ CopilotSpawner failed: {e}")
+    print("📌 Falling back to Claude sub-agent...")
+
+    return Task(
+        subagent_type="general-purpose",
+        prompt="Your task here"
+    )
+    # Task() guarantees execution via Claude
+```
+
+**Why fallback to Task()?**
+- ✅ External CLI may not be installed on user's system
+- ✅ Network/permissions issues may affect external tools
+- ✅ Claude sub-agent provides guaranteed execution fallback
+- ✅ Never attempt direct execution as fallback (violates orchestration principles)
+- ✅ Task() handles all retries, error recovery, and parent context automatically
+
+**Pattern Summary:**
+1. Try external spawner first (Copilot CLI)
+2. If spawner succeeds → return result
+3. If spawner fails → delegate to Claude sub-agent via Task()
+4. Never try direct execution as fallback
+
 ---
 
 ## What is GitHub CLI (gh)?

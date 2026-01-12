@@ -244,6 +244,47 @@ In production (Claude Code with hooks):
 - **Spawner** automatically records subprocess events
 - **Result**: Full event hierarchy without manual setup
 
+### Fallback Pattern: If Spawner Fails → Delegate to Claude Sub-agent
+
+**CRITICAL: External spawner failure → delegate to Claude sub-agent (NOT direct execution).**
+
+```python
+# Try external spawner first
+try:
+    spawner = CopilotSpawner()  # or GeminiSpawner, CodexSpawner
+    result = spawner.spawn(
+        prompt="Task description",
+        track_in_htmlgraph=True,
+        tracker=tracker,
+        parent_event_id=parent_event_id,
+        timeout=120
+    )
+
+    if result.success:
+        return result  # Success - done
+    else:
+        raise Exception(f"Spawner failed: {result.error}")
+
+except Exception as e:
+    # FALLBACK: Spawner failed (CLI not installed, API issues, timeout, etc.)
+    # DELEGATE to Claude sub-agent - do NOT attempt direct execution
+    print(f"⚠️ Spawner failed: {e}")
+    print("📌 Delegating to Claude sub-agent...")
+
+    return Task(
+        subagent_type="general-purpose",  # or "Explore" for exploration
+        prompt="Your task here"
+    )
+    # Task() handles everything: retries, error recovery, parent context
+```
+
+**Why this pattern?**
+- ✅ External CLIs may not be installed on user's system
+- ✅ Network/API/permission issues may affect external tools
+- ✅ Claude sub-agent provides guaranteed execution fallback
+- ✅ Never attempt direct execution as fallback (violates orchestration)
+- ✅ Task() automatically handles parent context, retries, and error recovery
+
 ### Key Parameters for All Spawners
 
 ```python

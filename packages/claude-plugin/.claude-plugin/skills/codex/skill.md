@@ -194,6 +194,56 @@ Use real example from HtmlGraph project and show best practices.
 # All subprocess invocations recorded in HtmlGraph
 ```
 
+### Fallback & Error Handling Pattern
+
+**CRITICAL: If external spawner fails, delegate to Claude sub-agent (NOT direct execution).**
+
+```python
+# Try external spawner first
+try:
+    spawner = CodexSpawner()
+    result = spawner.spawn(
+        prompt="Your code generation task",
+        sandbox="workspace-write",
+        output_json=True,
+        track_in_htmlgraph=True,
+        tracker=tracker,
+        parent_event_id=parent_event_id,
+        timeout=120
+    )
+
+    if result.success:
+        return result  # Success, use spawner result
+    else:
+        # Spawner returned error result
+        raise Exception(f"Spawner failed: {result.error}")
+
+except Exception as e:
+    # External spawner failed (CLI not installed, API issues, sandbox restrictions, etc.)
+    # FALLBACK to Claude sub-agent - do NOT attempt direct execution
+    print(f"⚠️ CodexSpawner failed: {e}")
+    print("📌 Falling back to Claude code generation agent...")
+
+    return Task(
+        subagent_type="general-purpose",
+        prompt="Your code generation task here"
+    )
+    # Task(general-purpose) guarantees execution via Claude
+```
+
+**Why fallback to Task()?**
+- ✅ Codex CLI may not be installed on user's system
+- ✅ OpenAI API credentials/quota issues may affect external tool
+- ✅ Claude sub-agent provides guaranteed code generation fallback
+- ✅ Never attempt direct execution as fallback (violates orchestration principles)
+- ✅ Task() handles all retries, error recovery, and parent context automatically
+
+**Pattern Summary:**
+1. Try external spawner first (Codex CLI)
+2. If spawner succeeds → return result
+3. If spawner fails → delegate to Claude sub-agent via Task(subagent_type="general-purpose")
+4. Never try direct execution as fallback
+
 ---
 
 <python>
