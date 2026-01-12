@@ -557,10 +557,13 @@ async def run_validation_check(tool_input: dict[str, Any]) -> dict[str, Any]:
 
         tool_name = tool_input.get("name", "") or tool_input.get("tool", "")
         tool_params = tool_input.get("input", {}) or tool_input.get("params", {})
+        session_id = tool_input.get("session_id", "unknown")
 
         # Load config and history in thread pool
         config = await loop.run_in_executor(None, load_validation_config)
-        history = await loop.run_in_executor(None, validator_load_history)
+        history = await loop.run_in_executor(
+            None, lambda: validator_load_history(session_id)
+        )
 
         # Run validation
         return await loop.run_in_executor(

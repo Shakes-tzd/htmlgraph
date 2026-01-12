@@ -10,6 +10,8 @@ Architecture:
 - Classifies operations into ALLOWED vs BLOCKED categories
 - Tracks tool usage sequences to detect exploration patterns
 - Provides clear Task delegation suggestions when blocking
+- Subagents spawned via Task() have unrestricted tool access
+- Detection uses 5-level strategy: env vars, session state, database
 
 Operation Categories:
 1. ALWAYS ALLOWED - Task, AskUserQuestion, TodoWrite, SDK operations
@@ -27,74 +29,73 @@ Public API:
 
 import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
+from htmlgraph.hooks.subagent_detection import is_subagent_context
+from htmlgraph.orchestrator_config import load_orchestrator_config
 from htmlgraph.orchestrator_mode import OrchestratorModeManager
 from htmlgraph.orchestrator_validator import OrchestratorValidator
 
-# Tool history file (temporary storage for session)
-TOOL_HISTORY_FILE = Path("/tmp/htmlgraph-tool-history.json")
+# Maximum number of recent tool calls to consider for pattern detection
 MAX_HISTORY_SIZE = 50  # Keep last 50 tool calls
 
 
-def load_tool_history() -> list[dict]:
+def load_tool_history(session_id: str) -> list[dict]:
     """
-    Load recent tool history from temp file.
+    Load recent tool history from database (session-isolated).
+
+    Args:
+        session_id: Session identifier to filter tool history
 
     Returns:
         List of recent tool calls with tool name and timestamp
     """
-    if not TOOL_HISTORY_FILE.exists():
-        return []
-
     try:
-        data = json.loads(TOOL_HISTORY_FILE.read_text())
-        # Handle both formats: {"history": [...]} and [...] (legacy)
-        if isinstance(data, list):
-            return cast(list[dict[Any, Any]], data)
-        return cast(list[dict[Any, Any]], data.get("history", []))
-    except Exception:
-        return []
+        from htmlgraph.db.schema import HtmlGraphDB
 
+        # Find database path
+        cwd = Path.cwd()
+        graph_dir = cwd / ".htmlgraph"
+        if not graph_dir.exists():
+            for parent in [cwd.parent, cwd.parent.parent, cwd.parent.parent.parent]:
+                candidate = parent / ".htmlgraph"
+                if candidate.exists():
+                    graph_dir = candidate
+                    break
 
-def save_tool_history(history: list[dict]) -> None:
-    """
-    Save tool history to temp file.
+        db_path = graph_dir / "htmlgraph.db"
+        if not db_path.exists():
+            return []
 
-    Args:
-        history: List of tool calls to persist
-    """
-    try:
-        # Keep only recent history
-        recent = (
-            history[-MAX_HISTORY_SIZE:] if len(history) > MAX_HISTORY_SIZE else history
+        db = HtmlGraphDB(str(db_path))
+        if db.connection is None:
+            return []
+
+        cursor = db.connection.cursor()
+        cursor.execute(
+            """
+            SELECT tool_name, timestamp
+            FROM agent_events
+            WHERE session_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """,
+            (session_id, MAX_HISTORY_SIZE),
         )
-        TOOL_HISTORY_FILE.write_text(json.dumps({"history": recent}, indent=2))
+
+        # Return in chronological order (oldest first) for pattern detection
+        rows = cursor.fetchall()
+        db.disconnect()
+
+        return [{"tool": row[0], "timestamp": row[1]} for row in reversed(rows)]
     except Exception:
-        pass  # Fail silently on history save errors
-
-
-def add_to_tool_history(tool: str) -> None:
-    """
-    Add a tool call to history.
-
-    Args:
-        tool: Name of the tool being called
-    """
-    history = load_tool_history()
-    history.append(
-        {
-            "tool": tool,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-    )
-    save_tool_history(history)
+        # Graceful degradation - return empty history on error
+        return []
 
 
 def is_allowed_orchestrator_operation(
-    tool: str, params: dict[str, Any]
+    tool: str, params: dict[str, Any], session_id: str = "unknown"
 ) -> tuple[bool, str, str]:
     """
     Check if operation is allowed for orchestrators.
@@ -102,6 +103,7 @@ def is_allowed_orchestrator_operation(
     Args:
         tool: Tool name (e.g., "Read", "Edit", "Bash")
         params: Tool parameters dict
+        session_id: Session identifier for loading tool history
 
     Returns:
         Tuple of (is_allowed, reason_if_not, category)
@@ -152,13 +154,12 @@ def is_allowed_orchestrator_operation(
         if command.startswith("uv run htmlgraph ") or command.startswith("htmlgraph "):
             return True, "", "sdk-command"
 
-        # Allow git read-only commands
-        if (
-            command.startswith("git status")
-            or command.startswith("git diff")
-            or command.startswith("git log")
-        ):
-            return True, "", "git-readonly"
+        # Allow git read-only commands using shared classification
+        if command.strip().startswith("git"):
+            from htmlgraph.hooks.git_commands import should_allow_git_command
+
+            if should_allow_git_command(command):
+                return True, "", "git-readonly"
 
         # Allow SDK inline usage (Python inline with htmlgraph import)
         if "from htmlgraph import" in command or "import htmlgraph" in command:
@@ -195,16 +196,21 @@ def is_allowed_orchestrator_operation(
     # Category 3: Quick Lookups - Single operations only
     if tool in ["Read", "Grep", "Glob"]:
         # Check tool history to see if this is a single lookup or part of a sequence
-        history = load_tool_history()
+        history = load_tool_history(session_id)
 
-        # FIX #4: Check for mixed exploration pattern
+        # FIX #4: Check for mixed exploration pattern (configurable threshold)
+        config = load_orchestrator_config()
+        exploration_threshold = config.thresholds.exploration_calls
+
+        # Check last N calls (where N = threshold + 2)
+        lookback = min(exploration_threshold + 2, len(history))
         exploration_count = sum(
-            1 for h in history[-5:] if h["tool"] in ["Read", "Grep", "Glob"]
+            1 for h in history[-lookback:] if h["tool"] in ["Read", "Grep", "Glob"]
         )
-        if exploration_count >= 3 and enforcement_level == "strict":
+        if exploration_count >= exploration_threshold and enforcement_level == "strict":
             return (
                 False,
-                "Multiple exploration calls detected. Delegate to Explorer agent.\n\n"
+                f"Multiple exploration calls detected ({exploration_count}/{exploration_threshold}). Delegate to Explorer agent.\n\n"
                 "Use Task tool with explorer subagent.",
                 "exploration-blocked",
             )
@@ -372,21 +378,36 @@ def create_task_suggestion(tool: str, params: dict[str, Any]) -> str:
     )
 
 
-def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, Any]:
+def enforce_orchestrator_mode(
+    tool: str, params: dict[str, Any], session_id: str = "unknown"
+) -> dict[str, Any]:
     """
     Enforce orchestrator mode rules.
 
     This is the main public API for hook scripts. It checks if orchestrator mode
     is enabled, classifies the operation, and returns a hook response dict.
 
+    Subagents spawned via Task() have unrestricted tool access.
+    Detection uses 5-level strategy: env vars, session state, database.
+
     Args:
         tool: Tool being called
         params: Tool parameters
+        session_id: Session identifier for loading tool history
 
     Returns:
         Hook response dict with decision (allow/block) and guidance
         Format: {"continue": bool, "hookSpecificOutput": {...}}
     """
+    # Check if this is a subagent context - subagents have unrestricted tool access
+    if is_subagent_context():
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+            },
+        }
+
     # Get manager and check if mode is enabled
     try:
         # Look for .htmlgraph directory starting from cwd
@@ -405,7 +426,6 @@ def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, An
 
         if not manager.is_enabled():
             # Mode not active, allow everything
-            add_to_tool_history(tool)
             return {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
@@ -416,7 +436,6 @@ def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, An
         enforcement_level = manager.get_enforcement_level()
     except Exception:
         # If we can't check mode, fail open (allow)
-        add_to_tool_history(tool)
         return {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
@@ -424,20 +443,26 @@ def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, An
             },
         }
 
-    # Check if circuit breaker is triggered in strict mode
+    # Check if circuit breaker is triggered in strict mode (configurable threshold)
+    config = load_orchestrator_config()
+    circuit_breaker_threshold = config.thresholds.circuit_breaker_violations
+
     if enforcement_level == "strict" and manager.is_circuit_breaker_triggered():
         # Circuit breaker triggered - block all non-core operations
         if tool not in ["Task", "AskUserQuestion", "TodoWrite"]:
+            violation_count = manager.get_violation_count()
             circuit_breaker_message = (
                 "🚨 ORCHESTRATOR CIRCUIT BREAKER TRIGGERED\n\n"
-                f"You have violated delegation rules {manager.get_violation_count()} times this session.\n\n"
+                f"You have violated delegation rules {violation_count} times this session "
+                f"(threshold: {circuit_breaker_threshold}).\n\n"
                 "Violations detected:\n"
                 "- Direct execution instead of delegation\n"
                 "- Context waste on tactical operations\n\n"
                 "Options:\n"
                 "1. Disable orchestrator mode: uv run htmlgraph orchestrator disable\n"
                 "2. Change to guidance mode: uv run htmlgraph orchestrator set-level guidance\n"
-                "3. Reset counter (acknowledge violations): uv run htmlgraph orchestrator reset-violations\n\n"
+                "3. Reset counter (acknowledge violations): uv run htmlgraph orchestrator reset-violations\n"
+                "4. Adjust thresholds: uv run htmlgraph orchestrator config set thresholds.circuit_breaker_violations <N>\n\n"
                 "To proceed, choose an option above."
             )
 
@@ -449,11 +474,13 @@ def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, An
                 },
             }
 
-    # Check if operation is allowed
-    is_allowed, reason, category = is_allowed_orchestrator_operation(tool, params)
+    # Check if operation is allowed (pass session_id for history lookup)
+    is_allowed, reason, category = is_allowed_orchestrator_operation(
+        tool, params, session_id
+    )
 
-    # Add to history (for sequence detection)
-    add_to_tool_history(tool)
+    # Note: Tool recording is now handled by track-event.py PostToolUse hook
+    # No need to call add_to_tool_history() here
 
     # Operation is allowed
     if is_allowed:
@@ -488,19 +515,19 @@ def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, An
     if enforcement_level == "strict":
         # STRICT mode - loud warning with violation count
         error_message = (
-            f"🚫 ORCHESTRATOR MODE VIOLATION ({violations}/3): {reason}\n\n"
+            f"🚫 ORCHESTRATOR MODE VIOLATION ({violations}/{circuit_breaker_threshold}): {reason}\n\n"
             f"⚠️  WARNING: Direct operations waste context and break delegation pattern!\n\n"
             f"Suggested delegation:\n"
             f"{suggestion}\n\n"
         )
 
         # Add circuit breaker warning if approaching threshold
-        if violations >= 3:
+        if violations >= circuit_breaker_threshold:
             error_message += (
                 "🚨 CIRCUIT BREAKER TRIGGERED - Further violations will be blocked!\n\n"
                 "Reset with: uv run htmlgraph orchestrator reset-violations\n"
             )
-        elif violations == 2:
+        elif violations == circuit_breaker_threshold - 1:
             error_message += "⚠️  Next violation will trigger circuit breaker!\n\n"
 
         error_message += (
@@ -528,3 +555,42 @@ def enforce_orchestrator_mode(tool: str, params: dict[str, Any]) -> dict[str, An
                 "additionalContext": warning_message,
             },
         }
+
+
+def main() -> None:
+    """Hook entry point for script wrapper."""
+    import os
+    import sys
+
+    # Check if tracking is disabled
+    if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
+        print(json.dumps({"continue": True}))
+        sys.exit(0)
+
+    # Check for orchestrator mode environment override
+    if os.environ.get("HTMLGRAPH_ORCHESTRATOR_DISABLED") == "1":
+        print(json.dumps({"continue": True}))
+        sys.exit(0)
+
+    try:
+        hook_input = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        hook_input = {}
+
+    # Get tool name and parameters (Claude Code uses "name" and "input")
+    tool_name = hook_input.get("name", "") or hook_input.get("tool_name", "")
+    tool_input = hook_input.get("input", {}) or hook_input.get("tool_input", {})
+
+    # Get session_id from hook_input (NEW: required for session-isolated history)
+    session_id = hook_input.get("session_id", "unknown")
+
+    if not tool_name:
+        # No tool name, allow
+        print(json.dumps({"continue": True}))
+        return
+
+    # Enforce orchestrator mode with session_id for history lookup
+    response = enforce_orchestrator_mode(tool_name, tool_input, session_id)
+
+    # Output JSON response
+    print(json.dumps(response))

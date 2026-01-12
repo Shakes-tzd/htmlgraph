@@ -6,6 +6,9 @@ Provides intelligent guidance for HtmlGraph workflow based on:
 2. Recent tool usage patterns (anti-pattern detection)
 3. Learned patterns from transcript analytics
 
+Subagents spawned via Task() have unrestricted tool access.
+Detection uses 5-level strategy: env vars, session state, database.
+
 This module can be used by hook scripts or imported directly for validation logic.
 
 Main API:
@@ -26,35 +29,50 @@ Example:
 
 import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
-# Anti-patterns to detect (tool sequence -> warning message)
-ANTI_PATTERNS = {
-    (
-        "Bash",
-        "Bash",
-        "Bash",
-        "Bash",
-    ): "4 consecutive Bash commands. Check for errors or consider a different approach.",
-    (
-        "Edit",
-        "Edit",
-        "Edit",
-    ): "3 consecutive Edits. Consider batching changes or reading file first.",
-    (
-        "Grep",
-        "Grep",
-        "Grep",
-    ): "3 consecutive Greps. Consider reading results before searching more.",
-    (
-        "Read",
-        "Read",
-        "Read",
-        "Read",
-    ): "4 consecutive Reads. Consider caching file content.",
-}
+from htmlgraph.hooks.subagent_detection import is_subagent_context
+from htmlgraph.orchestrator_config import load_orchestrator_config
+
+
+def get_anti_patterns(config: Any | None = None) -> dict[tuple[str, ...], str]:
+    """
+    Build anti-pattern rules from configuration.
+
+    Args:
+        config: Optional OrchestratorConfig. If None, loads from file.
+
+    Returns:
+        Dict mapping tool sequences to warning messages
+    """
+    if config is None:
+        config = load_orchestrator_config()
+
+    patterns = config.anti_patterns
+
+    return {
+        tuple(["Bash"] * patterns.consecutive_bash): (
+            f"{patterns.consecutive_bash} consecutive Bash commands. "
+            "Check for errors or consider a different approach."
+        ),
+        tuple(["Edit"] * patterns.consecutive_edit): (
+            f"{patterns.consecutive_edit} consecutive Edits. "
+            "Consider batching changes or reading file first."
+        ),
+        tuple(["Grep"] * patterns.consecutive_grep): (
+            f"{patterns.consecutive_grep} consecutive Greps. "
+            "Consider reading results before searching more."
+        ),
+        tuple(["Read"] * patterns.consecutive_read): (
+            f"{patterns.consecutive_read} consecutive Reads. "
+            "Consider caching file content."
+        ),
+    }
+
+
+# Legacy constant for backwards compatibility (now uses config)
+ANTI_PATTERNS = get_anti_patterns()
 
 # Tools that indicate exploration/implementation (require work item in strict mode)
 EXPLORATION_TOOLS = {"Grep", "Glob", "Task"}
@@ -67,68 +85,89 @@ OPTIMAL_PATTERNS = {
     ("Edit", "Bash"): "Good: Edit then test - verify changes.",
 }
 
-# Session tool history file
-TOOL_HISTORY_FILE = Path("/tmp/htmlgraph-tool-history.json")
+# Maximum number of recent tool calls to consider for pattern detection
 MAX_HISTORY = 20
 
 
-def load_tool_history() -> list[dict]:
-    """Load recent tool history from temp file."""
-    if TOOL_HISTORY_FILE.exists():
-        try:
-            data = json.loads(TOOL_HISTORY_FILE.read_text())
+def load_tool_history(session_id: str) -> list[dict]:
+    """
+    Load recent tool history from database (session-isolated).
 
-            # Handle both formats: {"history": [...]} and [...] (legacy)
-            if isinstance(data, dict):  # type: ignore[arg-type]
-                data = data.get("history", [])
+    Args:
+        session_id: Session identifier to filter tool history
 
-            # Filter to last hour only
-            cutoff = datetime.now(timezone.utc).timestamp() - 3600
-
-            # Handle both "ts" (old) and "timestamp" (new) formats
-            filtered = []
-            for t in data:
-                ts = t.get("ts", 0)
-                if not ts and "timestamp" in t:
-                    # Parse ISO format timestamp
-                    try:
-                        ts = datetime.fromisoformat(
-                            t["timestamp"].replace("Z", "+00:00")
-                        ).timestamp()
-                    except Exception:
-                        ts = 0
-                if ts > cutoff:
-                    filtered.append(t)
-
-            return filtered[-MAX_HISTORY:]
-        except Exception:
-            pass
-    return []
-
-
-def save_tool_history(history: list[dict]) -> None:
-    """Save tool history to temp file."""
+    Returns:
+        List of recent tool calls with tool name and timestamp
+    """
     try:
-        # Use wrapped format to match orchestrator-enforce.py
-        TOOL_HISTORY_FILE.write_text(
-            json.dumps({"history": history[-MAX_HISTORY:]}, indent=2)
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        # Find database path
+        cwd = Path.cwd()
+        graph_dir = cwd / ".htmlgraph"
+        if not graph_dir.exists():
+            for parent in [cwd.parent, cwd.parent.parent, cwd.parent.parent.parent]:
+                candidate = parent / ".htmlgraph"
+                if candidate.exists():
+                    graph_dir = candidate
+                    break
+
+        db_path = graph_dir / "htmlgraph.db"
+        if not db_path.exists():
+            return []
+
+        db = HtmlGraphDB(str(db_path))
+        if db.connection is None:
+            return []
+
+        cursor = db.connection.cursor()
+        cursor.execute(
+            """
+            SELECT tool_name, timestamp
+            FROM agent_events
+            WHERE session_id = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """,
+            (session_id, MAX_HISTORY),
         )
+
+        # Return in chronological order (oldest first) for pattern detection
+        rows = cursor.fetchall()
+        db.disconnect()
+
+        return [{"tool": row[0], "timestamp": row[1]} for row in reversed(rows)]
     except Exception:
-        pass
+        # Graceful degradation - return empty history on error
+        return []
 
 
-def record_tool(tool: str, history: list[dict]) -> list[dict]:
-    """Record a tool use in history."""
-    # Use same format as orchestrator-enforce.py for consistency
-    history.append({"tool": tool, "timestamp": datetime.now(timezone.utc).isoformat()})
-    return history[-MAX_HISTORY:]
+def record_tool(tool: str, session_id: str) -> None:
+    """
+    Record a tool use in database.
+
+    Note: This is now handled by track-event.py hook, so this function
+    is kept for backward compatibility but does nothing.
+
+    Args:
+        tool: Tool name being called
+        session_id: Session identifier for isolation
+    """
+    # Tool recording is now handled by track-event.py PostToolUse hook
+    # This function is kept for backward compatibility but does nothing
+    pass
 
 
 def detect_anti_pattern(tool: str, history: list[dict]) -> str | None:
-    """Check if adding this tool creates an anti-pattern."""
-    recent_tools = [h["tool"] for h in history[-4:]] + [tool]
+    """Check if adding this tool creates an anti-pattern (uses configurable thresholds)."""
+    # Load fresh anti-patterns from config
+    anti_patterns = get_anti_patterns()
 
-    for pattern, message in ANTI_PATTERNS.items():
+    # Get max pattern length to know how far to look back
+    max_pattern_len = max(len(p) for p in anti_patterns.keys()) if anti_patterns else 5
+    recent_tools = [h["tool"] for h in history[-max_pattern_len:]] + [tool]
+
+    for pattern, message in anti_patterns.items():
         pattern_len = len(pattern)
         if len(recent_tools) >= pattern_len:
             # Check if recent tools end with this pattern
@@ -229,6 +268,15 @@ def is_always_allowed(
     # Read-only Bash patterns
     if tool == "Bash":
         command = params.get("command", "")
+
+        # Check git commands using shared classification
+        if command.strip().startswith("git"):
+            from htmlgraph.hooks.git_commands import should_allow_git_command
+
+            if should_allow_git_command(command):
+                return True
+
+        # Check other bash patterns
         for pattern in config.get("always_allow", {}).get("bash_patterns", []):
             if re.match(pattern, command):
                 return True
@@ -292,7 +340,9 @@ def get_active_work_item() -> dict | None:
         return None
 
 
-def check_orchestrator_violation(tool: str, params: dict[str, Any]) -> dict | None:
+def check_orchestrator_violation(
+    tool: str, params: dict[str, Any], session_id: str = "unknown"
+) -> dict | None:
     """
     Check if operation violates orchestrator mode rules.
 
@@ -302,6 +352,7 @@ def check_orchestrator_violation(tool: str, params: dict[str, Any]) -> dict | No
     Args:
         tool: Tool name
         params: Tool parameters
+        session_id: Session identifier for loading tool history
 
     Returns:
         Blocking response dict if violation detected in strict mode, None otherwise
@@ -339,7 +390,9 @@ def check_orchestrator_violation(tool: str, params: dict[str, Any]) -> dict | No
             is_allowed_orchestrator_operation,
         )
 
-        is_allowed, reason, category = is_allowed_orchestrator_operation(tool, params)
+        is_allowed, reason, category = is_allowed_orchestrator_operation(
+            tool, params, session_id
+        )
 
         # If orchestrator would block (but returns continue=True), we block here
         if not is_allowed:
@@ -367,33 +420,49 @@ def check_orchestrator_violation(tool: str, params: dict[str, Any]) -> dict | No
 
 
 def validate_tool_call(
-    tool: str, params: dict[str, Any], config: dict[str, Any], history: list[dict]
+    tool: str,
+    params: dict[str, Any],
+    config: dict[str, Any],
+    history: list[dict],
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Validate tool call and return GUIDANCE with active learning.
+
+    Subagents spawned via Task() have unrestricted tool access.
+    Detection uses 5-level strategy: env vars, session state, database.
 
     Args:
         tool: Tool name (e.g., "Edit", "Bash", "Read")
         params: Tool parameters (e.g., {"file_path": "test.py"})
         config: Validation configuration (from load_validation_config())
-        history: Tool usage history (from load_tool_history())
+        history: Tool usage history (from load_tool_history(session_id))
+        session_id: Optional session ID for loading history if not provided
 
     Returns:
         dict[str, Any]: {"decision": "allow" | "block", "guidance": "...", "suggestion": "...", ...}
               All operations are ALLOWED unless blocked for safety reasons.
 
     Example:
+        session_id = tool_input.get("session_id", "unknown")
+        history = load_tool_history(session_id)
         result = validate_tool_call("Edit", {"file_path": "test.py"}, config, history)
         if result["decision"] == "block":
             print(result["reason"])
         elif "guidance" in result:
             print(result["guidance"])
     """
+    # Check if this is a subagent context - subagents have unrestricted tool access
+    if is_subagent_context():
+        return {"decision": "allow"}
+
     result = {"decision": "allow"}
     guidance_parts = []
 
     # Step 0a: Check orchestrator mode violations (if enabled)
-    orchestrator_violation = check_orchestrator_violation(tool, params)
+    orchestrator_violation = check_orchestrator_violation(
+        tool, params, session_id or "unknown"
+    )
     if orchestrator_violation:
         # BLOCK orchestrator violations in strict mode
         return orchestrator_violation
@@ -509,3 +578,47 @@ def validate_tool_call(
         result["guidance"] = " | ".join(guidance_parts)
 
     return result
+
+
+def main() -> None:
+    """Hook entry point for script wrapper."""
+    import sys
+
+    try:
+        # Read tool input from stdin
+        tool_input = json.load(sys.stdin)
+
+        # Claude Code uses "name" and "input", fallback to "tool" and "params"
+        tool = tool_input.get("name", "") or tool_input.get("tool", "")
+        params = tool_input.get("input", {}) or tool_input.get("params", {})
+
+        # Get session_id from hook_input (NEW: required for session-isolated history)
+        session_id = tool_input.get("session_id", "unknown")
+
+        # Load config
+        config = load_validation_config()
+
+        # Load session-isolated tool history (NEW: from database, not file)
+        history = load_tool_history(session_id)
+
+        # Get guidance with pattern awareness
+        result = validate_tool_call(tool, params, config, history)
+
+        # Note: Tool recording is now handled by track-event.py PostToolUse hook
+        # No need to call record_tool() or save_tool_history() here
+
+        # Output JSON with guidance/block message
+        print(json.dumps(result))
+
+        # Exit 1 to BLOCK if decision is "block", otherwise allow
+        if result.get("decision") == "block":
+            sys.exit(1)
+        else:
+            sys.exit(0)
+
+    except Exception as e:
+        # Graceful degradation - allow on error
+        print(
+            json.dumps({"decision": "allow", "guidance": f"Validation hook error: {e}"})
+        )
+        sys.exit(0)

@@ -635,3 +635,31 @@ __all__ = [
     "record_user_query_event",
     "check_version_status",
 ]
+
+
+def main() -> None:
+    """Hook entry point for SessionEnd hook."""
+    import json
+    import os
+    import sys
+
+    # Check if tracking is disabled
+    if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
+        print(json.dumps({"continue": True}))
+        sys.exit(0)
+
+    try:
+        hook_input = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        hook_input = {}
+
+    # Create context from hook input
+    from htmlgraph.hooks.context import HookContext
+
+    context = HookContext.from_input(hook_input)
+
+    # Handle session end
+    response = handle_session_end(context)
+
+    # Output JSON response
+    print(json.dumps(response))

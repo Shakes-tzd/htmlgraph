@@ -194,3 +194,26 @@ def orchestrator_reflect(tool_input: dict[str, Any]) -> dict[str, Any]:
         }
 
     return response
+
+
+def main() -> None:
+    """Hook entry point for script wrapper."""
+    import json
+    import os
+    import sys
+
+    # Check if tracking is disabled
+    if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
+        print(json.dumps({"continue": True}))
+        sys.exit(0)
+
+    try:
+        hook_input = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        hook_input = {}
+
+    # Run reflection logic
+    response = orchestrator_reflect(hook_input)
+
+    # Output JSON response
+    print(json.dumps(response))
