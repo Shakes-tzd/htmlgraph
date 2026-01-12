@@ -87,6 +87,7 @@ class EventModel(BaseModel):
     input_summary: str | None = None
     output_summary: str | None = None
     session_id: str
+    feature_id: str | None = None
     parent_event_id: str | None = None
     status: str
     model: str | None = None
@@ -394,7 +395,7 @@ def get_app(db_path: str) -> FastAPI:
                 query = """
                     SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
                            e.input_summary, e.output_summary, e.session_id,
-                           e.parent_event_id, e.status, e.model
+                           e.parent_event_id, e.status, e.model, e.feature_id
                     FROM agent_events e
                     WHERE 1=1
                 """
@@ -431,6 +432,7 @@ def get_app(db_path: str) -> FastAPI:
                         parent_event_id=row[8],
                         status=row[9],
                         model=row[10],
+                        feature_id=row[11],
                     )
                     for row in rows
                 ]
@@ -769,7 +771,8 @@ def get_app(db_path: str) -> FastAPI:
                     session_id,
                     status,
                     model,
-                    parent_event_id
+                    parent_event_id,
+                    feature_id
                 FROM agent_events
                 WHERE event_type IN ({event_type_placeholders})
             """
@@ -801,6 +804,7 @@ def get_app(db_path: str) -> FastAPI:
                         "status": row[9],
                         "model": row[10],
                         "parent_event_id": row[11],
+                        "feature_id": row[12],
                     }
                 )
 
@@ -1022,7 +1026,8 @@ def get_app(db_path: str) -> FastAPI:
                         agent_id,
                         model,
                         context,
-                        subagent_type
+                        subagent_type,
+                        feature_id
                     FROM agent_events
                     WHERE parent_event_id = ?
                     ORDER BY timestamp ASC
@@ -1055,6 +1060,7 @@ def get_app(db_path: str) -> FastAPI:
                         model = row[7]
                         context_json = row[8]
                         subagent_type = row[9]
+                        feature_id = row[10]
 
                         # Parse context to extract spawner metadata
                         context = {}
@@ -1103,6 +1109,7 @@ def get_app(db_path: str) -> FastAPI:
                             "agent": agent,
                             "depth": depth,
                             "model": model,
+                            "feature_id": feature_id,
                         }
 
                         # Include spawner metadata if present
@@ -1689,7 +1696,7 @@ def get_app(db_path: str) -> FastAPI:
                 # OPTIMIZATION: Use composite index idx_features_status_priority
                 # for efficient filtering and ordering
                 query = """
-                    SELECT id, type, title, status, priority, assigned_to, created_at, updated_at
+                    SELECT id, type, title, status, priority, assigned_to, created_at, updated_at, description
                     FROM features
                     WHERE 1=1
                 """
@@ -1699,18 +1706,38 @@ def get_app(db_path: str) -> FastAPI:
                     query += " AND status = ?"
                     params.append(status)
 
-                query += " ORDER BY priority DESC, created_at DESC LIMIT 100"
+                query += " ORDER BY priority DESC, created_at DESC LIMIT 1000"
 
                 exec_start = time.time()
                 cursor = await db.execute(query, params)
                 rows = await cursor.fetchall()
+
+                # Query all unique agents per feature for attribution chain
+                # This only works for events that have feature_id populated
+                agents_query = """
+                    SELECT feature_id, agent_id
+                    FROM agent_events
+                    WHERE feature_id IS NOT NULL
+                    GROUP BY feature_id, agent_id
+                """
+                agents_cursor = await db.execute(agents_query)
+                agents_rows = await agents_cursor.fetchall()
+
+                feature_agents: dict[str, list[str]] = {}
+                for row in agents_rows:
+                    fid, aid = row[0], row[1]
+                    if fid not in feature_agents:
+                        feature_agents[fid] = []
+                    feature_agents[fid].append(aid)
+
                 exec_time_ms = (time.time() - exec_start) * 1000
 
                 for row in rows:
+                    feature_id = row[0]
                     feature_status = row[3]
                     features_by_status.setdefault(feature_status, []).append(
                         {
-                            "id": row[0],
+                            "id": feature_id,
                             "type": row[1],
                             "title": row[2],
                             "status": feature_status,
@@ -1718,6 +1745,8 @@ def get_app(db_path: str) -> FastAPI:
                             "assigned_to": row[5],
                             "created_at": row[6],
                             "updated_at": row[7],
+                            "description": row[8],
+                            "contributors": feature_agents.get(feature_id, []),
                         }
                     )
 

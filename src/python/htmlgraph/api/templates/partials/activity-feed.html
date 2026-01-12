@@ -130,6 +130,13 @@
                                           </span>
                                         {% endif %}
 
+                                        <!-- Feature Attribution -->
+                                        {% if child.feature_id %}
+                                          <span class="child-feature-badge" title="Linked to {{ child.feature_id }}">
+                                              #{{ child.feature_id[:8] }}
+                                          </span>
+                                        {% endif %}
+
                                         <!-- Duration -->
                                         <span class="child-duration">
                                             {{ "%.2f"|format(child.duration_seconds) }}s
@@ -405,6 +412,20 @@
 .child-agent-badge.agent-gemini-2-0-flash-exp {
     background: rgba(74, 222, 128, 0.15);
     color: #4ade80;
+}
+
+/* Feature Badge */
+.child-feature-badge {
+    display: inline-block;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--accent-lime);
+    border: 1px solid rgba(163, 230, 53, 0.3);
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
 }
 
 /* Child Duration */

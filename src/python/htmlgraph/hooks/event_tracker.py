@@ -543,6 +543,7 @@ def record_event_to_sqlite(
     agent_id: str | None = None,
     subagent_type: str | None = None,
     model: str | None = None,
+    feature_id: str | None = None,
 ) -> str | None:
     """
     Record a tool call event to SQLite database for dashboard queries.
@@ -559,6 +560,7 @@ def record_event_to_sqlite(
         agent_id: Agent identifier (optional)
         subagent_type: Subagent type for Task delegations (optional)
         model: Claude model name (e.g., claude-haiku, claude-opus) (optional)
+        feature_id: Feature ID for attribution (optional)
 
     Returns:
         event_id if successful, None otherwise
@@ -603,6 +605,7 @@ def record_event_to_sqlite(
             cost_tokens=0,
             subagent_type=subagent_type,
             model=model,
+            feature_id=feature_id,
         )
 
         if success:
@@ -840,7 +843,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     if hook_type == "Stop":
         # Session is ending - track stop event
         try:
-            manager.track_activity(
+            result = manager.track_activity(
                 session_id=active_session_id, tool="Stop", summary="Agent stopped"
             )
 
@@ -855,6 +858,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     is_error=False,
                     agent_id=detected_agent,
                     model=detected_model,
+                    feature_id=result.feature_id if result else None,
                 )
         except Exception as e:
             print(f"Warning: Could not track stop: {e}", file=sys.stderr)
@@ -868,7 +872,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             preview += "..."
 
         try:
-            manager.track_activity(
+            result = manager.track_activity(
                 session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
 
@@ -885,6 +889,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     is_error=False,
                     agent_id=detected_agent,
                     model=detected_model,
+                    feature_id=result.feature_id if result else None,
                 )
 
         except Exception as e:
@@ -985,6 +990,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     agent_id=detected_agent,
                     subagent_type=task_subagent_type,
                     model=detected_model,
+                    feature_id=result.feature_id if result else None,
                 )
 
             # If this was a Task() delegation, also record to agent_collaboration

@@ -96,6 +96,7 @@ class HtmlGraphDB:
 
         # Add missing columns with defaults
         migrations = [
+            ("feature_id", "TEXT"),
             ("subagent_type", "TEXT"),
             ("child_spike_count", "INTEGER DEFAULT 0"),
             ("cost_tokens", "INTEGER DEFAULT 0"),
@@ -216,6 +217,7 @@ class HtmlGraphDB:
                 output_summary TEXT,
                 context JSON,
                 session_id TEXT NOT NULL,
+                feature_id TEXT,
                 parent_agent_id TEXT,
                 parent_event_id TEXT,
                 subagent_type TEXT,
@@ -227,7 +229,8 @@ class HtmlGraphDB:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
-                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE
+                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
+                FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
             )
         """)
 
@@ -513,6 +516,7 @@ class HtmlGraphDB:
         execution_duration_seconds: float = 0.0,
         subagent_type: str | None = None,
         model: str | None = None,
+        feature_id: str | None = None,
     ) -> bool:
         """
         Insert an agent event into the database.
@@ -553,16 +557,17 @@ class HtmlGraphDB:
             cursor.execute(
                 """
                 INSERT INTO agent_events
-                (event_id, agent_id, event_type, session_id, tool_name,
+                (event_id, agent_id, event_type, session_id, feature_id, tool_name,
                  input_summary, output_summary, context, parent_agent_id,
                  parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
                     agent_id,
                     event_type,
                     session_id,
+                    feature_id,
                     tool_name,
                     input_summary,
                     output_summary,

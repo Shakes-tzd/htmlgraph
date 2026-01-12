@@ -363,7 +363,16 @@ def create_start_event(
 
         cursor = db.connection.cursor()  # type: ignore[union-attr]
 
-        # Get UserQuery event ID for ALL tool calls (links conversation turns)
+        # Determine parent event ID with proper hierarchy:
+        # 1. FIRST check HTMLGRAPH_PARENT_EVENT env var (set by Task delegation for subagents)
+        # 2. For Task() tool, create a new task_delegation event
+        # 3. Fall back to UserQuery only if no parent context available
+        #
+        # This ensures tool events executed within Task() subagents are properly
+        # nested under the Task delegation event, not flattened to UserQuery.
+        env_parent_event = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+
+        # Get UserQuery event ID as fallback (for top-level tool calls)
         user_query_event_id = None
         try:
             from htmlgraph.hooks.event_tracker import get_parent_user_query
@@ -384,10 +393,21 @@ def create_start_event(
 
         event_id = f"evt-{str(uuid.uuid4())[:8]}"
 
-        # Determine parent: Task() uses task_parent_event, others use UserQuery
-        parent_event_id = (
-            task_parent_event_id if tool_name == "Task" else user_query_event_id
-        )
+        # Determine parent with proper hierarchy:
+        # - Task() tools: Use the newly created task_delegation event
+        # - Tools in subagent context: Use HTMLGRAPH_PARENT_EVENT (Task delegation)
+        # - Top-level tools: Fall back to UserQuery
+        if tool_name == "Task":
+            parent_event_id = task_parent_event_id
+        elif env_parent_event:
+            # Subagent context: tools should be children of Task delegation
+            parent_event_id = env_parent_event
+            logger.debug(
+                f"Using parent from environment: {env_parent_event} for {tool_name}"
+            )
+        else:
+            # Top-level context: tools are children of UserQuery
+            parent_event_id = user_query_event_id
 
         cursor.execute(
             """

@@ -44,9 +44,18 @@
                     {% endif %}
                     <div class="card-footer">
                         <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
-                        {% if feature.assigned_to %}
-                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
-                        {% endif %}
+                        <div class="contributors">
+                            {% if feature.contributors %}
+                                {% for agent in feature.contributors %}
+                                    <span class="contributor-tag agent-{{ agent|lower|replace(' ', '-') }}" title="{{ agent }}">
+                                        {{ agent[:1]|upper }}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                            {% if feature.assigned_to %}
+                                <span class="assigned-to" title="Assigned to {{ feature.assigned_to }}">👤 {{ feature.assigned_to[:8] }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -77,9 +86,18 @@
                     {% endif %}
                     <div class="card-footer">
                         <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
-                        {% if feature.assigned_to %}
-                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
-                        {% endif %}
+                        <div class="contributors">
+                            {% if feature.contributors %}
+                                {% for agent in feature.contributors %}
+                                    <span class="contributor-tag agent-{{ agent|lower|replace(' ', '-') }}" title="{{ agent }}">
+                                        {{ agent[:1]|upper }}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                            {% if feature.assigned_to %}
+                                <span class="assigned-to" title="Assigned to {{ feature.assigned_to }}">👤 {{ feature.assigned_to[:8] }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -110,9 +128,18 @@
                     {% endif %}
                     <div class="card-footer">
                         <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
-                        {% if feature.assigned_to %}
-                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
-                        {% endif %}
+                        <div class="contributors">
+                            {% if feature.contributors %}
+                                {% for agent in feature.contributors %}
+                                    <span class="contributor-tag agent-{{ agent|lower|replace(' ', '-') }}" title="{{ agent }}">
+                                        {{ agent[:1]|upper }}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                            {% if feature.assigned_to %}
+                                <span class="assigned-to" title="Assigned to {{ feature.assigned_to }}">👤 {{ feature.assigned_to[:8] }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -143,9 +170,18 @@
                     {% endif %}
                     <div class="card-footer">
                         <span class="feature-id" title="{{ feature.id }}">{{ feature.id[:8] }}</span>
-                        {% if feature.assigned_to %}
-                        <span class="assigned-to">👤 {{ feature.assigned_to }}</span>
-                        {% endif %}
+                        <div class="contributors">
+                            {% if feature.contributors %}
+                                {% for agent in feature.contributors %}
+                                    <span class="contributor-tag agent-{{ agent|lower|replace(' ', '-') }}" title="{{ agent }}">
+                                        {{ agent[:1]|upper }}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                            {% if feature.assigned_to %}
+                                <span class="assigned-to" title="Assigned to {{ feature.assigned_to }}">👤 {{ feature.assigned_to[:8] }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -480,8 +516,41 @@
         font-weight: 600;
     }
 
+    .contributors {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .contributor-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+        font-size: 0.6rem;
+        font-weight: 700;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .contributor-tag.agent-claude-code, .contributor-tag.agent-claude {
+        background: rgba(200, 255, 0, 0.2);
+        color: #c8ff00;
+        border-color: rgba(200, 255, 0, 0.4);
+    }
+
+    .contributor-tag.agent-gemini {
+        background: rgba(74, 222, 128, 0.2);
+        color: #4ade80;
+        border-color: rgba(74, 222, 128, 0.4);
+    }
+
     .assigned-to {
         color: var(--text-muted);
+        margin-left: 4px;
     }
 
     .empty-column {
