@@ -34,7 +34,10 @@ Choose based on your needs. See "EXECUTION PATTERNS" below.
 
 CodexSpawner is the HtmlGraph-integrated way to invoke OpenAI Codex CLI with **full parent event context and subprocess tracking**.
 
-Similar to CopilotSpawner and GeminiSpawner, it:
+**Key distinction**: CodexSpawner is invoked directly via Python SDK - NOT wrapped in Task(). Task() is only for Claude subagents (Haiku, Sonnet, Opus).
+
+CodexSpawner:
+- ✅ Invokes external Codex CLI directly
 - ✅ Creates parent event context in database
 - ✅ Links to parent Task delegation event
 - ✅ Records subprocess invocations as child events
@@ -43,21 +46,27 @@ Similar to CopilotSpawner and GeminiSpawner, it:
 
 ### When to Use CodexSpawner vs Task(general-purpose)
 
-**Use Task(general-purpose):**
+**Use Task(general-purpose) (simple, recommended):**
 ```python
-# Simple, recommended approach
+# Delegate to Claude for code generation
 Task(subagent_type="general-purpose",
      prompt="Implement JWT authentication middleware with tests")
-# Task() handles everything - parent context, tracking, etc.
+# Task() delegates to Claude - handles everything automatically
 ```
 
-**Use CodexSpawner:**
+**Use CodexSpawner (direct Python invocation - advanced):**
 ```python
-# When you need:
-# - Direct control over Codex parameters (sandbox mode, output format)
-# - Full subprocess event recording
-# - Integration with other spawners in same session
-# - Access to raw JSON output
+# Direct Codex CLI invocation with full tracking
+spawner = CodexSpawner()
+result = spawner.spawn(
+    prompt="Generate auth middleware",
+    sandbox="workspace-write",
+    output_json=True,
+    track_in_htmlgraph=True,
+    tracker=tracker,
+    parent_event_id=parent_event_id
+)
+# NOT Task(CodexSpawner) - invoke directly!
 ```
 
 ### How to Use CodexSpawner
@@ -256,15 +265,16 @@ Use OpenAI Codex (GPT-4 Turbo) for code generation and implementation in sandbox
 
 | What | Description |
 |------|-------------|
-| **This Skill** | Documentation + embedded coordination logic |
-| **Embedded Python** | Internal check for codex CLI → spawns if available |
-| **Task() Tool** | PRIMARY execution path for code generation |
-| **Bash Tool** | ALTERNATIVE for direct CLI invocation (if you have codex CLI) |
+| **This Skill** | Documentation teaching HOW to use CodexSpawner |
+| **CodexSpawner** | Direct Codex CLI invocation with full tracking (advanced) |
+| **Task() Tool** | Delegation to Claude subagents ONLY (Haiku, Sonnet, Opus) |
+| **Bash Tool** | Direct CLI invocation without HtmlGraph tracking |
 
 **Workflow:**
-1. Read this skill to understand Codex capabilities
-2. Use **Task(subagent_type="general-purpose")** for actual code generation (PRIMARY)
-3. OR use **Bash** if you have codex CLI installed (ALTERNATIVE)
+1. Read this skill to understand CodexSpawner pattern
+2. For **simple code generation**: Use `Task(subagent_type="general-purpose")` (recommended)
+3. For **advanced control + full tracking**: Use CodexSpawner directly with parent event context
+4. OR use **Bash** if you have codex CLI and don't need HtmlGraph tracking
 
 ## EXECUTION - Real Commands for Code Generation
 
