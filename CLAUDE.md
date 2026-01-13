@@ -64,6 +64,13 @@ uv run pytest                              # Run tests
 
 **CRITICAL: Hooks load htmlgraph from PyPI, not local source, even in dev mode.**
 
+### What Dev Mode Does
+
+Dev mode enables local plugin development by loading the plugin directly from the source directory instead of from the Claude Code marketplace. This allows you to:
+- Test changes to commands, agents, skills, and hooks immediately
+- Work with the latest code without deploying to PyPI
+- Debug plugin functionality in a live Claude Code session
+
 ### Starting Dev Mode
 
 ```bash
@@ -71,9 +78,75 @@ uv run htmlgraph claude --dev
 ```
 
 This launches Claude Code with:
-- Plugin loaded from `packages/claude-plugin/.claude-plugin/`
+- Plugin loaded from local source: `packages/claude-plugin/`
 - Orchestrator system prompt injected
 - Multi-AI delegation rules enabled
+- All slash commands available with the plugin namespace prefix
+
+### Plugin Directory Structure
+
+When dev mode runs, it needs to find all plugin components. The structure must be:
+
+```
+packages/claude-plugin/              ← PLUGIN ROOT (passed to --plugin-dir)
+├── .claude-plugin/
+│   └── plugin.json                  ← Only this file in .claude-plugin
+├── commands/                        ← At plugin root (NOT in .claude-plugin)
+│   ├── deploy.md
+│   ├── init.md
+│   ├── plan.md
+│   └── ...
+├── agents/                          ← At plugin root
+│   └── agent-definition.md
+├── skills/                          ← At plugin root
+│   ├── gemini/
+│   │   └── SKILL.md                 ← Must be uppercase SKILL.md
+│   ├── codex/
+│   │   └── SKILL.md
+│   └── copilot/
+│       └── SKILL.md
+└── hooks/                           ← At plugin root
+    ├── hooks.json
+    └── scripts/
+        ├── session-start.py
+        └── ...
+```
+
+**CRITICAL MISTAKE TO AVOID:** Don't put `commands/`, `agents/`, `skills/`, or `hooks/` inside `.claude-plugin/`. According to Claude Code documentation, only `plugin.json` belongs in `.claude-plugin/`. All other directories must be at the plugin root level.
+
+### How Dev Mode Plugin Loading Works
+
+1. **`get_plugin_dir()` returns the plugin root:** `packages/claude-plugin/`
+2. **This directory is passed to Claude Code:** `claude --plugin-dir ./packages/claude-plugin`
+3. **Claude Code scans the root directory for:**
+   - `.claude-plugin/plugin.json` - Plugin metadata
+   - `commands/` - Slash commands (discovered automatically)
+   - `agents/` - Agent definitions (discovered automatically)
+   - `skills/` - Agent skills with `SKILL.md` files (discovered automatically)
+   - `hooks/` - Hook definitions in `hooks.json` (loaded automatically)
+4. **Commands appear namespaced:** `/htmlgraph:deploy`, `/htmlgraph:init`, etc.
+
+### Verifying Dev Mode Components
+
+After running `uv run htmlgraph claude --dev`, you should see:
+
+✅ **Slash commands** visible in `/help`:
+- `/htmlgraph:deploy`
+- `/htmlgraph:init`
+- `/htmlgraph:plan`
+- `/htmlgraph:research`
+- `/htmlgraph:status`
+- etc.
+
+✅ **Agent skills** available to Claude when working on relevant tasks (automatic based on context)
+
+✅ **Hooks** executing based on Claude Code events (PreToolUse, PostToolUse, etc.)
+
+If commands don't appear, verify:
+1. `get_plugin_dir()` returns the correct path (root, not `.claude-plugin`)
+2. Command files exist in `packages/claude-plugin/commands/`
+3. Skill files are named `SKILL.md` (uppercase), not `skill.md`
+4. No files are in `.claude-plugin/` except `plugin.json`
 
 ### How Hooks Load HtmlGraph
 
