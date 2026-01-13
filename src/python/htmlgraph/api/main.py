@@ -267,7 +267,19 @@ def get_app(db_path: str) -> FastAPI:
                         COUNT(*) as event_count,
                         SUM(e.cost_tokens) as total_tokens,
                         COUNT(DISTINCT e.session_id) as session_count,
-                        MAX(e.timestamp) as last_active
+                        MAX(e.timestamp) as last_active,
+                        MAX(e.model) as model,
+                        CASE
+                            WHEN MAX(e.timestamp) > datetime('now', '-5 minutes') THEN 'active'
+                            ELSE 'idle'
+                        END as status,
+                        AVG(e.execution_duration_seconds) as avg_duration,
+                        SUM(CASE WHEN e.event_type = 'error' THEN 1 ELSE 0 END) as error_count,
+                        ROUND(
+                            100.0 * COUNT(CASE WHEN e.status = 'completed' THEN 1 END) /
+                            CAST(COUNT(*) AS FLOAT),
+                            1
+                        ) as success_rate
                     FROM agent_events e
                     GROUP BY e.agent_id
                     ORDER BY event_count DESC
@@ -297,11 +309,19 @@ def get_app(db_path: str) -> FastAPI:
 
                     agents.append(
                         {
+                            "id": row[0],
                             "agent_id": row[0],
+                            "name": row[0],
                             "event_count": event_count,
                             "total_tokens": row[2] or 0,
                             "session_count": row[3],
+                            "last_activity": row[4],
                             "last_active": row[4],
+                            "model": row[5] or "unknown",
+                            "status": row[6] or "idle",
+                            "avg_duration": row[7],
+                            "error_count": row[8] or 0,
+                            "success_rate": row[9] or 0.0,
                             "workload_pct": round(workload_pct, 1),
                         }
                     )
@@ -1860,7 +1880,13 @@ def get_app(db_path: str) -> FastAPI:
                         ended_at = datetime.fromisoformat(row[4])
                         duration_seconds = (ended_at - started_at).total_seconds()
                     else:
-                        duration_seconds = (datetime.now() - started_at).total_seconds()
+                        # Use UTC to handle timezone-aware datetime comparison
+                        now = (
+                            datetime.now(started_at.tzinfo)
+                            if started_at.tzinfo
+                            else datetime.now()
+                        )
+                        duration_seconds = (now - started_at).total_seconds()
 
                     sessions.append(
                         {
