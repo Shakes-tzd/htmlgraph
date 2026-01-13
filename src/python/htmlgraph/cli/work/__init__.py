@@ -23,6 +23,7 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     Args:
         subparsers: Subparser action from ArgumentParser.add_subparsers()
     """
+    from htmlgraph.cli.work.browse import BrowseCommand
     from htmlgraph.cli.work.features import register_feature_commands
     from htmlgraph.cli.work.orchestration import (
         register_archive_commands,
@@ -42,8 +43,30 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     register_claude_commands(subparsers)
     register_report_commands(subparsers)
 
+    # Browse command
+    browse_parser = subparsers.add_parser(
+        "browse",
+        help="Open dashboard in browser",
+    )
+    browse_parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Server port (default: 8080)",
+    )
+    browse_parser.add_argument(
+        "--query-type",
+        help="Filter by type (feature, track, bug, spike, chore, epic)",
+    )
+    browse_parser.add_argument(
+        "--query-status",
+        help="Filter by status (todo, in_progress, blocked, done)",
+    )
+    browse_parser.set_defaults(func=BrowseCommand.from_args)
+
 
 # Re-export all command classes for backward compatibility
+from htmlgraph.cli.work.browse import BrowseCommand
 from htmlgraph.cli.work.features import (
     FeatureClaimCommand,
     FeatureCompleteCommand,
@@ -89,6 +112,8 @@ __all__ = [
     "SessionStartInfoCommand",
     # Report commands
     "SessionReportCommand",
+    # Browse commands
+    "BrowseCommand",
     # Feature commands
     "FeatureListCommand",
     "FeatureCreateCommand",
