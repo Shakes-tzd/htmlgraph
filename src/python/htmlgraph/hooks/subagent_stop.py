@@ -204,6 +204,52 @@ def get_parent_event_start_time(db_path: str, parent_event_id: str) -> str | Non
         return None
 
 
+def get_parent_event_from_db(db_path: str) -> str | None:
+    """
+    Query database for the most recent task_delegation event.
+
+    Used when HTMLGRAPH_PARENT_EVENT environment variable is not available
+    (due to inter-process communication limitations).
+
+    Args:
+        db_path: Path to SQLite database
+
+    Returns:
+        Parent event ID (evt-XXXXX) or None if not found
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Query for the most recent task_delegation with status='started'
+        # This is the task that spawned the current subagent
+        query = """
+            SELECT event_id FROM agent_events
+            WHERE event_type = 'task_delegation'
+            AND status = 'started'
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """
+
+        cursor.execute(query)
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            parent_event_id: str = result[0]
+            logger.debug(
+                f"Found parent task_delegation from database: {parent_event_id}"
+            )
+            return parent_event_id
+
+        logger.debug("No active task_delegation found in database")
+        return None
+
+    except Exception as e:
+        logger.warning(f"Error querying for parent event: {e}")
+        return None
+
+
 def handle_subagent_stop(hook_input: dict[str, Any]) -> dict[str, Any]:
     """
     Handle SubagentStop hook event.
@@ -222,14 +268,13 @@ def handle_subagent_stop(hook_input: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Response: {"continue": True} with optional context
     """
-    # Get parent event ID from environment
+    # Try to get parent event ID from environment (set by PreToolUse hook)
     parent_event_id = get_parent_event_id()
 
-    if not parent_event_id:
-        logger.debug("No parent event ID found, skipping subagent stop tracking")
-        return {"continue": True}
-
-    # Get project directory and database path
+    # If not available in environment, query database
+    # (environment variables may not be inherited across subagent process boundary)
+    # Get project directory and database path (reuse for both env and db lookup)
+    db_path = None
     try:
         from htmlgraph.config import get_database_path
 
@@ -242,6 +287,20 @@ def handle_subagent_stop(hook_input: dict[str, Any]) -> dict[str, Any]:
 
     except Exception as e:
         logger.warning(f"Error resolving database path: {e}")
+        return {"continue": True}
+
+    # If parent event ID not in environment, query database
+    if not parent_event_id:
+        logger.debug("Parent event ID not in environment, querying database...")
+        try:
+            parent_event_id = get_parent_event_from_db(db_path)
+        except Exception as e:
+            logger.debug(f"Could not query database for parent event: {e}")
+
+    if not parent_event_id:
+        logger.debug(
+            "No parent event ID found (env or db), skipping subagent stop tracking"
+        )
         return {"continue": True}
 
     # Get parent event start time
