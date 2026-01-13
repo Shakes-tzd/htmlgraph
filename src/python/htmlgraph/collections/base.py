@@ -69,6 +69,7 @@ class BaseCollection(Generic[CollectionT]):
         self._collection_name = collection_name or self._collection_name
         self._node_type = node_type or self._node_type
         self._graph: HtmlGraph | None = None  # Lazy-loaded
+        self._ref_manager: Any = None  # Set by SDK during initialization
 
     def _ensure_graph(self) -> HtmlGraph:
         """
@@ -199,6 +200,39 @@ class BaseCollection(Generic[CollectionT]):
         dunder = [a for a in all_attrs if a.startswith("_")]
         # Return priority items first, then regular, then dunder
         return priority + regular + dunder
+
+    def set_ref_manager(self, ref_manager: Any) -> None:
+        """
+        Set the ref manager for this collection.
+
+        Called by SDK during initialization to enable short ref support.
+
+        Args:
+            ref_manager: RefManager instance from SDK
+        """
+        self._ref_manager = ref_manager
+
+    def get_ref(self, node_id: str) -> str | None:
+        """
+        Get short ref for a node in this collection.
+
+        Convenience method to get ref without accessing SDK directly.
+
+        Args:
+            node_id: Full node ID like "feat-a1b2c3d4"
+
+        Returns:
+            Short ref like "@f1", or None if ref manager not available
+
+        Example:
+            >>> feature = sdk.features.get("feat-abc123")
+            >>> ref = sdk.features.get_ref(feature.id)
+            >>> print(ref)  # "@f1"
+        """
+        if self._ref_manager:
+            result = self._ref_manager.get_ref(node_id)
+            return cast(str | None, result)
+        return None
 
     def create(
         self, title: str, priority: str = "medium", status: str = "todo", **kwargs: Any

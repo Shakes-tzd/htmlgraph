@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from htmlgraph.agent_detection import detect_agent_name
 from htmlgraph.agents import AgentInterface
@@ -321,6 +321,21 @@ class SDK:
         (self._directory / "todos").mkdir(exist_ok=True)
         (self._directory / "task-delegations").mkdir(exist_ok=True)
 
+        # Initialize RefManager and set on all collections
+        from htmlgraph.refs import RefManager
+
+        self.refs = RefManager(self._directory)
+
+        # Set ref manager on all work item collections
+        self.features.set_ref_manager(self.refs)
+        self.bugs.set_ref_manager(self.refs)
+        self.chores.set_ref_manager(self.refs)
+        self.spikes.set_ref_manager(self.refs)
+        self.epics.set_ref_manager(self.refs)
+        self.phases.set_ref_manager(self.refs)
+        self.tracks.set_ref_manager(self.refs)
+        self.todos.set_ref_manager(self.refs)
+
         # Analytics interface (Phase 2: Work Type Analytics)
         self.analytics = Analytics(self)
 
@@ -452,6 +467,61 @@ class SDK:
         if self._session_warning:
             return self._session_warning.get_status()
         return {"dismissed": True, "show_count": 0}
+
+    def ref(self, short_ref: str) -> Node | None:
+        """
+        Resolve a short ref to a Node object.
+
+        Short refs are stable identifiers like @f1, @t2, @b5 that map to
+        full node IDs. This method resolves the short ref and fetches the
+        corresponding node from the appropriate collection.
+
+        Args:
+            short_ref: Short ref like "@f1", "@t2", "@b5", etc.
+
+        Returns:
+            Node object or None if not found
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> feature = sdk.ref("@f1")
+            >>> if feature:
+            ...     print(feature.title)
+            ...     feature.status = "done"
+            ...     sdk.features.update(feature)
+        """
+        # Resolve short ref to full ID
+        full_id = self.refs.resolve_ref(short_ref)
+        if not full_id:
+            return None
+
+        # Determine type from ref prefix and fetch from appropriate collection
+        if len(short_ref) < 2:
+            return None
+
+        prefix = short_ref[1]  # Get letter after @
+
+        # Map prefix to collection
+        collection_map = {
+            "f": self.features,
+            "t": self.tracks,
+            "b": self.bugs,
+            "s": self.spikes,
+            "c": self.chores,
+            "e": self.epics,
+            "d": self.todos,
+            "p": self.phases,
+        }
+
+        collection = collection_map.get(prefix)
+        if not collection:
+            return None
+
+        # Get node from collection
+        if hasattr(collection, "get"):
+            return cast(Node | None, collection.get(full_id))
+
+        return None
 
     # =========================================================================
     # SQLite Database Integration (Phase 2)
