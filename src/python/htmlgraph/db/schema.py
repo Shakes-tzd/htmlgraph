@@ -163,6 +163,12 @@ class HtmlGraphDB:
             ("completed_at", "DATETIME"),
             ("last_user_query_at", "DATETIME"),
             ("last_user_query", "TEXT"),
+            # Phase 2 Feature 3: Cross-Session Continuity handoff fields
+            ("handoff_notes", "TEXT"),
+            ("recommended_next", "TEXT"),
+            ("blockers", "TEXT"),  # JSON array of blocker strings
+            ("recommended_context", "TEXT"),  # JSON array of file paths
+            ("continued_from", "TEXT"),  # Previous session ID
         ]
 
         # Refresh columns after potential rename
@@ -291,8 +297,14 @@ class HtmlGraphDB:
                 metadata JSON,
                 last_user_query_at DATETIME,
                 last_user_query TEXT,
+                handoff_notes TEXT,
+                recommended_next TEXT,
+                blockers JSON,
+                recommended_context JSON,
+                continued_from TEXT,
                 FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE,
-                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE
+                FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
+                FOREIGN KEY (continued_from) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE
             )
         """)
 
@@ -407,6 +419,23 @@ class HtmlGraphDB:
             )
         """)
 
+        # 10. HANDOFF_TRACKING TABLE - Phase 2 Feature 3: Track handoff effectiveness
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS handoff_tracking (
+                handoff_id TEXT PRIMARY KEY,
+                from_session_id TEXT NOT NULL,
+                to_session_id TEXT,
+                items_in_context INTEGER DEFAULT 0,
+                items_accessed INTEGER DEFAULT 0,
+                time_to_resume_seconds INTEGER DEFAULT 0,
+                user_rating INTEGER CHECK(user_rating BETWEEN 1 AND 5),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resumed_at DATETIME,
+                FOREIGN KEY (from_session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+                FOREIGN KEY (to_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL
+            )
+        """)
+
         # 9. Create indexes for performance
         self._create_indexes(cursor)
 
@@ -496,6 +525,10 @@ class HtmlGraphDB:
             # live_events indexes - optimized for real-time WebSocket streaming
             "CREATE INDEX IF NOT EXISTS idx_live_events_pending ON live_events(broadcast_at) WHERE broadcast_at IS NULL",
             "CREATE INDEX IF NOT EXISTS idx_live_events_created ON live_events(created_at DESC)",
+            # handoff_tracking indexes - optimized for handoff effectiveness queries
+            "CREATE INDEX IF NOT EXISTS idx_handoff_from_session ON handoff_tracking(from_session_id, created_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_handoff_to_session ON handoff_tracking(to_session_id, resumed_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_handoff_rating ON handoff_tracking(user_rating, created_at DESC)",
         ]
 
         for index_sql in indexes:

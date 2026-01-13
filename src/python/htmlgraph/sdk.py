@@ -333,6 +333,11 @@ class SDK:
         # Context analytics interface (Context usage tracking)
         self.context = ContextAnalytics(self)
 
+        # Pattern learning interface (Phase 2: Behavior Pattern Learning)
+        from htmlgraph.analytics.pattern_learning import PatternLearner
+
+        self.pattern_learning = PatternLearner(self._directory)
+
         # Lazy-loaded orchestrator for subagent management
         self._orchestrator: Any = None
 
@@ -774,6 +779,92 @@ class SDK:
             handoff_notes=handoff_notes,
             recommended_next=recommended_next,
             blockers=blockers,
+        )
+
+    def continue_from_last(
+        self,
+        agent: str | None = None,
+        auto_create_session: bool = True,
+    ) -> tuple[Any, Any]:
+        """
+        Continue work from the last completed session.
+
+        Loads context from previous session including handoff notes,
+        recommended files, blockers, and recent commits.
+
+        Args:
+            agent: Filter by agent (None = current SDK agent)
+            auto_create_session: Create new session if True
+
+        Returns:
+            Tuple of (new_session, resume_info) or (None, None)
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> session, resume = sdk.continue_from_last()
+            >>> if resume:
+            ...     print(resume.summary)
+            ...     print(resume.next_focus)
+            ...     for file in resume.recommended_files:
+            ...         print(f"  - {file}")
+        """
+        if not agent:
+            agent = self._agent_id
+
+        return self.session_manager.continue_from_last(
+            agent=agent,
+            auto_create_session=auto_create_session,
+        )
+
+    def end_session_with_handoff(
+        self,
+        session_id: str | None = None,
+        summary: str | None = None,
+        next_focus: str | None = None,
+        blockers: list[str] | None = None,
+        keep_context: list[str] | None = None,
+        auto_recommend_context: bool = True,
+    ) -> Any:
+        """
+        End session with handoff information for next session.
+
+        Args:
+            session_id: Session to end (None = active session)
+            summary: What was accomplished
+            next_focus: What should be done next
+            blockers: List of blockers
+            keep_context: List of files to keep context for
+            auto_recommend_context: Auto-recommend files from git
+
+        Returns:
+            Updated Session or None
+
+        Example:
+            >>> sdk.end_session_with_handoff(
+            ...     summary="Completed OAuth integration",
+            ...     next_focus="Implement JWT token refresh",
+            ...     blockers=["Waiting for security review"],
+            ...     keep_context=["src/auth/oauth.py"]
+            ... )
+        """
+        if not session_id:
+            if self._agent_id:
+                active = self.session_manager.get_active_session_for_agent(
+                    self._agent_id
+                )
+            else:
+                active = self.session_manager.get_active_session()
+            if not active:
+                return None
+            session_id = active.id
+
+        return self.session_manager.end_session_with_handoff(
+            session_id=session_id,
+            summary=summary,
+            next_focus=next_focus,
+            blockers=blockers,
+            keep_context=keep_context,
+            auto_recommend_context=auto_recommend_context,
         )
 
     def start_session(

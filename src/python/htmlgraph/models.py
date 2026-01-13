@@ -975,10 +975,13 @@ class Session(BaseModel):
     parent_activity: str | None = None  # Parent activity ID
     nesting_depth: int = 0  # Depth of nesting (0 = top-level)
 
-    # Handoff context
+    # Handoff context (Phase 2 Feature 3: Cross-Session Continuity)
     handoff_notes: str | None = None
     recommended_next: str | None = None
     blockers: list[str] = Field(default_factory=list)
+    recommended_context: list[str] = Field(
+        default_factory=list
+    )  # File paths to keep context for
 
     # High-frequency activity log
     activity_log: list[ActivityEntry] = Field(default_factory=list)

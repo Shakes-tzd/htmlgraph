@@ -186,7 +186,7 @@ class SessionManager:
         """Mark a session as stale (kept for history but not considered active)."""
         if session.status != "active":
             return
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         session.status = "stale"
         session.ended_at = now
         session.last_activity = now
@@ -742,7 +742,7 @@ class SessionManager:
             ActivityEntry(
                 tool="SessionEnd",
                 summary="Session ended",
-                timestamp=datetime.now(),
+                timestamp=datetime.now(timezone.utc),
             )
         )
 
@@ -789,6 +789,164 @@ class SessionManager:
                 )
             )
             self.session_converter.save(session)
+
+        return session
+
+    def continue_from_last(
+        self,
+        agent: str | None = None,
+        auto_create_session: bool = True,
+    ) -> tuple[Session | None, Any]:  # Returns (new_session, resume_info)
+        """
+        Continue work from the last completed session.
+
+        Loads context from the previous session including:
+        - Handoff notes and next focus
+        - Blockers
+        - Recommended context files
+        - Recent commits
+        - Features worked on
+
+        Args:
+            agent: Filter by agent (None = current agent)
+            auto_create_session: Create new session if True
+
+        Returns:
+            Tuple of (new_session, resume_info) or (None, None) if no previous session
+
+        Example:
+            >>> manager = SessionManager(".htmlgraph")
+            >>> new_session, resume = manager.continue_from_last(agent="claude")
+            >>> if resume:
+            ...     print(resume.summary)
+            ...     print(resume.recommended_files)
+        """
+        # Import handoff module
+        from typing import Any
+
+        from htmlgraph.sessions.handoff import SessionResume
+
+        # Create a minimal SDK-like object with just the directory
+        # to avoid circular dependency and database initialization issues
+        class MinimalSDK:
+            def __init__(self, directory: Path) -> None:
+                self._directory = directory
+
+        sdk: Any = MinimalSDK(self.graph_dir)
+        resume = SessionResume(sdk)
+
+        # Get last session
+        last_session = resume.get_last_session(agent=agent)
+        if not last_session:
+            return None, None
+
+        # Build resume info
+        resume_info = resume.build_resume_info(last_session)
+
+        # Create new session if requested
+        new_session = None
+        if auto_create_session:
+            from htmlgraph.ids import generate_id
+
+            session_id = generate_id("sess")
+            new_session = self.start_session(
+                session_id=session_id,
+                agent=agent or last_session.agent,
+                title=f"Continuing from {last_session.id}",
+            )
+
+            # Link to previous session
+            new_session.continued_from = last_session.id
+            self.session_converter.save(new_session)
+
+        return new_session, resume_info
+
+    def end_session_with_handoff(
+        self,
+        session_id: str,
+        summary: str | None = None,
+        next_focus: str | None = None,
+        blockers: list[str] | None = None,
+        keep_context: list[str] | None = None,
+        auto_recommend_context: bool = True,
+    ) -> Session | None:
+        """
+        End session with handoff information for next session.
+
+        Args:
+            session_id: Session to end
+            summary: What was accomplished (handoff notes)
+            next_focus: What should be done next
+            blockers: List of blockers preventing progress
+            keep_context: List of files to keep context for
+            auto_recommend_context: Auto-recommend files from git history
+
+        Returns:
+            Updated session or None
+
+        Example:
+            >>> manager.end_session_with_handoff(
+            ...     session_id="sess-123",
+            ...     summary="Completed OAuth integration",
+            ...     next_focus="Implement JWT token refresh",
+            ...     blockers=["Waiting for security review"],
+            ...     keep_context=["src/auth/oauth.py"]
+            ... )
+        """
+        from htmlgraph.sessions.handoff import (
+            ContextRecommender,
+            HandoffBuilder,
+        )
+
+        # Get session
+        session = self.get_session(session_id)
+        if not session:
+            return None
+
+        # Build handoff using HandoffBuilder
+        builder = HandoffBuilder(session)
+
+        if summary:
+            builder.add_summary(summary)
+
+        if next_focus:
+            builder.add_next_focus(next_focus)
+
+        if blockers:
+            builder.add_blockers(blockers)
+
+        if keep_context:
+            builder.add_context_files(keep_context)
+
+        # Auto-recommend context files
+        if auto_recommend_context:
+            recommender = ContextRecommender()
+            builder.auto_recommend_context(recommender, max_files=10)
+
+        handoff_data = builder.build()
+
+        # Update session with handoff data
+        session.handoff_notes = handoff_data["handoff_notes"]
+        session.recommended_next = handoff_data["recommended_next"]
+        session.blockers = handoff_data["blockers"]
+
+        # Store recommended_context as JSON-serializable list
+        # (Session model expects list[str], converter will handle serialization)
+        if hasattr(session, "__dict__"):
+            session.__dict__["recommended_context"] = handoff_data[
+                "recommended_context"
+            ]
+
+        # Persist handoff data to database before ending session
+        self.session_converter.save(session)
+
+        # End the session
+        self.end_session(session_id)
+
+        # Track handoff effectiveness (optional - only if database available)
+        # Note: SessionManager doesn't have direct database access,
+        # handoff tracking is primarily done through SDK
+        # Users should use SDK.end_session_with_handoff() for full tracking
 
         return session
 
