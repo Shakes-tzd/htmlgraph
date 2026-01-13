@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implement htmlgraph snapshot command</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-13526b89"
+             data-type="feature"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-13T19:55:33.134578"
+             data-updated="2026-01-13T19:55:34.610257+00:00" data-agent-assigned="claude" data-track-id="trk-991c5af1">
+
+        <header>
+            <h1>Implement htmlgraph snapshot command</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-01-13T19:55:34.610247">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-required-capabilities>
+            <h3>Required Capabilities</h3>
+            <ul>
+                <li data-tag="cli" class="tag">cli</li>
+<li data-tag="core" class="tag">core</li>
+            </ul>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Add snapshot subcommand to CLI framework</li>
+                <li data-completed="false">⏳ Implement SnapshotGenerator class to traverse graph</li>
+                <li data-completed="false">⏳ Generate short refs (@f1, @t1, @s1) for each entity</li>
+                <li data-completed="false">⏳ Output in tree format showing relationships</li>
+                <li data-completed="false">⏳ Add --format option (refs, json, tree)</li>
+                <li data-completed="false">⏳ Add --interactive flag to filter to actionable items</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add CLI command 'htmlgraph snapshot' that outputs an AI-readable summary of the graph state. Inspired by agent-browser's snapshot command which generates accessibility trees with refs. Support --format refs for short ref output, --format json for machine-readable, --interactive for interactive elements only.</p>
+        </section>
+    </article>
+</body>
+</html>
