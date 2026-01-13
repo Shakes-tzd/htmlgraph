@@ -520,9 +520,14 @@ class TextFormatter:
                 _console.print(result.data)
             return
         if isinstance(result.text, str):
-            _console.print(result.text)
+            # Use sys.stdout.write() for ANSI-formatted text to preserve colors when piped
+            # This bypasses Rich's reprocessing and ensures ANSI codes are preserved
+            sys.stdout.write(result.text)
+            if not result.text.endswith("\n"):
+                sys.stdout.write("\n")
             return
-        _console.print("\n".join(str(line) for line in result.text))
+        # For text as list/iterable, write directly to preserve ANSI codes
+        sys.stdout.write("\n".join(str(line) for line in result.text) + "\n")
 
 
 def get_formatter(format_name: str) -> Formatter:
