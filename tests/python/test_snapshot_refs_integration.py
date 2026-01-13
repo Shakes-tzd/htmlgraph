@@ -188,7 +188,7 @@ class TestEndToEndWorkflow:
             refs.append(ref)
 
         # Run snapshot command
-        cmd = SnapshotCommand(format="refs", node_type="feature", status="all")
+        cmd = SnapshotCommand(output_format="refs", node_type="feature", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -232,7 +232,7 @@ class TestEndToEndWorkflow:
         assert spike_ref == "@s1"
 
         # Run snapshot with all types
-        cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -263,7 +263,7 @@ class TestEndToEndWorkflow:
         sdk = populated_sdk
 
         # Filter by feature + todo
-        cmd = SnapshotCommand(format="refs", node_type="feature", status="todo")
+        cmd = SnapshotCommand(output_format="refs", node_type="feature", status="todo")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -283,7 +283,9 @@ class TestEndToEndWorkflow:
         # (Implicit check: if filtering works correctly, only todo features appear)
 
         # Now filter by in_progress across all types
-        cmd = SnapshotCommand(format="json", node_type="all", status="in-progress")
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="in-progress"
+        )
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -426,7 +428,7 @@ class TestSnapshotFormats:
         """
         sdk = populated_sdk
 
-        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -456,7 +458,7 @@ class TestSnapshotFormats:
         """
         sdk = populated_sdk
 
-        cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -487,7 +489,7 @@ class TestSnapshotFormats:
         """Test snapshot text format (no refs)."""
         sdk = populated_sdk
 
-        cmd = SnapshotCommand(format="text", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="text", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -503,7 +505,7 @@ class TestSnapshotFormats:
         """Verify snapshot items are sorted correctly."""
         sdk = populated_sdk
 
-        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -637,7 +639,7 @@ class TestComplexWorkflows:
         assert feature_refs == ["@f1", "@f2", "@f3"]
 
         # Run snapshot
-        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -676,7 +678,7 @@ class TestComplexWorkflows:
 
         # Run multiple snapshots
         for _ in range(3):
-            cmd = SnapshotCommand(format="json", node_type="all", status="all")
+            cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
             cmd.graph_dir = str(sdk._directory)
             cmd.agent = sdk.agent
             result = cmd.execute()
@@ -706,7 +708,7 @@ class TestComplexWorkflows:
         assert ref == "@f1"
 
         # First snapshot
-        cmd1 = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd1 = SnapshotCommand(output_format="json", node_type="feature", status="all")
         cmd1.graph_dir = str(sdk._directory)
         cmd1.agent = sdk.agent
         result1 = cmd1.execute()
@@ -719,7 +721,7 @@ class TestComplexWorkflows:
             f.status = "in-progress"
 
         # Second snapshot
-        cmd2 = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd2 = SnapshotCommand(output_format="json", node_type="feature", status="all")
         cmd2.graph_dir = str(sdk._directory)
         cmd2.agent = sdk.agent
         result2 = cmd2.execute()
@@ -736,7 +738,7 @@ class TestComplexWorkflows:
         sdk = populated_sdk
 
         # Get snapshot
-        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -765,7 +767,7 @@ class TestErrorHandling:
         """Test snapshot with no items."""
         sdk = sdk_instance
 
-        cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -800,7 +802,7 @@ class TestErrorHandling:
             track.id
         ).save()
 
-        cmd = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="feature", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -817,7 +819,7 @@ class TestErrorHandling:
         track = sdk.tracks.create("Track").save()
         sdk.features.create("Feature: 日本語 中文 العربية").set_track(track.id).save()
 
-        cmd = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="feature", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()
@@ -840,10 +842,10 @@ class TestCLIIntegration:
         """Test creating SnapshotCommand from argparse Namespace."""
         from argparse import Namespace
 
-        args = Namespace(format="json", type="feature", status="todo")
+        args = Namespace(output_format="json", type="feature", status="todo")
         cmd = SnapshotCommand.from_args(args)
 
-        assert cmd.format == "json"
+        assert cmd.output_format == "json"
         assert cmd.node_type == "feature"
         assert cmd.status == "todo"
 
@@ -851,10 +853,10 @@ class TestCLIIntegration:
         """Test SnapshotCommand factory with defaults."""
         from argparse import Namespace
 
-        args = Namespace(format="refs")
+        args = Namespace(output_format="refs")
         cmd = SnapshotCommand.from_args(args)
 
-        assert cmd.format == "refs"
+        assert cmd.output_format == "refs"
         assert cmd.node_type is None
         assert cmd.status is None
 
@@ -946,7 +948,7 @@ class TestRefSystemRobustness:
         for spike in sdk._test_items["spikes"]:
             sdk.refs.get_ref(spike.id)
 
-        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
         cmd.graph_dir = str(sdk._directory)
         cmd.agent = sdk.agent
         result = cmd.execute()

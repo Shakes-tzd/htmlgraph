@@ -26,19 +26,19 @@ class SnapshotCommand(BaseCommand):
     def __init__(
         self,
         *,
-        format: str = "refs",
+        output_format: str = "refs",
         node_type: str | None = None,
         status: str | None = None,
     ) -> None:
         """Initialize snapshot command.
 
         Args:
-            format: Output format (refs, json, text)
+            output_format: Output format (refs, json, text)
             node_type: Filter by type (feature, track, bug, spike, chore, epic, all)
             status: Filter by status (todo, in_progress, blocked, done, all)
         """
         super().__init__()
-        self.format = format
+        self.output_format = output_format
         self.node_type = node_type
         self.status = status
 
@@ -46,7 +46,9 @@ class SnapshotCommand(BaseCommand):
     def from_args(cls, args: argparse.Namespace) -> SnapshotCommand:
         """Create command instance from argparse arguments."""
         return cls(
-            format=args.format,
+            output_format=args.output_format
+            if hasattr(args, "output_format")
+            else "refs",
             node_type=args.type if hasattr(args, "type") else None,
             status=args.status if hasattr(args, "status") else None,
         )
@@ -59,9 +61,9 @@ class SnapshotCommand(BaseCommand):
         items = self._gather_items(sdk)
 
         # Format output
-        if self.format == "json":
+        if self.output_format == "json":
             output = self._format_json(items)
-        elif self.format == "refs":
+        elif self.output_format == "refs":
             output = self._format_refs(items)
         else:  # text
             output = self._format_text(items)

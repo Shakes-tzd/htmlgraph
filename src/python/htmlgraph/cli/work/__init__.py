@@ -32,6 +32,7 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     )
     from htmlgraph.cli.work.report import register_report_commands
     from htmlgraph.cli.work.sessions import register_session_commands
+    from htmlgraph.cli.work.snapshot import SnapshotCommand
     from htmlgraph.cli.work.tracks import register_track_commands
 
     # Register all command groups
@@ -42,6 +43,27 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     register_orchestrator_commands(subparsers)
     register_claude_commands(subparsers)
     register_report_commands(subparsers)
+
+    # Snapshot command
+    snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        help="Output current graph state with refs",
+    )
+    snapshot_parser.add_argument(
+        "--output-format",
+        choices=["refs", "json", "text"],
+        default="refs",
+        help="Output format (default: refs)",
+    )
+    snapshot_parser.add_argument(
+        "--type",
+        help="Filter by type (feature, track, bug, spike, chore, epic, all)",
+    )
+    snapshot_parser.add_argument(
+        "--status",
+        help="Filter by status (todo, in_progress, blocked, done, all)",
+    )
+    snapshot_parser.set_defaults(func=SnapshotCommand.from_args)
 
     # Browse command
     browse_parser = subparsers.add_parser(
@@ -94,6 +116,7 @@ from htmlgraph.cli.work.sessions import (
     SessionStartCommand,
     SessionStartInfoCommand,
 )
+from htmlgraph.cli.work.snapshot import SnapshotCommand
 from htmlgraph.cli.work.tracks import (
     TrackDeleteCommand,
     TrackListCommand,
@@ -112,6 +135,8 @@ __all__ = [
     "SessionStartInfoCommand",
     # Report commands
     "SessionReportCommand",
+    # Snapshot commands
+    "SnapshotCommand",
     # Browse commands
     "BrowseCommand",
     # Feature commands
