@@ -123,6 +123,11 @@ disallow_incomplete_defs = true
 module = "htmlgraph.server"
 disallow_incomplete_defs = true
 
+[[tool.mypy.overrides]]
+module = "tests.python.test_snapshot_refs_integration"
+disallow_untyped_defs = false
+disallow_any_unimported = false
+
 [tool.pdoc]
 output-directory = "docs/api-pdoc"
 docformat = "google"
