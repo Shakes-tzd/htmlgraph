@@ -29,6 +29,7 @@ def register_commands(subparsers: _SubParsersAction) -> None:
         register_claude_commands,
         register_orchestrator_commands,
     )
+    from htmlgraph.cli.work.report import register_report_commands
     from htmlgraph.cli.work.sessions import register_session_commands
     from htmlgraph.cli.work.tracks import register_track_commands
 
@@ -39,6 +40,7 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     register_archive_commands(subparsers)
     register_orchestrator_commands(subparsers)
     register_claude_commands(subparsers)
+    register_report_commands(subparsers)
 
 
 # Re-export all command classes for backward compatibility
@@ -61,6 +63,7 @@ from htmlgraph.cli.work.orchestration import (
     OrchestratorSetLevelCommand,
     OrchestratorStatusCommand,
 )
+from htmlgraph.cli.work.report import SessionReportCommand
 from htmlgraph.cli.work.sessions import (
     SessionEndCommand,
     SessionHandoffCommand,
@@ -84,6 +87,8 @@ __all__ = [
     "SessionListCommand",
     "SessionHandoffCommand",
     "SessionStartInfoCommand",
+    # Report commands
+    "SessionReportCommand",
     # Feature commands
     "FeatureListCommand",
     "FeatureCreateCommand",

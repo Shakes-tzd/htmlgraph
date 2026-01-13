@@ -460,3 +460,15 @@ class TrackDisplay(BaseModel):
         priority_order = {"high": 0, "medium": 1, "low": 2}
         priority_rank = priority_order.get(self.priority, 99)
         return (priority_rank, self.id)
+
+
+class BootstrapConfig(BaseModel):
+    """Configuration for htmlgraph bootstrap command.
+
+    Attributes:
+        project_path: Directory to bootstrap (default: .)
+        no_plugins: Skip plugin installation
+    """
+
+    project_path: str = Field(default=".")
+    no_plugins: bool = Field(default=False)

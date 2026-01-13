@@ -28,6 +28,9 @@ def create_parser() -> argparse.ArgumentParser:
         description="HtmlGraph - HTML is All You Need",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Quick Start:
+  htmlgraph bootstrap               # One-command setup (< 60 seconds)
+
 Examples:
   htmlgraph init                    # Initialize .htmlgraph in current dir
   htmlgraph serve                   # Start server on port 8080

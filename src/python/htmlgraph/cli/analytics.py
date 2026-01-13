@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -69,6 +70,9 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     # Sync docs command
     _register_sync_docs_command(subparsers)
 
+    # Costs command
+    _register_costs_command(subparsers)
+
 
 def _register_cigs_commands(subparsers: _SubParsersAction) -> None:
     """Register CIGS (Cost Intelligence & Governance System) commands."""
@@ -113,7 +117,7 @@ def _register_cigs_commands(subparsers: _SubParsersAction) -> None:
         "--json", action="store_true", help="Output JSON instead of HTML"
     )
     roi_analysis.add_argument("--output", help="Custom output path")
-    roi_analysis.set_defaults(func=OTELROIAnalysisCommand.from_args)
+    # roi_analysis.set_defaults(func=OTELROIAnalysisCommand.from_args)  # TODO: Implement OTELROIAnalysisCommand
 
     # cigs status
     cigs_status = cigs_subparsers.add_parser("status", help="Show CIGS status")
@@ -188,6 +192,48 @@ def _register_sync_docs_command(subparsers: _SubParsersAction) -> None:
         "--force", action="store_true", help="Force overwrite existing files"
     )
     sync_docs.set_defaults(func=SyncDocsCommand.from_args)
+
+
+def _register_costs_command(subparsers: _SubParsersAction) -> None:
+    """Register cost visibility and analysis command."""
+    costs_parser = subparsers.add_parser(
+        "costs",
+        help="View token cost breakdown and analytics",
+    )
+    costs_parser.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    costs_parser.add_argument(
+        "--period",
+        choices=["today", "day", "week", "month", "all"],
+        default="week",
+        help="Time period to analyze (default: week)",
+    )
+    costs_parser.add_argument(
+        "--by",
+        choices=["session", "feature", "tool", "agent"],
+        default="session",
+        help="Group costs by (default: session)",
+    )
+    costs_parser.add_argument(
+        "--format",
+        choices=["terminal", "csv"],
+        default="terminal",
+        help="Output format (default: terminal)",
+    )
+    costs_parser.add_argument(
+        "--model",
+        choices=["opus", "sonnet", "haiku", "auto"],
+        default="auto",
+        help="Claude model to assume for pricing (default: auto-detect)",
+    )
+    costs_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of rows to display (default: 10)",
+    )
+    costs_parser.set_defaults(func=CostsCommand.from_args)
 
 
 # ============================================================================
@@ -956,3 +1002,422 @@ class SyncDocsCommand(BaseCommand):
                 text="Synchronization complete",
                 exit_code=1 if has_errors else 0,
             )
+
+
+# ============================================================================
+# Cost Command Implementation
+# ============================================================================
+
+
+class CostsCommand(BaseCommand):
+    """View token cost breakdown and analytics by session, feature, or tool."""
+
+    def __init__(
+        self,
+        *,
+        period: str,
+        by: str,
+        format: str,
+        model: str,
+        limit: int,
+    ) -> None:
+        super().__init__()
+        self.period = period
+        self.by = by
+        self.format = format
+        self.model = model
+        self.limit = limit
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> CostsCommand:
+        return cls(
+            period=getattr(args, "period", "week"),
+            by=getattr(args, "by", "session"),
+            format=getattr(args, "format", "terminal"),
+            model=getattr(args, "model", "auto"),
+            limit=getattr(args, "limit", 10),
+        )
+
+    def execute(self) -> CommandResult:
+        """Execute cost analysis and display results."""
+
+        if not self.graph_dir:
+            raise CommandError("Graph directory not specified")
+
+        graph_dir = Path(self.graph_dir)
+        db_path = graph_dir / "htmlgraph.db"
+
+        if not db_path.exists():
+            console.print(
+                "[yellow]No HtmlGraph database found. Run some work to generate cost data![/yellow]"
+            )
+            return CommandResult(text="No database", exit_code=1)
+
+        # Query costs from database
+        with console.status("[blue]Analyzing costs...[/blue]", spinner="dots"):
+            try:
+                cost_data = self._query_costs(db_path)
+            except Exception as e:
+                raise CommandError(f"Failed to query costs: {e}")
+
+        if not cost_data:
+            console.print(
+                "[yellow]No cost data found for the specified period.[/yellow]"
+            )
+            return CommandResult(text="No cost data")
+
+        # Calculate USD costs based on model pricing
+        cost_data = self._add_usd_costs(cost_data)
+
+        # Display results
+        if self.format == "csv":
+            self._display_csv(cost_data)
+        else:
+            self._display_terminal(cost_data)
+
+        # Display insights
+        self._display_insights(cost_data)
+
+        return CommandResult(text="Cost analysis complete")
+
+    def _query_costs(self, db_path: Path) -> list[dict]:
+        """Query costs from the database based on period and grouping."""
+        import sqlite3
+        from datetime import datetime, timezone
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Calculate time filter
+        now = datetime.now(timezone.utc)
+        time_filter = self._get_time_filter(now)
+
+        # Build the query based on grouping
+        if self.by == "session":
+            query = """
+            SELECT
+                session_id as group_id,
+                session_id as name,
+                'session' as type,
+                COUNT(*) as event_count,
+                SUM(cost_tokens) as total_tokens,
+                MIN(timestamp) as start_time,
+                MAX(timestamp) as end_time
+            FROM agent_events
+            WHERE event_type IN ('tool_call', 'tool_result')
+            AND cost_tokens > 0
+            AND timestamp >= ?
+            GROUP BY session_id
+            ORDER BY total_tokens DESC
+            LIMIT ?
+            """
+            cursor.execute(query, (time_filter, self.limit))
+
+        elif self.by == "feature":
+            query = """
+            SELECT
+                feature_id as group_id,
+                COALESCE(feature_id, 'unlinked') as name,
+                'feature' as type,
+                COUNT(*) as event_count,
+                SUM(cost_tokens) as total_tokens,
+                MIN(timestamp) as start_time,
+                MAX(timestamp) as end_time
+            FROM agent_events
+            WHERE event_type IN ('tool_call', 'tool_result')
+            AND cost_tokens > 0
+            AND timestamp >= ?
+            GROUP BY feature_id
+            ORDER BY total_tokens DESC
+            LIMIT ?
+            """
+            cursor.execute(query, (time_filter, self.limit))
+
+        elif self.by == "tool":
+            query = """
+            SELECT
+                tool_name as group_id,
+                tool_name as name,
+                'tool' as type,
+                COUNT(*) as event_count,
+                SUM(cost_tokens) as total_tokens,
+                MIN(timestamp) as start_time,
+                MAX(timestamp) as end_time
+            FROM agent_events
+            WHERE event_type IN ('tool_call', 'tool_result')
+            AND cost_tokens > 0
+            AND timestamp >= ?
+            GROUP BY tool_name
+            ORDER BY total_tokens DESC
+            LIMIT ?
+            """
+            cursor.execute(query, (time_filter, self.limit))
+
+        elif self.by == "agent":
+            query = """
+            SELECT
+                agent as group_id,
+                agent as name,
+                'agent' as type,
+                COUNT(*) as event_count,
+                SUM(cost_tokens) as total_tokens,
+                MIN(timestamp) as start_time,
+                MAX(timestamp) as end_time
+            FROM agent_events
+            WHERE event_type IN ('tool_call', 'tool_result')
+            AND cost_tokens > 0
+            AND timestamp >= ?
+            GROUP BY agent
+            ORDER BY total_tokens DESC
+            LIMIT ?
+            """
+            cursor.execute(query, (time_filter, self.limit))
+
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(row))
+
+        conn.close()
+        return results
+
+    def _get_time_filter(self, now: datetime) -> str:
+        """Get ISO format timestamp for time filtering."""
+        from datetime import timedelta
+
+        if self.period == "today":
+            delta = timedelta(hours=24)
+        elif self.period == "day":
+            delta = timedelta(days=1)
+        elif self.period == "week":
+            delta = timedelta(days=7)
+        elif self.period == "month":
+            delta = timedelta(days=30)
+        else:  # "all"
+            delta = timedelta(days=36500)  # ~100 years
+
+        cutoff = now - delta
+        return cutoff.isoformat()
+
+    def _add_usd_costs(self, cost_data: list[dict]) -> list[dict]:
+        """Add USD cost estimates to cost data."""
+        for item in cost_data:
+            item["cost_usd"] = self._calculate_usd(item["total_tokens"])
+        return cost_data
+
+    def _calculate_usd(self, tokens: int) -> float:
+        """Calculate USD cost from tokens based on model pricing."""
+        # Claude pricing (per 1M tokens):
+        # Opus: $15 input, $45 output
+        # Sonnet: $3 input, $15 output
+        # Haiku: $0.80 input, $4 output
+
+        # Assume ~90% input, 10% output ratio
+        input_ratio = 0.9
+        output_ratio = 0.1
+
+        if self.model == "opus" or (self.model == "auto"):
+            # Default to Opus for conservative estimate
+            input_cost = 15 / 1_000_000
+            output_cost = 45 / 1_000_000
+        elif self.model == "sonnet":
+            input_cost = 3 / 1_000_000
+            output_cost = 15 / 1_000_000
+        elif self.model == "haiku":
+            input_cost = 0.80 / 1_000_000
+            output_cost = 4 / 1_000_000
+        else:
+            # Fallback to Opus
+            input_cost = 15 / 1_000_000
+            output_cost = 45 / 1_000_000
+
+        cost = (tokens * input_ratio * input_cost) + (
+            tokens * output_ratio * output_cost
+        )
+        return cost
+
+    def _display_terminal(self, cost_data: list[dict]) -> None:
+        """Display costs in terminal with rich formatting."""
+        from htmlgraph.cli.base import TableBuilder
+
+        # Period label
+        period_label = self.period.upper()
+        if self.period == "today":
+            period_label = "TODAY"
+        elif self.period == "day":
+            period_label = "LAST 24 HOURS"
+        elif self.period == "week":
+            period_label = "LAST 7 DAYS"
+        elif self.period == "month":
+            period_label = "LAST 30 DAYS"
+
+        console.print(f"\n[bold cyan]{period_label} - COST SUMMARY[/bold cyan]")
+        console.print("[dim]═" * 60 + "[/dim]\n")
+
+        # Build table
+        table_builder = TableBuilder.create_list_table(title=None)
+        table_builder.add_column("Name", style="cyan")
+        table_builder.add_numeric_column("Events", style="green")
+        table_builder.add_numeric_column("Tokens", style="yellow")
+        table_builder.add_numeric_column("Estimated Cost", style="magenta")
+
+        total_tokens = 0
+        total_usd = 0.0
+
+        for item in cost_data:
+            name = item["name"] or "(unlinked)"
+            if len(name) > 30:
+                name = name[:27] + "..."
+
+            events = f"{item['event_count']:,}"
+            tokens = f"{item['total_tokens']:,}"
+            cost_str = f"${item['cost_usd']:.2f}"
+
+            table_builder.add_row(name, events, tokens, cost_str)
+
+            total_tokens += item["total_tokens"]
+            total_usd += item["cost_usd"]
+
+        console.print(table_builder.table)
+
+        # Summary
+        console.print("\n[dim]─" * 60 + "[/dim]")
+        console.print(
+            f"[bold]Total Tokens:[/bold] {total_tokens:,} [dim]({self._format_duration(cost_data)})[/dim]"
+        )
+        console.print(
+            f"[bold]Estimated Cost:[/bold] ${total_usd:.2f} ({self.model.upper() if self.model != 'auto' else 'Opus'})"
+        )
+
+        # Insights
+        if len(cost_data) > 0:
+            top_item = cost_data[0]
+            pct = (
+                (top_item["total_tokens"] / total_tokens * 100)
+                if total_tokens > 0
+                else 0
+            )
+            console.print(
+                f"\n[dim]Most expensive:[/dim] [yellow]{top_item['name']}[/yellow] "
+                f"[dim]({pct:.0f}% of total)[/dim]"
+            )
+
+    def _display_csv(self, cost_data: list[dict]) -> None:
+        """Display costs in CSV format for spreadsheet analysis."""
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        if self.by == "session":
+            writer.writerow(["Session ID", "Events", "Tokens", "Estimated Cost (USD)"])
+        else:
+            writer.writerow(
+                [
+                    self.by.capitalize(),
+                    "Events",
+                    "Tokens",
+                    "Estimated Cost (USD)",
+                ]
+            )
+
+        # Data rows
+        for item in cost_data:
+            writer.writerow(
+                [
+                    item["name"],
+                    item["event_count"],
+                    item["total_tokens"],
+                    f"{item['cost_usd']:.2f}",
+                ]
+            )
+
+        # Totals
+        total_tokens = sum(item["total_tokens"] for item in cost_data)
+        total_usd = sum(item["cost_usd"] for item in cost_data)
+        writer.writerow(["TOTAL", "", total_tokens, f"{total_usd:.2f}"])
+
+        csv_content = output.getvalue()
+        console.print(csv_content)
+
+    def _display_insights(self, cost_data: list[dict]) -> None:
+        """Display cost optimization insights."""
+        if not cost_data:
+            return
+
+        console.print("\n[bold cyan]Insights & Recommendations[/bold cyan]")
+        console.print("[dim]─" * 60 + "[/dim]\n")
+
+        total_tokens = sum(item["total_tokens"] for item in cost_data)
+
+        # Insight 1: Top cost driver
+        top_item = cost_data[0]
+        top_pct = (
+            (top_item["total_tokens"] / total_tokens * 100) if total_tokens > 0 else 0
+        )
+        console.print(
+            f"[blue]→ Highest cost:[/blue] {top_item['name']} "
+            f"[yellow]({top_pct:.0f}% of total)[/yellow]"
+        )
+
+        # Insight 2: Concentration
+        if len(cost_data) > 1:
+            top_3_pct = (
+                sum(item["total_tokens"] for item in cost_data[:3])
+                / (total_tokens if total_tokens > 0 else 1)
+                * 100
+            )
+            console.print(
+                f"[blue]→ Cost concentration:[/blue] Top 3 account for [yellow]{top_3_pct:.0f}%[/yellow]"
+            )
+
+        # Insight 3: Recommendations
+        if self.by == "tool" and top_item["name"] in ["Read", "Bash", "Grep"]:
+            console.print(
+                f"[yellow]→ Tip:[/yellow] {top_item['name']} is expensive. Consider batching operations "
+                "or using more efficient approaches."
+            )
+        elif self.by == "session" and len(cost_data) > 5:
+            console.print(
+                "[yellow]→ Tip:[/yellow] Many sessions with costs. Consider consolidating work "
+                "to fewer, focused sessions."
+            )
+
+        console.print()
+
+    def _format_duration(self, cost_data: list[dict]) -> str:
+        """Format duration from start/end times."""
+        if not cost_data or "start_time" not in cost_data[0]:
+            return "unknown"
+
+        try:
+            from datetime import datetime
+
+            start_times = [
+                datetime.fromisoformat(item["start_time"])
+                for item in cost_data
+                if item.get("start_time")
+            ]
+            end_times = [
+                datetime.fromisoformat(item["end_time"])
+                for item in cost_data
+                if item.get("end_time")
+            ]
+
+            if not start_times or not end_times:
+                return "unknown"
+
+            earliest = min(start_times)
+            latest = max(end_times)
+            duration = latest - earliest
+
+            hours = duration.total_seconds() / 3600
+            if hours > 1:
+                return f"{hours:.1f}h"
+            else:
+                minutes = duration.total_seconds() / 60
+                return f"{minutes:.0f}m"
+        except Exception:
+            return "unknown"

@@ -544,6 +544,7 @@ def record_event_to_sqlite(
     subagent_type: str | None = None,
     model: str | None = None,
     feature_id: str | None = None,
+    claude_task_id: str | None = None,
 ) -> str | None:
     """
     Record a tool call event to SQLite database for dashboard queries.
@@ -561,6 +562,7 @@ def record_event_to_sqlite(
         subagent_type: Subagent type for Task delegations (optional)
         model: Claude model name (e.g., claude-haiku, claude-opus) (optional)
         feature_id: Feature ID for attribution (optional)
+        claude_task_id: Claude Code's internal task ID for tool attribution (optional)
 
     Returns:
         event_id if successful, None otherwise
@@ -591,6 +593,14 @@ def record_event_to_sqlite(
             "is_error": is_error,
         }
 
+        # Extract task_id from Tool response if not provided
+        if (
+            not claude_task_id
+            and tool_name == "Task"
+            and isinstance(tool_response, dict)
+        ):
+            claude_task_id = tool_response.get("task_id")
+
         # Insert event to SQLite
         success = db.insert_event(
             event_id=event_id,
@@ -606,6 +616,7 @@ def record_event_to_sqlite(
             subagent_type=subagent_type,
             model=model,
             feature_id=feature_id,
+            claude_task_id=claude_task_id,
         )
 
         if success:
@@ -698,6 +709,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     db = None
     try:
         from htmlgraph.config import get_database_path
+        from htmlgraph.db.schema import HtmlGraphDB
 
         db = HtmlGraphDB(str(get_database_path()))
     except Exception as e:
@@ -727,6 +739,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     # lose the parent_event_id linkage.
     subagent_type = None
     parent_session_id = None
+    task_event_id_from_db = None  # Will be set by Method 1 if found
     hook_session_id = hook_input.get("session_id") or hook_input.get("sessionId")
 
     if db and db.connection and hook_session_id:
@@ -751,9 +764,69 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 else:
                     subagent_type = "general-purpose"  # Default if format unexpected
 
+                # CRITICAL FIX: When Method 1 succeeds, also find the task_delegation event!
+                # This ensures parent_activity_id will use the task event, not fall back to UserQuery
+                try:
+                    # First try to find task in parent_session_id (if not NULL)
+                    if parent_session_id:
+                        cursor.execute(
+                            """
+                            SELECT event_id
+                            FROM agent_events
+                            WHERE event_type = 'task_delegation'
+                              AND subagent_type = ?
+                              AND status = 'started'
+                              AND session_id = ?
+                            ORDER BY timestamp DESC
+                            LIMIT 1
+                            """,
+                            (subagent_type, parent_session_id),
+                        )
+                        task_row = cursor.fetchone()
+                        if task_row:
+                            task_event_id_from_db = task_row[0]
+
+                    # If not found (parent_session_id is NULL), fallback to finding most recent task
+                    # This handles Claude Code's session reuse where parent_session_id can be NULL
+                    if not task_event_id_from_db:
+                        cursor.execute(
+                            """
+                            SELECT event_id
+                            FROM agent_events
+                            WHERE event_type = 'task_delegation'
+                              AND subagent_type = ?
+                              AND status = 'started'
+                            ORDER BY timestamp DESC
+                            LIMIT 1
+                            """,
+                            (subagent_type,),
+                        )
+                        task_row = cursor.fetchone()
+                        if task_row:
+                            task_event_id_from_db = task_row[0]
+                            print(
+                                f"DEBUG Method 1 fallback: Found task_delegation={task_event_id_from_db} for {subagent_type}",
+                                file=sys.stderr,
+                            )
+                        else:
+                            print(
+                                f"DEBUG Method 1: No task_delegation found for subagent_type={subagent_type}",
+                                file=sys.stderr,
+                            )
+                    else:
+                        print(
+                            f"DEBUG Method 1: Found task_delegation={task_event_id_from_db} for subagent {subagent_type}",
+                            file=sys.stderr,
+                        )
+                except Exception as e:
+                    print(
+                        f"DEBUG: Error finding task_delegation for Method 1: {e}",
+                        file=sys.stderr,
+                    )
+
                 print(
                     f"DEBUG subagent persistence: Found current session as subagent in sessions table: "
-                    f"type={subagent_type}, parent_session={parent_session_id}",
+                    f"type={subagent_type}, parent_session={parent_session_id}, task_event={task_event_id_from_db}",
                     file=sys.stderr,
                 )
         except Exception as e:
@@ -773,7 +846,10 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     # NOTE: Claude Code passes the SAME session_id to parent and subagent, so we CAN'T use
     # session_id to distinguish them. Instead, look for the most recent task_delegation event
     # and if found with status='started', we ARE the subagent.
-    task_event_id_from_db = None  # Track this for later use as parent_event_id
+    #
+    # CRITICAL FIX: The actual PARENT session is hook_session_id (what Claude Code passes),
+    # NOT the session_id from the task_delegation event (which is the same as current).
+    # NOTE: DO NOT reinitialize task_event_id_from_db here - it may have been set by Method 1!
     if not subagent_type and db and db.connection:
         try:
             cursor = db.connection.cursor()
@@ -795,7 +871,10 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 # If we found an active task_delegation, we're running as a subagent
                 # (Claude Code uses the same session_id for both parent and subagent)
                 subagent_type = detected_subagent_type or "general-purpose"
-                parent_session_id = parent_sess
+                # IMPORTANT: Use the hook_session_id as parent, not parent_sess!
+                # The parent_sess from task_delegation is the same as current session
+                # (Claude Code reuses session_id). The actual parent is hook_session_id.
+                parent_session_id = hook_session_id
                 task_event_id_from_db = (
                     task_event_id  # Store for later use as parent_event_id
                 )
@@ -1047,10 +1126,55 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         # use that as the parent for all tool calls within the subagent
         elif task_event_id_from_db:
             parent_activity_id = task_event_id_from_db
-        # Query database for most recent UserQuery event as parent
-        # Database is the single source of truth for parent-child linking
-        elif db:
-            parent_activity_id = get_parent_user_query(db, active_session_id)
+        # CRITICAL FIX: Check for active task_delegation EVEN IF task_event_id_from_db not set
+        # This handles Claude Code's session reuse where parent_session_id is NULL
+        # When tool calls come from a subagent, they should be under the task_delegation parent,
+        # NOT under UserQuery. So we MUST check for active tasks BEFORE falling back to UserQuery.
+        # IMPORTANT: This must work EVEN IF db is None, so try to get it from htmlgraph_db
+        else:
+            # Ensure we have a db connection (may not have been passed in for parent session)
+            db_to_use = db
+            if not db_to_use:
+                try:
+                    from htmlgraph.config import get_database_path
+                    from htmlgraph.db.schema import HtmlGraphDB
+
+                    db_to_use = HtmlGraphDB(str(get_database_path()))
+                except Exception:
+                    db_to_use = None
+
+            # Try to find an active task_delegation event
+            if db_to_use:
+                try:
+                    cursor = db_to_use.connection.cursor()  # type: ignore[union-attr]
+                    cursor.execute(
+                        """
+                        SELECT event_id
+                        FROM agent_events
+                        WHERE event_type = 'task_delegation'
+                          AND status = 'started'
+                        ORDER BY timestamp DESC
+                        LIMIT 1
+                        """,
+                    )
+                    task_row = cursor.fetchone()
+                    if task_row:
+                        parent_activity_id = task_row[0]
+                        print(
+                            f"DEBUG: Found active task_delegation={parent_activity_id} in parent_activity_id fallback",
+                            file=sys.stderr,
+                        )
+                except Exception as e:
+                    print(
+                        f"DEBUG: Error finding task_delegation in parent_activity_id: {e}",
+                        file=sys.stderr,
+                    )
+
+                # Only if no active task found, fall back to UserQuery
+                if not parent_activity_id:
+                    parent_activity_id = get_parent_user_query(
+                        db_to_use, active_session_id
+                    )
 
         # Track the activity
         nudge = None

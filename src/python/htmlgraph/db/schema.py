@@ -105,6 +105,7 @@ class HtmlGraphDB:
             ("created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
             ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
             ("model", "TEXT"),
+            ("claude_task_id", "TEXT"),
         ]
 
         for col_name, col_type in migrations:
@@ -226,6 +227,7 @@ class HtmlGraphDB:
                 execution_duration_seconds REAL DEFAULT 0.0,
                 status TEXT DEFAULT 'recorded',
                 model TEXT,
+                claude_task_id TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -443,6 +445,8 @@ class HtmlGraphDB:
             "CREATE INDEX IF NOT EXISTS idx_agent_events_session_tool ON agent_events(session_id, tool_name)",
             # Pattern: Timestamp range queries
             "CREATE INDEX IF NOT EXISTS idx_agent_events_timestamp ON agent_events(timestamp DESC)",
+            # Pattern: WHERE claude_task_id (task attribution queries)
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_claude_task_id ON agent_events(claude_task_id)",
             # features indexes - optimized for kanban/filtering
             # Pattern: WHERE status ORDER BY priority DESC (feature list views)
             "CREATE INDEX IF NOT EXISTS idx_features_status_priority ON features(status, priority DESC, created_at DESC)",
@@ -517,6 +521,7 @@ class HtmlGraphDB:
         subagent_type: str | None = None,
         model: str | None = None,
         feature_id: str | None = None,
+        claude_task_id: str | None = None,
     ) -> bool:
         """
         Insert an agent event into the database.
@@ -541,6 +546,7 @@ class HtmlGraphDB:
             execution_duration_seconds: Execution time in seconds (optional)
             subagent_type: Subagent type for Task delegations (optional)
             model: Claude model name (e.g., claude-haiku, claude-opus, claude-sonnet) (optional)
+            claude_task_id: Claude Code's internal task ID for tool attribution (optional)
 
         Returns:
             True if insert successful, False otherwise
@@ -559,8 +565,8 @@ class HtmlGraphDB:
                 INSERT INTO agent_events
                 (event_id, agent_id, event_type, session_id, feature_id, tool_name,
                  input_summary, output_summary, context, parent_agent_id,
-                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model, claude_task_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
@@ -578,6 +584,7 @@ class HtmlGraphDB:
                     execution_duration_seconds,
                     subagent_type,
                     model,
+                    claude_task_id,
                 ),
             )
             # Re-enable foreign key constraints
@@ -1582,6 +1589,105 @@ class HtmlGraphDB:
         except sqlite3.Error as e:
             logger.error(f"Error cleaning up old live events: {e}")
             return 0
+
+    def get_events_for_task(self, claude_task_id: str) -> list[dict[str, Any]]:
+        """
+        Get all events (and their descendants) for a Claude Code task.
+
+        This enables answering "show me all the work (tool calls) that happened
+        when this Task() was delegated".
+
+        Args:
+            claude_task_id: Claude Code's internal task ID
+
+        Returns:
+            List of event dictionaries, ordered by timestamp
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                WITH task_events AS (
+                    SELECT event_id FROM agent_events
+                    WHERE claude_task_id = ?
+                )
+                SELECT ae.* FROM agent_events ae
+                WHERE ae.claude_task_id = ?
+                   OR ae.parent_event_id IN (
+                       SELECT event_id FROM task_events
+                   )
+                ORDER BY ae.created_at
+            """,
+                (claude_task_id, claude_task_id),
+            )
+
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except sqlite3.Error as e:
+            logger.error(f"Error querying events for task: {e}")
+            return []
+
+    def get_subagent_work(self, session_id: str) -> dict[str, list[dict[str, Any]]]:
+        """
+        Get all work grouped by which subagent did it.
+
+        This enables answering "which subagent did what work in this session?"
+
+        Args:
+            session_id: Session ID to analyze
+
+        Returns:
+            Dictionary mapping subagent_type to list of events they executed.
+            Example: {
+                'researcher': [
+                    {'tool_name': 'Read', 'input_summary': '...', ...},
+                    {'tool_name': 'Grep', 'input_summary': '...', ...}
+                ],
+                'general-purpose': [
+                    {'tool_name': 'Bash', 'input_summary': '...', ...}
+                ]
+            }
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                SELECT
+                    ae.subagent_type,
+                    ae.tool_name,
+                    ae.event_id,
+                    ae.input_summary,
+                    ae.output_summary,
+                    ae.created_at,
+                    ae.claude_task_id
+                FROM agent_events ae
+                WHERE ae.session_id = ?
+                  AND ae.subagent_type IS NOT NULL
+                  AND ae.event_type = 'tool_call'
+                ORDER BY ae.subagent_type, ae.created_at
+            """,
+                (session_id,),
+            )
+
+            # Group by subagent_type
+            result: dict[str, list[dict[str, Any]]] = {}
+            for row in cursor.fetchall():
+                row_dict = dict(row)
+                subagent = row_dict.pop("subagent_type")
+                if subagent not in result:
+                    result[subagent] = []
+                result[subagent].append(row_dict)
+
+            return result
+        except sqlite3.Error as e:
+            logger.error(f"Error querying subagent work: {e}")
+            return {}
 
     def close(self) -> None:
         """Clean up database connection."""

@@ -19,6 +19,7 @@ from htmlgraph.atomic_ops import (
 from htmlgraph.builders import BaseBuilder, FeatureBuilder, SpikeBuilder
 from htmlgraph.collections import BaseCollection, FeatureCollection, SpikeCollection
 from htmlgraph.context_analytics import ContextAnalytics, ContextUsage
+from htmlgraph.decorators import RetryError, retry, retry_async
 from htmlgraph.edge_index import EdgeIndex, EdgeRef
 from htmlgraph.exceptions import (
     ClaimConflictError,
@@ -103,6 +104,10 @@ __all__ = [
     "SessionNotFoundError",
     "ClaimConflictError",
     "ValidationError",
+    "RetryError",
+    # Decorators
+    "retry",
+    "retry_async",
     # Core models
     "Node",
     "Edge",

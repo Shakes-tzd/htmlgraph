@@ -232,8 +232,8 @@ class CostAnalyzer:
         delegations = self.get_task_delegations()
 
         total_cost = 0
-        by_subagent = {}
-        by_tool = {}
+        by_subagent: dict[str, int] = {}
+        by_tool: dict[str, int] = {}
 
         for delegation in delegations:
             cost, child_events = self.calculate_task_cost(delegation.event_id)
@@ -276,7 +276,10 @@ class CostAnalyzer:
             Dictionary mapping subagent_type to total tokens spent
         """
         data = self.get_task_delegations_with_costs()
-        return data["by_subagent_type"]
+        result = data.get("by_subagent_type", {})
+        if isinstance(result, dict):
+            return result
+        return {}
 
     def get_cost_by_tool_type(self) -> dict[str, int]:
         """
@@ -286,7 +289,10 @@ class CostAnalyzer:
             Dictionary mapping tool_name to total tokens spent
         """
         data = self.get_task_delegations_with_costs()
-        return data["by_tool_type"]
+        result = data.get("by_tool_type", {})
+        if isinstance(result, dict):
+            return result
+        return {}
 
     def get_roi_stats(self) -> ROIStats:
         """
@@ -319,11 +325,7 @@ class CostAnalyzer:
 
         estimated_savings = int(
             estimated_direct_cost
-            - (
-                total_delegation_cost
-                * parallelization_factor
-                * (1.0 - context_benefit)
-            )
+            - (total_delegation_cost * parallelization_factor * (1.0 - context_benefit))
         )
 
         savings_percentage = (
@@ -347,9 +349,7 @@ class CostAnalyzer:
             ),
         )
 
-    def get_top_delegations(
-        self, limit: int = 10
-    ) -> list[TaskDelegation]:
+    def get_top_delegations(self, limit: int = 10) -> list[TaskDelegation]:
         """
         Get the most expensive Task delegations.
 

@@ -56,10 +56,15 @@ def test_batch_operation_feedback():
 
     sdk = SDK(agent="test-agent")
 
+    # Create a track first
+    print("\n0. Creating test track...")
+    track = sdk.tracks.create("Batch Operation Test Track").save()
+    print(f"✓ Created track {track.id}")
+
     # Create some test features
     print("\n1. Creating test features...")
-    f1 = sdk.features.create("Test Feature 1").save()
-    f2 = sdk.features.create("Test Feature 2").save()
+    f1 = sdk.features.create("Test Feature 1").set_track(track.id).save()
+    f2 = sdk.features.create("Test Feature 2").set_track(track.id).save()
     print(f"✓ Created {f1.id} and {f2.id}")
 
     # Test mark_done with valid IDs

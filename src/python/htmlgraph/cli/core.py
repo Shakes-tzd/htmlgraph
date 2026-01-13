@@ -37,6 +37,22 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     Args:
         subparsers: Subparser action from ArgumentParser.add_subparsers()
     """
+    # bootstrap
+    bootstrap_parser = subparsers.add_parser(
+        "bootstrap", help="One-command setup: Initialize HtmlGraph in under 60 seconds"
+    )
+    bootstrap_parser.add_argument(
+        "--project-path",
+        default=".",
+        help="Directory to bootstrap (default: current directory)",
+    )
+    bootstrap_parser.add_argument(
+        "--no-plugins",
+        action="store_true",
+        help="Skip plugin installation",
+    )
+    bootstrap_parser.set_defaults(func=BootstrapCommand.from_args)
+
     # serve
     serve_parser = subparsers.add_parser("serve", help="Start the HtmlGraph server")
     serve_parser.add_argument(
@@ -852,5 +868,86 @@ class InstallHooksCommand(BaseCommand):
                     name: {"success": success, "message": msg}
                     for name, (success, msg) in results.items()
                 },
+            },
+        )
+
+
+class BootstrapCommand(BaseCommand):
+    """Bootstrap HtmlGraph in under 60 seconds."""
+
+    def __init__(self, *, project_path: str, no_plugins: bool) -> None:
+        super().__init__()
+        self.project_path = project_path
+        self.no_plugins = no_plugins
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> BootstrapCommand:
+        return cls(
+            project_path=args.project_path,
+            no_plugins=args.no_plugins,
+        )
+
+    def execute(self) -> CommandResult:
+        """Bootstrap HtmlGraph setup."""
+        from rich.console import Console
+        from rich.panel import Panel
+
+        from htmlgraph.cli.models import BootstrapConfig
+        from htmlgraph.operations.bootstrap import bootstrap_htmlgraph
+
+        console = Console()
+
+        # Create config
+        config = BootstrapConfig(
+            project_path=self.project_path,
+            no_plugins=self.no_plugins,
+        )
+
+        # Run bootstrap
+        console.print()
+        console.print("[bold cyan]Bootstrapping HtmlGraph...[/bold cyan]")
+        console.print()
+
+        result = bootstrap_htmlgraph(config)
+
+        if not result["success"]:
+            raise CommandError(result.get("message", "Bootstrap failed"))
+
+        # Display success message
+        console.print()
+        console.print(
+            Panel.fit(
+                "[bold green]✓ HtmlGraph initialized successfully![/bold green]",
+                border_style="green",
+            )
+        )
+        console.print()
+
+        # Show project info
+        console.print(f"[cyan]Project type:[/cyan] {result['project_type']}")
+        console.print(f"[cyan]Location:[/cyan] {result['graph_dir']}")
+        console.print()
+
+        # Show next steps
+        console.print("[bold yellow]Next steps:[/bold yellow]")
+        for step in result["next_steps"]:
+            console.print(f"  {step}")
+        console.print()
+
+        # Show documentation link
+        console.print(
+            "[dim]📚 Learn more: https://github.com/Shakes-tzd/htmlgraph[/dim]"
+        )
+        console.print()
+
+        return CommandResult(
+            text="Bootstrap completed successfully",
+            json_data={
+                "project_type": result["project_type"],
+                "graph_dir": result["graph_dir"],
+                "directories_created": len(result["directories_created"]),
+                "files_created": len(result["files_created"]),
+                "has_claude": result["has_claude"],
+                "plugin_installed": result["plugin_installed"],
             },
         )
