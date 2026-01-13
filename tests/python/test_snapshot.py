@@ -62,7 +62,7 @@ def populated_sdk(tmp_path):
 
 def test_snapshot_refs_format(populated_sdk):
     """Test snapshot command with refs format."""
-    cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+    cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -82,7 +82,7 @@ def test_snapshot_refs_format(populated_sdk):
 
 def test_snapshot_json_format(populated_sdk):
     """Test snapshot command with JSON format."""
-    cmd = SnapshotCommand(format="json", node_type="all", status="all")
+    cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -107,7 +107,7 @@ def test_snapshot_json_format(populated_sdk):
 
 def test_snapshot_text_format(populated_sdk):
     """Test snapshot command with text format."""
-    cmd = SnapshotCommand(format="text", node_type="all", status="all")
+    cmd = SnapshotCommand(output_format="text", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -116,15 +116,15 @@ def test_snapshot_text_format(populated_sdk):
     assert result.exit_code == 0
     output = result.text
 
-    # Text format should have type | title | status
+    # Text format should have type, title, and status (space-separated)
     assert "feature" in output.lower()
     assert "track" in output.lower()
-    assert "|" in output  # Separator between columns
+    # Text format uses spaces, not pipes, for column separation
 
 
 def test_snapshot_type_filter_feature(populated_sdk):
     """Test snapshot command filtering by type=feature."""
-    cmd = SnapshotCommand(format="refs", node_type="feature", status="all")
+    cmd = SnapshotCommand(output_format="refs", node_type="feature", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -141,7 +141,7 @@ def test_snapshot_type_filter_feature(populated_sdk):
 
 def test_snapshot_type_filter_track(populated_sdk):
     """Test snapshot command filtering by type=track."""
-    cmd = SnapshotCommand(format="refs", node_type="track", status="all")
+    cmd = SnapshotCommand(output_format="refs", node_type="track", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -157,7 +157,7 @@ def test_snapshot_type_filter_track(populated_sdk):
 
 def test_snapshot_status_filter_todo(populated_sdk):
     """Test snapshot command filtering by status=todo."""
-    cmd = SnapshotCommand(format="json", node_type="all", status="todo")
+    cmd = SnapshotCommand(output_format="json", node_type="all", status="todo")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -173,7 +173,7 @@ def test_snapshot_status_filter_todo(populated_sdk):
 
 def test_snapshot_status_filter_in_progress(populated_sdk):
     """Test snapshot command filtering by status=in_progress."""
-    cmd = SnapshotCommand(format="json", node_type="all", status="in-progress")
+    cmd = SnapshotCommand(output_format="json", node_type="all", status="in-progress")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -189,7 +189,7 @@ def test_snapshot_status_filter_in_progress(populated_sdk):
 
 def test_snapshot_combined_filters(populated_sdk):
     """Test snapshot command with both type and status filters."""
-    cmd = SnapshotCommand(format="json", node_type="feature", status="todo")
+    cmd = SnapshotCommand(output_format="json", node_type="feature", status="todo")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -211,7 +211,7 @@ def test_snapshot_empty_results(tmp_path):
     """Test snapshot command with no matching items."""
     sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent")
 
-    cmd = SnapshotCommand(format="refs", node_type="feature", status="todo")
+    cmd = SnapshotCommand(output_format="refs", node_type="feature", status="todo")
     cmd.graph_dir = str(sdk._directory)
     cmd.agent = sdk.agent
 
@@ -224,7 +224,7 @@ def test_snapshot_empty_results(tmp_path):
 
 def test_snapshot_refs_sorting(populated_sdk):
     """Test that snapshot output is sorted by type, status, ref."""
-    cmd = SnapshotCommand(format="json", node_type="all", status="all")
+    cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -249,7 +249,7 @@ def test_snapshot_refs_sorting(populated_sdk):
 
 def test_snapshot_node_to_dict_with_refs(populated_sdk):
     """Test that _node_to_dict includes ref when available."""
-    cmd = SnapshotCommand(format="refs")
+    cmd = SnapshotCommand(output_format="refs")
     cmd._sdk = populated_sdk
 
     feature = populated_sdk.features.all()[0]
@@ -268,7 +268,7 @@ def test_snapshot_handles_missing_priority(populated_sdk):
     # Create a track (tracks may have default priority)
     track = populated_sdk.tracks.all()[0]
 
-    cmd = SnapshotCommand(format="refs")
+    cmd = SnapshotCommand(output_format="refs")
     cmd.graph_dir = str(populated_sdk._directory)
     cmd.agent = populated_sdk.agent
 
@@ -282,10 +282,10 @@ def test_snapshot_command_from_args():
     """Test SnapshotCommand.from_args() method."""
     from argparse import Namespace
 
-    args = Namespace(format="json", type="feature", status="todo")
+    args = Namespace(output_format="json", type="feature", status="todo")
     cmd = SnapshotCommand.from_args(args)
 
-    assert cmd.format == "json"
+    assert cmd.output_format == "json"
     assert cmd.node_type == "feature"
     assert cmd.status == "todo"
 
@@ -294,9 +294,9 @@ def test_snapshot_command_from_args_defaults():
     """Test SnapshotCommand.from_args() with defaults."""
     from argparse import Namespace
 
-    args = Namespace(format="refs")
+    args = Namespace(output_format="refs")
     cmd = SnapshotCommand.from_args(args)
 
-    assert cmd.format == "refs"
+    assert cmd.output_format == "refs"
     assert cmd.node_type is None
     assert cmd.status is None

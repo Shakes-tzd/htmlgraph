@@ -526,10 +526,10 @@ class TextFormatter:
 
 
 def get_formatter(format_name: str) -> Formatter:
-    """Get formatter by name (json, text, plain)."""
+    """Get formatter by name (json, text, plain, refs)."""
     if format_name == "json":
         return JsonFormatter()
-    if format_name in ("text", "plain", ""):
+    if format_name in ("text", "plain", "refs", ""):
         return TextFormatter()
     raise CommandError(f"Unknown output format '{format_name}'")
 

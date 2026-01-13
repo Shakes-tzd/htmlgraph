@@ -167,17 +167,6 @@ class SnapshotCommand(BaseCommand):
         self.my_work = my_work
         self.formatter = SnapshotFormatter()
 
-    def run(self, *, graph_dir: str, agent: str | None, output_format: str) -> None:
-        """Override run to use snapshot's output_format instead of global format.
-
-        Args:
-            graph_dir: Path to .htmlgraph directory
-            agent: Agent name (optional)
-            output_format: Global output format (ignored for snapshot)
-        """
-        # Use snapshot's own output_format, not the global one
-        super().run(graph_dir=graph_dir, agent=agent, output_format=self.output_format)
-
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> SnapshotCommand:
         """Create command instance from argparse arguments."""
