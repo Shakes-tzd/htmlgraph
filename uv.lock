@@ -412,7 +412,7 @@ wheels = [
 
 [[package]]
 name = "htmlgraph"
-version = "0.26.22"
+version = "0.26.24"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

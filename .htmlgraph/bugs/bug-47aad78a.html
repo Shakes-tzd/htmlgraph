@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Agent Fleet Status shows incomplete/unknown data for model, tokens, and avg time</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-47aad78a"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-13T09:55:33.383076"
+             data-updated="2026-01-13T14:55:34.461685+00:00" data-agent-assigned="claude">
+
+        <header>
+            <h1>Agent Fleet Status shows incomplete/unknown data for model, tokens, and avg time</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-01-13T09:55:34.461674">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Agent Fleet Status dashboard is showing incomplete metrics for active agents.
+
+## Issue Summary
+The Agent Fleet Status page displays agent performance data, but multiple critical fields are not being populated correctly.
+
+## Problems Identified
+1. MODEL column shows "unknown" for all agents (should show actual model names like haiku, sonnet, opus)
+2. TOKENS column shows "0" for all agents (should show actual token counts)
+3. AVG TIME column shows "-" for all agents (should show actual average times)
+4. Only ACTIVITY column has valid data (showing correct activity counts like 6700)
+5. All agents show IDLE status despite having activity data
+
+## Example Data from Current Dashboard
+- 10 agents visible (partially loaded)
+- First agent: MODEL=unknown, ACTIVITY=6700, TOKENS=0, AVG TIME=-
+- All agents follow the same pattern of missing data
+- ACTIVITY values vary (showing metrics ARE being collected somewhere)
+
+## Potential Root Causes
+1. Agent metrics not being collected/stored properly in database
+2. Database query missing JOIN to agent_metrics table
+3. Agent model information not being saved during agent creation
+4. Token counting functionality not implemented
+5. Average time calculation not implemented
+6. Metrics being calculated but not queried/returned to dashboard
+
+## Impact
+- Users cannot see complete real-time agent performance metrics
+- Dashboard view is non-functional for critical monitoring data
+- Renders fleet status monitoring incomplete and unreliable
+- No visibility into which models are being used or their performance
+
+## Affected Component
+Location: src/python/htmlgraph/api/main.py (agents view endpoint)
+Other possible locations: agent_metrics collection, database schema
+
+## Expected Behavior
+Dashboard should display for each agent:
+- MODEL: Actual LLM model name (haiku, sonnet, opus, etc.)
+- TOKENS: Actual token count used by the agent
+- AVG TIME: Average execution time for agent operations
+- ACTIVITY: Count of recent activities (currently working)
+- STATUS: Current status (working, idle, error, etc.)
+
+## Actual Behavior
+All agents show:
+- MODEL: "unknown"
+- TOKENS: "0"
+- AVG TIME: "-"
+- ACTIVITY: [varies - correct data]
+- STATUS: "IDLE"
+</p>
+        </section>
+    </article>
+</body>
+</html>

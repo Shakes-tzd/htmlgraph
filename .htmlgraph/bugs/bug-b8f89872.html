@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Metrics view crashes with 'no such column: s.started_at' error</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-b8f89872"
+             data-type="bug"
+             data-status="completed"
+             data-priority="medium"
+             data-created="2026-01-13T09:53:32.022786"
+             data-updated="2026-01-13T15:58:00+00:00" data-agent-assigned="claude">
+
+        <header>
+            <h1>Metrics view crashes with 'no such column: s.started_at' error</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-01-13T09:53:33.036774">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+## Error Details
+
+**Error Message:** sqlite3.OperationalError: no such column: s.started_at
+
+**Location:** src/python/htmlgraph/api/main.py:1850 in metrics_view()
+
+**Full Stack Trace:**
+```
+File "/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py", line 1850, in metrics_view
+    cursor = await db.execute(query)
+sqlite3.OperationalError: no such column: s.started_at
+```
+
+## Steps to Reproduce
+
+1. Run `uv run htmlgraph serve`
+2. Access http://0.0.0.0:8080
+3. Click on "Metrics" view
+4. Error occurs - returns 500 Internal Server Error
+
+## Expected Behavior
+
+Metrics view should load and display dashboard metrics without errors.
+
+## Actual Behavior
+
+Returns 500 Internal Server Error due to SQL schema mismatch.
+
+## Impact
+
+- **Severity:** HIGH - Blocks dashboard metrics access
+- **User Impact:** Users cannot view metrics or analytics
+- **Block:** Prevents dashboard usage
+
+## Root Cause Investigation Required
+
+1. Check the SQL query in metrics_view() function
+2. Verify sessions table schema - does it have started_at column?
+3. Check actual column name: session_start, created_at, start_time, etc.
+4. May be schema mismatch between code expectations and actual database schema
+5. Check schema migration history for column renames
+
+## Related Files
+
+- **Code:** src/python/htmlgraph/api/main.py (line 1850)
+- **Database:** .htmlgraph/htmlgraph.db
+- **Schema:** Check PRAGMA table_info(sessions);
+
+## Investigation Path
+
+1. Query database schema: `sqlite3 .htmlgraph/htmlgraph.db "PRAGMA table_info(sessions);"`
+2. Review metrics_view() SQL query
+3. Compare column names in code vs actual database
+4. Check database initialization and migrations
+5. Test with fresh database initialization
+
+## Solution Implemented
+
+**Root Cause:** The SQL query in metrics_view() was referencing non-existent columns `s.started_at` and `s.ended_at`, but the actual database schema uses `created_at` and `completed_at`.
+
+**Fix Applied:**
+- Changed `s.started_at` → `s.created_at` (lines 1839, 1845)
+- Changed `s.ended_at` → `s.completed_at` (line 1840)
+- Updated ORDER BY clause to use `s.created_at`
+- Updated comment to reflect actual schema
+
+**Commit:** 9d6ad7b - "fix: correct metrics view database schema column names (created_at, completed_at)"
+
+**Verification:**
+- All lint checks passed (ruff, mypy)
+- Metrics-related tests pass
+- Pre-commit hooks verified the fix
+- API endpoint now correctly queries the sessions table
+
+**Status:** ✅ RESOLVED - Metrics view now loads without errors
+
+## Additional Bug Fixed (2026-01-13)
+
+After initial fix, Playwright testing revealed a second bug in the same endpoint:
+
+**Error:** TypeError - can't subtract offset-naive and offset-aware datetimes
+
+**Location:** Line 1883 in metrics_view()
+
+**Root Cause:** `datetime.fromisoformat(row[3])` can return timezone-aware datetime, but `datetime.now()` returns naive datetime. Python cannot subtract datetimes with different timezone awareness.
+
+**Solution Applied:**
+```python
+# Before (broken):
+duration_seconds = (datetime.now() - started_at).total_seconds()
+
+# After (fixed):
+now = datetime.now(started_at.tzinfo) if started_at.tzinfo else datetime.now()
+duration_seconds = (now - started_at).total_seconds()
+```
+
+This ensures both datetimes have matching timezone awareness before subtraction.
+
+**Commit:** 23f13bc - "fix: resolve datetime timezone mismatch in metrics view calculation"
+
+**Verification:**
+- ✅ Ruff linting: All checks passed
+- ✅ Ruff formatting: File reformatted correctly
+- ✅ Mypy type checking: No type errors
+- ✅ Playwright test: Metrics view now loads successfully (HTTP 200)
+</p>
+        </section>
+    </article>
+</body>
+</html>

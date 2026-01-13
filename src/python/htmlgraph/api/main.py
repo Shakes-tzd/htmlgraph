@@ -1683,22 +1683,29 @@ def get_app(db_path: str) -> FastAPI:
         finally:
             await db.close()
 
-    # ========== FEATURES ENDPOINTS ==========
+    # ========== WORK ITEMS ENDPOINTS ==========
 
     @app.get("/views/features", response_class=HTMLResponse)
-    async def features_view(request: Request, status: str = "all") -> HTMLResponse:
-        """Get features by status as HTMX partial."""
+    async def features_view_redirect(
+        request: Request, status: str = "all"
+    ) -> HTMLResponse:
+        """Redirect to work-items view (legacy endpoint for backward compatibility)."""
+        return await work_items_view(request, status)
+
+    @app.get("/views/work-items", response_class=HTMLResponse)
+    async def work_items_view(request: Request, status: str = "all") -> HTMLResponse:
+        """Get work items (features, bugs, spikes) by status as HTMX partial."""
         db = await get_db()
         cache = app.state.query_cache
         query_start_time = time.time()
 
         try:
             # Create cache key from query parameters
-            cache_key = f"features_view:{status}"
+            cache_key = f"work_items_view:{status}"
 
             # Check cache first
             cached_response = cache.get(cache_key)
-            features_by_status: dict = {
+            work_items_by_status: dict = {
                 "todo": [],
                 "in_progress": [],
                 "blocked": [],
@@ -1709,9 +1716,9 @@ def get_app(db_path: str) -> FastAPI:
                 query_time_ms = (time.time() - query_start_time) * 1000
                 cache.record_metric(cache_key, query_time_ms, cache_hit=True)
                 logger.debug(
-                    f"Cache HIT for features_view (key={cache_key}, time={query_time_ms:.2f}ms)"
+                    f"Cache HIT for work_items_view (key={cache_key}, time={query_time_ms:.2f}ms)"
                 )
-                features_by_status = cached_response
+                work_items_by_status = cached_response
             else:
                 # OPTIMIZATION: Use composite index idx_features_status_priority
                 # for efficient filtering and ordering
@@ -1753,37 +1760,37 @@ def get_app(db_path: str) -> FastAPI:
                 exec_time_ms = (time.time() - exec_start) * 1000
 
                 for row in rows:
-                    feature_id = row[0]
-                    feature_status = row[3]
-                    features_by_status.setdefault(feature_status, []).append(
+                    item_id = row[0]
+                    item_status = row[3]
+                    work_items_by_status.setdefault(item_status, []).append(
                         {
-                            "id": feature_id,
+                            "id": item_id,
                             "type": row[1],
                             "title": row[2],
-                            "status": feature_status,
+                            "status": item_status,
                             "priority": row[4],
                             "assigned_to": row[5],
                             "created_at": row[6],
                             "updated_at": row[7],
                             "description": row[8],
-                            "contributors": feature_agents.get(feature_id, []),
+                            "contributors": feature_agents.get(item_id, []),
                         }
                     )
 
                 # Cache the results
-                cache.set(cache_key, features_by_status)
+                cache.set(cache_key, work_items_by_status)
                 query_time_ms = (time.time() - query_start_time) * 1000
                 cache.record_metric(cache_key, exec_time_ms, cache_hit=False)
                 logger.debug(
-                    f"Cache MISS for features_view (key={cache_key}, "
+                    f"Cache MISS for work_items_view (key={cache_key}, "
                     f"db_time={exec_time_ms:.2f}ms, total_time={query_time_ms:.2f}ms)"
                 )
 
             return templates.TemplateResponse(
-                "partials/features.html",
+                "partials/work-items.html",
                 {
                     "request": request,
-                    "features_by_status": features_by_status,
+                    "work_items_by_status": work_items_by_status,
                 },
             )
         finally:
