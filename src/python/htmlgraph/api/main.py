@@ -1830,19 +1830,19 @@ def get_app(db_path: str) -> FastAPI:
             else:
                 # OPTIMIZATION: Combine session data with event counts in single query
                 # This eliminates N+1 query problem (was 20+ queries, now 2)
-                # Note: Database uses agent_assigned but started_at/ended_at (partial migration)
+                # Note: Database uses created_at and completed_at (not started_at/ended_at)
                 query = """
                     SELECT
                         s.session_id,
                         s.agent_assigned,
                         s.status,
-                        s.started_at,
-                        s.ended_at,
+                        s.created_at,
+                        s.completed_at,
                         COUNT(DISTINCT e.event_id) as event_count
                     FROM sessions s
                     LEFT JOIN agent_events e ON s.session_id = e.session_id
                     GROUP BY s.session_id
-                    ORDER BY s.started_at DESC
+                    ORDER BY s.created_at DESC
                     LIMIT 20
                 """
 
