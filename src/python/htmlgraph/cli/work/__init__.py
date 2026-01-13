@@ -63,6 +63,30 @@ def register_commands(subparsers: _SubParsersAction) -> None:
         "--status",
         help="Filter by status (todo, in_progress, blocked, done, all)",
     )
+    snapshot_parser.add_argument(
+        "--track",
+        help="Show only items in a specific track (by track ID or ref)",
+    )
+    snapshot_parser.add_argument(
+        "--active",
+        action="store_true",
+        help="Show only TODO/IN_PROGRESS items (filters out metadata spikes)",
+    )
+    snapshot_parser.add_argument(
+        "--blockers",
+        action="store_true",
+        help="Show only critical/blocked items",
+    )
+    snapshot_parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Show counts and progress summary instead of listing all items",
+    )
+    snapshot_parser.add_argument(
+        "--my-work",
+        action="store_true",
+        help="Show items assigned to current agent",
+    )
     snapshot_parser.set_defaults(func=SnapshotCommand.from_args)
 
     # Browse command

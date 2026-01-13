@@ -962,3 +962,631 @@ class TestRefSystemRobustness:
             if item["ref"] is not None:
                 assert item["ref"].startswith("@")
                 assert len(item["ref"]) >= 2
+
+
+# ============================================================================
+# NEW FILTER TESTS - TRACK, ACTIVE, BLOCKERS, SUMMARY, MY_WORK
+# ============================================================================
+
+
+class TestSnapshotTrackFilter:
+    """Test --track filter functionality."""
+
+    def test_snapshot_filter_by_track_id(self, populated_sdk):
+        """Test filtering by track ID."""
+        sdk = populated_sdk
+        track = sdk._test_items["tracks"][0]
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", track_id=track.id
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All features should be linked to this track
+        features = [d for d in data if d["type"] == "feature"]
+        for feature in features:
+            assert feature["track_id"] == track.id
+
+    def test_snapshot_filter_by_track_ref(self, populated_sdk):
+        """Test filtering by track ref (@t1)."""
+        sdk = populated_sdk
+        track = sdk._test_items["tracks"][0]
+        track_ref = sdk.refs.get_ref(track.id)
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", track_id=track_ref
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All features should be linked to this track
+        features = [d for d in data if d["type"] == "feature"]
+        for feature in features:
+            assert feature["track_id"] == track.id
+
+    def test_snapshot_track_filter_with_active(self, populated_sdk):
+        """Test combining --track and --active filters."""
+        sdk = populated_sdk
+        track = sdk._test_items["tracks"][0]
+        track_ref = sdk.refs.get_ref(track.id)
+
+        cmd = SnapshotCommand(
+            output_format="json",
+            node_type="all",
+            status="all",
+            track_id=track_ref,
+            active=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Should only have active items from this track
+        for item in data:
+            assert item["status"] in ["todo", "in-progress", "blocked"]
+            if item["type"] == "feature":
+                assert item["track_id"] == track.id
+
+
+class TestSnapshotActiveFilter:
+    """Test --active filter functionality."""
+
+    def test_snapshot_active_filter(self, populated_sdk):
+        """Test --active filter shows only TODO/IN_PROGRESS/BLOCKED items."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", active=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All items should be active
+        for item in data:
+            assert item["status"] in ["todo", "in-progress", "blocked"]
+
+        # Should not have completed items
+        done_items = [d for d in data if d["status"] == "done"]
+        assert len(done_items) == 0
+
+    def test_snapshot_active_excludes_metadata_spikes(self, sdk_instance):
+        """Test --active filter excludes metadata spikes."""
+        sdk = sdk_instance
+
+        # Create spikes (no track needed for spikes)
+        sdk.spikes.create("Research spike", status="todo").save()  # Should be included
+        sdk.spikes.create(
+            "Conversation with user", status="todo"
+        ).save()  # Should be excluded
+        sdk.spikes.create(
+            "Transition to new approach", status="todo"
+        ).save()  # Should be excluded
+        sdk.spikes.create(
+            "Handoff notes", status="in-progress"
+        ).save()  # Should be excluded
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="spike", status="all", active=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Should only have non-metadata spikes
+        assert len(data) == 1
+        assert data[0]["title"] == "Research spike"
+
+    def test_snapshot_active_with_type_filter(self, populated_sdk):
+        """Test --active combined with --type filter."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="feature", status="all", active=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All should be features and active
+        for item in data:
+            assert item["type"] == "feature"
+            assert item["status"] in ["todo", "in-progress", "blocked"]
+
+
+class TestSnapshotBlockersFilter:
+    """Test --blockers filter functionality."""
+
+    def test_snapshot_blockers_filter(self, populated_sdk):
+        """Test --blockers filter shows only critical/blocked items."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", blockers=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All items should be critical or blocked
+        for item in data:
+            assert item["priority"] == "critical" or item["status"] == "blocked"
+
+    def test_snapshot_blockers_empty_when_none_exist(self, sdk_instance):
+        """Test --blockers returns empty when no blockers exist."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        sdk.features.create("Feature", priority="low", status="todo").set_track(
+            track.id
+        ).save()
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", blockers=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+        assert len(data) == 0
+
+    def test_snapshot_blockers_includes_critical_and_blocked(self, sdk_instance):
+        """Test --blockers includes both critical priority and blocked status."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        sdk.features.create(
+            "Critical feature", priority="critical", status="todo"
+        ).set_track(track.id).save()
+        sdk.features.create(
+            "Blocked feature", priority="high", status="blocked"
+        ).set_track(track.id).save()
+        sdk.features.create("Normal feature", priority="high", status="todo").set_track(
+            track.id
+        ).save()
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", blockers=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+        assert len(data) == 2  # Critical and blocked only
+
+        titles = {d["title"] for d in data}
+        assert "Critical feature" in titles
+        assert "Blocked feature" in titles
+        assert "Normal feature" not in titles
+
+
+class TestSnapshotSummaryFormat:
+    """Test --summary format functionality."""
+
+    def test_snapshot_summary_format(self, populated_sdk):
+        """Test --summary shows counts and progress."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(
+            output_format="refs", node_type="all", status="all", summary=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Verify summary header
+        assert "ACTIVE WORK CONTEXT" in output
+
+        # Verify sections present
+        assert "Active Features" in output
+        assert "Quick Stats" in output
+
+    def test_snapshot_summary_with_track(self, populated_sdk):
+        """Test --summary with --track shows track context."""
+        sdk = populated_sdk
+        track = sdk._test_items["tracks"][0]
+        track_ref = sdk.refs.get_ref(track.id)
+
+        cmd = SnapshotCommand(
+            output_format="refs",
+            node_type="all",
+            status="all",
+            track_id=track_ref,
+            summary=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Verify track appears in context
+        assert "Current Track:" in output
+        assert track_ref in output
+
+    def test_snapshot_summary_shows_progress_percentage(self, sdk_instance):
+        """Test --summary calculates and shows progress percentage."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        # Create 5 features: 2 done, 3 not done
+        sdk.features.create("Feature 1", status="done").set_track(track.id).save()
+        sdk.features.create("Feature 2", status="done").set_track(track.id).save()
+        sdk.features.create("Feature 3", status="todo").set_track(track.id).save()
+        sdk.features.create("Feature 4", status="in-progress").set_track(
+            track.id
+        ).save()
+        sdk.features.create("Feature 5", status="blocked").set_track(track.id).save()
+
+        cmd = SnapshotCommand(
+            output_format="refs", node_type="all", status="all", summary=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Verify progress calculation (2/5 = 40%)
+        assert "40%" in output or "2/5" in output
+
+    def test_snapshot_summary_shows_bug_priorities(self, populated_sdk):
+        """Test --summary shows bug priority counts."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(
+            output_format="refs", node_type="all", status="all", summary=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Should show bug information
+        if "bug" in str(sdk._test_items):
+            assert "Active Bugs" in output or "Bugs:" in output
+
+    def test_snapshot_summary_shows_blockers_section(self, sdk_instance):
+        """Test --summary shows blockers section when blockers exist."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        sdk.features.create("Critical", priority="critical", status="todo").set_track(
+            track.id
+        ).save()
+        sdk.features.create("Blocked", priority="high", status="blocked").set_track(
+            track.id
+        ).save()
+
+        cmd = SnapshotCommand(
+            output_format="refs", node_type="all", status="all", summary=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Should show blockers section
+        assert "Blockers & Critical" in output
+
+
+class TestSnapshotMyWorkFilter:
+    """Test --my-work filter functionality."""
+
+    def test_snapshot_my_work_filter(self, sdk_instance):
+        """Test --my-work shows only items assigned to current agent."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+
+        # Create features with different assignments
+        f1 = (
+            sdk.features.create("My Feature", priority="high", status="todo")
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f1.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        f2 = (
+            sdk.features.create("Other Feature", priority="high", status="todo")
+            .set_track(track.id)
+            .save()
+        )  # Not assigned
+        with sdk.features.edit(f2.id) as feature:
+            feature.agent_assigned = None  # Explicitly unassign
+
+        f3 = (
+            sdk.features.create(
+                "Another My Feature", priority="medium", status="in-progress"
+            )
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f3.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", my_work=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Should only have features assigned to current agent
+        assert len(data) == 2
+        for item in data:
+            assert item["assigned_to"] == sdk.agent
+
+        titles = {d["title"] for d in data}
+        assert "My Feature" in titles
+        assert "Another My Feature" in titles
+        assert "Other Feature" not in titles
+
+    def test_snapshot_my_work_empty_when_none_assigned(self, sdk_instance):
+        """Test --my-work returns empty when nothing is assigned to current agent."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        f1 = (
+            sdk.features.create("Unassigned Feature", status="todo")
+            .set_track(track.id)
+            .save()
+        )
+        # Explicitly unassign
+        with sdk.features.edit(f1.id) as feature:
+            feature.agent_assigned = None
+
+        cmd = SnapshotCommand(
+            output_format="json", node_type="all", status="all", my_work=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+        assert len(data) == 0
+
+    def test_snapshot_my_work_with_active_filter(self, sdk_instance):
+        """Test --my-work combined with --active."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+
+        f1 = sdk.features.create("My Active", status="todo").set_track(track.id).save()
+        with sdk.features.edit(f1.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        f2 = sdk.features.create("My Done", status="done").set_track(track.id).save()
+        with sdk.features.edit(f2.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        cmd = SnapshotCommand(
+            output_format="json",
+            node_type="all",
+            status="all",
+            my_work=True,
+            active=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Should only have active items assigned to me
+        assert len(data) == 1
+        assert data[0]["title"] == "My Active"
+        assert data[0]["assigned_to"] == sdk.agent
+        assert data[0]["status"] == "todo"
+
+
+class TestSnapshotCombinedFilters:
+    """Test combinations of multiple filters."""
+
+    def test_snapshot_track_plus_active_plus_type(self, populated_sdk):
+        """Test combining --track, --active, and --type filters."""
+        sdk = populated_sdk
+        track = sdk._test_items["tracks"][0]
+        track_ref = sdk.refs.get_ref(track.id)
+
+        cmd = SnapshotCommand(
+            output_format="json",
+            node_type="feature",
+            status="all",
+            track_id=track_ref,
+            active=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All should be features, active, in track
+        for item in data:
+            assert item["type"] == "feature"
+            assert item["status"] in ["todo", "in-progress", "blocked"]
+            assert item["track_id"] == track.id
+
+    def test_snapshot_track_plus_summary(self, populated_sdk):
+        """Test --track with --summary shows track progress."""
+        sdk = populated_sdk
+        track = sdk._test_items["tracks"][0]
+        track_ref = sdk.refs.get_ref(track.id)
+
+        cmd = SnapshotCommand(
+            output_format="refs",
+            node_type="all",
+            status="all",
+            track_id=track_ref,
+            summary=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Should show track-specific progress
+        assert "Current Track:" in output
+        assert track_ref in output
+        assert "Track:" in output  # Progress line
+
+    def test_snapshot_blockers_plus_my_work(self, sdk_instance):
+        """Test --blockers with --my-work shows only my critical items."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+
+        f1 = (
+            sdk.features.create("My Critical", priority="critical", status="todo")
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f1.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        f2 = (
+            sdk.features.create("Other Critical", priority="critical", status="todo")
+            .set_track(track.id)
+            .save()
+        )  # Not assigned
+        with sdk.features.edit(f2.id) as feature:
+            feature.agent_assigned = None  # Explicitly unassign
+
+        f3 = (
+            sdk.features.create("My Normal", priority="high", status="todo")
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f3.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        cmd = SnapshotCommand(
+            output_format="json",
+            node_type="all",
+            status="all",
+            blockers=True,
+            my_work=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Should only have my critical items
+        assert len(data) == 1
+        assert data[0]["title"] == "My Critical"
+        assert data[0]["assigned_to"] == sdk.agent
+        assert data[0]["priority"] == "critical"
+
+    def test_snapshot_all_filters_combined(self, sdk_instance):
+        """Test all filters combined: track, active, blockers, my_work."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+
+        # My critical active item in track
+        f1 = (
+            sdk.features.create(
+                "My Critical Active", priority="critical", status="todo"
+            )
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f1.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        # My critical done item in track (excluded by active)
+        f2 = (
+            sdk.features.create("My Critical Done", priority="critical", status="done")
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f2.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        # Other's critical active in track (excluded by my_work)
+        f_other = (
+            sdk.features.create("Other Critical", priority="critical", status="todo")
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f_other.id) as feature:
+            feature.agent_assigned = None  # Explicitly unassign
+
+        # My normal active in track (excluded by blockers)
+        f4 = (
+            sdk.features.create("My Normal", priority="high", status="todo")
+            .set_track(track.id)
+            .save()
+        )
+        with sdk.features.edit(f4.id) as feature:
+            feature.agent_assigned = sdk.agent
+
+        cmd = SnapshotCommand(
+            output_format="json",
+            node_type="all",
+            status="all",
+            track_id=track.id,
+            active=True,
+            blockers=True,
+            my_work=True,
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Should only have one item matching all filters
+        assert len(data) == 1
+        assert data[0]["title"] == "My Critical Active"
