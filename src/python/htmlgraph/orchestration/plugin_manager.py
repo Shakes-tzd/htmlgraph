@@ -22,7 +22,7 @@ class PluginManager:
         """Get the plugin directory path.
 
         Returns:
-            Path to packages/claude-plugin/.claude-plugin
+            Path to packages/claude-plugin (the plugin root, not .claude-plugin)
         """
         # Path(__file__) = .../src/python/htmlgraph/orchestration/plugin_manager.py
         # Need to go up 5 levels to reach project root
@@ -30,7 +30,6 @@ class PluginManager:
             Path(__file__).parent.parent.parent.parent.parent
             / "packages"
             / "claude-plugin"
-            / ".claude-plugin"
         )
 
     @staticmethod
