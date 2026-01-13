@@ -31,6 +31,18 @@ class TrackCollection:
         self.collection_name = "tracks"  # For backward compatibility
         self.id_prefix = "track"
         self._graph: HtmlGraph | None = None  # Lazy-loaded
+        self._ref_manager: Any = None  # Set by SDK during initialization
+
+    def set_ref_manager(self, ref_manager: Any) -> None:
+        """
+        Set the ref manager for this collection.
+
+        Called by SDK during initialization to enable short ref support.
+
+        Args:
+            ref_manager: RefManager instance from SDK
+        """
+        self._ref_manager = ref_manager
 
     def _ensure_graph(self) -> HtmlGraph:
         """Lazy-load the graph for tracks with multi-pattern support."""

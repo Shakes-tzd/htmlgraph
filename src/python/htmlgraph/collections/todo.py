@@ -64,6 +64,18 @@ class TodoCollection:
 
         # Cache for loaded todos (lazy-loaded)
         self._todos: dict[str, Todo] | None = None
+        self._ref_manager: Any = None  # Set by SDK during initialization
+
+    def set_ref_manager(self, ref_manager: Any) -> None:
+        """
+        Set the ref manager for this collection.
+
+        Called by SDK during initialization to enable short ref support.
+
+        Args:
+            ref_manager: RefManager instance from SDK
+        """
+        self._ref_manager = ref_manager
 
     def _ensure_loaded(self) -> dict[str, Todo]:
         """Load todos from disk if not cached."""
