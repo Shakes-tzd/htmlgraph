@@ -167,10 +167,21 @@ class SnapshotCommand(BaseCommand):
         self.my_work = my_work
         self.formatter = SnapshotFormatter()
 
+    def run(self, *, graph_dir: str, agent: str | None, output_format: str) -> None:
+        """Override run to use snapshot's output_format instead of global format.
+
+        Args:
+            graph_dir: Path to .htmlgraph directory
+            agent: Agent name (optional)
+            output_format: Global output format (ignored for snapshot)
+        """
+        # Use snapshot's own output_format, not the global one
+        super().run(graph_dir=graph_dir, agent=agent, output_format=self.output_format)
+
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> SnapshotCommand:
         """Create command instance from argparse arguments."""
-        return cls(
+        cmd = cls(
             output_format=args.output_format
             if hasattr(args, "output_format")
             else "refs",
@@ -182,6 +193,11 @@ class SnapshotCommand(BaseCommand):
             summary=args.summary if hasattr(args, "summary") else False,
             my_work=args.my_work if hasattr(args, "my_work") else False,
         )
+        # If snapshot command has its own --output-format, override the global --format
+        # This allows "htmlgraph snapshot --output-format json" to work without needing --format json
+        if hasattr(args, "output_format"):
+            cmd.override_output_format = args.output_format
+        return cmd
 
     def execute(self) -> CommandResult:
         """Execute snapshot command."""
@@ -190,17 +206,31 @@ class SnapshotCommand(BaseCommand):
         # Gather all work items
         items = self._gather_items(sdk)
 
-        # Format output
+        # Format output based on output_format setting
         if self.summary:
             output = self._format_summary(items, sdk)
+            return CommandResult(
+                json_data=items,  # For JsonFormatter if needed
+                data={"snapshot": output, "item_count": len(items)},
+                text=output,
+            )
         elif self.output_format == "json":
-            output = self._format_json(items)
+            # For JSON format, return items as both json_data and text
+            # This allows both direct result.text access (in tests) and
+            # JsonFormatter to work correctly
+            json_text = self._format_json(items)
+            return CommandResult(
+                json_data=items,  # For JsonFormatter
+                data=items,  # For backward compatibility
+                text=json_text,  # JSON string for direct access
+            )
         elif self.output_format == "refs":
             output = self._format_refs(items)
         else:  # text
             output = self._format_text(items)
 
         return CommandResult(
+            json_data=items,  # For JsonFormatter if needed
             data={"snapshot": output, "item_count": len(items)},
             text=output,
         )
