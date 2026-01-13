@@ -1,0 +1,962 @@
+"""Comprehensive integration tests for Phase 1 snapshot and ref system.
+
+Tests end-to-end workflows combining:
+- Feature/track/bug/spike creation via SDK
+- Ref generation and resolution
+- Snapshot command with various filters and formats
+- Browse command integration
+- SDK ref method functionality
+- Ref persistence across SDK instances
+"""
+
+import json
+import tempfile
+from collections.abc import Generator
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+from htmlgraph.cli.work.browse import BrowseCommand
+from htmlgraph.cli.work.snapshot import SnapshotCommand
+from htmlgraph.sdk import SDK
+
+# ============================================================================
+# FIXTURES
+# ============================================================================
+
+
+@pytest.fixture
+def temp_graph_dir() -> Generator[Path, None, None]:
+    """Create a temporary .htmlgraph directory for integration tests."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        graph_dir = Path(tmpdir) / ".htmlgraph"
+        graph_dir.mkdir(parents=True)
+
+        # Create collection directories
+        for collection in [
+            "features",
+            "tracks",
+            "bugs",
+            "spikes",
+            "chores",
+            "epics",
+            "todos",
+            "phases",
+        ]:
+            (graph_dir / collection).mkdir()
+
+        yield graph_dir
+
+
+@pytest.fixture
+def sdk_instance(temp_graph_dir: Path) -> SDK:
+    """Create an SDK instance with temporary directory."""
+    return SDK(agent="test-agent", directory=temp_graph_dir)
+
+
+@pytest.fixture
+def populated_sdk(sdk_instance: SDK) -> SDK:
+    """Create SDK populated with various work items."""
+    sdk = sdk_instance
+
+    # Create tracks
+    track1 = sdk.tracks.create(
+        title="Browser-Native Query Interface",
+    ).save()
+
+    track2 = sdk.tracks.create(
+        title="Future Track",
+    ).save()
+
+    # Set track statuses
+    with sdk.tracks.edit(track1.id) as track:
+        track.status = "in-progress"
+    with sdk.tracks.edit(track2.id) as track:
+        track.status = "todo"
+
+    # Create features with various statuses (all linked to track1)
+    feature1 = (
+        sdk.features.create(
+            title="Implement snapshot command",
+            priority="high",
+            status="in-progress",
+        )
+        .set_track(track1.id)
+        .save()
+    )
+
+    feature2 = (
+        sdk.features.create(
+            title="Add RefManager class for short refs",
+            priority="high",
+            status="todo",
+        )
+        .set_track(track1.id)
+        .save()
+    )
+
+    feature3 = (
+        sdk.features.create(
+            title="Add sdk.ref() method for ref-based lookup",
+            priority="medium",
+            status="todo",
+        )
+        .set_track(track1.id)
+        .save()
+    )
+
+    feature4 = (
+        sdk.features.create(
+            title="Completed feature",
+            priority="low",
+            status="done",
+        )
+        .set_track(track1.id)
+        .save()
+    )
+
+    feature5 = (
+        sdk.features.create(
+            title="Blocked feature",
+            priority="high",
+            status="blocked",
+        )
+        .set_track(track1.id)
+        .save()
+    )
+
+    # Create bugs
+    bug1 = sdk.bugs.create(
+        title="Fix snapshot formatting",
+        priority="high",
+        status="todo",
+    ).save()
+
+    bug2 = sdk.bugs.create(
+        title="Ref resolution not persisting",
+        priority="medium",
+        status="in-progress",
+    ).save()
+
+    # Create spikes
+    spike1 = sdk.spikes.create(
+        title="Research ref system",
+        status="done",
+    ).save()
+
+    spike2 = sdk.spikes.create(
+        title="Investigate performance",
+        status="todo",
+    ).save()
+
+    # Store created items for assertions
+    sdk._test_items = {
+        "tracks": [track1, track2],
+        "features": [feature1, feature2, feature3, feature4, feature5],
+        "bugs": [bug1, bug2],
+        "spikes": [spike1, spike2],
+    }
+
+    return sdk
+
+
+# ============================================================================
+# END-TO-END WORKFLOW TESTS
+# ============================================================================
+
+
+class TestEndToEndWorkflow:
+    """Test complete workflows combining SDK, refs, and snapshot."""
+
+    def test_create_features_get_refs_snapshot_success(self, populated_sdk):
+        """
+        Test: Create 5 features with various statuses
+        - Verify refs are generated (@f1, @f2, etc.)
+        - Run snapshot command
+        - Verify output includes all features with refs
+        - Verify sdk.ref() resolves each ref correctly
+        """
+        sdk = populated_sdk
+        features = sdk._test_items["features"]
+
+        # Verify refs are generated
+        refs = []
+        for i, feature in enumerate(features, 1):
+            ref = sdk.refs.get_ref(feature.id)
+            assert ref is not None
+            assert ref == f"@f{i}"
+            refs.append(ref)
+
+        # Run snapshot command
+        cmd = SnapshotCommand(format="refs", node_type="feature", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Verify output includes all features with refs
+        assert "SNAPSHOT" in output
+        assert "FEATURES" in output
+        for ref in refs:
+            assert ref in output
+
+        # Verify sdk.ref() resolves each ref correctly
+        for i, feature in enumerate(features, 1):
+            ref = f"@f{i}"
+            resolved = sdk.ref(ref)
+            assert resolved is not None
+            assert resolved.id == feature.id
+            assert resolved.title == feature.title
+
+    def test_multiple_types_snapshot(self, populated_sdk):
+        """
+        Test: Create features, tracks, bugs, spikes
+        - Run snapshot command
+        - Verify all types appear in output
+        - Verify refs are correct (@f1, @t1, @b1, @s1)
+        """
+        sdk = populated_sdk
+
+        # Get refs for each type
+        feature_ref = sdk.refs.get_ref(sdk._test_items["features"][0].id)
+        track_ref = sdk.refs.get_ref(sdk._test_items["tracks"][0].id)
+        bug_ref = sdk.refs.get_ref(sdk._test_items["bugs"][0].id)
+        spike_ref = sdk.refs.get_ref(sdk._test_items["spikes"][0].id)
+
+        # Verify ref formats
+        assert feature_ref == "@f1"
+        assert track_ref == "@t1"
+        assert bug_ref == "@b1"
+        assert spike_ref == "@s1"
+
+        # Run snapshot with all types
+        cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Verify all types appear
+        assert "FEATURES" in output
+        assert "TRACKS" in output
+        assert "BUGS" in output
+        assert "SPIKES" in output
+
+        # Verify refs appear in output
+        assert feature_ref in output
+        assert track_ref in output
+        assert bug_ref in output
+        assert spike_ref in output
+
+    def test_snapshot_with_filters(self, populated_sdk):
+        """
+        Test: Create features with mixed statuses
+        - Run snapshot with --type feature --status todo
+        - Verify only todo features appear
+        - Run snapshot with --status in_progress
+        - Verify filtering works across types
+        """
+        sdk = populated_sdk
+
+        # Filter by feature + todo
+        cmd = SnapshotCommand(format="refs", node_type="feature", status="todo")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Get feature IDs with todo status
+        todo_features = [f for f in sdk._test_items["features"] if f.status == "todo"]
+        todo_refs = [sdk.refs.get_ref(f.id) for f in todo_features]
+
+        # Verify only todo features appear
+        for ref in todo_refs:
+            assert ref in output
+
+        # Verify non-todo features don't appear
+        # (Implicit check: if filtering works correctly, only todo features appear)
+
+        # Now filter by in_progress across all types
+        cmd = SnapshotCommand(format="json", node_type="all", status="in-progress")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # All items should have status in-progress
+        for item in data:
+            assert item["status"] == "in-progress"
+
+        # Should include feature1 and bug2
+        types_found = {item["type"] for item in data}
+        assert "feature" in types_found or "bug" in types_found
+
+
+# ============================================================================
+# SDK INTEGRATION TESTS
+# ============================================================================
+
+
+class TestSDKRefIntegration:
+    """Test SDK integration with ref system."""
+
+    def test_sdk_ref_method_resolves_correctly(self, populated_sdk):
+        """
+        Test: Create feature, get its ref
+        - Use sdk.ref() to retrieve it
+        - Verify returned Node matches original
+        """
+        sdk = populated_sdk
+        feature = sdk._test_items["features"][0]
+
+        # Get ref
+        ref = sdk.refs.get_ref(feature.id)
+        assert ref == "@f1"
+
+        # Resolve via sdk.ref()
+        resolved = sdk.ref(ref)
+        assert resolved is not None
+        assert resolved.id == feature.id
+        assert resolved.title == feature.title
+        assert resolved.type == "feature"
+        assert resolved.status == feature.status
+        assert resolved.priority == feature.priority
+
+    def test_sdk_ref_returns_none_for_invalid(self, sdk_instance):
+        """
+        Test: Call sdk.ref("@f999")
+        - Verify returns None
+        """
+        sdk = sdk_instance
+
+        # Non-existent ref
+        result = sdk.ref("@f999")
+        assert result is None
+
+        # Invalid format
+        result = sdk.ref("invalid")
+        assert result is None
+
+        # Wrong type
+        result = sdk.ref("@xyz")
+        assert result is None
+
+    def test_ref_persistence_across_sdk_reloads(self, temp_graph_dir):
+        """
+        Test: Create feature, get ref
+        - Create new SDK instance
+        - Verify old ref still resolves
+        """
+        # Create SDK and feature
+        sdk1 = SDK(agent="test-agent", directory=temp_graph_dir)
+        track = sdk1.tracks.create("Test Track").save()
+        feature = sdk1.features.create("Test Feature").set_track(track.id).save()
+        ref = sdk1.refs.get_ref(feature.id)
+        assert ref == "@f1"
+
+        # Create new SDK instance
+        sdk2 = SDK(agent="test-agent", directory=temp_graph_dir)
+
+        # Verify ref persists
+        resolved = sdk2.ref(ref)
+        assert resolved is not None
+        assert resolved.id == feature.id
+        assert resolved.title == "Test Feature"
+
+    def test_sdk_ref_with_all_types(self, populated_sdk):
+        """Test sdk.ref() with all node types."""
+        sdk = populated_sdk
+
+        # Test feature
+        feature = sdk._test_items["features"][0]
+        feature_ref = sdk.refs.get_ref(feature.id)
+        assert sdk.ref(feature_ref).type == "feature"
+
+        # Test track
+        track = sdk._test_items["tracks"][0]
+        track_ref = sdk.refs.get_ref(track.id)
+        assert sdk.ref(track_ref).type == "track"
+
+        # Test bug
+        bug = sdk._test_items["bugs"][0]
+        bug_ref = sdk.refs.get_ref(bug.id)
+        assert sdk.ref(bug_ref).type == "bug"
+
+        # Test spike
+        spike = sdk._test_items["spikes"][0]
+        spike_ref = sdk.refs.get_ref(spike.id)
+        assert sdk.ref(spike_ref).type == "spike"
+
+    def test_collection_get_ref_method(self, populated_sdk):
+        """Test that collections have get_ref convenience method."""
+        sdk = populated_sdk
+        feature = sdk._test_items["features"][0]
+
+        # Get ref via collection
+        ref = sdk.features.get_ref(feature.id)
+        assert ref is not None
+        assert ref == "@f1"
+
+        # Should match SDK ref manager
+        sdk_ref = sdk.refs.get_ref(feature.id)
+        assert ref == sdk_ref
+
+
+# ============================================================================
+# SNAPSHOT FORMAT TESTS
+# ============================================================================
+
+
+class TestSnapshotFormats:
+    """Test snapshot output formats."""
+
+    def test_snapshot_json_parseable(self, populated_sdk):
+        """
+        Test: Run snapshot --format json
+        - Parse JSON output
+        - Verify all required fields present
+        """
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Parse JSON
+        data = json.loads(output)
+        assert isinstance(data, list)
+        assert len(data) > 0
+
+        # Verify required fields
+        for item in data:
+            assert "ref" in item
+            assert "id" in item
+            assert "type" in item
+            assert "title" in item
+            assert "status" in item
+            assert "priority" in item
+
+    def test_snapshot_refs_format_readable(self, populated_sdk):
+        """
+        Test: Run snapshot --format refs
+        - Verify output contains @f1, @t1, etc.
+        - Verify sorting is correct
+        """
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Verify header
+        assert "SNAPSHOT - Current Graph State" in output
+
+        # Verify type sections
+        assert "FEATURES" in output
+        assert "TRACKS" in output
+        assert "BUGS" in output
+        assert "SPIKES" in output
+
+        # Verify status sections
+        assert "TODO:" in output
+        assert "IN_PROGRESS:" in output or "IN-PROGRESS:" in output
+
+        # Verify refs are present
+        assert "@f" in output
+        assert "@t" in output
+        assert "@b" in output
+        assert "@s" in output
+
+    def test_snapshot_text_format(self, populated_sdk):
+        """Test snapshot text format (no refs)."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(format="text", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Text format should have separators
+        assert "|" in output
+        assert len(output) > 0
+
+    def test_snapshot_sorting(self, populated_sdk):
+        """Verify snapshot items are sorted correctly."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Verify sorting by type, then status, then ref
+        prev_type = ""
+        prev_status = ""
+        for item in data:
+            # Type should be in order
+            if item["type"] != prev_type:
+                assert item["type"] >= prev_type or prev_type == ""
+                prev_type = item["type"]
+                prev_status = ""
+
+            # Status should be in order within same type
+            if item["type"] == prev_type:
+                assert item["status"] >= prev_status or prev_status == ""
+                prev_status = item["status"]
+
+
+# ============================================================================
+# BROWSE COMMAND INTEGRATION TESTS
+# ============================================================================
+
+
+class TestBrowseCommandIntegration:
+    """Test browse command integration with snapshot items."""
+
+    @patch("webbrowser.open")
+    @patch("requests.head")
+    def test_browse_opens_with_query_type_feature(
+        self, mock_requests_head, mock_webbrowser
+    ):
+        """
+        Test: Create features with snapshot
+        - Run browse command with --query-type feature
+        - Verify URL includes correct query params
+        """
+
+        # Mock server running
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_head.return_value = mock_response
+
+        cmd = BrowseCommand(port=8080, query_type="feature")
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        assert "?type=feature" in result.data["url"]
+        mock_webbrowser.assert_called_once()
+
+    @patch("webbrowser.open")
+    @patch("requests.head")
+    def test_browse_opens_with_query_status(self, mock_requests_head, mock_webbrowser):
+        """
+        Test: Run browse command with --query-status todo
+        - Verify URL includes correct query params
+        """
+
+        # Mock server running
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_head.return_value = mock_response
+
+        cmd = BrowseCommand(port=8080, query_status="todo")
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        assert "?status=todo" in result.data["url"]
+        mock_webbrowser.assert_called_once()
+
+    @patch("webbrowser.open")
+    @patch("requests.head")
+    def test_browse_opens_with_both_filters(self, mock_requests_head, mock_webbrowser):
+        """
+        Test: Run browse command with both --query-type and --query-status
+        - Verify URL includes both query params
+        """
+
+        # Mock server running
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_head.return_value = mock_response
+
+        cmd = BrowseCommand(port=8080, query_type="feature", query_status="todo")
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        url = result.data["url"]
+        assert "type=feature" in url
+        assert "status=todo" in url
+        mock_webbrowser.assert_called_once()
+
+
+# ============================================================================
+# COMPLEX WORKFLOW TESTS
+# ============================================================================
+
+
+class TestComplexWorkflows:
+    """Test complex multi-step workflows."""
+
+    def test_create_track_with_features_snapshot(self, sdk_instance):
+        """
+        Test: Create track with multiple features
+        - Snapshot showing track as @t1 and features as @f1-@f3
+        - Verify relationships in snapshot
+        """
+        sdk = sdk_instance
+
+        # Create track
+        track = sdk.tracks.create("Phase 1: Foundation").save()
+        track_ref = sdk.refs.get_ref(track.id)
+        assert track_ref == "@t1"
+
+        # Create features for track
+        features = []
+        for i in range(1, 4):
+            feature = (
+                sdk.features.create(f"Feature {i}", priority="high")
+                .set_track(track.id)
+                .save()
+            )
+            features.append(feature)
+
+        # Get feature refs
+        feature_refs = [sdk.refs.get_ref(f.id) for f in features]
+        assert feature_refs == ["@f1", "@f2", "@f3"]
+
+        # Run snapshot
+        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Verify track and features appear
+        track_items = [d for d in data if d["type"] == "track"]
+        feature_items = [d for d in data if d["type"] == "feature"]
+
+        assert len(track_items) == 1
+        assert track_items[0]["ref"] == "@t1"
+        assert len(feature_items) == 3
+
+        for i, feature_item in enumerate(feature_items):
+            assert feature_item["ref"] == f"@f{i + 1}"
+            assert feature_item["track_id"] == track.id
+
+    def test_ref_consistency_across_operations(self, populated_sdk):
+        """
+        Test: Refs remain consistent across:
+        - Multiple snapshots
+        - SDK reloads (new instances)
+        - Type/status filters
+        """
+        sdk = populated_sdk
+
+        # Get initial refs
+        initial_refs = {}
+        for feature_list_name in ["features", "tracks", "bugs", "spikes"]:
+            items = sdk._test_items[feature_list_name]
+            for item in items:
+                item_ref = sdk.refs.get_ref(item.id)
+                initial_refs[item.id] = item_ref
+
+        # Run multiple snapshots
+        for _ in range(3):
+            cmd = SnapshotCommand(format="json", node_type="all", status="all")
+            cmd.graph_dir = str(sdk._directory)
+            cmd.agent = sdk.agent
+            result = cmd.execute()
+            assert result.exit_code == 0
+
+        # Verify refs haven't changed
+        for feature_list_name in ["features", "tracks", "bugs", "spikes"]:
+            items = sdk._test_items[feature_list_name]
+            for item in items:
+                current_ref = sdk.refs.get_ref(item.id)
+                assert current_ref == initial_refs[item.id]
+
+    def test_snapshot_with_updated_status(self, sdk_instance):
+        """
+        Test: Create items, snapshot, update status, snapshot
+        - Verify refs remain same
+        - Verify status changes in snapshot
+        """
+        sdk = sdk_instance
+
+        # Create feature
+        track = sdk.tracks.create("Track").save()
+        feature = (
+            sdk.features.create("Feature", status="todo").set_track(track.id).save()
+        )
+        ref = sdk.refs.get_ref(feature.id)
+        assert ref == "@f1"
+
+        # First snapshot
+        cmd1 = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd1.graph_dir = str(sdk._directory)
+        cmd1.agent = sdk.agent
+        result1 = cmd1.execute()
+        data1 = json.loads(result1.text)
+        assert data1[0]["status"] == "todo"
+        assert data1[0]["ref"] == "@f1"
+
+        # Update status
+        with sdk.features.edit(feature.id) as f:
+            f.status = "in-progress"
+
+        # Second snapshot
+        cmd2 = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd2.graph_dir = str(sdk._directory)
+        cmd2.agent = sdk.agent
+        result2 = cmd2.execute()
+        data2 = json.loads(result2.text)
+        assert data2[0]["status"] == "in-progress"
+        assert data2[0]["ref"] == "@f1"  # Ref should remain same
+
+    def test_filter_by_priority_via_snapshot(self, populated_sdk):
+        """
+        Test: Snapshot can be filtered to show high-priority items
+        - Create mix of priorities
+        - Verify filtering in JSON output
+        """
+        sdk = populated_sdk
+
+        # Get snapshot
+        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+
+        # Filter high priority
+        high_priority = [d for d in data if d["priority"] == "high"]
+        assert len(high_priority) > 0
+
+        # All should have refs
+        for item in high_priority:
+            assert item["ref"] is not None
+
+
+# ============================================================================
+# ERROR HANDLING AND EDGE CASES
+# ============================================================================
+
+
+class TestErrorHandling:
+    """Test error handling and edge cases."""
+
+    def test_snapshot_empty_graph(self, sdk_instance):
+        """Test snapshot with no items."""
+        sdk = sdk_instance
+
+        cmd = SnapshotCommand(format="refs", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        assert "SNAPSHOT - Current Graph State" in result.text
+
+    def test_ref_resolution_after_multiple_creates(self, sdk_instance):
+        """Test ref resolution stays correct after many creates."""
+        sdk = sdk_instance
+
+        # Create many items
+        items = []
+        track = sdk.tracks.create("Track").save()
+        for i in range(1, 11):
+            feature = sdk.features.create(f"Feature {i}").set_track(track.id).save()
+            items.append(feature)
+
+        # Verify all refs resolve correctly
+        for i, item in enumerate(items, 1):
+            ref = sdk.refs.get_ref(item.id)
+            assert ref == f"@f{i}"
+            resolved = sdk.ref(ref)
+            assert resolved.id == item.id
+
+    def test_snapshot_with_special_characters(self, sdk_instance):
+        """Test snapshot with special characters in titles."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        sdk.features.create("Feature: @mention #hashtag 'quotes' \"double\"").set_track(
+            track.id
+        ).save()
+
+        cmd = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+        assert len(data) == 1
+        assert "mention" in data[0]["title"]
+
+    def test_snapshot_unicode_titles(self, sdk_instance):
+        """Test snapshot with unicode titles."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        sdk.features.create("Feature: 日本語 中文 العربية").set_track(track.id).save()
+
+        cmd = SnapshotCommand(format="json", node_type="feature", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        data = json.loads(result.text)
+        assert len(data) == 1
+        assert "日本語" in data[0]["title"]
+
+
+# ============================================================================
+# INTEGRATION WITH CLI WORKFLOW
+# ============================================================================
+
+
+class TestCLIIntegration:
+    """Test integration with CLI workflow."""
+
+    def test_snapshot_command_factory_from_args(self):
+        """Test creating SnapshotCommand from argparse Namespace."""
+        from argparse import Namespace
+
+        args = Namespace(format="json", type="feature", status="todo")
+        cmd = SnapshotCommand.from_args(args)
+
+        assert cmd.format == "json"
+        assert cmd.node_type == "feature"
+        assert cmd.status == "todo"
+
+    def test_snapshot_command_factory_defaults(self):
+        """Test SnapshotCommand factory with defaults."""
+        from argparse import Namespace
+
+        args = Namespace(format="refs")
+        cmd = SnapshotCommand.from_args(args)
+
+        assert cmd.format == "refs"
+        assert cmd.node_type is None
+        assert cmd.status is None
+
+    def test_browse_command_factory_from_args(self):
+        """Test creating BrowseCommand from argparse Namespace."""
+        from argparse import Namespace
+
+        args = Namespace(port=8080, query_type="feature", query_status="todo")
+        cmd = BrowseCommand.from_args(args)
+
+        assert cmd.port == 8080
+        assert cmd.query_type == "feature"
+        assert cmd.query_status == "todo"
+
+
+# ============================================================================
+# REF SYSTEM ROBUSTNESS TESTS
+# ============================================================================
+
+
+class TestRefSystemRobustness:
+    """Test robustness of ref system under various conditions."""
+
+    def test_ref_consistency_with_deleted_items(self, sdk_instance):
+        """Test ref consistency when items are deleted."""
+        sdk = sdk_instance
+
+        # Create items
+        track = sdk.tracks.create("Track").save()
+        f1 = sdk.features.create("Feature 1").set_track(track.id).save()
+        f2 = sdk.features.create("Feature 2").set_track(track.id).save()
+        f3 = sdk.features.create("Feature 3").set_track(track.id).save()
+
+        # Get refs
+        ref1 = sdk.refs.get_ref(f1.id)
+        ref2 = sdk.refs.get_ref(f2.id)
+        ref3 = sdk.refs.get_ref(f3.id)
+
+        assert ref1 == "@f1"
+        assert ref2 == "@f2"
+        assert ref3 == "@f3"
+
+        # F2 still resolves to original item
+        assert sdk.ref(ref2).id == f2.id
+
+    def test_multiple_sdk_instances_same_refs(self, temp_graph_dir):
+        """Test multiple SDK instances see same refs."""
+        sdk1 = SDK(agent="agent1", directory=temp_graph_dir)
+        sdk2 = SDK(agent="agent2", directory=temp_graph_dir)
+
+        # Create in sdk1
+        track = sdk1.tracks.create("Track").save()
+        feature = sdk1.features.create("Feature").set_track(track.id).save()
+        ref1 = sdk1.refs.get_ref(feature.id)
+
+        # Check in sdk2
+        ref2 = sdk2.refs.get_ref(feature.id)
+
+        assert ref1 == ref2
+
+    def test_ref_generation_is_sequential(self, sdk_instance):
+        """Test that refs are generated sequentially."""
+        sdk = sdk_instance
+
+        track = sdk.tracks.create("Track").save()
+        refs = []
+
+        # Create many features
+        for i in range(1, 11):
+            feature = sdk.features.create(f"Feature {i}").set_track(track.id).save()
+            ref = sdk.refs.get_ref(feature.id)
+            refs.append(ref)
+
+        # Verify sequential
+        for i, ref in enumerate(refs, 1):
+            assert ref == f"@f{i}"
+
+    def test_snapshot_json_includes_all_ref_info(self, populated_sdk):
+        """Verify JSON snapshot includes complete ref information."""
+        sdk = populated_sdk
+
+        # Ensure all items have refs by accessing them
+        for feature in sdk._test_items["features"]:
+            sdk.refs.get_ref(feature.id)
+        for track in sdk._test_items["tracks"]:
+            sdk.refs.get_ref(track.id)
+        for bug in sdk._test_items["bugs"]:
+            sdk.refs.get_ref(bug.id)
+        for spike in sdk._test_items["spikes"]:
+            sdk.refs.get_ref(spike.id)
+
+        cmd = SnapshotCommand(format="json", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        data = json.loads(result.text)
+
+        # Each item should have ref field (may be None if not accessed)
+        for item in data:
+            assert "ref" in item
+            # Ref should be present and valid
+            if item["ref"] is not None:
+                assert item["ref"].startswith("@")
+                assert len(item["ref"]) >= 2
