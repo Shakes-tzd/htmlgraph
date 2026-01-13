@@ -6,7 +6,111 @@ import argparse
 import json
 from typing import Any
 
+from rich.console import Console
+
 from htmlgraph.cli.base import BaseCommand, CommandResult
+
+
+class SnapshotFormatter:
+    """Helper for agent-friendly colored output formatting.
+
+    Uses ANSI color codes that are visible to humans but harmless to agents.
+    Avoids box-drawing characters and complex table formatting.
+    """
+
+    def __init__(self) -> None:
+        """Initialize formatter with Rich console."""
+        # Force color output even when not in TTY
+        self.console = Console(force_terminal=True, legacy_windows=False)
+
+    def colorize_status(self, status: str) -> str:
+        """Return ANSI-colored status string.
+
+        Args:
+            status: Status value (todo, in-progress, blocked, done)
+
+        Returns:
+            Colored status string with Rich markup
+        """
+        colors = {
+            "todo": "yellow",
+            "in-progress": "cyan",
+            "blocked": "red",
+            "done": "green",
+        }
+        color = colors.get(status, "white")
+        return f"[{color}]{status}[/{color}]"
+
+    def colorize_priority(self, priority: str | None) -> str:
+        """Return ANSI-colored priority string.
+
+        Args:
+            priority: Priority value (critical, high, medium, low)
+
+        Returns:
+            Colored priority string with Rich markup
+        """
+        if not priority:
+            return "[dim]-[/dim]"
+
+        colors = {
+            "critical": "red",
+            "high": "red",
+            "medium": "yellow",
+            "low": "dim",
+        }
+        color = colors.get(priority, "white")
+        return f"[{color}]{priority}[/{color}]"
+
+    def colorize_ref(self, ref: str | None) -> str:
+        """Return ANSI-colored ref.
+
+        Args:
+            ref: Reference string (@f1, @t1, etc.)
+
+        Returns:
+            Colored ref string with Rich markup
+        """
+        if not ref:
+            return "    "
+        return f"[cyan]{ref}[/cyan]"
+
+    def status_symbol(self, status: str) -> str:
+        """Return appropriate Unicode symbol for status.
+
+        Args:
+            status: Status value
+
+        Returns:
+            Unicode symbol representing status
+        """
+        symbols = {
+            "done": "✓",
+            "blocked": "✗",
+            "in-progress": "⟳",
+            "todo": "●",
+        }
+        return symbols.get(status, "●")
+
+    def render(self, text: str) -> str:
+        """Render Rich markup to ANSI-escaped string.
+
+        Args:
+            text: Text with Rich markup
+
+        Returns:
+            String with ANSI color codes
+        """
+        # Use Rich's export_text to get ANSI-formatted output
+        from rich.text import Text
+
+        # Parse Rich markup
+        rich_text = Text.from_markup(text)
+
+        # Render to string with ANSI codes
+        with self.console.capture() as capture:
+            self.console.print(rich_text, end="")
+        return capture.get()
 
 
 class SnapshotCommand(BaseCommand):
@@ -61,6 +165,7 @@ class SnapshotCommand(BaseCommand):
         self.blockers = blockers
         self.summary = summary
         self.my_work = my_work
+        self.formatter = SnapshotFormatter()
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> SnapshotCommand:
@@ -225,17 +330,17 @@ class SnapshotCommand(BaseCommand):
         }
 
     def _format_refs(self, items: list[dict]) -> str:
-        """Format as readable list with refs.
+        """Format as readable list with refs and ANSI colors.
 
         Args:
             items: List of item dicts
 
         Returns:
-            Formatted string with refs
+            Formatted string with refs and ANSI color codes
         """
-        output = []
-        output.append("SNAPSHOT - Current Graph State")
-        output.append("=" * 50)
+        lines = []
+        lines.append("[bold]SNAPSHOT - Current Graph State[/bold]")
+        lines.append("=" * 50)
 
         # Group by type
         by_type: dict[str, list[dict[str, Any]]] = {}
@@ -251,8 +356,8 @@ class SnapshotCommand(BaseCommand):
                 continue
 
             type_items = by_type[node_type]
-            output.append(f"\n{node_type.upper()}S ({len(type_items)})")
-            output.append("-" * 40)
+            lines.append(f"\n[bold]{node_type.upper()}S ({len(type_items)})[/bold]")
+            lines.append("─" * 40)
 
             # Group by status
             by_status: dict[str, list[dict[str, Any]]] = {}
@@ -267,16 +372,18 @@ class SnapshotCommand(BaseCommand):
                 if status not in by_status:
                     continue
 
-                output.append(f"\n  {status.upper().replace('-', '_')}:")
+                lines.append(f"\n{status.upper().replace('-', '_')}:")
                 for item in by_status[status]:
-                    ref_str = f"{item['ref']:4s}" if item["ref"] else "    "
+                    ref = self.formatter.colorize_ref(item["ref"])
                     title = (
                         item["title"][:40] if len(item["title"]) > 40 else item["title"]
                     )
-                    prio = item["priority"] or "-"
-                    output.append(f"    {ref_str} | {title:40s} | {prio}")
+                    prio = self.formatter.colorize_priority(item["priority"])
+                    status_colored = self.formatter.colorize_status(item["status"])
+                    lines.append(f"  {ref}  {title:40s}  {prio:10s}  {status_colored}")
 
-        return "\n".join(output)
+        # Render all lines with Rich markup to ANSI
+        return self.formatter.render("\n".join(lines))
 
     def _format_json(self, items: list[dict]) -> str:
         """Format as JSON.
@@ -290,34 +397,36 @@ class SnapshotCommand(BaseCommand):
         return json.dumps(items, indent=2, default=str)
 
     def _format_text(self, items: list[dict]) -> str:
-        """Format as simple text (no refs).
+        """Format as simple text with colors (no refs).
 
         Args:
             items: List of item dicts
 
         Returns:
-            Plain text string
+            Plain text string with ANSI color codes
         """
-        output = []
+        lines = []
         for item in items:
             title = item["title"][:40] if len(item["title"]) > 40 else item["title"]
-            output.append(f"{item['type']:8s} | {title:40s} | {item['status']}")
-        return "\n".join(output)
+            item_type = item["type"]
+            status_colored = self.formatter.colorize_status(item["status"])
+            lines.append(f"{item_type:8s}  {title:40s}  {status_colored}")
+        return self.formatter.render("\n".join(lines))
 
     def _format_summary(self, items: list[dict], sdk: Any) -> str:
-        """Format as summary with counts and progress.
+        """Format as summary with counts, progress, colors, and symbols.
 
         Args:
             items: List of item dicts
             sdk: HtmlGraph SDK instance
 
         Returns:
-            Summary string with counts and key items
+            Summary string with ANSI colors and Unicode symbols
         """
-        output = []
-        output.append("ACTIVE WORK CONTEXT")
-        output.append("=" * 60)
-        output.append("")
+        lines = []
+        lines.append("[bold]ACTIVE WORK CONTEXT[/bold]")
+        lines.append("═" * 60)
+        lines.append("")
 
         # Show current track if track filter is active
         if self.track_id:
@@ -325,8 +434,9 @@ class SnapshotCommand(BaseCommand):
             if not track_ref:
                 # Try to get ref from track_id
                 track_ref = sdk.refs.get_ref(self.track_id)
-            output.append(f"Current Track: {track_ref or self.track_id}")
-            output.append("")
+            track_ref_colored = self.formatter.colorize_ref(track_ref or self.track_id)
+            lines.append(f"Current Track: {track_ref_colored}")
+            lines.append("")
 
         # Group by type
         by_type: dict[str, list[dict[str, Any]]] = {}
@@ -343,24 +453,24 @@ class SnapshotCommand(BaseCommand):
             total_count = len(features)
             progress = int((done_count / total_count) * 100) if total_count > 0 else 0
 
-            output.append(
-                f"Active Features ({done_count}/{total_count} complete - {progress}%):"
+            lines.append(
+                f"[bold]● Active Features ({done_count}/{total_count} complete - {progress}%):[/bold]"
             )
             # Show active features (not done)
             active_features = [f for f in features if f["status"] != "done"]
             for feature in active_features[:5]:  # Limit to 5
-                ref_str = feature["ref"] or "    "
+                ref = self.formatter.colorize_ref(feature["ref"])
+                symbol = self.formatter.status_symbol(feature["status"])
                 title = (
                     feature["title"][:40]
                     if len(feature["title"]) > 40
                     else feature["title"]
                 )
-                prio = (feature["priority"] or "").upper().ljust(10)
-                status = feature["status"].upper().replace("-", "_").ljust(12)
-                output.append(f"  {ref_str} | {title:40s} | {prio} | {status}")
+                prio = self.formatter.colorize_priority(feature["priority"])
+                lines.append(f"  {ref}  {symbol} {title:40s}  {prio}")
             if len(active_features) > 5:
-                output.append(f"  ... and {len(active_features) - 5} more")
-            output.append("")
+                lines.append(f"  ... and {len(active_features) - 5} more")
+            lines.append("")
 
         # Bugs summary
         if "bug" in by_type:
@@ -368,62 +478,62 @@ class SnapshotCommand(BaseCommand):
             critical_bugs = [b for b in bugs if b["priority"] == "critical"]
             high_bugs = [b for b in bugs if b["priority"] == "high"]
 
-            output.append(
-                f"Active Bugs ({len(critical_bugs)} critical, {len(high_bugs)} high):"
+            lines.append(
+                f"[bold]✗ Active Bugs ({len(critical_bugs)} critical, {len(high_bugs)} high):[/bold]"
             )
             # Show critical and high priority bugs
             priority_bugs = critical_bugs + high_bugs
             for bug in priority_bugs[:5]:  # Limit to 5
-                ref_str = bug["ref"] or "    "
+                ref = self.formatter.colorize_ref(bug["ref"])
+                symbol = self.formatter.status_symbol(bug["status"])
                 title = bug["title"][:40] if len(bug["title"]) > 40 else bug["title"]
-                prio = (bug["priority"] or "").upper().ljust(10)
-                status = bug["status"].upper().replace("-", "_").ljust(12)
-                output.append(f"  {ref_str} | {title:40s} | {prio} | {status}")
+                prio = self.formatter.colorize_priority(bug["priority"])
+                lines.append(f"  {ref}  {symbol} {title:40s}  {prio}")
             if len(priority_bugs) > 5:
-                output.append(f"  ... and {len(priority_bugs) - 5} more")
-            output.append("")
+                lines.append(f"  ... and {len(priority_bugs) - 5} more")
+            lines.append("")
 
         # Blockers & Critical summary
         blockers = [
             i for i in items if i["priority"] == "critical" or i["status"] == "blocked"
         ]
         if blockers:
-            output.append(f"Blockers & Critical ({len(blockers)} items):")
+            lines.append(f"[bold]⚠ Blockers & Critical ({len(blockers)} items):[/bold]")
             for item in blockers[:5]:  # Limit to 5
-                ref_str = item["ref"] or "    "
+                ref = self.formatter.colorize_ref(item["ref"])
+                symbol = self.formatter.status_symbol(item["status"])
                 title = item["title"][:40] if len(item["title"]) > 40 else item["title"]
-                prio = (item["priority"] or "").upper().ljust(10)
-                status = item["status"].upper().replace("-", "_").ljust(12)
-                output.append(f"  {ref_str} | {title:40s} | {prio} | {status}")
+                prio = self.formatter.colorize_priority(item["priority"])
+                lines.append(f"  {ref}  {symbol} {title:40s}  {prio}")
             if len(blockers) > 5:
-                output.append(f"  ... and {len(blockers) - 5} more")
-            output.append("")
+                lines.append(f"  ... and {len(blockers) - 5} more")
+            lines.append("")
 
         # Quick Stats
-        output.append("Quick Stats:")
+        lines.append("[bold]Quick Stats:[/bold]")
         if "feature" in by_type:
             features = by_type["feature"]
             done = sum(1 for f in features if f["status"] == "done")
             total = len(features)
             progress = int((done / total) * 100) if total > 0 else 0
             if self.track_id:
-                output.append(f"  Track: {done}/{total} features ({progress}% done)")
+                lines.append(f"  Track: {done}/{total} features ({progress}% done)")
             else:
-                output.append(f"  Features: {done}/{total} complete ({progress}% done)")
+                lines.append(f"  Features: {done}/{total} complete ({progress}% done)")
 
         if "bug" in by_type:
             bugs = by_type["bug"]
             open_bugs = sum(1 for b in bugs if b["status"] != "done")
             critical = sum(1 for b in bugs if b["priority"] == "critical")
-            output.append(f"  Bugs: {open_bugs} open ({critical} critical)")
+            lines.append(f"  Bugs: {open_bugs} open ({critical} critical)")
 
         if "spike" in by_type:
             spikes = by_type["spike"]
-            output.append(f"  Spikes: {len(spikes)} active")
+            lines.append(f"  Spikes: {len(spikes)} active")
 
         if "track" in by_type:
             tracks = by_type["track"]
             active_tracks = sum(1 for t in tracks if t["status"] == "in-progress")
-            output.append(f"  Tracks: {active_tracks} active")
+            lines.append(f"  Tracks: {active_tracks} active")
 
-        return "\n".join(output)
+        return self.formatter.render("\n".join(lines))

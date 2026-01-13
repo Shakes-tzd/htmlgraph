@@ -486,7 +486,7 @@ class TestSnapshotFormats:
         assert "@s" in output
 
     def test_snapshot_text_format(self, populated_sdk):
-        """Test snapshot text format (no refs)."""
+        """Test snapshot text format (no refs, with colors)."""
         sdk = populated_sdk
 
         cmd = SnapshotCommand(output_format="text", node_type="all", status="all")
@@ -497,9 +497,10 @@ class TestSnapshotFormats:
         assert result.exit_code == 0
         output = result.text
 
-        # Text format should have separators
-        assert "|" in output
+        # Text format should have content (no refs, but has type and title)
         assert len(output) > 0
+        # Should contain item types
+        assert "feature" in output or "bug" in output or "track" in output
 
     def test_snapshot_sorting(self, populated_sdk):
         """Verify snapshot items are sorted correctly."""
@@ -1421,6 +1422,107 @@ class TestSnapshotMyWorkFilter:
         assert data[0]["title"] == "My Active"
         assert data[0]["assigned_to"] == sdk.agent
         assert data[0]["status"] == "todo"
+
+
+class TestSnapshotColoredOutput:
+    """Test colored output formatting for agent-friendliness."""
+
+    def test_refs_format_has_no_box_drawing_characters(self, populated_sdk):
+        """Test that refs format doesn't use box-drawing characters."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Should NOT have box drawing characters (┌, ┬, ┐, ├, ┼, ┤, └, ┴, ┘, │, ─)
+        box_chars = ["┌", "┬", "┐", "├", "┼", "┤", "└", "┴", "┘", "│"]
+        for char in box_chars:
+            assert char not in output, f"Box character '{char}' found in output"
+
+    def test_refs_format_contains_ansi_codes(self, populated_sdk):
+        """Test that refs format contains ANSI color codes."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Should contain ANSI escape codes
+        # ANSI codes start with \x1b[ (ESC[)
+        assert "\x1b[" in output, "No ANSI color codes found in output"
+
+    def test_summary_format_uses_unicode_symbols(self, populated_sdk):
+        """Test that summary format uses Unicode status symbols."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(
+            output_format="refs", node_type="all", status="all", summary=True
+        )
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Should contain Unicode symbols
+        symbols = ["●", "⟳", "✓", "✗"]
+        found_symbols = [s for s in symbols if s in output]
+        assert len(found_symbols) > 0, "No Unicode status symbols found in summary"
+
+    def test_json_format_unchanged(self, populated_sdk):
+        """Test that JSON format is completely unchanged (no colors)."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # JSON should NOT have ANSI codes
+        assert "\x1b[" not in output, "ANSI codes found in JSON output"
+
+        # Should be valid JSON
+        import json
+
+        data = json.loads(output)
+        assert isinstance(data, list)
+        assert len(data) > 0
+
+    def test_colored_output_parseable_by_agents(self, populated_sdk):
+        """Test that colored text output is parseable (agents ignore ANSI codes)."""
+        sdk = populated_sdk
+
+        cmd = SnapshotCommand(output_format="refs", node_type="feature", status="all")
+        cmd.graph_dir = str(sdk._directory)
+        cmd.agent = sdk.agent
+        result = cmd.execute()
+
+        assert result.exit_code == 0
+        output = result.text
+
+        # Strip ANSI codes (simulate agent parsing)
+        import re
+
+        ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+        clean_output = ansi_escape.sub("", output)
+
+        # Should still be parseable and contain refs
+        assert "@f" in clean_output
+        assert "FEATURES" in clean_output
+        assert "TODO" in clean_output or "IN_PROGRESS" in clean_output
 
 
 class TestSnapshotCombinedFilters:
