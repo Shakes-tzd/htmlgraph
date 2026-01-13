@@ -33,14 +33,15 @@ from htmlgraph import SDK
 sdk = SDK(agent="claude")
 
 # Parse arguments
-**DO THIS (OPTIMIZED - 1 CALL INSTEAD OF 6):**
+**DO THIS (OPTIMIZED - 2 CALLS INSTEAD OF 6+):**
 
-1. **Get comprehensive session start info in a single call:**
+1. **Get comprehensive session start info:**
    ```bash
-   uv run htmlgraph session start-info
+   uv run htmlgraph snapshot --summary  # Quick visual overview (colors preserved)
+   uv run htmlgraph session start-info  # Detailed analytics
    ```
 
-   This replaces 6 separate calls:
+   This replaces 6+ separate calls:
    - htmlgraph status
    - htmlgraph feature list
    - htmlgraph session list
