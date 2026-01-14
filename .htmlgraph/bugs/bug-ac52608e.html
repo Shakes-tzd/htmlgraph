@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Feature Tracker Kanban shows empty columns despite having created features</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ac52608e"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-01-13T09:57:23.342445"
+             data-updated="2026-01-13T14:57:24.321750+00:00" data-agent-assigned="claude">
+
+        <header>
+            <h1>Feature Tracker Kanban shows empty columns despite having created features</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-01-13T09:57:24.321744">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-content>
+            <h3>Description</h3>
+            <p>
+## Issue
+Feature Tracker - Smart Kanban page displays no tasks despite having created features.
+
+## Problems Identified
+1. All Kanban columns show "0" count and "No tasks"
+   - TO DO column empty (should show planned/pending features)
+   - IN PROGRESS column empty (should show in-progress features)
+   - BLOCKED column empty (should show blocked features)
+   - DONE column empty (should show completed features)
+
+2. Recently created "HtmlGraph Development Roadmap" track (trk-28178b71) with 12 features isn't showing:
+   - 6 completed features (Phase 1 & 2) should appear in DONE
+   - 6 planned features (Phase 2.5 & 3) should appear in TO DO
+
+## Expected Behavior
+- DONE column shows 6 completed Phase 1 & 2 features
+- TO DO column shows 6 planned Phase 2.5 & 3 features
+- IN PROGRESS column empty or shows in-progress features
+- Counts reflect actual feature numbers (not all "0")
+
+## Actual Behavior
+- All columns show empty with "No tasks"
+- All counts show "0"
+- Newly created features invisible in Kanban view
+- UI loads correctly, but data layer not populated
+
+## Potential Root Causes
+1. Kanban view not querying the database correctly
+2. Features from tracks not being loaded
+3. Caching issue - features loaded before track was created
+4. Database query doesn't include recently created features
+5. Feature status not being properly indexed in database
+6. Race condition between feature creation and Kanban query
+
+## Impact
+Users cannot see feature status overview, undermining the Kanban workflow.
+Kanban is a core feature for work visualization - this blocks that usage entirely.
+
+## Related Work Items
+- Track: trk-28178b71 (HtmlGraph Development Roadmap)
+- Location: src/python/htmlgraph/api/main.py (features view/kanban endpoint)
+
+## Test Case
+1. Create a new track with multiple features
+2. Navigate to Feature Tracker - Smart Kanban
+3. Verify columns show created features
+4. Check database query returns features with proper status field
+5. Verify caching layer includes recently created features
+</p>
+        </section>
+    </article>
+</body>
+</html>

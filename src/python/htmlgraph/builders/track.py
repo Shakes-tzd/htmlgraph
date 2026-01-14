@@ -617,6 +617,30 @@ class TrackBuilder:
                     Phase(id=f"phase-{i + 1}", name=phase_name, tasks=phase_tasks)
                 )
 
+        # Persist features to database from plan phases
+        features_created = 0
+        if phases:
+            for phase in phases:
+                for task in phase.tasks:
+                    # Generate feature ID from task description
+                    feature_id = generate_id(node_type="feat", title=task.description)
+
+                    # Insert feature into database
+                    success = self.sdk._db.insert_feature(
+                        feature_id=feature_id,
+                        feature_type="task",  # Tasks from tracks are features of type "task"
+                        title=task.description,
+                        status="todo",  # All new tasks start as "todo"
+                        priority=self._priority,  # Inherit priority from track
+                        assigned_to=None,  # No assignment initially
+                        track_id=track_id,
+                        description=f"Task from {phase.name}",
+                        steps_total=0,
+                        tags=None,
+                    )
+                    if success:
+                        features_created += 1
+
         if self._consolidated:
             # Single-file format: everything in one index.html
             track_file = self.sdk._directory / "tracks" / f"{track_id}.html"
@@ -677,6 +701,8 @@ class TrackBuilder:
         if self._plan_phases:
             total_tasks = sum(len(tasks) for _, tasks in self._plan_phases)
             print(f"  - Plan with {len(self._plan_phases)} phases, {total_tasks} tasks")
+        if features_created > 0:
+            print(f"  - Persisted {features_created} features to database")
 
         return track
 
