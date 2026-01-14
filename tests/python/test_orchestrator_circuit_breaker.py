@@ -15,17 +15,19 @@ class TestCircuitBreaker:
         manager = OrchestratorModeManager(tmp_path / ".htmlgraph")
         manager.enable(level="strict")
 
-        # Simulate blocked operation
+        # Simulate blocked operation (now advisory mode - warns but allows)
         result = enforce_orchestrator_mode("Edit", {"file_path": "test.py"})
 
         # Check violation was recorded
         assert manager.get_violation_count() == 1
         assert not manager.is_circuit_breaker_triggered()
 
-        # Verify warning message includes violation count
+        # Verify warning message includes violation count (now uses additionalContext)
+        # Advisory mode continues=True but warns with VIOLATION count
+        assert result["continue"] is True
         assert (
             "VIOLATION (1/3)"
-            in result["hookSpecificOutput"]["permissionDecisionReason"]
+            in result["hookSpecificOutput"]["additionalContext"]
         )
 
     def test_circuit_breaker_triggers_at_threshold(self, tmp_path, monkeypatch):
@@ -54,9 +56,11 @@ class TestCircuitBreaker:
         for i in range(3):
             enforce_orchestrator_mode("Edit", {"file_path": f"test{i}.py"})
 
-        # Next operation should be blocked by circuit breaker
+        # Next operation should be blocked by circuit breaker (actual blocking)
         result = enforce_orchestrator_mode("Read", {"file_path": "test.py"})
 
+        # Circuit breaker IS the one case that still blocks (continue=False)
+        assert result["continue"] is False
         assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
         assert (
             "CIRCUIT BREAKER TRIGGERED"
@@ -115,16 +119,18 @@ class TestCircuitBreaker:
         # First violation
         enforce_orchestrator_mode("Edit", {"file_path": "test1.py"})
 
-        # Second violation should warn about next one
+        # Second violation should warn about next one (advisory mode)
         result = enforce_orchestrator_mode("Edit", {"file_path": "test2.py"})
 
+        # Advisory mode continues=True but warns via additionalContext
+        assert result["continue"] is True
         assert (
             "VIOLATION (2/3)"
-            in result["hookSpecificOutput"]["permissionDecisionReason"]
+            in result["hookSpecificOutput"]["additionalContext"]
         )
         assert (
             "Next violation will trigger circuit breaker"
-            in result["hookSpecificOutput"]["permissionDecisionReason"]
+            in result["hookSpecificOutput"]["additionalContext"]
         )
 
     def test_violation_message_at_threshold(self, tmp_path, monkeypatch):
@@ -138,20 +144,23 @@ class TestCircuitBreaker:
         enforce_orchestrator_mode("Edit", {"file_path": "test1.py"})
         enforce_orchestrator_mode("Edit", {"file_path": "test2.py"})
 
-        # Third violation triggers circuit breaker
+        # Third violation triggers circuit breaker (advisory mode still)
         result = enforce_orchestrator_mode("Edit", {"file_path": "test3.py"})
 
+        # The third violation WARNS about circuit breaker via additionalContext
+        # (the actual blocking happens on the NEXT operation after the threshold)
+        assert result["continue"] is True
         assert (
             "VIOLATION (3/3)"
-            in result["hookSpecificOutput"]["permissionDecisionReason"]
+            in result["hookSpecificOutput"]["additionalContext"]
         )
         assert (
             "CIRCUIT BREAKER TRIGGERED"
-            in result["hookSpecificOutput"]["permissionDecisionReason"]
+            in result["hookSpecificOutput"]["additionalContext"]
         )
         assert (
             "reset-violations"
-            in result["hookSpecificOutput"]["permissionDecisionReason"]
+            in result["hookSpecificOutput"]["additionalContext"]
         )
 
     def test_guidance_mode_does_not_track_violations(self, tmp_path, monkeypatch):
@@ -199,8 +208,11 @@ class TestCircuitBreaker:
         for i in range(3):
             enforce_orchestrator_mode("Edit", {"file_path": f"test{i}.py"})
 
-        # Check subsequent operation shows options
+        # Check subsequent operation shows options (circuit breaker blocking)
         result = enforce_orchestrator_mode("Read", {"file_path": "test.py"})
+
+        # Circuit breaker blocks with permissionDecisionReason
+        assert result["continue"] is False
         message = result["hookSpecificOutput"]["permissionDecisionReason"]
 
         assert "disable" in message.lower()
