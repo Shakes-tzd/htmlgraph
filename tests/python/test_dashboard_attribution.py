@@ -19,30 +19,9 @@ from htmlgraph.event_log import EventRecord, JsonlEventLog
 
 
 @pytest.fixture
-def tmp_htmlgraph(tmp_path: Path):
+def tmp_htmlgraph(isolated_graph_dir_full: Path):
     """Create a temporary .htmlgraph directory structure."""
-    graph_dir = tmp_path / ".htmlgraph"
-    graph_dir.mkdir()
-
-    # Create all required subdirectories
-    for subdir in [
-        "features",
-        "bugs",
-        "spikes",
-        "chores",
-        "epics",
-        "sessions",
-        "phases",
-        "tracks",
-        "patterns",
-        "insights",
-        "metrics",
-        "todos",
-        "events",
-    ]:
-        (graph_dir / subdir).mkdir()
-
-    return graph_dir
+    return isolated_graph_dir_full
 
 
 @pytest.fixture
@@ -55,9 +34,9 @@ def event_log(tmp_htmlgraph: Path):
 class TestAgentBadgeRendering:
     """Test that agent badges are rendered on feature cards."""
 
-    def test_feature_card_shows_agent_assigned(self, tmp_htmlgraph: Path):
+    def test_feature_card_shows_agent_assigned(self, tmp_htmlgraph: Path, isolated_db):
         """Feature card should display agent_assigned badge."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
 
         # Create track first
         track = sdk.tracks.create("Test Track").save()
@@ -72,10 +51,10 @@ class TestAgentBadgeRendering:
         # This would be verified in dashboard rendering tests
         assert hasattr(feature, "agent_assigned")
 
-    def test_multiple_features_show_different_agents(self, tmp_htmlgraph: Path):
+    def test_multiple_features_show_different_agents(self, tmp_htmlgraph: Path, isolated_db):
         """Features created by different agents should show different badges."""
-        sdk1 = SDK(directory=tmp_htmlgraph, agent="orchestrator")
-        sdk2 = SDK(directory=tmp_htmlgraph, agent="codex")
+        sdk1 = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
+        sdk2 = SDK(directory=tmp_htmlgraph, agent="codex", db_path=str(isolated_db))
 
         # Create track
         track = sdk1.tracks.create("Multi Agent Track").save()
@@ -94,7 +73,7 @@ class TestAgentWorkTimeline:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Feature should track all agents who worked on it via events."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
 
         # Create track and feature
         track = sdk.tracks.create("Multi-Agent Track").save()
@@ -136,7 +115,7 @@ class TestAgentWorkTimeline:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Timeline should show when each agent worked on feature."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
         track = sdk.tracks.create("Timestamp Track").save()
         feature = sdk.features.create("Timestamped Feature").set_track(track.id).save()
         feature_id = feature.id
@@ -186,7 +165,7 @@ class TestAgentAnalyticsView:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Analytics should show features per agent."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
 
         # Create track first
         track = sdk.tracks.create("Analytics Track").save()
@@ -233,7 +212,7 @@ class TestAgentAnalyticsView:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Analytics should calculate total cost per agent."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
         track = sdk.tracks.create("Cost Track").save()
         feature = sdk.features.create("Cost Feature").set_track(track.id).save()
 
@@ -265,9 +244,9 @@ class TestAgentAnalyticsView:
 
         assert total_cost == pytest.approx(0.30, rel=1e-2)
 
-    def test_agent_token_tracking(self, tmp_htmlgraph: Path, event_log: JsonlEventLog):
+    def test_agent_token_tracking(self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db):
         """Analytics should track tokens by agent."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
         track = sdk.tracks.create("Token Track").save()
         feature = sdk.features.create("Token Feature").set_track(track.id).save()
 
@@ -301,9 +280,9 @@ class TestAgentAnalyticsView:
 class TestSDKAgentQuerying:
     """Test SDK methods to query agent work."""
 
-    def test_feature_has_agent_assigned(self, tmp_htmlgraph: Path):
+    def test_feature_has_agent_assigned(self, tmp_htmlgraph: Path, isolated_db):
         """Feature should have agent_assigned field."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="claude")
+        sdk = SDK(directory=tmp_htmlgraph, agent="claude", db_path=str(isolated_db))
         track = sdk.tracks.create("SDK Track").save()
         feature = sdk.features.create("SDK Test Feature").set_track(track.id).save()
 
@@ -312,10 +291,10 @@ class TestSDKAgentQuerying:
         assert retrieved is not None
         assert retrieved.agent_assigned == "claude"
 
-    def test_query_features_by_agent(self, tmp_htmlgraph: Path):
+    def test_query_features_by_agent(self, tmp_htmlgraph: Path, isolated_db):
         """Should be able to query features created by specific agent."""
-        sdk1 = SDK(directory=tmp_htmlgraph, agent="agent1")
-        sdk2 = SDK(directory=tmp_htmlgraph, agent="agent2")
+        sdk1 = SDK(directory=tmp_htmlgraph, agent="agent1", db_path=str(isolated_db))
+        sdk2 = SDK(directory=tmp_htmlgraph, agent="agent2", db_path=str(isolated_db))
 
         # Create track
         track = sdk1.tracks.create("Query Track").save()
@@ -335,7 +314,7 @@ class TestSDKAgentQuerying:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Feature should be enrichable with work history from events."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
         track = sdk.tracks.create("History Track").save()
         feature = sdk.features.create("History Feature").set_track(track.id).save()
 
@@ -462,9 +441,9 @@ class TestEventToFeatureLinking:
 class TestDashboardPerformance:
     """Test dashboard performance with many features."""
 
-    def test_dashboard_load_with_100_features(self, tmp_htmlgraph: Path):
+    def test_dashboard_load_with_100_features(self, tmp_htmlgraph: Path, isolated_db):
         """Dashboard should load efficiently with 100+ features."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
 
         # Create track first
         track = sdk.tracks.create("Performance Track").save()
@@ -516,7 +495,7 @@ class TestMultiAgentCollaboration:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Feature should show when multiple agents have worked on it."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
         track = sdk.tracks.create("Collaboration Track").save()
         feature = (
             sdk.features.create("Collaboration Feature").set_track(track.id).save()
@@ -556,7 +535,7 @@ class TestMultiAgentCollaboration:
         self, tmp_htmlgraph: Path, event_log: JsonlEventLog
     ):
         """Should track total effort hours across agents."""
-        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator")
+        sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
         track = sdk.tracks.create("Effort Track").save()
         feature = (
             sdk.features.create("Effort Tracking Feature").set_track(track.id).save()

@@ -12,19 +12,10 @@ from htmlgraph import SDK, Node
 
 
 @pytest.fixture
-def sdk(tmp_path: Path):
+def sdk(isolated_graph_dir_full: Path, isolated_db: Path):
     """Create a temporary SDK instance."""
-    graph_dir = tmp_path / ".htmlgraph"
-    graph_dir.mkdir()
-
-    # Create required subdirectories
-    (graph_dir / "features").mkdir()
-    (graph_dir / "bugs").mkdir()
-    (graph_dir / "spikes").mkdir()
-    (graph_dir / "chores").mkdir()
-    (graph_dir / "tracks").mkdir()
-
-    return SDK(directory=graph_dir, agent="test-agent")
+    # isolated_graph_dir_full already has all required subdirectories
+    return SDK(directory=isolated_graph_dir_full, agent="test-agent", db_path=str(isolated_db))
 
 
 @pytest.fixture

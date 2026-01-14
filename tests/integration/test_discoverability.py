@@ -11,13 +11,13 @@ Tests:
 from htmlgraph import SDK
 
 
-def test_error_suggestions():
+def test_error_suggestions(isolated_db):
     """Test that common mistakes provide helpful suggestions."""
     print("=" * 60)
     print("TEST 1: Error Messages with Suggestions")
     print("=" * 60)
 
-    sdk = SDK(agent="test-agent")
+    sdk = SDK(agent="test-agent", db_path=str(isolated_db))
 
     # Test 1: Common mistake - mark_complete instead of mark_done
     print("\n1. Testing 'mark_complete' (should suggest 'mark_done'):")
@@ -48,13 +48,13 @@ def test_error_suggestions():
         print(f"✓ Got helpful error:\n{e}\n")
 
 
-def test_batch_operation_feedback():
+def test_batch_operation_feedback(isolated_db):
     """Test improved batch operation feedback."""
     print("=" * 60)
     print("TEST 2: Improved Batch Operation Feedback")
     print("=" * 60)
 
-    sdk = SDK(agent="test-agent")
+    sdk = SDK(agent="test-agent", db_path=str(isolated_db))
 
     # Create a track first
     print("\n0. Creating test track...")
@@ -84,13 +84,13 @@ def test_batch_operation_feedback():
     print(f"✓ Result: {result}")
 
 
-def test_sdk_help():
+def test_sdk_help(isolated_db):
     """Test SDK help() method."""
     print("=" * 60)
     print("TEST 3: SDK Help Method")
     print("=" * 60)
 
-    sdk = SDK(agent="test-agent")
+    sdk = SDK(agent="test-agent", db_path=str(isolated_db))
 
     print("\n1. Testing sdk.help():")
     help_text = sdk.help()
@@ -105,7 +105,7 @@ def test_sdk_help():
         print("✓ Contains find_bottlenecks")
 
 
-def test_sdk_docstring():
+def test_sdk_docstring(isolated_db):
     """Test enhanced SDK docstring."""
     print("=" * 60)
     print("TEST 4: Enhanced SDK Docstring")
@@ -167,3 +167,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

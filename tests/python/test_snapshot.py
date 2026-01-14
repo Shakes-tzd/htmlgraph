@@ -8,9 +8,9 @@ from htmlgraph.sdk import SDK
 
 
 @pytest.fixture
-def populated_sdk(tmp_path):
+def populated_sdk(tmp_path, isolated_db):
     """Create SDK with test features, tracks, and bugs."""
-    sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent")
+    sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent", db_path=str(isolated_db))
 
     # Create tracks first (features require track linkage)
     track1 = sdk.tracks.create(title="Browser-Native Query Interface").save()
@@ -60,7 +60,7 @@ def populated_sdk(tmp_path):
     return sdk
 
 
-def test_snapshot_refs_format(populated_sdk):
+def test_snapshot_refs_format(populated_sdk, isolated_db):
     """Test snapshot command with refs format."""
     cmd = SnapshotCommand(output_format="refs", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -80,7 +80,7 @@ def test_snapshot_refs_format(populated_sdk):
     assert "DONE:" in output
 
 
-def test_snapshot_json_format(populated_sdk):
+def test_snapshot_json_format(populated_sdk, isolated_db):
     """Test snapshot command with JSON format."""
     cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -105,7 +105,7 @@ def test_snapshot_json_format(populated_sdk):
     assert "priority" in item
 
 
-def test_snapshot_text_format(populated_sdk):
+def test_snapshot_text_format(populated_sdk, isolated_db):
     """Test snapshot command with text format."""
     cmd = SnapshotCommand(output_format="text", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -122,7 +122,7 @@ def test_snapshot_text_format(populated_sdk):
     # Text format uses spaces, not pipes, for column separation
 
 
-def test_snapshot_type_filter_feature(populated_sdk):
+def test_snapshot_type_filter_feature(populated_sdk, isolated_db):
     """Test snapshot command filtering by type=feature."""
     cmd = SnapshotCommand(output_format="refs", node_type="feature", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -139,7 +139,7 @@ def test_snapshot_type_filter_feature(populated_sdk):
     assert "SPIKES" not in output
 
 
-def test_snapshot_type_filter_track(populated_sdk):
+def test_snapshot_type_filter_track(populated_sdk, isolated_db):
     """Test snapshot command filtering by type=track."""
     cmd = SnapshotCommand(output_format="refs", node_type="track", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -155,7 +155,7 @@ def test_snapshot_type_filter_track(populated_sdk):
     assert "BUGS" not in output
 
 
-def test_snapshot_status_filter_todo(populated_sdk):
+def test_snapshot_status_filter_todo(populated_sdk, isolated_db):
     """Test snapshot command filtering by status=todo."""
     cmd = SnapshotCommand(output_format="json", node_type="all", status="todo")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -171,7 +171,7 @@ def test_snapshot_status_filter_todo(populated_sdk):
         assert item["status"] == "todo"
 
 
-def test_snapshot_status_filter_in_progress(populated_sdk):
+def test_snapshot_status_filter_in_progress(populated_sdk, isolated_db):
     """Test snapshot command filtering by status=in_progress."""
     cmd = SnapshotCommand(output_format="json", node_type="all", status="in-progress")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -187,7 +187,7 @@ def test_snapshot_status_filter_in_progress(populated_sdk):
         assert item["status"] == "in-progress"
 
 
-def test_snapshot_combined_filters(populated_sdk):
+def test_snapshot_combined_filters(populated_sdk, isolated_db):
     """Test snapshot command with both type and status filters."""
     cmd = SnapshotCommand(output_format="json", node_type="feature", status="todo")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -207,9 +207,9 @@ def test_snapshot_combined_filters(populated_sdk):
     assert len(data) == 2
 
 
-def test_snapshot_empty_results(tmp_path):
+def test_snapshot_empty_results(tmp_path, isolated_db):
     """Test snapshot command with no matching items."""
-    sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent")
+    sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent", db_path=str(isolated_db))
 
     cmd = SnapshotCommand(output_format="refs", node_type="feature", status="todo")
     cmd.graph_dir = str(sdk._directory)
@@ -222,7 +222,7 @@ def test_snapshot_empty_results(tmp_path):
     assert "SNAPSHOT - Current Graph State" in output
 
 
-def test_snapshot_refs_sorting(populated_sdk):
+def test_snapshot_refs_sorting(populated_sdk, isolated_db):
     """Test that snapshot output is sorted by type, status, ref."""
     cmd = SnapshotCommand(output_format="json", node_type="all", status="all")
     cmd.graph_dir = str(populated_sdk._directory)
@@ -247,7 +247,7 @@ def test_snapshot_refs_sorting(populated_sdk):
             prev_status = item["status"]
 
 
-def test_snapshot_node_to_dict_with_refs(populated_sdk):
+def test_snapshot_node_to_dict_with_refs(populated_sdk, isolated_db):
     """Test that _node_to_dict includes ref when available."""
     cmd = SnapshotCommand(output_format="refs")
     cmd._sdk = populated_sdk
@@ -263,7 +263,7 @@ def test_snapshot_node_to_dict_with_refs(populated_sdk):
     assert "priority" in item_dict
 
 
-def test_snapshot_handles_missing_priority(populated_sdk):
+def test_snapshot_handles_missing_priority(populated_sdk, isolated_db):
     """Test snapshot handles nodes without priority gracefully."""
     # Create a track (tracks may have default priority)
     track = populated_sdk.tracks.all()[0]
@@ -278,7 +278,7 @@ def test_snapshot_handles_missing_priority(populated_sdk):
     assert "priority" in item_dict
 
 
-def test_snapshot_command_from_args():
+def test_snapshot_command_from_args(isolated_db):
     """Test SnapshotCommand.from_args() method."""
     from argparse import Namespace
 
@@ -290,7 +290,7 @@ def test_snapshot_command_from_args():
     assert cmd.status == "todo"
 
 
-def test_snapshot_command_from_args_defaults():
+def test_snapshot_command_from_args_defaults(isolated_db):
     """Test SnapshotCommand.from_args() with defaults."""
     from argparse import Namespace
 

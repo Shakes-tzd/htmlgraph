@@ -29,7 +29,7 @@ def init_test_database(graph_dir: Path) -> None:
 class TestHandoffBuilder:
     """Test HandoffBuilder fluent API."""
 
-    def test_basic_handoff_creation(self):
+    def test_basic_handoff_creation(self, isolated_db):
         """Test creating basic handoff with builder."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -49,7 +49,7 @@ class TestHandoffBuilder:
             assert "Waiting for API key" in handoff["blockers"]
             assert "src/main.py" in handoff["recommended_context"]
 
-    def test_multiple_blockers(self):
+    def test_multiple_blockers(self, isolated_db):
         """Test adding multiple blockers."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -66,7 +66,7 @@ class TestHandoffBuilder:
             assert "Blocker 1" in handoff["blockers"]
             assert "Blocker 3" in handoff["blockers"]
 
-    def test_multiple_context_files(self):
+    def test_multiple_context_files(self, isolated_db):
         """Test adding multiple context files."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -87,13 +87,13 @@ class TestHandoffBuilder:
 class TestContextRecommender:
     """Test ContextRecommender git integration."""
 
-    def test_get_recent_files_no_git(self):
+    def test_get_recent_files_no_git(self, isolated_db):
         """Test graceful handling when not in git repo."""
         recommender = ContextRecommender(repo_root=Path("/nonexistent"))
         files = recommender.get_recent_files()
         assert files == []
 
-    def test_matches_pattern(self):
+    def test_matches_pattern(self, isolated_db):
         """Test pattern matching."""
         recommender = ContextRecommender()
         assert recommender._matches_pattern("test.md", "*.md")
@@ -104,20 +104,20 @@ class TestContextRecommender:
 class TestSessionResume:
     """Test SessionResume functionality."""
 
-    def test_get_last_session_empty(self):
+    def test_get_last_session_empty(self, isolated_db):
         """Test getting last session when none exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
             init_test_database(graph_dir)
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             resume = SessionResume(sdk)
 
             last_session = resume.get_last_session()
             assert last_session is None
 
-    def test_get_last_session_filters_by_agent(self):
+    def test_get_last_session_filters_by_agent(self, isolated_db):
         """Test filtering by agent."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -133,7 +133,7 @@ class TestSessionResume:
             manager.end_session(session_alice.id)
 
             # Get last session for Alice
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             resume = SessionResume(sdk)
             last = resume.get_last_session(agent="alice")
 
@@ -141,7 +141,7 @@ class TestSessionResume:
             assert last.id == session_alice.id
             assert last.agent == "alice"
 
-    def test_build_resume_info(self):
+    def test_build_resume_info(self, isolated_db):
         """Test building resume information."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -162,7 +162,7 @@ class TestSessionResume:
             manager.end_session(session.id)
 
             # Build resume info
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             resume = SessionResume(sdk)
             info = resume.build_resume_info(session)
 
@@ -172,7 +172,7 @@ class TestSessionResume:
             assert "src/auth.py" in info.recommended_files
             assert "feature-001" in info.worked_on_features
 
-    def test_format_resume_prompt(self):
+    def test_format_resume_prompt(self, isolated_db):
         """Test formatting resume prompt."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -190,7 +190,7 @@ class TestSessionResume:
             manager.session_converter.save(session)
 
             # Build and format
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             resume = SessionResume(sdk)
             info = resume.build_resume_info(session)
             prompt = resume.format_resume_prompt(info)
@@ -206,13 +206,13 @@ class TestSessionResume:
 class TestHandoffTracker:
     """Test handoff effectiveness tracking."""
 
-    def test_create_handoff(self):
+    def test_create_handoff(self, isolated_db):
         """Test creating handoff tracking record."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             manager = SessionManager(graph_dir)
             session = manager.start_session("test-session", agent="alice")
 
@@ -224,13 +224,13 @@ class TestHandoffTracker:
             assert handoff_id is not None
             assert handoff_id.startswith("hand-")
 
-    def test_resume_handoff(self):
+    def test_resume_handoff(self, isolated_db):
         """Test updating handoff with resumption data."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             manager = SessionManager(graph_dir)
             session1 = manager.start_session("sess-1", agent="alice")
             session2 = manager.start_session("sess-2", agent="alice")
@@ -249,13 +249,13 @@ class TestHandoffTracker:
 
             assert success is True
 
-    def test_rate_handoff(self):
+    def test_rate_handoff(self, isolated_db):
         """Test rating handoff effectiveness."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             manager = SessionManager(graph_dir)
             session = manager.start_session("test-session", agent="alice")
 
@@ -271,13 +271,13 @@ class TestHandoffTracker:
             with pytest.raises(ValueError):
                 tracker.rate_handoff(handoff_id, rating=6)
 
-    def test_get_handoff_metrics(self):
+    def test_get_handoff_metrics(self, isolated_db):
         """Test retrieving handoff metrics."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             manager = SessionManager(graph_dir)
             session = manager.start_session("test-session", agent="alice")
 
@@ -295,7 +295,7 @@ class TestHandoffTracker:
 class TestSessionManagerHandoff:
     """Test SessionManager handoff methods."""
 
-    def test_end_session_with_handoff(self):
+    def test_end_session_with_handoff(self, isolated_db):
         """Test ending session with handoff."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -319,7 +319,7 @@ class TestSessionManagerHandoff:
             assert "Waiting for security review" in updated.blockers
             assert updated.status == "ended"
 
-    def test_continue_from_last(self):
+    def test_continue_from_last(self, isolated_db):
         """Test continuing from last session."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -347,7 +347,7 @@ class TestSessionManagerHandoff:
             assert resume_info.next_focus == "Start feature Y"
             assert "Need API key" in resume_info.blockers
 
-    def test_continue_from_last_no_previous(self):
+    def test_continue_from_last_no_previous(self, isolated_db):
         """Test continuing when no previous session exists."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -363,13 +363,13 @@ class TestSessionManagerHandoff:
 class TestSDKHandoffMethods:
     """Test SDK handoff and continuity methods."""
 
-    def test_sdk_end_session_with_handoff(self):
+    def test_sdk_end_session_with_handoff(self, isolated_db):
         """Test SDK end_session_with_handoff method."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             manager = SessionManager(graph_dir)
             session = manager.start_session("test-session", agent="alice")
 
@@ -384,13 +384,13 @@ class TestSDKHandoffMethods:
             assert updated is not None
             assert updated.handoff_notes == "Completed feature"
 
-    def test_sdk_continue_from_last(self):
+    def test_sdk_continue_from_last(self, isolated_db):
         """Test SDK continue_from_last method."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            sdk = SDK(directory=graph_dir, agent="alice")
+            sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))
             manager = SessionManager(graph_dir)
 
             # Create and end first session
@@ -413,7 +413,7 @@ class TestSDKHandoffMethods:
 class TestSessionModel:
     """Test Session model handoff fields."""
 
-    def test_session_has_continuity_fields(self):
+    def test_session_has_continuity_fields(self, isolated_db):
         """Test Session model has all continuity fields."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -426,7 +426,7 @@ class TestSessionModel:
             assert hasattr(session, "recommended_context")
             assert hasattr(session, "continued_from")
 
-    def test_session_continuity_fields_default_values(self):
+    def test_session_continuity_fields_default_values(self, isolated_db):
         """Test continuity fields have correct defaults."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -438,7 +438,7 @@ class TestSessionModel:
             assert session.recommended_context == []
             assert session.continued_from is None
 
-    def test_session_continuity_fields_can_be_set(self):
+    def test_session_continuity_fields_can_be_set(self, isolated_db):
         """Test continuity fields can be set and saved."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -465,13 +465,13 @@ class TestSessionModel:
 class TestEndToEndWorkflow:
     """Test complete end-to-end handoff workflow."""
 
-    def test_complete_handoff_workflow(self):
+    def test_complete_handoff_workflow(self, isolated_db):
         """Test complete workflow from handoff to resume."""
         with tempfile.TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
             graph_dir.mkdir()
 
-            _sdk = SDK(directory=graph_dir, agent="alice")  # noqa: F841
+            _sdk = SDK(directory=graph_dir, agent="alice", db_path=str(isolated_db))  # noqa: F841
             manager = SessionManager(graph_dir)
 
             # Day 1: Alice works on feature
@@ -506,3 +506,4 @@ class TestEndToEndWorkflow:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

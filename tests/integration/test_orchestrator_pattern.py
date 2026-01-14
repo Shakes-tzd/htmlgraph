@@ -17,9 +17,9 @@ from htmlgraph.orchestration import (
 )
 
 
-def test_orchestrator_pattern():
+def test_orchestrator_pattern(isolated_db):
     """Test complete orchestrator-side pattern."""
-    sdk = SDK(agent="test-orchestrator")
+    sdk = SDK(agent="test-orchestrator", db_path=str(isolated_db))
 
     print("=" * 70)
     print("ORCHESTRATOR-SIDE PATTERN TEST")
@@ -173,3 +173,4 @@ Success - Read-only operation completed""",
 
 if __name__ == "__main__":
     test_orchestrator_pattern()
+

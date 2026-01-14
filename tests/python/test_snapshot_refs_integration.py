@@ -49,9 +49,9 @@ def temp_graph_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def sdk_instance(temp_graph_dir: Path) -> SDK:
+def sdk_instance(temp_graph_dir: Path, isolated_db: Path) -> SDK:
     """Create an SDK instance with temporary directory."""
-    return SDK(agent="test-agent", directory=temp_graph_dir)
+    return SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
 
 
 @pytest.fixture
@@ -168,7 +168,7 @@ def populated_sdk(sdk_instance: SDK) -> SDK:
 class TestEndToEndWorkflow:
     """Test complete workflows combining SDK, refs, and snapshot."""
 
-    def test_create_features_get_refs_snapshot_success(self, populated_sdk):
+    def test_create_features_get_refs_snapshot_success(self, populated_sdk, isolated_db):
         """
         Test: Create 5 features with various statuses
         - Verify refs are generated (@f1, @f2, etc.)
@@ -210,7 +210,7 @@ class TestEndToEndWorkflow:
             assert resolved.id == feature.id
             assert resolved.title == feature.title
 
-    def test_multiple_types_snapshot(self, populated_sdk):
+    def test_multiple_types_snapshot(self, populated_sdk, isolated_db):
         """
         Test: Create features, tracks, bugs, spikes
         - Run snapshot command
@@ -252,7 +252,7 @@ class TestEndToEndWorkflow:
         assert bug_ref in output
         assert spike_ref in output
 
-    def test_snapshot_with_filters(self, populated_sdk):
+    def test_snapshot_with_filters(self, populated_sdk, isolated_db):
         """
         Test: Create features with mixed statuses
         - Run snapshot with --type feature --status todo
@@ -310,7 +310,7 @@ class TestEndToEndWorkflow:
 class TestSDKRefIntegration:
     """Test SDK integration with ref system."""
 
-    def test_sdk_ref_method_resolves_correctly(self, populated_sdk):
+    def test_sdk_ref_method_resolves_correctly(self, populated_sdk, isolated_db):
         """
         Test: Create feature, get its ref
         - Use sdk.ref() to retrieve it
@@ -332,7 +332,7 @@ class TestSDKRefIntegration:
         assert resolved.status == feature.status
         assert resolved.priority == feature.priority
 
-    def test_sdk_ref_returns_none_for_invalid(self, sdk_instance):
+    def test_sdk_ref_returns_none_for_invalid(self, sdk_instance, isolated_db):
         """
         Test: Call sdk.ref("@f999")
         - Verify returns None
@@ -351,21 +351,21 @@ class TestSDKRefIntegration:
         result = sdk.ref("@xyz")
         assert result is None
 
-    def test_ref_persistence_across_sdk_reloads(self, temp_graph_dir):
+    def test_ref_persistence_across_sdk_reloads(self, temp_graph_dir, isolated_db):
         """
         Test: Create feature, get ref
         - Create new SDK instance
         - Verify old ref still resolves
         """
         # Create SDK and feature
-        sdk1 = SDK(agent="test-agent", directory=temp_graph_dir)
+        sdk1 = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
         track = sdk1.tracks.create("Test Track").save()
         feature = sdk1.features.create("Test Feature").set_track(track.id).save()
         ref = sdk1.refs.get_ref(feature.id)
         assert ref == "@f1"
 
         # Create new SDK instance
-        sdk2 = SDK(agent="test-agent", directory=temp_graph_dir)
+        sdk2 = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
 
         # Verify ref persists
         resolved = sdk2.ref(ref)
@@ -373,7 +373,7 @@ class TestSDKRefIntegration:
         assert resolved.id == feature.id
         assert resolved.title == "Test Feature"
 
-    def test_sdk_ref_with_all_types(self, populated_sdk):
+    def test_sdk_ref_with_all_types(self, populated_sdk, isolated_db):
         """Test sdk.ref() with all node types."""
         sdk = populated_sdk
 
@@ -397,7 +397,7 @@ class TestSDKRefIntegration:
         spike_ref = sdk.refs.get_ref(spike.id)
         assert sdk.ref(spike_ref).type == "spike"
 
-    def test_collection_get_ref_method(self, populated_sdk):
+    def test_collection_get_ref_method(self, populated_sdk, isolated_db):
         """Test that collections have get_ref convenience method."""
         sdk = populated_sdk
         feature = sdk._test_items["features"][0]
@@ -420,7 +420,7 @@ class TestSDKRefIntegration:
 class TestSnapshotFormats:
     """Test snapshot output formats."""
 
-    def test_snapshot_json_parseable(self, populated_sdk):
+    def test_snapshot_json_parseable(self, populated_sdk, isolated_db):
         """
         Test: Run snapshot --format json
         - Parse JSON output
@@ -450,7 +450,7 @@ class TestSnapshotFormats:
             assert "status" in item
             assert "priority" in item
 
-    def test_snapshot_refs_format_readable(self, populated_sdk):
+    def test_snapshot_refs_format_readable(self, populated_sdk, isolated_db):
         """
         Test: Run snapshot --format refs
         - Verify output contains @f1, @t1, etc.
@@ -485,7 +485,7 @@ class TestSnapshotFormats:
         assert "@b" in output
         assert "@s" in output
 
-    def test_snapshot_text_format(self, populated_sdk):
+    def test_snapshot_text_format(self, populated_sdk, isolated_db):
         """Test snapshot text format (no refs, with colors)."""
         sdk = populated_sdk
 
@@ -502,7 +502,7 @@ class TestSnapshotFormats:
         # Should contain item types
         assert "feature" in output or "bug" in output or "track" in output
 
-    def test_snapshot_sorting(self, populated_sdk):
+    def test_snapshot_sorting(self, populated_sdk, isolated_db):
         """Verify snapshot items are sorted correctly."""
         sdk = populated_sdk
 
@@ -563,7 +563,7 @@ class TestBrowseCommandIntegration:
 
     @patch("webbrowser.open")
     @patch("requests.head")
-    def test_browse_opens_with_query_status(self, mock_requests_head, mock_webbrowser):
+    def test_browse_opens_with_query_status(self, mock_requests_head, mock_webbrowser, isolated_db):
         """
         Test: Run browse command with --query-status todo
         - Verify URL includes correct query params
@@ -583,7 +583,7 @@ class TestBrowseCommandIntegration:
 
     @patch("webbrowser.open")
     @patch("requests.head")
-    def test_browse_opens_with_both_filters(self, mock_requests_head, mock_webbrowser):
+    def test_browse_opens_with_both_filters(self, mock_requests_head, mock_webbrowser, isolated_db):
         """
         Test: Run browse command with both --query-type and --query-status
         - Verify URL includes both query params
@@ -612,7 +612,7 @@ class TestBrowseCommandIntegration:
 class TestComplexWorkflows:
     """Test complex multi-step workflows."""
 
-    def test_create_track_with_features_snapshot(self, sdk_instance):
+    def test_create_track_with_features_snapshot(self, sdk_instance, isolated_db):
         """
         Test: Create track with multiple features
         - Snapshot showing track as @t1 and features as @f1-@f3
@@ -660,7 +660,7 @@ class TestComplexWorkflows:
             assert feature_item["ref"] == f"@f{i + 1}"
             assert feature_item["track_id"] == track.id
 
-    def test_ref_consistency_across_operations(self, populated_sdk):
+    def test_ref_consistency_across_operations(self, populated_sdk, isolated_db):
         """
         Test: Refs remain consistent across:
         - Multiple snapshots
@@ -692,7 +692,7 @@ class TestComplexWorkflows:
                 current_ref = sdk.refs.get_ref(item.id)
                 assert current_ref == initial_refs[item.id]
 
-    def test_snapshot_with_updated_status(self, sdk_instance):
+    def test_snapshot_with_updated_status(self, sdk_instance, isolated_db):
         """
         Test: Create items, snapshot, update status, snapshot
         - Verify refs remain same
@@ -730,7 +730,7 @@ class TestComplexWorkflows:
         assert data2[0]["status"] == "in-progress"
         assert data2[0]["ref"] == "@f1"  # Ref should remain same
 
-    def test_filter_by_priority_via_snapshot(self, populated_sdk):
+    def test_filter_by_priority_via_snapshot(self, populated_sdk, isolated_db):
         """
         Test: Snapshot can be filtered to show high-priority items
         - Create mix of priorities
@@ -764,7 +764,7 @@ class TestComplexWorkflows:
 class TestErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_snapshot_empty_graph(self, sdk_instance):
+    def test_snapshot_empty_graph(self, sdk_instance, isolated_db):
         """Test snapshot with no items."""
         sdk = sdk_instance
 
@@ -776,7 +776,7 @@ class TestErrorHandling:
         assert result.exit_code == 0
         assert "SNAPSHOT - Current Graph State" in result.text
 
-    def test_ref_resolution_after_multiple_creates(self, sdk_instance):
+    def test_ref_resolution_after_multiple_creates(self, sdk_instance, isolated_db):
         """Test ref resolution stays correct after many creates."""
         sdk = sdk_instance
 
@@ -794,7 +794,7 @@ class TestErrorHandling:
             resolved = sdk.ref(ref)
             assert resolved.id == item.id
 
-    def test_snapshot_with_special_characters(self, sdk_instance):
+    def test_snapshot_with_special_characters(self, sdk_instance, isolated_db):
         """Test snapshot with special characters in titles."""
         sdk = sdk_instance
 
@@ -813,7 +813,7 @@ class TestErrorHandling:
         assert len(data) == 1
         assert "mention" in data[0]["title"]
 
-    def test_snapshot_unicode_titles(self, sdk_instance):
+    def test_snapshot_unicode_titles(self, sdk_instance, isolated_db):
         """Test snapshot with unicode titles."""
         sdk = sdk_instance
 
@@ -839,7 +839,7 @@ class TestErrorHandling:
 class TestCLIIntegration:
     """Test integration with CLI workflow."""
 
-    def test_snapshot_command_factory_from_args(self):
+    def test_snapshot_command_factory_from_args(self, isolated_db):
         """Test creating SnapshotCommand from argparse Namespace."""
         from argparse import Namespace
 
@@ -850,7 +850,7 @@ class TestCLIIntegration:
         assert cmd.node_type == "feature"
         assert cmd.status == "todo"
 
-    def test_snapshot_command_factory_defaults(self):
+    def test_snapshot_command_factory_defaults(self, isolated_db):
         """Test SnapshotCommand factory with defaults."""
         from argparse import Namespace
 
@@ -861,7 +861,7 @@ class TestCLIIntegration:
         assert cmd.node_type is None
         assert cmd.status is None
 
-    def test_browse_command_factory_from_args(self):
+    def test_browse_command_factory_from_args(self, isolated_db):
         """Test creating BrowseCommand from argparse Namespace."""
         from argparse import Namespace
 
@@ -881,7 +881,7 @@ class TestCLIIntegration:
 class TestRefSystemRobustness:
     """Test robustness of ref system under various conditions."""
 
-    def test_ref_consistency_with_deleted_items(self, sdk_instance):
+    def test_ref_consistency_with_deleted_items(self, sdk_instance, isolated_db):
         """Test ref consistency when items are deleted."""
         sdk = sdk_instance
 
@@ -903,10 +903,10 @@ class TestRefSystemRobustness:
         # F2 still resolves to original item
         assert sdk.ref(ref2).id == f2.id
 
-    def test_multiple_sdk_instances_same_refs(self, temp_graph_dir):
+    def test_multiple_sdk_instances_same_refs(self, temp_graph_dir, isolated_db):
         """Test multiple SDK instances see same refs."""
-        sdk1 = SDK(agent="agent1", directory=temp_graph_dir)
-        sdk2 = SDK(agent="agent2", directory=temp_graph_dir)
+        sdk1 = SDK(agent="agent1", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk2 = SDK(agent="agent2", directory=temp_graph_dir, db_path=str(isolated_db))
 
         # Create in sdk1
         track = sdk1.tracks.create("Track").save()
@@ -918,7 +918,7 @@ class TestRefSystemRobustness:
 
         assert ref1 == ref2
 
-    def test_ref_generation_is_sequential(self, sdk_instance):
+    def test_ref_generation_is_sequential(self, sdk_instance, isolated_db):
         """Test that refs are generated sequentially."""
         sdk = sdk_instance
 
@@ -935,7 +935,7 @@ class TestRefSystemRobustness:
         for i, ref in enumerate(refs, 1):
             assert ref == f"@f{i}"
 
-    def test_snapshot_json_includes_all_ref_info(self, populated_sdk):
+    def test_snapshot_json_includes_all_ref_info(self, populated_sdk, isolated_db):
         """Verify JSON snapshot includes complete ref information."""
         sdk = populated_sdk
 
@@ -973,7 +973,7 @@ class TestRefSystemRobustness:
 class TestSnapshotTrackFilter:
     """Test --track filter functionality."""
 
-    def test_snapshot_filter_by_track_id(self, populated_sdk):
+    def test_snapshot_filter_by_track_id(self, populated_sdk, isolated_db):
         """Test filtering by track ID."""
         sdk = populated_sdk
         track = sdk._test_items["tracks"][0]
@@ -993,7 +993,7 @@ class TestSnapshotTrackFilter:
         for feature in features:
             assert feature["track_id"] == track.id
 
-    def test_snapshot_filter_by_track_ref(self, populated_sdk):
+    def test_snapshot_filter_by_track_ref(self, populated_sdk, isolated_db):
         """Test filtering by track ref (@t1)."""
         sdk = populated_sdk
         track = sdk._test_items["tracks"][0]
@@ -1014,7 +1014,7 @@ class TestSnapshotTrackFilter:
         for feature in features:
             assert feature["track_id"] == track.id
 
-    def test_snapshot_track_filter_with_active(self, populated_sdk):
+    def test_snapshot_track_filter_with_active(self, populated_sdk, isolated_db):
         """Test combining --track and --active filters."""
         sdk = populated_sdk
         track = sdk._test_items["tracks"][0]
@@ -1044,7 +1044,7 @@ class TestSnapshotTrackFilter:
 class TestSnapshotActiveFilter:
     """Test --active filter functionality."""
 
-    def test_snapshot_active_filter(self, populated_sdk):
+    def test_snapshot_active_filter(self, populated_sdk, isolated_db):
         """Test --active filter shows only TODO/IN_PROGRESS/BLOCKED items."""
         sdk = populated_sdk
 
@@ -1066,7 +1066,7 @@ class TestSnapshotActiveFilter:
         done_items = [d for d in data if d["status"] == "done"]
         assert len(done_items) == 0
 
-    def test_snapshot_active_excludes_metadata_spikes(self, sdk_instance):
+    def test_snapshot_active_excludes_metadata_spikes(self, sdk_instance, isolated_db):
         """Test --active filter excludes metadata spikes."""
         sdk = sdk_instance
 
@@ -1096,7 +1096,7 @@ class TestSnapshotActiveFilter:
         assert len(data) == 1
         assert data[0]["title"] == "Research spike"
 
-    def test_snapshot_active_with_type_filter(self, populated_sdk):
+    def test_snapshot_active_with_type_filter(self, populated_sdk, isolated_db):
         """Test --active combined with --type filter."""
         sdk = populated_sdk
 
@@ -1119,7 +1119,7 @@ class TestSnapshotActiveFilter:
 class TestSnapshotBlockersFilter:
     """Test --blockers filter functionality."""
 
-    def test_snapshot_blockers_filter(self, populated_sdk):
+    def test_snapshot_blockers_filter(self, populated_sdk, isolated_db):
         """Test --blockers filter shows only critical/blocked items."""
         sdk = populated_sdk
 
@@ -1137,7 +1137,7 @@ class TestSnapshotBlockersFilter:
         for item in data:
             assert item["priority"] == "critical" or item["status"] == "blocked"
 
-    def test_snapshot_blockers_empty_when_none_exist(self, sdk_instance):
+    def test_snapshot_blockers_empty_when_none_exist(self, sdk_instance, isolated_db):
         """Test --blockers returns empty when no blockers exist."""
         sdk = sdk_instance
 
@@ -1157,7 +1157,7 @@ class TestSnapshotBlockersFilter:
         data = json.loads(result.text)
         assert len(data) == 0
 
-    def test_snapshot_blockers_includes_critical_and_blocked(self, sdk_instance):
+    def test_snapshot_blockers_includes_critical_and_blocked(self, sdk_instance, isolated_db):
         """Test --blockers includes both critical priority and blocked status."""
         sdk = sdk_instance
 
@@ -1192,7 +1192,7 @@ class TestSnapshotBlockersFilter:
 class TestSnapshotSummaryFormat:
     """Test --summary format functionality."""
 
-    def test_snapshot_summary_format(self, populated_sdk):
+    def test_snapshot_summary_format(self, populated_sdk, isolated_db):
         """Test --summary shows counts and progress."""
         sdk = populated_sdk
 
@@ -1213,7 +1213,7 @@ class TestSnapshotSummaryFormat:
         assert "Active Features" in output
         assert "Quick Stats" in output
 
-    def test_snapshot_summary_with_track(self, populated_sdk):
+    def test_snapshot_summary_with_track(self, populated_sdk, isolated_db):
         """Test --summary with --track shows track context."""
         sdk = populated_sdk
         track = sdk._test_items["tracks"][0]
@@ -1237,7 +1237,7 @@ class TestSnapshotSummaryFormat:
         assert "Current Track:" in output
         assert track_ref in output
 
-    def test_snapshot_summary_shows_progress_percentage(self, sdk_instance):
+    def test_snapshot_summary_shows_progress_percentage(self, sdk_instance, isolated_db):
         """Test --summary calculates and shows progress percentage."""
         sdk = sdk_instance
 
@@ -1264,7 +1264,7 @@ class TestSnapshotSummaryFormat:
         # Verify progress calculation (2/5 = 40%)
         assert "40%" in output or "2/5" in output
 
-    def test_snapshot_summary_shows_bug_priorities(self, populated_sdk):
+    def test_snapshot_summary_shows_bug_priorities(self, populated_sdk, isolated_db):
         """Test --summary shows bug priority counts."""
         sdk = populated_sdk
 
@@ -1282,7 +1282,7 @@ class TestSnapshotSummaryFormat:
         if "bug" in str(sdk._test_items):
             assert "Active Bugs" in output or "Bugs:" in output
 
-    def test_snapshot_summary_shows_blockers_section(self, sdk_instance):
+    def test_snapshot_summary_shows_blockers_section(self, sdk_instance, isolated_db):
         """Test --summary shows blockers section when blockers exist."""
         sdk = sdk_instance
 
@@ -1311,7 +1311,7 @@ class TestSnapshotSummaryFormat:
 class TestSnapshotMyWorkFilter:
     """Test --my-work filter functionality."""
 
-    def test_snapshot_my_work_filter(self, sdk_instance):
+    def test_snapshot_my_work_filter(self, sdk_instance, isolated_db):
         """Test --my-work shows only items assigned to current agent."""
         sdk = sdk_instance
 
@@ -1364,7 +1364,7 @@ class TestSnapshotMyWorkFilter:
         assert "Another My Feature" in titles
         assert "Other Feature" not in titles
 
-    def test_snapshot_my_work_empty_when_none_assigned(self, sdk_instance):
+    def test_snapshot_my_work_empty_when_none_assigned(self, sdk_instance, isolated_db):
         """Test --my-work returns empty when nothing is assigned to current agent."""
         sdk = sdk_instance
 
@@ -1389,7 +1389,7 @@ class TestSnapshotMyWorkFilter:
         data = json.loads(result.text)
         assert len(data) == 0
 
-    def test_snapshot_my_work_with_active_filter(self, sdk_instance):
+    def test_snapshot_my_work_with_active_filter(self, sdk_instance, isolated_db):
         """Test --my-work combined with --active."""
         sdk = sdk_instance
 
@@ -1427,7 +1427,7 @@ class TestSnapshotMyWorkFilter:
 class TestSnapshotColoredOutput:
     """Test colored output formatting for agent-friendliness."""
 
-    def test_refs_format_has_no_box_drawing_characters(self, populated_sdk):
+    def test_refs_format_has_no_box_drawing_characters(self, populated_sdk, isolated_db):
         """Test that refs format doesn't use box-drawing characters."""
         sdk = populated_sdk
 
@@ -1444,7 +1444,7 @@ class TestSnapshotColoredOutput:
         for char in box_chars:
             assert char not in output, f"Box character '{char}' found in output"
 
-    def test_refs_format_contains_ansi_codes(self, populated_sdk):
+    def test_refs_format_contains_ansi_codes(self, populated_sdk, isolated_db):
         """Test that refs format contains ANSI color codes."""
         sdk = populated_sdk
 
@@ -1460,7 +1460,7 @@ class TestSnapshotColoredOutput:
         # ANSI codes start with \x1b[ (ESC[)
         assert "\x1b[" in output, "No ANSI color codes found in output"
 
-    def test_summary_format_uses_unicode_symbols(self, populated_sdk):
+    def test_summary_format_uses_unicode_symbols(self, populated_sdk, isolated_db):
         """Test that summary format uses Unicode status symbols."""
         sdk = populated_sdk
 
@@ -1479,7 +1479,7 @@ class TestSnapshotColoredOutput:
         found_symbols = [s for s in symbols if s in output]
         assert len(found_symbols) > 0, "No Unicode status symbols found in summary"
 
-    def test_json_format_unchanged(self, populated_sdk):
+    def test_json_format_unchanged(self, populated_sdk, isolated_db):
         """Test that JSON format is completely unchanged (no colors)."""
         sdk = populated_sdk
 
@@ -1501,7 +1501,7 @@ class TestSnapshotColoredOutput:
         assert isinstance(data, list)
         assert len(data) > 0
 
-    def test_colored_output_parseable_by_agents(self, populated_sdk):
+    def test_colored_output_parseable_by_agents(self, populated_sdk, isolated_db):
         """Test that colored text output is parseable (agents ignore ANSI codes)."""
         sdk = populated_sdk
 
@@ -1528,7 +1528,7 @@ class TestSnapshotColoredOutput:
 class TestSnapshotCombinedFilters:
     """Test combinations of multiple filters."""
 
-    def test_snapshot_track_plus_active_plus_type(self, populated_sdk):
+    def test_snapshot_track_plus_active_plus_type(self, populated_sdk, isolated_db):
         """Test combining --track, --active, and --type filters."""
         sdk = populated_sdk
         track = sdk._test_items["tracks"][0]
@@ -1554,7 +1554,7 @@ class TestSnapshotCombinedFilters:
             assert item["status"] in ["todo", "in-progress", "blocked"]
             assert item["track_id"] == track.id
 
-    def test_snapshot_track_plus_summary(self, populated_sdk):
+    def test_snapshot_track_plus_summary(self, populated_sdk, isolated_db):
         """Test --track with --summary shows track progress."""
         sdk = populated_sdk
         track = sdk._test_items["tracks"][0]
@@ -1579,7 +1579,7 @@ class TestSnapshotCombinedFilters:
         assert track_ref in output
         assert "Track:" in output  # Progress line
 
-    def test_snapshot_blockers_plus_my_work(self, sdk_instance):
+    def test_snapshot_blockers_plus_my_work(self, sdk_instance, isolated_db):
         """Test --blockers with --my-work shows only my critical items."""
         sdk = sdk_instance
 
@@ -1629,7 +1629,7 @@ class TestSnapshotCombinedFilters:
         assert data[0]["assigned_to"] == sdk.agent
         assert data[0]["priority"] == "critical"
 
-    def test_snapshot_all_filters_combined(self, sdk_instance):
+    def test_snapshot_all_filters_combined(self, sdk_instance, isolated_db):
         """Test all filters combined: track, active, blockers, my_work."""
         sdk = sdk_instance
 

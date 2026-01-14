@@ -19,7 +19,7 @@ from htmlgraph.session_manager import SessionManager
 class TestHandoffFields:
     """Test handoff fields on Node model."""
 
-    def test_node_has_handoff_fields(self):
+    def test_node_has_handoff_fields(self, isolated_db):
         """Verify Node model has all required handoff fields."""
         node = Node(
             id="feature-001",
@@ -32,7 +32,7 @@ class TestHandoffFields:
         assert hasattr(node, "handoff_notes")
         assert hasattr(node, "handoff_timestamp")
 
-    def test_handoff_fields_default_to_none(self):
+    def test_handoff_fields_default_to_none(self, isolated_db):
         """Verify handoff fields have sensible defaults."""
         node = Node(
             id="feature-001",
@@ -45,7 +45,7 @@ class TestHandoffFields:
         assert node.handoff_notes is None
         assert node.handoff_timestamp is None
 
-    def test_handoff_fields_can_be_set(self):
+    def test_handoff_fields_can_be_set(self, isolated_db):
         """Verify handoff fields can be set on creation."""
         now = datetime.now()
         node = Node(
@@ -68,7 +68,7 @@ class TestHandoffFields:
 class TestHandoffHTML:
     """Test HTML serialization of handoff context."""
 
-    def test_node_without_handoff_has_no_section(self):
+    def test_node_without_handoff_has_no_section(self, isolated_db):
         """Verify HTML doesn't include handoff section if not required."""
         node = Node(
             id="feature-001",
@@ -79,7 +79,7 @@ class TestHandoffHTML:
         assert "data-handoff" not in html
         assert "Handoff Context" not in html
 
-    def test_node_with_handoff_includes_section(self):
+    def test_node_with_handoff_includes_section(self, isolated_db):
         """Verify HTML includes handoff section when required."""
         node = Node(
             id="feature-001",
@@ -95,7 +95,7 @@ class TestHandoffHTML:
         assert "alice" in html
         assert "blocked on dependency" in html
 
-    def test_handoff_html_includes_all_fields(self):
+    def test_handoff_html_includes_all_fields(self, isolated_db):
         """Verify all handoff fields appear in HTML."""
         now = datetime.now()
         node = Node(
@@ -121,7 +121,7 @@ class TestHandoffHTML:
 class TestSessionHandoffHTML:
     """Test Session handoff HTML serialization."""
 
-    def test_session_handoff_roundtrip(self):
+    def test_session_handoff_roundtrip(self, isolated_db):
         """Verify session handoff fields persist through HTML serialization."""
         with TemporaryDirectory() as tmpdir:
             session = Session(
@@ -143,7 +143,7 @@ class TestSessionHandoffHTML:
 class TestHandoffContext:
     """Test lightweight context generation for handoff."""
 
-    def test_context_without_handoff(self):
+    def test_context_without_handoff(self, isolated_db):
         """Verify context doesn't mention handoff if not required."""
         node = Node(
             id="feature-001",
@@ -154,7 +154,7 @@ class TestHandoffContext:
 
         assert "🔄 Handoff" not in context
 
-    def test_context_with_handoff_shows_info(self):
+    def test_context_with_handoff_shows_info(self, isolated_db):
         """Verify context includes handoff information."""
         node = Node(
             id="feature-001",
@@ -170,7 +170,7 @@ class TestHandoffContext:
         assert "alice" in context
         assert "blocked on dependency" in context
 
-    def test_context_includes_handoff_notes(self):
+    def test_context_includes_handoff_notes(self, isolated_db):
         """Verify context includes handoff notes when present."""
         node = Node(
             id="feature-001",
@@ -185,7 +185,7 @@ class TestHandoffContext:
         assert "Notes:" in context
         assert "Waiting for DB migration" in context
 
-    def test_context_token_efficiency(self):
+    def test_context_token_efficiency(self, isolated_db):
         """Verify handoff context is lightweight (<200 tokens)."""
         node = Node(
             id="feature-001",
@@ -205,7 +205,7 @@ class TestHandoffContext:
 class TestSessionManagerHandoff:
     """Test SessionManager.create_handoff() method."""
 
-    def test_create_handoff_sets_metadata(self):
+    def test_create_handoff_sets_metadata(self, isolated_db):
         """Verify create_handoff sets all metadata fields."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -236,7 +236,7 @@ class TestSessionManagerHandoff:
             assert result.handoff_notes == "Waiting for database migration"
             assert result.handoff_timestamp is not None
 
-    def test_create_handoff_releases_feature(self):
+    def test_create_handoff_releases_feature(self, isolated_db):
         """Verify create_handoff releases feature for next agent."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -263,7 +263,7 @@ class TestSessionManagerHandoff:
             assert result.claimed_at is None
             assert result.claimed_by_session is None
 
-    def test_create_handoff_rejects_if_not_owned(self):
+    def test_create_handoff_rejects_if_not_owned(self, isolated_db):
         """Verify create_handoff rejects if agent doesn't own feature."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -286,7 +286,7 @@ class TestSessionManagerHandoff:
                     agent="bob",
                 )
 
-    def test_create_handoff_returns_none_if_not_found(self):
+    def test_create_handoff_returns_none_if_not_found(self, isolated_db):
         """Verify create_handoff returns None if feature not found."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -299,7 +299,7 @@ class TestSessionManagerHandoff:
 
             assert result is None
 
-    def test_create_handoff_works_for_unclaimed_feature(self):
+    def test_create_handoff_works_for_unclaimed_feature(self, isolated_db):
         """Verify create_handoff works on unclaimed features."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -326,7 +326,7 @@ class TestSessionManagerHandoff:
 class TestSessionHandoffManager:
     """Test session handoff updates via SessionManager and SDK."""
 
-    def test_session_manager_set_handoff(self):
+    def test_session_manager_set_handoff(self, isolated_db):
         """Verify SessionManager.set_session_handoff updates session fields."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -344,7 +344,7 @@ class TestSessionHandoffManager:
             assert updated.recommended_next == "Run test suite with verbose logs"
             assert updated.blockers == ["CI is down"]
 
-    def test_sdk_set_session_handoff(self):
+    def test_sdk_set_session_handoff(self, isolated_db):
         """Verify SDK.set_session_handoff proxies to SessionManager."""
         with TemporaryDirectory() as tmpdir:
             graph_dir = Path(tmpdir) / ".htmlgraph"
@@ -352,7 +352,7 @@ class TestSessionHandoffManager:
             manager = SessionManager(graph_dir)
             session = manager.start_session("session-002", agent="bob")
 
-            sdk = SDK(directory=graph_dir, agent="bob")
+            sdk = SDK(directory=graph_dir, agent="bob", db_path=str(isolated_db))
             updated = sdk.set_session_handoff(
                 session_id=session.id,
                 handoff_notes="Refactor parser",
@@ -369,18 +369,18 @@ class TestSessionHandoffManager:
 class TestSDKHandoff:
     """Test SDK FeatureBuilder handoff methods."""
 
-    def test_feature_builder_has_complete_and_handoff(self):
+    def test_feature_builder_has_complete_and_handoff(self, isolated_db):
         """Verify FeatureBuilder has complete_and_handoff method."""
         with TemporaryDirectory() as tmpdir:
-            sdk = SDK(directory=tmpdir)
+            sdk = SDK(directory=tmpdir, db_path=str(isolated_db))
 
             builder = sdk.features.create("Test Feature")
             assert hasattr(builder, "complete_and_handoff")
 
-    def test_complete_and_handoff_sets_fields(self):
+    def test_complete_and_handoff_sets_fields(self, isolated_db):
         """Verify complete_and_handoff sets handoff fields."""
         with TemporaryDirectory() as tmpdir:
-            sdk = SDK(directory=tmpdir)
+            sdk = SDK(directory=tmpdir, db_path=str(isolated_db))
 
             track = sdk.tracks.create("Test Track").save()
             feature = (
@@ -398,10 +398,10 @@ class TestSDKHandoff:
             assert feature.handoff_notes == "All tests passing"
             assert feature.handoff_timestamp is not None
 
-    def test_complete_and_handoff_with_priority(self):
+    def test_complete_and_handoff_with_priority(self, isolated_db):
         """Verify complete_and_handoff chains with other methods."""
         with TemporaryDirectory() as tmpdir:
-            sdk = SDK(directory=tmpdir)
+            sdk = SDK(directory=tmpdir, db_path=str(isolated_db))
 
             track = sdk.tracks.create("Test Track").save()
             feature = (
@@ -425,7 +425,7 @@ class TestSDKHandoff:
 class TestHandoffWorkflow:
     """Test end-to-end handoff workflow."""
 
-    def test_agent_a_to_agent_b_handoff(self):
+    def test_agent_a_to_agent_b_handoff(self, isolated_db):
         """Test complete workflow: Agent A claims, hands off to Agent B."""
         with TemporaryDirectory() as tmpdir:
             manager = SessionManager(tmpdir)
@@ -464,7 +464,7 @@ class TestHandoffWorkflow:
             assert bob_claims.handoff_required is True  # Still has handoff context
             assert bob_claims.previous_agent == "alice"  # Audit trail intact
 
-    def test_handoff_preserves_history(self):
+    def test_handoff_preserves_history(self, isolated_db):
         """Test that handoff context is preserved in HTML."""
         feature = Node(
             id="feature-001",
@@ -484,7 +484,7 @@ class TestHandoffWorkflow:
         assert "Context preserved" in html
         assert "data-handoff" in html
 
-    def test_handoff_efficiency_metrics(self):
+    def test_handoff_efficiency_metrics(self, isolated_db):
         """Test that handoff is efficient (timing and size)."""
         import time
 

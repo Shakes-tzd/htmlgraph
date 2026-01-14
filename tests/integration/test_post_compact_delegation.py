@@ -28,23 +28,9 @@ from htmlgraph.session_state import SessionStateManager
 
 
 @pytest.fixture
-def temp_htmlgraph_dir(tmp_path):
+def temp_htmlgraph_dir(isolated_graph_dir_full):
     """Create a temporary .htmlgraph directory structure."""
-    graph_dir = tmp_path / ".htmlgraph"
-    graph_dir.mkdir()
-    (graph_dir / "sessions").mkdir()
-    (graph_dir / "features").mkdir()
-    (graph_dir / "bugs").mkdir()
-    (graph_dir / "chores").mkdir()
-    (graph_dir / "spikes").mkdir()
-    (graph_dir / "epics").mkdir()
-    (graph_dir / "phases").mkdir()
-    (graph_dir / "patterns").mkdir()
-    (graph_dir / "insights").mkdir()
-    (graph_dir / "metrics").mkdir()
-    (graph_dir / "todos").mkdir()
-    (graph_dir / "tracks").mkdir()
-    return graph_dir
+    return isolated_graph_dir_full
 
 
 @pytest.fixture
@@ -179,7 +165,7 @@ class TestAgentAttributionPostCompact:
     """Test agent attribution persistence across compact."""
 
     def test_agent_attribution_required_post_compact(
-        self, temp_htmlgraph_dir, monkeypatch_cwd, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, monkeypatch_cwd, monkeypatch
     ):
         """
         Verify agent parameter is required both pre and post-compact.
@@ -195,7 +181,7 @@ class TestAgentAttributionPostCompact:
         session_id_1 = f"sess-explorer-{uuid4().hex[:8]}"
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_1)
 
-        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explorer")
+        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explorer", db_path=str(isolated_db))
         spike1 = sdk1.spikes.create("Research API endpoints").save()
         assert spike1 is not None
         assert spike1.agent_assigned == "explorer"
@@ -204,7 +190,7 @@ class TestAgentAttributionPostCompact:
         session_id_2 = f"sess-coder-{uuid4().hex[:8]}"
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_2)
 
-        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="coder")
+        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="coder", db_path=str(isolated_db))
         spike2 = sdk2.spikes.create("Implement API endpoints").save()
         assert spike2 is not None
         assert spike2.agent_assigned == "coder"
@@ -219,7 +205,7 @@ class TestFullDelegationWorkflowPostCompact:
     """Test complete delegation workflow across compact."""
 
     def test_delegation_workflow_post_compact_enforced(
-        self, temp_htmlgraph_dir, session_manager, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, session_manager, monkeypatch
     ):
         """
         Verify delegation workflow remains enforced post-compact.
@@ -237,7 +223,7 @@ class TestFullDelegationWorkflowPostCompact:
         monkeypatch.setenv("CLAUDE_ORCHESTRATOR_ACTIVE", "true")
 
         # Initialize SDK - should require agent
-        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
+        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator", db_path=str(isolated_db))
         assert sdk1.agent == "orchestrator"
 
         # Create track first
@@ -267,7 +253,7 @@ class TestFullDelegationWorkflowPostCompact:
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_2)
 
         # Second session - SDK should still require agent
-        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
+        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator", db_path=str(isolated_db))
 
         # Verify delegation is still enforced
         state2 = session_manager.get_current_state()
@@ -285,7 +271,7 @@ class TestFullDelegationWorkflowPostCompact:
 class TestSubagentSessionLinking:
     """Test parent-child session linking."""
 
-    def test_subagent_sessions_linked_to_parent(self, temp_htmlgraph_dir, monkeypatch):
+    def test_subagent_sessions_linked_to_parent(self, temp_htmlgraph_dir, isolated_db, monkeypatch):
         """
         Verify subagent sessions are properly linked to parent.
 
@@ -299,7 +285,7 @@ class TestSubagentSessionLinking:
         parent_session_id = f"sess-parent-{uuid4().hex[:8]}"
         monkeypatch.setenv("CLAUDE_SESSION_ID", parent_session_id)
 
-        sdk_parent = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
+        sdk_parent = SDK(directory=temp_htmlgraph_dir, agent="orchestrator", db_path=str(isolated_db))
         track = sdk_parent.tracks.create("Parent Track").save()
         feature = (
             sdk_parent.features.create("Parent Feature").set_track(track.id).save()
@@ -317,6 +303,7 @@ class TestSubagentSessionLinking:
             directory=temp_htmlgraph_dir,
             agent="coder",
             parent_session=parent_session_id,
+            db_path=str(isolated_db),
         )
 
         # Create spike in subagent
@@ -332,7 +319,7 @@ class TestSDKMandatoryAgentParameter:
     """Test SDK requires agent parameter."""
 
     def test_sdk_requires_agent_parameter_post_compact(
-        self, temp_htmlgraph_dir, session_manager, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, session_manager, monkeypatch
     ):
         """
         Verify SDK explicit agent parameter is preferred.
@@ -348,7 +335,7 @@ class TestSDKMandatoryAgentParameter:
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_1)
 
         # First session - with explicit agent parameter
-        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explicit-agent-1")
+        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explicit-agent-1", db_path=str(isolated_db))
         assert sdk1.agent == "explicit-agent-1"
 
         # Create track first
@@ -378,7 +365,7 @@ class TestSDKMandatoryAgentParameter:
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_2)
 
         # Second session - with different explicit agent
-        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="explicit-agent-2")
+        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="explicit-agent-2", db_path=str(isolated_db))
         assert sdk2.agent == "explicit-agent-2"
 
         # Create track first
@@ -393,7 +380,7 @@ class TestAllBuilderEnforceAgent:
     """Test that all builders enforce agent parameter."""
 
     def test_all_builders_enforce_agent_parameter(
-        self, temp_htmlgraph_dir, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, monkeypatch
     ):
         """
         Verify ALL builders assign agent from SDK.
@@ -407,7 +394,7 @@ class TestAllBuilderEnforceAgent:
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id)
 
         # SDK with agent should work
-        sdk = SDK(directory=temp_htmlgraph_dir, agent="test-agent")
+        sdk = SDK(directory=temp_htmlgraph_dir, agent="test-agent", db_path=str(isolated_db))
 
         # Create track first (required for features, bugs, chores, epics, phases)
         track = sdk.tracks.create("Test Track").save()
@@ -444,7 +431,7 @@ class TestPostCompactSkillActivation:
     """Test Orchestrator Skill activation post-compact."""
 
     def test_orchestrator_skill_activates_post_compact(
-        self, temp_htmlgraph_dir, session_manager, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, session_manager, monkeypatch
     ):
         """
         Verify post-compact session detection works across compact.
@@ -464,7 +451,7 @@ class TestPostCompactSkillActivation:
         env_vars1 = session_manager.setup_environment_variables(state1)
 
         # Create SDK with agent
-        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
+        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator", db_path=str(isolated_db))
         assert sdk1.agent == "orchestrator"
 
         # Record and end first session
@@ -496,7 +483,7 @@ class TestPostCompactSkillActivation:
         assert state2["delegation_enabled"] is True
 
         # Create SDK post-compact
-        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator")
+        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="orchestrator", db_path=str(isolated_db))
         assert sdk2.agent == "orchestrator"
 
 
@@ -504,7 +491,7 @@ class TestCompactCycleIntegration:
     """Integration tests for complete compact cycles."""
 
     def test_complete_compact_cycle_with_workflow(
-        self, temp_htmlgraph_dir, session_manager, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, session_manager, monkeypatch
     ):
         """
         Test complete compact cycle with realistic workflow.
@@ -521,7 +508,7 @@ class TestCompactCycleIntegration:
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_1)
         monkeypatch.setenv("CLAUDE_ORCHESTRATOR_ACTIVE", "true")
 
-        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explorer")
+        sdk1 = SDK(directory=temp_htmlgraph_dir, agent="explorer", db_path=str(isolated_db))
         track1 = sdk1.tracks.create("Explorer Track").save()
         features_session1 = [
             sdk1.features.create(f"Research Task {i}").set_track(track1.id).save()
@@ -550,7 +537,7 @@ class TestCompactCycleIntegration:
         session_id_2 = f"sess-coder-{uuid4().hex[:8]}"
         monkeypatch.setenv("CLAUDE_SESSION_ID", session_id_2)
 
-        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="coder")
+        sdk2 = SDK(directory=temp_htmlgraph_dir, agent="coder", db_path=str(isolated_db))
 
         # Get post-compact state
         state2 = session_manager.get_current_state()
@@ -584,7 +571,7 @@ class TestCompactCycleIntegration:
         assert len(coder_features) == 3
 
     def test_multiple_compact_cycles(
-        self, temp_htmlgraph_dir, session_manager, monkeypatch
+        self, temp_htmlgraph_dir, isolated_db, session_manager, monkeypatch
     ):
         """
         Test multiple compact cycles with different agents.
@@ -603,7 +590,7 @@ class TestCompactCycleIntegration:
             session_id = f"sess-{agent}-{uuid4().hex[:8]}"
             monkeypatch.setenv("CLAUDE_SESSION_ID", session_id)
 
-            sdk = SDK(directory=temp_htmlgraph_dir, agent=agent)
+            sdk = SDK(directory=temp_htmlgraph_dir, agent=agent, db_path=str(isolated_db))
 
             # Create track first
             track = sdk.tracks.create(f"{agent.title()} Track").save()
@@ -635,7 +622,7 @@ class TestCompactCycleIntegration:
                 state_file.write_text(json.dumps(state_data))
 
         # Final verification with last SDK instance
-        sdk_final = SDK(directory=temp_htmlgraph_dir, agent="tester")
+        sdk_final = SDK(directory=temp_htmlgraph_dir, agent="tester", db_path=str(isolated_db))
 
         for agent, items in items_per_agent:
             agent_items = sdk_final.features.where(agent_assigned=agent)

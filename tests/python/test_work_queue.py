@@ -11,7 +11,7 @@ from htmlgraph.sdk import SDK
 
 
 @pytest.fixture
-def temp_sdk(tmp_path):
+def temp_sdk(tmp_path, isolated_db):
     """Create a temporary SDK instance with test data."""
     graph_dir = tmp_path / ".htmlgraph"
     graph_dir.mkdir()
@@ -29,7 +29,7 @@ def temp_sdk(tmp_path):
     ]:
         (graph_dir / collection).mkdir()
 
-    sdk = SDK(directory=graph_dir, agent="test-agent")
+    sdk = SDK(directory=graph_dir, agent="test-agent", db_path=str(isolated_db))
 
     # Create test track
     track = sdk.tracks.create("Test Track").save()
@@ -77,7 +77,7 @@ def temp_sdk(tmp_path):
     return sdk
 
 
-def test_get_work_queue_basic(temp_sdk):
+def test_get_work_queue_basic(temp_sdk, isolated_db):
     """Test basic work queue retrieval."""
     queue = temp_sdk.get_work_queue(agent_id="test-agent")
 
@@ -96,14 +96,14 @@ def test_get_work_queue_basic(temp_sdk):
     assert "blocked_by" in item
 
 
-def test_get_work_queue_limit(temp_sdk):
+def test_get_work_queue_limit(temp_sdk, isolated_db):
     """Test work queue limit parameter."""
     queue = temp_sdk.get_work_queue(agent_id="test-agent", limit=2)
 
     assert len(queue) <= 2
 
 
-def test_get_work_queue_min_score(temp_sdk):
+def test_get_work_queue_min_score(temp_sdk, isolated_db):
     """Test work queue minimum score filtering."""
     # Get all items
     all_queue = temp_sdk.get_work_queue(agent_id="test-agent", limit=100)
@@ -121,7 +121,7 @@ def test_get_work_queue_min_score(temp_sdk):
         assert item["score"] >= 60.0
 
 
-def test_get_work_queue_includes_multiple_types(temp_sdk):
+def test_get_work_queue_includes_multiple_types(temp_sdk, isolated_db):
     """Test that work queue includes different work item types."""
     queue = temp_sdk.get_work_queue(agent_id="test-agent", limit=100)
 
@@ -132,7 +132,7 @@ def test_get_work_queue_includes_multiple_types(temp_sdk):
     assert "bug" in types
 
 
-def test_get_work_queue_excludes_in_progress(temp_sdk):
+def test_get_work_queue_excludes_in_progress(temp_sdk, isolated_db):
     """Test that work queue excludes in-progress items."""
     queue = temp_sdk.get_work_queue(agent_id="test-agent", limit=100)
 
@@ -141,7 +141,7 @@ def test_get_work_queue_excludes_in_progress(temp_sdk):
         assert item["status"] != "in-progress"
 
 
-def test_get_work_queue_includes_blocked(temp_sdk):
+def test_get_work_queue_includes_blocked(temp_sdk, isolated_db):
     """Test that work queue includes blocked items."""
     queue = temp_sdk.get_work_queue(agent_id="test-agent", limit=100)
 
@@ -151,7 +151,7 @@ def test_get_work_queue_includes_blocked(temp_sdk):
     assert "blocked" in statuses or "todo" in statuses
 
 
-def test_work_next_basic(temp_sdk):
+def test_work_next_basic(temp_sdk, isolated_db):
     """Test getting next best task."""
     task = temp_sdk.work_next(agent_id="test-agent")
 
@@ -160,7 +160,7 @@ def test_work_next_basic(temp_sdk):
     assert task.status == "todo"
 
 
-def test_work_next_auto_claim(temp_sdk):
+def test_work_next_auto_claim(temp_sdk, isolated_db):
     """Test auto-claiming next task."""
     task = temp_sdk.work_next(agent_id="test-agent", auto_claim=True)
 
@@ -173,7 +173,7 @@ def test_work_next_auto_claim(temp_sdk):
     assert refetched.agent_assigned == "test-agent"
 
 
-def test_work_next_no_auto_claim(temp_sdk):
+def test_work_next_no_auto_claim(temp_sdk, isolated_db):
     """Test getting next task without auto-claiming."""
     task = temp_sdk.work_next(agent_id="test-agent", auto_claim=False)
 
@@ -185,7 +185,7 @@ def test_work_next_no_auto_claim(temp_sdk):
     assert refetched.status == "todo"
 
 
-def test_work_next_min_score(temp_sdk):
+def test_work_next_min_score(temp_sdk, isolated_db):
     """Test next task with minimum score threshold."""
     # High threshold might return None
     task = temp_sdk.work_next(agent_id="test-agent", min_score=1000.0)
@@ -196,7 +196,7 @@ def test_work_next_min_score(temp_sdk):
         assert isinstance(task, Node)
 
 
-def test_work_next_empty_queue(temp_sdk):
+def test_work_next_empty_queue(temp_sdk, isolated_db):
     """Test next task when no tasks available."""
     # Mark all tasks as done
     for feat in temp_sdk.features.all():
@@ -211,7 +211,7 @@ def test_work_next_empty_queue(temp_sdk):
     assert task is None
 
 
-def test_get_work_queue_empty(temp_sdk):
+def test_get_work_queue_empty(temp_sdk, isolated_db):
     """Test work queue when no tasks available."""
     # Mark all tasks as done
     for feat in temp_sdk.features.all():
@@ -226,7 +226,7 @@ def test_get_work_queue_empty(temp_sdk):
     assert len(queue) == 0
 
 
-def test_work_queue_priority_ordering(temp_sdk):
+def test_work_queue_priority_ordering(temp_sdk, isolated_db):
     """Test that high priority items get higher scores."""
     queue = temp_sdk.get_work_queue(agent_id="test-agent", limit=100)
 
@@ -245,7 +245,7 @@ def test_work_queue_priority_ordering(temp_sdk):
         assert len(high_priority) > 0
 
 
-def test_work_queue_with_dependencies(temp_sdk):
+def test_work_queue_with_dependencies(temp_sdk, isolated_db):
     """Test work queue shows dependency information."""
     from htmlgraph.ids import generate_id
     from htmlgraph.models import Edge, Node

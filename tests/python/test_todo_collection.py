@@ -8,19 +8,19 @@ from htmlgraph.models import Todo
 
 
 @pytest.fixture
-def sdk(tmp_path):
+def sdk(tmp_path, isolated_db):
     """Create SDK with temporary directory."""
     graph_dir = tmp_path / ".htmlgraph"
     graph_dir.mkdir()
     (graph_dir / "features").mkdir()
     (graph_dir / "todos").mkdir()
-    return SDK(agent="test-agent", directory=str(graph_dir))
+    return SDK(agent="test-agent", directory=str(graph_dir), db_path=str(isolated_db))
 
 
 class TestTodoModel:
     """Tests for Todo model."""
 
-    def test_todo_creation(self):
+    def test_todo_creation(self, isolated_db):
         """Test basic todo creation."""
         todo = Todo(
             id="todo-123",
@@ -32,7 +32,7 @@ class TestTodoModel:
         assert todo.active_form == "Running tests"
         assert todo.status == "pending"
 
-    def test_todo_start(self):
+    def test_todo_start(self, isolated_db):
         """Test starting a todo."""
         todo = Todo(
             id="todo-123",
@@ -43,7 +43,7 @@ class TestTodoModel:
         assert todo.status == "in_progress"
         assert todo.started_at is not None
 
-    def test_todo_complete(self):
+    def test_todo_complete(self, isolated_db):
         """Test completing a todo."""
         todo = Todo(
             id="todo-123",
@@ -57,7 +57,7 @@ class TestTodoModel:
         assert todo.completed_by == "test-agent"
         assert todo.duration_seconds is not None
 
-    def test_todo_to_context(self):
+    def test_todo_to_context(self, isolated_db):
         """Test context representation."""
         todo = Todo(id="todo-123", content="Run tests", active_form="Running tests")
         assert todo.to_context() == "[ ] Run tests"
@@ -68,7 +68,7 @@ class TestTodoModel:
         todo.complete()
         assert todo.to_context() == "[x] Run tests"
 
-    def test_todo_to_html(self):
+    def test_todo_to_html(self, isolated_db):
         """Test HTML serialization."""
         todo = Todo(
             id="todo-123",
@@ -85,7 +85,7 @@ class TestTodoModel:
         assert 'data-session-id="sess-456"' in html
         assert 'data-feature-id="feat-789"' in html
 
-    def test_todo_from_todowrite(self):
+    def test_todo_from_todowrite(self, isolated_db):
         """Test creating from TodoWrite format."""
         todowrite_dict = {
             "content": "Fix bug",
@@ -109,7 +109,7 @@ class TestTodoModel:
         assert todo.agent == "claude"
         assert todo.priority == 1
 
-    def test_todo_to_todowrite_format(self):
+    def test_todo_to_todowrite_format(self, isolated_db):
         """Test exporting to TodoWrite format."""
         todo = Todo(
             id="todo-123",
@@ -128,7 +128,7 @@ class TestTodoModel:
 class TestTodoCollection:
     """Tests for TodoCollection."""
 
-    def test_add_todo(self, sdk):
+    def test_add_todo(self, sdk, isolated_db):
         """Test adding a todo."""
         todo = sdk.todos.add("Run tests", "Running tests")
         assert todo.content == "Run tests"
@@ -141,7 +141,7 @@ class TestTodoCollection:
         assert loaded is not None
         assert loaded.content == "Run tests"
 
-    def test_list_todos(self, sdk):
+    def test_list_todos(self, sdk, isolated_db):
         """Test listing todos."""
         sdk.todos.add("Task 1", "Doing task 1")
         sdk.todos.add("Task 2", "Doing task 2")
@@ -150,7 +150,7 @@ class TestTodoCollection:
         all_todos = sdk.todos.all()
         assert len(all_todos) == 3
 
-    def test_filter_by_status(self, sdk):
+    def test_filter_by_status(self, sdk, isolated_db):
         """Test filtering by status."""
         t1 = sdk.todos.add("Task 1", "Doing task 1")
         t2 = sdk.todos.add("Task 2", "Doing task 2")
@@ -171,7 +171,7 @@ class TestTodoCollection:
         assert len(completed) == 1
         assert completed[0].id == t2.id
 
-    def test_start_todo(self, sdk):
+    def test_start_todo(self, sdk, isolated_db):
         """Test starting a todo."""
         todo = sdk.todos.add("Run tests", "Running tests")
         started = sdk.todos.start(todo.id)
@@ -180,7 +180,7 @@ class TestTodoCollection:
         assert started.status == "in_progress"
         assert started.started_at is not None
 
-    def test_complete_todo(self, sdk):
+    def test_complete_todo(self, sdk, isolated_db):
         """Test completing a todo."""
         todo = sdk.todos.add("Run tests", "Running tests")
         sdk.todos.start(todo.id)
@@ -190,7 +190,7 @@ class TestTodoCollection:
         assert completed.status == "completed"
         assert completed.completed_at is not None
 
-    def test_delete_todo(self, sdk):
+    def test_delete_todo(self, sdk, isolated_db):
         """Test deleting a todo."""
         todo = sdk.todos.add("Run tests", "Running tests")
         assert sdk.todos.get(todo.id) is not None
@@ -199,7 +199,7 @@ class TestTodoCollection:
         assert result is True
         assert sdk.todos.get(todo.id) is None
 
-    def test_clear_completed(self, sdk):
+    def test_clear_completed(self, sdk, isolated_db):
         """Test clearing completed todos."""
         t1 = sdk.todos.add("Task 1", "Doing task 1")
         t2 = sdk.todos.add("Task 2", "Doing task 2")
@@ -215,7 +215,7 @@ class TestTodoCollection:
         assert len(all_todos) == 1
         assert all_todos[0].id == t3.id
 
-    def test_sync_from_todowrite(self, sdk):
+    def test_sync_from_todowrite(self, sdk, isolated_db):
         """Test syncing from TodoWrite format."""
         todowrite_list = [
             {"content": "Task 1", "status": "pending", "activeForm": "Doing task 1"},
@@ -242,7 +242,7 @@ class TestTodoCollection:
         assert todos[2].status == "completed"
         assert todos[2].priority == 2
 
-    def test_to_todowrite_format(self, sdk):
+    def test_to_todowrite_format(self, sdk, isolated_db):
         """Test exporting to TodoWrite format."""
         sdk.todos.add("Task 1", "Doing task 1")
         t2 = sdk.todos.add("Task 2", "Doing task 2")
@@ -256,7 +256,7 @@ class TestTodoCollection:
         assert len(result) == 2
         assert all(t["status"] != "completed" for t in result)
 
-    def test_for_feature(self, sdk):
+    def test_for_feature(self, sdk, isolated_db):
         """Test filtering by feature."""
         sdk.todos.add("Task 1", "Doing task 1", feature_id="feat-123")
         sdk.todos.add("Task 2", "Doing task 2", feature_id="feat-123")
@@ -266,7 +266,7 @@ class TestTodoCollection:
         assert len(feature_todos) == 2
         assert all(t.feature_id == "feat-123" for t in feature_todos)
 
-    def test_summary(self, sdk):
+    def test_summary(self, sdk, isolated_db):
         """Test summary statistics."""
         t1 = sdk.todos.add("Task 1", "Doing task 1")
         t2 = sdk.todos.add("Task 2", "Doing task 2")
@@ -282,7 +282,7 @@ class TestTodoCollection:
         assert summary["completed"] == 1
         assert summary["completion_rate"] == pytest.approx(1 / 3)
 
-    def test_priority_ordering(self, sdk):
+    def test_priority_ordering(self, sdk, isolated_db):
         """Test that todos are ordered by priority."""
         sdk.todos.add("Task 3", "Doing task 3")  # priority 0
         sdk.todos.add("Task 1", "Doing task 1")  # priority 1
@@ -293,15 +293,15 @@ class TestTodoCollection:
         assert all_todos[1].priority == 1
         assert all_todos[2].priority == 2
 
-    def test_persistence_across_reloads(self, sdk, tmp_path):
+    def test_persistence_across_reloads(self, sdk, tmp_path, isolated_db):
         """Test that todos persist across SDK reloads."""
         # Add todos
         todo1 = sdk.todos.add("Task 1", "Doing task 1")
         sdk.todos.start(todo1.id)
 
-        # Create new SDK instance
+        # Create new SDK instance using same directory as first SDK
         graph_dir = tmp_path / ".htmlgraph"
-        sdk2 = SDK(agent="test-agent", directory=str(graph_dir))
+        sdk2 = SDK(agent="test-agent", directory=str(graph_dir), db_path=str(isolated_db))
 
         # Force reload by clearing cache
         sdk2.todos._todos = None

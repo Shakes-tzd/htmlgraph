@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from htmlgraph import SDK
@@ -15,9 +16,9 @@ from htmlgraph.event_log import JsonlEventLog
 
 
 @pytest.fixture
-def temp_repo(tmp_path):
+def temp_repo(isolated_graph_dir_full: Path, isolated_db: Path):
     """Create a temporary Git repository with HtmlGraph structure."""
-    repo_path = tmp_path / "test_repo"
+    repo_path = isolated_graph_dir_full / "test_repo"
     repo_path.mkdir()
 
     # Initialize Git repo
@@ -59,12 +60,12 @@ def temp_repo(tmp_path):
 
 
 @pytest.fixture
-def sdk_with_commits(temp_repo):
+def sdk_with_commits(temp_repo, isolated_db):
     """Create SDK with events linked to Git commits."""
     import subprocess
 
     graph_dir = temp_repo / ".htmlgraph"
-    sdk = SDK(directory=graph_dir, agent="test")
+    sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
 
     # Get initial commit hash
     result = subprocess.run(
@@ -203,7 +204,8 @@ def sdk_with_commits(temp_repo):
 class TestCrossSessionAnalytics:
     """Test CrossSessionAnalytics class."""
 
-    def test_initialization(self, sdk_with_commits):
+    def test_initialization(self, sdk_with_commits, isolated_db):
+
         """Test that CrossSessionAnalytics initializes correctly."""
         sdk, _, _ = sdk_with_commits
 
@@ -213,7 +215,8 @@ class TestCrossSessionAnalytics:
         assert analytics._event_log is not None
         assert analytics._repo_root is not None
 
-    def test_work_in_commit_range_all_commits(self, sdk_with_commits):
+    def test_work_in_commit_range_all_commits(self, sdk_with_commits, isolated_db):
+
         """Test getting work for all commits."""
         sdk, temp_repo, commits = sdk_with_commits
 
@@ -227,7 +230,8 @@ class TestCrossSessionAnalytics:
         assert "session-001" in report.sessions
         assert "session-002" in report.sessions
 
-    def test_work_in_commit_range_specific_range(self, sdk_with_commits):
+    def test_work_in_commit_range_specific_range(self, sdk_with_commits, isolated_db):
+
         """Test getting work for specific commit range."""
         sdk, temp_repo, commits = sdk_with_commits
 
@@ -242,7 +246,8 @@ class TestCrossSessionAnalytics:
         assert report.from_commit == commits[0]
         assert report.to_commit == "HEAD"
 
-    def test_sessions_for_feature(self, sdk_with_commits):
+    def test_sessions_for_feature(self, sdk_with_commits, isolated_db):
+
         """Test finding sessions that worked on a feature."""
         sdk, _, _ = sdk_with_commits
 
@@ -254,7 +259,8 @@ class TestCrossSessionAnalytics:
         assert "session-002" in sessions
         assert isinstance(sessions, list)
 
-    def test_sessions_for_feature_nonexistent(self, sdk_with_commits):
+    def test_sessions_for_feature_nonexistent(self, sdk_with_commits, isolated_db):
+
         """Test finding sessions for nonexistent feature."""
         sdk, _, _ = sdk_with_commits
 
@@ -264,7 +270,8 @@ class TestCrossSessionAnalytics:
 
         assert sessions == []
 
-    def test_feature_cross_session_report(self, sdk_with_commits):
+    def test_feature_cross_session_report(self, sdk_with_commits, isolated_db):
+
         """Test generating cross-session report for a feature."""
         sdk, _, commits = sdk_with_commits
 
@@ -280,7 +287,8 @@ class TestCrossSessionAnalytics:
         assert report.event_count >= 1
         assert "feature-implementation" in report.work_type_distribution
 
-    def test_feature_cross_session_report_calculates_duration(self, sdk_with_commits):
+    def test_feature_cross_session_report_calculates_duration(self, sdk_with_commits, isolated_db):
+
         """Test that feature report calculates duration correctly."""
         sdk, _, _ = sdk_with_commits
 
@@ -293,7 +301,8 @@ class TestCrossSessionAnalytics:
         assert report.duration_hours is not None
         assert report.duration_hours >= 0
 
-    def test_work_by_author(self, sdk_with_commits):
+    def test_work_by_author(self, sdk_with_commits, isolated_db):
+
         """Test analyzing work by author."""
         sdk, _, _ = sdk_with_commits
 
@@ -308,7 +317,8 @@ class TestCrossSessionAnalytics:
         assert "feature-hello" in author_stats["features"]
         assert len(author_stats["sessions"]) >= 2
 
-    def test_work_by_author_filtered(self, sdk_with_commits):
+    def test_work_by_author_filtered(self, sdk_with_commits, isolated_db):
+
         """Test filtering work by specific author."""
         sdk, _, _ = sdk_with_commits
 
@@ -319,7 +329,8 @@ class TestCrossSessionAnalytics:
         assert len(authors) == 1
         assert "test@example.com" in authors
 
-    def test_work_by_author_since_commit(self, sdk_with_commits):
+    def test_work_by_author_since_commit(self, sdk_with_commits, isolated_db):
+
         """Test analyzing work since a specific commit."""
         sdk, _, commits = sdk_with_commits
 
@@ -330,7 +341,8 @@ class TestCrossSessionAnalytics:
 
         assert "test@example.com" in authors
 
-    def test_commits_for_session(self, sdk_with_commits):
+    def test_commits_for_session(self, sdk_with_commits, isolated_db):
+
         """Test getting commits for a session."""
         sdk, _, commits = sdk_with_commits
 
@@ -341,7 +353,8 @@ class TestCrossSessionAnalytics:
         assert len(session_commits) >= 1
         assert commits[1] in session_commits
 
-    def test_commits_for_session_nonexistent(self, sdk_with_commits):
+    def test_commits_for_session_nonexistent(self, sdk_with_commits, isolated_db):
+
         """Test getting commits for nonexistent session."""
         sdk, _, _ = sdk_with_commits
 
@@ -351,7 +364,8 @@ class TestCrossSessionAnalytics:
 
         assert session_commits == []
 
-    def test_commit_work_summary_structure(self, sdk_with_commits):
+    def test_commit_work_summary_structure(self, sdk_with_commits, isolated_db):
+
         """Test that CommitWorkSummary has correct structure."""
         sdk, _, _ = sdk_with_commits
 
@@ -373,15 +387,11 @@ class TestCrossSessionAnalytics:
 class TestCrossSessionAnalyticsEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_empty_repository(self, tmp_path):
+    def test_empty_repository(self, isolated_graph_dir_full, isolated_db):
         """Test analytics on empty repository."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         analytics = sdk.cross_session_analytics
 
         # Should not crash, just return empty results
@@ -391,29 +401,21 @@ class TestCrossSessionAnalyticsEdgeCases:
         assert report.features == []
         assert report.sessions == []
 
-    def test_no_git_repository(self, tmp_path):
+    def test_no_git_repository(self, isolated_graph_dir_full, isolated_db):
         """Test analytics when not in a Git repository."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         analytics = sdk.cross_session_analytics
 
         # Should handle gracefully
         assert analytics._repo_root is None
 
-    def test_events_without_commits(self, tmp_path):
+    def test_events_without_commits(self, isolated_graph_dir_full, isolated_db):
         """Test handling events that don't have commit hashes."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
 
         # Create events without commit hashes
         JsonlEventLog(graph_dir / "events")
@@ -453,27 +455,19 @@ class TestCrossSessionAnalyticsEdgeCases:
 class TestCrossSessionAnalyticsIntegration:
     """Integration tests with SDK."""
 
-    def test_sdk_has_cross_session_analytics_property(self, tmp_path):
+    def test_sdk_has_cross_session_analytics_property(self, isolated_graph_dir_full, isolated_db):
         """Test that SDK has cross_session_analytics property."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
 
         assert hasattr(sdk, "cross_session_analytics")
         assert isinstance(sdk.cross_session_analytics, CrossSessionAnalytics)
 
-    def test_cross_session_analytics_has_sdk_reference(self, tmp_path):
+    def test_cross_session_analytics_has_sdk_reference(self, isolated_graph_dir_full, isolated_db):
         """Test that CrossSessionAnalytics has reference to SDK."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
 
         assert sdk.cross_session_analytics.sdk is sdk

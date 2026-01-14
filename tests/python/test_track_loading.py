@@ -29,7 +29,7 @@ def temp_graph_dir():
     shutil.rmtree(tmpdir)
 
 
-def test_load_directory_based_track(temp_graph_dir):
+def test_load_directory_based_track(temp_graph_dir, isolated_db):
     """Test that directory-based tracks (track-xxx/index.html) are loaded correctly."""
     # Create a directory-based track
     track_dir = temp_graph_dir / "tracks" / "track-test-001"
@@ -62,7 +62,7 @@ def test_load_directory_based_track(temp_graph_dir):
     (track_dir / "index.html").write_text(track_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test that the track is loaded
     all_tracks = sdk.tracks.all()
@@ -75,7 +75,7 @@ def test_load_directory_based_track(temp_graph_dir):
     assert track.priority == "high"
 
 
-def test_load_file_based_track(temp_graph_dir):
+def test_load_file_based_track(temp_graph_dir, isolated_db):
     """Test that single-file tracks (track-xxx.html) still work."""
     # Create a file-based track (using valid Node status values)
     track_html = """<!DOCTYPE html>
@@ -105,7 +105,7 @@ def test_load_file_based_track(temp_graph_dir):
     (temp_graph_dir / "tracks" / "track-file-001.html").write_text(track_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test that the track is loaded
     all_tracks = sdk.tracks.all()
@@ -118,7 +118,7 @@ def test_load_file_based_track(temp_graph_dir):
     assert track.priority == "medium"
 
 
-def test_load_mixed_tracks(temp_graph_dir):
+def test_load_mixed_tracks(temp_graph_dir, isolated_db):
     """Test that both file-based and directory-based tracks can coexist."""
     # Create directory-based track
     track_dir = temp_graph_dir / "tracks" / "track-dir-001"
@@ -168,7 +168,7 @@ def test_load_mixed_tracks(temp_graph_dir):
     (temp_graph_dir / "tracks" / "track-file-002.html").write_text(file_track_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test that both tracks are loaded
     all_tracks = sdk.tracks.all()
@@ -179,7 +179,7 @@ def test_load_mixed_tracks(temp_graph_dir):
     assert "track-file-002" in track_ids
 
 
-def test_track_where_query(temp_graph_dir):
+def test_track_where_query(temp_graph_dir, isolated_db):
     """Test that where() query works with directory-based tracks."""
     # Create multiple tracks
     track_dir1 = temp_graph_dir / "tracks" / "track-001"
@@ -223,7 +223,7 @@ def test_track_where_query(temp_graph_dir):
     (track_dir2 / "index.html").write_text(track2_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test where query
     active_tracks = sdk.tracks.where(status="active")
@@ -239,7 +239,7 @@ def test_track_where_query(temp_graph_dir):
     assert todo_tracks[0].id == "track-002"
 
 
-def test_track_get_by_id(temp_graph_dir):
+def test_track_get_by_id(temp_graph_dir, isolated_db):
     """Test that get() works with directory-based tracks."""
     # Create directory-based track
     track_dir = temp_graph_dir / "tracks" / "track-get-test"
@@ -263,7 +263,7 @@ def test_track_get_by_id(temp_graph_dir):
     (track_dir / "index.html").write_text(track_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test get
     track = sdk.tracks.get("track-get-test")
@@ -273,7 +273,7 @@ def test_track_get_by_id(temp_graph_dir):
     assert track.status == "active"
 
 
-def test_track_edit_context_manager(temp_graph_dir):
+def test_track_edit_context_manager(temp_graph_dir, isolated_db):
     """Test that edit() context manager works for tracks."""
     # Create directory-based track
     track_dir = temp_graph_dir / "tracks" / "track-edit-test"
@@ -297,7 +297,7 @@ def test_track_edit_context_manager(temp_graph_dir):
     (track_dir / "index.html").write_text(track_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test edit context manager
     with sdk.tracks.edit("track-edit-test") as track:
@@ -317,12 +317,12 @@ def test_track_edit_context_manager(temp_graph_dir):
     assert track.title == "Updated Track Title"
 
 
-def test_track_edit_nonexistent_track(temp_graph_dir):
+def test_track_edit_nonexistent_track(temp_graph_dir, isolated_db):
     """Test that edit() raises NodeNotFoundError for nonexistent tracks."""
     from htmlgraph.exceptions import NodeNotFoundError
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Try to edit a nonexistent track
     with pytest.raises(NodeNotFoundError) as exc_info:
@@ -334,7 +334,7 @@ def test_track_edit_nonexistent_track(temp_graph_dir):
     assert "track-nonexistent" in str(exc_info.value)
 
 
-def test_track_edit_file_based(temp_graph_dir):
+def test_track_edit_file_based(temp_graph_dir, isolated_db):
     """Test that edit() works with file-based tracks."""
     # Create file-based track
     track_html = """<!DOCTYPE html>
@@ -355,7 +355,7 @@ def test_track_edit_file_based(temp_graph_dir):
     (temp_graph_dir / "tracks" / "track-file-edit.html").write_text(track_html)
 
     # Initialize SDK
-    sdk = SDK(directory=temp_graph_dir)
+    sdk = SDK(directory=temp_graph_dir, db_path=str(isolated_db))
 
     # Test edit on file-based track
     with sdk.tracks.edit("track-file-edit") as track:

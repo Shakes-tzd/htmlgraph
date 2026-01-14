@@ -11,7 +11,7 @@ from htmlgraph import SDK
 
 def main():
     # Initialize SDK with explicit agent name
-    sdk = SDK(agent="codex-delegation-test-run2")
+    sdk = SDK(agent="codex-delegation-test-run2", db_path=str(isolated_db))
 
     print("Creating delegation test features...")
 
@@ -131,3 +131,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

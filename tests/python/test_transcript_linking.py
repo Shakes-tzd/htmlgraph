@@ -72,7 +72,7 @@ class TestLinkTranscriptToFeature:
         assert edges[0].properties.get("tool_count") == 42
         assert edges[0].properties.get("duration_seconds") == 300
 
-    def test_link_does_not_duplicate(self, temp_graph_dir, mock_transcript_session):
+    def test_link_does_not_duplicate(self, temp_graph_dir, mock_transcript_session, isolated_db):
         """Linking the same transcript twice should not create duplicate edges."""
         from htmlgraph.models import Edge, Node
         from htmlgraph.session_manager import SessionManager
@@ -104,7 +104,7 @@ class TestLinkTranscriptToFeature:
         edges = node.edges.get("implemented-by", [])
         assert len(edges) == 1
 
-    def test_link_aggregates_analytics(self, temp_graph_dir, mock_transcript_session):
+    def test_link_aggregates_analytics(self, temp_graph_dir, mock_transcript_session, isolated_db):
         """Linking should add transcript analytics to feature properties."""
         from htmlgraph.models import Node
         from htmlgraph.session_manager import SessionManager
@@ -133,13 +133,13 @@ class TestLinkTranscriptToFeature:
 class TestCompleteWithTranscript:
     """Tests for features.complete() with transcript_id parameter."""
 
-    def test_complete_with_transcript_id(self, temp_graph_dir):
+    def test_complete_with_transcript_id(self, temp_graph_dir, isolated_db):
         """Completing a feature with transcript_id should link the transcript."""
         from unittest.mock import MagicMock, patch
 
         from htmlgraph import SDK
 
-        sdk = SDK(directory=temp_graph_dir, agent="test-agent")
+        sdk = SDK(directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db))
 
         # Create track and feature
         track = sdk.tracks.create("Test Track").save()
@@ -168,14 +168,14 @@ class TestCompleteWithTranscript:
 class TestParallelWorkflowLinkTranscripts:
     """Tests for ParallelWorkflow.link_transcripts()"""
 
-    def test_link_transcripts_success(self, temp_graph_dir):
+    def test_link_transcripts_success(self, temp_graph_dir, isolated_db):
         """link_transcripts should link multiple features to transcripts."""
         from unittest.mock import MagicMock, patch
 
         from htmlgraph import SDK
         from htmlgraph.parallel import ParallelWorkflow
 
-        sdk = SDK(directory=temp_graph_dir, agent="test-agent")
+        sdk = SDK(directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db))
         workflow = ParallelWorkflow(sdk)
 
         # Create track and test features
@@ -202,12 +202,12 @@ class TestParallelWorkflowLinkTranscripts:
         assert result["failed_count"] == 0
         assert len(result["linked"]) == 2
 
-    def test_link_transcripts_feature_not_found(self, temp_graph_dir):
+    def test_link_transcripts_feature_not_found(self, temp_graph_dir, isolated_db):
         """link_transcripts should handle missing features gracefully."""
         from htmlgraph import SDK
         from htmlgraph.parallel import ParallelWorkflow
 
-        sdk = SDK(directory=temp_graph_dir, agent="test-agent")
+        sdk = SDK(directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db))
         workflow = ParallelWorkflow(sdk)
 
         result = workflow.link_transcripts(
@@ -224,7 +224,7 @@ class TestParallelWorkflowLinkTranscripts:
 class TestEventPayloadTranscriptId:
     """Tests for transcript_id in event payloads."""
 
-    def test_complete_logs_transcript_id_in_payload(self, temp_graph_dir):
+    def test_complete_logs_transcript_id_in_payload(self, temp_graph_dir, isolated_db):
         """FeatureComplete event should include transcript_id in payload."""
         from datetime import datetime
         from unittest.mock import MagicMock, patch

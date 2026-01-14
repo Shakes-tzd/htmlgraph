@@ -12,20 +12,10 @@ from htmlgraph import SDK, Node, Step
 
 
 @pytest.fixture
-def sdk(tmp_path: Path):
+def sdk(isolated_graph_dir_full: Path, isolated_db: Path):
     """Create a temporary SDK instance."""
-    graph_dir = tmp_path / ".htmlgraph"
-    graph_dir.mkdir()
-
-    # Create required subdirectories
-    (graph_dir / "features").mkdir()
-    (graph_dir / "bugs").mkdir()
-    (graph_dir / "spikes").mkdir()
-    (graph_dir / "chores").mkdir()
-    (graph_dir / "epics").mkdir()
-    (graph_dir / "sessions").mkdir()
-
-    return SDK(directory=graph_dir, agent="test-agent")
+    # isolated_graph_dir_full already has all required subdirectories
+    return SDK(directory=isolated_graph_dir_full, agent="test-agent", db_path=str(isolated_db))
 
 
 def test_get_active_work_item_no_items(sdk: SDK):
@@ -314,3 +304,4 @@ def test_get_active_work_item_auto_spike_deprioritized(sdk: SDK):
     assert result["type"] == "spike"
     assert result["id"] == real_spike.id  # Real spike, not auto-spike
     assert result.get("auto_generated") is False
+

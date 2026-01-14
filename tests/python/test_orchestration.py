@@ -46,7 +46,7 @@ def test_get_results_by_task_id_timeout(tmp_path):
     """Test timeout behavior when results not found."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test")
+    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test", db_path=str(isolated_db))
 
     # Search for non-existent task ID with short timeout
     results = get_results_by_task_id(
@@ -63,7 +63,7 @@ def test_get_results_by_task_id_success(tmp_path):
     """Test successful result retrieval."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test")
+    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test", db_path=str(isolated_db))
 
     # Create spike with task ID in title
     task_id = "task-test1234"
@@ -87,7 +87,7 @@ def test_get_results_by_task_id_partial_match(tmp_path):
     """Test task ID can appear anywhere in title."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test")
+    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test", db_path=str(isolated_db))
 
     # Create spike with task ID in middle of title
     task_id = "task-abc123"
@@ -105,7 +105,7 @@ def test_get_results_by_task_id_first_match(tmp_path):
     """Test returns first matching spike if multiple exist."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test")
+    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test", db_path=str(isolated_db))
 
     # Create multiple spikes with same task ID
     task_id = "task-duplicate"
@@ -134,7 +134,7 @@ def test_get_results_by_task_id_polling_behavior(tmp_path):
 
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test")
+    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="test", db_path=str(isolated_db))
     task_id = "task-delayed"
 
     # Create spike after 2 seconds in background thread
@@ -160,7 +160,7 @@ def test_parallel_delegate_structure(tmp_path):
     """Test parallel_delegate returns expected structure."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="orchestrator")
+    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="orchestrator", db_path=str(isolated_db))
 
     # Note: This test doesn't actually spawn tasks (no Task tool available in tests)
     # It just validates the structure and task ID generation

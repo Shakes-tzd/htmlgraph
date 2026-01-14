@@ -18,10 +18,9 @@ from htmlgraph.session_manager import SessionManager
 class TestFullLifecycle:
     """Test complete feature→session→spike lifecycle."""
 
-    def test_single_feature_lifecycle(self, tmp_path):
+    def test_single_feature_lifecycle(self, isolated_graph_dir_full, isolated_db):
         """Test complete lifecycle with a single feature."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -63,10 +62,9 @@ class TestFullLifecycle:
         assert final_session.status == "ended"
         assert final_session.ended_at is not None
 
-    def test_multi_feature_lifecycle(self, tmp_path):
+    def test_multi_feature_lifecycle(self, isolated_graph_dir_full, isolated_db):
         """Test lifecycle with multiple features in sequence."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -140,10 +138,9 @@ class TestFullLifecycle:
         assert feature2.id in final_session.worked_on
         assert feature3.id in final_session.worked_on
 
-    def test_session_with_parallel_features(self, tmp_path):
+    def test_session_with_parallel_features(self, isolated_graph_dir_full, isolated_db):
         """Test lifecycle with multiple features in parallel (WIP limit)."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir, wip_limit=3)
 
@@ -173,10 +170,9 @@ class TestFullLifecycle:
         transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
         assert len(transition_spikes) == 3
 
-    def test_activity_attribution_with_spikes(self, tmp_path):
+    def test_activity_attribution_with_spikes(self, isolated_graph_dir_full, isolated_db):
         """Test that activities are correctly attributed to features after spike completion."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -212,10 +208,9 @@ class TestFullLifecycle:
         edit_activity = [a for a in reloaded.activity_log if a.tool == "Edit"][0]
         assert edit_activity.feature_id == feature.id
 
-    def test_session_continuity_with_spikes(self, tmp_path):
+    def test_session_continuity_with_spikes(self, isolated_graph_dir_full, isolated_db):
         """Test that spikes work correctly across session continuity."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -243,10 +238,9 @@ class TestFullLifecycle:
         assert len(session1_spikes) == 1
         assert len(session2_spikes) == 1
 
-    def test_transcript_integration_lifecycle(self, tmp_path):
+    def test_transcript_integration_lifecycle(self, isolated_graph_dir_full, isolated_db):
         """Test that transcript fields are preserved through lifecycle."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -262,7 +256,7 @@ class TestFullLifecycle:
         )
 
         # Do some work
-        sdk = SDK(directory=graph_dir, agent="test-agent")
+        sdk = SDK(directory=graph_dir, agent="test-agent", db_path=str(isolated_db))
         track = sdk.tracks.create("Test Track").save()
         feature = sdk.features.create("Test Feature").set_track(track.id).save()
         manager.start_feature(feature.id, agent="test-agent")
@@ -282,10 +276,9 @@ class TestFullLifecycle:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_no_features_only_spikes(self, tmp_path):
+    def test_no_features_only_spikes(self, isolated_graph_dir_full, isolated_db):
         """Test session with no regular features, only auto-spikes."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -305,10 +298,9 @@ class TestEdgeCases:
         # Still in-progress since no feature was started
         assert init_spikes[0].status == "in-progress"
 
-    def test_feature_start_without_session(self, tmp_path):
+    def test_feature_start_without_session(self, isolated_graph_dir_full, isolated_db):
         """Test that feature start without active session still works."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
@@ -327,10 +319,9 @@ class TestEdgeCases:
         assert len(active) >= 1
         assert feature.id in active[0].worked_on
 
-    def test_spike_persistence_across_reloads(self, tmp_path):
+    def test_spike_persistence_across_reloads(self, isolated_graph_dir_full, isolated_db):
         """Test that spikes persist correctly when reloading from disk."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
+        graph_dir = isolated_graph_dir_full
 
         # Create session and feature with one manager instance
         manager1 = SessionManager(graph_dir)

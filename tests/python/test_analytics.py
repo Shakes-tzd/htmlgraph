@@ -11,28 +11,16 @@ from htmlgraph.models import Session
 class TestAnalyticsIntegration:
     """Test Analytics integration with SDK."""
 
-    def test_sdk_has_analytics_property(self, tmp_path):
+    def test_sdk_has_analytics_property(self, isolated_graph_dir, isolated_db):
         """Test that SDK has analytics property."""
-        # Create minimal .htmlgraph structure
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
-
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=isolated_graph_dir, agent="test", db_path=str(isolated_db))
 
         assert hasattr(sdk, "analytics")
         assert isinstance(sdk.analytics, Analytics)
 
-    def test_analytics_has_sdk_reference(self, tmp_path):
+    def test_analytics_has_sdk_reference(self, isolated_graph_dir, isolated_db):
         """Test that Analytics has reference to SDK."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=isolated_graph_dir, agent="test", db_path=str(isolated_db))
 
         assert sdk.analytics.sdk is sdk
 
@@ -41,14 +29,10 @@ class TestWorkTypeDistribution:
     """Test work_type_distribution() method."""
 
     @pytest.fixture
-    def sdk_with_events(self, tmp_path):
+    def sdk_with_events(self, isolated_graph_dir_full, isolated_db):
         """Create SDK with mock events."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         # Create session
         session_id = "test-session-001"
@@ -87,7 +71,7 @@ class TestWorkTypeDistribution:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         return sdk, session_id
 
     def test_distribution_for_session(self, sdk_with_events):
@@ -102,27 +86,17 @@ class TestWorkTypeDistribution:
         assert dist[WorkType.SPIKE.value] == pytest.approx(33.33, rel=0.1)
         assert dist[WorkType.MAINTENANCE.value] == pytest.approx(16.67, rel=0.1)
 
-    def test_distribution_empty_session(self, tmp_path):
+    def test_distribution_empty_session(self, isolated_graph_dir_full, isolated_db):
         """Test distribution for session with no events."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
-
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=isolated_graph_dir_full, agent="test", db_path=str(isolated_db))
         dist = sdk.analytics.work_type_distribution(session_id="nonexistent")
 
         assert dist == {}
 
-    def test_distribution_ignores_events_without_work_type(self, tmp_path):
+    def test_distribution_ignores_events_without_work_type(self, isolated_graph_dir_full, isolated_db):
         """Test that events without work_type are ignored."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         session_id = "test-session-002"
         events = [
@@ -154,7 +128,7 @@ class TestWorkTypeDistribution:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         dist = sdk.analytics.work_type_distribution(session_id=session_id)
 
         # Only 2 events have work_type, so they're 50% each
@@ -166,14 +140,10 @@ class TestSpikeToFeatureRatio:
     """Test spike_to_feature_ratio() method."""
 
     @pytest.fixture
-    def sdk_with_mixed_work(self, tmp_path):
+    def sdk_with_mixed_work(self, isolated_graph_dir_full, isolated_db):
         """Create SDK with mixed spike and feature events."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         session_id = "test-session-003"
         events = [
@@ -207,7 +177,7 @@ class TestSpikeToFeatureRatio:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         return sdk, session_id
 
     def test_spike_to_feature_ratio(self, sdk_with_mixed_work):
@@ -219,14 +189,10 @@ class TestSpikeToFeatureRatio:
         # 3 spike, 2 feature = 3/2 = 1.5
         assert ratio == pytest.approx(1.5, rel=0.01)
 
-    def test_ratio_with_no_features(self, tmp_path):
+    def test_ratio_with_no_features(self, isolated_graph_dir_full, isolated_db):
         """Test ratio when there are no feature events."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         session_id = "test-session-004"
         events = [
@@ -256,21 +222,17 @@ class TestSpikeToFeatureRatio:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         ratio = sdk.analytics.spike_to_feature_ratio(session_id=session_id)
 
         # No features = return 0.0
         assert ratio == 0.0
 
-    def test_ratio_empty_session(self, tmp_path):
+    def test_ratio_empty_session(self, isolated_graph_dir_full, isolated_db):
         """Test ratio for empty session."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         ratio = sdk.analytics.spike_to_feature_ratio(session_id="nonexistent")
 
         assert ratio == 0.0
@@ -280,14 +242,10 @@ class TestMaintenanceBurden:
     """Test maintenance_burden() method."""
 
     @pytest.fixture
-    def sdk_with_maintenance(self, tmp_path):
+    def sdk_with_maintenance(self, isolated_graph_dir_full, isolated_db):
         """Create SDK with maintenance events."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         session_id = "test-session-005"
         events = [
@@ -321,7 +279,7 @@ class TestMaintenanceBurden:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         return sdk, session_id
 
     def test_maintenance_burden_calculation(self, sdk_with_maintenance):
@@ -333,14 +291,10 @@ class TestMaintenanceBurden:
         # 2 maintenance out of 6 total = 33.33%
         assert burden == pytest.approx(33.33, rel=0.1)
 
-    def test_burden_with_no_maintenance(self, tmp_path):
+    def test_burden_with_no_maintenance(self, isolated_graph_dir_full, isolated_db):
         """Test burden when there's no maintenance work."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         session_id = "test-session-006"
         events = [
@@ -370,20 +324,16 @@ class TestMaintenanceBurden:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         burden = sdk.analytics.maintenance_burden(session_id=session_id)
 
         assert burden == 0.0
 
-    def test_burden_empty_session(self, tmp_path):
+    def test_burden_empty_session(self, isolated_graph_dir_full, isolated_db):
         """Test burden for empty session."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
-        (graph_dir / "events").mkdir()
+        graph_dir = isolated_graph_dir_full
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         burden = sdk.analytics.maintenance_burden(session_id="nonexistent")
 
         assert burden == 0.0
@@ -393,14 +343,10 @@ class TestSessionFiltering:
     """Test get_sessions_by_work_type() method."""
 
     @pytest.fixture
-    def sdk_with_sessions(self, tmp_path):
+    def sdk_with_sessions(self, isolated_graph_dir_full, isolated_db):
         """Create SDK with multiple sessions."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
+        graph_dir = isolated_graph_dir_full
         sessions_dir = graph_dir / "sessions"
-        sessions_dir.mkdir()
-        (graph_dir / "events").mkdir()
 
         # Create sessions with different primary work types
         from htmlgraph.converter import session_to_html
@@ -431,7 +377,7 @@ class TestSessionFiltering:
         for session in sessions:
             session_to_html(session, sessions_dir / f"{session.id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         return sdk
 
     def test_filter_by_spike_work_type(self, sdk_with_sessions):
@@ -470,14 +416,10 @@ class TestSessionWorkBreakdownMethods:
     """Test session work breakdown convenience methods."""
 
     @pytest.fixture
-    def sdk_with_session(self, tmp_path):
+    def sdk_with_session(self, isolated_graph_dir_full, isolated_db):
         """Create SDK with a session that has events."""
-        graph_dir = tmp_path / ".htmlgraph"
-        graph_dir.mkdir()
-        (graph_dir / "features").mkdir()
-        (graph_dir / "sessions").mkdir()
+        graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"
-        events_dir.mkdir()
 
         session_id = "test-session-007"
         events = [
@@ -508,7 +450,7 @@ class TestSessionWorkBreakdownMethods:
         session = Session(id=session_id, agent="test", event_count=len(events))
         session_to_html(session, graph_dir / "sessions" / f"{session_id}.html")
 
-        sdk = SDK(directory=graph_dir, agent="test")
+        sdk = SDK(directory=graph_dir, agent="test", db_path=str(isolated_db))
         return sdk, session_id
 
     def test_calculate_session_work_breakdown(self, sdk_with_session):

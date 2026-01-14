@@ -29,7 +29,7 @@ def temp_graph_dir():
 
 
 @pytest.fixture
-def sdk_with_feature(temp_graph_dir):
+def sdk_with_feature(temp_graph_dir, isolated_db):
     """Create SDK with an in-progress feature."""
     from htmlgraph import HtmlGraph
 
@@ -38,7 +38,7 @@ def sdk_with_feature(temp_graph_dir):
     features_dir.mkdir(parents=True, exist_ok=True)
 
     graph = HtmlGraph(features_dir)
-    sdk = SDK(directory=temp_graph_dir, agent="claude")
+    sdk = SDK(directory=temp_graph_dir, agent="claude", db_path=str(isolated_db))
 
     # Create an in-progress feature
     feature = Node(
@@ -56,23 +56,23 @@ def sdk_with_feature(temp_graph_dir):
 
 
 @pytest.fixture
-def empty_sdk(temp_graph_dir):
+def empty_sdk(temp_graph_dir, isolated_db):
     """Create SDK with no work items."""
-    sdk = SDK(directory=temp_graph_dir, agent="claude")
+    sdk = SDK(directory=temp_graph_dir, agent="claude", db_path=str(isolated_db))
     return sdk
 
 
 class TestActiveWorkItemInSessionStartInfo:
     """Tests for active_work field in session start info."""
 
-    def test_session_start_info_includes_active_work_field(self, empty_sdk):
+    def test_session_start_info_includes_active_work_field(self, empty_sdk, isolated_db):
         """Test that session start info always includes active_work field."""
         info = empty_sdk.get_session_start_info()
 
         assert "active_work" in info
         assert info["active_work"] is None
 
-    def test_session_start_info_with_active_feature(self, sdk_with_feature):
+    def test_session_start_info_with_active_feature(self, sdk_with_feature, isolated_db):
         """Test that session start info includes active work item when available."""
         sdk, _ = sdk_with_feature
 
@@ -84,7 +84,7 @@ class TestActiveWorkItemInSessionStartInfo:
         assert info["active_work"]["type"] == "feature"
         assert info["active_work"]["status"] == "in-progress"
 
-    def test_session_start_info_all_sections_present(self, empty_sdk):
+    def test_session_start_info_all_sections_present(self, empty_sdk, isolated_db):
         """Test that all expected sections are in session start info."""
         info = empty_sdk.get_session_start_info()
 
@@ -93,7 +93,7 @@ class TestActiveWorkItemInSessionStartInfo:
         for key in expected_keys:
             assert key in info, f"Missing key: {key}"
 
-    def test_session_start_info_json_serializable(self, sdk_with_feature):
+    def test_session_start_info_json_serializable(self, sdk_with_feature, isolated_db):
         """Test that active_work serializes correctly to JSON."""
         sdk, _ = sdk_with_feature
 
@@ -111,12 +111,12 @@ class TestActiveWorkItemInSessionStartInfo:
 class TestGetActiveWorkItem:
     """Tests for get_active_work_item() SDK method."""
 
-    def test_get_active_work_returns_none_when_empty(self, empty_sdk):
+    def test_get_active_work_returns_none_when_empty(self, empty_sdk, isolated_db):
         """Test that get_active_work_item returns None when no active work."""
         active = empty_sdk.get_active_work_item()
         assert active is None
 
-    def test_active_work_item_structure(self, sdk_with_feature):
+    def test_active_work_item_structure(self, sdk_with_feature, isolated_db):
         """Test that active work item has expected fields."""
         sdk, _ = sdk_with_feature
 
@@ -126,7 +126,7 @@ class TestGetActiveWorkItem:
         for field in expected_fields:
             assert field in active, f"Missing field: {field}"
 
-    def test_active_work_item_includes_steps(self, sdk_with_feature):
+    def test_active_work_item_includes_steps(self, sdk_with_feature, isolated_db):
         """Test that active work item includes step counts."""
         sdk, _ = sdk_with_feature
 
@@ -141,7 +141,7 @@ class TestGetActiveWorkItem:
 class TestWorkTypeSymbolMapping:
     """Tests for work type symbol mapping in CLI output."""
 
-    def test_feature_symbol_mapping(self):
+    def test_feature_symbol_mapping(self, isolated_db):
         """Test feature type maps to correct symbol."""
         type_symbol = {
             "feature": "✨",
@@ -153,7 +153,7 @@ class TestWorkTypeSymbolMapping:
 
         assert type_symbol == "✨"
 
-    def test_bug_symbol_mapping(self):
+    def test_bug_symbol_mapping(self, isolated_db):
         """Test bug type maps to correct symbol."""
         type_symbol = {
             "feature": "✨",
@@ -165,7 +165,7 @@ class TestWorkTypeSymbolMapping:
 
         assert type_symbol == "🐛"
 
-    def test_spike_symbol_mapping(self):
+    def test_spike_symbol_mapping(self, isolated_db):
         """Test spike type maps to correct symbol."""
         type_symbol = {
             "feature": "✨",
@@ -177,7 +177,7 @@ class TestWorkTypeSymbolMapping:
 
         assert type_symbol == "🔍"
 
-    def test_unknown_type_symbol_mapping(self):
+    def test_unknown_type_symbol_mapping(self, isolated_db):
         """Test unknown type maps to default symbol."""
         type_symbol = {
             "feature": "✨",
@@ -193,7 +193,7 @@ class TestWorkTypeSymbolMapping:
 class TestCLIOutputFormatting:
     """Tests for CLI output formatting of active work item."""
 
-    def test_active_work_text_format_with_feature(self, sdk_with_feature):
+    def test_active_work_text_format_with_feature(self, sdk_with_feature, isolated_db):
         """Test that text output correctly formats active work item."""
         sdk, _ = sdk_with_feature
 
@@ -224,7 +224,7 @@ class TestCLIOutputFormatting:
         assert "feat-test-001" in output
         assert "Test Feature" in output
 
-    def test_no_active_work_warning_text(self, empty_sdk):
+    def test_no_active_work_warning_text(self, empty_sdk, isolated_db):
         """Test that text output shows warning when no active work."""
         info = empty_sdk.get_session_start_info()
         active_work = info.get("active_work")
@@ -246,7 +246,7 @@ class TestCLIOutputFormatting:
 class TestActiveWorkItemIntegration:
     """Integration tests for active work item in session management."""
 
-    def test_active_work_returned_when_feature_exists(self, sdk_with_feature):
+    def test_active_work_returned_when_feature_exists(self, sdk_with_feature, isolated_db):
         """Test active work is returned when feature exists and is in-progress."""
         sdk, expected_feature = sdk_with_feature
 
@@ -257,7 +257,7 @@ class TestActiveWorkItemIntegration:
         assert active["title"] == expected_feature.title
         assert active["type"] == "feature"
 
-    def test_session_start_info_reflects_active_work(self, sdk_with_feature):
+    def test_session_start_info_reflects_active_work(self, sdk_with_feature, isolated_db):
         """Test that session start info reflects the same active work as get_active_work_item."""
         sdk, _ = sdk_with_feature
 
@@ -269,7 +269,7 @@ class TestActiveWorkItemIntegration:
         assert direct_active["id"] == info_active["id"]
         assert direct_active["title"] == info_active["title"]
 
-    def test_status_field_validation(self, sdk_with_feature):
+    def test_status_field_validation(self, sdk_with_feature, isolated_db):
         """Test that active work item has correct status."""
         sdk, _ = sdk_with_feature
 
@@ -277,7 +277,7 @@ class TestActiveWorkItemIntegration:
 
         assert active["status"] == "in-progress"
 
-    def test_multiple_work_items_returns_first(self, temp_graph_dir):
+    def test_multiple_work_items_returns_first(self, temp_graph_dir, isolated_db):
         """Test that get_active_work_item returns first when multiple exist."""
         from htmlgraph import HtmlGraph
 
@@ -286,7 +286,7 @@ class TestActiveWorkItemIntegration:
         features_dir.mkdir(parents=True, exist_ok=True)
 
         graph = HtmlGraph(features_dir)
-        sdk = SDK(directory=temp_graph_dir, agent="claude")
+        sdk = SDK(directory=temp_graph_dir, agent="claude", db_path=str(isolated_db))
 
         # Create multiple in-progress features
         feature1 = Node(
@@ -320,7 +320,7 @@ class TestActiveWorkItemIntegration:
 class TestActiveWorkWithNodeTypes:
     """Tests for active work detection across different node types."""
 
-    def test_identify_feature_as_active(self, temp_graph_dir):
+    def test_identify_feature_as_active(self, temp_graph_dir, isolated_db):
         """Test that feature nodes are identified as active work."""
         from htmlgraph import HtmlGraph
 
@@ -329,7 +329,7 @@ class TestActiveWorkWithNodeTypes:
         features_dir.mkdir(parents=True, exist_ok=True)
 
         graph = HtmlGraph(features_dir)
-        sdk = SDK(directory=temp_graph_dir, agent="claude")
+        sdk = SDK(directory=temp_graph_dir, agent="claude", db_path=str(isolated_db))
 
         feature = Node(
             id="feat-identify-001",
@@ -346,12 +346,12 @@ class TestActiveWorkWithNodeTypes:
         assert active is not None
         assert active["type"] == "feature"
 
-    def test_ignore_completed_work_items(self, temp_graph_dir):
+    def test_ignore_completed_work_items(self, temp_graph_dir, isolated_db):
         """Test that completed work items are not returned as active."""
         from htmlgraph import HtmlGraph
 
         graph = HtmlGraph(temp_graph_dir)
-        sdk = SDK(directory=temp_graph_dir, agent="claude")
+        sdk = SDK(directory=temp_graph_dir, agent="claude", db_path=str(isolated_db))
 
         completed_feature = Node(
             id="feat-completed-001",
@@ -368,12 +368,12 @@ class TestActiveWorkWithNodeTypes:
         # Should return None since the feature is done, not in-progress
         assert active is None
 
-    def test_ignore_todo_work_items(self, temp_graph_dir):
+    def test_ignore_todo_work_items(self, temp_graph_dir, isolated_db):
         """Test that todo work items are not returned as active."""
         from htmlgraph import HtmlGraph
 
         graph = HtmlGraph(temp_graph_dir)
-        sdk = SDK(directory=temp_graph_dir, agent="claude")
+        sdk = SDK(directory=temp_graph_dir, agent="claude", db_path=str(isolated_db))
 
         todo_feature = Node(
             id="feat-todo-001",

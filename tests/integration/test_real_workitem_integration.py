@@ -18,7 +18,7 @@ from htmlgraph import SDK
 from htmlgraph.orchestration import delegate_with_id, save_task_results
 
 
-def test_real_workitem_integration():
+def test_real_workitem_integration(isolated_db):
     """Test orchestrator pattern with real causal-compass feature."""
 
     print("=" * 80)
@@ -182,7 +182,7 @@ List what exists.""",
     print("\n💾 STEP 4: Orchestrator saving results to HtmlGraph...")
 
     # Initialize SDK (using htmlgraph project for this demo)
-    sdk = SDK(agent="orchestrator-demo")
+    sdk = SDK(agent="orchestrator-demo", db_path=str(isolated_db))
 
     # Save each task result with feature linking
     spike_ids = []
@@ -322,3 +322,4 @@ Completed 3 parallel investigation tasks:
 
 if __name__ == "__main__":
     test_real_workitem_integration()
+

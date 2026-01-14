@@ -32,13 +32,13 @@ def temp_htmlgraph(tmp_path: Path) -> Path:
 def test_sdk_with_parent_session_explicit(temp_htmlgraph: Path):
     """Test SDK uses parent session for activity tracking (explicit parameter)."""
     # Create parent session
-    parent_sdk = SDK(directory=temp_htmlgraph, agent="parent")
+    parent_sdk = SDK(directory=temp_htmlgraph, agent="parent", db_path=str(isolated_db))
     _ = parent_sdk.start_session(session_id="sess-parent", title="Parent Session")
 
     # Create child SDK with parent session
     child_sdk = SDK(
         directory=temp_htmlgraph, agent="child", parent_session="sess-parent"
-    )
+    , db_path=str(isolated_db))
 
     # Verify parent session is set
     assert child_sdk._parent_session == "sess-parent"
@@ -71,13 +71,13 @@ def test_sdk_with_parent_from_env_var(temp_htmlgraph: Path):
 
     try:
         # Create parent session
-        parent_sdk = SDK(directory=temp_htmlgraph, agent="parent")
+        parent_sdk = SDK(directory=temp_htmlgraph, agent="parent", db_path=str(isolated_db))
         _ = parent_sdk.start_session(
             session_id="sess-env-parent", title="Env Parent Session"
         )
 
         # Create child SDK without explicit parent_session parameter
-        child_sdk = SDK(directory=temp_htmlgraph, agent="child")
+        child_sdk = SDK(directory=temp_htmlgraph, agent="child", db_path=str(isolated_db))
 
         # Verify parent session was read from environment
         assert child_sdk._parent_session == "sess-env-parent"
@@ -102,7 +102,7 @@ def test_sdk_with_parent_from_env_var(temp_htmlgraph: Path):
 
 def test_sdk_fallback_to_current_session(temp_htmlgraph: Path):
     """Test SDK falls back to current session if no parent."""
-    sdk = SDK(directory=temp_htmlgraph, agent="standalone")
+    sdk = SDK(directory=temp_htmlgraph, agent="standalone", db_path=str(isolated_db))
 
     # Verify no parent session is set
     assert sdk._parent_session is None
@@ -155,17 +155,17 @@ def test_session_model_parent_fields(temp_htmlgraph: Path):
 def test_parent_session_with_explicit_override(temp_htmlgraph: Path):
     """Test explicit session_id parameter overrides parent session."""
     # Set up parent session
-    parent_sdk = SDK(directory=temp_htmlgraph, agent="parent")
+    parent_sdk = SDK(directory=temp_htmlgraph, agent="parent", db_path=str(isolated_db))
     _ = parent_sdk.start_session(session_id="sess-parent", title="Parent Session")
 
     # Create different target session
-    other_sdk = SDK(directory=temp_htmlgraph, agent="other")
+    other_sdk = SDK(directory=temp_htmlgraph, agent="other", db_path=str(isolated_db))
     _ = other_sdk.start_session(session_id="sess-other", title="Other Session")
 
     # Create child SDK with parent session
     child_sdk = SDK(
         directory=temp_htmlgraph, agent="child", parent_session="sess-parent"
-    )
+    , db_path=str(isolated_db))
 
     # Track activity with explicit session_id override
     entry = child_sdk.track_activity(
@@ -187,10 +187,10 @@ def test_parent_activity_linking(temp_htmlgraph: Path):
 
     try:
         # Create SDK with parent session
-        sdk = SDK(directory=temp_htmlgraph, agent="child", parent_session="sess-parent")
+        sdk = SDK(directory=temp_htmlgraph, agent="child", parent_session="sess-parent", db_path=str(isolated_db))
 
         # Start a parent session for tracking
-        parent_sdk = SDK(directory=temp_htmlgraph, agent="parent")
+        parent_sdk = SDK(directory=temp_htmlgraph, agent="parent", db_path=str(isolated_db))
         _ = parent_sdk.start_session(session_id="sess-parent", title="Parent Session")
 
         # Track activity without explicit parent_activity_id
@@ -247,7 +247,7 @@ def test_session_nesting_depth(temp_htmlgraph: Path):
 def test_backward_compatibility_no_parent(temp_htmlgraph: Path):
     """Test SDK is backward compatible when parent_session not provided."""
     # Create SDK without parent_session parameter (old behavior)
-    sdk = SDK(directory=temp_htmlgraph, agent="agent")
+    sdk = SDK(directory=temp_htmlgraph, agent="agent", db_path=str(isolated_db))
 
     # Verify no parent session is set
     assert sdk._parent_session is None
@@ -272,19 +272,19 @@ def test_parent_session_priority_chain(temp_htmlgraph: Path):
 
     try:
         # Create all three sessions
-        parent_sdk = SDK(directory=temp_htmlgraph, agent="parent")
+        parent_sdk = SDK(directory=temp_htmlgraph, agent="parent", db_path=str(isolated_db))
         parent_sdk.start_session(session_id="sess-env-parent", title="Env Parent")
 
-        explicit_sdk = SDK(directory=temp_htmlgraph, agent="explicit")
+        explicit_sdk = SDK(directory=temp_htmlgraph, agent="explicit", db_path=str(isolated_db))
         explicit_sdk.start_session(session_id="sess-explicit", title="Explicit Session")
 
-        active_sdk = SDK(directory=temp_htmlgraph, agent="child")
+        active_sdk = SDK(directory=temp_htmlgraph, agent="child", db_path=str(isolated_db))
         _ = active_sdk.start_session(session_id="sess-active", title="Active Session")
 
         # Test 1: Explicit overrides everything
         sdk_explicit = SDK(
             directory=temp_htmlgraph, agent="child", parent_session="sess-env-parent"
-        )
+        , db_path=str(isolated_db))
         entry = sdk_explicit.track_activity(
             tool="Test",
             summary="Explicit override",
@@ -295,7 +295,7 @@ def test_parent_session_priority_chain(temp_htmlgraph: Path):
         # Test 2: Parent session used when no explicit
         sdk_parent = SDK(
             directory=temp_htmlgraph, agent="child", parent_session="sess-env-parent"
-        )
+        , db_path=str(isolated_db))
         entry = sdk_parent.track_activity(tool="Test", summary="Using parent")
         assert entry.payload.get("session_id") == "sess-env-parent"
 
@@ -303,7 +303,7 @@ def test_parent_session_priority_chain(temp_htmlgraph: Path):
         os.environ.pop("HTMLGRAPH_PARENT_SESSION", None)
         sdk_with_explicit_parent = SDK(
             directory=temp_htmlgraph, agent="child", parent_session="sess-explicit"
-        )
+        , db_path=str(isolated_db))
         entry = sdk_with_explicit_parent.track_activity(
             tool="Test", summary="Using explicit parent"
         )
@@ -311,3 +311,4 @@ def test_parent_session_priority_chain(temp_htmlgraph: Path):
 
     finally:
         os.environ.pop("HTMLGRAPH_PARENT_SESSION", None)
+
