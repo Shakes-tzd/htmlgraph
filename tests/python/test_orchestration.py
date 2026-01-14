@@ -42,7 +42,7 @@ def test_delegate_with_id_includes_subagent_type():
     assert "TASK_ID:" in prompt
 
 
-def test_get_results_by_task_id_timeout(tmp_path):
+def test_get_results_by_task_id_timeout(tmp_path, isolated_db):
     """Test timeout behavior when results not found."""
     from htmlgraph import SDK
 
@@ -59,7 +59,7 @@ def test_get_results_by_task_id_timeout(tmp_path):
     assert results["attempts"] >= 2  # Should poll multiple times
 
 
-def test_get_results_by_task_id_success(tmp_path):
+def test_get_results_by_task_id_success(tmp_path, isolated_db):
     """Test successful result retrieval."""
     from htmlgraph import SDK
 
@@ -83,7 +83,7 @@ def test_get_results_by_task_id_success(tmp_path):
     assert results["spike_id"] == spike.id
 
 
-def test_get_results_by_task_id_partial_match(tmp_path):
+def test_get_results_by_task_id_partial_match(tmp_path, isolated_db):
     """Test task ID can appear anywhere in title."""
     from htmlgraph import SDK
 
@@ -101,7 +101,7 @@ def test_get_results_by_task_id_partial_match(tmp_path):
     assert results["findings"] == "Found the issue"
 
 
-def test_get_results_by_task_id_first_match(tmp_path):
+def test_get_results_by_task_id_first_match(tmp_path, isolated_db):
     """Test returns first matching spike if multiple exist."""
     from htmlgraph import SDK
 
@@ -128,7 +128,7 @@ def test_get_results_by_task_id_first_match(tmp_path):
     assert results["spike_id"] in [spike1.id, spike2.id]
 
 
-def test_get_results_by_task_id_polling_behavior(tmp_path):
+def test_get_results_by_task_id_polling_behavior(tmp_path, isolated_db):
     """Test polling waits for results to appear."""
     import threading
 
@@ -156,7 +156,7 @@ def test_get_results_by_task_id_polling_behavior(tmp_path):
     assert results["attempts"] >= 2  # Should have polled multiple times
 
 
-def test_parallel_delegate_structure(tmp_path):
+def test_parallel_delegate_structure(tmp_path, isolated_db):
     """Test parallel_delegate returns expected structure."""
     from htmlgraph import SDK
 

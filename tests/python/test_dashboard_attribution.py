@@ -19,13 +19,13 @@ from htmlgraph.event_log import EventRecord, JsonlEventLog
 
 
 @pytest.fixture
-def tmp_htmlgraph(isolated_graph_dir_full: Path):
+def tmp_htmlgraph(isolated_graph_dir_full: Path, isolated_db: Path):
     """Create a temporary .htmlgraph directory structure."""
     return isolated_graph_dir_full
 
 
 @pytest.fixture
-def event_log(tmp_htmlgraph: Path):
+def event_log(tmp_htmlgraph: Path, isolated_db: Path):
     """Create event log instance."""
     events_dir = tmp_htmlgraph / "events"
     return JsonlEventLog(events_dir)
@@ -70,7 +70,7 @@ class TestAgentWorkTimeline:
     """Test work timeline showing all agents who touched a feature."""
 
     def test_feature_tracks_multiple_agents(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Feature should track all agents who worked on it via events."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
@@ -112,7 +112,7 @@ class TestAgentWorkTimeline:
         assert agents_in_events == {"orchestrator", "codex", "gemini"}
 
     def test_timeline_shows_timestamp_of_each_agent_work(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Timeline should show when each agent worked on feature."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
@@ -162,7 +162,7 @@ class TestAgentAnalyticsView:
     """Test agent analytics tab with workload distribution."""
 
     def test_agent_workload_distribution(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Analytics should show features per agent."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
@@ -209,7 +209,7 @@ class TestAgentAnalyticsView:
         assert "gemini" in orch_agents
 
     def test_agent_cost_calculation(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Analytics should calculate total cost per agent."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
@@ -311,7 +311,7 @@ class TestSDKAgentQuerying:
         assert all(f.agent_assigned == "agent1" for f in agent1_features)
 
     def test_feature_enrichment_with_work_history(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Feature should be enrichable with work history from events."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
@@ -492,7 +492,7 @@ class TestMultiAgentCollaboration:
     """Test indicators of multi-agent collaboration."""
 
     def test_feature_worked_by_multiple_agents(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Feature should show when multiple agents have worked on it."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
@@ -532,7 +532,7 @@ class TestMultiAgentCollaboration:
         assert unique_agents == {"orchestrator", "codex", "gemini"}
 
     def test_collaboration_effort_hours(
-        self, tmp_htmlgraph: Path, event_log: JsonlEventLog
+        self, tmp_htmlgraph: Path, event_log: JsonlEventLog, isolated_db: Path
     ):
         """Should track total effort hours across agents."""
         sdk = SDK(directory=tmp_htmlgraph, agent="orchestrator", db_path=str(isolated_db))
