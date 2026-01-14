@@ -13,18 +13,10 @@ import os
 import sys
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-
-# Add plugin agents directory to path for SpawnerEventTracker
-PLUGIN_AGENTS_DIR = (
-    Path(__file__).parent.parent.parent / "packages/claude-plugin/.claude-plugin/agents"
-)
-sys.path.insert(0, str(PLUGIN_AGENTS_DIR))
 
 from htmlgraph.config import get_database_path
 from htmlgraph.db.schema import HtmlGraphDB
-from htmlgraph.orchestration import CopilotSpawner
-from spawner_event_tracker import SpawnerEventTracker
+from htmlgraph.orchestration import CopilotSpawner, SpawnerEventTracker
 
 
 def setup_parent_event_context(db: HtmlGraphDB, session_id: str) -> tuple[str, str]:

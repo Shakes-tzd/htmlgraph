@@ -13,28 +13,16 @@ Reference: .htmlgraph/spikes/computational-imperative-guidance-system-design.md 
 """
 
 import json
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Ensure we can import the hook module
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).parent.parent.parent
-        / "packages"
-        / "claude-plugin"
-        / "hooks"
-        / "scripts"
-    ),
-)
-
 from htmlgraph.cigs.models import (
     AutonomyLevel,
 )
 from htmlgraph.cigs.tracker import ViolationTracker
+from htmlgraph.hooks.session_summary import CIGSSessionSummarizer
 
 
 @pytest.fixture
@@ -94,8 +82,6 @@ def sample_violations(temp_graph_dir):
 
 def test_stop_hook_loads_violations(temp_graph_dir, sample_violations):
     """Test that Stop hook loads violations from tracker."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     violations = summarizer.tracker.get_session_violations("test-session-001")
 
@@ -106,8 +92,6 @@ def test_stop_hook_loads_violations(temp_graph_dir, sample_violations):
 
 def test_stop_hook_detects_patterns(temp_graph_dir, sample_violations):
     """Test that Stop hook detects behavioral patterns."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     violations = summarizer.tracker.get_session_violations("test-session-001")
 
@@ -121,8 +105,6 @@ def test_stop_hook_detects_patterns(temp_graph_dir, sample_violations):
 
 def test_stop_hook_calculates_costs(temp_graph_dir, sample_violations):
     """Test that Stop hook calculates session costs."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     violations = summarizer.tracker.get_session_violations("test-session-001")
 
@@ -141,8 +123,6 @@ def test_stop_hook_calculates_costs(temp_graph_dir, sample_violations):
 
 def test_stop_hook_generates_autonomy_recommendation(temp_graph_dir, sample_violations):
     """Test that Stop hook generates autonomy recommendation."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     violations = summarizer.tracker.get_session_violations("test-session-001")
     patterns = summarizer._detect_patterns(violations.violations)
@@ -167,8 +147,6 @@ def test_stop_hook_generates_autonomy_recommendation(temp_graph_dir, sample_viol
 
 def test_stop_hook_builds_summary_text(temp_graph_dir, sample_violations):
     """Test that Stop hook builds formatted summary text."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     violations = summarizer.tracker.get_session_violations("test-session-001")
     patterns = summarizer._detect_patterns(violations.violations)
@@ -207,8 +185,6 @@ def test_stop_hook_builds_summary_text(temp_graph_dir, sample_violations):
 
 def test_stop_hook_persists_summary(temp_graph_dir, sample_violations):
     """Test that Stop hook persists summary to file."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     violations = summarizer.tracker.get_session_violations("test-session-001")
 
@@ -239,8 +215,6 @@ def test_stop_hook_persists_summary(temp_graph_dir, sample_violations):
 
 def test_stop_hook_full_summarize(temp_graph_dir, sample_violations):
     """Test complete summarize() workflow."""
-    from stop import CIGSSessionSummarizer
-
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
     result = summarizer.summarize("test-session-001")
 
@@ -263,8 +237,6 @@ def test_stop_hook_full_summarize(temp_graph_dir, sample_violations):
 
 def test_stop_hook_empty_session(temp_graph_dir):
     """Test Stop hook with session that has no violations."""
-    from stop import CIGSSessionSummarizer
-
     tracker = ViolationTracker(temp_graph_dir)
     tracker.set_session_id("empty-session")
 
@@ -281,8 +253,6 @@ def test_stop_hook_empty_session(temp_graph_dir):
 
 def test_stop_hook_circuit_breaker_triggered(temp_graph_dir):
     """Test Stop hook when circuit breaker is triggered (3+ violations)."""
-    from stop import CIGSSessionSummarizer
-
     tracker = ViolationTracker(temp_graph_dir)
     tracker.set_session_id("breaker-session")
 
@@ -312,8 +282,6 @@ def test_stop_hook_circuit_breaker_triggered(temp_graph_dir):
 
 def test_stop_hook_compliance_history(temp_graph_dir):
     """Test that Stop hook retrieves compliance history correctly."""
-    from stop import CIGSSessionSummarizer
-
     tracker = ViolationTracker(temp_graph_dir)
 
     # Create multiple sessions with varying compliance
@@ -345,7 +313,6 @@ def test_stop_hook_compliance_history(temp_graph_dir):
 def test_stop_hook_format_patterns(temp_graph_dir):
     """Test pattern formatting in summary."""
     from htmlgraph.cigs.models import PatternRecord
-    from stop import CIGSSessionSummarizer
 
     summarizer = CIGSSessionSummarizer(temp_graph_dir)
 
@@ -372,7 +339,7 @@ def test_stop_hook_format_patterns(temp_graph_dir):
 
 def test_stop_hook_main_with_cigs_disabled(temp_graph_dir, monkeypatch, capsys):
     """Test main() function when CIGS is disabled."""
-    import stop
+    from htmlgraph.hooks.session_summary import main
 
     # Mock stdin
     monkeypatch.setattr(
@@ -390,7 +357,7 @@ def test_stop_hook_main_with_cigs_disabled(temp_graph_dir, monkeypatch, capsys):
     # Mock environment - CIGS disabled by default
     monkeypatch.setenv("HTMLGRAPH_CIGS_ENABLED", "0")
 
-    stop.main()
+    main()
 
     captured = capsys.readouterr()
     output = json.loads(captured.out)
@@ -403,7 +370,7 @@ def test_stop_hook_main_with_cigs_enabled(
     temp_graph_dir, monkeypatch, capsys, sample_violations
 ):
     """Test main() function when CIGS is enabled."""
-    import stop
+    from htmlgraph.hooks.session_summary import main
 
     # Mock stdin
     input_data = {
@@ -416,7 +383,7 @@ def test_stop_hook_main_with_cigs_enabled(
             # Enable CIGS
             monkeypatch.setenv("HTMLGRAPH_CIGS_ENABLED", "1")
 
-            stop.main()
+            main()
 
             captured = capsys.readouterr()
             output = json.loads(captured.out)

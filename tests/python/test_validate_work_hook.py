@@ -4,36 +4,19 @@ Tests for Pre-Work Validation Hook (validate-work.py)
 Tests the validation logic that enforces HtmlGraph workflow before code changes.
 """
 
-import importlib.util
-
-# Import the validation functions (validate-work.py has hyphen, so use importlib)
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-# Load validate-work.py module
-script_path = (
-    Path(__file__).parent.parent.parent
-    / "packages"
-    / "claude-plugin"
-    / "hooks"
-    / "scripts"
-    / "validate-work.py"
+# Import validation functions from the package module
+from htmlgraph.hooks.validator import (
+    is_always_allowed,
+    is_code_operation,
+    is_direct_htmlgraph_write,
+    is_sdk_command,
+    load_validation_config,
+    validate_tool_call,
 )
-spec = importlib.util.spec_from_file_location("validate_work", script_path)
-validate_work = importlib.util.module_from_spec(spec)
-sys.modules["validate_work"] = validate_work
-spec.loader.exec_module(validate_work)
-
-# Import functions
-load_validation_config = validate_work.load_validation_config
-is_always_allowed = validate_work.is_always_allowed
-is_direct_htmlgraph_write = validate_work.is_direct_htmlgraph_write
-is_sdk_command = validate_work.is_sdk_command
-is_code_operation = validate_work.is_code_operation
-validate_tool_call = validate_work.validate_tool_call
 
 
 @pytest.fixture
@@ -45,7 +28,7 @@ def config():
 @pytest.fixture
 def mock_no_active_work():
     """Mock SDK to return no active work item."""
-    with patch("validate_work.get_active_work_item", return_value=None):
+    with patch("htmlgraph.hooks.validator.get_active_work_item", return_value=None):
         yield
 
 
@@ -53,7 +36,7 @@ def mock_no_active_work():
 def mock_spike_active():
     """Mock SDK to return active spike."""
     with patch(
-        "validate_work.get_active_work_item",
+        "htmlgraph.hooks.validator.get_active_work_item",
         return_value={
             "id": "spike-test-123",
             "type": "spike",
@@ -68,7 +51,7 @@ def mock_spike_active():
 def mock_feature_active():
     """Mock SDK to return active feature."""
     with patch(
-        "validate_work.get_active_work_item",
+        "htmlgraph.hooks.validator.get_active_work_item",
         return_value={
             "id": "feat-test-456",
             "type": "feature",

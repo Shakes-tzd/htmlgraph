@@ -9,6 +9,7 @@ from .model_selection import (
     get_fallback_chain,
     select_model,
 )
+from .spawner_event_tracker import SpawnerEventTracker, create_tracker_from_env
 
 # Export modular spawners for advanced usage
 from .spawners import (
@@ -37,6 +38,9 @@ __all__ = [
     "CodexSpawner",
     "CopilotSpawner",
     "ClaudeSpawner",
+    # Spawner event tracking
+    "SpawnerEventTracker",
+    "create_tracker_from_env",
     # Model selection
     "ModelSelection",
     "TaskType",
