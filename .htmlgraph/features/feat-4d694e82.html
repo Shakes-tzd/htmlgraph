@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implement multi-agent session isolation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-4d694e82"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-13T19:55:34.709378"
+             data-updated="2026-01-13T19:55:34.721091+00:00" data-agent-assigned="claude" data-track-id="trk-991c5af1">
+
+        <header>
+            <h1>Implement multi-agent session isolation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-01-13T19:55:34.721083">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-required-capabilities>
+            <h3>Required Capabilities</h3>
+            <ul>
+                <li data-tag="multi-agent" class="tag">multi-agent</li>
+<li data-tag="core" class="tag">core</li>
+            </ul>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Design session isolation model</li>
+                <li data-completed="false">⏳ Add --session flag to CLI commands</li>
+                <li data-completed="false">⏳ Implement session-scoped ref maps</li>
+                <li data-completed="false">⏳ Add session locking for write operations</li>
+                <li data-completed="false">⏳ Test concurrent agent operations</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Allow multiple agents to work on the same graph with isolated views. Inspired by agent-browser's --session flag for parallel browser instances.</p>
+        </section>
+    </article>
+</body>
+</html>

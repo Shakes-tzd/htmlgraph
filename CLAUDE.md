@@ -51,6 +51,7 @@ uv run pytest                              # Run tests
 
 | Task | Command |
 |------|---------|
+| View work | `uv run htmlgraph snapshot --summary` |
 | Run tests | `uv run pytest` |
 | Lint | `uv run ruff check --fix` |
 | Type check | `uv run mypy src/` |

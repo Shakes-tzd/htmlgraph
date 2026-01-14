@@ -464,11 +464,22 @@ class Formatter(Protocol):
 
 
 def _serialize_json(value: Any) -> Any:
-    """Recursively serialize value to JSON-compatible types."""
+    """Recursively serialize value to JSON-compatible types.
+
+    Sanitizes strings to remove control characters (newlines, tabs) that
+    would break JSON validity when using json.dumps().
+    """
     if value is None:
         return None
     if isinstance(value, (datetime, date)):
         return value.isoformat()
+    if isinstance(value, str):
+        # Sanitize string: replace control characters with spaces
+        # This prevents newlines/tabs in JSON string values from breaking JSON validity
+        sanitized = value.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+        # Collapse multiple spaces to single space
+        sanitized = " ".join(sanitized.split())
+        return sanitized
     if hasattr(value, "model_dump") and callable(getattr(value, "model_dump")):
         return _serialize_json(value.model_dump())
     if hasattr(value, "to_dict") and callable(getattr(value, "to_dict")):
@@ -485,7 +496,9 @@ class JsonFormatter:
 
     def output(self, result: CommandResult) -> None:
         payload = result.json_data if result.json_data is not None else result.data
-        _console.print(json.dumps(_serialize_json(payload), indent=2))
+        # Use sys.stdout.write instead of _console.print to avoid Rich's line-wrapping
+        # which inserts literal newlines into JSON string values, breaking JSON validity
+        sys.stdout.write(json.dumps(_serialize_json(payload), indent=2) + "\n")
 
 
 class TextFormatter:
@@ -507,16 +520,21 @@ class TextFormatter:
                 _console.print(result.data)
             return
         if isinstance(result.text, str):
-            _console.print(result.text)
+            # Use sys.stdout.write() for ANSI-formatted text to preserve colors when piped
+            # This bypasses Rich's reprocessing and ensures ANSI codes are preserved
+            sys.stdout.write(result.text)
+            if not result.text.endswith("\n"):
+                sys.stdout.write("\n")
             return
-        _console.print("\n".join(str(line) for line in result.text))
+        # For text as list/iterable, write directly to preserve ANSI codes
+        sys.stdout.write("\n".join(str(line) for line in result.text) + "\n")
 
 
 def get_formatter(format_name: str) -> Formatter:
-    """Get formatter by name (json, text, plain)."""
+    """Get formatter by name (json, text, plain, refs)."""
     if format_name == "json":
         return JsonFormatter()
-    if format_name in ("text", "plain", ""):
+    if format_name in ("text", "plain", "refs", ""):
         return TextFormatter()
     raise CommandError(f"Unknown output format '{format_name}'")
 
@@ -539,6 +557,9 @@ class BaseCommand(ABC):
         self.graph_dir: str | None = None
         self.agent: str | None = None
         self._sdk: SDK | None = None
+        self.override_output_format: str | None = (
+            None  # Allow commands to override formatter
+        )
 
     @classmethod
     @abstractmethod
@@ -648,7 +669,10 @@ class BaseCommand(ABC):
         try:
             self.validate()
             result = self.execute()
-            formatter = get_formatter(output_format)
+            # Allow commands to override output format
+            # (e.g., snapshot command's --output-format flag overrides global --format)
+            actual_format = self.override_output_format or output_format
+            formatter = get_formatter(actual_format)
             formatter.output(result)
         except CommandError as exc:
             error_console = Console(file=sys.stderr)

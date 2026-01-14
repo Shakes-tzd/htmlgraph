@@ -185,7 +185,9 @@ def handle_session_start(context: HookContext, session: Any | None) -> dict[str,
 
 {feature_list}
 
-Activity will be attributed to these features based on file patterns and keywords."""
+Activity will be attributed to these features based on file patterns and keywords.
+
+**To view all work and progress:** `htmlgraph snapshot --summary`"""
             output["hookSpecificOutput"]["sessionFeatureContext"] = context_str
             context.log("info", f"Loaded {len(active_features)} active features")
 

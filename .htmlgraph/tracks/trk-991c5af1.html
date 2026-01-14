@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Track: Browser-Native Query Interface</title>
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        /* HtmlGraph Dashboard Design System - Consolidated Track */
+        :root {
+            --bg-primary: #151518;
+            --bg-secondary: #1C1C20;
+            --bg-tertiary: #252528;
+            --text-primary: #E0DED8;
+            --text-secondary: #A0A0A0;
+            --text-muted: #707070;
+            --border: #333338;
+            --border-strong: #606068;
+            --accent: #CDFF00;
+            --accent-text: #0A0A0A;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+            max-width: 1200px;
+            margin-inline: auto;
+        }
+
+        .track-nav {
+            display: flex;
+            gap: 0;
+            margin-bottom: 2rem;
+            border: 2px solid var(--border-strong);
+            width: fit-content;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-right: 2px solid var(--border-strong);
+            transition: all 0.15s;
+        }
+
+        .nav-link:last-child { border-right: none; }
+        .nav-link:hover {
+            color: var(--accent);
+            background: var(--bg-tertiary);
+        }
+
+        article {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+        }
+
+        header {
+            padding: 2rem;
+            border-bottom: 2px solid var(--border-strong);
+            background: var(--bg-tertiary);
+        }
+
+        h1 {
+            margin: 0 0 1rem 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        h2 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h4 { margin: 0; font-size: 0.875rem; }
+
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .badge {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.75rem;
+            border: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.7rem;
+        }
+
+        .status-planned { color: var(--text-muted); }
+        .priority-high { color: #f59e0b; border-color: #f59e0b; }
+        .priority-medium { color: var(--text-secondary); }
+        .priority-critical { color: #ef4444; border-color: #ef4444; }
+
+        section {
+            padding: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child { border-bottom: none; }
+
+        p { margin: 0; line-height: 1.8; }
+
+        .requirements-list .requirement {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .criteria-list {
+            list-style: none;
+            counter-reset: criteria;
+            padding: 0;
+            margin: 0;
+        }
+
+        .criteria-list li {
+            counter-increment: criteria;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 1rem 1rem 1rem 3rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .criteria-list li::before {
+            content: counter(criteria);
+            position: absolute;
+            left: 1rem;
+            top: 1rem;
+            background: var(--accent);
+            color: var(--accent-text);
+            width: 1.25rem;
+            height: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.7rem;
+        }
+
+        .progress-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .progress-label { color: var(--accent); font-weight: 600; }
+        .progress-count { color: var(--text-secondary); }
+
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background: var(--bg-primary);
+            border: 2px solid var(--border-strong);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+        }
+
+        details {
+            border: 1px solid var(--border);
+            margin-bottom: 0.75rem;
+            background: var(--bg-tertiary);
+        }
+
+        summary {
+            padding: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.8rem;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        summary:hover { color: var(--accent); }
+
+        [data-task] {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        [data-task]:last-child { border-bottom: none; }
+
+        .estimate {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-left: auto;
+        }
+
+        code {
+            background: var(--bg-primary);
+            padding: 0.125rem 0.375rem;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    
+        <nav class="track-nav">
+            <a href="#top" class="nav-link">Track</a><a href="#overview" class="nav-link">Spec</a><a href="#plan" class="nav-link">Plan</a>
+        </nav>
+    <article id="trk-991c5af1" data-type="track" data-status="todo" data-priority="high">
+        <header id="top">
+            <h1>Browser-Native Query Interface</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Planned</span>
+                <span class="badge priority-high">High Priority</span>
+                <span class="badge">Created: 2026-01-13</span>
+            </div>
+        </header>
+
+        <section data-section="description">
+            <p>Inspired by Vercel's agent-browser project, this track adds browser-native query capabilities to HtmlGraph. Key innovations include accessibility-tree-based refs (@f1, @t1), semantic query DSL, AI-readable snapshots, and optional browser automation integration. The browser becomes a true graph database interface.</p>
+        </section>
+        
+            <section data-section="overview" id="overview">
+                <h2>Overview</h2>
+                <p>HtmlGraph stores data as HTML files with hyperlinks as edges. A browser can become more than just a viewer—it can be a query interface. Agent-browser's key insight is using accessibility trees instead of brittle DOM selectors. This track adopts that pattern: short stable refs, semantic queries, and snapshot-based AI reasoning, while keeping browser integration optional.</p>
+            </section>
+            <section data-section="context" id="context">
+                <h2>Context</h2>
+                <p>Current state: HtmlGraph provides SDK and CLI for querying the graph, but uses long UUIDs and requires direct file access. Agent-browser demonstrates a CLI-first, ref-based approach that's AI-friendly. We can adopt these patterns without requiring agent-browser as a dependency.</p>
+            </section>
+            <section data-section="requirements" id="requirements">
+                <h2>Requirements</h2>
+                <div class="requirements-list">
+                    
+                <article class="requirement priority-must-have" data-requirement="req-1" data-priority="must-have">
+                    <h4>⏳ Add htmlgraph snapshot command with AI-readable output</h4>
+                    <span class="badge">must-have</span>
+                </article>
+                <article class="requirement priority-must-have" data-requirement="req-2" data-priority="must-have">
+                    <h4>⏳ Implement short ref system (@f1, @t1) for work items</h4>
+                    <span class="badge">must-have</span>
+                </article>
+                <article class="requirement priority-should-have" data-requirement="req-3" data-priority="should-have">
+                    <h4>⏳ Add htmlgraph browse command to open dashboard with query params</h4>
+                    <span class="badge">should-have</span>
+                </article>
+                <article class="requirement priority-should-have" data-requirement="req-4" data-priority="should-have">
+                    <h4>⏳ Create semantic query DSL (find features where status=blocked)</h4>
+                    <span class="badge">should-have</span>
+                </article>
+                <article class="requirement priority-should-have" data-requirement="req-5" data-priority="should-have">
+                    <h4>⏳ Enhance dashboard HTML with proper ARIA roles</h4>
+                    <span class="badge">should-have</span>
+                </article>
+                <article class="requirement priority-nice-to-have" data-requirement="req-6" data-priority="nice-to-have">
+                    <h4>⏳ Add HTTP API for browser-based tool integration</h4>
+                    <span class="badge">nice-to-have</span>
+                </article>
+                <article class="requirement priority-nice-to-have" data-requirement="req-7" data-priority="nice-to-have">
+                    <h4>⏳ Integrate with agent-browser for automation</h4>
+                    <span class="badge">nice-to-have</span>
+                </article>
+                <article class="requirement priority-nice-to-have" data-requirement="req-8" data-priority="nice-to-have">
+                    <h4>⏳ Build browser extension for Chrome</h4>
+                    <span class="badge">nice-to-have</span>
+                </article>
+                </div>
+            </section>
+            <section data-section="acceptance-criteria" id="acceptance">
+                <h2>Acceptance Criteria</h2>
+                <ol class="criteria-list">
+                    <li>⏳ htmlgraph snapshot outputs parseable refs and graph state <code>uv run pytest tests/test_snapshot.py</code></li><li>⏳ Short refs resolve correctly to full entity IDs <code>sdk.ref('@f1') returns Feature object</code></li><li>⏳ Dashboard is accessible and agent-browser compatible <code>Manual test with agent-browser snapshot -i</code></li><li>⏳ Semantic queries return expected results <code>sdk.find('features').where(status='blocked').execute()</code></li>
+                </ol>
+            </section>
+            <section data-section="plan" id="plan">
+                <h2>Implementation Plan</h2>
+                <div class="progress-container">
+                    <div class="progress-info">
+                        <span class="progress-label">0% Complete</span>
+                        <span class="progress-count">(0/17 tasks)</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="phases-container">
+                    
+                <details open data-phase="phase-1">
+                    <summary>Phase 1: Phase 1: Quick Wins - Snapshot & Refs (0/5 tasks)</summary>
+                    
+                    <div data-task="task-1-1" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Implement htmlgraph snapshot command with --format refs option</strong>
+                        </div>
+                         <span class="estimate">(2.0h)</span>
+                    </div>
+                    <div data-task="task-1-2" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Add RefManager class for short ref generation and resolution</strong>
+                        </div>
+                         <span class="estimate">(2.0h)</span>
+                    </div>
+                    <div data-task="task-1-3" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Add sdk.ref('@f1') method to SDK for ref-based lookup</strong>
+                        </div>
+                         <span class="estimate">(1.0h)</span>
+                    </div>
+                    <div data-task="task-1-4" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Add htmlgraph browse command to open dashboard in browser</strong>
+                        </div>
+                         <span class="estimate">(1.0h)</span>
+                    </div>
+                    <div data-task="task-1-5" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Write unit tests for snapshot and ref system</strong>
+                        </div>
+                         <span class="estimate">(2.0h)</span>
+                    </div>
+                </details>
+                <details  data-phase="phase-2">
+                    <summary>Phase 2: Phase 2: Medium Term - Semantic Queries & ARIA (0/6 tasks)</summary>
+                    
+                    <div data-task="task-2-1" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Design semantic query DSL syntax (find/where/execute)</strong>
+                        </div>
+                         <span class="estimate">(2.0h)</span>
+                    </div>
+                    <div data-task="task-2-2" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Implement SemanticQueryBuilder class</strong>
+                        </div>
+                         <span class="estimate">(4.0h)</span>
+                    </div>
+                    <div data-task="task-2-3" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Add ARIA roles to dashboard.html for accessibility</strong>
+                        </div>
+                         <span class="estimate">(3.0h)</span>
+                    </div>
+                    <div data-task="task-2-4" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Add HTTP API endpoints for query/mutate operations</strong>
+                        </div>
+                         <span class="estimate">(4.0h)</span>
+                    </div>
+                    <div data-task="task-2-5" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Implement multi-agent session isolation</strong>
+                        </div>
+                         <span class="estimate">(3.0h)</span>
+                    </div>
+                    <div data-task="task-2-6" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Write integration tests for semantic queries</strong>
+                        </div>
+                         <span class="estimate">(2.0h)</span>
+                    </div>
+                </details>
+                <details  data-phase="phase-3">
+                    <summary>Phase 3: Phase 3: Longer Term - Browser Integration (0/6 tasks)</summary>
+                    
+                    <div data-task="task-3-1" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Create agent-browser integration module (optional dependency)</strong>
+                        </div>
+                         <span class="estimate">(4.0h)</span>
+                    </div>
+                    <div data-task="task-3-2" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Build BrowserQuery class for automation</strong>
+                        </div>
+                         <span class="estimate">(3.0h)</span>
+                    </div>
+                    <div data-task="task-3-3" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Develop browser extension for Chrome</strong>
+                        </div>
+                         <span class="estimate">(8.0h)</span>
+                    </div>
+                    <div data-task="task-3-4" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Add GraphQL API for full graph query exposure</strong>
+                        </div>
+                         <span class="estimate">(6.0h)</span>
+                    </div>
+                    <div data-task="task-3-5" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Write end-to-end tests with agent-browser</strong>
+                        </div>
+                         <span class="estimate">(3.0h)</span>
+                    </div>
+                    <div data-task="task-3-6" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Documentation and examples</strong>
+                        </div>
+                         <span class="estimate">(2.0h)</span>
+                    </div>
+                </details>
+                </div>
+            </section>
+    </article>
+</body>
+</html>

@@ -23,6 +23,7 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     Args:
         subparsers: Subparser action from ArgumentParser.add_subparsers()
     """
+    from htmlgraph.cli.work.browse import BrowseCommand
     from htmlgraph.cli.work.features import register_feature_commands
     from htmlgraph.cli.work.orchestration import (
         register_archive_commands,
@@ -31,6 +32,7 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     )
     from htmlgraph.cli.work.report import register_report_commands
     from htmlgraph.cli.work.sessions import register_session_commands
+    from htmlgraph.cli.work.snapshot import SnapshotCommand
     from htmlgraph.cli.work.tracks import register_track_commands
 
     # Register all command groups
@@ -42,8 +44,75 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     register_claude_commands(subparsers)
     register_report_commands(subparsers)
 
+    # Snapshot command
+    snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        help="Output current graph state with refs",
+    )
+    snapshot_parser.add_argument(
+        "--output-format",
+        choices=["refs", "json", "text"],
+        default="refs",
+        help="Output format (default: refs)",
+    )
+    snapshot_parser.add_argument(
+        "--type",
+        help="Filter by type (feature, track, bug, spike, chore, epic, all)",
+    )
+    snapshot_parser.add_argument(
+        "--status",
+        help="Filter by status (todo, in_progress, blocked, done, all)",
+    )
+    snapshot_parser.add_argument(
+        "--track",
+        help="Show only items in a specific track (by track ID or ref)",
+    )
+    snapshot_parser.add_argument(
+        "--active",
+        action="store_true",
+        help="Show only TODO/IN_PROGRESS items (filters out metadata spikes)",
+    )
+    snapshot_parser.add_argument(
+        "--blockers",
+        action="store_true",
+        help="Show only critical/blocked items",
+    )
+    snapshot_parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Show counts and progress summary instead of listing all items",
+    )
+    snapshot_parser.add_argument(
+        "--my-work",
+        action="store_true",
+        help="Show items assigned to current agent",
+    )
+    snapshot_parser.set_defaults(func=SnapshotCommand.from_args)
+
+    # Browse command
+    browse_parser = subparsers.add_parser(
+        "browse",
+        help="Open dashboard in browser",
+    )
+    browse_parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Server port (default: 8080)",
+    )
+    browse_parser.add_argument(
+        "--query-type",
+        help="Filter by type (feature, track, bug, spike, chore, epic)",
+    )
+    browse_parser.add_argument(
+        "--query-status",
+        help="Filter by status (todo, in_progress, blocked, done)",
+    )
+    browse_parser.set_defaults(func=BrowseCommand.from_args)
+
 
 # Re-export all command classes for backward compatibility
+from htmlgraph.cli.work.browse import BrowseCommand
 from htmlgraph.cli.work.features import (
     FeatureClaimCommand,
     FeatureCompleteCommand,
@@ -71,6 +140,7 @@ from htmlgraph.cli.work.sessions import (
     SessionStartCommand,
     SessionStartInfoCommand,
 )
+from htmlgraph.cli.work.snapshot import SnapshotCommand
 from htmlgraph.cli.work.tracks import (
     TrackDeleteCommand,
     TrackListCommand,
@@ -89,6 +159,10 @@ __all__ = [
     "SessionStartInfoCommand",
     # Report commands
     "SessionReportCommand",
+    # Snapshot commands
+    "SnapshotCommand",
+    # Browse commands
+    "BrowseCommand",
     # Feature commands
     "FeatureListCommand",
     "FeatureCreateCommand",

@@ -97,6 +97,9 @@ Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy
 ## Quick Commands
 | Task | Command |
 |------|---------|
+| View work summary | `htmlgraph snapshot --summary` |
+| View all items | `htmlgraph snapshot` |
+| View as JSON | `htmlgraph snapshot --output-format json` |
 | Tests | `uv run pytest` |
 | Type Check | `uv run mypy src/` |
 | Lint | `uv run ruff check --fix` |

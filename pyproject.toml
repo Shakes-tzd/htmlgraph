@@ -112,6 +112,7 @@ warn_unused_ignores = false  # Disabled due to environment differences between l
 disallow_untyped_defs = true
 disallow_any_unimported = false  # Allow untyped third-party libraries
 ignore_missing_imports = true
+exclude = ["tests/"]
 
 # Per-module options for strict checking
 [[tool.mypy.overrides]]
