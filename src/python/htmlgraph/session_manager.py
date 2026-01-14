@@ -929,13 +929,7 @@ class SessionManager:
         session.handoff_notes = handoff_data["handoff_notes"]
         session.recommended_next = handoff_data["recommended_next"]
         session.blockers = handoff_data["blockers"]
-
-        # Store recommended_context as JSON-serializable list
-        # (Session model expects list[str], converter will handle serialization)
-        if hasattr(session, "__dict__"):
-            session.__dict__["recommended_context"] = handoff_data[
-                "recommended_context"
-            ]
+        session.recommended_context = handoff_data["recommended_context"]
 
         # Persist handoff data to database before ending session
         self.session_converter.save(session)

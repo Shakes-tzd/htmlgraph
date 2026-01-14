@@ -613,6 +613,9 @@ class HandoffTracker:
         handoff_id = generate_id("hand")
 
         if self.db and self.db.connection:
+            # Ensure session exists in database (handles FK constraint)
+            self.db._ensure_session_exists(from_session_id)
+
             cursor = self.db.connection.cursor()
             cursor.execute(
                 """
@@ -649,6 +652,9 @@ class HandoffTracker:
             return False
 
         try:
+            # Ensure to_session exists in database (handles FK constraint)
+            self.db._ensure_session_exists(to_session_id)
+
             cursor = self.db.connection.cursor()
             cursor.execute(
                 """

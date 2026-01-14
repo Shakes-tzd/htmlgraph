@@ -1385,7 +1385,12 @@ class Session(BaseModel):
 
         # Build handoff HTML
         handoff_html = ""
-        if self.handoff_notes or self.recommended_next or self.blockers:
+        if (
+            self.handoff_notes
+            or self.recommended_next
+            or self.blockers
+            or self.recommended_context
+        ):
             handoff_section = """
         <section data-handoff>
             <h3>Handoff Context</h3>"""
@@ -1405,6 +1410,18 @@ class Session(BaseModel):
                 <strong>Blockers:</strong>
                 <ul>
                     {blockers_items}
+                </ul>
+            </div>"""
+
+            if self.recommended_context:
+                context_items = "\n                ".join(
+                    f"<li>{file_path}</li>" for file_path in self.recommended_context
+                )
+                handoff_section += f"""
+            <div data-recommended-context>
+                <strong>Recommended Context:</strong>
+                <ul>
+                    {context_items}
                 </ul>
             </div>"""
 

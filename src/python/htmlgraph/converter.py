@@ -520,6 +520,17 @@ def html_to_session(filepath: Path | str) -> Session:
         if blockers:
             data["blockers"] = blockers
 
+        # Parse recommended context files
+        recommended_context = []
+        for li in parser.query(
+            "section[data-handoff] div[data-recommended-context] li"
+        ):
+            file_path = li.to_text().strip()
+            if file_path:
+                recommended_context.append(file_path)
+        if recommended_context:
+            data["recommended_context"] = recommended_context
+
     # Parse activity log
     activity_log = []
     for li in parser.query("section[data-activity-log] ol li"):
