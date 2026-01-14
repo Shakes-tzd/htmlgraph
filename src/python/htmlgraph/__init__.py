@@ -26,12 +26,7 @@ logging.basicConfig(
     datefmt="[%X]",
 )
 
-# During Phase 1 migration: Import SDK from old location (sdk.py file)
-# Import directly from the module to avoid package/module name collision
-import importlib.util
-import sys
-from pathlib import Path
-
+# SDK now lives in sdk/core.py - clean import from sdk package
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 from htmlgraph.agents import AgentInterface
 from htmlgraph.analytics import Analytics, DependencyAnalytics
@@ -93,21 +88,7 @@ from htmlgraph.parallel import AggregateResult, ParallelAnalysis, ParallelWorkfl
 from htmlgraph.query_builder import Condition, Operator, QueryBuilder
 from htmlgraph.reflection import ComputationalReflection, get_reflection_context
 from htmlgraph.repo_hash import RepoHash
-
-_sdk_py_path = Path(__file__).parent / "sdk.py"
-if _sdk_py_path.exists() and "htmlgraph._sdk_old" not in sys.modules:
-    # Load sdk.py as a separate module to avoid collision with sdk/ package
-    spec = importlib.util.spec_from_file_location("htmlgraph._sdk_old", _sdk_py_path)
-    if spec and spec.loader:
-        _sdk_old = importlib.util.module_from_spec(spec)
-        sys.modules["htmlgraph._sdk_old"] = _sdk_old
-        spec.loader.exec_module(_sdk_old)
-        SDK = _sdk_old.SDK
-elif "htmlgraph._sdk_old" in sys.modules:
-    SDK = sys.modules["htmlgraph._sdk_old"].SDK
-else:
-    # Phase 1 complete - use new modular structure
-    from htmlgraph.sdk import SDK
+from htmlgraph.sdk import SDK
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.session_registry import SessionRegistry
