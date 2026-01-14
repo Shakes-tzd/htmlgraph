@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Session Summary Module - CIGS Integration
 
@@ -353,7 +357,7 @@ class CIGSSessionSummarizer:
             with open(summary_file, "w") as f:
                 json.dump(summary_data, f, indent=2, default=str)
         except Exception as e:
-            print(f"Warning: Failed to persist summary: {e}", file=sys.stderr)
+            logger.warning(f"Warning: Failed to persist summary: {e}")
 
 
 def main() -> None:
@@ -387,5 +391,5 @@ def main() -> None:
         result = summarizer.summarize(session_id)
         print(json.dumps(result))
     except Exception as e:
-        print(f"Warning: Could not generate CIGS summary: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not generate CIGS summary: {e}")
         print(json.dumps({"continue": True}))

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Chore builder for creating maintenance task nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with chore-specific methods like
 chore type and recurrence.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Base classes and utilities for CLI commands.
 
 Provides:
@@ -10,7 +12,6 @@ Provides:
 - save_traceback: Save full tracebacks to log files instead of console
 """
 
-from __future__ import annotations
 
 import argparse
 import json

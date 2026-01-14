@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Work management commands.
 
 Commands for managing work items:
@@ -9,7 +11,6 @@ Commands for managing work items:
 - Other work-related operations
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

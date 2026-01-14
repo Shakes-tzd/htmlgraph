@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Base collection class for managing nodes.
 
@@ -5,7 +11,6 @@ Provides common collection functionality for all node types
 with lazy-loading, filtering, and batch operations.
 """
 
-from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -227,7 +232,7 @@ class BaseCollection(Generic[CollectionT]):
         Example:
             >>> feature = sdk.features.get("feat-abc123")
             >>> ref = sdk.features.get_ref(feature.id)
-            >>> print(ref)  # "@f1"
+            >>> logger.info("%s", ref)  # "@f1"
         """
         if self._ref_manager:
             result = self._ref_manager.get_ref(node_id)
@@ -466,7 +471,7 @@ class BaseCollection(Generic[CollectionT]):
 
         Example:
             >>> count = sdk.features.batch_delete(["feat-001", "feat-002", "feat-003"])
-            >>> print(f"Deleted {count} features")
+            >>> logger.info(f"Deleted {count} features")
         """
         graph = self._ensure_graph()
         return cast(int, graph.batch_delete(node_ids))
@@ -540,9 +545,9 @@ class BaseCollection(Generic[CollectionT]):
 
         Example:
             >>> result = sdk.features.mark_done(["feat-001", "feat-002"])
-            >>> print(f"Completed {result['success_count']} of {len(node_ids)}")
+            >>> logger.info(f"Completed {result['success_count']} of {len(node_ids)}")
             >>> if result['failed_ids']:
-            ...     print(f"Failed: {result['failed_ids']}")
+            ...     logger.info(f"Failed: {result['failed_ids']}")
         """
         graph = self._ensure_graph()
         results: dict[str, Any] = {"success_count": 0, "failed_ids": [], "warnings": []}

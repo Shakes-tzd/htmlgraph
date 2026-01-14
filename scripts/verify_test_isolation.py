@@ -17,10 +17,9 @@ Exit codes:
 import ast
 import sys
 from pathlib import Path
-from typing import Dict, List
 
 
-def find_sdk_calls_without_db_path(test_file: Path) -> List[int]:
+def find_sdk_calls_without_db_path(test_file: Path) -> list[int]:
     """Find SDK() calls missing db_path parameter.
 
     Args:
@@ -63,7 +62,7 @@ def find_sdk_calls_without_db_path(test_file: Path) -> List[int]:
     return violations
 
 
-def scan_tests(test_dir: Path = Path("tests")) -> Dict[str, List[int]]:
+def scan_tests(test_dir: Path = Path("tests")) -> dict[str, list[int]]:
     """Scan all test files for violations.
 
     Args:
@@ -82,7 +81,7 @@ def scan_tests(test_dir: Path = Path("tests")) -> Dict[str, List[int]]:
     return violations
 
 
-def count_files_and_calls(violations: Dict[str, List[int]]) -> tuple[int, int]:
+def count_files_and_calls(violations: dict[str, list[int]]) -> tuple[int, int]:
     """Count total files and SDK calls with violations.
 
     Args:

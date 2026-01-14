@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 """Command builder for Claude Code CLI invocations.
 
 Provides fluent interface for constructing Claude CLI commands.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

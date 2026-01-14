@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Data models for dependency analytics.
 
@@ -9,7 +11,6 @@ Provides Pydantic models for dependency-aware analytics results including:
 - Work prioritization
 """
 
-from __future__ import annotations
 
 from typing import Literal
 

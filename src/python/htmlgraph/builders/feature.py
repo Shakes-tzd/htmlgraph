@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Feature builder for creating feature nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with feature-specific methods like
 capability management.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 

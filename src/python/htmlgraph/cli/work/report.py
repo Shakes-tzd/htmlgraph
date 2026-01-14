@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Session report commands.
 
 Commands for generating "What Did Claude Do?" reports:
@@ -7,7 +9,6 @@ THE killer feature that differentiates HtmlGraph - complete observability
 of AI agent activities with cost attribution and tool usage analysis.
 """
 
-from __future__ import annotations
 
 import argparse
 import sqlite3

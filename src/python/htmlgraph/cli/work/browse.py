@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Browse command for opening dashboard in browser."""
 
-from __future__ import annotations
 
 import argparse
 import webbrowser

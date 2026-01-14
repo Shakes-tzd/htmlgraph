@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Edge Index for O(1) reverse edge lookups.
 
@@ -10,7 +12,6 @@ Without this index, finding incoming edges requires scanning all nodes
 in the graph - O(V×E) complexity.
 """
 
-from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterator

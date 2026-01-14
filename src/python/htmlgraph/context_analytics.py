@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Context Analytics for HtmlGraph
 
@@ -7,7 +9,6 @@ Provides hierarchical context usage tracking and analytics:
 Enables drill-down analysis of where context was consumed.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any

@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Analytics API for HtmlGraph work type analysis.
 
@@ -24,8 +30,6 @@ Example:
     burden = sdk.analytics.maintenance_burden(session_id="session-123")
     # Returns: 25.5 (% of work spent on maintenance)
 """
-
-from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -97,7 +101,7 @@ class Analytics:
         Example:
             >>> analytics = sdk.analytics
             >>> dist = analytics.work_type_distribution(session_id="session-123")
-            >>> print(dist)
+            >>> logger.info("%s", dist)
             {
                 "feature-implementation": 45.2,
                 "spike-investigation": 28.3,
@@ -163,11 +167,11 @@ class Analytics:
 
         Example:
             >>> ratio = sdk.analytics.spike_to_feature_ratio(session_id="session-123")
-            >>> print(f"Spike-to-feature ratio: {ratio:.2f}")
+            >>> logger.info(f"Spike-to-feature ratio: {ratio:.2f}")
             Spike-to-feature ratio: 0.63
 
             >>> if ratio > 0.5:
-            ...     print("This was a research-heavy session")
+            ...     logger.info("This was a research-heavy session")
         """
         events = self._get_events(session_id, start_date, end_date)
 
@@ -221,11 +225,11 @@ class Analytics:
 
         Example:
             >>> burden = sdk.analytics.maintenance_burden(session_id="session-123")
-            >>> print(f"Maintenance burden: {burden:.1f}%")
+            >>> logger.info(f"Maintenance burden: {burden:.1f}%")
             Maintenance burden: 32.5%
 
             >>> if burden > 40:
-            ...     print("⚠️  High maintenance burden - consider addressing technical debt")
+            ...     logger.info("⚠️  High maintenance burden - consider addressing technical debt")
         """
         events = self._get_events(session_id, start_date, end_date)
 
@@ -276,7 +280,7 @@ class Analytics:
             >>> spike_sessions = sdk.analytics.get_sessions_by_work_type(
             ...     "spike-investigation"
             ... )
-            >>> print(f"Found {len(spike_sessions)} exploratory sessions")
+            >>> logger.info(f"Found {len(spike_sessions)} exploratory sessions")
         """
         session_nodes = self.sdk.sessions.all()
         matching_sessions = []
@@ -316,7 +320,7 @@ class Analytics:
 
         Example:
             >>> breakdown = sdk.analytics.calculate_session_work_breakdown("session-123")
-            >>> print(breakdown)
+            >>> logger.info("%s", breakdown)
             {
                 "feature-implementation": 45,
                 "spike-investigation": 28,
@@ -344,7 +348,7 @@ class Analytics:
 
         Example:
             >>> primary = sdk.analytics.calculate_session_primary_work_type("session-123")
-            >>> print(f"Primary work type: {primary}")
+            >>> logger.info(f"Primary work type: {primary}")
             Primary work type: spike-investigation
         """
         session = self._get_session(session_id)
@@ -399,7 +403,7 @@ class Analytics:
 
         Example:
             >>> metrics = sdk.analytics.transition_time_metrics(session_id="session-123")
-            >>> print(f"Transition time: {metrics['transition_percent']:.1f}%")
+            >>> logger.info(f"Transition time: {metrics['transition_percent']:.1f}%")
             Transition time: 15.3%
         """
         from pathlib import Path

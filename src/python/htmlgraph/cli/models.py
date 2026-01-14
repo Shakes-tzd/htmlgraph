@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Pydantic models for command filters and configuration.
 
 This module provides type-safe models for validating command inputs:
@@ -5,7 +7,6 @@ This module provides type-safe models for validating command inputs:
 - Configuration models for infrastructure commands (init, serve)
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal

@@ -1,10 +1,13 @@
 """Claude spawner implementation."""
 
 import json
+import logging
 import subprocess
 from typing import TYPE_CHECKING
 
 from .base import AIResult, BaseSpawner
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -64,8 +67,8 @@ class ClaudeSpawner(BaseSpawner):
             >>> spawner = ClaudeSpawner()
             >>> result = spawner.spawn("What is 2+2?")
             >>> if result.success:
-            ...     print(result.response)  # "4"
-            ...     print(f"Cost: ${result.raw_output['total_cost_usd']}")
+            ...     logger.info("%s", result.response)  # "4"
+            ...     logger.info(f"Cost: ${result.raw_output['total_cost_usd']}")
         """
         cmd = ["claude", "-p"]
 

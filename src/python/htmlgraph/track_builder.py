@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Track Builder and Collection for agent-friendly track creation.
 
@@ -5,7 +7,6 @@ Note: TrackBuilder has been moved to builders/track.py for better organization.
 This module now provides TrackCollection and re-exports TrackBuilder for backward compatibility.
 """
 
-from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager

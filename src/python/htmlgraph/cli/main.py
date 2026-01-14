@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Main entry point.
 
 Entry point with argument parsing and command routing.
 Keeps main() thin by delegating to command modules.
 """
 
-from __future__ import annotations
 
 import argparse
 import sys

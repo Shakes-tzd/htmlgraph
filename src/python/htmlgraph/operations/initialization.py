@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph initialization operations.
 
 This module provides functions for initializing the .htmlgraph directory structure,
@@ -13,7 +15,6 @@ The initialization process includes:
 Extracted from monolithic cmd_init() implementation for better maintainability.
 """
 
-from __future__ import annotations
 
 import json
 import sqlite3

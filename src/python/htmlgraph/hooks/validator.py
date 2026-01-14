@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Work Validation Module for HtmlGraph Hooks
 
@@ -22,9 +26,9 @@ Example:
     result = validate_tool_call("Edit", {"file_path": "test.py"}, config, history)
 
     if result["decision"] == "block":
-        print(result["reason"])
+        logger.debug("Validation reason: %s", result["reason"])
     elif "guidance" in result:
-        print(result["guidance"])
+        logger.debug("Validation guidance: %s", result["guidance"])
 """
 
 import json
@@ -448,9 +452,9 @@ def validate_tool_call(
         history = load_tool_history(session_id)
         result = validate_tool_call("Edit", {"file_path": "test.py"}, config, history)
         if result["decision"] == "block":
-            print(result["reason"])
+            logger.debug("Validation reason: %s", result["reason"])
         elif "guidance" in result:
-            print(result["guidance"])
+            logger.debug("Validation guidance: %s", result["guidance"])
     """
     # Check if this is a subagent context - subagents have unrestricted tool access
     if is_subagent_context():

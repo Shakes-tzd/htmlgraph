@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """Git hook operations for HtmlGraph."""
 
-from __future__ import annotations
 
 import json
 import shutil

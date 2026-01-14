@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Unified PostToolUse Hook - Parallel Execution of Multiple Tasks
 

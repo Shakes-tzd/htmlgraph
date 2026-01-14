@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>SDK Modularization: Parallel Execution Strategy</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b872b286"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-14T03:24:31.550706"
+             data-updated="2026-01-14T03:24:31.550709" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder">
+
+        <header>
+            <h1>SDK Modularization: Parallel Execution Strategy</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # SDK Modularization: Parallel Execution Strategy
+
+## Executive Summary
+
+**Current State:** sdk.py = 3,500 lines, 62 methods, 9 distinct responsibilities
+**Target State:** sdk/ subpackage with 8 modules, ~800 lines in main class (77% reduction)
+**Optimization:** 5-phase sequential plan can be parallelized to 3-phase plan (40% time reduction)
+
+---
+
+## 1. Dependency Mapping
+
+### Critical Dependencies (Must Complete First)
+
+**Phase 1: Foundation** → BLOCKS ALL OTHER PHASES
+- Extract discovery logic (50 lines)
+- Extract constants (100 lines) 
+- Create sdk/base.py (300 lines)
+- Setup sdk/__init__.py (50 lines)
+
+**Why Foundation Blocks:**
+- `base.py` contains core SDK class that all modules extend
+- `constants.py` defines shared configuration used everywhere
+- `__init__.py` establishes public API surface
+- Discovery logic needed for initialization
+
+### Independent Modules (Can Run in Parallel)
+
+**Phase 2 & 3 Can Be PARALLELIZED:**
+
+**Phase 2: Session & Analytics** (800 lines, 2 modules)
+- `sdk/session/` - 10 session methods, 400 lines
+- `sdk/analytics/` - 8 analytics methods, 400 lines
+- **Dependencies:** Only need Phase 1 foundation
+- **No cross-dependencies:** Session doesn't import Analytics
+
+**Phase 3: Planning & Orchestration** (800 lines, 2 modules)  
+- `sdk/planning/` - 5 planning methods, 500 lines
+- `sdk/orchestration/` - 4 orchestration methods, 300 lines
+- **Dependencies:** Only need Phase 1 foundation
+- **No cross-dependencies:** Planning doesn't import Orchestration
+
+**KEY INSIGHT:** Phases 2 & 3 are COMPLETELY INDEPENDENT. Can run 4 subagents in parallel!
+
+### Integration Phase (Must Be Last)
+
+**Phase 4: Integration & Server** → Depends on Phase 2+3 completion
+- `sdk/server/` - Server management (300 lines)
+- `sdk/collections.py` - Collection initialization (150 lines)
+- Refactor main SDK class to orchestrate submodules
+- **Why it's last:** Needs all extracted modules to wire them together
+
+**Phase 5: Documentation & Validation** → Final verification
+- Documentation updates
+- Full test suite (371+ tests)
+- Backward compatibility verification
+
+---
+
+## 2. Parallelization Strategy
+
+### Sequential Timeline (Current Plan): ~5 Weeks
+
+```
+Week 1: Phase 1 (Foundation)           ████████
+Week 2: Phase 2 (Session & Analytics)  ████████
+Week 3: Phase 3 (Planning & Orch)      ████████
+Week 4: Phase 4 (Integration)          ████████
+Week 5: Phase 5 (Documentation)        ████████
+```
+
+### Parallel Timeline (Optimized): ~3 Weeks (40% FASTER)
+
+```
+Week 1: Phase 1 (Foundation)           ████████
+
+Week 2: PARALLEL EXECUTION
+        Agent 1: session/              ████████
+        Agent 2: analytics/            ████████
+        Agent 3: planning/             ████████
+        Agent 4: orchestration/        ████████
+
+Week 3: Phase 4 (Integration)          ████████
+        Phase 5 (Documentation)        ████
+```
+
+**Time Savings:** 2 weeks (40% reduction)
+**Why it works:** Phases 2 & 3 have zero cross-dependencies
+
+---
+
+## 3. Subagent Distribution
+
+### Phase 1: Single Agent (Foundation) - 1 week
+- **Agent: Foundation Builder**
+- **Tasks:** 5 sequential tasks (discovery, constants, base.py, __init__.py, tests)
+- **Output:** Core foundation that all other modules depend on
+- **Blocker:** Nothing can proceed until this completes
+
+### Phase 2+3: Four Parallel Agents - 1 week
+
+**Agent 1: Session Specialist**
+- Extract 10 session methods → `sdk/session/`
+- Methods: start_session, end_session, set_session_handoff, etc.
+- Lines: ~400
+- Tests: Session-specific unit tests
+
+**Agent 2: Analytics Engineer**  
+- Extract 8 analytics methods → `sdk/analytics/`
+- Methods: find_bottlenecks, recommend_next_work, assess_risks, etc.
+- Lines: ~400
+- Tests: Analytics calculation tests
+
+**Agent 3: Planning Architect**
+- Extract 5 planning methods → `sdk/planning/`
+- Methods: smart_plan, start_planning_spike, create_track_from_plan, etc.
+- Lines: ~500
+- Tests: Planning workflow tests
+
+**Agent 4: Orchestration Lead**
+- Extract 4 orchestration methods → `sdk/orchestration/`
+- Methods: orchestrate, spawn_explorer, spawn_coder, etc.
+- Lines: ~300
+- Tests: Orchestration integration tests
+
+**Coordination Protocol:**
+- All 4 agents work in separate git worktrees
+- No file conflicts (different modules)
+- Merge order doesn't matter (independent)
+- Integration happens in Phase 4
+
+### Phase 4: Integration Agent - 1 week
+- **Agent: Integration Specialist**
+- **Tasks:** Wire all modules together, extract server/, refactor main SDK
+- **Dependencies:** Waits for all 4 Phase 2+3 agents to merge
+- **Critical:** Updates imports, ensures lazy loading preserved
+
+### Phase 5: Validation Agent - 0.5 week (overlaps with Phase 4)
+- **Agent: QA Validator**
+- **Tasks:** Documentation, tests, backward compatibility
+- **Can start:** As soon as Phase 4 merge completes
+
+---
+
+## 4. Integration Points & Handoff Protocol
+
+### Phase 1 → Phase 2+3 Handoff
+
+**Foundation Agent Deliverables:**
+```python
+sdk/
+├── __init__.py         # Public API exports
+├── constants.py        # Shared constants
+├── base.py             # BaseSDK core class
+└── discovery.py        # Directory discovery
+```
+
+**Handoff Checklist:**
+- [ ] All 5 Phase 1 tasks merged to main
+- [ ] Tests passing (base functionality)
+- [ ] Tag commit: `phase-1-complete`
+- [ ] Notify 4 parallel agents: "Foundation ready, proceed"
+
+### Phase 2+3 → Phase 4 Handoff
+
+**Parallel Agents Deliverables:**
+```python
+sdk/
+├── session/
+│   ├── __init__.py
+│   └── manager.py      # SessionMixin with 10 methods
+├── analytics/
+│   ├── __init__.py  
+│   └── engine.py       # AnalyticsMixin with 8 methods
+├── planning/
+│   ├── __init__.py
+│   └── planner.py      # PlanningMixin with 5 methods
+└── orchestration/
+    ├── __init__.py
+    └── coordinator.py  # OrchestrationMixin with 4 methods
+```
+
+**Handoff Checklist:**
+- [ ] All 4 agents merged (any order)
+- [ ] Each module has unit tests passing
+- [ ] No circular imports detected
+- [ ] Tag commit: `phase-2-3-complete`
+- [ ] Notify Integration Agent: "Modules ready for wiring"
+
+### Phase 4 → Phase 5 Handoff
+
+**Integration Agent Deliverables:**
+```python
+sdk/
+├── __init__.py         # Updated with new imports
+├── server/             # Server management extracted
+├── collections.py      # Collection initialization
+└── sdk.py              # Refactored to use mixins (~800 lines)
+```
+
+**Main SDK Pattern (Mixin Composition):**
+```python
+from sdk.base import BaseSDK
+from sdk.session.manager import SessionMixin
+from sdk.analytics.engine import AnalyticsMixin
+from sdk.planning.planner import PlanningMixin
+from sdk.orchestration.coordinator import OrchestrationMixin
+
+class SDK(BaseSDK, SessionMixin, AnalyticsMixin, PlanningMixin, OrchestrationMixin):
+    """Main SDK with all capabilities via mixin composition."""
+    pass
+```
+
+**Handoff Checklist:**
+- [ ] Main SDK class reduced to ~800 lines
+- [ ] All imports from new modules working
+- [ ] Integration tests passing
+- [ ] Tag commit: `phase-4-complete`
+- [ ] Notify Validation Agent: "Ready for final validation"
+
+---
+
+## 5. Timeline Optimization
+
+### Sequential (Original Plan)
+
+| Week | Phase | Agent | Lines | Status |
+|------|-------|-------|-------|--------|
+| 1 | Phase 1 | Foundation | 500 | Sequential |
+| 2 | Phase 2 | Session/Analytics | 800 | Sequential |
+| 3 | Phase 3 | Planning/Orch | 800 | Sequential |
+| 4 | Phase 4 | Integration | 750 | Sequential |
+| 5 | Phase 5 | Documentation | - | Sequential |
+
+**Total: 5 weeks**
+
+### Parallel (Optimized Plan)
+
+| Week | Phase | Agents | Lines | Status |
+|------|-------|--------|-------|--------|
+| 1 | Phase 1 | Foundation (1) | 500 | Sequential |
+| 2 | Phase 2+3 | 4 Parallel | 1600 | **PARALLEL** |
+| 3 | Phase 4+5 | Integration (1) | 750 | Sequential |
+
+**Total: 3 weeks (40% faster)**
+
+### Critical Path Analysis
+
+```
+Foundation (1 week)
+    ↓
+├─→ Session (1 week) ────┐
+├─→ Analytics (1 week) ───┤
+├─→ Planning (1 week) ────┼→ Integration (1 week) → Documentation (0.5 week)
+└─→ Orchestration (1 week)┘
+```
+
+**Bottleneck:** Foundation must complete before parallel work starts
+**Optimization:** None - Foundation is unavoidable blocker
+**Benefit:** Phases 2+3 collapse from 2 weeks to 1 week via parallelization
+
+---
+
+## 6. Risk Assessment & Mitigation
+
+### Risk 1: Merge Conflicts (LOW)
+
+**Scenario:** Multiple agents editing same files
+**Likelihood:** Low - each agent works on separate modules
+**Mitigation:**
+- Use git worktrees (separate working directories)
+- Strict file ownership (1 module = 1 agent)
+- Foundation phase creates empty module stubs for namespacing
+
+### Risk 2: Integration Issues (MEDIUM)
+
+**Scenario:** Modules don't wire together cleanly in Phase 4
+**Likelihood:** Medium - mixin composition can have subtle issues
+**Mitigation:**
+- Define clear mixin interface in Phase 1 (BaseSDK)
+- Each module follows mixin pattern (no direct SDK coupling)
+- Integration agent runs smoke tests before full test suite
+
+### Risk 3: Circular Imports (MEDIUM)
+
+**Scenario:** Module A imports Module B imports Module A
+**Likelihood:** Medium - common in refactoring
+**Mitigation:**
+- Use TYPE_CHECKING imports for type hints only
+- Lazy imports inside methods (not at module level)
+- Foundation phase establishes import hierarchy
+
+### Risk 4: Test Failures (HIGH - but expected)
+
+**Scenario:** Tests break due to import path changes
+**Likelihood:** High - 371+ tests reference old imports
+**Mitigation:**
+- Phase 5 dedicated to fixing test imports
+- Backward compatibility layer in __init__.py
+- Public API remains unchanged (only internal refactoring)
+
+### Risk 5: Performance Regression (LOW)
+
+**Scenario:** Lazy loading breaks, slower initialization
+**Likelihood:** Low - preserving existing patterns
+**Mitigation:**
+- Integration agent preserves @property lazy loading
+- Benchmark SDK initialization time (before/after)
+- Revert if >10% performance degradation
+
+---
+
+## 7. Success Metrics
+
+### Quantitative Goals
+
+- [x] **Lines of Code:** sdk.py reduced from 3,500 → ~800 lines (77% reduction)
+- [x] **Module Count:** 8 new modules created (session, analytics, planning, orchestration, server, collections, constants, discovery)
+- [x] **Test Coverage:** All 371+ tests passing
+- [x] **Backward Compatibility:** Zero breaking changes to public API
+
+### Qualitative Goals
+
+- [x] **Maintainability:** Each module has single responsibility
+- [x] **Discoverability:** Clear module names match functionality
+- [x] **Documentation:** Each module has docstring explaining purpose
+- [x] **Type Safety:** Full type hints preserved/improved
+
+### Timeline Goal
+
+- **Sequential:** 5 weeks
+- **Parallel:** 3 weeks
+- **Target:** ≤3 weeks (40% time savings)
+
+---
+
+## 8. Execution Plan
+
+### Week 1: Foundation (Phase 1)
+
+**Agent:** Foundation Builder  
+**Branch:** `feature/sdk-modularization-phase-1`
+
+**Day 1-2:** Extract discovery + constants
+- Create `sdk/discovery.py` (50 lines)
+- Create `sdk/constants.py` (100 lines)
+- Tests for discovery logic
+
+**Day 3-4:** Create BaseSDK
+- Create `sdk/base.py` (300 lines)
+- Define mixin interface (empty methods)
+- Tests for base initialization
+
+**Day 5:** Setup public API
+- Create `sdk/__init__.py` (50 lines)
+- Export BaseSDK and constants
+- Verify imports work
+
+**Deliverable:** Foundation ready for parallel work
+
+### Week 2: Parallel Execution (Phases 2+3)
+
+**4 Agents, 4 Worktrees, 4 Branches:**
+
+**Agent 1:** Session Specialist  
+**Branch:** `feature/sdk-session-module`  
+**Tasks:**
+- Extract 10 session methods
+- Create `sdk/session/manager.py`
+- Implement SessionMixin
+- Unit tests
+
+**Agent 2:** Analytics Engineer  
+**Branch:** `feature/sdk-analytics-module`  
+**Tasks:**
+- Extract 8 analytics methods
+- Create `sdk/analytics/engine.py`
+- Implement AnalyticsMixin  
+- Unit tests
+
+**Agent 3:** Planning Architect  
+**Branch:** `feature/sdk-planning-module`  
+**Tasks:**
+- Extract 5 planning methods
+- Create `sdk/planning/planner.py`
+- Implement PlanningMixin
+- Unit tests
+
+**Agent 4:** Orchestration Lead  
+**Branch:** `feature/sdk-orchestration-module`  
+**Tasks:**
+- Extract 4 orchestration methods
+- Create `sdk/orchestration/coordinator.py`
+- Implement OrchestrationMixin
+- Unit tests
+
+**Merge Order:** Any order (no dependencies)
+
+### Week 3: Integration & Validation (Phases 4+5)
+
+**Agent:** Integration Specialist  
+**Branch:** `feature/sdk-integration`
+
+**Day 1-3:** Wire modules together
+- Extract server management
+- Refactor main SDK to use mixins
+- Update imports throughout codebase
+
+**Day 4-5:** Validation
+- Fix test imports (371+ tests)
+- Backward compatibility verification
+- Documentation updates
+- Final merge
+
+---
+
+## 9. Coordination Tools
+
+### Git Worktrees Setup
+
+```bash
+# Phase 1
+git worktree add worktrees/phase-1 -b feature/sdk-phase-1
+
+# Phase 2+3 (parallel)
+git worktree add worktrees/session -b feature/sdk-session
+git worktree add worktrees/analytics -b feature/sdk-analytics  
+git worktree add worktrees/planning -b feature/sdk-planning
+git worktree add worktrees/orchestration -b feature/sdk-orchestration
+
+# Phase 4
+git worktree add worktrees/integration -b feature/sdk-integration
+```
+
+### Communication Protocol
+
+**Daily Standup (Async via GitHub Discussions):**
+- What did you complete yesterday?
+- What are you working on today?
+- Any blockers?
+
+**Merge Request Process:**
+1. Agent completes module
+2. Opens PR with "Phase X Complete: <module>"
+3. CI runs tests (must pass)
+4. Integration agent reviews
+5. Merge to main (no conflicts expected)
+
+### Tracking Progress
+
+**HtmlGraph Tracking:**
+```python
+# Create track for modularization
+track = sdk.tracks.create("SDK Modularization")
+
+# Each agent creates feature for their module
+feat_session = sdk.features.create("Extract session module")
+feat_analytics = sdk.features.create("Extract analytics module")
+# etc.
+
+# Link to track
+track.add_feature(feat_session)
+track.add_feature(feat_analytics)
+```
+
+---
+
+## 10. Recommended Approach
+
+### Option A: Full Parallelization (Recommended)
+
+**Timeline:** 3 weeks  
+**Agents:** 6 total (1 foundation, 4 parallel, 1 integration)  
+**Risk:** Medium  
+**Benefit:** 40% time savings
+
+**When to use:** You have bandwidth for coordination overhead
+
+### Option B: Conservative Parallelization
+
+**Timeline:** 4 weeks  
+**Agents:** 3 total (1 foundation, 2 parallel pairs, 1 integration)  
+**Risk:** Low  
+**Benefit:** 20% time savings
+
+**Parallel Pairs:**
+- Week 2: Session + Analytics (closely related)
+- Week 3: Planning + Orchestration (closely related)
+
+**When to use:** Want parallelization benefits with less coordination
+
+### Option C: Sequential (Original Plan)
+
+**Timeline:** 5 weeks  
+**Agents:** 1 per phase  
+**Risk:** Very Low  
+**Benefit:** Simplest coordination
+
+**When to use:** Low confidence in parallel execution
+
+---
+
+## Recommendation: Option A (Full Parallelization)
+
+**Rationale:**
+1. Modules have zero cross-dependencies (verified in codebase analysis)
+2. Git worktrees eliminate merge conflicts
+3. 40% time savings justifies coordination overhead
+4. HtmlGraph tracks progress automatically
+5. Integration phase catches any issues before final merge
+
+**Next Steps:**
+1. Create track: `sdk.tracks.create("SDK Modularization")`
+2. Create features for each module
+3. Assign agents to features
+4. Start Phase 1 (Foundation) immediately
+5. Launch 4 parallel agents once Phase 1 merges
+
+---
+
+## Appendix: Method Distribution
+
+**Current SDK (3,500 lines, 62 methods):**
+
+| Category | Methods | Lines | Target Module |
+|----------|---------|-------|---------------|
+| Session | 10 | 400 | sdk/session/ |
+| Analytics | 8 | 400 | sdk/analytics/ |
+| Planning | 5 | 500 | sdk/planning/ |
+| Orchestration | 4 | 300 | sdk/orchestration/ |
+| Server | 3 | 300 | sdk/server/ |
+| Collections | 1 | 150 | sdk/collections.py |
+| Init/Discovery | 3 | 150 | sdk/base.py + discovery.py |
+| Uncategorized | 28 | 1,300 | Needs further analysis |
+
+**After Modularization (target):**
+- Main SDK: ~800 lines (orchestration only)
+- 8 modules: ~2,700 lines (extracted functionality)
+- Total: Same functionality, better organized
+
+---
+
+## Conclusion
+
+The SDK modularization can be optimized from 5 weeks (sequential) to 3 weeks (parallel) by executing Phases 2 and 3 simultaneously with 4 independent subagents. The key insight is that session/, analytics/, planning/, and orchestration/ modules have zero cross-dependencies and only depend on the Phase 1 foundation. This parallelization reduces timeline by 40% with manageable coordination overhead using git worktrees and HtmlGraph tracking.
+
+**Critical Success Factors:**
+1. Complete Phase 1 foundation before starting parallel work
+2. Use git worktrees to avoid merge conflicts  
+3. Define clear mixin interfaces in BaseSDK
+4. Dedicate Phase 4 to integration testing
+5. Preserve backward compatibility throughout
+
+**Risk Level:** Medium (manageable with proper coordination)  
+**Time Savings:** 40% (2 weeks)  
+**Recommended:** Yes - benefits outweigh risks
+            </div>
+        </section>
+    </article>
+</body>
+</html>

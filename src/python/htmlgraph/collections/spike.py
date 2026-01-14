@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Spike collection for managing investigation and research spikes.
 
 Extends BaseCollection with spike-specific builder support.
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING

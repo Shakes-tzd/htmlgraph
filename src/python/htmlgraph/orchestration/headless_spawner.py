@@ -1,5 +1,9 @@
 """Headless AI spawner for multi-AI orchestration.
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 This module provides backward compatibility by delegating to modular spawner implementations.
 """
 
@@ -263,8 +267,8 @@ class HeadlessSpawner:
             >>> spawner = HeadlessSpawner()
             >>> result = spawner.spawn_claude("What is 2+2?")
             >>> if result.success:
-            ...     print(result.response)  # "4"
-            ...     print(f"Cost: ${result.raw_output['total_cost_usd']}")
+            ...     logger.info("%s", result.response)  # "4"
+            ...     logger.info(f"Cost: ${result.raw_output['total_cost_usd']}")
         """
         return self._claude_spawner.spawn(
             prompt=prompt,

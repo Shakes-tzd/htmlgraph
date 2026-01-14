@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 SessionInsight collection for managing session insights.
 
 Extends BaseCollection with insight-specific query methods.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

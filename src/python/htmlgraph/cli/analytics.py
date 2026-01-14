@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Analytics and reporting commands.
 
 Commands for analytics and reporting:
@@ -7,7 +9,6 @@ Commands for analytics and reporting:
 - sync-docs: Documentation synchronization
 """
 
-from __future__ import annotations
 
 import argparse
 import json

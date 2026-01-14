@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Repository Hashing and Git Awareness Module.
 
@@ -22,7 +24,6 @@ Architecture:
     - monorepo_project: "project-name" (if in monorepo)
 """
 
-from __future__ import annotations
 
 import hashlib
 import logging

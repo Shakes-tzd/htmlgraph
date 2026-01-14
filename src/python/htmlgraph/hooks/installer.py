@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Git hooks installation and configuration management.
 """
@@ -52,7 +56,7 @@ class HookConfig:
                 user_config = json.load(f)
                 self.config.update(user_config)
         except Exception as e:
-            print(f"Warning: Failed to load hook config: {e}")
+            logger.info(f"Warning: Failed to load hook config: {e}")
 
     def save(self) -> None:
         """Save configuration to file."""

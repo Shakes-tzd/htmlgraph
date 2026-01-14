@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Task delegation collection for tracking spawned agent work.
 
@@ -12,7 +18,6 @@ Captures observability data for Task() calls:
 This data proves multi-agent orchestration works and enables dashboard attribution.
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -41,7 +46,7 @@ class TaskDelegationCollection(BaseCollection["TaskDelegationCollection"]):
         >>> sdk = SDK(agent="orchestrator")
         >>> delegations = sdk.task_delegations.where(agent_type="codex-spawner")
         >>> for d in delegations:
-        ...     print(f"{d.agent_type}: {d.task_description} ({d.duration_seconds}s)")
+        ...     logger.info(f"{d.agent_type}: {d.task_description} ({d.duration_seconds}s)")
         >>>
         >>> # Get all delegations for a specific agent
         >>> gemini_work = sdk.task_delegations.where(agent_type="gemini-spawner")

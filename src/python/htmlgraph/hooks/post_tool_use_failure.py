@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 PostToolUseFailure Hook - Automatic Error Tracking and Debug Spike Creation
 
@@ -109,7 +113,7 @@ def run(hook_input: dict[str, Any]) -> dict[str, Any]:
 
     except Exception as e:
         # Never raise - log and continue
-        print(f"PostToolUseFailure hook error: {e}", file=sys.stderr)
+        logger.warning(f"PostToolUseFailure hook error: {e}")
         return {"continue": True}
 
 
@@ -238,10 +242,10 @@ def create_debug_spike(tool: str, error: str, log_path: Path) -> None:
         with open(spike_marker, "w") as f:
             json.dump(existing_spikes, f, indent=2)
 
-        print(f"Created debug spike: {spike.id}", file=sys.stderr)
+        logger.warning(f"Created debug spike: {spike.id}")
 
     except Exception as e:
-        print(f"Failed to create debug spike: {e}", file=sys.stderr)
+        logger.warning(f"Failed to create debug spike: {e}")
 
 
 def main() -> None:

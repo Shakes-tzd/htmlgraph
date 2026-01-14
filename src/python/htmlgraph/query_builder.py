@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Fluent Query Builder for HtmlGraph.
 
@@ -24,7 +26,6 @@ Example:
         .execute()
 """
 
-from __future__ import annotations
 
 import re
 from collections.abc import Callable, Iterator

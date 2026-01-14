@@ -1,5 +1,9 @@
 """Intelligent model selection for task routing.
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 This module provides functionality to select the best AI model for a given task
 based on task type, complexity, and budget constraints.
 
@@ -179,7 +183,7 @@ class ModelSelection:
 
         Example:
             >>> model = ModelSelection.select_model("implementation", "high", "balanced")
-            >>> print(model)
+            >>> logger.info("%s", model)
             'claude-opus'
         """
         # Normalize inputs
@@ -218,7 +222,7 @@ class ModelSelection:
 
         Example:
             >>> fallbacks = ModelSelection.get_fallback_chain("gemini")
-            >>> print(fallbacks)
+            >>> logger.info("%s", fallbacks)
             ['claude-haiku', 'claude-sonnet', 'claude-opus']
         """
         return ModelSelection.FALLBACK_CHAINS.get(primary_model, ["claude-sonnet"])
@@ -305,7 +309,7 @@ def select_model(
 
     Example:
         >>> model = select_model("implementation", "high")
-        >>> print(model)
+        >>> logger.info("%s", model)
     """
     return ModelSelection.select_model(task_type, complexity, budget)
 

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Base builder class for fluent node creation.
 
 Provides common builder patterns shared across all node types.
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, TypeVar

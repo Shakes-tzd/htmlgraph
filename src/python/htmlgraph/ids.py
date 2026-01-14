@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Hash-based ID generation for HtmlGraph.
 
@@ -15,7 +17,6 @@ collision probability is effectively zero even with thousands
 of concurrent agents creating tasks simultaneously.
 """
 
-from __future__ import annotations
 
 import hashlib
 import os

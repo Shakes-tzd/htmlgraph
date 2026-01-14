@@ -204,7 +204,37 @@ def get_app(db_path: str) -> FastAPI:
             return "0"
         return f"{value:,}"
 
+    def format_duration(seconds: float | int | None) -> str:
+        """Format duration in seconds to human-readable string."""
+        if seconds is None:
+            return "0.00s"
+        return f"{float(seconds):.2f}s"
+
+    def format_bytes(bytes_size: int | float | None) -> str:
+        """Format bytes to MB with 2 decimal places."""
+        if bytes_size is None:
+            return "0.00MB"
+        return f"{int(bytes_size) / (1024 * 1024):.2f}MB"
+
+    def truncate_text(text: str | None, length: int = 50) -> str:
+        """Truncate text to specified length with ellipsis."""
+        if text is None:
+            return ""
+        return text[:length] + "..." if len(text) > length else text
+
+    def format_timestamp(ts: Any) -> str:
+        """Format timestamp to readable string."""
+        if ts is None:
+            return ""
+        if hasattr(ts, "strftime"):
+            return str(ts.strftime("%Y-%m-%d %H:%M:%S"))
+        return str(ts)
+
     templates.env.filters["format_number"] = format_number
+    templates.env.filters["format_duration"] = format_duration
+    templates.env.filters["format_bytes"] = format_bytes
+    templates.env.filters["truncate"] = truncate_text
+    templates.env.filters["format_timestamp"] = format_timestamp
 
     # Setup static files
     static_dir = Path(__file__).parent / "static"
@@ -287,8 +317,8 @@ def get_app(db_path: str) -> FastAPI:
 
                 # Execute query with timing
                 exec_start = time.time()
-                cursor = await db.execute(query)
-                rows = await cursor.fetchall()
+                async with db.execute(query) as cursor:
+                    rows = await cursor.fetchall()
                 exec_time_ms = (time.time() - exec_start) * 1000
 
                 agents = []
@@ -434,8 +464,8 @@ def get_app(db_path: str) -> FastAPI:
 
                 # Execute query with timing
                 exec_start = time.time()
-                cursor = await db.execute(query, params)
-                rows = await cursor.fetchall()
+                async with db.execute(query, params) as cursor:
+                    rows = await cursor.fetchall()
                 exec_time_ms = (time.time() - exec_start) * 1000
 
                 # Build result models
@@ -485,15 +515,15 @@ def get_app(db_path: str) -> FastAPI:
                     (SELECT COUNT(DISTINCT agent_id) FROM agent_events) as total_agents,
                     (SELECT COUNT(*) FROM sessions) as total_sessions
             """
-            cursor = await db.execute(stats_query)
-            row = await cursor.fetchone()
+            async with db.execute(stats_query) as cursor:
+                row = await cursor.fetchone()
 
             # Query distinct agent IDs for the agent set
             agents_query = (
                 "SELECT DISTINCT agent_id FROM agent_events WHERE agent_id IS NOT NULL"
             )
-            agents_cursor = await db.execute(agents_query)
-            agents_rows = await agents_cursor.fetchall()
+            async with db.execute(agents_query) as agents_cursor:
+                agents_rows = await agents_cursor.fetchall()
             agents = [row[0] for row in agents_rows]
 
             if row is None:
@@ -616,8 +646,8 @@ def get_app(db_path: str) -> FastAPI:
             parent_query += " ORDER BY timestamp DESC LIMIT ?"
             parent_params.append(limit)
 
-            cursor = await db.execute(parent_query, parent_params)
-            parent_rows = await cursor.fetchall()
+            async with db.execute(parent_query, parent_params) as cursor:
+                parent_rows = await cursor.fetchall()
 
             traces: list[dict[str, Any]] = []
 
@@ -655,8 +685,8 @@ def get_app(db_path: str) -> FastAPI:
                     WHERE parent_event_id = ?
                     ORDER BY timestamp ASC
                 """
-                child_cursor = await db.execute(child_query, (parent_event_id,))
-                child_rows = await child_cursor.fetchall()
+                async with db.execute(child_query, (parent_event_id,)) as child_cursor:
+                    child_rows = await child_cursor.fetchall()
 
                 child_events = []
                 for child_row in child_rows:
@@ -806,8 +836,8 @@ def get_app(db_path: str) -> FastAPI:
             params.append(limit)
 
             exec_start = time.time()
-            cursor = await db.execute(query, params)
-            rows = await cursor.fetchall()
+            async with db.execute(query, params) as cursor:
+                rows = await cursor.fetchall()
 
             for row in rows:
                 events.append(
@@ -851,8 +881,8 @@ def get_app(db_path: str) -> FastAPI:
                     spike_query += " ORDER BY created_at DESC LIMIT ?"
                     spike_params.append(limit)
 
-                    spike_cursor = await db.execute(spike_query, spike_params)
-                    spike_rows = await spike_cursor.fetchall()
+                    async with db.execute(spike_query, spike_params) as spike_cursor:
+                        spike_rows = await spike_cursor.fetchall()
 
                     for row in spike_rows:
                         events.append(
@@ -902,8 +932,8 @@ def get_app(db_path: str) -> FastAPI:
                     collab_query += " ORDER BY timestamp DESC LIMIT ?"
                     collab_params.append(limit)
 
-                    collab_cursor = await db.execute(collab_query, collab_params)
-                    collab_rows = await collab_cursor.fetchall()
+                    async with db.execute(collab_query, collab_params) as collab_cursor:
+                        collab_rows = await collab_cursor.fetchall()
 
                     for row in collab_rows:
                         events.append(
@@ -1016,8 +1046,8 @@ def get_app(db_path: str) -> FastAPI:
                 LIMIT ?
             """
 
-            cursor = await db.execute(user_query_query, [limit])
-            user_query_rows = await cursor.fetchall()
+            async with db.execute(user_query_query, [limit]) as cursor:
+                user_query_rows = await cursor.fetchall()
 
             conversation_turns: list[dict[str, Any]] = []
 
@@ -1061,8 +1091,8 @@ def get_app(db_path: str) -> FastAPI:
                     if depth >= max_depth:
                         return [], 0.0, 0, 0
 
-                    cursor = await db.execute(children_query, [parent_id])
-                    rows = await cursor.fetchall()
+                    async with db.execute(children_query, [parent_id]) as cursor:
+                        rows = await cursor.fetchall()
 
                     children_list: list[dict[str, Any]] = []
                     total_dur = 0.0
@@ -1338,8 +1368,8 @@ def get_app(db_path: str) -> FastAPI:
             query += " ORDER BY started_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
-            cursor = await db.execute(query, params)
-            rows = await cursor.fetchall()
+            async with db.execute(query, params) as cursor:
+                rows = await cursor.fetchall()
 
             # Get total count for pagination
             count_query = "SELECT COUNT(*) FROM sessions WHERE 1=1"
@@ -1348,8 +1378,8 @@ def get_app(db_path: str) -> FastAPI:
                 count_query += " AND status = ?"
                 count_params.append(status)
 
-            count_cursor = await db.execute(count_query, count_params)
-            count_row = await count_cursor.fetchone()
+            async with db.execute(count_query, count_params) as count_cursor:
+                count_row = await count_cursor.fetchone()
             total = int(count_row[0]) if count_row else 0
 
             # Build session objects
@@ -1416,8 +1446,8 @@ def get_app(db_path: str) -> FastAPI:
                 LIMIT 50
             """
 
-            cursor = await db.execute(query)
-            rows = list(await cursor.fetchall())
+            async with db.execute(query) as cursor:
+                rows = list(await cursor.fetchall())
             logger.debug(f"orchestration_view: Query executed, got {len(rows)} rows")
 
             delegations = []

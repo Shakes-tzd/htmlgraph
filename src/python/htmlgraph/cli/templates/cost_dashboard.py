@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """HTML template for cost dashboard.
 
 This module generates a beautiful, interactive HTML dashboard for cost analysis.
 Separated from main CLI code for maintainability and testability.
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any

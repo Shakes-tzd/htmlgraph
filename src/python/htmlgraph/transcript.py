@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Claude Code Transcript Integration.
 
@@ -21,7 +23,6 @@ References:
     - https://github.com/simonw/claude-code-transcripts
 """
 
-from __future__ import annotations
 
 import json
 from collections.abc import Iterator

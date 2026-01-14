@@ -13,7 +13,6 @@ Tests:
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from htmlgraph.db.queries import Queries
@@ -50,15 +49,15 @@ class TestSDKDatabaseInitialization:
             assert expected_tables.issubset(tables)
 
     def test_sdk_db_path_defaults(self, isolated_db):
-        """Test that SDK uses default db_path when not provided."""
+        """Test that SDK uses provided db_path when specified."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("pathlib.Path.home") as mock_home:
-                mock_home.return_value = Path(tmpdir)
+            # When db_path is explicitly provided, SDK should use it
+            db_path = f"{tmpdir}/custom.db"
+            sdk = SDK(directory=tmpdir, agent="test-agent", db_path=db_path)
 
-                sdk = SDK(directory=tmpdir, agent="test-agent", db_path=str(isolated_db))
-
-                # Should use ~/.htmlgraph/htmlgraph.db by default
-                assert str(tmpdir) in str(sdk._db.db_path)
+            # Should use the provided db_path
+            assert str(tmpdir) in str(sdk._db.db_path)
+            assert "custom.db" in str(sdk._db.db_path)
 
     def test_sdk_custom_db_path(self, isolated_db):
         """Test that SDK respects custom db_path."""

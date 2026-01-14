@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 """
 Track Builder for agent-friendly track creation.
 """
 
-from __future__ import annotations
 
 import re
 from datetime import datetime

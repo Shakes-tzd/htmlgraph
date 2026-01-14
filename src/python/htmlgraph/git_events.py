@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Git event logging for HtmlGraph.
 
@@ -10,7 +12,6 @@ Design goals:
 - Analytics-friendly: schema compatible with EventRecord/AnalyticsIndex
 """
 
-from __future__ import annotations
 
 import os
 import re
@@ -277,7 +278,10 @@ def _append_event(
         p.parent.mkdir(parents=True, exist_ok=True)
         with p.open("a", encoding="utf-8") as f:
             f.write(
-                json.dumps(record.to_json(), ensure_ascii=False, default=str) + "\n"
+                json.dumps(
+                    record.model_dump(mode="json"), ensure_ascii=False, default=str
+                )
+                + "\n"
             )
         return
 

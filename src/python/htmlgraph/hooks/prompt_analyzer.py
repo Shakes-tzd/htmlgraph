@@ -259,7 +259,7 @@ def get_session_violation_count(context: HookContext) -> tuple[int, int]:
     Example:
         >>> violation_count, waste_tokens = get_session_violation_count(context)
         >>> if violation_count > 0:
-        ...     print(f"Violations this session: {violation_count}")
+        ...     logger.info(f"Violations this session: {violation_count}")
     """
     try:
         from htmlgraph.cigs import ViolationTracker
@@ -289,7 +289,7 @@ def get_active_work_item(context: HookContext) -> dict[str, Any] | None:
     Example:
         >>> active = get_active_work_item(context)
         >>> if active and active['type'] == 'feature':
-        ...     print(f"Active feature: {active['title']}")
+        ...     logger.info(f"Active feature: {active['title']}")
     """
     try:
         from htmlgraph import SDK
@@ -326,7 +326,7 @@ def generate_guidance(
         >>> classification = classify_prompt("Implement new API endpoint")
         >>> guidance = generate_guidance(classification, None, prompt)
         >>> if guidance:
-        ...     print(guidance)
+        ...     logger.info("%s", guidance)
     """
 
     # If continuing and has active work, no guidance needed
@@ -467,7 +467,7 @@ def generate_cigs_guidance(
         >>> cigs = classify_cigs_intent("Search for all error handling")
         >>> guidance = generate_cigs_guidance(cigs, 0, 0)
         >>> if guidance:
-        ...     print(guidance)
+        ...     logger.info("%s", guidance)
     """
     imperatives = []
 
@@ -544,7 +544,7 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
         >>> context = HookContext.from_input(hook_input)
         >>> event_id = create_user_query_event(context, "Implement feature X")
         >>> if event_id:
-        ...     print(f"Created event: {event_id}")
+        ...     logger.info(f"Created event: {event_id}")
     """
     try:
         session_id = context.session_id

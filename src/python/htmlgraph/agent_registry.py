@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Agent Registry - Manages agent capabilities and routing.
 
@@ -7,7 +9,6 @@ Provides:
 - Capability matching for task routing
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field

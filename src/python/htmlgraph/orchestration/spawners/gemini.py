@@ -1,12 +1,14 @@
 """Gemini spawner implementation."""
 
 import json
+import logging
 import subprocess
-import sys
 import time
 from typing import TYPE_CHECKING, Any
 
 from .base import AIResult, BaseSpawner
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -220,15 +222,11 @@ class GeminiSpawner(BaseSpawner):
 
             # Record subprocess invocation if tracker is available
             subprocess_event_id = None
-            print(
-                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}",
-                file=sys.stderr,
+            logger.warning(
+                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}"
             )
             if tracker and parent_event_id:
-                print(
-                    "DEBUG: Recording subprocess invocation for Gemini...",
-                    file=sys.stderr,
-                )
+                logger.debug("Recording subprocess invocation for Gemini...")
                 try:
                     subprocess_event = tracker.record_tool_call(
                         tool_name="subprocess.gemini",
@@ -238,23 +236,18 @@ class GeminiSpawner(BaseSpawner):
                     )
                     if subprocess_event:
                         subprocess_event_id = subprocess_event.get("event_id")
-                        print(
-                            f"DEBUG: Subprocess event created for Gemini: {subprocess_event_id}",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"DEBUG: Subprocess event created for Gemini: {subprocess_event_id}"
                         )
                     else:
-                        print("DEBUG: subprocess_event was None", file=sys.stderr)
+                        logger.debug("subprocess_event was None")
                 except Exception as e:
                     # Tracking failure should not break execution
-                    print(
-                        f"DEBUG: Exception recording Gemini subprocess: {e}",
-                        file=sys.stderr,
-                    )
+                    logger.warning(f"DEBUG: Exception recording Gemini subprocess: {e}")
                     pass
             else:
-                print(
-                    f"DEBUG: Skipping Gemini subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}",
-                    file=sys.stderr,
+                logger.warning(
+                    f"DEBUG: Skipping Gemini subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}"
                 )
 
             # Execute with timeout and stderr redirection

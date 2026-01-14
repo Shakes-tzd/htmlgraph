@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Bug builder for creating bug report nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with bug-specific methods like
 severity and reproduction steps.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 

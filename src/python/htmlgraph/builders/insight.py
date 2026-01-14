@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Insight builder for creating session insight nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with insight-specific methods for
 session health scoring and pattern detection.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 

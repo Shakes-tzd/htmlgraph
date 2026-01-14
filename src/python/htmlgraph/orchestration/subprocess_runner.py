@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 """Subprocess execution with standardized error handling.
 
 Provides consistent error handling for Claude Code CLI invocations.
 """
 
-from __future__ import annotations
-
+import logging
 import subprocess
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 class SubprocessRunner:
@@ -25,7 +28,7 @@ class SubprocessRunner:
         try:
             subprocess.run(cmd, check=False)
         except FileNotFoundError:
-            print("Error: 'claude' command not found.", file=sys.stderr)
+            logger.warning("Error: 'claude' command not found.")
             print(
                 "Please install Claude Code CLI: https://code.claude.com",
                 file=sys.stderr,

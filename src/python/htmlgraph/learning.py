@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Active Learning Persistence Module.
 
@@ -5,7 +7,6 @@ Bridges TranscriptAnalytics to the HtmlGraph for persistent learning.
 Analyzes sessions and persists patterns, insights, and metrics to the graph.
 """
 
-from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime

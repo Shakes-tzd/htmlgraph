@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 CIGS PreToolUse Enforcer - Enhanced Orchestrator Enforcement with Escalation
 
@@ -309,7 +313,7 @@ def enforce_cigs_pretool(tool_input: dict[str, Any]) -> dict[str, Any]:
         return enforcer.enforce(tool, params)
     except Exception as e:
         # Graceful degradation - allow on error
-        print(f"Warning: CIGS enforcement error: {e}", file=sys.stderr)
+        logger.warning(f"Warning: CIGS enforcement error: {e}")
         return {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",

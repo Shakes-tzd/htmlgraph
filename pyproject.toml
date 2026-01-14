@@ -113,6 +113,12 @@ disallow_untyped_defs = true
 disallow_any_unimported = false  # Allow untyped third-party libraries
 ignore_missing_imports = true
 exclude = ["tests/"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 # Per-module options for strict checking
 [[tool.mypy.overrides]]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Phase builder for creating project phase nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with phase-specific methods like
 phase ordering and dependencies.
 """
 
-from __future__ import annotations
 
 from datetime import date
 from typing import TYPE_CHECKING, Any

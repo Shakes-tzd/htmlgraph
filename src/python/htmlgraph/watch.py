@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 File-change watcher for HtmlGraph.
 
@@ -7,7 +9,6 @@ native "PostToolUse" hooks (e.g. editors/agents that write files directly).
 It batches filesystem changes and records them as activity events.
 """
 
-from __future__ import annotations
 
 import os
 import time

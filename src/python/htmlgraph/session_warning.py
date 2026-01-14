@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Session Warning System for AI Agents.
 
@@ -20,7 +22,6 @@ Usage:
     sdk.dismiss_session_warning()
 """
 
-from __future__ import annotations
 
 import json
 import sys

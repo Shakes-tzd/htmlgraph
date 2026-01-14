@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Orchestration helpers for reliable parallel task coordination.
 
@@ -7,9 +11,13 @@ Provides Task ID pattern for retrieving results from parallel delegations.
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from htmlgraph.sdk import SDK
+if TYPE_CHECKING:
+    from htmlgraph.sdk import SDK
+else:
+    # Avoid circular import during module initialization
+    SDK = None
 
 
 def generate_task_id() -> str:
@@ -72,7 +80,7 @@ Provide detailed findings in your response.
 
 
 def get_results_by_task_id(
-    sdk: SDK,
+    sdk: "SDK",
     task_id: str,
     timeout: int = 60,
     poll_interval: int = 2,
@@ -138,7 +146,7 @@ def get_results_by_task_id(
 
 
 def parallel_delegate(
-    sdk: SDK,
+    sdk: "SDK",
     tasks: list[dict[str, str]],
     timeout: int = 120,
 ) -> dict[str, dict[str, Any]]:
@@ -161,7 +169,7 @@ def parallel_delegate(
         ])
 
         for task_id, result in results.items():
-            print(f"{task_id}: {result['findings']}")
+            logger.info(f"{task_id}: {result['findings']}")
     """
     # Generate task IDs and enhanced prompts
     task_mapping = {}
@@ -189,7 +197,7 @@ def parallel_delegate(
 
 
 def save_task_results(
-    sdk: SDK,
+    sdk: "SDK",
     task_id: str,
     description: str,
     results: str,
@@ -263,7 +271,7 @@ def save_task_results(
 
 
 def validate_and_save(
-    sdk: SDK,
+    sdk: "SDK",
     task_id: str,
     description: str,
     results: str,
@@ -303,7 +311,7 @@ def validate_and_save(
         )
 
         if outcome["validated"]:
-            print(f"✅ Saved to spike: {outcome['spike_id']}")
+            logger.info(f"✅ Saved to spike: {outcome['spike_id']}")
     """
     validated = True
     validation_results = None

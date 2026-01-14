@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Todo collection for managing persistent todo items.
 
@@ -8,7 +10,6 @@ Unlike other collections, TodoCollection provides:
 - Bulk sync from TodoWrite format
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any

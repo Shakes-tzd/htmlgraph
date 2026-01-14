@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Session Handoff and Continuity - Phase 2 Feature 3
 
@@ -19,11 +21,10 @@ Usage:
     # Resume next session
     resumed = sdk.sessions.continue_from_last()
     if resumed:
-        print(resumed.summary)
-        print(resumed.recommended_files)
+        logger.info("%s", resumed.summary)
+        logger.info("%s", resumed.recommended_files)
 """
 
-from __future__ import annotations
 
 import json
 import logging

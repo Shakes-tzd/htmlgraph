@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Infrastructure commands.
 
 Commands for core infrastructure operations:
@@ -11,7 +13,6 @@ Commands for core infrastructure operations:
 - Other utilities
 """
 
-from __future__ import annotations
 
 import argparse
 import sys

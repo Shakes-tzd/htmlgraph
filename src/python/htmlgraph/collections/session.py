@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 SessionCollection - Session state and management interface.
 
@@ -13,7 +19,6 @@ Integration with SessionStart hook:
     sdk.sessions.setup_environment_variables(state)
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -82,9 +87,9 @@ class SessionCollection(BaseCollection):
         Example:
             >>> sdk = SDK()
             >>> state = sdk.sessions.get_current_state()
-            >>> print(f"Session: {state['session_id']}")
-            >>> print(f"Post-compact: {state['is_post_compact']}")
-            >>> print(f"Delegation enabled: {state['delegation_enabled']}")
+            >>> logger.info(f"Session: {state['session_id']}")
+            >>> logger.info(f"Post-compact: {state['is_post_compact']}")
+            >>> logger.info(f"Delegation enabled: {state['delegation_enabled']}")
         """
         return self._state_manager.get_current_state()
 
@@ -116,8 +121,8 @@ class SessionCollection(BaseCollection):
             >>> sdk = SDK()
             >>> state = sdk.sessions.get_current_state()
             >>> env_vars = sdk.sessions.setup_environment_variables(state)
-            >>> print(f"CLAUDE_SESSION_ID: {env_vars['CLAUDE_SESSION_ID']}")
-            >>> print(f"CLAUDE_DELEGATION_ENABLED: {env_vars['CLAUDE_DELEGATION_ENABLED']}")
+            >>> logger.info(f"CLAUDE_SESSION_ID: {env_vars['CLAUDE_SESSION_ID']}")
+            >>> logger.info(f"CLAUDE_DELEGATION_ENABLED: {env_vars['CLAUDE_DELEGATION_ENABLED']}")
         """
         return self._state_manager.setup_environment_variables(
             session_state=session_state, auto_detect_compact=auto_detect_compact
@@ -168,7 +173,7 @@ class SessionCollection(BaseCollection):
         Example:
             >>> sdk = SDK()
             >>> if sdk.sessions.detect_compact_automatically():
-            ...     print("This is a post-compact session")
+            ...     logger.info("This is a post-compact session")
         """
         return self._state_manager.detect_compact_automatically()
 

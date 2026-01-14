@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 CostAnalyzer for OTEL ROI Analysis - Phase 1.
 
@@ -15,7 +19,7 @@ Usage:
     from htmlgraph.analytics.cost_analyzer import CostAnalyzer
     analyzer = CostAnalyzer()
     delegations = analyzer.get_task_delegations_with_costs()
-    print(f"Total delegation cost: ${delegations['total_cost_usd']:.2f}")
+    logger.info(f"Total delegation cost: ${delegations['total_cost_usd']:.2f}")
 """
 
 import sqlite3

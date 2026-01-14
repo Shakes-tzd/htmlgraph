@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 AggregatedMetric collection for managing aggregated metrics.
 
 Extends BaseCollection with metric-specific query methods.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

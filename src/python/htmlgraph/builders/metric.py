@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Metric builder for creating aggregated metric nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with metric-specific methods for
 time-series aggregation and trend analysis.
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any

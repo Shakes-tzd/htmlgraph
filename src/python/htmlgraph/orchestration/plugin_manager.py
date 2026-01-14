@@ -1,14 +1,17 @@
+from __future__ import annotations
+
 """Plugin management for HtmlGraph Claude Code integration.
 
 Centralizes plugin installation, directory management, and validation.
 """
 
-from __future__ import annotations
-
+import logging
 import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -40,12 +43,12 @@ class PluginManager:
             verbose: Whether to show progress messages
         """
         if verbose:
-            print("\n📦 Installing/upgrading HtmlGraph plugin...\n")
+            logger.info("\n📦 Installing/upgrading HtmlGraph plugin...\n")
 
         # Step 1: Update marketplace
         try:
             if verbose:
-                print("  Updating marketplace...")
+                logger.info("  Updating marketplace...")
             result = subprocess.run(
                 ["claude", "plugin", "marketplace", "update", "htmlgraph"],
                 capture_output=True,
@@ -54,7 +57,7 @@ class PluginManager:
             )
             if result.returncode == 0:
                 if verbose:
-                    print("    ✓ Marketplace updated")
+                    logger.info("    ✓ Marketplace updated")
             else:
                 # Non-blocking errors
                 if (
@@ -62,20 +65,20 @@ class PluginManager:
                     or "no marketplace" in result.stderr.lower()
                 ):
                     if verbose:
-                        print("    ℹ Marketplace not configured (OK, continuing)")
+                        logger.info("    ℹ Marketplace not configured (OK, continuing)")
                 elif verbose:
-                    print(f"    ⚠ Marketplace update: {result.stderr.strip()}")
+                    logger.info(f"    ⚠ Marketplace update: {result.stderr.strip()}")
         except FileNotFoundError:
             if verbose:
-                print("    ⚠ 'claude' command not found")
+                logger.info("    ⚠ 'claude' command not found")
         except Exception as e:
             if verbose:
-                print(f"    ⚠ Error updating marketplace: {e}")
+                logger.info(f"    ⚠ Error updating marketplace: {e}")
 
         # Step 2: Try update, fallback to install
         try:
             if verbose:
-                print("  Updating plugin to latest version...")
+                logger.info("  Updating plugin to latest version...")
             result = subprocess.run(
                 ["claude", "plugin", "update", "htmlgraph"],
                 capture_output=True,
@@ -84,7 +87,7 @@ class PluginManager:
             )
             if result.returncode == 0:
                 if verbose:
-                    print("    ✓ Plugin updated successfully")
+                    logger.info("    ✓ Plugin updated successfully")
             else:
                 # Fallback to install
                 if (
@@ -92,7 +95,7 @@ class PluginManager:
                     or "not found" in result.stderr.lower()
                 ):
                     if verbose:
-                        print("    ℹ Plugin not yet installed, installing...")
+                        logger.info("    ℹ Plugin not yet installed, installing...")
                     install_result = subprocess.run(
                         ["claude", "plugin", "install", "htmlgraph"],
                         capture_output=True,
@@ -101,20 +104,22 @@ class PluginManager:
                     )
                     if install_result.returncode == 0:
                         if verbose:
-                            print("    ✓ Plugin installed successfully")
+                            logger.info("    ✓ Plugin installed successfully")
                     elif verbose:
-                        print(f"    ⚠ Plugin install: {install_result.stderr.strip()}")
+                        logger.info(
+                            f"    ⚠ Plugin install: {install_result.stderr.strip()}"
+                        )
                 elif verbose:
-                    print(f"    ⚠ Plugin update: {result.stderr.strip()}")
+                    logger.info(f"    ⚠ Plugin update: {result.stderr.strip()}")
         except FileNotFoundError:
             if verbose:
-                print("    ⚠ 'claude' command not found")
+                logger.info("    ⚠ 'claude' command not found")
         except Exception as e:
             if verbose:
-                print(f"    ⚠ Error updating plugin: {e}")
+                logger.info(f"    ⚠ Error updating plugin: {e}")
 
         if verbose:
-            print("\n✓ Plugin installation complete\n")
+            logger.info("\n✓ Plugin installation complete\n")
 
     @staticmethod
     def validate_plugin_dir(plugin_dir: Path) -> None:
@@ -127,7 +132,7 @@ class PluginManager:
             SystemExit: If plugin directory doesn't exist
         """
         if not plugin_dir.exists():
-            print(f"Error: Plugin directory not found: {plugin_dir}", file=sys.stderr)
+            logger.warning(f"Error: Plugin directory not found: {plugin_dir}")
             print(
                 "Expected location: packages/claude-plugin/.claude-plugin",
                 file=sys.stderr,

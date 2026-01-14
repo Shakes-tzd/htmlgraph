@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 HtmlGraph Session Handler Module
 
@@ -24,7 +26,6 @@ Public API:
         Check if HtmlGraph has updates available
 """
 
-from __future__ import annotations
 
 import json
 import logging

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Feature collection for managing feature work items.
 
 Extends BaseCollection with feature-specific builder support.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

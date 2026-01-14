@@ -109,7 +109,7 @@ def _iter_with_progress(
 
 
 def _display_session_analytics(
-    console: Console, sdk: SDK, session_id: str, graph_dir: str, quiet: bool
+    console: Console, sdk: "SDK", session_id: str, graph_dir: str, quiet: bool
 ) -> None:
     """Display analytics for a single session."""
     from htmlgraph.converter import html_to_session
@@ -221,7 +221,7 @@ def _display_session_analytics(
 
 def _display_recent_sessions(
     console: Console,
-    sdk: SDK,
+    sdk: "SDK",
     session_files: list[Path],
     graph_dir: str,
     quiet: bool,
@@ -286,7 +286,7 @@ def _display_recent_sessions(
 
 def _display_project_analytics(
     console: Console,
-    sdk: SDK,
+    sdk: "SDK",
     session_files: list[Path],
     graph_dir: str,
     quiet: bool,

@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Orchestration commands (Archive, Orchestrator, Claude)."""
 
-from __future__ import annotations
 
 import argparse
 from datetime import datetime

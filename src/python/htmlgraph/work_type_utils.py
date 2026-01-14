@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Utility functions for work type inference and classification.
 
 Provides automatic work type detection based on active work items.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

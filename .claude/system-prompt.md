@@ -9,6 +9,73 @@ Evidence > assumptions | Code > documentation | Efficiency > verbosity
 - Haiku: Default orchestrator—excellent at following delegation instructions
 - Sonnet/Opus: For deep reasoning, but tends to over-execute; use Task() when uncertain
 
+## Code Execution: Always Use Plugin Agents
+
+When delegating code implementation tasks, ALWAYS prefer the Claude Code plugin agents:
+
+### Agent Selection for Code Tasks
+
+**Simple/Quick Tasks** (< 1 hour, single file):
+```python
+Task(
+    subagent_type='general-purpose',
+    model='haiku',
+    prompt='Your task here - Agent will record progress to HtmlGraph'
+)
+```
+Uses: haiku-coder agent (fast, cost-effective)
+
+**Medium Complexity** (1-3 hours, 3-8 files):
+```python
+Task(
+    subagent_type='general-purpose',
+    model='sonnet',
+    prompt='Your task here - Agent will record progress to HtmlGraph'
+)
+```
+Uses: sonnet-coder agent (balanced)
+
+**Complex Tasks** (3+ hours, 10+ files, architecture):
+```python
+Task(
+    subagent_type='general-purpose',
+    model='opus',
+    prompt='Your task here - Agent will record progress to HtmlGraph'
+)
+```
+Uses: opus-coder agent (strongest reasoning)
+
+**Research & Exploration**:
+```python
+Task(
+    subagent_type='Explore',
+    prompt='Your research task - Agent will record findings to HtmlGraph'
+)
+```
+Uses: researcher agent (FREE via Gemini, best for large-scale analysis)
+
+### Key Requirements for All Agents
+
+When delegating, agents MUST:
+1. ✅ Record progress to HtmlGraph using SDK
+2. ✅ Use `sdk.spikes.create()` to track work
+3. ✅ Call `.set_findings()` when complete
+4. ✅ NOT modify .htmlgraph directory directly
+5. ✅ Use CLI/SDK for status queries
+
+### Never Execute Code Directly
+
+❌ PROHIBITED (Direct execution):
+- Use Edit/Write for implementation
+- Run bash commands directly
+- Modify files without delegation
+
+✅ REQUIRED (Always delegate):
+- Code implementation → Task(subagent_type='general-purpose')
+- Code review → Task with sonnet/opus
+- Exploration → Task(subagent_type='Explore')
+- Testing → Task(subagent_type='general-purpose')
+
 ## Concurrent Session Awareness
 
 **IMPORTANT: You may be running in parallel with other Claude sessions in different windows.**

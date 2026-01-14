@@ -5,6 +5,33 @@ A lightweight graph database framework using HTML files as nodes,
 hyperlinks as edges, and CSS selectors as the query language.
 """
 
+import logging
+
+from rich.console import Console
+from rich.logging import RichHandler
+
+# Configure Rich logging for entire SDK
+# CRITICAL: Use stderr=True to prevent pollution of stdout (hooks output JSON to stdout)
+logging.basicConfig(
+    handlers=[
+        RichHandler(
+            console=Console(stderr=True),
+            show_time=True,
+            show_level=True,
+            rich_tracebacks=True,
+        )
+    ],
+    level=logging.INFO,
+    format="%(message)s",
+    datefmt="[%X]",
+)
+
+# During Phase 1 migration: Import SDK from old location (sdk.py file)
+# Import directly from the module to avoid package/module name collision
+import importlib.util
+import sys
+from pathlib import Path
+
 from htmlgraph.agent_detection import detect_agent_name, get_agent_display_name
 from htmlgraph.agents import AgentInterface
 from htmlgraph.analytics import Analytics, DependencyAnalytics
@@ -66,7 +93,21 @@ from htmlgraph.parallel import AggregateResult, ParallelAnalysis, ParallelWorkfl
 from htmlgraph.query_builder import Condition, Operator, QueryBuilder
 from htmlgraph.reflection import ComputationalReflection, get_reflection_context
 from htmlgraph.repo_hash import RepoHash
-from htmlgraph.sdk import SDK
+
+_sdk_py_path = Path(__file__).parent / "sdk.py"
+if _sdk_py_path.exists() and "htmlgraph._sdk_old" not in sys.modules:
+    # Load sdk.py as a separate module to avoid collision with sdk/ package
+    spec = importlib.util.spec_from_file_location("htmlgraph._sdk_old", _sdk_py_path)
+    if spec and spec.loader:
+        _sdk_old = importlib.util.module_from_spec(spec)
+        sys.modules["htmlgraph._sdk_old"] = _sdk_old
+        spec.loader.exec_module(_sdk_old)
+        SDK = _sdk_old.SDK
+elif "htmlgraph._sdk_old" in sys.modules:
+    SDK = sys.modules["htmlgraph._sdk_old"].SDK
+else:
+    # Phase 1 complete - use new modular structure
+    from htmlgraph.sdk import SDK
 from htmlgraph.server import serve
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.session_registry import SessionRegistry

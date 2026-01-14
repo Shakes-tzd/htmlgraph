@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 SQLite analytics index for HtmlGraph event logs.
 
@@ -5,7 +7,6 @@ This is a rebuildable cache/index for fast dashboard queries.
 The canonical source of truth is the JSONL event log under `.htmlgraph/events/`.
 """
 
-from __future__ import annotations
 
 import json
 import sqlite3

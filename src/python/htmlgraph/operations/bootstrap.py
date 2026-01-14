@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """HtmlGraph bootstrap operations.
 
 One-command setup to go from installation to first value in under 60 seconds.
@@ -13,7 +15,6 @@ The bootstrap process includes:
 This is designed for simplicity and speed - the minimal viable setup.
 """
 
-from __future__ import annotations
 
 import json
 import subprocess

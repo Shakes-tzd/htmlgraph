@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix SDK Type Architecture - Mixin Resolution</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-3d93262d"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-14T12:48:00.172170"
+             data-updated="2026-01-14T12:48:00.172173" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="opus-coder">
+
+        <header>
+            <h1>Fix SDK Type Architecture - Mixin Resolution</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Summary
+Fixed mypy type resolution for SDK mixin architecture. Reduced mypy errors from 236+ to 0.
+
+## Root Cause
+The SDK class was loaded dynamically via importlib.util in __init__.py, which mypy cannot resolve statically. When other files imported SDK via TYPE_CHECKING blocks, mypy saw it as Optional (SDK?) rather than a concrete class.
+
+## Solution Approach
+Created type stub files (.pyi) to provide static type information:
+
+1. **Created /src/python/htmlgraph/__init__.pyi**
+   - Full SDK class definition with all attributes and methods
+   - Properly declares all collections, analytics, and session management interfaces
+
+2. **Created /src/python/htmlgraph/sdk/__init__.pyi**
+   - Re-exports SDK from main package for imports from htmlgraph.sdk
+
+3. **Fixed sdk/base.py**
+   - Added TYPE_CHECKING import for SDK
+   - Cast self to SDK when passing to collections that expect SDK type
+
+4. **Added Pydantic mypy plugin**
+   - Configured plugins = ["pydantic.mypy"] in pyproject.toml
+   - Resolved 36 EventRecord field errors automatically
+
+5. **Fixed spawner.py**
+   - Changed abstract methods from ellipsis to raise NotImplementedError
+   - Fixed method calls to use correct DependencyAnalytics API (find_parallelizable_work, recommend_next_tasks with lookahead param)
+   - Fixed attribute names (id vs node_id, weighted_impact vs score)
+
+6. **Fixed event_tracker.py**
+   - Removed invalid file=sys.stderr argument from logger.debug calls
+
+7. **Fixed constants.py**
+   - Added type ignore comments for Pydantic field access returning Any
+
+## Files Changed
+- src/python/htmlgraph/__init__.pyi (new)
+- src/python/htmlgraph/sdk/__init__.py
+- src/python/htmlgraph/sdk/__init__.pyi (new)
+- src/python/htmlgraph/sdk/base.py
+- src/python/htmlgraph/sdk/constants.py
+- src/python/htmlgraph/sdk/orchestration/spawner.py
+- src/python/htmlgraph/hooks/event_tracker.py
+- pyproject.toml (added pydantic.mypy plugin)
+
+## Results
+- Mypy errors: 236+ -> 0
+- All 2006 tests passing
+- test_mypy_check_passes now passes
+            </div>
+        </section>
+    </article>
+</body>
+</html>

@@ -76,7 +76,7 @@ def mock_session_manager():
 
         instance.get_active_session.return_value = mock_session
         instance.track_activity.return_value = MagicMock(
-            id="evt-child-001", drift_score=None
+            id="evt-child-001", drift_score=None, feature_id=None
         )
         mock.return_value = instance
         yield instance
@@ -112,7 +112,8 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
     parent_event_id = "evt-parent-002"
 
     # Use htmlgraph.db instead of index.sqlite (unified database)
-    db = HtmlGraphDB(str(temp_graph_dir / "htmlgraph.db"))
+    db_path = str(temp_graph_dir / "htmlgraph.db")
+    db = HtmlGraphDB(db_path)
 
     # Create parent session
     db.insert_session("sess-test-123", "claude-code")
@@ -143,8 +144,14 @@ def test_parent_event_from_environment(temp_graph_dir, mock_session_manager):
         }
 
         # Track event (this should link to parent via environment variable)
-        with patch("htmlgraph.hooks.event_tracker.resolve_project_path") as mock_path:
+        # Patch both resolve_project_path AND get_database_path to use test database
+        # Note: get_database_path is imported inside track_event from htmlgraph.config
+        with (
+            patch("htmlgraph.hooks.event_tracker.resolve_project_path") as mock_path,
+            patch("htmlgraph.config.get_database_path") as mock_db_path,
+        ):
             mock_path.return_value = str(temp_graph_dir.parent)
+            mock_db_path.return_value = db_path
             track_event("PostToolUse", hook_input)
 
         # Verify database has event with parent_event_id

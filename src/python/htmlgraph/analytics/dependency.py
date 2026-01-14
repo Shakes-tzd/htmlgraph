@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Dependency-aware analytics for HtmlGraph.
 
@@ -8,8 +14,6 @@ Provides advanced graph analysis for project management:
 - Risk assessment
 - Work prioritization
 """
-
-from __future__ import annotations
 
 from collections import deque
 from typing import TYPE_CHECKING
@@ -55,12 +59,12 @@ class DependencyAnalytics:
         # Find bottlenecks (cached internally for performance)
         bottlenecks = dep.find_bottlenecks(top_n=5)
         for bn in bottlenecks:
-            print(f"{bn.title} blocks {bn.transitive_blocking} features")
+            logger.info(f"{bn.title} blocks {bn.transitive_blocking} features")
 
         # Get work recommendations (reuses cached data)
         recs = dep.recommend_next_tasks(agent_count=3)
         for rec in recs.recommendations:
-            print(f"Work on: {rec.title} (unlocks {len(rec.unlocks)} features)")
+            logger.info(f"Work on: {rec.title} (unlocks {len(rec.unlocks)} features)")
 
         # After making graph changes, invalidate cache
         sdk.features.update(feature_id, status="done")
@@ -201,7 +205,7 @@ class DependencyAnalytics:
 
         Example:
             report = dep.find_parallelizable_work(status="todo")
-            print(f"Can work on {report.max_parallelism} features in parallel")
+            logger.info(f"Can work on {report.max_parallelism} features in parallel")
         """
         # Get dependency levels (topological layers)
         levels = self.dependency_levels(status_filter=[status])
@@ -456,7 +460,7 @@ class DependencyAnalytics:
         Example:
             recs = dep.recommend_next_tasks(agent_count=3)
             for rec in recs.recommendations:
-                print(f"Work on: {rec.title}")
+                logger.info(f"Work on: {rec.title}")
         """
         # Get all nodes with target status
         candidates = [n for n in self.graph.nodes.values() if n.status == status]

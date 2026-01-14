@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Spike builder for creating spike investigation nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with spike-specific methods like
 spike_type and timebox_hours.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 

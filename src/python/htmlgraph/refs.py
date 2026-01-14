@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Short reference manager for graph nodes.
 
@@ -5,7 +7,6 @@ Manages persistent mapping of short refs (@f1, @t2, @b5) to full node IDs,
 enabling AI-friendly snapshots and queries.
 """
 
-from __future__ import annotations
 
 import json
 from datetime import datetime

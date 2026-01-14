@@ -1,5 +1,5 @@
 """
-HtmlGraph SDK - AI-Friendly Interface
+HtmlGraph SDK - AI-Friendly Interface.
 
 Provides a fluent, ergonomic API for AI agents with:
 - Auto-discovery of .htmlgraph directory
@@ -39,13 +39,17 @@ Example:
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 import os
 from pathlib import Path
 from typing import Any, cast
 
 from htmlgraph.agent_detection import detect_agent_name
 from htmlgraph.agents import AgentInterface
-from htmlgraph.analytics import Analytics, CrossSessionAnalytics, DependencyAnalytics
 from htmlgraph.collections import (
     BaseCollection,
     BugCollection,
@@ -61,22 +65,33 @@ from htmlgraph.collections.insight import InsightCollection
 from htmlgraph.collections.metric import MetricCollection
 from htmlgraph.collections.pattern import PatternCollection
 from htmlgraph.collections.session import SessionCollection
-from htmlgraph.context_analytics import ContextAnalytics
 from htmlgraph.db.schema import HtmlGraphDB
 from htmlgraph.graph import HtmlGraph
-from htmlgraph.models import Node, Step
+from htmlgraph.models import Node
+from htmlgraph.sdk.analytics import AnalyticsRegistry
+from htmlgraph.sdk.planning import PlanningMixin
+from htmlgraph.sdk.session import (
+    SessionContinuityMixin,
+    SessionHandoffMixin,
+    SessionManagerMixin,
+)
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.session_warning import check_and_show_warning
 from htmlgraph.system_prompts import SystemPromptManager
 from htmlgraph.track_builder import TrackCollection
 from htmlgraph.types import (
     ActiveWorkItem,
-    BottleneckDict,
     SessionStartInfo,
 )
 
 
-class SDK:
+class SDK(
+    AnalyticsRegistry,
+    SessionManagerMixin,
+    SessionHandoffMixin,
+    SessionContinuityMixin,
+    PlanningMixin,
+):
     """
     Main SDK interface for AI agents.
 
@@ -140,9 +155,9 @@ class SDK:
 
         >>> feature = sdk.features.get("nonexistent")
         >>> if feature:
-        ...     print(feature.title)
+        ...     logger.info("%s", feature.title)
         ... else:
-        ...     print("Not found")
+        ...     logger.info("Not found")
 
     QUERY OPERATIONS (Return Empty List):
         Queries return empty list when no matches or on error.
@@ -150,7 +165,7 @@ class SDK:
 
         >>> results = sdk.features.where(status="impossible")
         >>> for r in results:  # Empty iteration is safe
-        ...     print(r.title)
+        ...     logger.info("%s", r.title)
 
     EDIT OPERATIONS (Raise Exception):
         Edit operations raise NodeNotFoundError when target missing.
@@ -161,7 +176,7 @@ class SDK:
         ...     with sdk.features.edit("nonexistent") as f:
         ...         f.status = "done"
         ... except NodeNotFoundError:
-        ...     print("Feature not found")
+        ...     logger.info("Feature not found")
 
     CREATE OPERATIONS (Raise on Validation):
         Create operations raise ValidationError on invalid input.
@@ -169,17 +184,17 @@ class SDK:
         >>> try:
         ...     sdk.features.create("")  # Empty title
         ... except ValidationError:
-        ...     print("Title required")
+        ...     logger.info("Title required")
 
     BATCH OPERATIONS (Return Results Dict):
         Batch operations return dict with success_count, failed_ids, and warnings.
         Provides detailed feedback for partial failures.
 
         >>> result = sdk.features.mark_done(["feat-1", "missing", "feat-2"])
-        >>> print(f"Completed {result['success_count']} of 3")
+        >>> logger.info(f"Completed {result['success_count']} of 3")
         >>> if result['failed_ids']:
-        ...     print(f"Failed: {result['failed_ids']}")
-        ...     print(f"Reasons: {result['warnings']}")
+        ...     logger.info(f"Failed: {result['failed_ids']}")
+        ...     logger.info(f"Reasons: {result['warnings']}")
 
     Pattern Summary:
         | Operation Type | Error Behavior      | Example Method        |
@@ -336,22 +351,12 @@ class SDK:
         self.tracks.set_ref_manager(self.refs)
         self.todos.set_ref_manager(self.refs)
 
-        # Analytics interface (Phase 2: Work Type Analytics)
-        self.analytics = Analytics(self)
+        # Analytics engine (centralized analytics management with lazy loading)
+        from htmlgraph.sdk.analytics.helpers import create_analytics_engine
 
-        # Dependency analytics interface (Advanced graph analytics)
-        self.dep_analytics = DependencyAnalytics(self._graph)
-
-        # Cross-session analytics interface (Git commit-based analytics)
-        self.cross_session_analytics = CrossSessionAnalytics(self)
-
-        # Context analytics interface (Context usage tracking)
-        self.context = ContextAnalytics(self)
-
-        # Pattern learning interface (Phase 2: Behavior Pattern Learning)
-        from htmlgraph.analytics.pattern_learning import PatternLearner
-
-        self.pattern_learning = PatternLearner(self._directory)
+        self._analytics_engine = create_analytics_engine(
+            sdk=self, graph=self._graph, directory=self._directory
+        )
 
         # Lazy-loaded orchestrator for subagent management
         self._orchestrator: Any = None
@@ -424,7 +429,7 @@ class SDK:
 
             # Get statistics
             >>> stats = sdk.system_prompts.get_stats()
-            >>> print(f"Source: {stats['source']}")
+            >>> logger.info(f"Source: {stats['source']}")
         """
         if self._system_prompts is None:
             self._system_prompts = SystemPromptManager(self._directory)
@@ -486,7 +491,7 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> feature = sdk.ref("@f1")
             >>> if feature:
-            ...     print(feature.title)
+            ...     logger.info("%s", feature.title)
             ...     feature.status = "done"
             ...     sdk.features.update(feature)
         """
@@ -612,7 +617,7 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.export_to_html()
-            >>> print(f"Exported {result['features']} features")
+            >>> logger.info(f"Exported {result['features']} features")
         """
         if output_dir is None:
             output_dir = str(self._directory)
@@ -739,35 +744,6 @@ class SDK:
             cost_tokens=cost_tokens,
         )
 
-    def _ensure_session_exists(
-        self, session_id: str, parent_event_id: str | None = None
-    ) -> None:
-        """
-        Create a session record if it doesn't exist.
-
-        Args:
-            session_id: Session ID to ensure exists
-            parent_event_id: Event that spawned this session (optional)
-        """
-        if not self._db.connection:
-            self._db.connect()
-
-        cursor = self._db.connection.cursor()  # type: ignore[union-attr]
-        cursor.execute(
-            "SELECT COUNT(*) FROM sessions WHERE session_id = ?", (session_id,)
-        )
-        exists = cursor.fetchone()[0] > 0
-
-        if not exists:
-            # Create session record
-            self._db.insert_session(
-                session_id=session_id,
-                agent_assigned=self._agent_id,
-                is_subagent=self._parent_session is not None,
-                parent_session_id=self._parent_session,
-                parent_event_id=parent_event_id,
-            )
-
     def reload(self) -> None:
         """Reload all data from disk."""
         self._graph.reload()
@@ -814,179 +790,6 @@ class SDK:
             auto_claim=auto_claim,
         )
 
-    def set_session_handoff(
-        self,
-        handoff_notes: str | None = None,
-        recommended_next: str | None = None,
-        blockers: list[str] | None = None,
-        session_id: str | None = None,
-    ) -> Any:
-        """
-        Set handoff context on a session.
-
-        Args:
-            handoff_notes: Notes for next session/agent
-            recommended_next: Suggested next steps
-            blockers: List of blockers
-            session_id: Specific session ID (defaults to active session)
-
-        Returns:
-            Updated Session or None if not found
-        """
-        if not session_id:
-            if self._agent_id:
-                active = self.session_manager.get_active_session_for_agent(
-                    self._agent_id
-                )
-            else:
-                active = self.session_manager.get_active_session()
-            if not active:
-                return None
-            session_id = active.id
-
-        return self.session_manager.set_session_handoff(
-            session_id=session_id,
-            handoff_notes=handoff_notes,
-            recommended_next=recommended_next,
-            blockers=blockers,
-        )
-
-    def continue_from_last(
-        self,
-        agent: str | None = None,
-        auto_create_session: bool = True,
-    ) -> tuple[Any, Any]:
-        """
-        Continue work from the last completed session.
-
-        Loads context from previous session including handoff notes,
-        recommended files, blockers, and recent commits.
-
-        Args:
-            agent: Filter by agent (None = current SDK agent)
-            auto_create_session: Create new session if True
-
-        Returns:
-            Tuple of (new_session, resume_info) or (None, None)
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> session, resume = sdk.continue_from_last()
-            >>> if resume:
-            ...     print(resume.summary)
-            ...     print(resume.next_focus)
-            ...     for file in resume.recommended_files:
-            ...         print(f"  - {file}")
-        """
-        if not agent:
-            agent = self._agent_id
-
-        return self.session_manager.continue_from_last(
-            agent=agent,
-            auto_create_session=auto_create_session,
-        )
-
-    def end_session_with_handoff(
-        self,
-        session_id: str | None = None,
-        summary: str | None = None,
-        next_focus: str | None = None,
-        blockers: list[str] | None = None,
-        keep_context: list[str] | None = None,
-        auto_recommend_context: bool = True,
-    ) -> Any:
-        """
-        End session with handoff information for next session.
-
-        Args:
-            session_id: Session to end (None = active session)
-            summary: What was accomplished
-            next_focus: What should be done next
-            blockers: List of blockers
-            keep_context: List of files to keep context for
-            auto_recommend_context: Auto-recommend files from git
-
-        Returns:
-            Updated Session or None
-
-        Example:
-            >>> sdk.end_session_with_handoff(
-            ...     summary="Completed OAuth integration",
-            ...     next_focus="Implement JWT token refresh",
-            ...     blockers=["Waiting for security review"],
-            ...     keep_context=["src/auth/oauth.py"]
-            ... )
-        """
-        if not session_id:
-            if self._agent_id:
-                active = self.session_manager.get_active_session_for_agent(
-                    self._agent_id
-                )
-            else:
-                active = self.session_manager.get_active_session()
-            if not active:
-                return None
-            session_id = active.id
-
-        return self.session_manager.end_session_with_handoff(
-            session_id=session_id,
-            summary=summary,
-            next_focus=next_focus,
-            blockers=blockers,
-            keep_context=keep_context,
-            auto_recommend_context=auto_recommend_context,
-        )
-
-    def start_session(
-        self,
-        session_id: str | None = None,
-        title: str | None = None,
-        agent: str | None = None,
-    ) -> Any:
-        """
-        Start a new session.
-
-        Args:
-            session_id: Optional session ID
-            title: Optional session title
-            agent: Optional agent override (defaults to SDK agent)
-
-        Returns:
-            New Session instance
-        """
-        return self.session_manager.start_session(
-            session_id=session_id,
-            agent=agent or self._agent_id or "cli",
-            title=title,
-            parent_session_id=self._parent_session,
-        )
-
-    def end_session(
-        self,
-        session_id: str,
-        handoff_notes: str | None = None,
-        recommended_next: str | None = None,
-        blockers: list[str] | None = None,
-    ) -> Any:
-        """
-        End a session.
-
-        Args:
-            session_id: Session ID to end
-            handoff_notes: Optional handoff notes
-            recommended_next: Optional recommendations
-            blockers: Optional blockers
-
-        Returns:
-            Ended Session instance
-        """
-        return self.session_manager.end_session(
-            session_id=session_id,
-            handoff_notes=handoff_notes,
-            recommended_next=recommended_next,
-            blockers=blockers,
-        )
-
     def get_status(self) -> dict[str, Any]:
         """
         Get project status.
@@ -1018,7 +821,7 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.dedupe_sessions(max_events=1, dry_run=False)
-            >>> print(f"Scanned: {result['scanned']}, Moved: {result['moved']}")
+            >>> logger.info(f"Scanned: {result['scanned']}, Moved: {result['moved']}")
         """
         return self.session_manager.dedupe_orphan_sessions(
             max_events=max_events,
@@ -1062,7 +865,7 @@ class SDK:
             ...     file_paths=["src/main.py"],
             ...     success=True
             ... )
-            >>> print(f"Tracked: [{entry.tool}] {entry.summary}")
+            >>> logger.info(f"Tracked: [{entry.tool}] {entry.summary}")
         """
         # Determine target session: explicit parameter > parent_session > active > none
         if not session_id:
@@ -1097,836 +900,25 @@ class SDK:
     # =========================================================================
     # Strategic Planning & Analytics (Agent-Friendly Interface)
     # =========================================================================
-
-    def find_bottlenecks(self, top_n: int = 5) -> list[BottleneckDict]:
-        """
-        Identify tasks blocking the most downstream work.
-
-        Note: Prefer using sdk.dep_analytics.find_bottlenecks() directly.
-        This method exists for backward compatibility.
-
-        Args:
-            top_n: Maximum number of bottlenecks to return
-
-        Returns:
-            List of bottleneck tasks with impact metrics
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> # Preferred approach
-            >>> bottlenecks = sdk.dep_analytics.find_bottlenecks(top_n=3)
-            >>> # Or via SDK (backward compatibility)
-            >>> bottlenecks = sdk.find_bottlenecks(top_n=3)
-            >>> for bn in bottlenecks:
-            ...     print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
-        """
-        bottlenecks = self.dep_analytics.find_bottlenecks(top_n=top_n)
-
-        # Convert to agent-friendly dict format for backward compatibility
-        return [
-            {
-                "id": bn.id,
-                "title": bn.title,
-                "status": bn.status,
-                "priority": bn.priority,
-                "blocks_count": bn.transitive_blocking,
-                "impact_score": bn.weighted_impact,
-                "blocked_tasks": bn.blocked_nodes[:5],
-            }
-            for bn in bottlenecks
-        ]
-
-    def get_parallel_work(self, max_agents: int = 5) -> dict[str, Any]:
-        """
-        Find tasks that can be worked on simultaneously.
-
-        Note: Prefer using sdk.dep_analytics.find_parallelizable_work() directly.
-        This method exists for backward compatibility.
-
-        Args:
-            max_agents: Maximum number of parallel agents to plan for
-
-        Returns:
-            Dict with parallelization opportunities
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> # Preferred approach
-            >>> report = sdk.dep_analytics.find_parallelizable_work(status="todo")
-            >>> # Or via SDK (backward compatibility)
-            >>> parallel = sdk.get_parallel_work(max_agents=3)
-            >>> print(f"Can work on {parallel['max_parallelism']} tasks at once")
-            >>> print(f"Ready now: {parallel['ready_now']}")
-        """
-        report = self.dep_analytics.find_parallelizable_work(status="todo")
-
-        ready_now = (
-            report.dependency_levels[0].nodes if report.dependency_levels else []
-        )
-
-        return {
-            "max_parallelism": report.max_parallelism,
-            "ready_now": ready_now[:max_agents],
-            "total_ready": len(ready_now),
-            "level_count": len(report.dependency_levels),
-            "next_level": report.dependency_levels[1].nodes
-            if len(report.dependency_levels) > 1
-            else [],
-        }
-
-    def recommend_next_work(self, agent_count: int = 1) -> list[dict[str, Any]]:
-        """
-        Get smart recommendations for what to work on next.
-
-        Note: Prefer using sdk.dep_analytics.recommend_next_tasks() directly.
-        This method exists for backward compatibility.
-
-        Considers priority, dependencies, and transitive impact.
-
-        Args:
-            agent_count: Number of agents/tasks to recommend
-
-        Returns:
-            List of recommended tasks with reasoning
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> # Preferred approach
-            >>> recs = sdk.dep_analytics.recommend_next_tasks(agent_count=3)
-            >>> # Or via SDK (backward compatibility)
-            >>> recs = sdk.recommend_next_work(agent_count=3)
-            >>> for rec in recs:
-            ...     print(f"{rec['title']} (score: {rec['score']})")
-            ...     print(f"  Reasons: {rec['reasons']}")
-        """
-        recommendations = self.dep_analytics.recommend_next_tasks(
-            agent_count=agent_count, lookahead=5
-        )
-
-        return [
-            {
-                "id": rec.id,
-                "title": rec.title,
-                "priority": rec.priority,
-                "score": rec.score,
-                "reasons": rec.reasons,
-                "estimated_hours": rec.estimated_effort,
-                "unlocks_count": len(rec.unlocks),
-                "unlocks": rec.unlocks[:3],
-            }
-            for rec in recommendations.recommendations
-        ]
-
-    def assess_risks(self) -> dict[str, Any]:
-        """
-        Assess dependency-related risks in the project.
-
-        Note: Prefer using sdk.dep_analytics.assess_dependency_risk() directly.
-        This method exists for backward compatibility.
-
-        Identifies single points of failure, circular dependencies,
-        and orphaned tasks.
-
-        Returns:
-            Dict with risk assessment results
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> # Preferred approach
-            >>> risk = sdk.dep_analytics.assess_dependency_risk()
-            >>> # Or via SDK (backward compatibility)
-            >>> risks = sdk.assess_risks()
-            >>> if risks['high_risk_count'] > 0:
-            ...     print(f"Warning: {risks['high_risk_count']} high-risk tasks")
-        """
-        risk = self.dep_analytics.assess_dependency_risk()
-
-        return {
-            "high_risk_count": len(risk.high_risk),
-            "high_risk_tasks": [
-                {
-                    "id": node.id,
-                    "title": node.title,
-                    "risk_score": node.risk_score,
-                    "risk_factors": [f.description for f in node.risk_factors],
-                }
-                for node in risk.high_risk
-            ],
-            "circular_dependencies": risk.circular_dependencies,
-            "orphaned_count": len(risk.orphaned_nodes),
-            "orphaned_tasks": risk.orphaned_nodes[:5],
-            "recommendations": risk.recommendations,
-        }
-
-    def analyze_impact(self, node_id: str) -> dict[str, Any]:
-        """
-        Analyze the impact of completing a specific task.
-
-        Note: Prefer using sdk.dep_analytics.impact_analysis() directly.
-        This method exists for backward compatibility.
-
-        Args:
-            node_id: Task to analyze
-
-        Returns:
-            Dict with impact analysis
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> # Preferred approach
-            >>> impact = sdk.dep_analytics.impact_analysis("feature-001")
-            >>> # Or via SDK (backward compatibility)
-            >>> impact = sdk.analyze_impact("feature-001")
-            >>> print(f"Completing this unlocks {impact['unlocks_count']} tasks")
-        """
-        impact = self.dep_analytics.impact_analysis(node_id)
-
-        return {
-            "node_id": node_id,
-            "direct_dependents": impact.direct_dependents,
-            "total_impact": impact.transitive_dependents,
-            "completion_impact": impact.completion_impact,
-            "unlocks_count": len(impact.affected_nodes),
-            "affected_tasks": impact.affected_nodes[:10],
-        }
-
-    def get_work_queue(
-        self, agent_id: str | None = None, limit: int = 10, min_score: float = 0.0
-    ) -> list[dict[str, Any]]:
-        """
-        Get prioritized work queue showing recommended work, active work, and dependencies.
-
-        This method provides a comprehensive view of:
-        1. Recommended next work (using smart analytics)
-        2. Active work by all agents
-        3. Blocked items and what's blocking them
-        4. Priority-based scoring
-
-        Args:
-            agent_id: Agent to get queue for (defaults to SDK agent)
-            limit: Maximum number of items to return (default: 10)
-            min_score: Minimum score threshold (default: 0.0)
-
-        Returns:
-            List of work queue items with scoring and metadata:
-                - task_id: Work item ID
-                - title: Work item title
-                - status: Current status
-                - priority: Priority level
-                - score: Routing score
-                - complexity: Complexity level (if set)
-                - effort: Estimated effort (if set)
-                - blocks_count: Number of tasks this blocks (if any)
-                - blocked_by: List of blocking task IDs (if blocked)
-                - agent_assigned: Current assignee (if any)
-                - type: Work item type (feature, bug, spike, etc.)
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> queue = sdk.get_work_queue(limit=5)
-            >>> for item in queue:
-            ...     print(f"{item['score']:.1f} - {item['title']}")
-            ...     if item.get('blocked_by'):
-            ...         print(f"  ⚠️  Blocked by: {', '.join(item['blocked_by'])}")
-        """
-        from htmlgraph.routing import AgentCapabilityRegistry, CapabilityMatcher
-
-        agent = agent_id or self._agent_id or "cli"
-
-        # Get all work item types
-        all_work = []
-        for collection_name in ["features", "bugs", "spikes", "chores", "epics"]:
-            collection = getattr(self, collection_name, None)
-            if collection:
-                # Get todo and blocked items
-                for item in collection.where(status="todo"):
-                    all_work.append(item)
-                for item in collection.where(status="blocked"):
-                    all_work.append(item)
-
-        if not all_work:
-            return []
-
-        # Get recommendations from analytics (uses strategic scoring)
-        recommendations = self.recommend_next_work(agent_count=limit * 2)
-        rec_scores = {rec["id"]: rec["score"] for rec in recommendations}
-
-        # Build routing registry
-        registry = AgentCapabilityRegistry()
-
-        # Register current agent
-        registry.register_agent(agent, capabilities=[], wip_limit=5)
-
-        # Get current WIP count for agent
-        wip_count = len(self.features.where(status="in-progress", agent_assigned=agent))
-        registry.set_wip(agent, wip_count)
-
-        # Score each work item
-        queue_items = []
-        for item in all_work:
-            # Use strategic score if available, otherwise use routing score
-            if item.id in rec_scores:
-                score = rec_scores[item.id]
-            else:
-                # Fallback to routing score
-                agent_profile = registry.get_agent(agent)
-                if agent_profile:
-                    score = CapabilityMatcher.score_agent_task_fit(agent_profile, item)
-                else:
-                    score = 0.0
-
-            # Apply minimum score filter
-            if score < min_score:
-                continue
-
-            # Build queue item
-            queue_item = {
-                "task_id": item.id,
-                "title": item.title,
-                "status": item.status,
-                "priority": item.priority,
-                "score": score,
-                "type": item.type,
-                "complexity": getattr(item, "complexity", None),
-                "effort": getattr(item, "estimated_effort", None),
-                "agent_assigned": getattr(item, "agent_assigned", None),
-                "blocks_count": 0,
-                "blocked_by": [],
-            }
-
-            # Add dependency information
-            if hasattr(item, "edges"):
-                # Check if this item blocks others
-                blocks = item.edges.get("blocks", [])
-                queue_item["blocks_count"] = len(blocks)
-
-                # Check if this item is blocked
-                blocked_by = item.edges.get("blocked_by", [])
-                queue_item["blocked_by"] = blocked_by
-
-            queue_items.append(queue_item)
-
-        # Sort by score (descending)
-        queue_items.sort(key=lambda x: x["score"], reverse=True)
-
-        # Limit results
-        return queue_items[:limit]
-
-    def work_next(
-        self,
-        agent_id: str | None = None,
-        auto_claim: bool = False,
-        min_score: float = 0.0,
-    ) -> Node | None:
-        """
-        Get the next best task for an agent using smart routing.
-
-        Uses both strategic analytics and capability-based routing to find
-        the optimal next task.
-
-        Args:
-            agent_id: Agent to get task for (defaults to SDK agent)
-            auto_claim: Automatically claim the task (default: False)
-            min_score: Minimum score threshold (default: 0.0)
-
-        Returns:
-            Next best Node or None if no suitable task found
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> task = sdk.work_next(auto_claim=True)
-            >>> if task:
-            ...     print(f"Working on: {task.title}")
-            ...     # Task is automatically claimed and assigned
-        """
-        agent = agent_id or self._agent_id or "cli"
-
-        # Get work queue - get more items since we filter for actionable (todo) only
-        queue = self.get_work_queue(agent_id=agent, limit=20, min_score=min_score)
-
-        if not queue:
-            return None
-
-        # Find the first actionable (todo) task - blocked tasks are not actionable
-        top_item = None
-        for item in queue:
-            if item["status"] == "todo":
-                top_item = item
-                break
-
-        if top_item is None:
-            return None
-
-        # Fetch the actual node
-        task = None
-        for collection_name in ["features", "bugs", "spikes", "chores", "epics"]:
-            collection = getattr(self, collection_name, None)
-            if collection:
-                try:
-                    task = collection.get(top_item["task_id"])
-                    if task:
-                        break
-                except (ValueError, FileNotFoundError):
-                    continue
-
-        if not task:
-            return None
-
-        # Auto-claim if requested
-        if auto_claim and task.status == "todo" and collection is not None:
-            # Claim the task
-            # collection.edit returns context manager or None
-            task_editor: Any = collection.edit(task.id)
-            if task_editor is not None:
-                # collection.edit returns context manager
-                with task_editor as t:
-                    t.status = "in-progress"
-                    t.agent_assigned = agent
-
-        result: Node | None = task
-        return result
-
+    #
+    # Planning methods are now provided by PlanningMixin.
+    # See: src/python/htmlgraph/sdk/planning/
+    #
+    # Available methods (inherited from PlanningMixin):
+    # - find_bottlenecks() -> bottlenecks.py
+    # - get_parallel_work() -> parallel.py
+    # - recommend_next_work() -> recommendations.py
+    # - assess_risks() -> bottlenecks.py
+    # - analyze_impact() -> recommendations.py
+    # - get_work_queue() -> queue.py
+    # - work_next() -> queue.py
+    # - start_planning_spike() -> smart_planning.py
+    # - create_track_from_plan() -> smart_planning.py
+    # - smart_plan() -> smart_planning.py
+    # - plan_parallel_work() -> parallel.py
+    # - aggregate_parallel_results() -> parallel.py
+    #
     # =========================================================================
-    # Planning Workflow Integration
-    # =========================================================================
-
-    def start_planning_spike(
-        self,
-        title: str,
-        context: str = "",
-        timebox_hours: float = 4.0,
-        auto_start: bool = True,
-    ) -> Node:
-        """
-        Create a planning spike to research and design before implementation.
-
-        This is for timeboxed investigation before creating a full track.
-
-        Args:
-            title: Spike title (e.g., "Plan User Authentication System")
-            context: Background information
-            timebox_hours: Time limit for spike (default: 4 hours)
-            auto_start: Automatically start the spike (default: True)
-
-        Returns:
-            Created spike Node
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> spike = sdk.start_planning_spike(
-            ...     "Plan Real-time Notifications",
-            ...     context="Users need live updates. Research options.",
-            ...     timebox_hours=3.0
-            ... )
-        """
-        from htmlgraph.ids import generate_id
-        from htmlgraph.models import Spike, SpikeType
-
-        # Create spike directly (SpikeBuilder doesn't exist yet)
-        spike_id = generate_id(node_type="spike", title=title)
-        spike = Spike(
-            id=spike_id,
-            title=title,
-            type="spike",
-            status="in-progress" if auto_start and self._agent_id else "todo",
-            spike_type=SpikeType.ARCHITECTURAL,
-            timebox_hours=int(timebox_hours),
-            agent_assigned=self._agent_id if auto_start and self._agent_id else None,
-            steps=[
-                Step(description="Research existing solutions and patterns"),
-                Step(description="Define requirements and constraints"),
-                Step(description="Design high-level architecture"),
-                Step(description="Identify dependencies and risks"),
-                Step(description="Create implementation plan"),
-            ],
-            content=f"<p>{context}</p>" if context else "",
-            edges={},
-            properties={},
-        )
-
-        self._graph.add(spike)
-        return spike
-
-    def create_track_from_plan(
-        self,
-        title: str,
-        description: str,
-        spike_id: str | None = None,
-        priority: str = "high",
-        requirements: list[str | tuple[str, str]] | None = None,
-        phases: list[tuple[str, list[str]]] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Create a track with spec and plan from planning results.
-
-        Args:
-            title: Track title
-            description: Track description
-            spike_id: Optional spike ID that led to this track
-            priority: Track priority (default: "high")
-            requirements: List of requirements (strings or (req, priority) tuples)
-            phases: List of (phase_name, tasks) tuples for the plan
-
-        Returns:
-            Dict with track, spec, and plan details
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> track_info = sdk.create_track_from_plan(
-            ...     title="User Authentication System",
-            ...     description="OAuth 2.0 with JWT tokens",
-            ...     requirements=[
-            ...         ("OAuth 2.0 integration", "must-have"),
-            ...         ("JWT token management", "must-have"),
-            ...         "Password reset flow"
-            ...     ],
-            ...     phases=[
-            ...         ("Phase 1: OAuth", ["Setup providers (2h)", "Callback (2h)"]),
-            ...         ("Phase 2: JWT", ["Token signing (2h)", "Refresh (1.5h)"])
-            ...     ]
-            ... )
-        """
-
-        builder = (
-            self.tracks.builder()
-            .title(title)
-            .description(description)
-            .priority(priority)
-        )
-
-        # Add reference to planning spike if provided
-        if spike_id:
-            # Access internal data for track builder
-            data: dict[str, Any] = builder._data  # type: ignore[attr-defined]
-            data["properties"]["planning_spike"] = spike_id
-
-        # Add spec if requirements provided
-        if requirements:
-            # Convert simple strings to (requirement, "must-have") tuples
-            req_list = []
-            for req in requirements:
-                if isinstance(req, str):
-                    req_list.append((req, "must-have"))
-                else:
-                    req_list.append(req)
-
-            builder.with_spec(
-                overview=description,
-                context=f"Track created from planning spike: {spike_id}"
-                if spike_id
-                else "",
-                requirements=req_list,
-                acceptance_criteria=[],
-            )
-
-        # Add plan if phases provided
-        if phases:
-            builder.with_plan_phases(phases)
-
-        track = builder.create()
-
-        return {
-            "track_id": track.id,
-            "title": track.title,
-            "has_spec": bool(requirements),
-            "has_plan": bool(phases),
-            "spike_id": spike_id,
-            "priority": priority,
-        }
-
-    def smart_plan(
-        self,
-        description: str,
-        create_spike: bool = True,
-        timebox_hours: float = 4.0,
-        research_completed: bool = False,
-        research_findings: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Smart planning workflow: analyzes project context and creates spike or track.
-
-        This is the main entry point for planning new work. It:
-        1. Checks current project state
-        2. Provides context from strategic analytics
-        3. Creates a planning spike or track as appropriate
-
-        **IMPORTANT: Research Phase Required**
-        For complex features, you should complete research BEFORE planning:
-        1. Use /htmlgraph:research or WebSearch to gather best practices
-        2. Document findings (libraries, patterns, anti-patterns)
-        3. Pass research_completed=True and research_findings to this method
-        4. This ensures planning is informed by industry best practices
-
-        Research-first workflow:
-            1. /htmlgraph:research "{topic}" → Gather external knowledge
-            2. sdk.smart_plan(..., research_completed=True) → Plan with context
-            3. Complete spike steps → Design solution
-            4. Create track from plan → Structure implementation
-
-        Args:
-            description: What you want to plan (e.g., "User authentication system")
-            create_spike: Create a spike for research (default: True)
-            timebox_hours: If creating spike, time limit (default: 4 hours)
-            research_completed: Whether research was performed (default: False)
-            research_findings: Structured research findings (optional)
-
-        Returns:
-            Dict with planning context and created spike/track info
-
-        Example:
-            >>> sdk = SDK(agent="claude")
-            >>> # WITH research (recommended for complex work)
-            >>> research = {
-            ...     "topic": "OAuth 2.0 best practices",
-            ...     "sources_count": 5,
-            ...     "recommended_library": "authlib",
-            ...     "key_insights": ["Use PKCE", "Implement token rotation"]
-            ... }
-            >>> plan = sdk.smart_plan(
-            ...     "User authentication system",
-            ...     create_spike=True,
-            ...     research_completed=True,
-            ...     research_findings=research
-            ... )
-            >>> print(f"Created: {plan['spike_id']}")
-            >>> print(f"Research informed: {plan['research_informed']}")
-        """
-        # Get project context from strategic analytics
-        bottlenecks = self.find_bottlenecks(top_n=3)
-        risks = self.assess_risks()
-        parallel = self.get_parallel_work(max_agents=5)
-
-        context = {
-            "bottlenecks_count": len(bottlenecks),
-            "high_risk_count": risks["high_risk_count"],
-            "parallel_capacity": parallel["max_parallelism"],
-            "description": description,
-        }
-
-        # Build context string with research info
-        context_str = f"Project context:\n- {len(bottlenecks)} bottlenecks\n- {risks['high_risk_count']} high-risk items\n- {parallel['max_parallelism']} parallel capacity"
-
-        if research_completed and research_findings:
-            context_str += f"\n\nResearch completed:\n- Topic: {research_findings.get('topic', description)}"
-            if "sources_count" in research_findings:
-                context_str += f"\n- Sources: {research_findings['sources_count']}"
-            if "recommended_library" in research_findings:
-                context_str += (
-                    f"\n- Recommended: {research_findings['recommended_library']}"
-                )
-
-        # Validation: warn if complex work planned without research
-        is_complex = any(
-            [
-                "auth" in description.lower(),
-                "security" in description.lower(),
-                "real-time" in description.lower(),
-                "websocket" in description.lower(),
-                "oauth" in description.lower(),
-                "performance" in description.lower(),
-                "integration" in description.lower(),
-            ]
-        )
-
-        warnings = []
-        if is_complex and not research_completed:
-            warnings.append(
-                "⚠️  Complex feature detected without research. "
-                "Consider using /htmlgraph:research first to gather best practices."
-            )
-
-        if create_spike:
-            spike = self.start_planning_spike(
-                title=f"Plan: {description}",
-                context=context_str,
-                timebox_hours=timebox_hours,
-            )
-
-            # Store research metadata in spike properties if provided
-            if research_completed and research_findings:
-                spike.properties["research_completed"] = True
-                spike.properties["research_findings"] = research_findings
-                self._graph.update(spike)
-
-            result = {
-                "type": "spike",
-                "spike_id": spike.id,
-                "title": spike.title,
-                "status": spike.status,
-                "timebox_hours": timebox_hours,
-                "project_context": context,
-                "research_informed": research_completed,
-                "next_steps": [
-                    "Research and design the solution"
-                    if not research_completed
-                    else "Design solution using research findings",
-                    "Complete spike steps",
-                    "Use SDK.create_track_from_plan() to create track",
-                ],
-            }
-
-            if warnings:
-                result["warnings"] = warnings
-
-            return result
-        else:
-            # Direct track creation (for when you already know what to do)
-            track_info = self.create_track_from_plan(
-                title=description, description=f"Planned with context: {context}"
-            )
-
-            result = {
-                "type": "track",
-                **track_info,
-                "project_context": context,
-                "research_informed": research_completed,
-                "next_steps": [
-                    "Create features from track plan",
-                    "Link features to track",
-                    "Start implementation",
-                ],
-            }
-
-            if warnings:
-                result["warnings"] = warnings
-
-            return result
-
-    def plan_parallel_work(
-        self,
-        max_agents: int = 5,
-        shared_files: list[str] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Plan and prepare parallel work execution.
-
-        This integrates with smart_plan to enable parallel agent dispatch.
-        Uses the 6-phase ParallelWorkflow:
-        1. Pre-flight analysis (dependencies, risks)
-        2. Context preparation (shared file caching)
-        3. Prompt generation (for Task tool)
-
-        Args:
-            max_agents: Maximum parallel agents (default: 5)
-            shared_files: Files to pre-cache for all agents
-
-        Returns:
-            Dict with parallel execution plan:
-                - can_parallelize: Whether parallelization is recommended
-                - analysis: Pre-flight analysis results
-                - prompts: Ready-to-use Task tool prompts
-                - recommendations: Optimization suggestions
-
-        Example:
-            >>> sdk = SDK(agent="orchestrator")
-            >>> plan = sdk.plan_parallel_work(max_agents=3)
-            >>> if plan["can_parallelize"]:
-            ...     # Use prompts with Task tool
-            ...     for p in plan["prompts"]:
-            ...         Task(prompt=p["prompt"], description=p["description"])
-        """
-        from htmlgraph.parallel import ParallelWorkflow
-
-        workflow = ParallelWorkflow(self)
-
-        # Phase 1: Pre-flight analysis
-        analysis = workflow.analyze(max_agents=max_agents)
-
-        result = {
-            "can_parallelize": analysis.can_parallelize,
-            "max_parallelism": analysis.max_parallelism,
-            "ready_tasks": analysis.ready_tasks,
-            "blocked_tasks": analysis.blocked_tasks,
-            "speedup_factor": analysis.speedup_factor,
-            "recommendation": analysis.recommendation,
-            "warnings": analysis.warnings,
-            "prompts": [],
-        }
-
-        if not analysis.can_parallelize:
-            result["reason"] = analysis.recommendation
-            return result
-
-        # Phase 2 & 3: Prepare tasks and generate prompts
-        tasks = workflow.prepare_tasks(
-            analysis.ready_tasks[:max_agents],
-            shared_files=shared_files,
-        )
-        prompts = workflow.generate_prompts(tasks)
-
-        result["prompts"] = prompts
-        result["task_count"] = len(prompts)
-
-        # Add efficiency guidelines
-        result["guidelines"] = {
-            "dispatch": "Send ALL Task calls in a SINGLE message for true parallelism",
-            "patterns": [
-                "Grep → Read (search before reading)",
-                "Read → Edit → Bash (read, modify, test)",
-                "Glob → Read (find files first)",
-            ],
-            "avoid": [
-                "Sequential Task calls (loses parallelism)",
-                "Read → Read → Read (cache instead)",
-                "Edit → Edit → Edit (batch edits)",
-            ],
-        }
-
-        return result
-
-    def aggregate_parallel_results(
-        self,
-        agent_ids: list[str],
-    ) -> dict[str, Any]:
-        """
-        Aggregate results from parallel agent execution.
-
-        Call this after parallel agents complete to:
-        - Collect health metrics
-        - Detect anti-patterns
-        - Identify conflicts
-        - Generate recommendations
-
-        Args:
-            agent_ids: List of agent/transcript IDs to analyze
-
-        Returns:
-            Dict with aggregated results and validation
-
-        Example:
-            >>> # After parallel work completes
-            >>> results = sdk.aggregate_parallel_results([
-            ...     "agent-abc123",
-            ...     "agent-def456",
-            ...     "agent-ghi789",
-            ... ])
-            >>> print(f"Health: {results['avg_health_score']:.0%}")
-            >>> print(f"Conflicts: {results['conflicts']}")
-        """
-        from htmlgraph.parallel import ParallelWorkflow
-
-        workflow = ParallelWorkflow(self)
-
-        # Phase 5: Aggregate
-        aggregate = workflow.aggregate(agent_ids)
-
-        # Phase 6: Validate
-        validation = workflow.validate(aggregate)
-
-        return {
-            "total_agents": aggregate.total_agents,
-            "successful": aggregate.successful,
-            "failed": aggregate.failed,
-            "total_duration_seconds": aggregate.total_duration_seconds,
-            "parallel_speedup": aggregate.parallel_speedup,
-            "avg_health_score": aggregate.avg_health_score,
-            "total_anti_patterns": aggregate.total_anti_patterns,
-            "files_modified": aggregate.files_modified,
-            "conflicts": aggregate.conflicts,
-            "recommendations": aggregate.recommendations,
-            "validation": validation,
-            "all_passed": all(validation.values()),
-        }
 
     # =========================================================================
     # Subagent Orchestration
@@ -2140,12 +1132,12 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> info = sdk.get_session_start_info()
-            >>> print(f"Project: {info['status']['total_nodes']} nodes")
-            >>> print(f"WIP: {info['status']['in_progress_count']}")
+            >>> logger.info(f"Project: {info['status']['total_nodes']} nodes")
+            >>> logger.info(f"WIP: {info['status']['in_progress_count']}")
             >>> if info.get('active_work'):
-            ...     print(f"Active: {info['active_work']['title']}")
+            ...     logger.info(f"Active: {info['active_work']['title']}")
             >>> for bn in info['analytics']['bottlenecks']:
-            ...     print(f"Bottleneck: {bn['title']}")
+            ...     logger.info(f"Bottleneck: {bn['title']}")
         """
         import subprocess
 
@@ -2247,7 +1239,7 @@ class SDK:
             >>> # Get any active work item
             >>> active = sdk.get_active_work_item()
             >>> if active:
-            ...     print(f"Working on: {active['title']}")
+            ...     logger.info(f"Working on: {active['title']}")
             ...
             >>> # Get only this agent's active work item
             >>> active = sdk.get_active_work_item(filter_by_agent=True)
@@ -2349,7 +1341,7 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.start_server(port=8080, watch=True)
-            >>> print(f"Server running at {result.handle.url}")
+            >>> logger.info(f"Server running at {result.handle.url}")
             >>> # Open browser to http://localhost:8080
             >>>
             >>> # Stop server when done
@@ -2404,7 +1396,7 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.start_server()
             >>> status = sdk.get_server_status(result.handle)
-            >>> print(f"Running: {status.running}")
+            >>> logger.info(f"Running: {status.running}")
         """
         from htmlgraph.operations import server
 
@@ -2430,10 +1422,10 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.install_hooks()
-            >>> print(f"Installed: {result.installed}")
-            >>> print(f"Skipped: {result.skipped}")
+            >>> logger.info(f"Installed: {result.installed}")
+            >>> logger.info(f"Skipped: {result.skipped}")
             >>> if result.warnings:
-            ...     print(f"Warnings: {result.warnings}")
+            ...     logger.info(f"Warnings: {result.warnings}")
 
         See also:
             list_hooks: List installed hooks
@@ -2456,9 +1448,9 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.list_hooks()
-            >>> print(f"Enabled: {result.enabled}")
-            >>> print(f"Disabled: {result.disabled}")
-            >>> print(f"Missing: {result.missing}")
+            >>> logger.info(f"Enabled: {result.enabled}")
+            >>> logger.info(f"Disabled: {result.disabled}")
+            >>> logger.info(f"Missing: {result.missing}")
         """
         from htmlgraph.operations import hooks
 
@@ -2475,9 +1467,9 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.validate_hook_config()
             >>> if not result.valid:
-            ...     print(f"Errors: {result.errors}")
+            ...     logger.info(f"Errors: {result.errors}")
             >>> if result.warnings:
-            ...     print(f"Warnings: {result.warnings}")
+            ...     logger.info(f"Warnings: {result.warnings}")
         """
         from htmlgraph.operations import hooks
 
@@ -2501,10 +1493,10 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.export_sessions()
-            >>> print(f"Exported {result.written} sessions")
-            >>> print(f"Skipped {result.skipped} (already exist)")
+            >>> logger.info(f"Exported {result.written} sessions")
+            >>> logger.info(f"Skipped {result.skipped} (already exist)")
             >>> if result.failed > 0:
-            ...     print(f"Failed {result.failed} sessions")
+            ...     logger.info(f"Failed {result.failed} sessions")
 
         See also:
             rebuild_event_index: Rebuild SQLite index from JSONL
@@ -2532,9 +1524,9 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.rebuild_event_index()
-            >>> print(f"Rebuilt index: {result.db_path}")
-            >>> print(f"Inserted {result.inserted} events")
-            >>> print(f"Skipped {result.skipped} (duplicates)")
+            >>> logger.info(f"Rebuilt index: {result.db_path}")
+            >>> logger.info(f"Inserted {result.inserted} events")
+            >>> logger.info(f"Skipped {result.skipped} (duplicates)")
 
         See also:
             export_sessions: Export HTML sessions to JSONL first
@@ -2571,7 +1563,7 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> # Get all events for a session
             >>> result = sdk.query_events(session_id="sess-123")
-            >>> print(f"Found {result.total} events")
+            >>> logger.info(f"Found {result.total} events")
             >>>
             >>> # Get recent Bash events
             >>> result = sdk.query_events(
@@ -2580,7 +1572,7 @@ class SDK:
             ...     limit=10
             ... )
             >>> for event in result.events:
-            ...     print(f"{event['timestamp']}: {event['summary']}")
+            ...     logger.info(f"{event['timestamp']}: {event['summary']}")
 
         See also:
             export_sessions: Export sessions to JSONL first
@@ -2607,9 +1599,9 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> stats = sdk.get_event_stats()
-            >>> print(f"Total events: {stats.total_events}")
-            >>> print(f"Sessions: {stats.session_count}")
-            >>> print(f"JSONL files: {stats.file_count}")
+            >>> logger.info(f"Total events: {stats.total_events}")
+            >>> logger.info(f"Sessions: {stats.session_count}")
+            >>> logger.info(f"JSONL files: {stats.file_count}")
         """
         from htmlgraph.operations import events
 
@@ -2634,11 +1626,11 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.analyze_session("sess-123")
-            >>> print(f"Primary work type: {result.metrics['primary_work_type']}")
-            >>> print(f"Total events: {result.metrics['total_events']}")
-            >>> print(f"Work distribution: {result.metrics['work_distribution']}")
+            >>> logger.info(f"Primary work type: {result.metrics['primary_work_type']}")
+            >>> logger.info(f"Total events: {result.metrics['total_events']}")
+            >>> logger.info(f"Work distribution: {result.metrics['work_distribution']}")
             >>> if result.warnings:
-            ...     print(f"Warnings: {result.warnings}")
+            ...     logger.info(f"Warnings: {result.warnings}")
 
         See also:
             analyze_project: Analyze entire project
@@ -2666,12 +1658,12 @@ class SDK:
         Example:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.analyze_project()
-            >>> print(f"Total sessions: {result.metrics['total_sessions']}")
-            >>> print(f"Work distribution: {result.metrics['work_distribution']}")
-            >>> print(f"Spike-to-feature ratio: {result.metrics['spike_to_feature_ratio']}")
-            >>> print(f"Session types: {result.metrics['session_types']}")
+            >>> logger.info(f"Total sessions: {result.metrics['total_sessions']}")
+            >>> logger.info(f"Work distribution: {result.metrics['work_distribution']}")
+            >>> logger.info(f"Spike-to-feature ratio: {result.metrics['spike_to_feature_ratio']}")
+            >>> logger.info(f"Session types: {result.metrics['session_types']}")
             >>> for session in result.metrics['recent_sessions']:
-            ...     print(f"  {session['session_id']}: {session['primary_work_type']}")
+            ...     logger.info(f"  {session['session_id']}: {session['primary_work_type']}")
 
         See also:
             analyze_session: Analyze a single session
@@ -2698,10 +1690,10 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.get_work_recommendations()
             >>> for rec in result.recommendations:
-            ...     print(f"{rec['title']} (score: {rec['score']})")
-            ...     print(f"  Reasons: {rec['reasons']}")
-            ...     print(f"  Unlocks: {rec['unlocks']}")
-            >>> print(f"Reasoning: {result.reasoning}")
+            ...     logger.info(f"{rec['title']} (score: {rec['score']})")
+            ...     logger.info(f"  Reasons: {rec['reasons']}")
+            ...     logger.info(f"  Unlocks: {rec['unlocks']}")
+            >>> logger.info(f"Reasoning: {result.reasoning}")
 
         See also:
             recommend_next_work: Legacy method (backward compatibility)
@@ -2732,10 +1724,10 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> result = sdk.get_task_attribution("task-abc123-xyz789")
             >>> for subagent, events in result['by_subagent'].items():
-            ...     print(f"{subagent}:")
+            ...     logger.info(f"{subagent}:")
             ...     for event in events:
-            ...         print(f"  - {event['tool']}: {event['summary']}")
-            >>> print(f"Total events: {result['total_events']}")
+            ...         logger.info(f"  - {event['tool']}: {event['summary']}")
+            >>> logger.info(f"Total events: {result['total_events']}")
 
         See also:
             get_subagent_work: Get all work grouped by subagent in a session
@@ -2794,9 +1786,9 @@ class SDK:
             >>> sdk = SDK(agent="claude")
             >>> work = sdk.get_subagent_work("sess-123")
             >>> for subagent, events in work.items():
-            ...     print(f"{subagent} ({len(events)} events):")
+            ...     logger.info(f"{subagent} ({len(events)} events):")
             ...     for event in events:
-            ...         print(f"  - {event['tool_name']}: {event['input_summary']}")
+            ...         logger.info(f"  - {event['tool_name']}: {event['input_summary']}")
 
         See also:
             get_task_attribution: Get work for a specific Claude Code task
@@ -3021,9 +2013,9 @@ CONTEXT MANAGER:
 
 BATCH OPERATIONS:
   result = sdk.features.mark_done(["feat-001", "feat-002"])
-  print(f"Completed {result['success_count']} features")
+  logger.info(f"Completed {result['success_count']} features")
   if result['failed_ids']:
-      print(f"Failed: {result['failed_ids']}")
+      logger.info(f"Failed: {result['failed_ids']}")
 
 COMMON MISTAKES:
   ❌ sdk.features.mark_complete([ids])  → ✅ sdk.features.mark_done([ids])
@@ -3257,16 +2249,16 @@ WORK QUEUE:
   # Returns prioritized list with scores
 
   for item in queue:
-      print(f"{item['score']:.1f} - {item['title']}")
+      logger.info(f"{item['score']:.1f} - {item['title']}")
       if item.get('blocked_by'):
-          print(f"  Blocked by: {item['blocked_by']}")
+          logger.info(f"  Blocked by: {item['blocked_by']}")
 
 SMART ROUTING:
   task = sdk.work_next(auto_claim=True, min_score=0.5)
   # Returns next best task using analytics + capabilities
 
   if task:
-      print(f"Working on: {task.title}")
+      logger.info(f"Working on: {task.title}")
       # Task is auto-claimed and assigned
 
 SIMPLE NEXT TASK:
@@ -3398,8 +2390,8 @@ SESSION START INFO:
 ACTIVE WORK ITEM:
   active = sdk.get_active_work_item()
   if active:
-      print(f"Working on: {active['title']}")
-      print(f"Progress: {active['steps_completed']}/{active['steps_total']}")
+      logger.info(f"Working on: {active['title']}")
+      logger.info(f"Progress: {active['steps_completed']}/{active['steps_total']}")
 
   # Filter by agent
   active = sdk.get_active_work_item(filter_by_agent=True)
@@ -3421,7 +2413,7 @@ Infrastructure operations for running HtmlGraph.
 SERVER OPERATIONS:
   # Start server for web UI
   result = sdk.start_server(port=8080, watch=True)
-  print(f"Server at {result.handle.url}")
+  logger.info(f"Server at {result.handle.url}")
 
   # Stop server
   sdk.stop_server(result.handle)
@@ -3432,26 +2424,26 @@ SERVER OPERATIONS:
 HOOK OPERATIONS:
   # Install Git hooks for automatic tracking
   result = sdk.install_hooks()
-  print(f"Installed: {result.installed}")
+  logger.info(f"Installed: {result.installed}")
 
   # List hook status
   result = sdk.list_hooks()
-  print(f"Enabled: {result.enabled}")
-  print(f"Missing: {result.missing}")
+  logger.info(f"Enabled: {result.enabled}")
+  logger.info(f"Missing: {result.missing}")
 
   # Validate configuration
   result = sdk.validate_hook_config()
   if not result.valid:
-      print(f"Errors: {result.errors}")
+      logger.info(f"Errors: {result.errors}")
 
 EVENT OPERATIONS:
   # Export HTML sessions to JSONL
   result = sdk.export_sessions()
-  print(f"Exported {result.written} sessions")
+  logger.info(f"Exported {result.written} sessions")
 
   # Rebuild SQLite index
   result = sdk.rebuild_event_index()
-  print(f"Inserted {result.inserted} events")
+  logger.info(f"Inserted {result.inserted} events")
 
   # Query events
   result = sdk.query_events(
@@ -3460,26 +2452,26 @@ EVENT OPERATIONS:
       limit=10
   )
   for event in result.events:
-      print(f"{event['timestamp']}: {event['summary']}")
+      logger.info(f"{event['timestamp']}: {event['summary']}")
 
   # Get statistics
   stats = sdk.get_event_stats()
-  print(f"Total events: {stats.total_events}")
+  logger.info(f"Total events: {stats.total_events}")
 
 ANALYTICS OPERATIONS:
   # Analyze session
   result = sdk.analyze_session("sess-123")
-  print(f"Primary work: {result.metrics['primary_work_type']}")
+  logger.info(f"Primary work: {result.metrics['primary_work_type']}")
 
   # Analyze project
   result = sdk.analyze_project()
-  print(f"Total sessions: {result.metrics['total_sessions']}")
-  print(f"Work distribution: {result.metrics['work_distribution']}")
+  logger.info(f"Total sessions: {result.metrics['total_sessions']}")
+  logger.info(f"Work distribution: {result.metrics['work_distribution']}")
 
   # Get recommendations
   result = sdk.get_work_recommendations()
   for rec in result.recommendations:
-      print(f"{rec['title']} (score: {rec['score']})")
+      logger.info(f"{rec['title']} (score: {rec['score']})")
 
 See also: sdk.help('analytics'), sdk.help('sessions')
 """

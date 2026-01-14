@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Parallel workflow execution coordinator for multi-agent task processing.
 
@@ -76,7 +78,6 @@ Best Practices:
     - Limit to 3-5 parallel agents for optimal results
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

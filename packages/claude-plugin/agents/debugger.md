@@ -226,3 +226,56 @@ This agent succeeds when:
 - ✅ No regressions introduced
 - ✅ Debugging process documented for future reference
 - ✅ Similar issues can be resolved faster next time
+
+## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
+
+### Report Progress to HtmlGraph
+When executing multi-step work, record progress to HtmlGraph:
+
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='debugger')
+
+# Create spike for tracking
+spike = sdk.spikes.create('Task: [your task description]')
+
+# Update with findings as you work
+spike.set_findings('''
+Progress so far:
+- Step 1: [DONE/IN PROGRESS/BLOCKED]
+- Step 2: [DONE/IN PROGRESS/BLOCKED]
+''').save()
+
+# When complete
+spike.set_findings('Task complete: [summary]').save()
+```
+
+### 🚫 FORBIDDEN: Do NOT Edit .htmlgraph Directory
+NEVER:
+- Edit files in `.htmlgraph/` directory
+- Create new files in `.htmlgraph/`
+- Modify `.htmlgraph/*.html` files
+- Write to `.htmlgraph/*.db` or any database files
+- Delete or rename .htmlgraph files
+
+The .htmlgraph directory is auto-managed by HtmlGraph SDK and hooks. Use SDK methods to record work instead.
+
+### Use CLI for Status
+Instead of reading .htmlgraph files:
+```bash
+uv run htmlgraph status              # View work status
+uv run htmlgraph snapshot --summary  # View all items
+uv run htmlgraph session list        # View sessions
+```
+
+### SDK Over Direct File Operations
+```python
+# ✅ CORRECT: Use SDK
+from htmlgraph import SDK
+sdk = SDK(agent='debugger')
+findings = sdk.spikes.get_latest()
+
+# ❌ INCORRECT: Don't read .htmlgraph files directly
+with open('.htmlgraph/spikes/spk-xxx.html') as f:
+    content = f.read()
+```

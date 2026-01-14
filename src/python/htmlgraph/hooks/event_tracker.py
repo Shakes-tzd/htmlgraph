@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 HtmlGraph Event Tracker Module
 
@@ -22,7 +26,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast  # noqa: F401
@@ -149,10 +152,7 @@ def get_parent_user_query(db: HtmlGraphDB, session_id: str) -> str | None:
             return str(row[0])
         return None
     except Exception as e:
-        print(
-            f"Debug: Database query for UserQuery failed: {e}",
-            file=sys.stderr,
-        )
+        logger.warning(f"Debug: Database query for UserQuery failed: {e}")
         return None
 
 
@@ -194,9 +194,8 @@ def load_drift_queue(graph_dir: Path, max_age_hours: int = 48) -> dict[str, Any]
                 queue["activities"] = fresh_activities
                 save_drift_queue(graph_dir, queue)
                 removed = original_count - len(fresh_activities)
-                print(
-                    f"Cleaned {removed} stale drift queue entries (older than {max_age_hours}h)",
-                    file=sys.stderr,
+                logger.warning(
+                    f"Cleaned {removed} stale drift queue entries (older than {max_age_hours}h)"
                 )
 
             return cast(dict[Any, Any], queue)
@@ -212,7 +211,7 @@ def save_drift_queue(graph_dir: Path, queue: dict[str, Any]) -> None:
         with open(queue_path, "w") as f:
             json.dump(queue, f, indent=2, default=str)
     except Exception as e:
-        print(f"Warning: Could not save drift queue: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not save drift queue: {e}")
 
 
 def clear_drift_queue_activities(graph_dir: Path) -> None:
@@ -236,7 +235,7 @@ def clear_drift_queue_activities(graph_dir: Path) -> None:
         with open(queue_path, "w") as f:
             json.dump(queue, f, indent=2)
     except Exception as e:
-        print(f"Warning: Could not clear drift queue: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not clear drift queue: {e}")
 
 
 def add_to_drift_queue(
@@ -624,7 +623,7 @@ def record_event_to_sqlite(
         return None
 
     except Exception as e:
-        print(f"Warning: Could not record event to SQLite: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not record event to SQLite: {e}")
         return None
 
 
@@ -676,7 +675,7 @@ def record_delegation_to_sqlite(
         return None
 
     except Exception as e:
-        print(f"Warning: Could not record delegation to SQLite: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not record delegation to SQLite: {e}")
         return None
 
 
@@ -702,7 +701,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     try:
         manager = SessionManager(graph_dir)
     except Exception as e:
-        print(f"Warning: Could not initialize SessionManager: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not initialize SessionManager: {e}")
         return {"continue": True}
 
     # Initialize SQLite database for event recording
@@ -713,7 +712,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
 
         db = HtmlGraphDB(str(get_database_path()))
     except Exception as e:
-        print(f"Warning: Could not initialize SQLite database: {e}", file=sys.stderr)
+        logger.warning(f"Warning: Could not initialize SQLite database: {e}")
         # Continue without SQLite (graceful degradation)
 
     # Detect agent and model from environment
@@ -804,36 +803,28 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         task_row = cursor.fetchone()
                         if task_row:
                             task_event_id_from_db = task_row[0]
-                            print(
-                                f"DEBUG Method 1 fallback: Found task_delegation={task_event_id_from_db} for {subagent_type}",
-                                file=sys.stderr,
+                            logger.warning(
+                                f"DEBUG Method 1 fallback: Found task_delegation={task_event_id_from_db} for {subagent_type}"
                             )
                         else:
-                            print(
-                                f"DEBUG Method 1: No task_delegation found for subagent_type={subagent_type}",
-                                file=sys.stderr,
+                            logger.warning(
+                                f"DEBUG Method 1: No task_delegation found for subagent_type={subagent_type}"
                             )
                     else:
-                        print(
-                            f"DEBUG Method 1: Found task_delegation={task_event_id_from_db} for subagent {subagent_type}",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"DEBUG Method 1: Found task_delegation={task_event_id_from_db} for subagent {subagent_type}"
                         )
                 except Exception as e:
-                    print(
-                        f"DEBUG: Error finding task_delegation for Method 1: {e}",
-                        file=sys.stderr,
+                    logger.warning(
+                        f"DEBUG: Error finding task_delegation for Method 1: {e}"
                     )
 
-                print(
+                logger.debug(
                     f"DEBUG subagent persistence: Found current session as subagent in sessions table: "
                     f"type={subagent_type}, parent_session={parent_session_id}, task_event={task_event_id_from_db}",
-                    file=sys.stderr,
                 )
         except Exception as e:
-            print(
-                f"DEBUG: Error checking sessions table for subagent: {e}",
-                file=sys.stderr,
-            )
+            logger.warning(f"DEBUG: Error checking sessions table for subagent: {e}")
 
     # Method 2: Environment variables (for first tool call before session table is populated)
     if not subagent_type:
@@ -878,17 +869,13 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 task_event_id_from_db = (
                     task_event_id  # Store for later use as parent_event_id
                 )
-                print(
+                logger.debug(
                     f"DEBUG subagent detection (database): Detected active task_delegation "
                     f"type={subagent_type}, parent_session={parent_session_id}, "
-                    f"parent_event={task_event_id}",
-                    file=sys.stderr,
+                    f"parent_event={task_event_id}"
                 )
         except Exception as e:
-            print(
-                f"DEBUG: Error detecting subagent from database: {e}",
-                file=sys.stderr,
-            )
+            logger.warning(f"DEBUG: Error detecting subagent from database: {e}")
 
     if subagent_type and parent_session_id:
         # We're in a subagent - create or get subagent session
@@ -899,9 +886,8 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         existing = manager.session_converter.load(subagent_session_id)
         if existing:
             active_session = existing
-            print(
-                f"Debug: Using existing subagent session: {subagent_session_id}",
-                file=sys.stderr,
+            logger.warning(
+                f"Debug: Using existing subagent session: {subagent_session_id}"
             )
         else:
             # Create new subagent session with parent link
@@ -913,16 +899,12 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     parent_session_id=parent_session_id,
                     title=f"{subagent_type.capitalize()} Subagent",
                 )
-                print(
+                logger.debug(
                     f"Debug: Created subagent session: {subagent_session_id} "
-                    f"(parent: {parent_session_id})",
-                    file=sys.stderr,
+                    f"(parent: {parent_session_id})"
                 )
             except Exception as e:
-                print(
-                    f"Warning: Could not create subagent session: {e}",
-                    file=sys.stderr,
-                )
+                logger.warning(f"Warning: Could not create subagent session: {e}")
                 return {"continue": True}
 
         # Override detected agent for subagent context
@@ -1004,9 +986,8 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             )
         except Exception as e:
             # Session may already exist, that's OK - continue
-            print(
-                f"Debug: Could not insert session to SQLite (may already exist): {e}",
-                file=sys.stderr,
+            logger.warning(
+                f"Debug: Could not insert session to SQLite (may already exist): {e}"
             )
 
     # Handle different hook types
@@ -1031,7 +1012,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     feature_id=result.feature_id if result else None,
                 )
         except Exception as e:
-            print(f"Warning: Could not track stop: {e}", file=sys.stderr)
+            logger.warning(f"Warning: Could not track stop: {e}")
         return {"continue": True}
 
     elif hook_type == "UserPromptSubmit":
@@ -1063,7 +1044,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 )
 
         except Exception as e:
-            print(f"Warning: Could not track query: {e}", file=sys.stderr)
+            logger.warning(f"Warning: Could not track query: {e}")
         return {"continue": True}
 
     elif hook_type == "PostToolUse":
@@ -1160,14 +1141,12 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     task_row = cursor.fetchone()
                     if task_row:
                         parent_activity_id = task_row[0]
-                        print(
-                            f"DEBUG: Found active task_delegation={parent_activity_id} in parent_activity_id fallback",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"DEBUG: Found active task_delegation={parent_activity_id} in parent_activity_id fallback"
                         )
                 except Exception as e:
-                    print(
-                        f"DEBUG: Error finding task_delegation in parent_activity_id: {e}",
-                        file=sys.stderr,
+                    logger.warning(
+                        f"DEBUG: Error finding task_delegation in parent_activity_id: {e}"
                     )
 
                 # Only if no active task found, fall back to UserQuery
@@ -1320,7 +1299,7 @@ Or manually create a work item in .htmlgraph/ (bug, feature, spike, or chore).""
                     nudge = f"Drift detected ({drift_score:.2f}): Activity may not align with {feature_id}. Consider refocusing or updating the feature."
 
         except Exception as e:
-            print(f"Warning: Could not track activity: {e}", file=sys.stderr)
+            logger.warning(f"Warning: Could not track activity: {e}")
 
         # Build response
         response: dict[str, Any] = {"continue": True}

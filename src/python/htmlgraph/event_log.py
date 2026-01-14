@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Event logging for HtmlGraph.
 
@@ -9,84 +11,94 @@ Design goals:
 - Deterministic serialization for rebuildable analytics indexes
 """
 
-from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 if TYPE_CHECKING:
     pass
 
 
-@dataclass(frozen=True)
-class EventRecord:
-    event_id: str
-    timestamp: datetime
-    session_id: str
-    agent: str
-    tool: str
-    summary: str
-    success: bool
-    feature_id: str | None
-    drift_score: float | None
-    start_commit: str | None
-    continued_from: str | None
-    work_type: str | None = None  # WorkType enum value
-    session_status: str | None = None
-    file_paths: list[str] | None = None
-    payload: dict[str, Any] | None = None
-    parent_session_id: str | None = None  # Link to parent session (e.g. for subagents)
-    # Phase 1: Enhanced Event Data Schema for multi-AI delegation tracking
-    delegated_to_ai: str | None = (
-        None  # "gemini", "codex", "copilot", "claude", or None
-    )
-    task_id: str | None = None  # Unique task ID for parallel tracking
-    task_status: str | None = (
-        None  # "pending", "running", "completed", "failed", "timeout"
-    )
-    model_selected: str | None = None  # Specific model (e.g., "gemini-2.0-flash")
-    complexity_level: str | None = None  # "low", "medium", "high", "very-high"
-    budget_mode: str | None = None  # "free", "balanced", "performance"
-    execution_duration_seconds: float | None = None  # How long delegation took
-    tokens_estimated: int | None = None  # Estimated token usage
-    tokens_actual: int | None = None  # Actual token usage
-    cost_usd: float | None = None  # Calculated cost
-    task_findings: str | None = None  # Results from delegated task
+class EventRecord(BaseModel):
+    """
+    Event record for HtmlGraph tracking.
 
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "event_id": self.event_id,
-            "timestamp": self.timestamp.isoformat(),
-            "session_id": self.session_id,
-            "agent": self.agent,
-            "tool": self.tool,
-            "summary": self.summary,
-            "success": self.success,
-            "feature_id": self.feature_id,
-            "work_type": self.work_type,
-            "drift_score": self.drift_score,
-            "start_commit": self.start_commit,
-            "continued_from": self.continued_from,
-            "session_status": self.session_status,
-            "file_paths": self.file_paths or [],
-            "payload": self.payload,
-            "parent_session_id": self.parent_session_id,
-            # Delegation fields
-            "delegated_to_ai": self.delegated_to_ai,
-            "task_id": self.task_id,
-            "task_status": self.task_status,
-            "model_selected": self.model_selected,
-            "complexity_level": self.complexity_level,
-            "budget_mode": self.budget_mode,
-            "execution_duration_seconds": self.execution_duration_seconds,
-            "tokens_estimated": self.tokens_estimated,
-            "tokens_actual": self.tokens_actual,
-            "cost_usd": self.cost_usd,
-            "task_findings": self.task_findings,
-        }
+    Uses Pydantic for automatic validation and serialization.
+    Immutable via ConfigDict(frozen=True).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    event_id: str = Field(..., min_length=1, description="Unique event identifier")
+    timestamp: datetime = Field(..., description="Event timestamp")
+    session_id: str = Field(..., min_length=1, description="Session identifier")
+    agent: str = Field(..., description="Agent name (e.g., 'claude', 'gemini')")
+    tool: str = Field(..., description="Tool used (e.g., 'Bash', 'Edit', 'Read')")
+    summary: str = Field(..., description="Human-readable event summary")
+    success: bool = Field(..., description="Whether the operation succeeded")
+    feature_id: str | None = Field(None, description="Associated feature ID")
+    drift_score: float | None = Field(None, description="Context drift score")
+    start_commit: str | None = Field(None, description="Starting git commit hash")
+    continued_from: str | None = Field(
+        None, description="Previous session ID if continued"
+    )
+    work_type: str | None = Field(None, description="WorkType enum value")
+    session_status: str | None = Field(None, description="Session status")
+    file_paths: list[str] | None = Field(None, description="Files involved in event")
+    payload: dict[str, Any] | None = Field(None, description="Additional event data")
+    parent_session_id: str | None = Field(
+        None, description="Parent session ID for subagents"
+    )
+
+    # Phase 1: Enhanced Event Data Schema for multi-AI delegation tracking
+    delegated_to_ai: str | None = Field(
+        None, description="AI delegate: 'gemini', 'codex', 'copilot', 'claude', or None"
+    )
+    task_id: str | None = Field(
+        None, description="Unique task ID for parallel tracking"
+    )
+    task_status: str | None = Field(
+        None,
+        description="Task status: 'pending', 'running', 'completed', 'failed', 'timeout'",
+    )
+    model_selected: str | None = Field(
+        None, description="Specific model (e.g., 'gemini-2.0-flash')"
+    )
+    complexity_level: str | None = Field(
+        None, description="Complexity: 'low', 'medium', 'high', 'very-high'"
+    )
+    budget_mode: str | None = Field(
+        None, description="Budget mode: 'free', 'balanced', 'performance'"
+    )
+    execution_duration_seconds: float | None = Field(
+        None, description="Delegation execution time"
+    )
+    tokens_estimated: int | None = Field(None, description="Estimated token usage")
+    tokens_actual: int | None = Field(None, description="Actual token usage")
+    cost_usd: float | None = Field(None, description="Calculated cost in USD")
+    task_findings: str | None = Field(None, description="Results from delegated task")
+
+    @field_validator("event_id", "session_id")
+    @classmethod
+    def validate_non_empty_string(cls, v: str) -> str:
+        """Ensure event_id and session_id are non-empty."""
+        if not v or not v.strip():
+            raise ValueError("Field must be a non-empty string")
+        return v
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, timestamp: datetime) -> str:
+        """Serialize timestamp to ISO format string."""
+        return timestamp.isoformat()
+
+    @field_serializer("file_paths")
+    def serialize_file_paths(self, file_paths: list[str] | None) -> list[str]:
+        """Ensure file_paths is always a list (never None) in JSON output."""
+        return file_paths or []
 
 
 class JsonlEventLog:
@@ -104,7 +116,10 @@ class JsonlEventLog:
 
     def append(self, record: EventRecord) -> Path:
         path = self.path_for_session(record.session_id)
-        line = json.dumps(record.to_json(), ensure_ascii=False, default=str) + "\n"
+        line = (
+            json.dumps(record.model_dump(mode="json"), ensure_ascii=False, default=str)
+            + "\n"
+        )
         path.parent.mkdir(parents=True, exist_ok=True)
 
         # Best-effort dedupe: some producers (e.g. git hooks) may retry or be chained.

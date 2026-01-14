@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Cross-session analytics using Git commits as the continuity spine.
 
@@ -37,8 +43,6 @@ Example:
     # Analyze work by author
     authors = cross.work_by_author(since_commit="abc123")
 """
-
-from __future__ import annotations
 
 import subprocess
 from collections import defaultdict
@@ -147,8 +151,8 @@ class CrossSessionAnalytics:
             ...     from_commit="HEAD~10",
             ...     to_commit="HEAD"
             ... )
-            >>> print(f"Total events: {report.total_events}")
-            >>> print(f"Features: {', '.join(report.features)}")
+            >>> logger.info(f"Total events: {report.total_events}")
+            >>> logger.info(f"Features: {', '.join(report.features)}")
         """
         # Get commit list from Git
         commits = self._get_commits_in_range(from_commit, to_commit)
@@ -273,7 +277,7 @@ class CrossSessionAnalytics:
 
         Example:
             >>> sessions = cross.sessions_for_feature("feature-auth")
-            >>> print(f"Feature worked on in {len(sessions)} sessions")
+            >>> logger.info(f"Feature worked on in {len(sessions)} sessions")
         """
         sessions = set()
 
@@ -320,8 +324,8 @@ class CrossSessionAnalytics:
 
         Example:
             >>> report = cross.feature_cross_session_report("feature-auth")
-            >>> print(f"Implemented across {len(report.sessions)} sessions")
-            >>> print(f"Duration: {report.duration_hours:.1f} hours")
+            >>> logger.info(f"Implemented across {len(report.sessions)} sessions")
+            >>> logger.info(f"Duration: {report.duration_hours:.1f} hours")
         """
         sessions = set()
         commits = set()
@@ -395,7 +399,7 @@ class CrossSessionAnalytics:
         Example:
             >>> authors = cross.work_by_author(since_commit="v1.0.0")
             >>> for email, stats in authors.items():
-            ...     print(f"{email}: {stats['event_count']} events")
+            ...     logger.info(f"{email}: {stats['event_count']} events")
         """
         authors: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
@@ -476,7 +480,7 @@ class CrossSessionAnalytics:
 
         Example:
             >>> commits = cross.commits_for_session("session-abc")
-            >>> print(f"Session produced {len(commits)} commits")
+            >>> logger.info(f"Session produced {len(commits)} commits")
         """
         commits = set()
 

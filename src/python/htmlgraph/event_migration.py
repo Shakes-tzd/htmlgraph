@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 """
 Helpers to migrate legacy session HTML activity logs to JSONL event logs.
 """
 
-from __future__ import annotations
 
 import json
 from pathlib import Path

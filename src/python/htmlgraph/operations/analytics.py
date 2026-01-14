@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """Analytics operations for HtmlGraph."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path

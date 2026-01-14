@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Epic collection for managing large body of work items.
 
 Extends BaseCollection with epic-specific builder support.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

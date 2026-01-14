@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Chore collection for managing maintenance task work items.
 
 Extends BaseCollection with chore-specific builder support.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

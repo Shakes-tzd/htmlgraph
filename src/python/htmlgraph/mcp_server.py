@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Minimal MCP (Model Context Protocol) server for HtmlGraph.
 
@@ -24,7 +26,6 @@ Example SDK usage:
         f.status = "done"
 """
 
-from __future__ import annotations
 
 import json
 import os

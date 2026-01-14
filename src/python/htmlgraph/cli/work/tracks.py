@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Track management commands."""
 
-from __future__ import annotations
 
 import argparse
 from pathlib import Path

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """System prompt management for HtmlGraph projects.
 
 Provides a two-tier system:
@@ -10,7 +12,6 @@ Architecture:
 - SDK provides methods for creation, validation, and management
 """
 
-from __future__ import annotations
 
 import logging
 from pathlib import Path

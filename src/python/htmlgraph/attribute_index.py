@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Attribute Index for O(1) attribute-based lookups.
 
@@ -11,7 +13,6 @@ Without this index, finding nodes by attribute requires scanning
 all nodes in the graph - O(n) complexity.
 """
 
-from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field

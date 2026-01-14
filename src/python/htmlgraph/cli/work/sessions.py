@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Session management commands."""
 
-from __future__ import annotations
 
 import argparse
 from typing import TYPE_CHECKING

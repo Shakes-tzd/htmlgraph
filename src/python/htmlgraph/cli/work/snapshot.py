@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """HtmlGraph CLI - Snapshot command for graph state visualization."""
 
-from __future__ import annotations
 
 import argparse
 import json

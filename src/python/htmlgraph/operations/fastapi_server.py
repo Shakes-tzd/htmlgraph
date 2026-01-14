@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 """FastAPI-based server for HtmlGraph dashboard with real-time observability."""
 
-from __future__ import annotations
 
 import logging
 from dataclasses import dataclass

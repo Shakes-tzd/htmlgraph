@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Phase collection for managing project phase work items.
 
 Extends BaseCollection with phase-specific builder support.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

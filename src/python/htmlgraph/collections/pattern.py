@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Pattern collection for managing workflow patterns.
 
 Extends BaseCollection with pattern-specific query methods.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

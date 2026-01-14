@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Tool Execution Traces Collection
 
@@ -11,21 +17,20 @@ Example:
     >>> # Get traces for current session
     >>> traces = sdk.traces.get_traces(session_id="sess-abc123")
     >>> for trace in traces:
-    ...     print(f"{trace.tool_name}: {trace.duration_ms}ms")
+    ...     logger.info(f"{trace.tool_name}: {trace.duration_ms}ms")
     >>>
     >>> # Find slow tool calls
     >>> slow = sdk.traces.get_slow_traces(threshold_ms=1000)
     >>>
     >>> # Get hierarchical view (parent-child relationships)
     >>> tree = sdk.traces.get_trace_tree(trace_id="trace-xyz")
-    >>> print(f"Root: {tree.root.tool_name}")
-    >>> print(f"Children: {len(tree.children)}")
+    >>> logger.info(f"Root: {tree.root.tool_name}")
+    >>> logger.info(f"Children: {len(tree.children)}")
     >>>
     >>> # Get error traces for debugging
     >>> errors = sdk.traces.get_error_traces(session_id="sess-abc123")
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -245,7 +250,7 @@ class TraceCollection:
 
             return None
         except Exception as e:
-            print(f"Error getting trace {tool_use_id}: {e}")
+            logger.info(f"Error getting trace {tool_use_id}: {e}")
             return None
 
     def get_traces(
@@ -302,7 +307,7 @@ class TraceCollection:
             rows = cursor.fetchall()
             return [self._row_to_trace(row) for row in rows]
         except Exception as e:
-            print(f"Error getting traces for session {session_id}: {e}")
+            logger.info(f"Error getting traces for session {session_id}: {e}")
             return []
 
     def get_traces_by_tool(self, tool_name: str, limit: int = 100) -> list[TraceRecord]:
@@ -337,7 +342,7 @@ class TraceCollection:
             rows = cursor.fetchall()
             return [self._row_to_trace(row) for row in rows]
         except Exception as e:
-            print(f"Error getting traces for tool {tool_name}: {e}")
+            logger.info(f"Error getting traces for tool {tool_name}: {e}")
             return []
 
     def get_trace_tree(self, trace_id: str) -> TraceTree | None:
@@ -403,7 +408,7 @@ class TraceCollection:
 
             return build_tree(root)
         except Exception as e:
-            print(f"Error getting trace tree for {trace_id}: {e}")
+            logger.info(f"Error getting trace tree for {trace_id}: {e}")
             return None
 
     def get_slow_traces(self, threshold_ms: int, limit: int = 100) -> list[TraceRecord]:
@@ -440,7 +445,7 @@ class TraceCollection:
             rows = cursor.fetchall()
             return [self._row_to_trace(row) for row in rows]
         except Exception as e:
-            print(f"Error getting slow traces: {e}")
+            logger.info(f"Error getting slow traces: {e}")
             return []
 
     def get_error_traces(self, session_id: str, limit: int = 100) -> list[TraceRecord]:
@@ -478,5 +483,5 @@ class TraceCollection:
             rows = cursor.fetchall()
             return [self._row_to_trace(row) for row in rows]
         except Exception as e:
-            print(f"Error getting error traces: {e}")
+            logger.info(f"Error getting error traces: {e}")
             return []

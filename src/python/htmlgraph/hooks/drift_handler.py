@@ -133,7 +133,7 @@ def load_drift_config(graph_dir: Path) -> dict[str, Any]:
     Example:
         ```python
         config = load_drift_config(Path(".htmlgraph"))
-        print(f"Auto-classify threshold: {config['drift_detection']['auto_classify_threshold']}")
+        logger.info(f"Auto-classify threshold: {config['drift_detection']['auto_classify_threshold']}")
         ```
     """
     graph_dir = Path(graph_dir)
@@ -196,7 +196,7 @@ def detect_drift(
         ```python
         score, feature_id = detect_drift(activity_result, config)
         if score > config['drift_detection']['auto_classify_threshold']:
-            print(f"HIGH DRIFT: {score:.2f}")
+            logger.info(f"HIGH DRIFT: {score:.2f}")
         ```
     """
     drift_score = getattr(activity_result, "drift_score", 0.0) or 0.0
@@ -242,7 +242,7 @@ def handle_high_drift(
         ```python
         nudge = handle_high_drift(context, 0.87, queue, config)
         if nudge:
-            print(nudge)  # "HIGH DRIFT (0.87): Activity queued for classification..."
+            logger.info("%s", nudge)  # "HIGH DRIFT (0.87): Activity queued for classification..."
         ```
     """
     drift_config = config.get("drift_detection", {})

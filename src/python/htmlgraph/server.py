@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 HtmlGraph REST API Server.
 
@@ -243,8 +247,8 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         """Handle GET requests."""
         api, collection, node_id, params = self._parse_path()
-        print(
-            f"DEBUG do_GET: api={api}, collection={collection}, node_id={node_id}, params={params}"
+        logger.debug(
+            f"do_GET: api={api}, collection={collection}, node_id={node_id}, params={params}"
         )
 
         # Not an API request - serve static files
@@ -273,7 +277,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
         # GET /api/orchestration - Get delegation chains and agent coordination
         if collection == "orchestration":
-            print(f"DEBUG: Handling orchestration request, params={params}")
+            logger.info(f"DEBUG: Handling orchestration request, params={params}")
             return self._handle_orchestration_view(params)
 
         # GET /api/task-delegations/stats - Get aggregated delegation statistics
@@ -1275,7 +1279,7 @@ class HtmlGraphAPIHandler(SimpleHTTPRequestHandler):
 
     def log_message(self, format: str, *args: str) -> None:
         """Custom log format."""
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}")
+        logger.info(f"[{datetime.now().strftime('%H:%M:%S')}] {args[0]}")
 
 
 def find_available_port(start_port: int = 8080, max_attempts: int = 10) -> int:
@@ -1434,7 +1438,7 @@ def serve(
         # Print warnings if any
         for warning in result.warnings:
             if not quiet:
-                print(f"⚠️  {warning}")
+                logger.info(f"⚠️  {warning}")
 
         # Print server info
         if not quiet:
@@ -1473,31 +1477,31 @@ Press Ctrl+C to stop.
         asyncio.run(run_fastapi_server(result.handle))
 
     except PortInUseError:
-        print(f"\n❌ Port {port} is already in use\n")
-        print("Solutions:")
-        print("  1. Use a different port:")
-        print(f"     htmlgraph serve --port {port + 1}\n")
-        print("  2. Let htmlgraph automatically find an available port:")
-        print("     htmlgraph serve --auto-port\n")
-        print(f"  3. Find and kill the process using port {port}:")
-        print(f"     lsof -ti:{port} | xargs kill -9\n")
+        logger.info(f"\n❌ Port {port} is already in use\n")
+        logger.info("Solutions:")
+        logger.info("  1. Use a different port:")
+        logger.info(f"     htmlgraph serve --port {port + 1}\n")
+        logger.info("  2. Let htmlgraph automatically find an available port:")
+        logger.info("     htmlgraph serve --auto-port\n")
+        logger.info(f"  3. Find and kill the process using port {port}:")
+        logger.info(f"     lsof -ti:{port} | xargs kill -9\n")
 
         # Try to find and suggest an available port
         try:
             alt_port = find_available_port(port + 1)
-            print(f"💡 Found available port: {alt_port}")
-            print(f"   Run: htmlgraph serve --port {alt_port}\n")
+            logger.info(f"💡 Found available port: {alt_port}")
+            logger.info(f"   Run: htmlgraph serve --port {alt_port}\n")
         except OSError:
             pass
 
         sys.exit(1)
 
     except FastAPIServerError as e:
-        print(f"\n❌ Server error: {e}\n")
+        logger.info(f"\n❌ Server error: {e}\n")
         sys.exit(1)
 
     except KeyboardInterrupt:
-        print("\nShutting down...")
+        logger.info("\nShutting down...")
 
 
 if __name__ == "__main__":

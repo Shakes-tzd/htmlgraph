@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 SubagentOrchestrator for context-preserving delegation.
 
@@ -83,7 +85,6 @@ Key Patterns
 4. Parallel execution: Multiple subagents can work simultaneously
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime

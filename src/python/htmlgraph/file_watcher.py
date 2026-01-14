@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 File watcher for automatic graph reloading.
 
@@ -67,7 +71,7 @@ class GraphFileHandler(FileSystemEventHandler):
 
     def _trigger_reload(self) -> None:
         """Trigger a reload after debounce delay."""
-        print(f"[FileWatcher] Reloading collection: {self.collection}")
+        logger.info(f"[FileWatcher] Reloading collection: {self.collection}")
         self.reload_callback()
 
     def _debounced_reload(self) -> None:
@@ -87,7 +91,7 @@ class GraphFileHandler(FileSystemEventHandler):
         if not self._is_relevant_file(str(event.src_path)):
             return
 
-        print(
+        logger.debug(
             f"[FileWatcher] {self.collection}: File created - {Path(str(event.src_path)).name}"
         )
         self._debounced_reload()
@@ -101,7 +105,7 @@ class GraphFileHandler(FileSystemEventHandler):
         if not self._is_relevant_file(str(event.src_path)):
             return
 
-        print(
+        logger.debug(
             f"[FileWatcher] {self.collection}: File modified - {Path(str(event.src_path)).name}"
         )
         self._debounced_reload()
@@ -115,7 +119,7 @@ class GraphFileHandler(FileSystemEventHandler):
         if not self._is_relevant_file(str(event.src_path)):
             return
 
-        print(
+        logger.debug(
             f"[FileWatcher] {self.collection}: File deleted - {Path(str(event.src_path)).name}"
         )
         self._debounced_reload()
@@ -146,7 +150,7 @@ class GraphWatcher:
 
     def start(self) -> None:
         """Start watching for file changes."""
-        print(
+        logger.info(
             f"[FileWatcher] Starting file watcher for {len(self.collections)} collections..."
         )
 
@@ -160,7 +164,7 @@ class GraphWatcher:
                 def reload() -> None:
                     graph = self.get_graph_callback(coll)
                     count = graph.reload()
-                    print(f"[FileWatcher] Reloaded {count} nodes in {coll}")
+                    logger.info(f"[FileWatcher] Reloaded {count} nodes in {coll}")
 
                 return reload
 
@@ -173,11 +177,11 @@ class GraphWatcher:
             self.observer.schedule(handler, str(collection_dir), recursive=recursive)
 
         self.observer.start()
-        print(f"[FileWatcher] Watching {self.graph_dir} for changes...")
+        logger.info(f"[FileWatcher] Watching {self.graph_dir} for changes...")
 
     def stop(self) -> None:
         """Stop watching for file changes."""
-        print("[FileWatcher] Stopping file watcher...")
+        logger.info("[FileWatcher] Stopping file watcher...")
         self.observer.stop()
         self.observer.join()
 

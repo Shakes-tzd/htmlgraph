@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Epic builder for creating large body of work nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with epic-specific methods like
 child features and milestones.
 """
 
-from __future__ import annotations
 
 from datetime import date
 from typing import TYPE_CHECKING, Any

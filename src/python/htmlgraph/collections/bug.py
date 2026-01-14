@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 """
 Bug collection for managing bug report work items.
 
 Extends BaseCollection with bug-specific builder support.
 """
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

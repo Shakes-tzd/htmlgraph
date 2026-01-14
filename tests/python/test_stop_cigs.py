@@ -13,11 +13,9 @@ Reference: .htmlgraph/spikes/computational-imperative-guidance-system-design.md 
 """
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from htmlgraph.cigs.models import (
     AutonomyLevel,
 )

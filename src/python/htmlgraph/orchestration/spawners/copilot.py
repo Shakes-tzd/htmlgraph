@@ -1,11 +1,13 @@
 """Copilot spawner implementation."""
 
+import logging
 import subprocess
-import sys
 import time
 from typing import TYPE_CHECKING, Any
 
 from .base import AIResult, BaseSpawner
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from htmlgraph.sdk import SDK
@@ -129,15 +131,11 @@ class CopilotSpawner(BaseSpawner):
 
             # Record subprocess invocation if tracker is available
             subprocess_event_id = None
-            print(
-                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}",
-                file=sys.stderr,
+            logger.warning(
+                f"DEBUG: tracker={tracker is not None}, parent_event_id={parent_event_id}"
             )
             if tracker and parent_event_id:
-                print(
-                    "DEBUG: Recording subprocess invocation for Copilot...",
-                    file=sys.stderr,
-                )
+                logger.debug("Recording subprocess invocation for Copilot...")
                 try:
                     subprocess_event = tracker.record_tool_call(
                         tool_name="subprocess.copilot",
@@ -147,23 +145,20 @@ class CopilotSpawner(BaseSpawner):
                     )
                     if subprocess_event:
                         subprocess_event_id = subprocess_event.get("event_id")
-                        print(
-                            f"DEBUG: Subprocess event created for Copilot: {subprocess_event_id}",
-                            file=sys.stderr,
+                        logger.warning(
+                            f"DEBUG: Subprocess event created for Copilot: {subprocess_event_id}"
                         )
                     else:
-                        print("DEBUG: subprocess_event was None", file=sys.stderr)
+                        logger.debug("subprocess_event was None")
                 except Exception as e:
                     # Tracking failure should not break execution
-                    print(
-                        f"DEBUG: Exception recording Copilot subprocess: {e}",
-                        file=sys.stderr,
+                    logger.warning(
+                        f"DEBUG: Exception recording Copilot subprocess: {e}"
                     )
                     pass
             else:
-                print(
-                    f"DEBUG: Skipping Copilot subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}",
-                    file=sys.stderr,
+                logger.warning(
+                    f"DEBUG: Skipping Copilot subprocess tracking - tracker={tracker is not None}, parent_event_id={parent_event_id}"
                 )
 
             result = subprocess.run(

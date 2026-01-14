@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Pattern builder for creating workflow pattern nodes.
 
@@ -5,7 +7,6 @@ Extends BaseBuilder with pattern-specific methods for
 tracking optimal and anti-pattern tool sequences.
 """
 
-from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 BeautifulSoup-style Find API for HtmlGraph.
 
@@ -22,7 +24,6 @@ Example:
     nodes = graph.find_all(properties__effort__gt=8)
 """
 
-from __future__ import annotations
 
 import re
 from collections.abc import Callable
