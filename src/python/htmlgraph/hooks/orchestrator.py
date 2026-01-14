@@ -94,6 +94,73 @@ def load_tool_history(session_id: str) -> list[dict]:
         return []
 
 
+def record_tool_event(tool_name: str, session_id: str) -> None:
+    """
+    Record a tool event to the database for history tracking.
+
+    This is called at the end of PreToolUse hook execution to track
+    tool usage patterns for sequence detection.
+
+    Args:
+        tool_name: Name of the tool being called
+        session_id: Session identifier for isolation
+    """
+    try:
+        import datetime
+        import uuid
+
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        # Find database path
+        cwd = Path.cwd()
+        graph_dir = cwd / ".htmlgraph"
+        if not graph_dir.exists():
+            for parent in [cwd.parent, cwd.parent.parent, cwd.parent.parent.parent]:
+                candidate = parent / ".htmlgraph"
+                if candidate.exists():
+                    graph_dir = candidate
+                    break
+
+        if not graph_dir.exists():
+            return
+
+        db_path = graph_dir / "htmlgraph.db"
+        db = HtmlGraphDB(str(db_path))
+        if db.connection is None:
+            return
+
+        cursor = db.connection.cursor()
+        timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        # Ensure session exists (required by FK constraint)
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO sessions (session_id, agent_assigned, created_at, status)
+            VALUES (?, ?, ?, ?)
+        """,
+            (session_id, "orchestrator-hook", timestamp, "active"),
+        )
+
+        # Record the tool event using the actual schema
+        # Schema has: event_id, agent_id, event_type, timestamp, tool_name, session_id, etc.
+        event_id = str(uuid.uuid4())
+        agent_id = "orchestrator-hook"  # Identifier for the hook
+
+        cursor.execute(
+            """
+            INSERT INTO agent_events (event_id, agent_id, event_type, timestamp, tool_name, session_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """,
+            (event_id, agent_id, "tool_call", timestamp, tool_name, session_id),
+        )
+
+        db.connection.commit()
+        db.disconnect()
+    except Exception:
+        # Graceful degradation - don't fail hook on recording error
+        pass
+
+
 def is_allowed_orchestrator_operation(
     tool: str, params: dict[str, Any], session_id: str = "unknown"
 ) -> tuple[bool, str, str]:
@@ -402,6 +469,7 @@ def enforce_orchestrator_mode(
     # Check if this is a subagent context - subagents have unrestricted tool access
     if is_subagent_context():
         return {
+            "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow",
@@ -425,18 +493,14 @@ def enforce_orchestrator_mode(
         manager = OrchestratorModeManager(graph_dir)
 
         if not manager.is_enabled():
-            # Mode not active, allow everything
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "allow",
-                },
-            }
+            # Mode not active, allow everything with no additional output
+            return {"continue": True}
 
         enforcement_level = manager.get_enforcement_level()
     except Exception:
         # If we can't check mode, fail open (allow)
         return {
+            "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow",
@@ -467,6 +531,7 @@ def enforce_orchestrator_mode(
             )
 
             return {
+                "continue": False,
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
@@ -491,6 +556,7 @@ def enforce_orchestrator_mode(
         ):
             # Provide guidance even when allowing
             return {
+                "continue": True,
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "allow",
@@ -498,6 +564,7 @@ def enforce_orchestrator_mode(
                 },
             }
         return {
+            "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow",
@@ -513,8 +580,8 @@ def enforce_orchestrator_mode(
     suggestion = create_task_suggestion(tool, params)
 
     if enforcement_level == "strict":
-        # STRICT mode - loud warning with violation count
-        error_message = (
+        # STRICT mode - advisory warning with violation count (does not block)
+        warning_message = (
             f"🚫 ORCHESTRATOR MODE VIOLATION ({violations}/{circuit_breaker_threshold}): {reason}\n\n"
             f"⚠️  WARNING: Direct operations waste context and break delegation pattern!\n\n"
             f"Suggested delegation:\n"
@@ -523,23 +590,25 @@ def enforce_orchestrator_mode(
 
         # Add circuit breaker warning if approaching threshold
         if violations >= circuit_breaker_threshold:
-            error_message += (
+            warning_message += (
                 "🚨 CIRCUIT BREAKER TRIGGERED - Further violations will be blocked!\n\n"
                 "Reset with: uv run htmlgraph orchestrator reset-violations\n"
             )
         elif violations == circuit_breaker_threshold - 1:
-            error_message += "⚠️  Next violation will trigger circuit breaker!\n\n"
+            warning_message += "⚠️  Next violation will trigger circuit breaker!\n\n"
 
-        error_message += (
+        warning_message += (
             "See ORCHESTRATOR_DIRECTIVES in session context for HtmlGraph delegation pattern.\n"
             "To disable orchestrator mode: uv run htmlgraph orchestrator disable"
         )
 
+        # Advisory-only: allow operation but provide warning
         return {
+            "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": error_message,
+                "permissionDecision": "allow",
+                "additionalContext": warning_message,
             },
         }
     else:
@@ -549,6 +618,7 @@ def enforce_orchestrator_mode(
         )
 
         return {
+            "continue": True,
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow",
@@ -591,6 +661,10 @@ def main() -> None:
 
     # Enforce orchestrator mode with session_id for history lookup
     response = enforce_orchestrator_mode(tool_name, tool_input, session_id)
+
+    # Record tool event to database for history tracking
+    # This allows subsequent calls to detect patterns (e.g., multiple Reads)
+    record_tool_event(tool_name, session_id)
 
     # Output JSON response
     print(json.dumps(response))
