@@ -8,26 +8,6 @@
   "homepage": "https://github.com/Shakes-tzd/htmlgraph",
   "repository": "https://github.com/Shakes-tzd/htmlgraph",
   "license": "MIT",
-  "agents": {
-    "haiku-coder": {
-      "description": "Fast, efficient code execution for simple tasks",
-      "model": "haiku",
-      "complexity": "low",
-      "costPerMillion": 0.8
-    },
-    "sonnet-coder": {
-      "description": "Balanced code execution for moderate complexity",
-      "model": "sonnet",
-      "complexity": "medium",
-      "costPerMillion": 3.0
-    },
-    "opus-coder": {
-      "description": "Deep reasoning for complex architectural tasks",
-      "model": "opus",
-      "complexity": "high",
-      "costPerMillion": 15.0
-    }
-  },
   "mcpServers": {
     "chrome-devtools": {
       "command": "npx",
@@ -37,20 +17,6 @@
         "--headless",
         "--isolated"
       ]
-    }
-  },
-  "skills": {
-    "gemini": {
-      "description": "Use Google Gemini for free exploration and large-context research",
-      "path": "./skills/gemini"
-    },
-    "codex": {
-      "description": "Use OpenAI Codex for sandboxed code generation and implementation",
-      "path": "./skills/codex"
-    },
-    "copilot": {
-      "description": "Use GitHub Copilot for Git operations, GitHub integration, and PR handling",
-      "path": "./skills/copilot"
     }
   }
 }
