@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Activity Feed Verification</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e00501c0"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T19:57:52.015151"
+             data-updated="2026-01-15T19:57:52.015154" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="tester">
+
+        <header>
+            <h1>Dashboard Activity Feed Verification</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Dashboard Activity Feed Verification - COMPLETE
+
+## Summary
+Dashboard activity feed successfully displays recent UserQuery events with full functionality restored after fixing API schema mismatch.
+
+## Test Results
+
+### ✓ Server Started Successfully
+- Port: 8082 (8081 was already in use from previous session)
+- Status: Running with full FastAPI endpoints
+- WebSocket: Connected for live updates
+- Dashboard Title: HtmlGraph Dashboard - Agent Activity & Orchestration
+
+### ✓ Dashboard Loads Completely
+- Page loads at http://localhost:8082
+- Real-time stats visible:
+  - Total Events: 1,067
+  - Total Agents: 3
+  - Total Sessions: 81
+- Navigation tabs functional (Activity, Orchestration, Work Items, Agents, Metrics)
+
+### ✓ Activity Feed Shows Recent UserQuery Events
+The Agent Activity Feed displays recent activity with:
+- User prompt submissions as expandable entries
+- Each entry shows:
+  - User query text (truncated in feed)
+  - Tool call counts
+  - Total duration (0.00s for most)
+  - Successful operations count
+  - ISO 8601 timestamp (e.g., 2026-01-13 23:48:12)
+  
+Recent entries visible:
+1. "add these commands to the session start hook..." - 41 tool calls, 42 operations - 2026-01-13 23:48:12
+2. "<task-notification>..." - 1 operation - 2026-01-13 23:46:35
+3. "i think the issue is because the output is being piped..." - 33 tool calls, 34 operations - 2026-01-13 23:40:59
+4. "yes implement" - 456 tool calls, 608 operations - 2026-01-13 22:13:27
+5. Multiple other sessions dating back through Jan 13
+
+### ✗ API /api/sessions Endpoint - FIXED
+**Issue Found**: API endpoint was returning HTTP 500 error
+**Root Cause**: Schema column name mismatch
+  - Query attempted to use: `started_at`, `ended_at`
+  - Database actually has: `created_at`, `completed_at`
+  
+**Solution Applied**:
+- File: `/Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/main.py`
+- Line 1349: Updated comment to reflect correct schema
+- Line 1355-1358: Changed SELECT columns from `started_at`/`ended_at` to `created_at`/`completed_at`
+- Line 1368: Changed ORDER BY clause from `started_at` to `created_at`
+- Line 1394-1397: Updated response field mappings in session objects
+
+**After Fix**: API now returns valid JSON with proper pagination:
+```json
+{
+  "total": 81,
+  "limit": 50,
+  "offset": 0,
+  "sessions": [
+    {
+      "session_id": "test-session-0f04b423",
+      "agent": "system",
+      "continued_from": null,
+      "created_at": "2026-01-16 00:18:06",
+      "status": "active",
+      "start_commit": null,
+      "completed_at": null
+    },
+    ...
+  ]
+}
+```
+
+### ✓ Sessions Include created_at/completed_at Columns
+Database verification confirms:
+- Total sessions: 81
+- All active: 81 (completed_at is null for active sessions)
+- Schema verified with: `.schema sessions` command
+- Columns present: created_at (required), completed_at (nullable)
+
+## Technical Details
+
+### Database Schema (Verified)
+```sql
+CREATE TABLE sessions (
+  session_id TEXT PRIMARY KEY,
+  agent_assigned TEXT NOT NULL,
+  parent_session_id TEXT,
+  parent_event_id TEXT,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at DATETIME,
+  total_events INTEGER DEFAULT 0,
+  total_tokens_used INTEGER DEFAULT 0,
+  context_drift REAL DEFAULT 0.0,
+  status TEXT NOT NULL DEFAULT 'active',
+  ...
+);
+```
+
+### Dashboard Features Verified
+✓ Real-time activity feed with HTMX updates
+✓ WebSocket live updates enabled
+✓ Event grouping by conversation turn
+✓ Expandable/collapsible event details
+✓ Filter by activity type (All, Direct Actions, Spawner Delegations)
+✓ Filter by AI model (Gemini, Codex, Copilot)
+✓ Expand All / Collapse All buttons
+✓ Timestamps in ISO 8601 format
+✓ Operation counts (tool calls, successful, errors)
+
+### API Endpoints Verified
+✓ GET /api/sessions - Returns paginated session list
+✓ Response includes: session_id, agent, created_at, completed_at, status
+✓ Pagination: limit=50, offset=0 (default)
+✓ Total count: 81 sessions
+
+## Screenshots Captured
+1. `dashboard-activity-feed.png` - Initial dashboard view showing activity feed
+2. `dashboard-fixed.png` - Dashboard after API fix confirmation
+
+## Conclusion
+The HtmlGraph dashboard is fully operational and correctly displays recent UserQuery events with proper timestamps. The API schema mismatch has been identified and fixed, enabling programmatic access to session data. All core features are working as expected.
+
+**Status: VERIFIED AND FIXED** ✓
+            </div>
+        </section>
+    </article>
+</body>
+</html>

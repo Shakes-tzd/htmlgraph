@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix Applied: DependencyAnalytics Auto-Loads Features</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5195ca84"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-14T23:46:46.860452"
+             data-updated="2026-01-14T23:46:46.860453" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Fix Applied: DependencyAnalytics Auto-Loads Features</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem
+DependencyAnalytics was initialized with an empty HtmlGraph because:
+- HtmlGraph defaults to auto_load=False (graph.py:216)
+- SDK creates graph without calling reload() (sdk/base.py:116)
+- DependencyAnalytics received this empty graph (sdk/base.py:186)
+- Result: recommend_next_work() always returned empty list
+
+## Root Cause
+The graph lazy-loading pattern (auto_load=False default) meant that DependencyAnalytics
+received a graph with zero nodes, making all analytics methods useless.
+
+## Solution Implemented
+Added automatic reload() call in DependencyAnalytics.__init__():
+
+```python
+def __init__(self, graph: HtmlGraph):
+    self.graph = graph
+
+    # Ensure graph is loaded with features from disk
+    # DependencyAnalytics requires a populated graph to provide meaningful insights
+    if not graph.nodes:
+        graph.reload()
+
+    self._edge_index = graph.edge_index
+    self._transitive_cache: dict[str, set[str]] = {}
+```
+
+## Verification Results
+✅ Graph now loads 209 features on initialization
+✅ recommend_next_work() returns 15 recommendations
+✅ All analytics tests pass (16/16)
+✅ All SDK tests pass (18/18)
+✅ Type checking passes (mypy)
+✅ Linting passes (ruff)
+
+## Files Modified
+- src/python/htmlgraph/analytics/dependency.py (lines 74-84)
+
+## Impact
+- Minimal: Only affects DependencyAnalytics initialization
+- Safe: Only calls reload() if graph is actually empty
+- Backwards-compatible: Doesn't change SDK or HtmlGraph behavior
+- Self-sufficient: DependencyAnalytics now ensures it has the data it needs
+
+## Test Output
+```
+Graph nodes: 209
+Recommendations: 15
+Top recommendations:
+  - Pre-commit Hook: Detect Incomplete Systematic Changes
+  - Phase 1: Pydantic Integration - Type-Safe CLI Arguments
+```
+            </div>
+        </section>
+    </article>
+</body>
+</html>

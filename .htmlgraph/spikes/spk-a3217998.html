@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Strategic Parallel Execution - Wave 1 Delegation Brief</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-a3217998"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T17:51:56.939758"
+             data-updated="2026-01-15T17:51:56.939763" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="orchestrator">
+
+        <header>
+            <h1>Strategic Parallel Execution - Wave 1 Delegation Brief</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Strategic Parallel Execution Plan - Wave 1 Delegation Brief
+
+**Context**: SDK modularization Phase 2.2 in progress (aa511f5). Current test status: 249/351 passing (71%).
+**Opportunity**: Execute 3-4 independent planning tasks in parallel while Phase 2.2 bug fixes continue.
+
+---
+
+## Executive Summary
+
+This document provides ready-to-execute delegation briefs for Wave 1 parallel work:
+
+1. **Phase 2.3 Detailed Planning** - Sessions/Hooks completion specification
+2. **Phase 2.4 CLI Migration Planning** - CLI to SDK operations consolidation  
+3. **Phase 2.5 Cleanup Planning + Test Coverage Audit** - Final cleanup and quality gates
+
+**Total Parallelism**: 3-4 agents on Wave 1 + Phase 2.2 (aa511f5) = 4-5 simultaneous work streams
+
+---
+
+## Delegation 1: Phase 2.3 Detailed Planning (Sessions & Hooks)
+
+**Budget**: 4-5K tokens (1 Opus agent)
+**Scope**: Create comprehensive implementation specification for Sessions/Hooks module completion
+**Dependencies**: None (independent of Phase 2.2 bug fixes)
+**Outputs**: Detailed Phase 2.3 implementation guide with file-by-file breakdown
+
+### Current State Analysis
+
+**Sessions Subpackage** (sdk/session/):
+- manager.py - Session lifecycle (start/end)
+- handoff.py - Context transfer between agents
+- continuity.py - Resume work from previous sessions
+- info.py - Session info and work item tracking
+
+**Hooks System** (hooks/scripts/):
+- hooks.json - Hook event routing
+- session-start.py - Database session creation
+- user-prompt-submit.py - UserQuery event creation
+- track-event.py - All event tracking
+- pretooluse-integrator.py - Tool use tracking
+- posttooluse-integrator.py - Activity linking
+- session-end.py - Session cleanup
+- subagent-stop.py - Subagent completion
+
+### Success Criteria
+
+- [ ] Complete audit of 4 session mixins with gap analysis
+- [ ] Complete audit of 7+ hook scripts with integration status
+- [ ] File-by-file implementation checklist created
+- [ ] Effort estimates for each change (tokens/complexity)
+- [ ] Test requirements documented with specific scenarios
+- [ ] Phase 2.3 specification saved to docs/PHASE_2_3_SPECIFICATION.md
+
+---
+
+## Delegation 2: Phase 2.4 CLI Migration Planning
+
+**Budget**: 4-5K tokens (1 Opus agent)
+**Scope**: Create CLI to SDK operations layer migration specification
+**Dependencies**: None (independent of Phase 2.2)
+**Outputs**: Complete Phase 2.4 implementation guide with migration strategy
+
+### Current CLI Architecture
+
+**Entry Point**: cli/main.py - Argument parsing, command routing
+
+**Command Modules**:
+- cli/core.py - Core commands (init, serve, status, query)
+- cli/analytics.py - Analytics commands
+- cli/work/features.py - Feature management
+- cli/work/sessions.py - Session commands
+- cli/work/tracks.py - Track commands
+- cli/work/snapshot.py - Snapshot commands
+- cli/work/browse.py - Browser commands
+- cli/work/report.py - Report generation
+- cli/work/orchestration.py - Orchestration commands
+
+### Success Criteria
+
+- [ ] Complete CLI command inventory with implementation status
+- [ ] Operations layer extension design documented
+- [ ] Per-command migration checklist created
+- [ ] Effort estimates for migration (tokens/complexity)
+- [ ] Testing strategy defined
+- [ ] Phase 2.4 specification saved to docs/PHASE_2_4_SPECIFICATION.md
+
+---
+
+## Delegation 3: Phase 2.5 Cleanup + Test Coverage Audit
+
+**Budget**: 5-6K tokens (1-2 agents - can be split)
+**Scope**: Final cleanup specification + comprehensive test coverage analysis
+**Dependencies**: None (can inform Phase 2.3/2.4 work)
+**Outputs**: Cleanup checklist + test coverage report with gap analysis
+
+### Task 3A: Phase 2.5 Cleanup Planning (3K tokens)
+
+- Deprecated code to remove
+- Dead imports to clean
+- Duplicate functionality to consolidate
+- Documentation to update
+- mypy type coverage gaps
+- ruff linting issues
+- Docstring completeness
+
+### Task 3B: Test Coverage Audit (3K tokens)
+
+- Run: uv run pytest --cov=htmlgraph --cov-report=term-missing
+- Identify modules with less than 80% coverage
+- Prioritize test additions by impact
+- Document integration test gaps
+
+### Success Criteria
+
+**For 3A (Cleanup):**
+- [ ] Deprecated code inventory created
+- [ ] Code quality issues catalogued
+- [ ] Documentation sync checklist created
+- [ ] Phase 2.5 specification saved to docs/PHASE_2_5_SPECIFICATION.md
+
+**For 3B (Test Coverage):**
+- [ ] Coverage report generated (current % documented)
+- [ ] Gap analysis by module completed
+- [ ] Prioritized test addition list created
+- [ ] Test coverage report saved to docs/TEST_COVERAGE_ANALYSIS.md
+
+---
+
+## Token Budget Summary
+
+| Delegation | Tokens | Agents | Model |
+|------------|--------|--------|-------|
+| Phase 2.3 Planning | 4-5K | 1 | Opus/Sonnet |
+| Phase 2.4 Planning | 4-5K | 1 | Opus/Sonnet |
+| Phase 2.5 Cleanup | 3K | 1 | Haiku |
+| Test Coverage | 3K | 1 | Haiku |
+| **Total Wave 1** | **14-16K** | **3-4** | Mixed |
+
+---
+
+## Copy-Paste Delegation Prompts
+
+### Prompt 1: Phase 2.3 Planning Agent
+
+You are a planning agent for HtmlGraph SDK modularization.
+
+**Task**: Create Phase 2.3 Implementation Specification for Sessions and Hooks module completion.
+
+**Context**: The SDK has been modularized into mixins. Sessions are in sdk/session/ (4 files: manager.py, handoff.py, continuity.py, info.py). Hooks are in packages/claude-plugin/.claude-plugin/hooks/.
+
+**Deliverable**: Create docs/PHASE_2_3_SPECIFICATION.md with:
+1. Session module audit (completeness, gaps, type hints)
+2. Hooks system audit (SDK integration status)
+3. File-by-file implementation checklist with effort estimates
+4. Integration test requirements
+
+Research the code thoroughly before writing the specification. Use Grep/Glob to find all relevant files. Read key files to understand current implementation status.
+
+Save your findings using the HtmlGraph SDK spike system when complete.
+
+### Prompt 2: Phase 2.4 Planning Agent
+
+You are a planning agent for HtmlGraph SDK modularization.
+
+**Task**: Create Phase 2.4 Implementation Specification for CLI Migration to unified operations layer.
+
+**Context**: The CLI is in cli/. The operations layer is in operations/. Goal is to have CLI commands delegate to operations modules, same as SDK.
+
+**Deliverable**: Create docs/PHASE_2_4_SPECIFICATION.md with:
+1. Complete CLI command inventory with current implementation status
+2. Operations layer extension design
+3. Per-command migration checklist with effort estimates
+4. Testing strategy for CLI to Operations to SDK equivalence
+
+Research the code thoroughly. Map CLI commands to their implementations. Identify which already use operations vs direct implementation.
+
+Save your findings using the HtmlGraph SDK spike system when complete.
+
+### Prompt 3: Phase 2.5 + Coverage Agent
+
+You are a cleanup and quality agent for HtmlGraph SDK modularization.
+
+**Tasks**: 
+1. Create Phase 2.5 Cleanup Specification
+2. Generate comprehensive test coverage analysis
+
+**Deliverables**:
+1. docs/PHASE_2_5_SPECIFICATION.md - Cleanup checklist (deprecated code, quality issues, doc sync)
+2. docs/TEST_COVERAGE_ANALYSIS.md - Coverage report with gap analysis and priorities
+
+**Commands to run**:
+- uv run pytest --cov=htmlgraph --cov-report=term-missing for coverage
+- uv run ruff check src/python/htmlgraph/ for linting issues
+- uv run mypy src/python/htmlgraph/ for type coverage
+
+Create actionable checklists with effort estimates for each cleanup item.
+
+Save your findings using the HtmlGraph SDK spike system when complete.
+
+---
+
+## Strategic Notes
+
+1. **Parallel Execution**: All 3 Wave 1 delegations are independent and can run simultaneously
+2. **Cost Optimization**: Use Haiku for Phase 2.5/Coverage (simpler tasks), Opus/Sonnet for 2.3/2.4 (planning complexity)
+3. **Information Flow**: Wave 1 outputs inform Wave 2 implementation work
+4. **Quality Gates**: Each delegation must save findings to spike for review
+5. **Timing**: Wave 1 can complete in 15-20 minutes if parallelized properly
+            </div>
+        </section>
+    </article>
+</body>
+</html>

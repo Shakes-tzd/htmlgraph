@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>UserQuery Event Persistence Debug - Root Cause & Fix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-bd0de272"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T22:31:08.520531"
+             data-updated="2026-01-15T22:31:08.520534" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="debugger">
+
+        <header>
+            <h1>UserQuery Event Persistence Debug - Root Cause & Fix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # UserQuery Event Persistence Issue - Root Cause Analysis
+
+## Summary
+UserQuery events are being recorded to the JSONL event log successfully, but:
+1. They are NOT being inserted into the SQLite `agent_events` table
+2. The dashboard API queries the SQLite table, finding only 10 UserQuery events (from legacy sources)
+3. The JSONL log contains 4463+ events including many UserQuery entries
+
+## Root Cause
+
+**Architecture Mismatch**: Two separate database backends with different insertion paths:
+
+### Current State
+1. **JSONL Event Log** (`.htmlgraph/events/*.jsonl`)
+   - Source: `SessionManager.track_activity()` → `JsonlEventLog.append()`
+   - Status: ✓ Working correctly
+   - Contains: All events including UserQuery
+
+2. **SQLite Database** (`.htmlgraph/htmlgraph.db`)
+   - Source 1: Hook scripts (`PreToolUse`, `PostToolUse`, etc.) → `agent_events` table
+   - Source 2: `SessionManager.track_activity()` → `AnalyticsIndex.upsert_event()` → **`events` table** (DOES NOT EXIST)
+   - Status: ✗ Broken for SessionManager insertions
+   - Problem: `AnalyticsIndex` inserts into non-existent `events` table, silently fails
+
+### Evidence
+
+**Test Results:**
+- ✓ SessionManager.track_activity() successfully creates ActivityEntry
+- ✓ JsonlEventLog.append() successfully writes to JSONL file
+- ✓ User can see recent activities in JSONL files
+- ✗ SQLite `agent_events` table has only 10 UserQuery events (from hooks, not SessionManager)
+- ✗ SQLite `events` table does NOT exist
+- ✗ AnalyticsIndex.upsert_event() silently fails (exception swallowed in session_manager.py:1257-1258)
+
+**Code Flow:**
+```
+SessionManager.track_activity()
+  ├─ EventLog.append()       ✓ Writes to JSONL
+  └─ AnalyticsIndex.upsert_event()  ✗ Tries to write to non-existent events table
+                                       Silently catches exception (logger.warning)
+```
+
+### Why UserQuery Events Are Missing from Dashboard
+
+The dashboard API endpoint queries the SQLite `agent_events` table:
+```sql
+SELECT * FROM agent_events WHERE tool_name = 'UserQuery'
+```
+
+But:
+- Hook scripts (pretooluse.py, orchestrator.py) only record tool calls, not UserQuery
+- SessionManager tries to insert into wrong table (`events` instead of `agent_events`)
+- Result: Only 10 UserQuery events from legacy sources show up
+
+## Solution
+
+Two possible fixes (recommend both):
+
+### Fix 1: Create Missing `events` Table (Recommended - Restores AnalyticsIndex)
+Create the `events` table schema that AnalyticsIndex expects:
+
+```sql
+CREATE TABLE IF NOT EXISTS events (
+    event_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    ts TEXT NOT NULL,
+    tool TEXT NOT NULL,
+    summary TEXT,
+    success BOOLEAN,
+    feature_id TEXT,
+    drift_score REAL,
+    payload_json TEXT,
+    parent_event_id TEXT,
+    cost_tokens INTEGER,
+    execution_duration_seconds REAL
+);
+```
+
+This allows AnalyticsIndex to work as intended - maintains a fast SQLite index of all events from JSONL.
+
+### Fix 2: Redirect SessionManager to Use `agent_events` Table (Quick Fix)
+Modify SessionManager.track_activity() to insert into `agent_events` instead of using AnalyticsIndex.
+
+This is less elegant but provides immediate fix for UserQuery visibility.
+
+## Verification Steps
+
+After fix:
+1. Run test to insert UserQuery event
+2. Verify it appears in `.htmlgraph/events/*.jsonl` (should already work)
+3. Verify it appears in SQLite `agent_events` table
+4. Query dashboard API endpoint
+5. Confirm UserQuery event is visible in recent activity
+
+## Impact
+
+- **Severity**: High - Dashboard doesn't show recent user queries
+- **Scope**: Affects all SessionManager-based event tracking (UserQuery, explicit track_activity calls)
+- **Workaround**: Hook-based tracking (PostToolUse) works fine for tool events
+- **Data Loss**: No data loss - JSONL has complete history, just SQL index is incomplete
+
+## Files Affected
+
+- `src/python/htmlgraph/session_manager.py` - Lines 1219-1258 (upsert_event logic)
+- `src/python/htmlgraph/analytics_index.py` - Lines 227-271 (upsert_event implementation)
+- `.htmlgraph/htmlgraph.db` - Schema missing `events` table
+            </div>
+        </section>
+    </article>
+</body>
+</html>

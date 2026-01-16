@@ -505,12 +505,18 @@ def main():
         if len(prompt) > 100:
             preview += "..."
 
+        # DEBUG: Log what we received
+        print(f"DEBUG UserPromptSubmit: hook_input keys={list(hook_input.keys())}, prompt_len={len(prompt)}, preview={preview[:50]}", file=sys.stderr)
+
         try:
-            manager.track_activity(
+            result = manager.track_activity(
                 session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
+            print(f"DEBUG UserPromptSubmit: tracked successfully, event_id={result.id if result else 'None'}", file=sys.stderr)
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
         output_response()
         return
 

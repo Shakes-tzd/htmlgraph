@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 2.1.3: AnalyticsRepository, FilterService, SharedCache Interfaces Complete</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-136801af"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T00:44:55.422231"
+             data-updated="2026-01-15T00:44:55.422233" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-analytics-filter-cache">
+
+        <header>
+            <h1>Phase 2.1.3: AnalyticsRepository, FilterService, SharedCache Interfaces Complete</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Phase 2.1.3 Complete: Final Repository Interfaces
+
+### Overview
+Designed and implemented three final repository/service interfaces for Phase 2.1, completing the unified data access architecture. All interfaces follow the FeatureRepository reference pattern with comprehensive compliance tests.
+
+### 1. AnalyticsRepository Interface
+**File:** `src/python/htmlgraph/repositories/analytics_repository.py` (430 lines)
+
+**Purpose:** Unifies analytics and work recommendations across Feature and Track repositories.
+
+**Key Methods (8 total):**
+- `recommend_next_work(filters, limit, min_priority)` - Multi-criteria work prioritization
+- `analyze_dependencies(item_id)` - Complete dependency analysis with transitive closure
+- `calculate_priority(item_id)` - Normalized priority scoring (0-1)
+- `get_work_items(status, include_tracks)` - Query by status with optional filtering
+- `find_blocked_items()` - Items blocked by incomplete dependencies
+- `find_blocking_items(item_id)` - Items blocked by given item
+- `get_critical_path()` - Longest dependency chain determining project completion
+- `cache_metrics()` - Cache hit/miss statistics
+
+**Data Structures:**
+- `DependencyAnalysis` - Complete dependency info with blocking/blocked relationships
+- `WorkRecommendation` - Prioritized work with rationale and impact scores
+
+**Exception Types:**
+- `AnalyticsRepositoryException` - Base exception
+- `AnalysisError` - Analysis computation failure
+- `InvalidItemError` - Item not found or invalid
+
+**Contract:**
+- Data consistency: Recommendations based on current repo state
+- Accuracy: Correct transitive dependency computation
+- Performance: O(n) recommendations with caching, O(1) lookup for blocking items
+- Thread safety: Concurrent reads allowed, writes serialized
+
+**Advanced Queries:**
+- `find_dependency_cycles()` - Detect circular dependencies
+- `suggest_parallelizable_work()` - Groups of work that can run in parallel
+- `project_completion_estimate()` - Completion time prediction
+
+**Compliance Tests:** 33 tests covering interface contract, performance, error handling
+
+### 2. FilterService Interface
+**File:** `src/python/htmlgraph/repositories/filter_service.py` (520 lines)
+
+**Purpose:** Consolidates 39+ filter duplications across CLI, SDK, and Collections into single source of truth.
+
+**Key Methods (22 total):**
+
+**Atomic Filter Creation:**
+- `create_filter(field, operator, value)` - Create single-field filter
+- `custom(predicate)` - Custom predicate functions
+
+**Standard Filters (10 pre-built):**
+- `status_is(status)` - Exact status match
+- `priority_gte(priority)`, `priority_lte(priority)` - Priority ranges
+- `assigned_to(agent)` - Assignment filtering
+- `created_after(date)`, `created_before(date)` - Creation date ranges
+- `updated_after(date)`, `updated_before(date)` - Update date ranges
+- `any_of(field, values)` - IN operator
+- `none_of(field, values)` - NOT IN operator
+- `text_contains(field, text)` - Substring matching
+- `text_starts_with(field, prefix)` - Prefix matching
+- `range(field, min, max)` - Numeric range filtering
+
+**Filter Composition:**
+- `combine(filters, logic)` - Boolean combinations (AND, OR, NOT)
+- `all_of(*filters)` - Shorthand for AND
+- `any(*filters)` - Shorthand for OR
+- `not_filter(filter)` - Logical negation
+
+**Validation & Performance:**
+- `validate(filter)` - Check filter well-formedness
+- `compile(filter)` - Pre-compile to fast callable
+- `apply(items, filter, limit)` - Apply filter to items
+- `apply_compiled(items, compiled_filter, limit)` - Use pre-compiled filter
+- `filter_count(items, filter)` - Count matches without allocation
+
+**Utility:**
+- `describe(filter)` - Human-readable filter description
+- `get_standard_filters()` - Available standard filters
+
+**Data Structures:**
+- `Filter` - Atomic/compound filter representation
+- `FilterOperator` enum - 11 standard operators (==, !=, >, >=, <, <=, in, not_in, contains, etc.)
+- `FilterLogic` enum - Boolean combination logic (AND, OR, NOT)
+
+**Exception Types:**
+- `FilterServiceException` - Base exception
+- `InvalidFilterError` - Invalid filter configuration
+
+**Contract:**
+- Correctness: Filters return exactly matching items
+- Consistency: Same filter always returns same results
+- Composability: Filters can be safely combined
+- Performance: O(n) application with minimal overhead, O(1) compilation
+
+**Compliance Tests:** 35 tests covering filter creation, composition, correctness, performance
+
+### 3. SharedCache Interface
+**File:** `src/python/htmlgraph/repositories/shared_cache.py` (550 lines)
+
+**Purpose:** Unified caching layer consolidating 16+ separate cache implementations with centralized invalidation.
+
+**Key Methods (24 total):**
+
+**Get Operations:**
+- `get(key)` - Retrieve with O(1) access
+- `get_or_compute(key, compute_fn, ttl)` - Get or compute and cache
+- `exists(key)` - Check existence without counting as access
+
+**Set Operations:**
+- `set(key, value, ttl)` - Cache with optional TTL
+- `set_many(items, ttl)` - Batch set operation
+
+**Delete Operations:**
+- `delete(key)` - Remove single key
+- `delete_pattern(pattern)` - Remove by prefix (e.g., "feature:*")
+- `clear()` - Clear entire cache
+- `delete_many(keys)` - Batch delete
+
+**Batch Operations:**
+- `get_many(keys)` - Retrieve multiple keys
+- `delete_many(keys)` - Delete multiple keys
+
+**Invalidation Helpers:**
+- `invalidate_feature(feature_id)` - Invalidate all feature-related caches
+- `invalidate_track(track_id)` - Invalidate all track-related caches
+- `invalidate_analytics()` - Invalidate dependency/priority/recommendation caches
+
+**Observability:**
+- `size()` - Current item count
+- `stats()` - Comprehensive metrics (hits, misses, hit_rate, memory, etc.)
+- `reset_stats()` - Clear metrics
+- `debug_info()` - Detailed cache state
+- `validate_integrity()` - Check cache consistency
+
+**Configuration:**
+- `configure(max_size, default_ttl, metrics_enabled)` - Configure behavior
+- `is_configured()` - Check configuration status
+
+**Singleton Management:**
+- `initialize(max_size, default_ttl, metrics_enabled)` - Create singleton
+- `get_instance()` - Retrieve singleton
+- `reset_instance()` - Reset for testing
+
+**Cache Keys Convention:**
+- "feature:{id}" - Individual feature
+- "feature:list:{filter}" - Feature list with filter
+- "track:{id}" - Individual track
+- "dependency:{id}" - Dependency analysis
+- "priority:{id}" - Priority score
+- "recommendation:*" - Recommendations
+
+**Performance:**
+- get/set/delete: O(1) average case
+- delete_pattern: O(n) matching keys
+- Supports LRU eviction when max_size exceeded
+- TTL-based automatic expiration
+
+**Exception Types:**
+- `SharedCacheException` - Base exception
+- `CacheKeyError` - Invalid key format
+- `CacheCapacityError` - Capacity issue
+
+**Enum:**
+- `CacheInvalidationPattern` - Invalidation strategies (SINGLE_KEY, PREFIX_PATTERN, RESOURCE_CHANGED, CLEAR_ALL)
+
+**Contract:**
+- Coherence: Cache always consistent with storage
+- Atomicity: get/set/delete are atomic operations
+- Isolation: Concurrent access safe
+- Efficiency: O(1) get/set, pattern matching O(n)
+- Observability: Automatic metrics tracking
+
+**Thread Safety:** Thread-safe for concurrent reads and writes (serialized)
+
+**Compliance Tests:** 40 tests covering get/set/delete, batch operations, invalidation, metrics, singleton, concurrency, performance
+
+### Summary Statistics
+
+**Total Files Created:** 6
+- 3 interface definitions (~1,500 lines)
+- 3 compliance test suites (~900 lines)
+
+**Total Lines of Code:** ~2,400
+- Analytics Repository: 430 lines interface + 33 tests
+- Filter Service: 520 lines interface + 35 tests
+- Shared Cache: 550 lines interface + 40 tests
+
+**Test Coverage:**
+- 108 total compliance tests (all passing)
+- 33 analytics tests
+- 35 filter service tests
+- 40 cache tests
+
+**Key Features:**
+- All follow FeatureRepository reference pattern
+- Comprehensive contracts documented
+- Performance expectations specified
+- Thread safety considerations included
+- Exception handling with full context
+- Advanced features (critical path, parallelization, cache invalidation)
+
+### Files Created
+1. `src/python/htmlgraph/repositories/analytics_repository.py`
+2. `src/python/htmlgraph/repositories/filter_service.py`
+3. `src/python/htmlgraph/repositories/shared_cache.py`
+4. `tests/unit/repositories/test_analytics_repository_compliance.py`
+5. `tests/unit/repositories/test_filter_service_compliance.py`
+6. `tests/unit/repositories/test_shared_cache_compliance.py`
+
+### Test Results
+```
+============================= 108 passed in 0.39s ==============================
+- Analytics Repository Compliance: 33 PASSED
+- Filter Service Compliance: 35 PASSED
+- Shared Cache Compliance: 40 PASSED
+```
+
+### Next Phase (Phase 2.2)
+Implement concrete classes for all 5 interfaces:
+1. AnalyticsRepository implementations:
+   - HTMLFileAnalyticsRepository
+   - SQLiteAnalyticsRepository
+2. FilterService implementation:
+   - StandardFilterService
+3. SharedCache implementations:
+   - MemorySharedCache
+   - RedisSharedCache (optional)
+
+### Design Decisions
+
+**1. Analytics Repository**
+- Uses Feature/Track repositories internally (no direct data access)
+- Creates unified view across multiple data sources
+- Performance optimized with caching for heavy computations
+- Supports advanced graph operations (cycles, critical path, parallelization)
+
+**2. Filter Service**
+- Atomic filters as building blocks
+- Standard filters for 80/20 use cases
+- Custom predicates for complex queries
+- Compilation optimization for repeated filtering
+- Boolean composition with AND/OR/NOT
+
+**3. Shared Cache**
+- Singleton pattern for application-wide cache
+- TTL-based expiration for automatic cleanup
+- Pattern-based invalidation for cascading updates
+- LRU eviction when capacity exceeded
+- Metrics built-in for observability
+
+### Testing Philosophy
+- Compliance tests validate interface contract
+- Mock implementations provide reference behavior
+- Tests document expected performance characteristics
+- Error handling verified with exception tests
+- Concurrency and performance tests included
+
+### Dependencies
+- Python 3.10+ (type hints)
+- pytest for testing
+- Standard library only (no external dependencies)
+
+### Known Limitations
+- Cache invalidation is prefix-based (simple but effective)
+- Filter compilation doesn't optimize complex expressions
+- Analytics computation is synchronous (could be async in future)
+
+### Impact
+- Reduces filter code duplication by 39 instances
+- Consolidates 16 cache implementations into 1 interface
+- Provides unified analytics API across all work types
+- Enables cache coherence and prevents stale data
+- Foundation for Phase 2.2 concrete implementations
+            </div>
+        </section>
+    </article>
+</body>
+</html>

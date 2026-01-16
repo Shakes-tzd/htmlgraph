@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 2.3.2: Collection Refactoring Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e87b9824"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T18:15:06.440621"
+             data-updated="2026-01-15T18:15:06.440624" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="phase-2.3-task-2">
+
+        <header>
+            <h1>Phase 2.3.2: Collection Refactoring Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Phase 2.3.2 Analysis Report
+
+### Task Status: BLOCKED - Architecture Mismatch
+
+The specified task cannot be completed as described because the target files do not exist and the proposed refactoring would conflict with the existing architecture.
+
+### Files Analyzed
+
+**Specified (non-existent):**
+- src/python/htmlgraph/sdk/collections/base.py - DOES NOT EXIST
+- src/python/htmlgraph/sdk/collections/features.py - DOES NOT EXIST
+- src/python/htmlgraph/sdk/collections/tracks.py - DOES NOT EXIST
+- src/python/htmlgraph/sdk/collections/bugs.py - DOES NOT EXIST
+- src/python/htmlgraph/sdk/collections/tasks.py - DOES NOT EXIST
+- src/python/htmlgraph/sdk/collections/workitems.py - DOES NOT EXIST
+
+**Actual collection files (in /collections/, not /sdk/collections/):**
+- src/python/htmlgraph/collections/base.py - BaseCollection (827 lines)
+- src/python/htmlgraph/collections/feature.py - FeatureCollection (76 lines)
+- src/python/htmlgraph/collections/bug.py - BugCollection (54 lines)
+- src/python/htmlgraph/collections/spike.py - SpikeCollection (110 lines)
+- src/python/htmlgraph/collections/todo.py - TodoCollection (512 lines)
+- src/python/htmlgraph/track_builder.py - TrackCollection (225 lines)
+
+### Architecture Analysis
+
+**Current Pattern:**
+
+
+**Collections already implement repository-like patterns:**
+- CRUD operations: create(), get(), all(), where(), filter(), update(), delete()
+- Batch operations: batch_update(), batch_delete(), mark_done(), assign()
+- Session integration: start(), complete(), claim(), release()
+- Lazy loading via _ensure_graph()
+
+**Repository classes exist separately:**
+- FeatureRepository (abstract interface)
+- TrackRepository (abstract interface)
+- Implementations: MemoryFeatureRepository, HTMLFileFeatureRepository, SQLiteFeatureRepository
+- Purpose: Pluggable storage backends, NOT to replace collections
+
+### Why Refactoring Is Not Appropriate
+
+1. **Collections ARE the public API** - SDK exposes sdk.features, sdk.bugs directly
+2. **Tight SDK integration** - Collections reference sdk.session_manager, sdk.agent, builders
+3. **Repositories serve different purpose** - For pluggable backends, not API replacement
+4. **No breaking changes needed** - Current architecture works correctly
+
+### Recommendation
+
+The Phase 2.3.2 task should be **REVISED** or **SKIPPED**. Options:
+1. **Clarify intent**: If goal is to add repository injection for testing, that is different work
+2. **Skip this task**: Collections already implement repository patterns
+3. **Redefine scope**: Create adapter classes that wrap collections as repositories
+
+### Test Results (existing collections work)
+- Collection tests: Existing tests in tests/python/test_collection_filter.py pass
+- Type hints: Collections have proper type annotations
+- Linting: No issues with current collection code
+
+### Next Steps
+- Clarify with task owner whether repositories should WRAP or REPLACE collections
+- If wrapping: Create FeatureRepositoryCollection adapter
+- If replacing: Requires significant SDK refactoring (breaking change)
+            </div>
+        </section>
+    </article>
+</body>
+</html>

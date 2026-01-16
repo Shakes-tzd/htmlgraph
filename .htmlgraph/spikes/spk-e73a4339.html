@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Token-Based Planning Framework for AI Agent Work</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e73a4339"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T00:28:01.276219"
+             data-updated="2026-01-15T00:28:01.276220" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Token-Based Planning Framework for AI Agent Work</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Token-Based Planning Framework for AI Agent Work
+
+## Core Principle
+**Calendar time is irrelevant for AI agent work. Token budget is the constraint.**
+
+Traditional software development:
+- Constraint: Developer hours/calendar time
+- Solution: Sequential task breakdown, Gantt charts, burndown charts
+- Metric: Days/weeks to completion
+
+AI agent development:
+- Constraint: Token budget (API cost + compute)
+- Solution: Parallel agent orchestration, token optimization
+- Metric: Tokens to completion
+
+## Why Time-Based Planning Fails
+
+1. **Parallelization destroys time estimates:**
+   - Phase 2 Sequential: 5 weeks (one agent)
+   - Phase 2 Parallel: 5 days with 5 agents (same calendar time)
+   - But: Token cost drops from 193,000 → 118,000 tokens (39% savings!)
+
+2. **Calendar time has zero predictive value:**
+   - If one agent finishes Phase 2.1 in 2 hours vs 4 hours → doesn't matter
+   - What matters: Phase 2.1 costs 15,000 tokens regardless of wall-clock time
+   - Other agents continue working on 2.2, 2.3, 2.4 in parallel
+
+3. **Scaling doesn't follow human Gantt charts:**
+   - Add one more agent: Token cost might drop another 20%
+   - Human team: Adding one more person adds 5-10% overhead (meetings, coordination)
+   - AI agents: Adding capacity is pure gain (delegated to subagents)
+
+## Token Budget Framework
+
+Phase 1: Analysis (COMPLETE)
+- 6 phases analyzed in parallel
+- Total: 45,000 tokens (6 parallel agents)
+
+Phase 2: Repository Implementation (PLANNED)
+- Phase 2.1: Interface design (15,000 tokens)
+- Phase 2.2: Concrete implementation (30,000 tokens)
+- Phase 2.3: SDK migration (35,000 tokens)
+- Phase 2.4: CLI migration (10,000 tokens)
+- Phase 2.5: Cleanup & removal (20,000 tokens)
+
+Sequential cost: 193,000 tokens (one agent)
+Parallel cost: 118,000 tokens (5 agents, 39% savings)
+
+Phase 3: Testing & Validation (ESTIMATED)
+- Sequential cost: 85,000 tokens
+- Parallel cost: 52,000 tokens (4 agents, 39% savings)
+
+Phase 4: Documentation (ESTIMATED)
+- Sequential cost: 45,000 tokens
+- Parallel cost: 30,000 tokens (3 agents, 33% savings)
+
+Total Project:
+- Sequential estimate: ~430,000 tokens
+- Parallel estimate: ~268,000 tokens (38% savings)
+
+## Parallelization Efficiency Model
+
+Real-world efficiency factors:
+- 2 agents: 70-80% efficiency (some coordination overhead)
+- 3 agents: 65-75% efficiency (task boundary costs increase)
+- 4 agents: 60-70% efficiency (dependency complexity grows)
+- 5+ agents: 50-65% efficiency (coordination + edge case testing)
+
+Why not 100% efficiency?
+1. Task boundaries have overhead (context passing, spike documentation)
+2. Some phases have sequential dependencies (2.3 depends on 2.1, 2.2)
+3. Integration testing is inherently sequential
+4. Merge/consolidation costs (combining 5 agents' work into coherent whole)
+
+Example calculation:
+- Phase 2.1 alone: 20,000 tokens (one agent)
+- Phase 2.1-2.5 sequential: 193,000 tokens
+- Phase 2.1-2.5 with 5 agents in parallel: 118,000 tokens
+- Efficiency achieved: 61%
+
+## Orchestrator Directives for Token-Based Planning
+
+Instead of "This will take 2 weeks":
+- BAD: Task(prompt="Implement repository pattern") # Time estimate: 5 weeks
+- GOOD: Task(prompt="Implement repository pattern") # Token budget: 118,000 tokens (parallel with 5 agents at 61% efficiency)
+
+Budget types:
+
+1. Phase Budget (for multi-feature initiatives):
+   - Phase 2 Repository Implementation: 118,000 tokens
+   - Budget ceiling: 130,000 tokens (12% buffer for overruns)
+   - Agents: 5 in parallel
+   - Efficiency: 61%
+
+2. Feature Budget (for individual features):
+   - Feature: Analytics Double-Load Fix
+   - Budget: 2,000 tokens
+   - Agents: 1 (simple fix, no parallelization benefit)
+
+3. Task Budget (for delegated work):
+   - Task: "Implement FeatureRepository interface"
+   - Budget: 15,000 tokens (part of Phase 2.1)
+   - Parallelizable with: TrackRepository, AnalyticsRepository (Phase 2.1)
+
+## Decision Framework: When to Parallelize
+
+Parallelize when:
+- Token budget > 50,000 (overhead worthwhile)
+- Phases have independent deliverables
+- Minimal sequential dependencies
+- Integration cost < parallelization savings
+
+Don't parallelize when:
+- Token budget < 20,000 (overhead dominates)
+- Tight sequential dependencies (must finish A before B)
+- Single complex problem (not decomposable)
+- Heavy integration testing needs
+
+## Metrics to Track
+
+Instead of:
+- "Days until completion" → Useless
+- "% of tasks done" → Misleading (some tasks cost more tokens)
+
+Track:
+- Token velocity: "Burning 18,000 tokens/day with 3 agents"
+- Budget utilization: "118,000 token budget, 67,000 spent, 30% buffer remaining"
+- Efficiency ratio: "Achieving 62% parallelization efficiency (target: 61%)"
+- Cost per agent: "Phase 2.1 cost 15,000 tokens for 3-agent parallel = 5,000 tokens/agent"
+
+## Why This Matters for HtmlGraph
+
+HtmlGraph development is doubly constrained by tokens:
+1. API tokens: Claude API calls cost money ($3-15 per 1M tokens)
+2. Development tokens: Using AI agents to build HtmlGraph uses tokens
+3. Testing tokens: Running test suites with AI involves more tokens
+
+Every optimization decision should consider token cost first:
+- "Should we parallelize Phase 2?" → Calculate token savings (39% in this case)
+- "Should we use Opus instead of Haiku?" → Calculate token cost delta
+- "Should we refactor this?" → Only if token savings > implementation cost
+
+## Recommendations for Orchestrator Update
+
+Add to system prompt:
+1. Token Budget Section in orchestrator directives
+2. Parallelization Framework with efficiency models
+3. Decision Framework for when to parallelize
+4. Metrics section replacing time with token-based metrics
+5. Budget Template for delegating work with explicit token budgets
+
+Examples to include:
+- Phase 1 actual costs (45,000 tokens, 6 agents parallel)
+- Phase 2 projected costs (118,000 tokens parallel, 193,000 sequential)
+- Decision example: "Should we parallelize Phase 2?" (YES: 39% savings)
+- Metric example: "Budget utilization" instead of "Burndown chart"
+            </div>
+        </section>
+    </article>
+</body>
+</html>

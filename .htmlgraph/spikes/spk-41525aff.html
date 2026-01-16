@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Activity Investigation - Missing Recent Work</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-41525aff"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T19:24:06.402346"
+             data-updated="2026-01-15T19:24:06.402348" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="dashboard-debug">
+
+        <header>
+            <h1>Dashboard Activity Investigation - Missing Recent Work</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Dashboard Activity Investigation - Diagnostic Report
+
+### Executive Summary
+Phase 2.5, 2.6, and Phase 3 agent work completed successfully (31 files modified, ~81.7K tokens). However, recent activity is NOT showing in the HtmlGraph dashboard due to multiple systemic issues.
+
+### Root Cause Analysis
+
+#### Issue 1: Invalid Session IDs in Event Database
+**Status**: CRITICAL
+
+Events are being recorded with invalid/placeholder session IDs:
+- `invalid-session-id`: 36 events
+- `nonexistent-session`: 36 events
+- `test-session-*`: 1 event each (test placeholders)
+
+These sessions don't exist in the `sessions` table:
+```
+sqlite> SELECT COUNT(*) FROM agent_events WHERE session_id NOT IN (SELECT session_id FROM sessions);
+0  (All events reference valid sessions, but many sessions are test fixtures)
+```
+
+**Evidence:**
+- 13 events recorded in last 2 hours
+- 9 different session IDs used
+- All sessions are test/placeholder sessions (agent_assigned='system', not 'claude-code')
+- No real Claude Code sessions created during Phase 2.5, 2.6, Phase 3 work
+
+#### Issue 2: Dashboard File Not Updated
+**Status**: HIGH
+
+Index.html (dashboard) was last modified: **Wed Jan 14 17:47:38 2026** (1+ day ago)
+Database (htmlgraph.db) was last modified: **Thu Jan 15 19:21:11 2026** (4+ hours ago)
+
+The dashboard is stale and not reflecting current database state.
+
+**Evidence:**
+```
+-rw-r--r-- 245 KB Wed Jan 14 17:47:38 2026 index.html        ← STALE
+.rw-r--r-- 2.2 MB Thu Jan 15 19:21:11 2026 htmlgraph.db     ← CURRENT
+```
+
+#### Issue 3: Server Returning 500 Error
+**Status**: HIGH
+
+API endpoint `/api/sessions` returns 500 Internal Server Error:
+```
+curl -v http://localhost:8081/api/sessions
+< HTTP/1.1 500 Internal Server Error
+```
+
+Server runs on port 8081 with uvicorn (FastAPI-style), but handler encounters error when listing sessions.
+
+**Likely cause:** Server tries to load HTML files from `.htmlgraph/sessions/` but they're out of sync or missing phase-specific session files.
+
+#### Issue 4: No Session HTML Files for Recent Work
+**Status**: MEDIUM
+
+Session HTML files in `.htmlgraph/sessions/`:
+- Last modified: Thu Jan 15 17:08:51 2026
+- Files are from BEFORE Phase 2.5, 2.6, Phase 3 work
+- No new session-*.html files created for recent agent work
+
+**Evidence:**
+```
+ls -lh .htmlgraph/sessions/ | tail -5
+20 KB session-20251216-200428.html  ← Old
+18 KB session-20251217-084026.html  ← Old
+13 KB session-20251217-090157.html  ← Old
+27 KB session-20251217-092958.html  ← Old
+```
+
+No sessions matching recent timestamps (Jan 16, 00:18).
+
+#### Issue 5: No Spike Files for Phase Work
+**Status**: MEDIUM
+
+Spike files in `.htmlgraph/spikes/`:
+- Last modified: Thu Jan 8 00:53:51 2026
+- No files named "*Phase*" or "*phase*"
+- No recent spike files for Phase 2.5, 2.6, Phase 3
+
+Expected files missing:
+- `spk-phase-2.5-cleanup.html`
+- `spk-phase-2.6-cli-parity.html`
+- `spk-phase-3-strategic-analytics.html`
+
+### System State Summary
+
+| Component | Status | Last Updated | Issue |
+|-----------|--------|--------------|-------|
+| SQLite Events | Recording | 2026-01-16 00:18 | Invalid session IDs (test data) |
+| Sessions | Created | 2026-01-16 00:18 | All test fixtures (system agent) |
+| Dashboard HTML | STALE | 2026-01-14 17:47 | 1+ day behind database |
+| API Server | ERROR | 500 | `/api/sessions` crashes |
+| Session HTML Files | OLD | 2026-01-15 17:08 | Not updated for recent work |
+| Spike Files | OLD | 2026-01-08 00:53 | Missing Phase 2.5/2.6/3 spikes |
+
+### Why Activity is Not Showing
+
+**Flow breakdown:**
+1. Phase 2.5/2.6/Phase 3 work completed ✅
+2. Events recorded to database ✅ (but with test session IDs)
+3. HTML files NOT generated for these sessions ❌
+4. API server crashes when trying to list sessions ❌
+5. Dashboard (index.html) is stale and can't fetch fresh data ❌
+6. Result: Dashboard shows nothing from recent work
+
+### Recommendation
+
+**Immediate actions (Priority order):**
+
+1. **Restart session tracking** - Clear test data, create real Claude Code sessions
+   - Delete test-session-* entries from database
+   - Delete invalid-session-id and nonexistent-session entries
+   - Verify new sessions are created with real `agent_assigned` values (not 'system')
+
+2. **Fix API server 500 error** - Debug `/api/sessions` endpoint
+   - Check server logs for exception details
+   - Verify `.htmlgraph/sessions/` directory structure matches expectations
+   - Test API with simpler endpoints first (`/api/collections`, `/api/status`)
+
+3. **Regenerate session HTML files** - Create missing HTML files for sessions
+   - Either: Run session-tracking utility to create files
+   - Or: Manually rebuild `.htmlgraph/sessions/` from database
+
+4. **Update dashboard** - Refresh index.html with current state
+   - Run: `cp src/python/htmlgraph/dashboard.html index.html`
+   - Or: Trigger deployment sync: `./scripts/deploy-all.sh --docs-only`
+
+5. **Create spike files** - Document Phase 2.5, 2.6, Phase 3 work
+   - These spikes currently exist only in database, not as HTML files
+   - Need HTML representation for dashboard to display
+
+### Database Query Results
+
+**Events in last 2 hours:**
+- Total: 13 events
+- Sessions: 9 (mostly test fixtures)
+- Valid events: 13 (all reference valid sessions)
+- Invalid session refs: 0 (but many are test placeholders)
+
+**Session breakdown:**
+```
+test-session-0f04b423        1 event    2026-01-16 00:18:06
+test-session-e78f0268        1 event    2026-01-16 00:18:06
+test-session-cef5b339        1 event    2026-01-16 00:18:06
+test-session-049700e9        1 event    2026-01-15 23:01:26
+... (5 more test sessions)
+```
+
+**Actual work tracking:** MISSING
+- No sessions created with `agent_assigned='claude-code'` for Phase 2.5/2.6/Phase 3
+- No events attributed to actual development work
+- Only system/test sessions and orphaned test data
+
+### Conclusion
+
+The dashboard is not showing recent activity because:
+
+1. **No real sessions created** - Phase 2.5/2.6/3 work not tracked as proper sessions
+2. **Database desynchronized** - Test data mixed with real data
+3. **Server broken** - API crashes on `/api/sessions` call
+4. **HTML files stale** - Dashboard and session files not updated
+5. **Missing spike documents** - Phase work exists in database but not as viewable HTML
+
+**Fix strategy:** Reset session tracking, fix API server, rebuild session HTML files, update dashboard, and create spike documentation for Phase work.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

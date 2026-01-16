@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Bug: recommend_next_work Returns Empty</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-756a6458"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-14T23:37:27.588881"
+             data-updated="2026-01-14T23:37:27.588884" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="explorer">
+
+        <header>
+            <h1>Bug: recommend_next_work Returns Empty</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ROOT CAUSE: Overly Restrictive Filtering
+
+recommend_next_work() returns empty because DependencyAnalytics.recommend_next_tasks() 
+in src/python/htmlgraph/analytics/dependency.py filters to ONLY features with:
+1. status = "todo" (line 466)
+2. ALL dependencies have status = "done" (lines 468-472)
+
+AFFECTED CODE:
+- src/python/htmlgraph/sdk/planning/recommendations.py:11-53 (wrapper function)
+- src/python/htmlgraph/analytics/dependency.py:440-530 (core implementation)
+  - Line 466: candidates = [n for n in self.graph.nodes.values() if n.status == status]
+  - Lines 468-472: Filter to nodes with all deps complete
+  - Lines 697-703: _all_dependencies_complete() requires status="done"
+
+FAILURE SCENARIOS:
+
+1. Empty Graph: No features exist -> candidates=[] -> returns []
+2. Status Mismatch: Features in "pending"/"backlog" not in "todo" -> excluded -> returns []
+3. Incomplete Chain: Deps in "in-progress" not "done" -> considered blocking -> returns []
+4. Uninitialized: self._graph not loaded from disk -> candidates=[] -> returns []
+
+HOW IT FAILS:
+
+Feature A (todo) depends on Feature B (todo)
+- Filter candidates: [A, B] (both "todo")
+- Check readiness:
+  - A: depends on B where B.status="todo" (not "done") -> EXCLUDED
+  - B: no dependencies -> INCLUDED
+- Result: [B] (correct)
+
+BUT if ALL features depend on others and none are "done":
+- A: blocked by B (not done) -> EXCLUDED
+- B: blocked by C (not done) -> EXCLUDED
+- C: blocked by D (not done) -> EXCLUDED
+- D: no deps but status="in-progress" not "todo" -> EXCLUDED
+- Result: [] (EMPTY!)
+
+ROOT CAUSE LOGIC:
+
+def _all_dependencies_complete(self, node_id: str) -> bool:
+    for edge_ref in self._edge_index.get_outgoing(node_id):
+        dep_node = self.graph.get(edge_ref.target_id)
+        if dep_node and dep_node.status != "done":  # REQUIRES "done"
+            return False
+    return True
+
+This requires dependencies to be in TERMINAL STATE ("done"), not in-progress.
+In real projects, features in "in-progress" should not block downstream work.
+
+IMPACT:
+- recommend_next_work() silently fails (returns [])
+- No error message or warning
+- Strategic planning broken in common scenarios
+- No fallback recommendation
+
+EVIDENCE:
+- File: analytics/dependency.py
+- Function: recommend_next_tasks() lines 440-530
+- Core issue: Lines 697-703 require status=="done"
+- Wrapper: recommendations.py lines 37-53 just passes through
+
+This is core functionality that is unreliable when dependency chains incomplete.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

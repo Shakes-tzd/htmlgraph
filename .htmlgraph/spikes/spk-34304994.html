@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Bug Investigation: recommend_next_work Returns Empty Results</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-34304994"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-14T23:36:57.924635"
+             data-updated="2026-01-14T23:36:57.924638" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="explorer">
+
+        <header>
+            <h1>Bug Investigation: recommend_next_work Returns Empty Results</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Root Cause
+
+`recommend_next_work()` returns empty results due to overly restrictive filtering in DependencyAnalytics.recommend_next_tasks():
+
+### Issue Location
+- Primary: src/python/htmlgraph/sdk/planning/recommendations.py (lines 37-53)
+- Root: src/python/htmlgraph/analytics/dependency.py (lines 440-530)
+
+### The Problem
+
+The method filters recommendations to ONLY nodes with:
+1. status == "todo" (line 466)
+2. ALL dependencies have status == "done" (lines 468-472)
+
+### Why Empty Results Occur
+
+If the graph contains:
+- Feature A (todo, depends on B)
+- Feature B (todo, no deps)
+- Feature C (todo, depends on B)
+
+Logic flow:
+1. Candidate filtering: [A, B, C] (all are status=todo)
+2. Ready filtering: 
+   - A: depends on B (status=todo, not done) → excluded
+   - B: no dependencies → INCLUDED
+   - C: depends on B (status=todo, not done) → excluded
+3. Result: [B] ✓ CORRECT
+
+But if B is status='in-progress' or 'done', or graph is empty/uninitialized:
+- No features pass the ready filter
+- Returns empty list
+
+### Code Evidence
+
+Line 697-703 (dependency.py):
+```python
+def _all_dependencies_complete(self, node_id: str) -> bool:
+    for edge_ref in self._edge_index.get_outgoing(node_id):
+        dep_node = self.graph.get(edge_ref.target_id)
+        if dep_node and dep_node.status != "done":
+            return False
+    return True
+```
+
+This requires ALL dependencies to be fully "done" before recommending. In real projects:
+- Features in "in-progress" are blocking
+- Features in "blocked" should still let us see blockers
+- Features never marked "done" stay blocking forever
+
+### Impact
+
+- Strategic planning is broken when features have incomplete status transitions
+- Cannot get work recommendations if dependencies aren't fully "done"
+- Limits usefulness for projects with fuzzy status management
+- No fallback to suggest bottlenecks or high-impact work
+
+### Affected Code Paths
+
+1. sdk.recommend_next_work() - Public API (planning/recommendations.py:11-53)
+2. sdk.dep_analytics.recommend_next_tasks() - Internal method (analytics/dependency.py:440-530)
+3. sdk.find_bottlenecks() - Related bottleneck detection (planning/bottlenecks.py)
+
+### Recommended Fixes
+
+1. Add status_filter parameter to allow flexibility
+2. Implement fallback recommendations for blocked work
+3. Consider "in-progress" as soft-blocking (not terminal)
+4. Cache invalidation on graph changes
+5. Handle empty graph gracefully
+            </div>
+        </section>
+    </article>
+</body>
+</html>

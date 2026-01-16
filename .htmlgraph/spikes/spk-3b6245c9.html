@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 1.5 Findings: Complete Caching and Invalidation Strategy</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-3b6245c9"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T00:13:03.011857"
+             data-updated="2026-01-15T00:13:03.011858" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="explorer">
+
+        <header>
+            <h1>Phase 1.5 Findings: Complete Caching and Invalidation Strategy</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Complete HtmlGraph Caching & Invalidation Audit
+
+## Summary
+HtmlGraph implements 16 distinct caching layers across graph core, analytics, APIs, and session management. 75% properly auto-invalidate on graph changes, but 3 critical gaps identified.
+
+## All Caching Layers
+
+### Core Graph Caches (5 layers)
+1. **Query Result Cache** (graph.py:238) - selector → [nodes]
+   - Unlimited size - RISK: unbounded growth
+   - Auto-invalidates: add/update/remove/reload
+   
+2. **Compiled Query Cache** (graph.py:244) - selector → CompiledQuery object
+   - Max 100 with FIFO eviction (should be LRU)
+   - Auto-invalidates but use tracking ignored
+
+3. **Adjacency Cache** (graph.py:239) - node → {incoming, outgoing}
+   - For BFS/shortest path algorithms
+   - Lazy-built, auto-invalidates
+
+4. **Edge Index** (edge_index.py:109) - bi-directional edges
+   - O(1) reverse lookups, incremental updates
+   - No clear() method - deleted nodes accumulate
+
+5. **Attribute Index** (attribute_index.py:49) - status/priority/type → node_ids
+   - O(1) attribute lookups, lazy-built
+   - Incremental updates on add/remove/update
+
+6. **File Hash Cache** (graph.py:242) - filepath → MD5
+   - Enables reload_node() optimization
+   - Auto-invalidates on reload
+
+### Analytics Caches (3 layers) - CRITICAL GAPS
+7. **DependencyAnalytics Transitive** (dependency.py:89) 
+   - 🔴 NO AUTO-INVALIDATION - manual call required!
+   - Impact: Stale bottleneck detection after graph updates
+
+8. **Reflection Module** (reflection.py:79)
+   - 5-minute TTL, time-based only
+   - NOT aware of graph changes
+   - Can return stale context up to 5 minutes
+
+9. **RepoHash Caches** (repo_hash.py:66)
+   - Git info & repo hash - NEVER refreshes
+   - Cached for instance lifetime
+   - Stale if user changes branches/commits
+
+### Session/Feature Caches (2 layers)
+10. **Active Sessions Cache** (session_manager.py:140)
+    - Auto-invalidates via dirty flag on lifecycle changes
+    
+11. **Active Features Cache** (session_manager.py:144)
+    - Auto-invalidates via dirty flag on start/complete/release
+
+12. **Transcript Session Cache** (transcript_analytics.py:184)
+    - No invalidation - persists for session lifetime
+
+### API/Server Caches (2 layers)
+13. **API Query Cache** (api/main.py:42)
+    - 30-sec TTL with auto-expiry on get()
+    - Per-query metrics tracking
+    
+14. **Archive Search** (archive/search.py:70, 127)
+    - Bloom filter cache + LRU result cache (max 100)
+    - Manual clear_cache() required
+
+## Critical Issues Found
+
+### 1. DependencyAnalytics Never Auto-Invalidates (SEVERITY: HIGH)
+- Location: dependency.py:774-786
+- Problem: Users MUST manually call invalidate_cache() after graph changes
+- Impact: Stale bottleneck detection if forgotten
+- Solution: Hook into graph.update events or accept as documented requirement
+
+### 2. Query Cache Unbounded Growth (SEVERITY: MEDIUM)
+- Location: graph.py:238
+- Problem: No max size, every unique selector creates permanent entry
+- Impact: Memory leak on long-running servers with many unique queries
+- Solution: Add LRU eviction like compiled_queries does
+
+### 3. Compiled Query Uses FIFO Not LRU (SEVERITY: LOW)
+- Location: graph.py:1040-1043
+- Problem: First key evicted regardless of use frequency
+- Impact: Hot queries evicted before cold ones
+- Solution: Track access time and use true LRU
+
+### 4. Reflection Cache Not Graph-Aware (SEVERITY: MEDIUM)
+- Location: reflection.py:102-138
+- Problem: 5-min TTL doesn't know about graph changes
+- Impact: Stale actionable context for up to 5 minutes
+- Solution: Listen to graph events or explicit invalidation
+
+### 5. Edge Index Has No Clear() (SEVERITY: LOW)
+- Location: edge_index.py:197-224
+- Problem: Can remove edges but not compact/clear index
+- Impact: Orphaned entries accumulate from many deletes
+- Solution: Add clear() method or auto-compact
+
+## Invalidation Coverage
+
+PROPERLY INVALIDATED (12 layers): ✅
+- Query Cache: add/update/remove/reload
+- Compiled Query: add/update/remove/reload
+- Adjacency: add/update/remove/reload
+- Edge Index: incremental + rebuild on reload
+- Attribute Index: incremental + rebuild on reload
+- File Hash: add/update/reload
+- API Query: TTL expiry
+- Archive Bloom: manual clear_cache()
+- Sessions Cache: dirty flag
+- Features Cache: dirty flag
+
+INVALIDATION GAPS (4 layers): 🔴
+- DependencyAnalytics: NO auto-invalidate (manual call required)
+- Reflection: Time-based only (5 min) (no graph awareness)
+- RepoHash: NEVER invalidates (instance lifetime)
+- GitInfo: NEVER invalidates (instance lifetime)
+
+## Cache Hierarchy
+
+Graph Disk Files
+         ↑
+    File Hash (MD5)
+         ↑
+    Node Dict (_nodes)
+         ↑
+    Edge Index (_incoming/_outgoing)
+         ↑
+    Attribute Index (status/priority/type)
+         ↑
+    Query Cache (selector → [nodes])
+         ↑
+    Compiled Query Cache (selector → CompiledQuery)
+         ↑
+    Adjacency Cache (for algorithms)
+
+## Performance Impact
+
+HIGHEST impact (O(n) → O(1)):
+- Edge Index: incoming edge lookups  
+- Attribute Index: status/priority/type queries
+
+HIGH impact:
+- Query Cache: CSS selector caching
+- Compiled Query: Query object reuse
+
+MEDIUM impact:
+- Adjacency: BFS/shortest path prep
+- API Cache: Reduces DB queries
+
+## Recommendations by Priority
+
+1. **HIGH**: Auto-invalidate DependencyAnalytics cache on graph changes
+2. **HIGH**: Add max size + LRU to _query_cache
+3. **MEDIUM**: Make Reflection cache graph-aware
+4. **MEDIUM**: Fix Compiled Query eviction to use true LRU
+5. **LOW**: Add TTL to RepoHash caches
+6. **LOW**: Add clear() method to EdgeIndex
+
+## Files & Line Numbers
+
+- graph.py: 238 (query), 239 (adj), 242 (hash), 244 (compiled), 271-276 (invalidate)
+- edge_index.py: 109-114 (index def), 197-224 (remove), 406-427 (rebuild)
+- attribute_index.py: 49-51 (index def), 151-173 (rebuild), 175-180 (clear)
+- api/main.py: 37-76 (QueryCache), 194 (init), 42 (cache dict)
+- archive/search.py: 70 (bloom_cache), 127 (lru_cache), 228-231 (clear)
+- session_manager.py: 140-145 (caches), 159-171 (list_active), 1770-1775 (active_features)
+- dependency.py: 89 (transitive), 774-786 (invalidate)
+- reflection.py: 79-81 (cache init), 102-138 (get_actionable)
+- repo_hash.py: 66-67 (caches), 84-98 (hash), 115-127 (git_info)
+- transcript_analytics.py: 184 (cache), 188-192 (get_transcript)
+
+## Metrics Available
+
+From graph.metrics dict:
+- query_count, cache_hits, cache_hit_rate
+- cached_queries, compiled_queries_cached
+- compilation_hit_rate
+- avg_query_time_ms, slowest_query_ms
+
+No built-in metrics for other caches.
+
+---
+AUDIT COMPLETED: 16 caches identified, 3 critical gaps found, 5 recommendations prioritized.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

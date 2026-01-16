@@ -1346,16 +1346,16 @@ def get_app(db_path: str) -> FastAPI:
             exec_start = time.time()
 
             # Build query with optional status filter
-            # Note: Database uses agent_assigned but started_at/ended_at (partial migration)
+            # Note: Database uses agent_assigned, created_at, and completed_at
             query = """
                 SELECT
                     session_id,
                     agent_assigned,
                     continued_from,
-                    started_at,
+                    created_at,
                     status,
                     start_commit,
-                    ended_at
+                    completed_at
                 FROM sessions
                 WHERE 1=1
             """
@@ -1365,7 +1365,7 @@ def get_app(db_path: str) -> FastAPI:
                 query += " AND status = ?"
                 params.append(status)
 
-            query += " ORDER BY started_at DESC LIMIT ? OFFSET ?"
+            query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
             async with db.execute(query, params) as cursor:
@@ -1390,11 +1390,11 @@ def get_app(db_path: str) -> FastAPI:
                     {
                         "session_id": row[0],
                         "agent": row[1],  # agent_assigned -> agent for API compat
-                        "continued_from": row[2],  # parent_session_id
-                        "started_at": row[3],  # created_at -> started_at for API compat
+                        "continued_from": row[2],
+                        "created_at": row[3],  # created_at timestamp
                         "status": row[4] or "unknown",
                         "start_commit": row[5],
-                        "ended_at": row[6],  # completed_at -> ended_at for API compat
+                        "completed_at": row[6],  # completed_at timestamp
                     }
                 )
 
@@ -2413,8 +2413,9 @@ def get_app(db_path: str) -> FastAPI:
 def create_app(db_path: str | None = None) -> FastAPI:
     """Create FastAPI app with default database path."""
     if db_path is None:
-        # Use default database location - htmlgraph.db is the unified database
-        db_path = str(Path.home() / ".htmlgraph" / "htmlgraph.db")
+        # Use index.sqlite - this is where AnalyticsIndex writes events
+        # Note: index.sqlite is the rebuildable analytics cache, not htmlgraph.db
+        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
 
     return get_app(db_path)
 

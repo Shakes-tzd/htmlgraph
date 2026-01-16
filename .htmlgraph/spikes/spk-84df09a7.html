@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 2.5: Cleanup and Consolidation Analysis</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-84df09a7"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T18:39:02.459049"
+             data-updated="2026-01-15T18:39:02.459052" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="phase-2.5-cleanup">
+
+        <header>
+            <h1>Phase 2.5: Cleanup and Consolidation Analysis</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Phase 2.5 Cleanup Analysis Results
+
+### Summary
+
+Phase 2.5 analyzed the HtmlGraph codebase for consolidation opportunities. The architecture is already well-designed with proper abstraction layers.
+
+### Completed Actions
+
+#### Phase 1: Archive Removal
+- **Files Removed**: 7 backup files
+  - `src/python/htmlgraph/dashboard.html.backup` (6,592 lines)
+  - `src/python/htmlgraph/dashboard.html.bak`
+  - `src/python/htmlgraph/operations/initialization.py.backup` (228 lines)
+  - `packages/claude-plugin/hooks/scripts/track-event.py.backup`
+  - `.parallel/plans/active/tasks/task-0.md.bak`
+  - `.parallel/plans/active/tasks/task-1.md.bak`
+  - `.parallel/plans/active/tasks/task-3.md.bak`
+- **Result**: ~6,820 lines of backup files removed
+
+### Architecture Analysis
+
+#### Filter Implementations (11 found)
+The filter implementations serve different abstraction levels:
+1. **graph.py** - Low-level predicate filtering
+2. **collections/base.py** - Type-aware filtering with node type guards
+3. **repositories/feature_repository*.py** - Repository pattern filtering
+4. **FilterService** - High-level filter building, composition, caching
+
+**Conclusion**: Not redundant - proper layered architecture
+
+#### Cache Implementations (13+ found)
+- **SharedCache/MemorySharedCache** - Unified singleton cache (1,043 lines)
+- **Local caches** - Specialized purpose caches:
+  - Query cache in graph.py
+  - Transitive dependency cache
+  - Filter compilation cache
+  - Bloom filter cache
+
+**Conclusion**: SharedCache provides centralization. Local caches serve specialized purposes.
+
+#### Analytics Implementations (6 found)
+Multiple implementations at different abstraction levels:
+1. **graph.py** - Low-level graph analytics
+2. **analytics/dependency.py** - Dependency analysis
+3. **agents.py** - Agent-friendly interface
+4. **repositories/analytics_repository_standard.py** - Repository pattern
+5. **sdk/planning/mixin.py** - SDK delegation layer
+6. **sdk/planning/bottlenecks.py** - Planning module
+
+**Conclusion**: Proper delegation pattern - SDK -> Mixin -> Module -> Repository
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| Python LOC | 94,482 |
+| Test Files | 193 |
+| Test LOC | 74,036 |
+| Classes in models.py | 17 |
+| Cache implementations | 13+ |
+| Filter implementations | 11 |
+
+### Pre-existing Issues Found
+
+#### Mypy Errors (17 in repository files)
+- `track_repository_sqlite.py` - 7 type errors
+- `feature_repository_sqlite.py` - 5 type errors
+- `feature_repository_memory.py` - 2 type errors
+- `feature_repository_htmlfile.py` - 2 type errors
+
+These are pre-existing type annotation issues, not introduced by Phase 2.5.
+
+### Recommendations
+
+1. **No Major Consolidation Needed**: Architecture is well-designed
+2. **Fix Type Errors**: Address 17 mypy errors in repository files
+3. **Consider Future**: Local caches could migrate to SharedCache for observability
+4. **Documentation**: SDK modularization is well-documented in MODULARIZATION.md
+
+### Quality Gates
+
+- All tests passing: 63/63 (7 skipped)
+- Ruff lint: Warnings only (exception naming conventions)
+- Mypy: 17 pre-existing errors in repository files
+            </div>
+        </section>
+    </article>
+</body>
+</html>
