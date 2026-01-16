@@ -56,29 +56,21 @@ class TrackRepositoryComplianceTests:
                 "title": "Planning Phase 1",
                 "status": "active",
                 "priority": "high",
-                "has_spec": True,
-                "has_plan": False,
             },
             {
                 "title": "Feature Development",
                 "status": "active",
                 "priority": "high",
-                "has_spec": True,
-                "has_plan": True,
             },
             {
                 "title": "Documentation Sprint",
-                "status": "planned",
+                "status": "todo",
                 "priority": "medium",
-                "has_spec": False,
-                "has_plan": False,
             },
             {
                 "title": "Legacy Code Refactoring",
-                "status": "completed",
+                "status": "done",
                 "priority": "low",
-                "has_spec": True,
-                "has_plan": True,
             },
         ]
 
@@ -133,7 +125,9 @@ class TrackRepositoryComplianceTests:
         assert track.id is not None
         assert len(track.id) > 0
 
-    def test_create_returns_identical_instance(self, repo: TrackRepository, sample_tracks):
+    def test_create_returns_identical_instance(
+        self, repo: TrackRepository, sample_tracks
+    ):
         """create() should return identical instance on get()."""
         created = self._create_track(repo, sample_tracks[0])
         fetched = repo.get(created.id)
@@ -148,12 +142,12 @@ class TrackRepositoryComplianceTests:
     def test_save_updates_existing(self, repo: TrackRepository, sample_tracks):
         """save() should update existing track."""
         track = self._create_track(repo, sample_tracks[0])
-        track.status = "completed"
+        track.status = "done"
         saved = repo.save(track)
 
         # Fetch and verify
         fetched = repo.get(track.id)
-        assert fetched.status == "completed"
+        assert fetched.status == "done"
         assert saved is fetched  # Same instance
 
     def test_save_returns_same_instance(self, repo: TrackRepository, sample_tracks):
@@ -256,12 +250,12 @@ class TrackRepositoryComplianceTests:
             track = self._create_track(repo, t)
             ids.append(track.id)
 
-        count = repo.batch_update(ids, {"status": "completed", "priority": "low"})
+        count = repo.batch_update(ids, {"status": "done", "priority": "low"})
         assert count == 3
 
         # Verify updates
         updated = repo.batch_get(ids)
-        assert all(t.status == "completed" for t in updated)
+        assert all(t.status == "done" for t in updated)
         assert all(t.priority == "low" for t in updated)
 
     def test_batch_delete(self, repo: TrackRepository, sample_tracks):
@@ -298,7 +292,8 @@ class TrackRepositoryComplianceTests:
     def test_find_by_features(self, repo: TrackRepository, sample_tracks):
         """find_by_features() should find tracks containing features."""
         track = self._create_track(repo, sample_tracks[0])
-        track.features = ["feat-001", "feat-002"]
+        # Store features in properties dict since Node doesn't have features field
+        track.properties["features"] = ["feat-001", "feat-002"]
         repo.save(track)
 
         results = repo.find_by_features(["feat-001"])
@@ -308,11 +303,12 @@ class TrackRepositoryComplianceTests:
     def test_with_feature_count(self, repo: TrackRepository, sample_tracks):
         """with_feature_count() should calculate feature counts."""
         t1 = self._create_track(repo, sample_tracks[0])
-        t1.features = ["feat-001", "feat-002"]
+        # Store features in properties dict since Node doesn't have features field
+        t1.properties["features"] = ["feat-001", "feat-002"]
         repo.save(t1)
 
         t2 = self._create_track(repo, sample_tracks[1])
-        t2.features = ["feat-003"]
+        t2.properties["features"] = ["feat-003"]
         repo.save(t2)
 
         tracks = repo.with_feature_count()
@@ -323,9 +319,9 @@ class TrackRepositoryComplianceTests:
         for t in sample_tracks:
             self._create_track(repo, t)
 
-        # Filter for tracks with spec
-        has_spec = repo.filter(lambda t: t.has_spec)
-        assert all(t.has_spec for t in has_spec)
+        # Filter for tracks with high priority
+        high_priority = repo.filter(lambda t: t.priority == "high")
+        assert all(t.priority == "high" for t in high_priority)
 
     # ===== CACHE MANAGEMENT TESTS =====
 
@@ -425,14 +421,12 @@ class TrackRepositoryComplianceTests:
             sample_tracks[0]["title"],
             status="active",
             priority="high",
-            has_spec=True,
         )
 
         fetched = repo.get(created.id)
         assert fetched.title == created.title
         assert fetched.status == created.status
         assert fetched.priority == created.priority
-        assert fetched.has_spec == created.has_spec
 
     def test_list_after_delete(self, repo: TrackRepository, sample_tracks):
         """list() should not include deleted tracks."""

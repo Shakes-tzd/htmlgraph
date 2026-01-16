@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Activity Feed - Table Lookup</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-0336c10f"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T22:45:09.002383"
+             data-updated="2026-01-15T22:45:09.002385" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="explorer">
+
+        <header>
+            <h1>Dashboard Activity Feed - Table Lookup</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Dashboard Activity Feed - Which Table Is Used?
+
+## API Endpoint
+**Endpoint:** `/api/events`
+**File:** `src/python/htmlgraph/api/main.py` (lines 415-502)
+**HTTP Method:** GET with optional query parameters
+
+### Query Parameters
+- `limit` (default: 50) - Number of events to return
+- `session_id` (optional) - Filter by specific session
+- `agent_id` (optional) - Filter by specific agent
+- `offset` (default: 0) - Pagination offset
+
+## SQL Query
+```sql
+SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+       e.input_summary, e.output_summary, e.session_id,
+       e.parent_event_id, e.status, e.model, e.feature_id
+FROM agent_events e
+WHERE 1=1
+  [AND e.session_id = ? (if session_id provided)]
+  [AND e.agent_id = ? (if agent_id provided)]
+ORDER BY e.timestamp DESC
+LIMIT ? OFFSET ?
+```
+
+## Table Name
+**Primary table:** `agent_events`
+**Related tables:** None (no JOINs in this endpoint)
+
+## Table Schema
+The `agent_events` table has these key columns:
+- `event_id` (TEXT PRIMARY KEY)
+- `agent_id` (TEXT NOT NULL)
+- `event_type` (TEXT - enum: tool_call, tool_result, error, delegation, completion, start, end, check_point, task_delegation)
+- `timestamp` (DATETIME DEFAULT CURRENT_TIMESTAMP)
+- `tool_name` (TEXT - nullable)
+- `input_summary` (TEXT - nullable)
+- `output_summary` (TEXT - nullable)
+- `session_id` (TEXT NOT NULL - FK to sessions)
+- `feature_id` (TEXT - nullable, FK to features)
+- `parent_event_id` (TEXT - nullable, self-referencing FK for hierarchical linking)
+- `status` (TEXT DEFAULT 'recorded')
+- `model` (TEXT - nullable)
+- Plus additional columns: context (JSON), execution_duration_seconds, cost_tokens, etc.
+
+## Current Status
+- ✅ Table exists: YES
+- ✅ Table has recent events: YES (1,067 total events)
+- ✅ Table actively tracking events: YES
+
+### Sample Query Results (3 Most Recent Events)
+```
+event_id       | agent_id   | event_type | timestamp              | tool_name | status
+evt-20234d0c   | claude-code| tool_call  | 2026-01-16 00:18:07   | Bash      | recorded
+evt-8db21fec   | claude-code| tool_call  | 2026-01-16 00:18:06   | Bash      | recorded
+evt-7b700f38   | claude-code| tool_call  | 2026-01-16 00:18:06   | Read      | recorded
+```
+
+## Implementation Details
+
+### Caching
+The `/api/events` endpoint implements in-memory caching with:
+- **TTL:** 30 seconds
+- **Cache Key:** `api_events:{limit}:{offset}:{session_id or 'all'}:{agent_id or 'all'}`
+- **Metrics:** Tracks hit rate, query time, and row counts
+
+### Data Model
+Events are returned as `EventModel` Pydantic objects with type validation:
+```python
+class EventModel(BaseModel):
+    event_id: str
+    agent_id: str
+    event_type: str
+    timestamp: str
+    tool_name: str | None = None
+    input_summary: str | None = None
+    output_summary: str | None = None
+    session_id: str
+    feature_id: str | None = None
+    parent_event_id: str | None = None
+    status: str
+    model: str | None = None
+```
+
+## Finding
+**The dashboard activity feed queries the `agent_events` table.**
+
+- **Current event count in that table:** 1,067
+- **Latest timestamp:** 2026-01-16 00:18:07
+- **Most recent events:** Recent tool_call events from claude-code agent (Bash and Read operations)
+- **Table actively in use:** YES - events being recorded in real-time
+
+## Additional Notes
+
+### Parent-Child Hierarchical Linking
+The `agent_events` table supports hierarchical event tracking via the `parent_event_id` field:
+- UserQuery events serve as root-level events
+- Tool calls nest under their parent UserQuery
+- Tool results nest under their parent tool_call
+- Creates a tree structure of agent activities
+
+### Use Cases
+This table is used for:
+1. **Real-time activity feed** - Shows all events in reverse chronological order
+2. **Session tracking** - Filter events by session_id
+3. **Agent activity** - Filter events by agent_id
+4. **Feature tracking** - Link events to features via feature_id
+5. **Parent-child relationships** - Show nested event hierarchies via parent_event_id
+
+### Performance Optimization
+- Indexed on: timestamp (for ordering), session_id (for filtering), agent_id (for filtering)
+- Query cache prevents repeated queries for same parameters
+- Metrics tracking monitors performance patterns
+            </div>
+        </section>
+    </article>
+</body>
+</html>

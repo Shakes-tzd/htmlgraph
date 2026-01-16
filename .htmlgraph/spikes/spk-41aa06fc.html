@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Phase 3.1+ Planning - Advanced Analytics & Real-Time Features</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-41aa06fc"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-16T00:05:35.845539"
+             data-updated="2026-01-16T00:05:35.845540" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="general-purpose">
+
+        <header>
+            <h1>Phase 3.1+ Planning - Advanced Analytics & Real-Time Features</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Phase 3.1+ Roadmap: Advanced Analytics & Real-Time Features
+
+## Executive Summary
+
+Phase 3 (Strategic Analytics Foundation) has successfully implemented:
+- PatternDetector - Tool sequences, delegation chains, error patterns
+- SuggestionEngine - Task recommendations with context awareness
+- PreferenceManager - User preference learning and personalization
+- CostOptimizer - Token budgeting, parallelization, model selection
+
+Phase 3.1+ focuses on:
+1. Real-time streaming to frontend dashboards
+2. Predictive insights and proactive alerting
+3. Session-level cost monitoring and optimization
+4. Advanced activity feed with intelligent notifications
+5. Pattern-based workflow recommendations
+
+---
+
+## Phase 3.1+ Feature List
+
+### Feature 1: Real-Time Event Streaming (WebSocket Integration)
+**Description:** Stream agent events to dashboard in real-time for live monitoring
+
+**Scope:** Medium (8-12 hours)
+**Priority:** High
+**Dependencies:** FastAPI server, PatternDetector, Activity feed in dashboard
+**Estimated Tokens:** 15k-20k
+**Related:** feat-4159307f (Dashboard Activity Feed - in progress)
+
+Key capabilities:
+- WebSocket endpoint for event streaming
+- Event filtering by type (tool calls, completions, errors)
+- Client subscription/unsubscription management
+- High-frequency update handling (1000+ events/sec)
+
+---
+
+### Feature 2: Predictive Bottleneck Detection
+**Description:** Use PatternDetector to predict bottlenecks before they occur
+
+**Scope:** Medium (10-14 hours)
+**Priority:** High
+**Dependencies:** PatternDetector, find_bottlenecks method, real-time streaming
+**Estimated Tokens:** 18k-25k
+
+Key capabilities:
+- Bottleneck formation pattern analysis
+- Predictive model: (high_frequency_pattern + growth_trend) = likely bottleneck
+- Confidence scoring and accuracy tracking
+- Actionable recommendations (parallelize, delegate, refactor)
+
+---
+
+### Feature 3: Real-Time Cost Monitoring & Alerts
+**Description:** Monitor token consumption during session and alert on threshold breaches
+
+**Scope:** Medium (10-12 hours)
+**Priority:** High
+**Dependencies:** CostOptimizer, real-time streaming, token counting
+**Estimated Tokens:** 12k-18k
+
+Key capabilities:
+- Real-time token usage tracking per session
+- Budget comparison and threshold alerting
+- Cost breakdown by agent/model
+- Predictive cost trajectory analysis
+- Alert triggers: 80% budget, trajectory overage, model overage
+
+---
+
+### Feature 4: Activity Feed Enhancements (Real-Time + Smart Notifications)
+**Description:** Enhance dashboard activity feed with real-time updates and intelligent notifications
+
+**Scope:** Medium (9-11 hours)
+**Priority:** Medium
+**Dependencies:** Real-time streaming, PatternDetector, activity feed UI
+**Estimated Tokens:** 14k-18k
+
+Key capabilities:
+- Real-time activity updates via WebSocket
+- Smart filtering (work type, agent type, status, time range)
+- Anomaly detection for unusual patterns
+- Event grouping (tool chains into workflows)
+- Smart pagination
+
+---
+
+### Feature 5: Session Intelligence & Workflow Recommendations
+**Description:** Analyze session patterns to suggest better workflows and parallelization opportunities
+
+**Scope:** Medium (11-15 hours)
+**Priority:** Medium
+**Dependencies:** PatternDetector, SuggestionEngine, CostOptimizer
+**Estimated Tokens:** 16k-22k
+
+Key capabilities:
+- Session type classification (research/implementation/balanced)
+- Cost analysis by session type
+- Parallelization opportunity detection
+- Efficiency scoring and benchmarking
+- Personalized workflow recommendations
+
+---
+
+## Architecture Changes
+
+### 1. WebSocket Server Integration
+Location: src/python/htmlgraph/api/websocket.py (new)
+
+New WebSocketManager class for connection handling, subscriptions, and broadcasting.
+FastAPI route: /ws/events/{session_id} for streaming real-time events.
+
+### 2. Database Schema Updates
+New tables:
+- bottleneck_predictions (session_id, prediction_score, confidence)
+- cost_alerts (session_id, alert_type, token_usage, token_budget)
+- session_recommendations (session_id, recommendation_type, reasoning)
+
+Updated columns on sessions table:
+- session_type (research/implementation/balanced)
+- efficiency_score (0-100)
+- predicted_cost (real value)
+- cost_threshold_breached (boolean)
+
+### 3. Frontend Dashboard Updates
+New UI components:
+- Real-Time Event Stream (live activity feed)
+- Cost Monitor (real-time token counter)
+- Bottleneck Predictor (predicted bottlenecks with confidence)
+- Workflow Recommendations (contextual suggestions)
+- Anomaly Alert Panel (unusual pattern detection)
+
+---
+
+## Implementation Sequence
+
+### Phase 3.1 (Weeks 1-2)
+1. WebSocket Infrastructure (Feature 1): 8-12 hours
+   - Add WebSocket server to FastAPI
+   - Database schema updates
+   - Frontend WebSocket client
+   
+2. Activity Feed Enhancement (Feature 4): 9-11 hours
+   - Real-time feed updates via WebSocket
+   - Filtering/grouping logic
+   - Dashboard UI updates
+   - Can parallelize if separate UI team
+
+### Phase 3.2 (Weeks 3-4)
+3. Cost Monitoring (Feature 3): 10-12 hours
+   - Hook into token tracking
+   - Real-time cost calculations
+   - Alerts and thresholds
+   - Dashboard cost monitor UI
+
+4. Bottleneck Prediction (Feature 2): 10-14 hours
+   - BottleneckPredictor class using PatternDetector
+   - Historical pattern training
+   - Dashboard integration
+   - Can parallelize with Feature 3
+
+### Phase 3.3 (Weeks 5-6)
+5. Session Intelligence (Feature 5): 11-15 hours
+   - Session type classification
+   - Workflow recommendations engine
+   - Parallelization opportunity detector
+   - SDK method additions
+
+Total: 58-74 hours (2-3 weeks)
+Critical Path: WebSocket → Cost Monitoring → Bottleneck Prediction
+
+---
+
+## Risk Assessment
+
+### Risk 1: High-Frequency WebSocket Updates Causing Client Lag
+Probability: Medium | Severity: High
+
+Mitigation: Client-side event batching (50ms buckets), server throttling (10 events/sec), priority filtering
+Rollback: Revert to polling API
+
+### Risk 2: Inaccurate Cost Predictions
+Probability: Medium | Severity: Medium
+
+Mitigation: Conservative estimates (+20% buffer), accuracy tracking, continuous retraining, confidence scores
+Rollback: Use actual token counting instead of predictions
+
+### Risk 3: Bottleneck Predictions (False Positives)
+Probability: High | Severity: Low
+
+Mitigation: High confidence threshold (0.85+), top 3 only, show reasoning, false positive tracking
+Rollback: Disable predictions, keep bottleneck detection
+
+### Risk 4: Database Performance Degradation
+Probability: Low | Severity: High
+
+Mitigation: Database indexes on session_id/created_at, data retention policy, performance testing, async queries
+Rollback: Archive old data, implement pagination
+
+### Risk 5: Session Type Misclassification
+Probability: Medium | Severity: Medium
+
+Mitigation: Validation against manual samples, explainability, manual correction, accuracy tracking
+Rollback: Disable recommendations, keep analytics
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+- WebSocket: connection/disconnection, filtering, subscriptions
+- Predictions: scoring, confidence calculation, edge cases
+- Cost: accumulation, threshold detection, alerts
+- Activity Feed: filtering, grouping, pagination
+- Session Intelligence: classification, recommendations
+
+### Integration Tests
+- End-to-end: Event → Database → WebSocket → Dashboard
+- Cost flow: Hook → Database → Calculation → Alert
+- Patterns: Session events → Patterns → Predictions → Recommendations
+
+### Performance Tests
+- Load: 10+ WebSocket clients, 1000 events/sec
+- Database: Query performance with 100k+ records
+- Memory: Client with 10k+ events
+
+### UAT
+- Accuracy: >80% prediction vs manual analysis
+- Adoption: >50% of recommendations acted upon
+- UX: Real-time updates <100ms latency
+
+---
+
+## Success Metrics
+
+**WebSocket Streaming:** <100ms latency, 10+ concurrent clients, 1000+ events/sec, 99.5% delivery
+**Bottleneck Prediction:** >80% accuracy, <20% false positives, <50ms prediction time
+**Cost Monitoring:** Within 5% accuracy, <1s alert latency, >80% adoption
+**Activity Feed:** <100ms real-time, 100% filter accuracy, >70% clutter reduction
+**Session Intelligence:** >85% classification, >50% recommendation adoption, >20% time savings
+
+---
+
+## Estimated Token Costs
+
+| Feature | Dev | Testing | Docs | Total |
+|---------|-----|---------|------|-------|
+| WebSocket | 15k | 5k | 3k | 23k |
+| Bottleneck Pred | 18k | 6k | 3k | 27k |
+| Cost Monitor | 12k | 4k | 2k | 18k |
+| Activity Feed | 14k | 5k | 2k | 21k |
+| Session Intel | 16k | 6k | 3k | 25k |
+| TOTAL | 75k | 26k | 13k | 114k |
+
+Confidence: 75% (based on Phase 3 feature costs)
+
+---
+
+## Next Immediate Actions
+
+### Week 1
+1. Design Review - Gather feedback on architecture
+2. Prototype WebSocket - Build POC for real-time events
+3. Database Planning - Finalize schemas and indexes
+4. Frontend Mockup - Design dashboard updates
+
+### Week 2
+1. Implement WebSocket - Full server implementation with tests
+2. Activity Feed - Connect real-time events to UI
+3. Cost Foundation - Database schema and calculations
+4. Bottleneck Design - Finalize prediction algorithm
+
+### Week 3+
+1. Deploy Phase 3.1 - Roll out to production
+2. Monitor Metrics - Track success criteria
+3. Gather Feedback - Iterate based on usage
+4. Plan Phase 3.2 - Cost monitoring refinement
+
+---
+
+## Documentation Requirements
+- Real-Time Event API documentation
+- WebSocket endpoint specification
+- Cost monitoring user guide
+- Bottleneck prediction methodology
+- Session intelligence interpretation guide
+- Dashboard user guide (new features)
+- Migration guide for existing features
+
+---
+
+## Phase 3 Foundation Review
+
+PatternDetector: Tool sequences, delegation chains, error patterns (1000+ patterns per 100 sessions)
+SuggestionEngine: Context-aware recommendations, avg score 0.73
+PreferenceManager: Model preferences, >80% selection accuracy
+CostOptimizer: Token budgets, parallelization, model selection, caching
+
+Quality: 93 SDK tests passing, >90% coverage, production-ready
+            </div>
+        </section>
+    </article>
+</body>
+</html>

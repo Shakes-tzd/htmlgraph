@@ -248,6 +248,21 @@ class HTMLFileTrackRepository(TrackRepository):
         Raises:
             TrackValidationError: If invalid attribute names
         """
+        # Validate filter keys upfront
+        valid_attrs = {
+            "status",
+            "priority",
+            "has_spec",
+            "has_plan",
+            "type",
+            "title",
+            "id",
+            "created",
+            "updated",
+        }
+        for key in kwargs:
+            if key not in valid_attrs:
+                raise TrackValidationError(f"Invalid filter attribute: {key}")
         return HTMLFileRepositoryQuery(self, kwargs)
 
     def by_status(self, status: str) -> builtins.list[Node]:
@@ -313,7 +328,7 @@ class HTMLFileTrackRepository(TrackRepository):
 
         # Extract known fields from kwargs to avoid conflicts
         node_type = kwargs.pop("type", "track")
-        status = kwargs.pop("status", "planned")
+        status = kwargs.pop("status", "todo")
         priority = kwargs.pop("priority", "medium")
         created = kwargs.pop("created", datetime.now())
         updated = kwargs.pop("updated", datetime.now())
@@ -475,9 +490,15 @@ class HTMLFileTrackRepository(TrackRepository):
 
         results = []
         for track in self._cache.values():
+            # Check both track.features attribute and properties["features"]
+            features = None
             if hasattr(track, "features") and track.features:
-                if any(fid in track.features for fid in feature_ids):
-                    results.append(track)
+                features = track.features
+            elif hasattr(track, "properties") and track.properties.get("features"):
+                features = track.properties["features"]
+
+            if features and any(fid in features for fid in feature_ids):
+                results.append(track)
         return results
 
     def with_feature_count(self) -> builtins.list[Node]:
@@ -524,14 +545,23 @@ class HTMLFileTrackRepository(TrackRepository):
         Force reload all tracks from storage.
 
         Invalidates all caches and reloads from disk.
+        Note: Preserves existing cache entries to maintain object identity
+        for tracks that have been created but not yet persisted to disk.
         """
+        # Keep track of existing cached entries to preserve object identity
+        existing_cache = dict(self._cache)
         self._cache.clear()
 
         # Load all HTML files
         for filepath in self._directory.glob("*.html"):
             try:
-                track = self._load_from_file(filepath)
-                self._cache[track.id] = track
+                track_id = filepath.stem
+                # If we already have this track in cache, keep the existing instance
+                if track_id in existing_cache:
+                    self._cache[track_id] = existing_cache[track_id]
+                else:
+                    track = self._load_from_file(filepath)
+                    self._cache[track.id] = track
             except Exception as e:
                 # Log and skip invalid files
                 import logging

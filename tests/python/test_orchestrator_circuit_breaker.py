@@ -25,10 +25,7 @@ class TestCircuitBreaker:
         # Verify warning message includes violation count (now uses additionalContext)
         # Advisory mode continues=True but warns with VIOLATION count
         assert result["continue"] is True
-        assert (
-            "VIOLATION (1/3)"
-            in result["hookSpecificOutput"]["additionalContext"]
-        )
+        assert "VIOLATION (1/3)" in result["hookSpecificOutput"]["additionalContext"]
 
     def test_circuit_breaker_triggers_at_threshold(self, tmp_path, monkeypatch):
         """Test circuit breaker triggers at 3 violations."""
@@ -124,10 +121,7 @@ class TestCircuitBreaker:
 
         # Advisory mode continues=True but warns via additionalContext
         assert result["continue"] is True
-        assert (
-            "VIOLATION (2/3)"
-            in result["hookSpecificOutput"]["additionalContext"]
-        )
+        assert "VIOLATION (2/3)" in result["hookSpecificOutput"]["additionalContext"]
         assert (
             "Next violation will trigger circuit breaker"
             in result["hookSpecificOutput"]["additionalContext"]
@@ -150,18 +144,12 @@ class TestCircuitBreaker:
         # The third violation WARNS about circuit breaker via additionalContext
         # (the actual blocking happens on the NEXT operation after the threshold)
         assert result["continue"] is True
-        assert (
-            "VIOLATION (3/3)"
-            in result["hookSpecificOutput"]["additionalContext"]
-        )
+        assert "VIOLATION (3/3)" in result["hookSpecificOutput"]["additionalContext"]
         assert (
             "CIRCUIT BREAKER TRIGGERED"
             in result["hookSpecificOutput"]["additionalContext"]
         )
-        assert (
-            "reset-violations"
-            in result["hookSpecificOutput"]["additionalContext"]
-        )
+        assert "reset-violations" in result["hookSpecificOutput"]["additionalContext"]
 
     def test_guidance_mode_does_not_track_violations(self, tmp_path, monkeypatch):
         """Test that guidance mode doesn't track violations."""

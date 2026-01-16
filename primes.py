@@ -6,6 +6,7 @@ def is_prime(n):
             return False
     return True
 
+
 primes = []
 num = 2
 while len(primes) < 3:

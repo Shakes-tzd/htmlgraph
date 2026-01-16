@@ -40,7 +40,9 @@ class TestBaseBuilderTrackIdValidation:
         assert "requires a track linkage" in error_msg
         assert "set_track" in error_msg
 
-    def test_feature_with_track_saves_successfully(self, tmp_htmlgraph, isolated_db: Path):
+    def test_feature_with_track_saves_successfully(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Creating feature with track_id should save successfully."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -71,7 +73,9 @@ class TestBaseBuilderTrackIdValidation:
         assert retrieved is not None
         assert retrieved.track_id == track.id
 
-    def test_error_message_includes_available_tracks(self, tmp_htmlgraph, isolated_db: Path):
+    def test_error_message_includes_available_tracks(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Error message should list available tracks."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -92,7 +96,9 @@ class TestBaseBuilderTrackIdValidation:
         # Should include at least one track
         assert track1.id in error_msg or track1.title in error_msg
 
-    def test_error_message_fallback_when_no_tracks(self, tmp_htmlgraph, isolated_db: Path):
+    def test_error_message_fallback_when_no_tracks(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Error message should be helpful even with no tracks."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -154,7 +160,9 @@ class TestBaseBuilderTrackIdValidation:
         assert feature.track_id == track.id
         assert "This is a feature description" in (feature.content or "")
 
-    def test_feature_multiple_relationships_with_track(self, tmp_htmlgraph, isolated_db: Path):
+    def test_feature_multiple_relationships_with_track(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Feature can have multiple relationships and track."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -254,7 +262,9 @@ class TestFeatureCreateFluentAPI:
         assert feature.status == "in-progress"
         assert len(feature.steps) == 2
 
-    def test_fluent_api_preserves_agent_attribution(self, tmp_htmlgraph, isolated_db: Path):
+    def test_fluent_api_preserves_agent_attribution(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Feature creation should preserve agent attribution."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
         track = sdk.tracks.create("Agent Track").save()
@@ -291,7 +301,9 @@ class TestTrackValidationEdgeCases:
         # Should have the track_id even if it doesn't exist
         assert feature.track_id == "nonexistent-track-id"
 
-    def test_feature_track_id_special_characters(self, tmp_htmlgraph, isolated_db: Path):
+    def test_feature_track_id_special_characters(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Track ID with special characters should work."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
         track = sdk.tracks.create("Special Track").save()
@@ -305,7 +317,9 @@ class TestTrackValidationEdgeCases:
 class TestFeatureCreateErrorMessages:
     """Test error messages for feature creation failures."""
 
-    def test_error_message_includes_feature_title(self, tmp_htmlgraph, isolated_db: Path):
+    def test_error_message_includes_feature_title(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Error message should include the feature title."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -317,7 +331,9 @@ class TestFeatureCreateErrorMessages:
         error_msg = str(exc_info.value)
         assert "Specific Feature Name" in error_msg
 
-    def test_error_message_is_clear_and_actionable(self, tmp_htmlgraph, isolated_db: Path):
+    def test_error_message_is_clear_and_actionable(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Error message should be clear and actionable."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -335,7 +351,9 @@ class TestFeatureCreateErrorMessages:
 class TestCollectionSpecificTrackRequirement:
     """Test that track requirement is features-collection specific."""
 
-    def test_only_features_collection_requires_track(self, tmp_htmlgraph, isolated_db: Path):
+    def test_only_features_collection_requires_track(
+        self, tmp_htmlgraph, isolated_db: Path
+    ):
         """Only 'features' collection should require track linkage."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 

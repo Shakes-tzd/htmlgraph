@@ -184,6 +184,21 @@ class MemoryTrackRepository(TrackRepository):
         Raises:
             TrackValidationError: If invalid attribute names
         """
+        # Validate filter keys upfront
+        valid_attrs = {
+            "status",
+            "priority",
+            "has_spec",
+            "has_plan",
+            "type",
+            "title",
+            "id",
+            "created",
+            "updated",
+        }
+        for key in kwargs:
+            if key not in valid_attrs:
+                raise TrackValidationError(f"Invalid filter attribute: {key}")
         return MemoryRepositoryQuery(self, kwargs)
 
     def by_status(self, status: str) -> builtins.list[Any]:
@@ -249,7 +264,7 @@ class MemoryTrackRepository(TrackRepository):
 
         # Extract known fields
         node_type = kwargs.pop("type", "track")
-        status = kwargs.pop("status", "planned")
+        status = kwargs.pop("status", "todo")
         priority = kwargs.pop("priority", "medium")
         created = kwargs.pop("created", datetime.now())
         updated = kwargs.pop("updated", datetime.now())
@@ -398,9 +413,15 @@ class MemoryTrackRepository(TrackRepository):
 
         results = []
         for track in self._tracks.values():
+            # Check both track.features attribute and properties["features"]
+            features = None
             if hasattr(track, "features") and track.features:
-                if any(fid in track.features for fid in feature_ids):
-                    results.append(track)
+                features = track.features
+            elif hasattr(track, "properties") and track.properties.get("features"):
+                features = track.properties["features"]
+
+            if features and any(fid in features for fid in feature_ids):
+                results.append(track)
         return results
 
     def with_feature_count(self) -> builtins.list[Any]:

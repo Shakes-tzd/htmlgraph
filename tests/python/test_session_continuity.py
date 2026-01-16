@@ -19,7 +19,9 @@ from htmlgraph.session_manager import SessionManager
 class TestStrategicRecommendations:
     """Test strategic recommendations in session-start hook."""
 
-    def test_get_strategic_recommendations(self, tmp_path, isolated_graph_dir_full, isolated_db):
+    def test_get_strategic_recommendations(
+        self, tmp_path, isolated_graph_dir_full, isolated_db
+    ):
         """Test that strategic recommendations are retrieved correctly."""
         # Setup: Create a test project with features
         graph_dir = tmp_path / ".htmlgraph"
@@ -144,7 +146,9 @@ class TestMultiAgentAwareness:
         assert "agent-1" in agent_names
         assert "agent-2" in agent_names
 
-    def test_detect_feature_conflicts(self, tmp_path, isolated_graph_dir_full, isolated_db):
+    def test_detect_feature_conflicts(
+        self, tmp_path, isolated_graph_dir_full, isolated_db
+    ):
         """Test conflict detection when multiple agents work on same feature."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir(exist_ok=True)
@@ -209,7 +213,9 @@ class TestMultiAgentAwareness:
 class TestEnhancedSessionSummary:
     """Test enhanced previous session summary formatting."""
 
-    def test_session_summary_formatting(self, tmp_path, isolated_graph_dir_full, isolated_db):
+    def test_session_summary_formatting(
+        self, tmp_path, isolated_graph_dir_full, isolated_db
+    ):
         """Test that session summary includes all expected fields."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir(exist_ok=True)
@@ -281,7 +287,9 @@ class TestGitIntegration:
 class TestSessionStartHookIntegration:
     """Integration tests for session-start hook output."""
 
-    def test_hook_output_structure(self, tmp_path, isolated_graph_dir_full, isolated_db):
+    def test_hook_output_structure(
+        self, tmp_path, isolated_graph_dir_full, isolated_db
+    ):
         """Test that session-start hook produces valid JSON output."""
         # Create a minimal .htmlgraph directory
         graph_dir = tmp_path / ".htmlgraph"
@@ -303,7 +311,9 @@ class TestSessionStartHookIntegration:
         assert isinstance(parallel, dict)
         assert "max_parallelism" in parallel
 
-    def test_hook_handles_no_features(self, tmp_path, isolated_graph_dir_full, isolated_db):
+    def test_hook_handles_no_features(
+        self, tmp_path, isolated_graph_dir_full, isolated_db
+    ):
         """Test hook gracefully handles empty project."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir(exist_ok=True)
@@ -320,4 +330,3 @@ class TestSessionStartHookIntegration:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

@@ -96,8 +96,8 @@ def test_multiple_isolated_sdks_are_independent(
     track2 = sdk2.tracks.create("Track 2").save()
 
     # Create features in each
-    feature1 = sdk1.features.create("Feature 1").set_track(track1.id).save()
-    feature2 = sdk2.features.create("Feature 2").set_track(track2.id).save()
+    sdk1.features.create("Feature 1").set_track(track1.id).save()
+    sdk2.features.create("Feature 2").set_track(track2.id).save()
 
     # Verify isolation - each SDK only sees its own features
     assert len(sdk1.features.all()) == 1

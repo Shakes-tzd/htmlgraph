@@ -485,9 +485,10 @@ class StrategicAnalyticsInterface:
         try:
             # Use orchestrator's decomposition method
             orchestrator = self._sdk.orchestrator
-            return orchestrator.suggest_task_decomposition(
+            result = orchestrator.suggest_task_decomposition(
                 task_description, max_subtasks
             )
+            return list(result) if result else []
         except Exception as e:
             logger.error(f"Error suggesting task decomposition: {e}")
             return []
@@ -518,8 +519,11 @@ class StrategicAnalyticsInterface:
         """
         try:
             orchestrator = self._sdk.orchestrator
-            return orchestrator.create_task_suggestion(
+            result = orchestrator.create_task_suggestion(
                 task_description, include_cost_estimate
+            )
+            return (
+                dict(result) if result else {"task": task_description, "subtasks": []}
             )
         except Exception as e:
             logger.error(f"Error creating task plan: {e}")

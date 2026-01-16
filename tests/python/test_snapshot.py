@@ -10,7 +10,11 @@ from htmlgraph.sdk import SDK
 @pytest.fixture
 def populated_sdk(tmp_path, isolated_db):
     """Create SDK with test features, tracks, and bugs."""
-    sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent", db_path=str(isolated_db))
+    sdk = SDK(
+        directory=str(tmp_path / ".htmlgraph"),
+        agent="test-agent",
+        db_path=str(isolated_db),
+    )
 
     # Create tracks first (features require track linkage)
     track1 = sdk.tracks.create(title="Browser-Native Query Interface").save()
@@ -209,7 +213,11 @@ def test_snapshot_combined_filters(populated_sdk, isolated_db):
 
 def test_snapshot_empty_results(tmp_path, isolated_db):
     """Test snapshot command with no matching items."""
-    sdk = SDK(directory=str(tmp_path / ".htmlgraph"), agent="test-agent", db_path=str(isolated_db))
+    sdk = SDK(
+        directory=str(tmp_path / ".htmlgraph"),
+        agent="test-agent",
+        db_path=str(isolated_db),
+    )
 
     cmd = SnapshotCommand(output_format="refs", node_type="feature", status="todo")
     cmd.graph_dir = str(sdk._directory)

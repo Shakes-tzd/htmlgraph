@@ -23,7 +23,7 @@ def fix_sdk_type_annotations(content: str) -> tuple[str, int]:
     # Pattern 1: Function parameters with SDK type (not in quotes)
     # Match: def func(sdk: SDK) or def func(sdk: SDK | None)
     # Replace with: def func(sdk: "SDK") or def func(sdk: "SDK | None")
-    pattern1 = r'(\bsdk:\s*)SDK(\s*\|?\s*None)?(\s*[,\)])'
+    pattern1 = r"(\bsdk:\s*)SDK(\s*\|?\s*None)?(\s*[,\)])"
     replacement1 = r'\1"SDK\2"\3'
     new_content, count1 = re.subn(pattern1, replacement1, content)
     changes += count1
@@ -31,7 +31,7 @@ def fix_sdk_type_annotations(content: str) -> tuple[str, int]:
     # Pattern 2: Variable type annotations with SDK (not in quotes)
     # Match: self._sdk: SDK | None
     # Replace with: self._sdk: "SDK | None"
-    pattern2 = r'(:\s*)SDK(\s*\|\s*None)?(\s*=)'
+    pattern2 = r"(:\s*)SDK(\s*\|\s*None)?(\s*=)"
     replacement2 = r'\1"SDK\2"\3'
     new_content, count2 = re.subn(pattern2, replacement2, new_content)
     changes += count2
@@ -39,7 +39,7 @@ def fix_sdk_type_annotations(content: str) -> tuple[str, int]:
     # Pattern 3: Return type annotations with SDK
     # Match: -> SDK:
     # Replace with: -> "SDK":
-    pattern3 = r'(->\s*)SDK(\s*:)'
+    pattern3 = r"(->\s*)SDK(\s*:)"
     replacement3 = r'\1"SDK"\2'
     new_content, count3 = re.subn(pattern3, replacement3, new_content)
     changes += count3
@@ -57,8 +57,8 @@ def fix_logger_file_parameter(content: str) -> tuple[str, int]:
 
     # Pattern: logger.debug(..., file=sys.stderr)
     # Remove the file=sys.stderr part
-    pattern = r'(logger\.(?:debug|info|warning|error)\([^)]+),\s*file=sys\.stderr'
-    replacement = r'\1'
+    pattern = r"(logger\.(?:debug|info|warning|error)\([^)]+),\s*file=sys\.stderr"
+    replacement = r"\1"
     new_content, count = re.subn(pattern, replacement, content)
     changes += count
 
@@ -73,7 +73,6 @@ def process_file(file_path: Path) -> bool:
     """
     try:
         content = file_path.read_text()
-        original_content = content
 
         # Apply fixes
         content, sdk_changes = fix_sdk_type_annotations(content)
@@ -83,7 +82,9 @@ def process_file(file_path: Path) -> bool:
 
         if total_changes > 0:
             file_path.write_text(content)
-            print(f"✅ {file_path}: {sdk_changes} SDK fixes, {logger_changes} logger fixes")
+            print(
+                f"✅ {file_path}: {sdk_changes} SDK fixes, {logger_changes} logger fixes"
+            )
             return True
 
         return False

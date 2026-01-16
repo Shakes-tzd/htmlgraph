@@ -100,6 +100,10 @@ class EventRecord(BaseModel):
         """Ensure file_paths is always a list (never None) in JSON output."""
         return file_paths or []
 
+    def to_json(self) -> dict[str, Any]:
+        """Convert EventRecord to JSON-serializable dictionary."""
+        return self.model_dump(mode="json")
+
 
 class JsonlEventLog:
     """

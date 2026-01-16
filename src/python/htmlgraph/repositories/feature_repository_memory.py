@@ -471,11 +471,16 @@ class MemoryFeatureRepository(FeatureRepository):
 
             # Check edges for dependencies
             if hasattr(f, "edges") and f.edges:
-                for edge_list in f.edges.get("depends_on", []):
+                depends_on = (
+                    f.edges.get("depends_on", []) if isinstance(f.edges, dict) else []
+                )
+                for edge in depends_on:
                     target_id = (
-                        edge_list.target_id
-                        if hasattr(edge_list, "target_id")
-                        else edge_list.get("target_id")
+                        edge.target_id
+                        if hasattr(edge, "target_id")
+                        else edge.get("target_id")
+                        if isinstance(edge, dict)
+                        else None
                     )
                     if target_id:
                         dep = self.get(target_id)
@@ -506,11 +511,16 @@ class MemoryFeatureRepository(FeatureRepository):
         blocking = []
         for f in self._features.values():
             if hasattr(f, "edges") and f.edges:
-                for edge_list in f.edges.get("depends_on", []):
+                depends_on = (
+                    f.edges.get("depends_on", []) if isinstance(f.edges, dict) else []
+                )
+                for edge in depends_on:
                     target_id = (
-                        edge_list.target_id
-                        if hasattr(edge_list, "target_id")
-                        else edge_list.get("target_id")
+                        edge.target_id
+                        if hasattr(edge, "target_id")
+                        else edge.get("target_id")
+                        if isinstance(edge, dict)
+                        else None
                     )
                     if target_id == feature_id:
                         blocking.append(f)

@@ -24,7 +24,9 @@ def tmp_htmlgraph(isolated_graph_dir_full: Path):
 class TestSDKAgentParameterRequired:
     """Test that agent parameter is required for SDK initialization."""
 
-    def test_sdk_without_agent_uses_detected_value(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_sdk_without_agent_uses_detected_value(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """SDK() without explicit agent uses detect_agent_name() if not CLI."""
         # In test environment, detect_agent_name() will return "claude-code"
         # (because CLAUDE_CODE_VERSION is set in test environment)
@@ -35,7 +37,9 @@ class TestSDKAgentParameterRequired:
         # In this environment, it should be "claude-code" or "cli"
         assert sdk._agent_id in ["claude-code", "cli"]
 
-    def test_sdk_with_agent_parameter_succeeds(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_sdk_with_agent_parameter_succeeds(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """SDK(agent='name') should succeed and set _agent_id."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -45,7 +49,9 @@ class TestSDKAgentParameterRequired:
         assert sdk.spikes is not None
         assert sdk.bugs is not None
 
-    def test_sdk_with_agent_parameter_various_names(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_sdk_with_agent_parameter_various_names(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """SDK should work with various agent names."""
         agent_names = [
             "claude",
@@ -57,10 +63,14 @@ class TestSDKAgentParameterRequired:
         ]
 
         for agent_name in agent_names:
-            sdk = SDK(directory=tmp_htmlgraph, agent=agent_name, db_path=str(isolated_db))
+            sdk = SDK(
+                directory=tmp_htmlgraph, agent=agent_name, db_path=str(isolated_db)
+            )
             assert sdk._agent_id == agent_name
 
-    def test_sdk_with_claude_agent_name_env(self, tmp_htmlgraph: Path, isolated_db: Path, monkeypatch):
+    def test_sdk_with_claude_agent_name_env(
+        self, tmp_htmlgraph: Path, isolated_db: Path, monkeypatch
+    ):
         """SDK should use CLAUDE_AGENT_NAME env var if provided."""
         monkeypatch.setenv("CLAUDE_AGENT_NAME", "env-agent")
         sdk = SDK(directory=tmp_htmlgraph, db_path=str(isolated_db))
@@ -72,7 +82,9 @@ class TestSDKAgentParameterRequired:
     ):
         """Explicit agent parameter should override env vars."""
         monkeypatch.setenv("CLAUDE_AGENT_NAME", "env-agent")
-        sdk = SDK(directory=tmp_htmlgraph, agent="explicit-agent", db_path=str(isolated_db))
+        sdk = SDK(
+            directory=tmp_htmlgraph, agent="explicit-agent", db_path=str(isolated_db)
+        )
 
         assert sdk._agent_id == "explicit-agent"
 
@@ -80,7 +92,9 @@ class TestSDKAgentParameterRequired:
 class TestSpikeWithAgentAttribution:
     """Test that spikes are created with proper agent attribution."""
 
-    def test_spike_has_agent_assigned_field(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_spike_has_agent_assigned_field(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """Spike created via SDK should have agent_assigned field."""
         sdk = SDK(directory=tmp_htmlgraph, agent="test-agent", db_path=str(isolated_db))
 
@@ -90,7 +104,9 @@ class TestSpikeWithAgentAttribution:
         assert hasattr(spike, "agent_assigned")
         assert spike.agent_assigned == "test-agent"
 
-    def test_spike_agent_matches_sdk_agent(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_spike_agent_matches_sdk_agent(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """Spike's agent_assigned should match SDK's agent."""
         agent_name = "my-test-agent"
         sdk = SDK(directory=tmp_htmlgraph, agent=agent_name, db_path=str(isolated_db))
@@ -99,7 +115,9 @@ class TestSpikeWithAgentAttribution:
 
         assert spike.agent_assigned == agent_name
 
-    def test_spike_with_builder_methods_preserves_agent(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_spike_with_builder_methods_preserves_agent(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """Agent attribution should persist through builder methods."""
         sdk = SDK(directory=tmp_htmlgraph, agent="coder", db_path=str(isolated_db))
 
@@ -116,7 +134,9 @@ class TestSpikeWithAgentAttribution:
         assert spike.title == "Investigate Database"
         assert spike.findings == "SQLite is sufficient"
 
-    def test_multiple_spikes_all_have_agent_assigned(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_multiple_spikes_all_have_agent_assigned(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """All spikes created should have agent_assigned."""
         sdk = SDK(directory=tmp_htmlgraph, agent="explorer", db_path=str(isolated_db))
 
@@ -134,7 +154,9 @@ class TestSpikeWithAgentAttribution:
 class TestSpikeBuilderWarning:
     """Test that warning is logged when spike created without agent."""
 
-    def test_spike_created_always_has_agent(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_spike_created_always_has_agent(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """Spike created should always have agent_assigned from SDK."""
         # Even without explicit agent, SDK detects one
         sdk = SDK(directory=tmp_htmlgraph, db_path=str(isolated_db))
@@ -193,7 +215,9 @@ class TestOtherCollectionsWithAgent:
 class TestSpikeRetrieval:
     """Test that spikes can be retrieved and agent is preserved."""
 
-    def test_spike_retrieval_preserves_agent(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_spike_retrieval_preserves_agent(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """Retrieved spike should have agent_assigned field."""
         sdk = SDK(directory=tmp_htmlgraph, agent="explorer", db_path=str(isolated_db))
 
@@ -207,7 +231,9 @@ class TestSpikeRetrieval:
         assert retrieved is not None
         assert retrieved.agent_assigned == "explorer"
 
-    def test_all_spikes_have_agent_assigned(self, tmp_htmlgraph: Path, isolated_db: Path):
+    def test_all_spikes_have_agent_assigned(
+        self, tmp_htmlgraph: Path, isolated_db: Path
+    ):
         """All retrieved spikes should have agent_assigned."""
         sdk = SDK(directory=tmp_htmlgraph, agent="coder", db_path=str(isolated_db))
 

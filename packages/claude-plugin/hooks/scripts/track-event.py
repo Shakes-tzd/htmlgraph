@@ -505,17 +505,39 @@ def main():
         if len(prompt) > 100:
             preview += "..."
 
-        # DEBUG: Log what we received
-        print(f"DEBUG UserPromptSubmit: hook_input keys={list(hook_input.keys())}, prompt_len={len(prompt)}, preview={preview[:50]}", file=sys.stderr)
+        # FIX 2: Use HookContext for correct session ID resolution
+        # This ensures we use the session_id from hook_input if available
+        try:
+            from htmlgraph.hooks.context import HookContext
+
+            context = HookContext.from_input(hook_input)
+            resolved_session_id = context.session_id
+
+            # DEBUG: Log session ID resolution
+            print(
+                f"DEBUG UserPromptSubmit: hook_input session_id={hook_input.get('session_id')}, "
+                f"resolved session_id={resolved_session_id}",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(
+                f"Warning: Could not resolve session via HookContext: {e}",
+                file=sys.stderr,
+            )
+            resolved_session_id = active_session_id
 
         try:
             result = manager.track_activity(
-                session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
+                session_id=resolved_session_id, tool="UserQuery", summary=f'"{preview}"'
             )
-            print(f"DEBUG UserPromptSubmit: tracked successfully, event_id={result.id if result else 'None'}", file=sys.stderr)
+            print(
+                f"DEBUG UserPromptSubmit: tracked successfully, event_id={result.id if result else 'None'}",
+                file=sys.stderr,
+            )
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
             import traceback
+
             traceback.print_exc(file=sys.stderr)
         output_response()
         return
@@ -533,6 +555,28 @@ def main():
         if tool_name in skip_tools:
             output_response()
             return
+
+        # FIX 2: Use HookContext for correct session ID resolution in PostToolUse
+        # PostToolUse hooks don't receive session_id directly, so we need to resolve it
+        try:
+            from htmlgraph.hooks.context import HookContext
+
+            context = HookContext.from_input(hook_input)
+            resolved_session_id = context.session_id
+
+            # DEBUG: Log session ID resolution
+            print(
+                f"DEBUG PostToolUse: hook_input session_id={hook_input.get('session_id')}, "
+                f"resolved session_id={resolved_session_id}, "
+                f"active_session_id={active_session_id}",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(
+                f"Warning: Could not resolve session via HookContext: {e}",
+                file=sys.stderr,
+            )
+            resolved_session_id = active_session_id
 
         # Extract file paths
         file_paths = extract_file_paths(tool_input_data, tool_name)
@@ -589,7 +633,7 @@ def main():
         nudge = None
         try:
             result = manager.track_activity(
-                session_id=active_session_id,
+                session_id=resolved_session_id,
                 tool=tool_name,
                 summary=summary,
                 file_paths=file_paths if file_paths else None,

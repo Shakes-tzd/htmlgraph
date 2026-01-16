@@ -12,17 +12,17 @@ from pathlib import Path
 
 def has_logging_import(content: str) -> bool:
     """Check if file already imports logging."""
-    return bool(re.search(r'^import logging\b', content, re.MULTILINE))
+    return bool(re.search(r"^import logging\b", content, re.MULTILINE))
 
 
 def has_logger_setup(content: str) -> bool:
     """Check if file already has logger setup."""
-    return bool(re.search(r'logger\s*=\s*logging\.getLogger\(__name__\)', content))
+    return bool(re.search(r"logger\s*=\s*logging\.getLogger\(__name__\)", content))
 
 
 def add_logging_imports(content: str) -> str:
     """Add logging imports if not present."""
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # Find the right place to insert imports (after docstring, before other imports)
     insert_idx = 0
@@ -43,7 +43,7 @@ def add_logging_imports(content: str) -> str:
             continue
 
         # Skip empty lines and comments after docstring
-        if not stripped or stripped.startswith('#'):
+        if not stripped or stripped.startswith("#"):
             insert_idx = i + 1
             continue
 
@@ -52,7 +52,7 @@ def add_logging_imports(content: str) -> str:
 
     # Check if logging is already imported
     if not has_logging_import(content):
-        lines.insert(insert_idx, 'import logging\n')
+        lines.insert(insert_idx, "import logging\n")
         insert_idx += 1
 
     # Add logger setup after all imports
@@ -61,28 +61,33 @@ def add_logging_imports(content: str) -> str:
         last_import_idx = insert_idx
         for i in range(insert_idx, len(lines)):
             stripped = lines[i].strip()
-            if stripped.startswith(('import ', 'from ')):
+            if stripped.startswith(("import ", "from ")):
                 last_import_idx = i
-            elif stripped and not stripped.startswith('#'):
+            elif stripped and not stripped.startswith("#"):
                 break
 
-        lines.insert(last_import_idx + 1, '\nlogger = logging.getLogger(__name__)\n')
+        lines.insert(last_import_idx + 1, "\nlogger = logging.getLogger(__name__)\n")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def classify_print_level(print_content: str, context: str) -> str:
     """Determine appropriate logging level based on print content."""
     lower = print_content.lower()
 
-    if any(word in lower for word in ['error', 'failed', 'failure', 'exception', 'critical']):
-        return 'error'
-    elif any(word in lower for word in ['warning', 'warn', 'deprecated']):
-        return 'warning'
-    elif any(word in lower for word in ['debug', 'trace', 'verbose', 'watching', 'reloading']):
-        return 'debug'
+    if any(
+        word in lower
+        for word in ["error", "failed", "failure", "exception", "critical"]
+    ):
+        return "error"
+    elif any(word in lower for word in ["warning", "warn", "deprecated"]):
+        return "warning"
+    elif any(
+        word in lower for word in ["debug", "trace", "verbose", "watching", "reloading"]
+    ):
+        return "debug"
     else:
-        return 'info'
+        return "info"
 
 
 def migrate_print_statement(match: re.Match, full_content: str) -> str:
@@ -101,16 +106,16 @@ def migrate_print_statement(match: re.Match, full_content: str) -> str:
     # Handle different print() argument patterns
     # Case 1: f-string -> logger.info(f"...")
     if args.strip().startswith('f"') or args.strip().startswith("f'"):
-        return f'{indent}logger.{level}({args.strip()})'
+        return f"{indent}logger.{level}({args.strip()})"
 
     # Case 2: Simple string -> logger.info("...")
     elif args.strip().startswith('"') or args.strip().startswith("'"):
-        return f'{indent}logger.{level}({args.strip()})'
+        return f"{indent}logger.{level}({args.strip()})"
 
     # Case 3: Multiple arguments with formatting -> logger.info(f"...")
-    elif ',' in args or '%' in args:
+    elif "," in args or "%" in args:
         # Complex case - keep as is for now, convert to f-string manually
-        return f'{indent}logger.{level}({args.strip()})'
+        return f"{indent}logger.{level}({args.strip()})"
 
     # Case 4: Variable -> logger.info("%s", variable)
     else:
@@ -128,7 +133,7 @@ def migrate_file(file_path: Path) -> tuple[bool, int]:
     original = content
 
     # Count original prints
-    original_prints = len(re.findall(r'\bprint\(', content))
+    original_prints = len(re.findall(r"\bprint\(", content))
     if original_prints == 0:
         return False, 0
 
@@ -137,7 +142,7 @@ def migrate_file(file_path: Path) -> tuple[bool, int]:
 
     # Replace print() statements
     # Match: print(...) with proper nesting handling
-    pattern = r'^(\s*)print\((.*?)\)\s*$'
+    pattern = r"^(\s*)print\((.*?)\)\s*$"
 
     def replacer(match):
         return migrate_print_statement(match, content)
@@ -145,7 +150,7 @@ def migrate_file(file_path: Path) -> tuple[bool, int]:
     content = re.sub(pattern, replacer, content, flags=re.MULTILINE)
 
     # Verify we replaced prints
-    remaining_prints = len(re.findall(r'\bprint\(', content))
+    remaining_prints = len(re.findall(r"\bprint\(", content))
     replaced = original_prints - remaining_prints
 
     if content != original:
@@ -158,30 +163,30 @@ def migrate_file(file_path: Path) -> tuple[bool, int]:
 def migrate_all_files(root_dir: Path) -> dict:
     """Migrate all Python files in directory."""
     results = {
-        'files_changed': 0,
-        'prints_replaced': 0,
-        'files_processed': 0,
-        'files_with_prints': []
+        "files_changed": 0,
+        "prints_replaced": 0,
+        "files_processed": 0,
+        "files_with_prints": [],
     }
 
-    for py_file in root_dir.rglob('*.py'):
-        if '__pycache__' in str(py_file) or 'venv' in str(py_file):
+    for py_file in root_dir.rglob("*.py"):
+        if "__pycache__" in str(py_file) or "venv" in str(py_file):
             continue
 
-        results['files_processed'] += 1
+        results["files_processed"] += 1
         changed, replaced = migrate_file(py_file)
 
         if changed:
-            results['files_changed'] += 1
-            results['prints_replaced'] += replaced
-            results['files_with_prints'].append((str(py_file), replaced))
+            results["files_changed"] += 1
+            results["prints_replaced"] += replaced
+            results["files_with_prints"].append((str(py_file), replaced))
 
     return results
 
 
 def main():
     """Run migration on src/python/htmlgraph directory."""
-    root = Path(__file__).parent / 'src' / 'python' / 'htmlgraph'
+    root = Path(__file__).parent / "src" / "python" / "htmlgraph"
 
     if not root.exists():
         print(f"Error: {root} not found", file=sys.stderr)
@@ -195,13 +200,15 @@ def main():
     print(f"  Files changed: {results['files_changed']}")
     print(f"  Print statements replaced: {results['prints_replaced']}")
 
-    if results['files_with_prints']:
+    if results["files_with_prints"]:
         print("\nFiles modified:")
-        for file_path, count in sorted(results['files_with_prints'], key=lambda x: -x[1])[:20]:
+        for file_path, count in sorted(
+            results["files_with_prints"], key=lambda x: -x[1]
+        )[:20]:
             print(f"  {file_path}: {count} prints")
 
-    return 0 if results['files_changed'] > 0 else 1
+    return 0 if results["files_changed"] > 0 else 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

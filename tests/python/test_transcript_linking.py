@@ -72,7 +72,9 @@ class TestLinkTranscriptToFeature:
         assert edges[0].properties.get("tool_count") == 42
         assert edges[0].properties.get("duration_seconds") == 300
 
-    def test_link_does_not_duplicate(self, temp_graph_dir, mock_transcript_session, isolated_db):
+    def test_link_does_not_duplicate(
+        self, temp_graph_dir, mock_transcript_session, isolated_db
+    ):
         """Linking the same transcript twice should not create duplicate edges."""
         from htmlgraph.models import Edge, Node
         from htmlgraph.session_manager import SessionManager
@@ -104,7 +106,9 @@ class TestLinkTranscriptToFeature:
         edges = node.edges.get("implemented-by", [])
         assert len(edges) == 1
 
-    def test_link_aggregates_analytics(self, temp_graph_dir, mock_transcript_session, isolated_db):
+    def test_link_aggregates_analytics(
+        self, temp_graph_dir, mock_transcript_session, isolated_db
+    ):
         """Linking should add transcript analytics to feature properties."""
         from htmlgraph.models import Node
         from htmlgraph.session_manager import SessionManager
@@ -139,7 +143,9 @@ class TestCompleteWithTranscript:
 
         from htmlgraph import SDK
 
-        sdk = SDK(directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db))
+        sdk = SDK(
+            directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db)
+        )
 
         # Create track and feature
         track = sdk.tracks.create("Test Track").save()
@@ -175,7 +181,9 @@ class TestParallelWorkflowLinkTranscripts:
         from htmlgraph import SDK
         from htmlgraph.parallel import ParallelWorkflow
 
-        sdk = SDK(directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db))
+        sdk = SDK(
+            directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db)
+        )
         workflow = ParallelWorkflow(sdk)
 
         # Create track and test features
@@ -207,7 +215,9 @@ class TestParallelWorkflowLinkTranscripts:
         from htmlgraph import SDK
         from htmlgraph.parallel import ParallelWorkflow
 
-        sdk = SDK(directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db))
+        sdk = SDK(
+            directory=temp_graph_dir, agent="test-agent", db_path=str(isolated_db)
+        )
         workflow = ParallelWorkflow(sdk)
 
         result = workflow.link_transcripts(

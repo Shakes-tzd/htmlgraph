@@ -16,6 +16,7 @@ Run with: pytest tests/unit/repositories/test_feature_repository_compliance.py
 from typing import Any
 
 import pytest
+from htmlgraph.models import Edge
 from htmlgraph.repositories.feature_repository import (
     FeatureNotFoundError,
     FeatureRepository,
@@ -127,7 +128,9 @@ class FeatureRepositoryComplianceTests:
 
     # ===== LIST OPERATIONS =====
 
-    def test_list_with_no_filters_returns_all(self, repo: FeatureRepository, sample_features):
+    def test_list_with_no_filters_returns_all(
+        self, repo: FeatureRepository, sample_features
+    ):
         """list() with no filters returns all features."""
         # Create all features
         for sf in sample_features:
@@ -136,7 +139,9 @@ class FeatureRepositoryComplianceTests:
         # List with no filters
         all_features = repo.list()
         assert isinstance(all_features, list), "list() must return a list"
-        assert len(all_features) == len(sample_features), "list() should return all features"
+        assert len(all_features) == len(sample_features), (
+            "list() should return all features"
+        )
 
     def test_list_returns_empty_list_not_none(self, repo: FeatureRepository):
         """list() returns empty list, never None."""
@@ -145,7 +150,9 @@ class FeatureRepositoryComplianceTests:
         assert isinstance(result, list), "list() must return a list"
         assert len(result) == 0, "Empty repo should return empty list"
 
-    def test_list_with_empty_filters_dict(self, repo: FeatureRepository, sample_features):
+    def test_list_with_empty_filters_dict(
+        self, repo: FeatureRepository, sample_features
+    ):
         """list() with empty filters dict returns all."""
         for sf in sample_features:
             self._create_feature(repo, sf)
@@ -173,7 +180,9 @@ class FeatureRepositoryComplianceTests:
         assert len(result) >= 1, "Should find at least 1 feature"
         assert all(f.status == "todo" and f.priority == "high" for f in result)
 
-    def test_list_preserves_object_identity(self, repo: FeatureRepository, sample_features):
+    def test_list_preserves_object_identity(
+        self, repo: FeatureRepository, sample_features
+    ):
         """Objects returned by list() should be same instances as from get()."""
         for sf in sample_features:
             self._create_feature(repo, sf)
@@ -270,7 +279,9 @@ class FeatureRepositoryComplianceTests:
         assert len(results) >= len(ids) - 1  # Allow for missing
         assert all(r is not None for r in results if r)
 
-    def test_batch_get_preserves_identity(self, repo: FeatureRepository, sample_features):
+    def test_batch_get_preserves_identity(
+        self, repo: FeatureRepository, sample_features
+    ):
         """batch_get() returns same instances as get()."""
         f1 = self._create_feature(repo, sample_features[0])
         f2 = self._create_feature(repo, sample_features[1])
@@ -321,7 +332,9 @@ class FeatureRepositoryComplianceTests:
         feature = self._create_feature(repo, sample_features[0])
         assert feature.id is not None, "create() should generate ID"
 
-    def test_create_returns_saved_instance(self, repo: FeatureRepository, sample_features):
+    def test_create_returns_saved_instance(
+        self, repo: FeatureRepository, sample_features
+    ):
         """create() returns feature that's immediately retrievable."""
         created = self._create_feature(repo, sample_features[0])
         retrieved = repo.get(created.id)
@@ -367,7 +380,7 @@ class FeatureRepositoryComplianceTests:
         f2 = self._create_feature(repo, sample_features[1])
 
         # f2 depends on f1
-        f2.edges = {"depends_on": [{"target_id": f1.id}]}
+        f2.edges = {"depends_on": [Edge(target_id=f1.id, relationship="depends_on")]}
         repo.save(f2)
 
         deps = repo.find_dependencies(f2.id)
@@ -379,7 +392,7 @@ class FeatureRepositoryComplianceTests:
         f2 = self._create_feature(repo, sample_features[1])
 
         # f2 depends on f1
-        f2.edges = {"depends_on": [{"target_id": f1.id}]}
+        f2.edges = {"depends_on": [Edge(target_id=f1.id, relationship="depends_on")]}
         repo.save(f2)
 
         blocked = repo.find_blocking(f1.id)
@@ -396,7 +409,9 @@ class FeatureRepositoryComplianceTests:
 
     # ===== CACHE MANAGEMENT =====
 
-    def test_invalidate_single_feature_cache(self, repo: FeatureRepository, sample_features):
+    def test_invalidate_single_feature_cache(
+        self, repo: FeatureRepository, sample_features
+    ):
         """invalidate_cache(id) clears single feature cache."""
         f = self._create_feature(repo, sample_features[0])
         repo.invalidate_cache(f.id)

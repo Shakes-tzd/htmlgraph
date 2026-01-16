@@ -46,7 +46,6 @@ class TestRefManager:
     """Tests for RefManager class."""
 
     def test_ref_generation(self, ref_manager, isolated_db):
-
         """Test generating refs for different node types."""
         # Generate refs for different types
         feature_ref = ref_manager.generate_ref("feat-abc123")
@@ -73,7 +72,6 @@ class TestRefManager:
         assert feature2_ref == "@f2"
 
     def test_ref_resolution(self, ref_manager, isolated_db):
-
         """Test resolving short refs back to full IDs."""
         # Generate refs
         feature_id = "feat-abc123"
@@ -87,7 +85,6 @@ class TestRefManager:
         assert ref_manager.resolve_ref("@f999") is None
 
     def test_ref_persistence(self, ref_manager, temp_graph_dir, isolated_db):
-
         """Test that refs persist across RefManager reloads."""
         # Generate refs
         feature_id = "feat-abc123"
@@ -115,7 +112,6 @@ class TestRefManager:
         assert new_ref_manager.resolve_ref(track_ref) == track_id
 
     def test_ref_idempotency(self, ref_manager, isolated_db):
-
         """Test that getting same ref twice returns same value."""
         feature_id = "feat-abc123"
 
@@ -131,7 +127,6 @@ class TestRefManager:
         assert ref3 == ref1
 
     def test_get_refs_by_type(self, ref_manager, isolated_db):
-
         """Test filtering refs by node type."""
         # Generate multiple features
         ref_manager.generate_ref("feat-abc123")
@@ -159,7 +154,6 @@ class TestRefManager:
         assert len(unknown_refs) == 0
 
     def test_rebuild_refs(self, ref_manager, temp_graph_dir, isolated_db):
-
         """Test rebuilding refs from filesystem."""
         # Create some HTML files in collections
         features_dir = temp_graph_dir / "features"
@@ -183,8 +177,9 @@ class TestRefManager:
         assert ref_manager.resolve_ref("@f2") == "feat-def456"
         assert ref_manager.resolve_ref("@b1") == "bug-xyz789"
 
-    def test_rebuild_refs_preserves_existing(self, ref_manager, temp_graph_dir, isolated_db):
-
+    def test_rebuild_refs_preserves_existing(
+        self, ref_manager, temp_graph_dir, isolated_db
+    ):
         """Test that rebuild preserves existing refs when possible."""
         # Generate initial refs
         feature_id = "feat-abc123"
@@ -205,7 +200,6 @@ class TestRefManager:
         assert ref_manager.get_ref(feature_id) == "@f1"
 
     def test_invalid_node_id(self, ref_manager, isolated_db):
-
         """Test handling of invalid node IDs."""
         # No hyphen
         with pytest.raises(ValueError):
@@ -220,7 +214,6 @@ class TestRefManager:
         assert ref_manager.get_ref("xxx-abc123") is None
 
     def test_corrupted_refs_file(self, temp_graph_dir, isolated_db):
-
         """Test handling of corrupted refs.json file."""
         # Write corrupted JSON
         refs_file = temp_graph_dir / "refs.json"
@@ -239,16 +232,18 @@ class TestSDKIntegration:
     """Tests for SDK integration with RefManager."""
 
     def test_sdk_initializes_ref_manager(self, temp_graph_dir, isolated_db):
-
         """Test that SDK initializes RefManager."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
         assert hasattr(sdk, "refs")
         assert isinstance(sdk.refs, RefManager)
 
     def test_sdk_ref_method(self, temp_graph_dir, isolated_db):
-
         """Test sdk.ref() method resolves refs to nodes."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Create a track first
         track = sdk.tracks.create("Test Track").save()
@@ -268,9 +263,10 @@ class TestSDKIntegration:
         assert resolved_node.title == "Test Feature"
 
     def test_sdk_ref_method_multiple_types(self, temp_graph_dir, isolated_db):
-
         """Test sdk.ref() with multiple node types."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Create a track first
         track = sdk.tracks.create("Test Track").save()
@@ -291,9 +287,10 @@ class TestSDKIntegration:
         assert sdk.ref(spike_ref).id == spike.id
 
     def test_sdk_ref_nonexistent(self, temp_graph_dir, isolated_db):
-
         """Test sdk.ref() with non-existent ref."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Non-existent ref
         result = sdk.ref("@f999")
@@ -304,9 +301,10 @@ class TestSDKIntegration:
         assert result is None
 
     def test_collection_get_ref(self, temp_graph_dir, isolated_db):
-
         """Test collection.get_ref() convenience method."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Create a track first
         track = sdk.tracks.create("Test Track").save()
@@ -324,16 +322,19 @@ class TestSDKIntegration:
         assert ref == sdk_ref
 
     def test_ref_persistence_across_sdk_instances(self, temp_graph_dir, isolated_db):
-
         """Test refs persist across SDK reloads."""
         # Create SDK and generate refs
-        sdk1 = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk1 = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
         track = sdk1.tracks.create("Test Track").save()
         feature = sdk1.features.create("Test Feature").set_track(track.id).save()
         ref = sdk1.refs.get_ref(feature.id)
 
         # Create new SDK instance
-        sdk2 = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk2 = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Verify ref still resolves
         resolved = sdk2.ref(ref)
@@ -341,9 +342,10 @@ class TestSDKIntegration:
         assert resolved.id == feature.id
 
     def test_ref_manager_set_on_all_collections(self, temp_graph_dir, isolated_db):
-
         """Test that all collections have ref_manager set."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         collections = [
             sdk.features,
@@ -361,9 +363,10 @@ class TestSDKIntegration:
             assert collection._ref_manager is sdk.refs
 
     def test_ref_generation_on_create(self, temp_graph_dir, isolated_db):
-
         """Test that refs are auto-generated when accessing nodes."""
-        sdk = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Create a track first
         track = sdk.tracks.create("Test Track").save()

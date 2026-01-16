@@ -222,12 +222,8 @@ class CostMonitor:
         else:
             model_config = defaults
 
-        input_cost_per_mtok: float = model_config.get(
-            "input_cost_per_mtok", 0.0
-        )
-        output_cost_per_mtok: float = model_config.get(
-            "output_cost_per_mtok", 0.0
-        )
+        input_cost_per_mtok: float = model_config.get("input_cost_per_mtok", 0.0)
+        output_cost_per_mtok: float = model_config.get("output_cost_per_mtok", 0.0)
         input_cost = (input_tokens / 1_000_000) * input_cost_per_mtok
         output_cost = (output_tokens / 1_000_000) * output_cost_per_mtok
 
@@ -586,6 +582,12 @@ class CostMonitor:
 
         alerts = []
         for row in cursor.fetchall():
+            # sqlite3.Row doesn't have .get(), use dict conversion or try/except
+            severity = "warning"
+            try:
+                severity = row["severity"]
+            except (KeyError, IndexError):
+                pass
             alert = CostAlert(
                 alert_id=row["event_id"],
                 alert_type=row["alert_type"],
@@ -594,7 +596,7 @@ class CostMonitor:
                 message=row["message"],
                 current_cost_usd=row["current_cost_usd"],
                 budget_usd=row["budget_usd"],
-                severity=row.get("severity", "warning"),
+                severity=severity,
             )
             alerts.append(alert)
 

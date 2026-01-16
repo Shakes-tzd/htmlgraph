@@ -20,7 +20,7 @@ RESULTS = {
 }
 
 
-def test_gemini_spawner(isolated_db):
+def test_gemini_spawner():
     """Test Task() with spawner_type='gemini'."""
     print("\n" + "=" * 70)
     print("TEST 1: Gemini Spawner Routing")
@@ -76,7 +76,7 @@ def test_gemini_spawner(isolated_db):
         return False
 
 
-def test_codex_spawner(isolated_db):
+def test_codex_spawner():
     """Test Task() with spawner_type='codex'."""
     print("\n" + "=" * 70)
     print("TEST 2: Codex Spawner Routing")
@@ -131,7 +131,7 @@ def test_codex_spawner(isolated_db):
         return False
 
 
-def test_copilot_spawner(isolated_db):
+def test_copilot_spawner():
     """Test Task() with spawner_type='copilot'."""
     print("\n" + "=" * 70)
     print("TEST 3: Copilot Spawner Routing")
@@ -252,7 +252,7 @@ def generate_spike():
     try:
         from htmlgraph import SDK
 
-        sdk = SDK(agent="test-spawner-routing", db_path=str(isolated_db))
+        sdk = SDK(agent="test-spawner-routing")
 
         # Build findings summary
         findings = "# Spawner Routing Test Results\n\n"
@@ -351,4 +351,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

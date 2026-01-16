@@ -205,7 +205,6 @@ class TestCrossSessionAnalytics:
     """Test CrossSessionAnalytics class."""
 
     def test_initialization(self, sdk_with_commits, isolated_db):
-
         """Test that CrossSessionAnalytics initializes correctly."""
         sdk, _, _ = sdk_with_commits
 
@@ -216,7 +215,6 @@ class TestCrossSessionAnalytics:
         assert analytics._repo_root is not None
 
     def test_work_in_commit_range_all_commits(self, sdk_with_commits, isolated_db):
-
         """Test getting work for all commits."""
         sdk, temp_repo, commits = sdk_with_commits
 
@@ -231,7 +229,6 @@ class TestCrossSessionAnalytics:
         assert "session-002" in report.sessions
 
     def test_work_in_commit_range_specific_range(self, sdk_with_commits, isolated_db):
-
         """Test getting work for specific commit range."""
         sdk, temp_repo, commits = sdk_with_commits
 
@@ -247,7 +244,6 @@ class TestCrossSessionAnalytics:
         assert report.to_commit == "HEAD"
 
     def test_sessions_for_feature(self, sdk_with_commits, isolated_db):
-
         """Test finding sessions that worked on a feature."""
         sdk, _, _ = sdk_with_commits
 
@@ -260,7 +256,6 @@ class TestCrossSessionAnalytics:
         assert isinstance(sessions, list)
 
     def test_sessions_for_feature_nonexistent(self, sdk_with_commits, isolated_db):
-
         """Test finding sessions for nonexistent feature."""
         sdk, _, _ = sdk_with_commits
 
@@ -271,7 +266,6 @@ class TestCrossSessionAnalytics:
         assert sessions == []
 
     def test_feature_cross_session_report(self, sdk_with_commits, isolated_db):
-
         """Test generating cross-session report for a feature."""
         sdk, _, commits = sdk_with_commits
 
@@ -287,8 +281,9 @@ class TestCrossSessionAnalytics:
         assert report.event_count >= 1
         assert "feature-implementation" in report.work_type_distribution
 
-    def test_feature_cross_session_report_calculates_duration(self, sdk_with_commits, isolated_db):
-
+    def test_feature_cross_session_report_calculates_duration(
+        self, sdk_with_commits, isolated_db
+    ):
         """Test that feature report calculates duration correctly."""
         sdk, _, _ = sdk_with_commits
 
@@ -302,7 +297,6 @@ class TestCrossSessionAnalytics:
         assert report.duration_hours >= 0
 
     def test_work_by_author(self, sdk_with_commits, isolated_db):
-
         """Test analyzing work by author."""
         sdk, _, _ = sdk_with_commits
 
@@ -318,7 +312,6 @@ class TestCrossSessionAnalytics:
         assert len(author_stats["sessions"]) >= 2
 
     def test_work_by_author_filtered(self, sdk_with_commits, isolated_db):
-
         """Test filtering work by specific author."""
         sdk, _, _ = sdk_with_commits
 
@@ -330,7 +323,6 @@ class TestCrossSessionAnalytics:
         assert "test@example.com" in authors
 
     def test_work_by_author_since_commit(self, sdk_with_commits, isolated_db):
-
         """Test analyzing work since a specific commit."""
         sdk, _, commits = sdk_with_commits
 
@@ -342,7 +334,6 @@ class TestCrossSessionAnalytics:
         assert "test@example.com" in authors
 
     def test_commits_for_session(self, sdk_with_commits, isolated_db):
-
         """Test getting commits for a session."""
         sdk, _, commits = sdk_with_commits
 
@@ -354,7 +345,6 @@ class TestCrossSessionAnalytics:
         assert commits[1] in session_commits
 
     def test_commits_for_session_nonexistent(self, sdk_with_commits, isolated_db):
-
         """Test getting commits for nonexistent session."""
         sdk, _, _ = sdk_with_commits
 
@@ -365,7 +355,6 @@ class TestCrossSessionAnalytics:
         assert session_commits == []
 
     def test_commit_work_summary_structure(self, sdk_with_commits, isolated_db):
-
         """Test that CommitWorkSummary has correct structure."""
         sdk, _, _ = sdk_with_commits
 
@@ -455,7 +444,9 @@ class TestCrossSessionAnalyticsEdgeCases:
 class TestCrossSessionAnalyticsIntegration:
     """Integration tests with SDK."""
 
-    def test_sdk_has_cross_session_analytics_property(self, isolated_graph_dir_full, isolated_db):
+    def test_sdk_has_cross_session_analytics_property(
+        self, isolated_graph_dir_full, isolated_db
+    ):
         """Test that SDK has cross_session_analytics property."""
         graph_dir = isolated_graph_dir_full
 
@@ -464,7 +455,9 @@ class TestCrossSessionAnalyticsIntegration:
         assert hasattr(sdk, "cross_session_analytics")
         assert isinstance(sdk.cross_session_analytics, CrossSessionAnalytics)
 
-    def test_cross_session_analytics_has_sdk_reference(self, isolated_graph_dir_full, isolated_db):
+    def test_cross_session_analytics_has_sdk_reference(
+        self, isolated_graph_dir_full, isolated_db
+    ):
         """Test that CrossSessionAnalytics has reference to SDK."""
         graph_dir = isolated_graph_dir_full
 

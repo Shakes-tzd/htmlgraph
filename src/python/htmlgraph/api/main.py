@@ -20,7 +20,7 @@ import logging
 import random
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -2223,23 +2223,97 @@ def get_app(db_path: str) -> FastAPI:
     # ========== WEBSOCKET FOR REAL-TIME UPDATES ==========
 
     @app.websocket("/ws/events")
-    async def websocket_events(websocket: WebSocket) -> None:
+    async def websocket_events(websocket: WebSocket, since: str | None = None) -> None:
         """WebSocket endpoint for real-time event streaming.
 
         OPTIMIZATION: Uses timestamp-based filtering to minimize data transfers.
         The timestamp > ? filter with DESC index makes queries O(log n) instead of O(n).
 
-        IMPORTANT: Initializes last_timestamp to current time to only stream NEW events.
-        Historical events are already counted in /api/initial-stats, so streaming them
-        again would cause double-counting in the header stats.
+        FIX 3: Now supports loading historical events via 'since' parameter.
+        - If 'since' provided: Load events from that timestamp onwards
+        - If 'since' not provided: Load events from last 1 hour (default)
+        - After historical load: Continue streaming real-time events
 
         LIVE EVENTS: Also polls live_events table for real-time spawner activity
         streaming. These events are marked as broadcast after sending and cleaned up.
+
+        Args:
+            since: Optional ISO timestamp to start streaming from (e.g., "2025-01-16T10:00:00")
+                   If not provided, defaults to 1 hour ago
         """
         await websocket.accept()
-        # Initialize to current time - only stream events created AFTER connection
-        # This prevents double-counting: initial-stats already includes historical events
-        last_timestamp: str = datetime.now().isoformat()
+
+        # FIX 3: Determine starting timestamp
+        if since:
+            try:
+                # Validate timestamp format
+                datetime.fromisoformat(since.replace("Z", "+00:00"))
+                last_timestamp = since
+            except (ValueError, AttributeError):
+                # Invalid timestamp - default to 1 hour ago
+                last_timestamp = (datetime.now() - timedelta(hours=1)).isoformat()
+        else:
+            # Default: Load events from last 1 hour
+            last_timestamp = (datetime.now() - timedelta(hours=1)).isoformat()
+
+        # FIX 3: Load historical events first (before real-time streaming)
+        db = await get_db()
+        try:
+            historical_query = """
+                SELECT event_id, agent_id, event_type, timestamp, tool_name,
+                       input_summary, output_summary, session_id, status, model,
+                       parent_event_id, execution_duration_seconds, context,
+                       cost_tokens
+                FROM agent_events
+                WHERE timestamp >= ? AND timestamp < datetime('now')
+                ORDER BY timestamp ASC
+                LIMIT 1000
+            """
+            cursor = await db.execute(historical_query, [last_timestamp])
+            historical_rows = await cursor.fetchall()
+
+            # Send historical events first
+            if historical_rows:
+                historical_rows_list = list(historical_rows)
+                for row in historical_rows_list:
+                    row_list = list(row)
+                    # Parse context JSON if present
+                    context_data = {}
+                    if row_list[12]:  # context column
+                        try:
+                            context_data = json.loads(row_list[12])
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
+                    event_data = {
+                        "type": "event",
+                        "event_id": row_list[0],
+                        "agent_id": row_list[1] or "unknown",
+                        "event_type": row_list[2],
+                        "timestamp": row_list[3],
+                        "tool_name": row_list[4],
+                        "input_summary": row_list[5],
+                        "output_summary": row_list[6],
+                        "session_id": row_list[7],
+                        "status": row_list[8],
+                        "model": row_list[9],
+                        "parent_event_id": row_list[10],
+                        "execution_duration_seconds": row_list[11] or 0.0,
+                        "cost_tokens": row_list[13] or 0,
+                        "context": context_data,
+                    }
+                    await websocket.send_json(event_data)
+
+                # Update last_timestamp to last historical event
+                last_timestamp = historical_rows_list[-1][3]
+
+        except Exception as e:
+            logger.error(f"Error loading historical events: {e}")
+        finally:
+            await db.close()
+
+        # Update to current time for real-time streaming
+        last_timestamp = datetime.now().isoformat()
         poll_interval = 0.5  # OPTIMIZATION: Adaptive polling (reduced from 1s)
         last_live_event_id = 0  # Track last broadcast live event ID
 
@@ -2268,35 +2342,35 @@ def get_app(db_path: str) -> FastAPI:
 
                     if rows:
                         has_activity = True
-                        rows_list = [list(row) for row in rows]
+                        rows_list: list[list[Any]] = [list(row) for row in rows]
                         # Update last timestamp (last row since ORDER BY ts ASC)
                         last_timestamp = rows_list[-1][3]
 
                         # Send events in order (no need to reverse with ASC)
-                        for row in rows_list:
+                        for event_row in rows_list:
                             # Parse context JSON if present
                             context_data = {}
-                            if row[12]:  # context column
+                            if event_row[12]:  # context column
                                 try:
-                                    context_data = json.loads(row[12])
+                                    context_data = json.loads(event_row[12])
                                 except (json.JSONDecodeError, TypeError):
                                     pass
 
                             event_data = {
                                 "type": "event",
-                                "event_id": row[0],
-                                "agent_id": row[1] or "unknown",
-                                "event_type": row[2],
-                                "timestamp": row[3],
-                                "tool_name": row[4],
-                                "input_summary": row[5],
-                                "output_summary": row[6],
-                                "session_id": row[7],
-                                "status": row[8],
-                                "model": row[9],
-                                "parent_event_id": row[10],
-                                "execution_duration_seconds": row[11] or 0.0,
-                                "cost_tokens": row[13] or 0,
+                                "event_id": event_row[0],
+                                "agent_id": event_row[1] or "unknown",
+                                "event_type": event_row[2],
+                                "timestamp": event_row[3],
+                                "tool_name": event_row[4],
+                                "input_summary": event_row[5],
+                                "output_summary": event_row[6],
+                                "session_id": event_row[7],
+                                "status": event_row[8],
+                                "model": event_row[9],
+                                "parent_event_id": event_row[10],
+                                "execution_duration_seconds": event_row[11] or 0.0,
+                                "cost_tokens": event_row[13] or 0,
                                 "context": context_data,
                             }
                             await websocket.send_json(event_data)

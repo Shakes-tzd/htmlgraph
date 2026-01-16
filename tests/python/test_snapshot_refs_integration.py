@@ -168,7 +168,9 @@ def populated_sdk(sdk_instance: SDK) -> SDK:
 class TestEndToEndWorkflow:
     """Test complete workflows combining SDK, refs, and snapshot."""
 
-    def test_create_features_get_refs_snapshot_success(self, populated_sdk, isolated_db):
+    def test_create_features_get_refs_snapshot_success(
+        self, populated_sdk, isolated_db
+    ):
         """
         Test: Create 5 features with various statuses
         - Verify refs are generated (@f1, @f2, etc.)
@@ -358,14 +360,18 @@ class TestSDKRefIntegration:
         - Verify old ref still resolves
         """
         # Create SDK and feature
-        sdk1 = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk1 = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
         track = sdk1.tracks.create("Test Track").save()
         feature = sdk1.features.create("Test Feature").set_track(track.id).save()
         ref = sdk1.refs.get_ref(feature.id)
         assert ref == "@f1"
 
         # Create new SDK instance
-        sdk2 = SDK(agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db))
+        sdk2 = SDK(
+            agent="test-agent", directory=temp_graph_dir, db_path=str(isolated_db)
+        )
 
         # Verify ref persists
         resolved = sdk2.ref(ref)
@@ -563,7 +569,9 @@ class TestBrowseCommandIntegration:
 
     @patch("webbrowser.open")
     @patch("requests.head")
-    def test_browse_opens_with_query_status(self, mock_requests_head, mock_webbrowser, isolated_db):
+    def test_browse_opens_with_query_status(
+        self, mock_requests_head, mock_webbrowser, isolated_db
+    ):
         """
         Test: Run browse command with --query-status todo
         - Verify URL includes correct query params
@@ -583,7 +591,9 @@ class TestBrowseCommandIntegration:
 
     @patch("webbrowser.open")
     @patch("requests.head")
-    def test_browse_opens_with_both_filters(self, mock_requests_head, mock_webbrowser, isolated_db):
+    def test_browse_opens_with_both_filters(
+        self, mock_requests_head, mock_webbrowser, isolated_db
+    ):
         """
         Test: Run browse command with both --query-type and --query-status
         - Verify URL includes both query params
@@ -1157,7 +1167,9 @@ class TestSnapshotBlockersFilter:
         data = json.loads(result.text)
         assert len(data) == 0
 
-    def test_snapshot_blockers_includes_critical_and_blocked(self, sdk_instance, isolated_db):
+    def test_snapshot_blockers_includes_critical_and_blocked(
+        self, sdk_instance, isolated_db
+    ):
         """Test --blockers includes both critical priority and blocked status."""
         sdk = sdk_instance
 
@@ -1237,7 +1249,9 @@ class TestSnapshotSummaryFormat:
         assert "Current Track:" in output
         assert track_ref in output
 
-    def test_snapshot_summary_shows_progress_percentage(self, sdk_instance, isolated_db):
+    def test_snapshot_summary_shows_progress_percentage(
+        self, sdk_instance, isolated_db
+    ):
         """Test --summary calculates and shows progress percentage."""
         sdk = sdk_instance
 
@@ -1427,7 +1441,9 @@ class TestSnapshotMyWorkFilter:
 class TestSnapshotColoredOutput:
     """Test colored output formatting for agent-friendliness."""
 
-    def test_refs_format_has_no_box_drawing_characters(self, populated_sdk, isolated_db):
+    def test_refs_format_has_no_box_drawing_characters(
+        self, populated_sdk, isolated_db
+    ):
         """Test that refs format doesn't use box-drawing characters."""
         sdk = populated_sdk
 

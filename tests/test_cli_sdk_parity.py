@@ -135,19 +135,31 @@ def test_cli_sdk_both_use_operations(tmp_path):
     import htmlgraph.cli as cli_module
     import htmlgraph.sdk as sdk_module
 
-    # Read CLI source to verify it imports from operations
-    cli_source = Path(cli_module.__file__).read_text()
-    assert (
-        "from htmlgraph.operations import" in cli_source
-        or "import htmlgraph.operations" in cli_source
-    ), "CLI should import from operations module"
+    # Read CLI source - check the package directory for any submodule using operations
+    cli_dir = Path(cli_module.__file__).parent
+    cli_uses_operations = False
+    for py_file in cli_dir.glob("*.py"):
+        content = py_file.read_text()
+        if (
+            "from htmlgraph.operations import" in content
+            or "import htmlgraph.operations" in content
+        ):
+            cli_uses_operations = True
+            break
+    assert cli_uses_operations, "CLI should import from operations module"
 
-    # Read SDK source to verify it imports from operations
-    sdk_source = Path(sdk_module.__file__).read_text()
-    assert (
-        "from htmlgraph.operations import" in sdk_source
-        or "import htmlgraph.operations" in sdk_source
-    ), "SDK should import from operations module"
+    # Read SDK source - check the package directory for any submodule using operations
+    sdk_dir = Path(sdk_module.__file__).parent
+    sdk_uses_operations = False
+    for py_file in sdk_dir.glob("*.py"):
+        content = py_file.read_text()
+        if (
+            "from htmlgraph.operations import" in content
+            or "import htmlgraph.operations" in content
+        ):
+            sdk_uses_operations = True
+            break
+    assert sdk_uses_operations, "SDK should import from operations module"
 
 
 def test_operations_errors_exported():

@@ -65,14 +65,18 @@ def empty_sdk(temp_graph_dir, isolated_db):
 class TestActiveWorkItemInSessionStartInfo:
     """Tests for active_work field in session start info."""
 
-    def test_session_start_info_includes_active_work_field(self, empty_sdk, isolated_db):
+    def test_session_start_info_includes_active_work_field(
+        self, empty_sdk, isolated_db
+    ):
         """Test that session start info always includes active_work field."""
         info = empty_sdk.get_session_start_info()
 
         assert "active_work" in info
         assert info["active_work"] is None
 
-    def test_session_start_info_with_active_feature(self, sdk_with_feature, isolated_db):
+    def test_session_start_info_with_active_feature(
+        self, sdk_with_feature, isolated_db
+    ):
         """Test that session start info includes active work item when available."""
         sdk, _ = sdk_with_feature
 
@@ -246,7 +250,9 @@ class TestCLIOutputFormatting:
 class TestActiveWorkItemIntegration:
     """Integration tests for active work item in session management."""
 
-    def test_active_work_returned_when_feature_exists(self, sdk_with_feature, isolated_db):
+    def test_active_work_returned_when_feature_exists(
+        self, sdk_with_feature, isolated_db
+    ):
         """Test active work is returned when feature exists and is in-progress."""
         sdk, expected_feature = sdk_with_feature
 
@@ -257,7 +263,9 @@ class TestActiveWorkItemIntegration:
         assert active["title"] == expected_feature.title
         assert active["type"] == "feature"
 
-    def test_session_start_info_reflects_active_work(self, sdk_with_feature, isolated_db):
+    def test_session_start_info_reflects_active_work(
+        self, sdk_with_feature, isolated_db
+    ):
         """Test that session start info reflects the same active work as get_active_work_item."""
         sdk, _ = sdk_with_feature
 

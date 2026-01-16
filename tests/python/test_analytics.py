@@ -88,12 +88,16 @@ class TestWorkTypeDistribution:
 
     def test_distribution_empty_session(self, isolated_graph_dir_full, isolated_db):
         """Test distribution for session with no events."""
-        sdk = SDK(directory=isolated_graph_dir_full, agent="test", db_path=str(isolated_db))
+        sdk = SDK(
+            directory=isolated_graph_dir_full, agent="test", db_path=str(isolated_db)
+        )
         dist = sdk.analytics.work_type_distribution(session_id="nonexistent")
 
         assert dist == {}
 
-    def test_distribution_ignores_events_without_work_type(self, isolated_graph_dir_full, isolated_db):
+    def test_distribution_ignores_events_without_work_type(
+        self, isolated_graph_dir_full, isolated_db
+    ):
         """Test that events without work_type are ignored."""
         graph_dir = isolated_graph_dir_full
         events_dir = graph_dir / "events"

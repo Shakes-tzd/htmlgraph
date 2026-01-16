@@ -28,7 +28,7 @@ def main():
     print()
 
     # Initialize SDK with agent attribution
-    sdk = SDK(agent="codex-phase4-final-test", db_path=str(isolated_db))
+    sdk = SDK(agent="codex-phase4-final-test")
     print("SDK initialized with agent: codex-phase4-final-test")
     print(f"Working directory: {sdk._graph.root_directory}")
     print()
@@ -156,4 +156,3 @@ if __name__ == "__main__":
 
         traceback.print_exc()
         sys.exit(1)
-

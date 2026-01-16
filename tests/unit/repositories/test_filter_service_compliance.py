@@ -223,8 +223,10 @@ class TestAtomicFilterCreation:
     def test_custom_filter_has_predicate(self):
         """custom() creates filter with predicate."""
         service = MockFilterService()
+
         def pred(x):
             return x.status == "todo"
+
         f = service.custom(pred)
         assert f.is_custom is True
         assert f.predicate is not None
@@ -361,8 +363,10 @@ class TestFilterCompilation:
     def test_custom_predicate_compiled(self):
         """Custom predicate can be compiled."""
         service = MockFilterService()
+
         def pred(x):
             return len(x.title) > 5
+
         f = service.custom(pred)
         compiled = service.compile(f)
         assert callable(compiled)

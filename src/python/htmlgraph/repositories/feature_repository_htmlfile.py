@@ -502,11 +502,16 @@ class HTMLFileFeatureRepository(FeatureRepository):
 
             # Check edges for dependencies
             if hasattr(f, "edges") and f.edges:
-                for edge_list in f.edges.get("depends_on", []):
+                depends_on = (
+                    f.edges.get("depends_on", []) if isinstance(f.edges, dict) else []
+                )
+                for edge in depends_on:
                     target_id = (
-                        edge_list.target_id
-                        if hasattr(edge_list, "target_id")
-                        else edge_list.get("target_id")
+                        edge.target_id
+                        if hasattr(edge, "target_id")
+                        else edge.get("target_id")
+                        if isinstance(edge, dict)
+                        else None
                     )
                     if target_id:
                         dep = self.get(target_id)
@@ -539,11 +544,16 @@ class HTMLFileFeatureRepository(FeatureRepository):
         blocking = []
         for f in self._cache.values():
             if hasattr(f, "edges") and f.edges:
-                for edge_list in f.edges.get("depends_on", []):
+                depends_on = (
+                    f.edges.get("depends_on", []) if isinstance(f.edges, dict) else []
+                )
+                for edge in depends_on:
                     target_id = (
-                        edge_list.target_id
-                        if hasattr(edge_list, "target_id")
-                        else edge_list.get("target_id")
+                        edge.target_id
+                        if hasattr(edge, "target_id")
+                        else edge.get("target_id")
+                        if isinstance(edge, dict)
+                        else None
                     )
                     if target_id == feature_id:
                         blocking.append(f)
@@ -584,14 +594,23 @@ class HTMLFileFeatureRepository(FeatureRepository):
         Force reload all features from storage.
 
         Invalidates all caches and reloads from disk.
+        Note: Preserves existing cache entries to maintain object identity
+        for features that have been created but not yet persisted to disk.
         """
+        # Keep track of existing cached entries to preserve object identity
+        existing_cache = dict(self._cache)
         self._cache.clear()
 
         # Load all HTML files
         for filepath in self._directory.glob("*.html"):
             try:
-                feature = self._load_from_file(filepath)
-                self._cache[feature.id] = feature
+                feature_id = filepath.stem
+                # If we already have this feature in cache, keep the existing instance
+                if feature_id in existing_cache:
+                    self._cache[feature_id] = existing_cache[feature_id]
+                else:
+                    feature = self._load_from_file(filepath)
+                    self._cache[feature.id] = feature
             except Exception as e:
                 # Log and skip invalid files
                 import logging

@@ -103,12 +103,14 @@ class SQLiteFeatureRepository(FeatureRepository):
 
         # Disable foreign key constraints for testing
         # (allows inserting features with track_ids that don't exist)
-        self._db.connection.execute("PRAGMA foreign_keys = OFF")
+        if self._db.connection:
+            self._db.connection.execute("PRAGMA foreign_keys = OFF")
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
         if not self._db.connection:
             self._db.connect()
+        assert self._db.connection is not None
         return self._db.connection
 
     def _row_to_node(self, row: sqlite3.Row) -> Node:
@@ -174,19 +176,34 @@ class SQLiteFeatureRepository(FeatureRepository):
             for s in (node.steps or [])
         ]
 
-        # Serialize edges
+        # Serialize edges (handle both Edge objects and dicts)
         edges_data = {}
         for rel_type, edge_list in (node.edges or {}).items():
-            edges_data[rel_type] = [
-                {
-                    "target_id": e.target_id,
-                    "relationship": e.relationship,
-                    "title": e.title,
-                    "since": e.since.isoformat() if e.since else None,
-                    "properties": e.properties,
-                }
-                for e in edge_list
-            ]
+            serialized_edges = []
+            for e in edge_list:
+                if isinstance(e, dict):
+                    # Already a dict, use as-is with defaults
+                    serialized_edges.append(
+                        {
+                            "target_id": e.get("target_id"),
+                            "relationship": e.get("relationship", rel_type),
+                            "title": e.get("title", ""),
+                            "since": e.get("since"),
+                            "properties": e.get("properties", {}),
+                        }
+                    )
+                else:
+                    # Edge object
+                    serialized_edges.append(
+                        {
+                            "target_id": e.target_id,
+                            "relationship": e.relationship,
+                            "title": e.title,
+                            "since": e.since.isoformat() if e.since else None,
+                            "properties": e.properties,
+                        }
+                    )
+            edges_data[rel_type] = serialized_edges
 
         # Build metadata
         metadata = {
@@ -690,11 +707,16 @@ class SQLiteFeatureRepository(FeatureRepository):
 
             # Check edges for dependencies
             if hasattr(f, "edges") and f.edges:
-                for edge_list in f.edges.get("depends_on", []):
+                depends_on = (
+                    f.edges.get("depends_on", []) if isinstance(f.edges, dict) else []
+                )
+                for edge in depends_on:
                     target_id = (
-                        edge_list.target_id
-                        if hasattr(edge_list, "target_id")
-                        else edge_list.get("target_id")
+                        edge.target_id
+                        if hasattr(edge, "target_id")
+                        else edge.get("target_id")
+                        if isinstance(edge, dict)
+                        else None
                     )
                     if target_id:
                         dep = self.get(target_id)
@@ -728,11 +750,16 @@ class SQLiteFeatureRepository(FeatureRepository):
 
         for f in all_features:
             if hasattr(f, "edges") and f.edges:
-                for edge_list in f.edges.get("depends_on", []):
+                depends_on = (
+                    f.edges.get("depends_on", []) if isinstance(f.edges, dict) else []
+                )
+                for edge in depends_on:
                     target_id = (
-                        edge_list.target_id
-                        if hasattr(edge_list, "target_id")
-                        else edge_list.get("target_id")
+                        edge.target_id
+                        if hasattr(edge, "target_id")
+                        else edge.get("target_id")
+                        if isinstance(edge, dict)
+                        else None
                     )
                     if target_id == feature_id:
                         blocking.append(f)
@@ -804,7 +831,8 @@ class SQLiteFeatureRepository(FeatureRepository):
 
         conn = self._get_connection()
         cursor = conn.execute(sql, params)
-        return cursor.fetchone()[0]
+        result = cursor.fetchone()[0]
+        return int(result)
 
     def exists(self, feature_id: str) -> bool:
         """

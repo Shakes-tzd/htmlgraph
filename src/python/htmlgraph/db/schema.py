@@ -263,7 +263,7 @@ class HtmlGraphDB:
                 title TEXT NOT NULL,
                 description TEXT,
                 status TEXT NOT NULL DEFAULT 'todo' CHECK(
-                    status IN ('todo', 'in_progress', 'blocked', 'done', 'cancelled')
+                    status IN ('todo', 'in-progress', 'blocked', 'done', 'active', 'ended', 'stale')
                 ),
                 priority TEXT DEFAULT 'medium' CHECK(
                     priority IN ('low', 'medium', 'high', 'critical')
@@ -278,7 +278,7 @@ class HtmlGraphDB:
                 parent_feature_id TEXT,
                 tags JSON,
                 metadata JSON,
-                FOREIGN KEY (track_id) REFERENCES tracks(track_id),
+                FOREIGN KEY (track_id) REFERENCES tracks(id),
                 FOREIGN KEY (parent_feature_id) REFERENCES features(id)
             )
         """)
@@ -325,14 +325,15 @@ class HtmlGraphDB:
         # 4. TRACKS TABLE - Multi-feature initiatives
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tracks (
-                track_id TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY,
+                type TEXT DEFAULT 'track',
                 title TEXT NOT NULL,
                 description TEXT,
                 priority TEXT DEFAULT 'medium' CHECK(
                     priority IN ('low', 'medium', 'high', 'critical')
                 ),
                 status TEXT NOT NULL DEFAULT 'todo' CHECK(
-                    status IN ('todo', 'in_progress', 'blocked', 'done', 'cancelled')
+                    status IN ('todo', 'in-progress', 'blocked', 'done', 'active', 'ended', 'stale')
                 ),
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

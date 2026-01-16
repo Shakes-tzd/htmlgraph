@@ -159,8 +159,7 @@ def main() -> int:
 
     num_files, num_calls = count_files_and_calls(violations)
     print(
-        f"⚠️  Found {num_calls} SDK() call(s) without db_path "
-        f"in {num_files} file(s):\n"
+        f"⚠️  Found {num_calls} SDK() call(s) without db_path in {num_files} file(s):\n"
     )
 
     for file in sorted(violations.keys()):

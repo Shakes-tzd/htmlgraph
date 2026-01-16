@@ -301,7 +301,9 @@ class TestTodoCollection:
 
         # Create new SDK instance using same directory as first SDK
         graph_dir = tmp_path / ".htmlgraph"
-        sdk2 = SDK(agent="test-agent", directory=str(graph_dir), db_path=str(isolated_db))
+        sdk2 = SDK(
+            agent="test-agent", directory=str(graph_dir), db_path=str(isolated_db)
+        )
 
         # Force reload by clearing cache
         sdk2.todos._todos = None

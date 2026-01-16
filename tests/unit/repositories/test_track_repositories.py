@@ -4,7 +4,6 @@ Concrete Track Repository Implementation Tests.
 Tests all three TrackRepository implementations against compliance suite.
 """
 
-
 import pytest
 from htmlgraph.repositories import (
     HTMLFileTrackRepository,

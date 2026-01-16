@@ -16,11 +16,20 @@ Comprehensive tests covering all Phase 1 changes:
 """
 
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+# Test backward compatibility - both import paths
+from htmlgraph import SDK as SDK_FROM_ROOT
+from htmlgraph.sdk import SDK as SDK_FROM_SDK_PACKAGE
+
+# Test BaseSDK
+from htmlgraph.sdk.base import BaseSDK
+
+# Test constants with Pydantic
+from htmlgraph.sdk.constants import SDKSettings
 
 # Test discovery module imports
 from htmlgraph.sdk.discovery import (
@@ -28,16 +37,6 @@ from htmlgraph.sdk.discovery import (
     discover_htmlgraph_dir,
     find_project_root,
 )
-
-# Test constants with Pydantic
-from htmlgraph.sdk.constants import SDKSettings
-
-# Test BaseSDK
-from htmlgraph.sdk.base import BaseSDK
-
-# Test backward compatibility - both import paths
-from htmlgraph import SDK as SDK_from_root
-from htmlgraph.sdk import SDK as SDK_from_sdk_package
 
 
 class TestDiscoveryModule:
@@ -264,19 +263,19 @@ class TestBackwardCompatibility:
 
     def test_same_class_both_paths(self) -> None:
         """Test both import paths return same class."""
-        assert SDK_from_root is SDK_from_sdk_package
+        assert SDK_FROM_ROOT is SDK_FROM_SDK_PACKAGE
 
     def test_sdk_initialization_backward_compat(self, tmp_path: Path) -> None:
         """Test SDK initialization works with both import paths."""
         htmlgraph_dir = tmp_path / ".htmlgraph"
         htmlgraph_dir.mkdir()
 
-        sdk1 = SDK_from_root(directory=htmlgraph_dir, agent="test1")
-        sdk2 = SDK_from_sdk_package(directory=htmlgraph_dir, agent="test2")
+        sdk1 = SDK_FROM_ROOT(directory=htmlgraph_dir, agent="test1")
+        sdk2 = SDK_FROM_SDK_PACKAGE(directory=htmlgraph_dir, agent="test2")
 
         assert sdk1._directory == htmlgraph_dir
         assert sdk2._directory == htmlgraph_dir
-        assert type(sdk1) == type(sdk2)
+        assert type(sdk1) is type(sdk2)
 
 
 class TestRichLogging:

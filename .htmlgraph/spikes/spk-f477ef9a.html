@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>HtmlGraph Test Suite Results (Automated)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f477ef9a"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-01-15T23:17:20.741087"
+             data-updated="2026-01-15T23:17:20.741091" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="test-runner">
+
+        <header>
+            <h1>HtmlGraph Test Suite Results (Automated)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Test Suite Execution Results
+
+## Summary
+- **Total tests run**: 3,555
+- **Passed**: 3,401 ✅
+- **Failed**: 153 ❌
+- **Errors**: 19 ⚠️
+- **Skipped**: 31
+- **Duration**: 296.30 seconds (4:56)
+- **Success Rate**: 95.67%
+
+## Test Breakdown by Suite
+
+### Python Tests (tests/python/)
+- Status: **PASSING**
+- Contains core SDK functionality, models, lifecycle, orchestration, MCP server
+- All unit and integration tests passing
+- Examples: lifecycle, models, orchestration, MCP, collections, analytics
+
+### Unit Tests (tests/unit/)
+- Status: **FAILURES DETECTED**
+- **Failed tests**: 153 failures
+- Most failures in: `tests/unit/repositories/test_track_repositories.py`
+- Error patterns:
+  - SQLite schema issues: "no such column: id", "table tracks has no column named id"
+  - Pydantic validation: Invalid status values like 'planned'
+  - Filter validation not raising expected exceptions
+
+### Integration Tests (tests/integration/)
+- Status: **ERRORS DETECTED**
+- **Error count**: 19 errors
+- Failed test suites:
+  - `test_discoverability.py` - 4 errors
+  - `test_post_compact_delegation.py` - 10 errors
+  - `test_orchestrator_pattern.py` - 1 error
+  - `test_real_workitem_integration.py` - 1 error
+  - `test_spawner_routing_live.py` - 3 errors
+
+## Root Cause Analysis
+
+### Category 1: Track Repository Schema Issues (Test Suite: test_track_repositories.py)
+**Problem**: SQLite schema mismatch - tests reference 'id' column that doesn't exist
+- `test_batch_update_with_invalid_ids` - SQLite: "no such column: id"
+- `test_create_and_fetch_consistency` - "table tracks has no column named id"
+- `test_list_after_delete` - "table tracks has no column named id"
+- `test_save_after_delete` - "table tracks has no column named id"
+- `test_empty_filters_means_no_filters` - "table tracks has no column named id"
+
+**Impact**: 5 failures, likely migration or schema definition issue
+
+### Category 2: Pydantic Validation Errors (Test Suite: test_track_repositories.py)
+**Problem**: Invalid Node status values in test data
+- `test_multiple_creates_same_title` - ValidationError: status 'planned' not in allowed values
+- Allowed values: 'todo', 'in-progress', 'blocked', 'done', 'active', 'ended', 'stale'
+
+**Impact**: 1 failure, test data needs update
+
+### Category 3: Filter Validation Not Raising (Test Suite: test_track_repositories.py)
+**Problem**: Filter validation not raising expected exceptions
+- `test_where_with_invalid_filters` - "DID NOT RAISE any of (TrackValidationError, ValueError)"
+
+**Impact**: 1 failure, validation logic may be missing
+
+### Category 4: Integration Test Dependencies (Test Suite: test_post_compact_delegation.py, test_discoverability.py)
+**Problem**: 10 errors in post-compact delegation tests and 4 in discoverability
+- Likely missing fixtures, environment setup issues, or dependency loading problems
+- Tests may require specific Claude Code environment or configuration
+
+**Impact**: 14 critical failures affecting orchestration and delegation workflows
+
+### Category 5: Live Spawner Tests (Test Suite: test_spawner_routing_live.py)
+**Problem**: 3 errors in spawner routing tests
+- May require external service connectivity or API credentials
+- Tests: `test_gemini_spawner`, `test_codex_spawner`, `test_copilot_spawner`
+
+**Impact**: 3 failures affecting multi-AI coordination
+
+## Issues by Severity
+
+### 🔴 Critical (19 errors)
+Integration tests that block key workflows:
+- Orchestrator pattern enforcement
+- Post-compact delegation
+- Spawner routing
+- Real workitem integration
+
+### 🟠 High (153 failures)
+Unit test failures in track repository:
+- Schema mismatches affecting track CRUD operations
+- Validation rule violations
+- Data model inconsistencies
+
+### 🟡 Medium (31 skipped)
+Tests deliberately skipped (expected behavior)
+
+## Recommendations
+
+### Immediate Actions
+1. **Fix Track Repository Schema** - Priority 1
+   - Verify SQLite schema definition for 'tracks' table
+   - Check if 'id' column should exist or if tests use wrong column name
+   - Run migration: `uv run alembic upgrade head` or equivalent
+   - Fix 5+ schema-related failures
+
+2. **Update Test Data** - Priority 1
+   - Replace 'planned' status with valid value ('todo', 'active', etc.)
+   - Run: `grep -r "planned" tests/unit/` and update all instances
+   - Fix 1 Pydantic validation failure
+
+3. **Implement Filter Validation** - Priority 2
+   - Add validation logic to catch invalid filters
+   - Raise TrackValidationError or ValueError as expected
+   - Fix 1 validation failure
+
+4. **Debug Integration Tests** - Priority 2
+   - Investigate fixture setup in conftest.py files
+   - Check environment variable requirements
+   - Verify Claude Code integration dependencies
+   - Fix 19 integration test errors
+
+5. **Spawner Tests** - Priority 3
+   - Check if external service credentials required
+   - May need to mock or skip in CI if services unavailable
+   - Fix 3 spawner routing errors
+
+## Quality Gates
+
+**Current Status**:
+- ✅ 3,401 tests passing (95.67%)
+- ❌ 153 unit test failures
+- ⚠️ 19 integration test errors
+- 📊 Overall: PASSING WITH FAILURES
+
+**To Deploy**: Fix all failures before deployment per code-hygiene.md rules
+
+## Test Coverage Areas
+
+**Well-Tested** ✅:
+- Core SDK functionality (models, lifecycle, sessions)
+- Orchestration patterns and circuit breakers
+- MCP server integration
+- Collections (todos, traces, analytics)
+- Template system and documentation
+- User prompt classification
+
+**Needs Attention** ⚠️:
+- Track repository operations
+- Integration workflows
+- Multi-AI spawner coordination
+- Post-compact session state
+            </div>
+        </section>
+    </article>
+</body>
+</html>

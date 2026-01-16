@@ -15,7 +15,9 @@ from htmlgraph import SDK, Node, Step
 def sdk(isolated_graph_dir_full: Path, isolated_db: Path):
     """Create a temporary SDK instance."""
     # isolated_graph_dir_full already has all required subdirectories
-    return SDK(directory=isolated_graph_dir_full, agent="test-agent", db_path=str(isolated_db))
+    return SDK(
+        directory=isolated_graph_dir_full, agent="test-agent", db_path=str(isolated_db)
+    )
 
 
 def test_get_active_work_item_no_items(sdk: SDK):
@@ -304,4 +306,3 @@ def test_get_active_work_item_auto_spike_deprioritized(sdk: SDK):
     assert result["type"] == "spike"
     assert result["id"] == real_spike.id  # Real spike, not auto-spike
     assert result.get("auto_generated") is False
-

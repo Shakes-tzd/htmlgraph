@@ -241,7 +241,7 @@ class TestFeatureOperations:
             feature_id="bug-001",
             feature_type="bug",
             title="Fix login timeout",
-            status="in_progress",
+            status="in-progress",  # Fixed: use hyphen, not underscore
             priority="critical",
         )
 
@@ -270,7 +270,7 @@ class TestFeatureOperations:
 
         success = temp_db.update_feature_status(
             feature_id="feat-002",
-            status="in_progress",
+            status="in-progress",  # Fixed: use hyphen, not underscore
             steps_completed=2,
         )
 
@@ -278,7 +278,7 @@ class TestFeatureOperations:
 
         # Verify update
         feature = temp_db.get_feature_by_id("feat-002")
-        assert feature["status"] == "in_progress"
+        assert feature["status"] == "in-progress"
         assert feature["steps_completed"] == 2
 
     def test_complete_feature_sets_completed_at(self, temp_db):

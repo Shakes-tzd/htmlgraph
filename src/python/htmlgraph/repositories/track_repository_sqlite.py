@@ -101,10 +101,14 @@ class SQLiteTrackRepository(TrackRepository):
         self._db.create_tables()
 
         # Disable foreign key constraints for testing
-        self._db.connection.execute("PRAGMA foreign_keys = OFF")
+        if self._db.connection:
+            self._db.connection.execute("PRAGMA foreign_keys = OFF")
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
+        if not self._db.connection:
+            self._db.connect()
+        assert self._db.connection is not None
         return self._db.connection
 
     def _generate_id(self) -> str:
@@ -129,12 +133,32 @@ class SQLiteTrackRepository(TrackRepository):
         # Parse metadata JSON
         metadata = json.loads(row["metadata"]) if row["metadata"] else {}
 
+        # Map database status to Node status (handle legacy values)
+        db_status = row["status"] or "todo"
+        status_map: dict[str, str] = {
+            "in_progress": "in-progress",
+            "cancelled": "done",
+            "planned": "todo",
+            "completed": "done",
+        }
+        status = status_map.get(db_status, db_status)
+
+        # Cast to valid status literal - Node validates this
+        from typing import Literal, cast
+
+        valid_status = cast(
+            Literal[
+                "todo", "in-progress", "blocked", "done", "active", "ended", "stale"
+            ],
+            status,
+        )
+
         # Create Node object
         node = Node(
             id=row["id"],
             title=row["title"],
             type=row["type"] or "track",
-            status=row["status"] or "planned",
+            status=valid_status,
             priority=row["priority"] or "medium",
             created=datetime.fromisoformat(row["created_at"])
             if row["created_at"]
@@ -145,16 +169,6 @@ class SQLiteTrackRepository(TrackRepository):
             content=row["description"] or "",
             properties=metadata,
         )
-
-        # Add track-specific attributes
-        if "has_spec" in metadata:
-            node.has_spec = metadata["has_spec"]
-        if "has_plan" in metadata:
-            node.has_plan = metadata["has_plan"]
-        if "features" in metadata:
-            node.features = metadata["features"]
-        if "phases" in metadata:
-            node.phases = metadata["phases"]
 
         return node
 
@@ -312,6 +326,21 @@ class SQLiteTrackRepository(TrackRepository):
         Raises:
             TrackValidationError: If invalid attribute names
         """
+        # Validate filter keys upfront
+        valid_attrs = {
+            "status",
+            "priority",
+            "has_spec",
+            "has_plan",
+            "type",
+            "title",
+            "id",
+            "created",
+            "updated",
+        }
+        for key in kwargs:
+            if key not in valid_attrs:
+                raise TrackValidationError(f"Invalid filter attribute: {key}")
         return SQLiteRepositoryQuery(self, kwargs)
 
     def by_status(self, status: str) -> builtins.list[Node]:
@@ -377,7 +406,7 @@ class SQLiteTrackRepository(TrackRepository):
 
         # Extract known fields
         node_type = kwargs.pop("type", "track")
-        status = kwargs.pop("status", "planned")
+        status = kwargs.pop("status", "todo")
         priority = kwargs.pop("priority", "medium")
         created = kwargs.pop("created", datetime.now())
         updated = kwargs.pop("updated", datetime.now())
@@ -655,7 +684,8 @@ class SQLiteTrackRepository(TrackRepository):
         if not filters:
             conn = self._get_connection()
             cursor = conn.execute("SELECT COUNT(*) FROM tracks")
-            return cursor.fetchone()[0]
+            result = cursor.fetchone()[0]
+            return int(result)
 
         return len(self.list(filters))
 

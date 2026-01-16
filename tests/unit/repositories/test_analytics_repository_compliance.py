@@ -169,7 +169,9 @@ class TestRecommendNextWork:
         """recommend_next_work respects limit parameter."""
         repo = MockAnalyticsRepository()
         repo._recommendations = [
-            WorkRecommendation(f"feat-{i:03d}", f"Feature {i}", 0.9, "Reason", 0.8, 5, 1)
+            WorkRecommendation(
+                f"feat-{i:03d}", f"Feature {i}", 0.9, "Reason", 0.8, 5, 1
+            )
             for i in range(20)
         ]
         result = repo.recommend_next_work(limit=5)

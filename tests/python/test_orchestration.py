@@ -160,7 +160,11 @@ def test_parallel_delegate_structure(tmp_path, isolated_db):
     """Test parallel_delegate returns expected structure."""
     from htmlgraph import SDK
 
-    sdk = SDK(directory=tmp_path / ".htmlgraph", agent="orchestrator", db_path=str(isolated_db))
+    sdk = SDK(
+        directory=tmp_path / ".htmlgraph",
+        agent="orchestrator",
+        db_path=str(isolated_db),
+    )
 
     # Note: This test doesn't actually spawn tasks (no Task tool available in tests)
     # It just validates the structure and task ID generation

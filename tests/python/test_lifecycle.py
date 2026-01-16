@@ -170,7 +170,9 @@ class TestFullLifecycle:
         transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
         assert len(transition_spikes) == 3
 
-    def test_activity_attribution_with_spikes(self, isolated_graph_dir_full, isolated_db):
+    def test_activity_attribution_with_spikes(
+        self, isolated_graph_dir_full, isolated_db
+    ):
         """Test that activities are correctly attributed to features after spike completion."""
         graph_dir = isolated_graph_dir_full
 
@@ -238,7 +240,9 @@ class TestFullLifecycle:
         assert len(session1_spikes) == 1
         assert len(session2_spikes) == 1
 
-    def test_transcript_integration_lifecycle(self, isolated_graph_dir_full, isolated_db):
+    def test_transcript_integration_lifecycle(
+        self, isolated_graph_dir_full, isolated_db
+    ):
         """Test that transcript fields are preserved through lifecycle."""
         graph_dir = isolated_graph_dir_full
 
@@ -319,7 +323,9 @@ class TestEdgeCases:
         assert len(active) >= 1
         assert feature.id in active[0].worked_on
 
-    def test_spike_persistence_across_reloads(self, isolated_graph_dir_full, isolated_db):
+    def test_spike_persistence_across_reloads(
+        self, isolated_graph_dir_full, isolated_db
+    ):
         """Test that spikes persist correctly when reloading from disk."""
         graph_dir = isolated_graph_dir_full
 

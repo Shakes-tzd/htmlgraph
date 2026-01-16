@@ -333,8 +333,8 @@ class PatternDetector:
 
             for seq_tuple, occurrences in sequence_data.items():
                 if len(occurrences) >= min_frequency:
-                    sequence: list[str] = list(seq_tuple)
-                    pattern_id = ToolSequencePattern.generate_id(sequence)
+                    seq_list: list[str] = list(seq_tuple)
+                    pattern_id = ToolSequencePattern.generate_id(seq_list)
 
                     # Calculate success rate (recorded status = success)
                     total = len(occurrences)
@@ -351,7 +351,7 @@ class PatternDetector:
                     pattern = ToolSequencePattern(
                         pattern_id=pattern_id,
                         pattern_type=PatternType.TOOL_SEQUENCE,
-                        sequence=sequence,
+                        sequence=seq_list,
                         frequency=len(occurrences),
                         success_rate=success_rate,
                         last_seen=last_seen,

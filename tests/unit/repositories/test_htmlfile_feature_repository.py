@@ -24,7 +24,6 @@ class TestHTMLFileFeatureRepository(FeatureRepositoryComplianceTests):
         # Use temporary directory for test isolation
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = HTMLFileFeatureRepository(
-                directory=Path(tmpdir) / "features",
-                auto_load=True
+                directory=Path(tmpdir) / "features", auto_load=True
             )
             yield repo

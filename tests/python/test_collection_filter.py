@@ -15,7 +15,9 @@ from htmlgraph import SDK, Node
 def sdk(isolated_graph_dir_full: Path, isolated_db: Path):
     """Create a temporary SDK instance."""
     # isolated_graph_dir_full already has all required subdirectories
-    return SDK(directory=isolated_graph_dir_full, agent="test-agent", db_path=str(isolated_db))
+    return SDK(
+        directory=isolated_graph_dir_full, agent="test-agent", db_path=str(isolated_db)
+    )
 
 
 @pytest.fixture
