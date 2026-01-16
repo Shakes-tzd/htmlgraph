@@ -141,8 +141,15 @@ class HtmlGraphDB:
 
         # Migration: rename 'agent' to 'agent_assigned' if needed
         if "agent" in columns and "agent_assigned" not in columns:
-            cursor.execute("ALTER TABLE sessions RENAME COLUMN agent TO agent_assigned")
-            logger.info("Migrated sessions.agent -> sessions.agent_assigned")
+            try:
+                cursor.execute(
+                    "ALTER TABLE sessions RENAME COLUMN agent TO agent_assigned"
+                )
+                logger.info("Migrated sessions.agent -> sessions.agent_assigned")
+            except sqlite3.OperationalError as e:
+                logger.debug(f"Could not rename column: {e}")
+                # Column may already exist
+                pass
 
         # Add missing columns with defaults
         # Note: SQLite doesn't allow CURRENT_TIMESTAMP in ALTER TABLE, so we use NULL
@@ -169,6 +176,10 @@ class HtmlGraphDB:
             ("blockers", "TEXT"),  # JSON array of blocker strings
             ("recommended_context", "TEXT"),  # JSON array of file paths
             ("continued_from", "TEXT"),  # Previous session ID
+            # Phase 3.1: Real-time cost monitoring
+            ("cost_budget", "REAL"),  # Budget in USD for this session
+            ("cost_threshold_breached", "INTEGER DEFAULT 0"),  # Whether budget exceeded
+            ("predicted_cost", "REAL DEFAULT 0.0"),  # Predicted final cost
         ]
 
         # Refresh columns after potential rename
@@ -302,6 +313,9 @@ class HtmlGraphDB:
                 blockers JSON,
                 recommended_context JSON,
                 continued_from TEXT,
+                cost_budget REAL,
+                cost_threshold_breached INTEGER DEFAULT 0,
+                predicted_cost REAL DEFAULT 0.0,
                 FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE,
                 FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
                 FOREIGN KEY (continued_from) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE
@@ -436,6 +450,39 @@ class HtmlGraphDB:
             )
         """)
 
+        # 11. COST_EVENTS TABLE - Phase 3.1: Real-time cost monitoring & alerts
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cost_events (
+                event_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                -- Token tracking
+                tool_name TEXT,
+                model TEXT,
+                input_tokens INTEGER DEFAULT 0,
+                output_tokens INTEGER DEFAULT 0,
+                total_tokens INTEGER DEFAULT 0,
+                cost_usd REAL DEFAULT 0.0,
+
+                -- Agent tracking
+                agent_id TEXT,
+                subagent_type TEXT,
+
+                -- Alert tracking
+                alert_type TEXT,
+                message TEXT,
+                current_cost_usd REAL,
+                budget_usd REAL,
+                predicted_cost_usd REAL,
+                severity TEXT,
+                acknowledged BOOLEAN DEFAULT 0,
+
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+            )
+        """)
+
         # 9. Create indexes for performance
         self._create_indexes(cursor)
 
@@ -529,6 +576,19 @@ class HtmlGraphDB:
             "CREATE INDEX IF NOT EXISTS idx_handoff_from_session ON handoff_tracking(from_session_id, created_at DESC)",
             "CREATE INDEX IF NOT EXISTS idx_handoff_to_session ON handoff_tracking(to_session_id, resumed_at DESC)",
             "CREATE INDEX IF NOT EXISTS idx_handoff_rating ON handoff_tracking(user_rating, created_at DESC)",
+            # cost_events indexes - optimized for real-time cost monitoring & alerts
+            # Pattern: WHERE session_id ORDER BY timestamp DESC (cost timeline)
+            "CREATE INDEX IF NOT EXISTS idx_cost_events_session_ts ON cost_events(session_id, timestamp DESC)",
+            # Pattern: WHERE alert_type (alert filtering)
+            "CREATE INDEX IF NOT EXISTS idx_cost_events_alert_type ON cost_events(alert_type, timestamp DESC)",
+            # Pattern: WHERE model GROUP BY (cost breakdown)
+            "CREATE INDEX IF NOT EXISTS idx_cost_events_model ON cost_events(model, session_id)",
+            # Pattern: WHERE tool_name GROUP BY (tool cost analysis)
+            "CREATE INDEX IF NOT EXISTS idx_cost_events_tool ON cost_events(tool_name, session_id)",
+            # Pattern: WHERE severity (alert severity filtering)
+            "CREATE INDEX IF NOT EXISTS idx_cost_events_severity ON cost_events(severity, timestamp DESC)",
+            # Pattern: Timestamp range queries for predictions
+            "CREATE INDEX IF NOT EXISTS idx_cost_events_timestamp ON cost_events(timestamp DESC)",
         ]
 
         for index_sql in indexes:

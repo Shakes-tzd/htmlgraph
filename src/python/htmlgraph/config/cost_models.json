@@ -1,0 +1,56 @@
+{
+  "description": "Model pricing configuration for cost tracking",
+  "last_updated": "2026-01-16",
+  "models": {
+    "claude-haiku-4-5-20251001": {
+      "name": "Claude Haiku",
+      "display_name": "Haiku 4.5",
+      "input_cost_per_mtok": 0.80,
+      "output_cost_per_mtok": 4.00,
+      "description": "Fast, efficient model for routine tasks"
+    },
+    "claude-sonnet-4-20250514": {
+      "name": "Claude Sonnet",
+      "display_name": "Sonnet 4",
+      "input_cost_per_mtok": 3.00,
+      "output_cost_per_mtok": 15.00,
+      "description": "Balanced model for most tasks"
+    },
+    "claude-opus-4-1-20250805": {
+      "name": "Claude Opus",
+      "display_name": "Opus 4.1",
+      "input_cost_per_mtok": 15.00,
+      "output_cost_per_mtok": 75.00,
+      "description": "Most capable model for complex reasoning"
+    }
+  },
+  "gemini_models": {
+    "gemini-2.0-flash": {
+      "name": "Gemini 2.0 Flash",
+      "input_cost_per_mtok": 0.075,
+      "output_cost_per_mtok": 0.30,
+      "description": "Fast multimodal model"
+    },
+    "gemini-2.0-pro": {
+      "name": "Gemini 2.0 Pro",
+      "input_cost_per_mtok": 1.50,
+      "output_cost_per_mtok": 6.00,
+      "description": "Advanced reasoning model"
+    }
+  },
+  "defaults": {
+    "input_cost_per_mtok": 2.00,
+    "output_cost_per_mtok": 10.00
+  },
+  "alert_thresholds": {
+    "budget_warning_percent": 80,
+    "budget_critical_percent": 95,
+    "model_overage_multiplier": 1.5,
+    "trajectory_overage_multiplier": 1.3
+  },
+  "tracking": {
+    "accuracy_target_percent": 5,
+    "cost_calculation_method": "token_based",
+    "rounding_precision": 4
+  }
+}
