@@ -2250,11 +2250,11 @@ def get_app(db_path: str) -> FastAPI:
                 datetime.fromisoformat(since.replace("Z", "+00:00"))
                 last_timestamp = since
             except (ValueError, AttributeError):
-                # Invalid timestamp - default to 1 hour ago
-                last_timestamp = (datetime.now() - timedelta(hours=1)).isoformat()
+                # Invalid timestamp - default to 24 hours ago
+                last_timestamp = (datetime.now() - timedelta(hours=24)).isoformat()
         else:
-            # Default: Load events from last 1 hour
-            last_timestamp = (datetime.now() - timedelta(hours=1)).isoformat()
+            # Default: Load events from last 24 hours (captures all recent events in typical workflow)
+            last_timestamp = (datetime.now() - timedelta(hours=24)).isoformat()
 
         # FIX 3: Load historical events first (before real-time streaming)
         db = await get_db()
