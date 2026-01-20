@@ -191,7 +191,7 @@ def get_app(db_path: str) -> FastAPI:
 
     # Store database path and query cache in app state
     app.state.db_path = db_path
-    app.state.query_cache = QueryCache(ttl_seconds=30.0)
+    app.state.query_cache = QueryCache(ttl_seconds=1.0)  # Short TTL for real-time data
 
     # Setup Jinja2 templates
     template_dir = Path(__file__).parent / "templates"
@@ -2487,9 +2487,9 @@ def get_app(db_path: str) -> FastAPI:
 def create_app(db_path: str | None = None) -> FastAPI:
     """Create FastAPI app with default database path."""
     if db_path is None:
-        # Use index.sqlite - this is where AnalyticsIndex writes events
-        # Note: index.sqlite is the rebuildable analytics cache, not htmlgraph.db
-        db_path = str(Path.home() / ".htmlgraph" / "index.sqlite")
+        # Use htmlgraph.db - this is the main database with all events
+        # Note: Changed from index.sqlite which was empty analytics cache
+        db_path = str(Path.home() / ".htmlgraph" / "htmlgraph.db")
 
     return get_app(db_path)
 
