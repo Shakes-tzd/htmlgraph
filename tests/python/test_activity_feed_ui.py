@@ -26,7 +26,13 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def dashboard_html():
     """Load the dashboard HTML file for analysis."""
-    dashboard_path = Path(__file__).parent.parent.parent / "src" / "python" / "htmlgraph" / "dashboard.html"
+    dashboard_path = (
+        Path(__file__).parent.parent.parent
+        / "src"
+        / "python"
+        / "htmlgraph"
+        / "dashboard.html"
+    )
     if not dashboard_path.exists():
         pytest.skip("Dashboard HTML file not found")
     with open(dashboard_path) as f:
@@ -39,16 +45,17 @@ class TestActivityFeedDashboard:
     def test_activity_feed_section_exists(self, dashboard_html):
         """Test Activity Feed section is present in dashboard HTML."""
         # Look for activity log/feed related classes and structures
-        assert ("activity-log" in dashboard_html.lower() or
-                "activity-item" in dashboard_html.lower() or
-                "activity-list" in dashboard_html.lower()), \
-            "Activity Feed section not found in dashboard"
+        assert (
+            "activity-log" in dashboard_html.lower()
+            or "activity-item" in dashboard_html.lower()
+            or "activity-list" in dashboard_html.lower()
+        ), "Activity Feed section not found in dashboard"
 
     def test_dashboard_page_title_exists(self, dashboard_html):
         """Test dashboard has valid page title."""
         assert "<title>" in dashboard_html
         assert "</title>" in dashboard_html
-        title_match = re.search(r'<title>(.*?)</title>', dashboard_html)
+        title_match = re.search(r"<title>(.*?)</title>", dashboard_html)
         assert title_match is not None
         assert len(title_match.group(1)) > 0
 
@@ -69,8 +76,9 @@ class TestActivityFeedDashboard:
         closing_divs = dashboard_html.count("</div>")
         # Allow for some imbalance due to self-closing tags and nested counting,
         # but they should be roughly equal
-        assert abs(opening_divs - closing_divs) < 10, \
+        assert abs(opening_divs - closing_divs) < 10, (
             f"Unbalanced div tags: {opening_divs} opening, {closing_divs} closing"
+        )
 
     def test_dashboard_has_css_styling(self, dashboard_html):
         """Test dashboard includes CSS styling."""
@@ -91,13 +99,12 @@ class TestActivityFeedDashboard:
         """Test that dashboard doesn't have empty image src attributes."""
         # Look for img tags with empty src
         empty_imgs = re.findall(r'<img[^>]*src=""[^>]*>', dashboard_html)
-        assert len(empty_imgs) == 0, \
+        assert len(empty_imgs) == 0, (
             f"Found {len(empty_imgs)} img tags with empty src attributes"
+        )
 
     def test_external_resources_have_urls(self, dashboard_html):
         """Test external resources reference valid URLs."""
-        # Check that script and link tags have src/href
-        script_without_src = re.findall(r'<script[^>]*(?!src=)[^>]*(?!type=)>[^<]', dashboard_html)
         # This is a relaxed check - some scripts are inline
         # Just verify we don't have obviously broken tags
         assert True  # Placeholder for more specific check if needed

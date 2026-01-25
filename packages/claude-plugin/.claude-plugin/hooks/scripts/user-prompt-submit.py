@@ -28,8 +28,55 @@ CIGS Integration:
 """
 
 import json
+import os
 import re
+import subprocess
 import sys
+from pathlib import Path
+
+
+# Bootstrap Python path to find local htmlgraph source  # noqa: E402
+def _resolve_project_dir(cwd: str | None = None) -> str:
+    """Prefer Claude's project dir env var; fall back to git root; then cwd."""
+    env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env_dir:
+        return env_dir
+    start_dir = cwd or os.getcwd()
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            cwd=start_dir,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return start_dir
+
+
+def _bootstrap_pythonpath(project_dir: str) -> None:
+    """Make `htmlgraph` importable in two common modes."""
+    venv = Path(project_dir) / ".venv"
+    if venv.exists():
+        pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        candidates = [
+            venv / "lib" / pyver / "site-packages",
+            venv / "Lib" / "site-packages",
+        ]
+        for c in candidates:
+            if c.exists():
+                sys.path.insert(0, str(c))
+
+    repo_src = Path(project_dir) / "src" / "python"
+    if repo_src.exists():
+        sys.path.insert(0, str(repo_src))
+
+
+project_dir_for_import = _resolve_project_dir()
+_bootstrap_pythonpath(project_dir_for_import)
 
 # Patterns that indicate implementation intent
 IMPLEMENTATION_PATTERNS = [
@@ -469,6 +516,40 @@ def main():
         if workflow_guidance:
             combined_guidance.append(workflow_guidance)
 
+        # CRITICAL FIX: Record UserQuery event BEFORE printing output
+        # This ensures the query is tracked for dashboard display
+        try:
+            from htmlgraph.hooks.bootstrap import get_graph_dir, resolve_project_dir
+
+            project_dir = resolve_project_dir()
+            graph_dir = get_graph_dir(project_dir)
+
+            # Use session_id from hook_input if available
+            session_id = hook_input.get("session_id") or hook_input.get("sessionId")
+
+            if session_id and prompt:
+                from htmlgraph.session_manager import SessionManager
+
+                manager = SessionManager(graph_dir=graph_dir)
+
+                # Track UserQuery activity
+                prompt_preview = prompt[:100].replace("\n", " ")
+                if len(prompt) > 100:
+                    prompt_preview += "..."
+
+                manager.track_activity(
+                    session_id=session_id,
+                    tool="UserQuery",
+                    summary=f'"{prompt_preview}"',
+                )
+        except Exception as e:
+            # Don't break the hook if tracking fails
+            import traceback
+
+            print(f"Warning: Failed to track UserQuery event: {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
+        # Now print the JSON output for Claude Code
         if combined_guidance:
             # Return combined guidance as additionalContext
             result = {
@@ -497,44 +578,6 @@ def main():
             print(json.dumps(result))
         else:
             print(json.dumps({}))
-
-        # FIX 1: Record UserQuery event to database
-        # This ensures the query is tracked for dashboard display
-        try:
-            import uuid
-
-            from htmlgraph.hooks.bootstrap import get_graph_dir, resolve_project_dir
-
-            project_dir = resolve_project_dir()
-            graph_dir = get_graph_dir(project_dir)
-
-            # Use session_id from hook_input if available
-            session_id = hook_input.get("session_id") or hook_input.get("sessionId")
-
-            if session_id and prompt:
-                from htmlgraph.session_manager import SessionManager
-
-                manager = SessionManager(graph_dir=graph_dir)
-
-                # Track UserQuery activity
-                prompt_preview = prompt[:100].replace("\n", " ")
-                if len(prompt) > 100:
-                    prompt_preview += "..."
-
-                manager.track_activity(
-                    activity_id=f"userquery-{uuid.uuid4().hex[:8]}",
-                    session_id=session_id,
-                    tool="UserQuery",
-                    event_type="user_query",
-                    input_summary=f'"{prompt_preview}"',
-                    status="recorded",
-                )
-        except Exception as e:
-            # Don't break the hook if tracking fails
-            import traceback
-
-            print(f"Warning: Failed to track UserQuery event: {e}", file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
 
         # Always allow - this hook provides guidance, not blocking
         sys.exit(0)

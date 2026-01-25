@@ -26,7 +26,13 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def dashboard_html():
     """Load the dashboard HTML file for static analysis."""
-    dashboard_path = Path(__file__).parent.parent.parent / "src" / "python" / "htmlgraph" / "dashboard.html"
+    dashboard_path = (
+        Path(__file__).parent.parent.parent
+        / "src"
+        / "python"
+        / "htmlgraph"
+        / "dashboard.html"
+    )
     if not dashboard_path.exists():
         pytest.skip("Dashboard HTML file not found")
     with open(dashboard_path) as f:
@@ -86,14 +92,16 @@ def test_feature_card_structure(dashboard_html):
     """Test that card structures are defined."""
     # Features are rendered as divs with class "track-column"
     # Check for card-related classes and structures
-    assert ("card" in dashboard_html.lower() or
-            "track-column" in dashboard_html), \
+    assert "card" in dashboard_html.lower() or "track-column" in dashboard_html, (
         "Card structure not found in dashboard"
+    )
 
 
 def test_dashboard_uses_html5(dashboard_html):
     """Test that dashboard uses HTML5 doctype."""
-    assert dashboard_html.startswith("<!DOCTYPE html>") or dashboard_html.strip().startswith("<!DOCTYPE html>")
+    assert dashboard_html.startswith(
+        "<!DOCTYPE html>"
+    ) or dashboard_html.strip().startswith("<!DOCTYPE html>")
 
 
 def test_dashboard_has_viewport_meta(dashboard_html):
@@ -104,7 +112,9 @@ def test_dashboard_has_viewport_meta(dashboard_html):
 def test_activity_feed_section(dashboard_html):
     """Test that activity feed section exists."""
     # Check for activity feed heading
-    assert "Agent Activity Feed" in dashboard_html or "activity" in dashboard_html.lower()
+    assert (
+        "Agent Activity Feed" in dashboard_html or "activity" in dashboard_html.lower()
+    )
 
 
 @pytest.mark.skip(reason="Requires active server and Playwright fixtures")
