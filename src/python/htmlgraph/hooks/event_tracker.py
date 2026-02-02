@@ -34,6 +34,25 @@ from htmlgraph.db.schema import HtmlGraphDB
 from htmlgraph.ids import generate_id
 from htmlgraph.session_manager import SessionManager
 
+# Global presence manager instance (initialized on first use)
+_presence_manager = None
+
+
+def get_presence_manager() -> Any:
+    """Get or create global PresenceManager instance."""
+    global _presence_manager
+    if _presence_manager is None:
+        try:
+            from htmlgraph.api.presence import PresenceManager
+            from htmlgraph.config import get_database_path
+
+            _presence_manager = PresenceManager(db_path=str(get_database_path()))
+        except Exception as e:
+            logger.warning(f"Could not initialize PresenceManager: {e}")
+            _presence_manager = None
+    return _presence_manager
+
+
 # Drift classification queue (stored in session directory)
 DRIFT_QUEUE_FILE = "drift-queue.json"
 
@@ -1011,6 +1030,11 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     model=detected_model,
                     feature_id=result.feature_id if result else None,
                 )
+
+            # Update presence - mark as offline
+            presence_mgr = get_presence_manager()
+            if presence_mgr:
+                presence_mgr.mark_offline(detected_agent)
         except Exception as e:
             logger.warning(f"Warning: Could not track stop: {e}")
         return {"continue": True}
@@ -1031,7 +1055,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             # UserQuery event is stored in database - no file-based state needed
             # Subsequent tool calls query database for parent via get_parent_user_query()
             if db:
-                record_event_to_sqlite(
+                event_id = record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
                     tool_name="UserQuery",
@@ -1042,6 +1066,19 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     model=detected_model,
                     feature_id=result.feature_id if result else None,
                 )
+
+                # Update presence
+                presence_mgr = get_presence_manager()
+                if presence_mgr and event_id:
+                    presence_mgr.update_presence(
+                        agent_id=detected_agent,
+                        event={
+                            "tool_name": "UserQuery",
+                            "session_id": active_session_id,
+                            "feature_id": result.feature_id if result else None,
+                            "event_id": event_id,
+                        },
+                    )
 
         except Exception as e:
             logger.warning(f"Warning: Could not track query: {e}")
@@ -1176,7 +1213,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         "subagent_type", "general-purpose"
                     )
 
-                record_event_to_sqlite(
+                event_id = record_event_to_sqlite(
                     db=db,
                     session_id=active_session_id,
                     tool_name=tool_name,
@@ -1190,6 +1227,20 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     model=detected_model,
                     feature_id=result.feature_id if result else None,
                 )
+
+                # Update presence
+                presence_mgr = get_presence_manager()
+                if presence_mgr and event_id:
+                    presence_mgr.update_presence(
+                        agent_id=detected_agent,
+                        event={
+                            "tool_name": tool_name,
+                            "session_id": active_session_id,
+                            "feature_id": result.feature_id if result else None,
+                            "cost_tokens": 0,  # TODO: Extract from tool_response
+                            "event_id": event_id,
+                        },
+                    )
 
             # If this was a Task() delegation, also record to agent_collaboration
             if tool_name == "Task" and db:

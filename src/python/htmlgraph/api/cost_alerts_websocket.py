@@ -132,14 +132,11 @@ class CostAlertStreamManager:
             client_id: Client ID
             cost_alert_filter: Subscription filter for alerts
         """
-        if (
-            session_id not in self.websocket_manager.connections
-            or client_id not in self.websocket_manager.connections[session_id]
-        ):
-            logger.warning(f"Client not found: {session_id}/{client_id}")
+        if client_id not in self.websocket_manager.connections:
+            logger.warning(f"Client not found: {client_id}")
             return
 
-        client = self.websocket_manager.connections[session_id][client_id]
+        client = self.websocket_manager.connections[client_id]
         last_alert_time = self.last_alert_timestamp.get(
             session_id, "1970-01-01T00:00:00Z"
         )
@@ -280,13 +277,10 @@ class CostAlertStreamManager:
             client_id: Client ID
             update_interval_seconds: How often to send updates
         """
-        if (
-            session_id not in self.websocket_manager.connections
-            or client_id not in self.websocket_manager.connections[session_id]
-        ):
+        if client_id not in self.websocket_manager.connections:
             return
 
-        client = self.websocket_manager.connections[session_id][client_id]
+        client = self.websocket_manager.connections[client_id]
 
         try:
             while True:
@@ -337,13 +331,10 @@ class CostAlertStreamManager:
             update_interval_seconds: How often to update predictions
             lookback_minutes: How far back to analyze
         """
-        if (
-            session_id not in self.websocket_manager.connections
-            or client_id not in self.websocket_manager.connections[session_id]
-        ):
+        if client_id not in self.websocket_manager.connections:
             return
 
-        client = self.websocket_manager.connections[session_id][client_id]
+        client = self.websocket_manager.connections[client_id]
 
         try:
             while True:

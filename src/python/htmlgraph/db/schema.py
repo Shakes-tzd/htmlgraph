@@ -484,6 +484,81 @@ class HtmlGraphDB:
             )
         """)
 
+        # 12. AGENT_PRESENCE TABLE - Phase 1: Cross-Agent Presence Tracking
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agent_presence (
+                agent_id TEXT PRIMARY KEY,
+                status TEXT NOT NULL DEFAULT 'offline' CHECK(
+                    status IN ('active', 'idle', 'offline')
+                ),
+                current_feature_id TEXT,
+                last_tool_name TEXT,
+                last_activity DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                total_tools_executed INTEGER DEFAULT 0,
+                total_cost_tokens INTEGER DEFAULT 0,
+                session_id TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (current_feature_id) REFERENCES features(id) ON DELETE SET NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE SET NULL
+            )
+        """)
+
+        # 13. OFFLINE_EVENTS TABLE - Phase 4: Offline-First Merge
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS offline_events (
+                event_id TEXT PRIMARY KEY,
+                agent_id TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                operation TEXT NOT NULL CHECK(
+                    operation IN ('create', 'update', 'delete')
+                ),
+                timestamp TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                status TEXT DEFAULT 'local_only' CHECK(
+                    status IN ('local_only', 'synced', 'conflict', 'resolved')
+                ),
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 14. CONFLICT_LOG TABLE - Phase 4: Conflict tracking and resolution
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conflict_log (
+                conflict_id TEXT PRIMARY KEY,
+                local_event_id TEXT NOT NULL,
+                remote_event_id TEXT,
+                resource_id TEXT NOT NULL,
+                conflict_type TEXT NOT NULL,
+                local_timestamp TEXT NOT NULL,
+                remote_timestamp TEXT NOT NULL,
+                resolution_strategy TEXT NOT NULL,
+                resolution TEXT,
+                status TEXT DEFAULT 'pending_review' CHECK(
+                    status IN ('pending_review', 'resolved')
+                ),
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (local_event_id) REFERENCES offline_events(event_id) ON DELETE CASCADE
+            )
+        """)
+
+        # 15. SYNC_OPERATIONS TABLE - Phase 5: Git sync tracking
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sync_operations (
+                sync_id TEXT PRIMARY KEY,
+                operation TEXT NOT NULL CHECK(operation IN ('push', 'pull')),
+                status TEXT NOT NULL CHECK(
+                    status IN ('idle', 'pushing', 'pulling', 'success', 'error', 'conflict')
+                ),
+                timestamp DATETIME NOT NULL,
+                files_changed INTEGER DEFAULT 0,
+                conflicts TEXT,
+                message TEXT,
+                hostname TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         # 9. Create indexes for performance
         self._create_indexes(cursor)
 
@@ -590,6 +665,34 @@ class HtmlGraphDB:
             "CREATE INDEX IF NOT EXISTS idx_cost_events_severity ON cost_events(severity, timestamp DESC)",
             # Pattern: Timestamp range queries for predictions
             "CREATE INDEX IF NOT EXISTS idx_cost_events_timestamp ON cost_events(timestamp DESC)",
+            # agent_presence indexes - optimized for presence queries
+            # Pattern: WHERE status (filter by status)
+            "CREATE INDEX IF NOT EXISTS idx_agent_presence_status ON agent_presence(status, last_activity DESC)",
+            # Pattern: WHERE current_feature_id (agents working on feature)
+            "CREATE INDEX IF NOT EXISTS idx_agent_presence_feature ON agent_presence(current_feature_id, last_activity DESC)",
+            # Pattern: ORDER BY last_activity (recent activity)
+            "CREATE INDEX IF NOT EXISTS idx_agent_presence_activity ON agent_presence(last_activity DESC)",
+            # offline_events indexes - optimized for sync and conflict detection
+            # Pattern: WHERE status = 'local_only' (unsynced events)
+            "CREATE INDEX IF NOT EXISTS idx_offline_events_status ON offline_events(status, timestamp DESC)",
+            # Pattern: WHERE resource_id (detect conflicts)
+            "CREATE INDEX IF NOT EXISTS idx_offline_events_resource ON offline_events(resource_id, resource_type)",
+            # Pattern: WHERE agent_id (agent's offline work)
+            "CREATE INDEX IF NOT EXISTS idx_offline_events_agent ON offline_events(agent_id, timestamp DESC)",
+            # conflict_log indexes - optimized for conflict management
+            # Pattern: WHERE status = 'pending_review' (unresolved conflicts)
+            "CREATE INDEX IF NOT EXISTS idx_conflict_log_status ON conflict_log(status, created_at DESC)",
+            # Pattern: WHERE resource_id (conflicts for resource)
+            "CREATE INDEX IF NOT EXISTS idx_conflict_log_resource ON conflict_log(resource_id, created_at DESC)",
+            # Pattern: WHERE local_event_id (lookup by event)
+            "CREATE INDEX IF NOT EXISTS idx_conflict_log_local_event ON conflict_log(local_event_id)",
+            # sync_operations indexes - optimized for sync history queries
+            # Pattern: WHERE status ORDER BY timestamp DESC (recent sync status)
+            "CREATE INDEX IF NOT EXISTS idx_sync_operations_status ON sync_operations(status, timestamp DESC)",
+            # Pattern: WHERE operation ORDER BY timestamp DESC (push/pull history)
+            "CREATE INDEX IF NOT EXISTS idx_sync_operations_operation ON sync_operations(operation, timestamp DESC)",
+            # Pattern: ORDER BY timestamp DESC (recent activity)
+            "CREATE INDEX IF NOT EXISTS idx_sync_operations_timestamp ON sync_operations(timestamp DESC)",
         ]
 
         for index_sql in indexes:
@@ -1782,6 +1885,117 @@ class HtmlGraphDB:
         except sqlite3.Error as e:
             logger.error(f"Error querying subagent work: {e}")
             return {}
+
+    def insert_sync_operation(
+        self,
+        sync_id: str,
+        operation: str,
+        status: str,
+        timestamp: str,
+        files_changed: int = 0,
+        conflicts: list[str] | None = None,
+        message: str | None = None,
+        hostname: str | None = None,
+    ) -> bool:
+        """
+        Record a sync operation in the database.
+
+        Args:
+            sync_id: Unique sync operation ID
+            operation: Operation type (push, pull)
+            status: Sync status (idle, pushing, pulling, success, error, conflict)
+            timestamp: Operation timestamp
+            files_changed: Number of files changed
+            conflicts: List of conflicted files (optional)
+            message: Status message (optional)
+            hostname: Hostname that performed the sync (optional)
+
+        Returns:
+            True if insert successful, False otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                INSERT INTO sync_operations
+                (sync_id, operation, status, timestamp, files_changed, conflicts,
+                 message, hostname)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    sync_id,
+                    operation,
+                    status,
+                    timestamp,
+                    files_changed,
+                    json.dumps(conflicts) if conflicts else None,
+                    message,
+                    hostname,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error inserting sync operation: {e}")
+            return False
+
+    def get_sync_operations(
+        self, limit: int = 100, operation: str | None = None
+    ) -> list[dict[str, Any]]:
+        """
+        Get recent sync operations.
+
+        Args:
+            limit: Maximum number of results
+            operation: Filter by operation type (optional)
+
+        Returns:
+            List of sync operation dictionaries
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+
+            if operation:
+                cursor.execute(
+                    """
+                    SELECT * FROM sync_operations
+                    WHERE operation = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """,
+                    (operation, limit),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT * FROM sync_operations
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                """,
+                    (limit,),
+                )
+
+            rows = cursor.fetchall()
+            results = []
+            for row in rows:
+                row_dict = dict(row)
+                # Parse JSON conflicts
+                if row_dict.get("conflicts"):
+                    try:
+                        row_dict["conflicts"] = json.loads(row_dict["conflicts"])
+                    except json.JSONDecodeError:
+                        pass
+                results.append(row_dict)
+            return results
+        except sqlite3.Error as e:
+            logger.error(f"Error querying sync operations: {e}")
+            return []
 
     def close(self) -> None:
         """Clean up database connection."""

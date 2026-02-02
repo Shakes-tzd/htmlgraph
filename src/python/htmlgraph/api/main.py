@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import aiosqlite
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -379,6 +379,31 @@ def get_app(db_path: str) -> FastAPI:
             )
         finally:
             await db.close()
+
+    # ========== PRESENCE WIDGET DEMO (Phase 6) ==========
+
+    @app.get("/views/presence-widget", response_class=HTMLResponse)
+    async def presence_widget_demo(request: Request) -> HTMLResponse:
+        """Phase 6 Demo: Real-time Presence Widget showing active agents across sessions.
+
+        This widget demonstrates:
+        - WebSocket connections to broadcast stream
+        - Real-time presence updates (<100ms latency)
+        - Multi-session agent coordination
+        - Integration with Phase 5 broadcast API
+
+        Try it out:
+        1. Open this page in your browser
+        2. In another terminal, emit presence events
+        3. Watch the dashboard update in real-time!
+        """
+        widget_path = Path(__file__).parent / "static" / "presence-widget-demo.html"
+        if widget_path.exists():
+            return HTMLResponse(content=widget_path.read_text())
+        else:
+            raise HTTPException(
+                status_code=404, detail="Presence widget demo not found"
+            )
 
     # ========== ACTIVITY FEED ENDPOINTS ==========
 
@@ -2479,6 +2504,115 @@ def get_app(db_path: str) -> FastAPI:
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
             await websocket.close(code=1011)
+
+    # ========================================================================
+    # PRESENCE TRACKING API - Phase 1: Cross-Agent Presence
+    # ========================================================================
+
+    @app.get("/api/presence")
+    async def get_all_presence() -> dict[str, Any]:
+        """
+        Get current presence state for all agents.
+
+        Returns:
+            Dictionary with agents list and timestamp
+        """
+        try:
+            from htmlgraph.api.presence import PresenceManager
+
+            presence_mgr = PresenceManager(db_path=db_path)
+            agents = presence_mgr.get_all_presence()
+
+            return {
+                "agents": [agent.to_dict() for agent in agents],
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.error(f"Error getting presence: {e}")
+            return {"agents": [], "timestamp": datetime.now().isoformat()}
+
+    @app.get("/api/presence/{agent_id}")
+    async def get_agent_presence(agent_id: str) -> dict[str, Any]:
+        """
+        Get presence for specific agent.
+
+        Args:
+            agent_id: Agent identifier
+
+        Returns:
+            Agent presence dictionary
+        """
+        try:
+            from htmlgraph.api.presence import PresenceManager
+
+            presence_mgr = PresenceManager(db_path=db_path)
+            presence = presence_mgr.get_agent_presence(agent_id)
+
+            if not presence:
+                raise HTTPException(status_code=404, detail="Agent not found")
+
+            return presence.to_dict()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting agent presence: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.websocket("/ws/presence")
+    async def websocket_presence(websocket: WebSocket) -> None:
+        """
+        WebSocket endpoint for real-time agent presence updates.
+
+        Clients subscribe to receive:
+        - Initial presence state for all agents
+        - Updates when agents become active/idle/offline
+        """
+        client_id = f"presence-{int(time.time() * 1000)}"
+
+        try:
+            await websocket.accept()
+            logger.info(f"Presence WebSocket client connected: {client_id}")
+
+            # Send initial presence state
+            from htmlgraph.api.presence import PresenceManager
+
+            presence_mgr = PresenceManager(db_path=db_path)
+            initial_presence = presence_mgr.get_all_presence()
+
+            await websocket.send_json(
+                {
+                    "type": "presence_state",
+                    "agents": [p.to_dict() for p in initial_presence],
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
+
+            # Poll for presence updates
+            poll_interval = 1.0  # Check every second
+
+            while True:
+                await asyncio.sleep(poll_interval)
+
+                # Get current presence
+                current_presence = presence_mgr.get_all_presence()
+
+                # Send update (client will diff against previous state)
+                await websocket.send_json(
+                    {
+                        "type": "presence_update",
+                        "agents": [p.to_dict() for p in current_presence],
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+
+        except WebSocketDisconnect:
+            logger.info(f"Presence WebSocket client disconnected: {client_id}")
+        except Exception as e:
+            logger.error(f"Presence WebSocket error: {e}")
+            try:
+                await websocket.close(code=1011)
+            except Exception:
+                pass
 
     return app
 

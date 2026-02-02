@@ -90,6 +90,7 @@ class WebSocketClient:
 
     websocket: WebSocket
     client_id: str
+    session_id: str  # Session this client belongs to
     subscription_filter: EventSubscriptionFilter
     connected_at: datetime = field(default_factory=datetime.now)
     events_sent: int = 0
@@ -189,8 +190,9 @@ class WebSocketManager:
         self.event_batch_window_ms = event_batch_window_ms
         self.poll_interval_ms = poll_interval_ms / 1000.0  # Convert to seconds
 
-        # Active connections: {session_id: {client_id: WebSocketClient}}
-        self.connections: dict[str, dict[str, WebSocketClient]] = {}
+        # Active connections: {client_id: WebSocketClient}
+        # Flattened structure enables efficient cross-session broadcasting
+        self.connections: dict[str, WebSocketClient] = {}
 
         # Event batchers per session: {session_id: EventBatcher}
         self.batchers: dict[str, EventBatcher] = {}
@@ -227,7 +229,7 @@ class WebSocketManager:
             await websocket.accept()
 
             # Check max clients per session
-            session_clients = self.connections.get(session_id, {})
+            session_clients = await self.get_session_clients(session_id)
             if len(session_clients) >= self.max_clients_per_session:
                 logger.warning(
                     f"Session {session_id} has max clients ({self.max_clients_per_session})"
@@ -243,13 +245,12 @@ class WebSocketManager:
             client = WebSocketClient(
                 websocket=websocket,
                 client_id=client_id,
+                session_id=session_id,
                 subscription_filter=subscription_filter,
             )
 
-            # Add to connections
-            if session_id not in self.connections:
-                self.connections[session_id] = {}
-            self.connections[session_id][client_id] = client
+            # Add to flat connections structure
+            self.connections[client_id] = client
 
             # Create batcher for session if needed
             if session_id not in self.batchers:
@@ -260,7 +261,8 @@ class WebSocketManager:
 
             # Update metrics
             self.metrics["total_connections"] += 1
-            self.metrics["active_sessions"] = len(self.connections)
+            active_sessions = await self.get_active_sessions()
+            self.metrics["active_sessions"] = len(active_sessions)
 
             logger.info(
                 f"WebSocket client connected: session={session_id}, client={client_id}"
@@ -279,24 +281,48 @@ class WebSocketManager:
             session_id: Session ID
             client_id: Client ID to disconnect
         """
-        if session_id not in self.connections:
+        if client_id not in self.connections:
             return
 
-        if client_id in self.connections[session_id]:
-            client = self.connections[session_id][client_id]
-            del self.connections[session_id][client_id]
+        client = self.connections[client_id]
+        del self.connections[client_id]
 
-            # Update metrics
-            if not self.connections[session_id]:
-                del self.connections[session_id]
-                if session_id in self.batchers:
-                    del self.batchers[session_id]
+        # Check if this was the last client for the session
+        session_clients = await self.get_session_clients(session_id)
+        if not session_clients:
+            # Clean up session batcher
+            if session_id in self.batchers:
+                del self.batchers[session_id]
 
-            self.metrics["active_sessions"] = len(self.connections)
-            logger.info(
-                f"WebSocket client disconnected: session={session_id}, client={client_id}, "
-                f"events_sent={client.events_sent}"
-            )
+        # Update metrics
+        active_sessions = await self.get_active_sessions()
+        self.metrics["active_sessions"] = len(active_sessions)
+
+        logger.info(
+            f"WebSocket client disconnected: session={session_id}, client={client_id}, "
+            f"events_sent={client.events_sent}"
+        )
+
+    async def get_session_clients(self, session_id: str) -> list[WebSocketClient]:
+        """
+        Get all clients for a specific session.
+
+        Args:
+            session_id: Session ID to filter by
+
+        Returns:
+            List of clients belonging to the session
+        """
+        return [c for c in self.connections.values() if c.session_id == session_id]
+
+    async def get_active_sessions(self) -> set[str]:
+        """
+        Get all active session IDs.
+
+        Returns:
+            Set of session IDs with active connections
+        """
+        return {c.session_id for c in self.connections.values()}
 
     async def stream_events(
         self,
@@ -318,14 +344,11 @@ class WebSocketManager:
             client_id: Client ID
             get_db: Async function to get database connection
         """
-        if (
-            session_id not in self.connections
-            or client_id not in self.connections[session_id]
-        ):
-            logger.warning(f"Client not found: {session_id}/{client_id}")
+        if client_id not in self.connections:
+            logger.warning(f"Client not found: {client_id}")
             return
 
-        client = self.connections[session_id][client_id]
+        client = self.connections[client_id]
         last_timestamp = datetime.now().isoformat()
         poll_interval = self.poll_interval_ms
         consecutive_empty_polls = 0
@@ -487,11 +510,21 @@ class WebSocketManager:
         Returns:
             Number of clients that received the event
         """
-        if session_id not in self.connections:
-            return 0
+        return await self.broadcast_to_session(session_id, event)
 
+    async def broadcast_to_session(self, session_id: str, event: dict[str, Any]) -> int:
+        """
+        Broadcast event to all clients in a specific session.
+
+        Args:
+            session_id: Session to broadcast to
+            event: Event data
+
+        Returns:
+            Number of clients that received the event
+        """
         sent_count = 0
-        session_clients = list(self.connections[session_id].values())
+        session_clients = await self.get_session_clients(session_id)
 
         for client in session_clients:
             if client.subscription_filter.matches_event(event):
@@ -510,12 +543,56 @@ class WebSocketManager:
 
         return sent_count
 
+    async def broadcast_to_all_sessions(self, event: dict[str, Any]) -> int:
+        """
+        Broadcast event to all connected clients across all sessions.
+
+        Enables cross-session features like:
+        - Global notifications
+        - System-wide alerts
+        - Cross-agent coordination
+
+        Args:
+            event: Event data to broadcast
+
+        Returns:
+            Number of clients that received the event
+        """
+        sent_count = 0
+
+        for client in list(self.connections.values()):
+            if client.subscription_filter.matches_event(event):
+                try:
+                    await client.websocket.send_json(
+                        {
+                            "type": "event",
+                            "timestamp": datetime.now().isoformat(),
+                            **event,
+                        }
+                    )
+                    sent_count += 1
+                    client.events_sent += 1
+                except Exception as e:
+                    logger.error(f"Broadcast error to {client.client_id}: {e}")
+
+        return sent_count
+
     def get_session_metrics(self, session_id: str) -> dict[str, Any]:
         """Get metrics for a session."""
-        if session_id not in self.connections:
+        # Use asyncio.run to call async method in sync context
+        import asyncio
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        clients = loop.run_until_complete(self.get_session_clients(session_id))
+
+        if not clients:
             return {}
 
-        clients = self.connections[session_id].values()
         return {
             "session_id": session_id,
             "connected_clients": len(clients),
@@ -531,8 +608,6 @@ class WebSocketManager:
         """Get global WebSocket metrics."""
         return {
             **self.metrics,
-            "active_sessions": len(self.connections),
-            "total_connected_clients": sum(
-                len(clients) for clients in self.connections.values()
-            ),
+            "active_sessions": self.metrics["active_sessions"],
+            "total_connected_clients": len(self.connections),
         }
