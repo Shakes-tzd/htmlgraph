@@ -1301,6 +1301,262 @@
         }
 
         /* ================================================================
+           PRESENCE WIDGET - Real-Time Agent Status
+           ================================================================ */
+        .presence-section {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-strong);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .presence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .presence-header h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .presence-connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-connection-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.3s;
+        }
+
+        .presence-connection-indicator.connected {
+            background: var(--status-done);
+            animation: presence-pulse 2s infinite;
+        }
+
+        @keyframes presence-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .presence-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .presence-stat-box {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            padding: 1rem;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .presence-stat-box h4 {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-stat-subtext {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .presence-agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .presence-agent-card {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-left: 4px solid var(--text-muted);
+            padding: 1rem;
+            transition: all 0.3s var(--ease-out-expo);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .presence-agent-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .presence-agent-card.active {
+            background: var(--bg-secondary);
+            border-left-color: var(--status-done);
+        }
+
+        .presence-agent-card.idle {
+            background: var(--bg-secondary);
+            border-left-color: var(--priority-medium);
+        }
+
+        .presence-agent-card.offline {
+            opacity: 0.6;
+            border-left-color: var(--text-muted);
+        }
+
+        .presence-agent-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .presence-agent-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-agent-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .presence-agent-indicator.active {
+            background: var(--status-done);
+            animation: presence-pulse 2s infinite;
+        }
+
+        .presence-agent-indicator.idle {
+            background: var(--priority-medium);
+        }
+
+        .presence-agent-indicator.offline {
+            background: var(--text-muted);
+        }
+
+        .presence-status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 2px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid var(--border-strong);
+        }
+
+        .presence-status-badge.active {
+            background: var(--status-done);
+            color: var(--bg-primary);
+            border-color: var(--status-done);
+        }
+
+        .presence-status-badge.idle {
+            background: var(--priority-medium);
+            color: white;
+            border-color: var(--priority-medium);
+        }
+
+        .presence-status-badge.offline {
+            background: var(--text-muted);
+            color: white;
+            border-color: var(--text-muted);
+        }
+
+        .presence-agent-detail {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-agent-detail:last-child {
+            border-bottom: none;
+        }
+
+        .presence-agent-detail label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .presence-agent-detail value {
+            color: var(--text-primary);
+            font-size: 0.8rem;
+        }
+
+        .presence-agent-metrics {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .presence-metric {
+            text-align: center;
+        }
+
+        .presence-metric-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-metric-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ================================================================
            WORKLOAD DISTRIBUTION CHART
            ================================================================ */
         .workload-chart-container {
@@ -3165,6 +3421,48 @@
                 </div>
                 <div style="display:flex; gap:0.5rem; align-items:center;">
                     <button class="btn btn-primary" id="agents-refresh">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Real-Time Presence Widget -->
+            <div class="presence-section">
+                <div class="presence-header">
+                    <h3>👥 Real-Time Agent Presence</h3>
+                    <div class="presence-connection-status">
+                        <div class="presence-connection-indicator" id="presence-ws-indicator"></div>
+                        <span id="presence-ws-status">Connecting...</span>
+                    </div>
+                </div>
+
+                <!-- Presence Statistics -->
+                <div class="presence-stats">
+                    <div class="presence-stat-box">
+                        <h4>Active Agents</h4>
+                        <div class="presence-stat-value" id="presence-active-count">0</div>
+                        <div class="presence-stat-subtext">Currently working</div>
+                    </div>
+                    <div class="presence-stat-box">
+                        <h4>Idle Agents</h4>
+                        <div class="presence-stat-value" id="presence-idle-count">0</div>
+                        <div class="presence-stat-subtext">Inactive 5+ min</div>
+                    </div>
+                    <div class="presence-stat-box">
+                        <h4>Offline Agents</h4>
+                        <div class="presence-stat-value" id="presence-offline-count">0</div>
+                        <div class="presence-stat-subtext">Not connected</div>
+                    </div>
+                    <div class="presence-stat-box">
+                        <h4>Total Cost</h4>
+                        <div class="presence-stat-value" id="presence-total-cost">0</div>
+                        <div class="presence-stat-subtext">Tokens this session</div>
+                    </div>
+                </div>
+
+                <!-- Agent Presence Cards -->
+                <div class="presence-agents-grid" id="presence-agents-container">
+                    <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.875rem;">
+                        Waiting for agent activity...
+                    </p>
                 </div>
             </div>
 
