@@ -174,7 +174,7 @@ class TestDelegationFKFix(unittest.TestCase):
             feature_id=feature_id,
             feature_type="feature",
             title="Test Feature",
-            status="in_progress",
+            status="in-progress",
         )
 
         # Record delegation with feature
@@ -195,6 +195,7 @@ class TestDelegationFKFix(unittest.TestCase):
             (handoff_id,),
         )
         row = cursor.fetchone()
+        self.assertIsNotNone(row, "No collaboration record found for handoff_id")
         self.assertEqual(row[0], feature_id)
 
     def test_delegation_with_context(self) -> None:

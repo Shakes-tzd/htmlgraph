@@ -27,6 +27,7 @@ def hook_script_path():
         Path(__file__).parent.parent.parent
         / "packages"
         / "claude-plugin"
+        / ".claude-plugin"
         / "hooks"
         / "scripts"
         / "validate-work.py"

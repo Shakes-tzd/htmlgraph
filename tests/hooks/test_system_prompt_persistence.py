@@ -910,4 +910,4 @@ class TestParametrized:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=packages/claude-plugin/hooks/scripts"])
+    pytest.main([__file__, "-v", "--cov=packages/claude-plugin/.claude-plugin/hooks/scripts"])

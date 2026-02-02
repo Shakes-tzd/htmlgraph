@@ -20,6 +20,7 @@ HOOK_SCRIPT = (
     Path(__file__).parent.parent.parent
     / "packages"
     / "claude-plugin"
+    / ".claude-plugin"
     / "hooks"
     / "scripts"
     / "user-prompt-submit.py"
