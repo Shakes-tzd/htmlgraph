@@ -5,12 +5,16 @@ Tests the real-time agent status dashboard functionality
 
 import asyncio
 from pathlib import Path
+
 from playwright.async_api import async_playwright
 
 
 async def test_presence_widget_html_structure():
     """Test that Presence Widget HTML is well-formed and contains required elements."""
-    widget_path = Path(__file__).parent.parent.parent / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+    widget_path = (
+        Path(__file__).parent.parent.parent
+        / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+    )
 
     assert widget_path.exists(), f"Widget file not found at {widget_path}"
 
@@ -18,7 +22,9 @@ async def test_presence_widget_html_structure():
 
     # Verify HTML structure
     assert "<!DOCTYPE html>" in content, "Missing DOCTYPE"
-    assert "<title>HtmlGraph Presence Widget - Phase 6 Demo</title>" in content, "Missing or incorrect title"
+    assert "<title>HtmlGraph Presence Widget - Phase 6 Demo</title>" in content, (
+        "Missing or incorrect title"
+    )
     assert "Presence Widget" in content, "Missing 'Presence Widget' text"
 
     print("✅ HTML structure valid")
@@ -31,7 +37,10 @@ async def test_presence_widget_functionality():
         page = await browser.new_page()
 
         # Load widget HTML directly
-        widget_path = Path(__file__).parent.parent.parent / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        widget_path = (
+            Path(__file__).parent.parent.parent
+            / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        )
         widget_url = widget_path.as_uri()
 
         await page.goto(widget_url, wait_until="networkidle")
@@ -48,12 +57,16 @@ async def test_presence_widget_functionality():
         header_h1 = await page.query_selector("header h1")
         assert header_h1 is not None, "Header H1 not found"
         header_text = await header_h1.text_content()
-        assert "Presence Widget" in header_text, f"Expected 'Presence Widget' in header, got: {header_text}"
+        assert "Presence Widget" in header_text, (
+            f"Expected 'Presence Widget' in header, got: {header_text}"
+        )
         print("✅ Header rendered correctly")
 
         # Test 3: Verify statistics section
         stat_boxes = await page.query_selector_all(".stat-box")
-        assert len(stat_boxes) >= 4, f"Expected at least 4 stat boxes, found {len(stat_boxes)}"
+        assert len(stat_boxes) >= 4, (
+            f"Expected at least 4 stat boxes, found {len(stat_boxes)}"
+        )
         print(f"✅ Statistics section loaded ({len(stat_boxes)} stat boxes)")
 
         # Test 4: Verify agent cards render with mock data
@@ -73,7 +86,9 @@ async def test_presence_widget_functionality():
         status_badge = await first_card.query_selector(".status-badge")
         assert status_badge is not None, "Status badge not found"
         status_text = await status_badge.text_content()
-        assert status_text.lower() in ["active", "idle", "offline"], f"Invalid status: {status_text}"
+        assert status_text.lower() in ["active", "idle", "offline"], (
+            f"Invalid status: {status_text}"
+        )
         print(f"✅ Status badge valid: {status_text}")
 
         # Test 7: Verify metrics section
@@ -83,12 +98,16 @@ async def test_presence_widget_functionality():
 
         # Test 8: Verify WebSocket code is present
         ws_code = await page.text_content("pre")
-        assert "WebSocket" in ws_code or "ws://" in content, "WebSocket code not found"
+        assert ws_code and ("WebSocket" in ws_code or "ws://" in ws_code), (
+            "WebSocket code not found"
+        )
         print("✅ WebSocket implementation code present")
 
         # Test 9: Verify statistics are updated (mock data simulation)
         active_count = await page.text_content("#active-count")
-        assert active_count and int(active_count) >= 0, f"Invalid active count: {active_count}"
+        assert active_count and int(active_count) >= 0, (
+            f"Invalid active count: {active_count}"
+        )
         print(f"✅ Statistics updated: {active_count} active agents")
 
         # Test 10: Verify connection status indicator
@@ -108,7 +127,10 @@ async def test_presence_widget_code_examples():
         browser = await p.chromium.launch()
         page = await browser.new_page()
 
-        widget_path = Path(__file__).parent.parent.parent / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        widget_path = (
+            Path(__file__).parent.parent.parent
+            / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        )
         widget_url = widget_path.as_uri()
 
         await page.goto(widget_url, wait_until="networkidle")
@@ -126,7 +148,7 @@ async def test_presence_widget_code_examples():
             "presence_update",
             "GET /api/presence",
             "WebSocket",
-            "PresenceManager"
+            "PresenceManager",
         ]
 
         for pattern in required_patterns:
@@ -142,7 +164,10 @@ async def test_widget_styling():
         browser = await p.chromium.launch()
         page = await browser.new_page()
 
-        widget_path = Path(__file__).parent.parent.parent / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        widget_path = (
+            Path(__file__).parent.parent.parent
+            / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        )
         widget_url = widget_path.as_uri()
 
         await page.goto(widget_url, wait_until="networkidle")
@@ -151,7 +176,9 @@ async def test_widget_styling():
         body_style = await page.locator("body").evaluate(
             "el => window.getComputedStyle(el).backgroundImage"
         )
-        assert "gradient" in body_style.lower(), f"Background gradient not applied: {body_style}"
+        assert "gradient" in body_style.lower(), (
+            f"Background gradient not applied: {body_style}"
+        )
         print("✅ Background styling applied")
 
         # Test agent card styling
@@ -179,7 +206,10 @@ async def test_demo_functionality():
         browser = await p.chromium.launch()
         page = await browser.new_page()
 
-        widget_path = Path(__file__).parent.parent.parent / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        widget_path = (
+            Path(__file__).parent.parent.parent
+            / "src/python/htmlgraph/api/static/presence-widget-demo.html"
+        )
         widget_url = widget_path.as_uri()
 
         await page.goto(widget_url, wait_until="networkidle")
@@ -209,9 +239,9 @@ async def test_demo_functionality():
 
 async def main():
     """Run all tests."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🧪 Phase 6 Presence Widget - Playwright Tests")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     try:
         print("Test 1: HTML Structure")
@@ -229,9 +259,9 @@ async def main():
         print("\nTest 5: Demo Functionality")
         await test_demo_functionality()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("✅ All Playwright tests passed!")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")

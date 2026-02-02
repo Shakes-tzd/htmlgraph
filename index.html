@@ -1304,28 +1304,28 @@
            PRESENCE WIDGET - Real-Time Agent Status
            ================================================================ */
         .presence-section {
-            background: var(--bg-secondary);
-            border: 2px solid var(--border-strong);
-            box-shadow: var(--shadow-md);
-            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 2.5rem;
             margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
         .presence-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--border);
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
         }
 
         .presence-header h3 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 1.5rem;
+            text-transform: none;
+            letter-spacing: 0.02em;
+            color: white;
             font-weight: 600;
             margin: 0;
         }
@@ -1333,181 +1333,200 @@
         .presence-connection-status {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            font-family: 'JetBrains Mono', monospace;
+            gap: 0.75rem;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .presence-connection-indicator {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: var(--text-muted);
+            background: rgba(255, 255, 255, 0.5);
             transition: background 0.3s;
         }
 
         .presence-connection-indicator.connected {
-            background: var(--status-done);
+            background: #4CAF50;
             animation: presence-pulse 2s infinite;
         }
 
         @keyframes presence-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
         }
 
         .presence-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .presence-stat-box {
-            background: var(--bg-tertiary);
-            border: 2px solid var(--border);
-            padding: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 1.5rem;
             text-align: center;
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
         .presence-stat-box h4 {
-            color: var(--text-muted);
-            font-size: 0.7rem;
+            color: #667eea;
+            font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.08em;
             font-weight: 600;
-            margin-bottom: 0.5rem;
-            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .presence-stat-value {
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: 700;
-            color: var(--text-primary);
-            font-family: 'JetBrains Mono', monospace;
+            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .presence-stat-subtext {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: #999;
+            margin-top: 0.5rem;
         }
 
         .presence-agents-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
         }
 
         .presence-agent-card {
-            background: var(--bg-tertiary);
-            border: 2px solid var(--border);
-            border-left: 4px solid var(--text-muted);
-            padding: 1rem;
-            transition: all 0.3s var(--ease-out-expo);
-            box-shadow: var(--shadow-sm);
+            background: linear-gradient(135deg, #FF8A50 0%, #FFB873 100%);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            color: #333;
         }
 
         .presence-agent-card:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-md);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         }
 
         .presence-agent-card.active {
-            background: var(--bg-secondary);
-            border-left-color: var(--status-done);
+            background: linear-gradient(135deg, #4CAF50 0%, #81C784 100%);
+            color: white;
         }
 
         .presence-agent-card.idle {
-            background: var(--bg-secondary);
-            border-left-color: var(--priority-medium);
+            background: linear-gradient(135deg, #FF8A50 0%, #FFB873 100%);
+            color: #333;
         }
 
         .presence-agent-card.offline {
-            opacity: 0.6;
-            border-left-color: var(--text-muted);
+            background: linear-gradient(135deg, #B0BEC5 0%, #CFD8DC 100%);
+            color: #666;
+            opacity: 0.8;
+        }
+
+        .presence-agent-card[data-agent="claude-1"] {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFA07A 100%);
+            color: white;
+        }
+
+        .presence-agent-card[data-agent="gemini-1"] {
+            background: linear-gradient(135deg, #4CAF50 0%, #81C784 100%);
+            color: white;
+        }
+
+        .presence-agent-card[data-agent="codex-1"] {
+            background: linear-gradient(135deg, #FFC107 0%, #FFD54F 100%);
+            color: #333;
         }
 
         .presence-agent-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
         }
 
         .presence-agent-name {
-            font-weight: 600;
-            font-size: 1rem;
-            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: inherit;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            font-family: 'JetBrains Mono', monospace;
+            gap: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .presence-agent-indicator {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: var(--text-muted);
+            background: rgba(255, 255, 255, 0.5);
         }
 
         .presence-agent-indicator.active {
-            background: var(--status-done);
+            background: white;
             animation: presence-pulse 2s infinite;
         }
 
         .presence-agent-indicator.idle {
-            background: var(--priority-medium);
+            background: rgba(255, 255, 255, 0.7);
         }
 
         .presence-agent-indicator.offline {
-            background: var(--text-muted);
+            background: rgba(0, 0, 0, 0.3);
         }
 
         .presence-status-badge {
             display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 2px;
-            font-size: 0.7rem;
-            font-weight: 600;
+            padding: 0.35rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-family: 'JetBrains Mono', monospace;
-            border: 1px solid var(--border-strong);
+            letter-spacing: 0.06em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: rgba(255, 255, 255, 0.3);
+            color: inherit;
         }
 
         .presence-status-badge.active {
-            background: var(--status-done);
-            color: var(--bg-primary);
-            border-color: var(--status-done);
+            background: rgba(255, 255, 255, 0.6);
+            color: inherit;
+            border: none;
         }
 
         .presence-status-badge.idle {
-            background: var(--priority-medium);
-            color: white;
-            border-color: var(--priority-medium);
+            background: rgba(255, 255, 255, 0.4);
+            color: inherit;
+            border: none;
         }
 
         .presence-status-badge.offline {
-            background: var(--text-muted);
-            color: white;
-            border-color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.2);
+            color: inherit;
+            border: none;
         }
 
         .presence-agent-detail {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: inherit;
+            margin-bottom: 0.75rem;
             display: flex;
             justify-content: space-between;
             padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border);
-            font-family: 'JetBrains Mono', monospace;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .presence-agent-detail:last-child {

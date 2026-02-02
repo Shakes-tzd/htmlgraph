@@ -1301,6 +1301,281 @@
         }
 
         /* ================================================================
+           PRESENCE WIDGET - Real-Time Agent Status
+           ================================================================ */
+        .presence-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .presence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .presence-header h3 {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 1.5rem;
+            text-transform: none;
+            letter-spacing: 0.02em;
+            color: white;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .presence-connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .presence-connection-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transition: background 0.3s;
+        }
+
+        .presence-connection-indicator.connected {
+            background: #4CAF50;
+            animation: presence-pulse 2s infinite;
+        }
+
+        @keyframes presence-pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
+        }
+
+        .presence-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .presence-stat-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .presence-stat-box h4 {
+            color: #667eea;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .presence-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .presence-stat-subtext {
+            font-size: 0.75rem;
+            color: #999;
+            margin-top: 0.5rem;
+        }
+
+        .presence-agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .presence-agent-card {
+            background: linear-gradient(135deg, #FF8A50 0%, #FFB873 100%);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            color: #333;
+        }
+
+        .presence-agent-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .presence-agent-card.active {
+            background: linear-gradient(135deg, #4CAF50 0%, #81C784 100%);
+            color: white;
+        }
+
+        .presence-agent-card.idle {
+            background: linear-gradient(135deg, #FF8A50 0%, #FFB873 100%);
+            color: #333;
+        }
+
+        .presence-agent-card.offline {
+            background: linear-gradient(135deg, #B0BEC5 0%, #CFD8DC 100%);
+            color: #666;
+            opacity: 0.8;
+        }
+
+        .presence-agent-card[data-agent="claude-1"] {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFA07A 100%);
+            color: white;
+        }
+
+        .presence-agent-card[data-agent="gemini-1"] {
+            background: linear-gradient(135deg, #4CAF50 0%, #81C784 100%);
+            color: white;
+        }
+
+        .presence-agent-card[data-agent="codex-1"] {
+            background: linear-gradient(135deg, #FFC107 0%, #FFD54F 100%);
+            color: #333;
+        }
+
+        .presence-agent-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .presence-agent-name {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .presence-agent-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .presence-agent-indicator.active {
+            background: white;
+            animation: presence-pulse 2s infinite;
+        }
+
+        .presence-agent-indicator.idle {
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .presence-agent-indicator.offline {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .presence-status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: rgba(255, 255, 255, 0.3);
+            color: inherit;
+        }
+
+        .presence-status-badge.active {
+            background: rgba(255, 255, 255, 0.6);
+            color: inherit;
+            border: none;
+        }
+
+        .presence-status-badge.idle {
+            background: rgba(255, 255, 255, 0.4);
+            color: inherit;
+            border: none;
+        }
+
+        .presence-status-badge.offline {
+            background: rgba(0, 0, 0, 0.2);
+            color: inherit;
+            border: none;
+        }
+
+        .presence-agent-detail {
+            font-size: 0.85rem;
+            color: inherit;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .presence-agent-detail:last-child {
+            border-bottom: none;
+        }
+
+        .presence-agent-detail label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .presence-agent-detail value {
+            color: var(--text-primary);
+            font-size: 0.8rem;
+        }
+
+        .presence-agent-metrics {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .presence-metric {
+            text-align: center;
+        }
+
+        .presence-metric-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .presence-metric-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ================================================================
            WORKLOAD DISTRIBUTION CHART
            ================================================================ */
         .workload-chart-container {
@@ -3165,6 +3440,48 @@
                 </div>
                 <div style="display:flex; gap:0.5rem; align-items:center;">
                     <button class="btn btn-primary" id="agents-refresh">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Real-Time Presence Widget -->
+            <div class="presence-section">
+                <div class="presence-header">
+                    <h3>👥 Real-Time Agent Presence</h3>
+                    <div class="presence-connection-status">
+                        <div class="presence-connection-indicator" id="presence-ws-indicator"></div>
+                        <span id="presence-ws-status">Connecting...</span>
+                    </div>
+                </div>
+
+                <!-- Presence Statistics -->
+                <div class="presence-stats">
+                    <div class="presence-stat-box">
+                        <h4>Active Agents</h4>
+                        <div class="presence-stat-value" id="presence-active-count">0</div>
+                        <div class="presence-stat-subtext">Currently working</div>
+                    </div>
+                    <div class="presence-stat-box">
+                        <h4>Idle Agents</h4>
+                        <div class="presence-stat-value" id="presence-idle-count">0</div>
+                        <div class="presence-stat-subtext">Inactive 5+ min</div>
+                    </div>
+                    <div class="presence-stat-box">
+                        <h4>Offline Agents</h4>
+                        <div class="presence-stat-value" id="presence-offline-count">0</div>
+                        <div class="presence-stat-subtext">Not connected</div>
+                    </div>
+                    <div class="presence-stat-box">
+                        <h4>Total Cost</h4>
+                        <div class="presence-stat-value" id="presence-total-cost">0</div>
+                        <div class="presence-stat-subtext">Tokens this session</div>
+                    </div>
+                </div>
+
+                <!-- Agent Presence Cards -->
+                <div class="presence-agents-grid" id="presence-agents-container">
+                    <p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.875rem;">
+                        Waiting for agent activity...
+                    </p>
                 </div>
             </div>
 
