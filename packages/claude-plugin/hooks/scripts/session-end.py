@@ -14,54 +14,20 @@ Uses htmlgraph Python API directly for all storage operations.
 
 import json
 import os
-import subprocess
 import sys
-from pathlib import Path
 
-if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
+# Bootstrap Python path and setup
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from bootstrap import bootstrap_pythonpath, is_tracking_disabled, resolve_project_dir
+
+if is_tracking_disabled():
     print(json.dumps({}))
     sys.exit(0)
 
+project_dir_for_import = resolve_project_dir()
+bootstrap_pythonpath(project_dir_for_import)
 
-def _resolve_project_dir(cwd: str | None = None) -> str:
-    env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
-    if env_dir:
-        return env_dir
-    start_dir = cwd or os.getcwd()
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            cwd=start_dir,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return start_dir
-
-
-def _bootstrap_pythonpath(project_dir: str) -> None:
-    venv = Path(project_dir) / ".venv"
-    if venv.exists():
-        pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        candidates = [
-            venv / "lib" / pyver / "site-packages",
-            venv / "Lib" / "site-packages",
-        ]
-        for c in candidates:
-            if c.exists():
-                sys.path.insert(0, str(c))
-
-    repo_src = Path(project_dir) / "src" / "python"
-    if repo_src.exists():
-        sys.path.insert(0, str(repo_src))
-
-
-project_dir_for_import = _resolve_project_dir()
-_bootstrap_pythonpath(project_dir_for_import)
+from pathlib import Path
 
 try:
     from htmlgraph.session_manager import SessionManager
@@ -74,24 +40,6 @@ except Exception as e:
     sys.exit(0)
 
 
-def resolve_project_path(cwd: str | None = None) -> str:
-    """Resolve project path (git root or cwd)."""
-    start_dir = cwd or os.getcwd()
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            cwd=start_dir,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return start_dir
-
-
 def main():
     try:
         hook_input = json.load(sys.stdin)
@@ -102,7 +50,7 @@ def main():
         "CLAUDE_SESSION_ID"
     )
     cwd = hook_input.get("cwd")
-    project_dir = _resolve_project_dir(cwd if cwd else None)
+    project_dir = resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"
 
     # Session lifecycle management

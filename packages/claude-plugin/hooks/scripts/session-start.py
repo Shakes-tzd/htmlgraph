@@ -416,6 +416,133 @@ sdk.features.batch_update(["feat-1", "feat-2"], {"status": "done"})
 **For complete SDK documentation → see `docs/AGENTS.md`**
 """
 
+RESEARCH_FIRST_DEBUGGING = """## 🔬 RESEARCH-FIRST DEBUGGING (IMPERATIVE)
+
+**CRITICAL: NEVER implement solutions based on assumptions. ALWAYS research documentation first.**
+
+This principle emerged from dogfooding HtmlGraph development. Violating it results in:
+- ❌ Multiple trial-and-error attempts before researching
+- ❌ Implementing "fixes" based on guesses instead of documentation
+- ❌ Not using available research tools and agents
+- ❌ Wasted time and context on wrong approaches
+
+### The Research-First Workflow (ALWAYS FOLLOW)
+
+1. ✅ **Research First** - Use `sdk.help()` to understand the API
+   ```python
+   from htmlgraph import SDK
+   sdk = SDK(agent="claude")
+
+   # ALWAYS START HERE
+   print(sdk.help())               # Overview of all SDK methods
+   print(sdk.help('tracks'))       # Tracks-specific help
+   print(sdk.help('planning'))     # Planning workflow help
+   print(sdk.help('features'))     # Feature collection help
+   print(sdk.help('analytics'))    # Analytics methods
+   ```
+
+2. ✅ **Understand** - Read the help output carefully
+   - Look for correct method signatures
+   - Note parameter types and names
+   - Understand return types
+   - Find examples in the help text
+
+3. ✅ **Implement** - Apply fix based on actual understanding
+   - Use the correct API signature from help
+   - Copy example patterns from help text
+   - Test incrementally
+
+4. ✅ **Validate** - Test to confirm the approach works
+   - Run tests before and after
+   - Verify behavior matches expectations
+
+5. ✅ **Document** - Capture learning in HtmlGraph spike
+   - Record what you learned
+   - Note what the correct approach was
+   - Help future debugging
+
+### When You Get an Error
+
+**❌ WRONG APPROACH (what NOT to do):**
+```python
+# Error: "object has no attribute 'set_priority'"
+# Response: Try track.with_priority() → error
+#           Try track._priority = "high" → error
+#           Try track.priority("high") → error
+```
+
+**✅ CORRECT APPROACH (what TO do):**
+```python
+# Error: "object has no attribute 'set_priority'"
+# IMMEDIATE RESPONSE:
+#   1. Stop and use sdk.help('tracks')
+#   2. Read the help output
+#   3. Look for correct method: create_track_from_plan() with requirements parameter
+#   4. Implement based on actual API
+#   5. Test and verify
+```
+
+### SDK Help Examples
+
+**Finding Track API:**
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude")
+help_text = sdk.help('tracks')
+# Output shows:
+#   sdk.tracks.create(title)
+#   sdk.tracks.builder()
+#   ... correct methods and examples
+```
+
+**Finding Planning API:**
+```python
+help_text = sdk.help('planning')
+# Output shows:
+#   sdk.create_track_from_plan(
+#       title="...",
+#       description="...",
+#       requirements=[("requirement", "must-have")],
+#       phases=[("Phase 1", ["Task 1"])]
+#   )
+```
+
+**Finding Feature API:**
+```python
+help_text = sdk.help('features')
+# Output shows:
+#   sdk.features.create(title)
+#   sdk.features.where(**filters)
+#   ... builder pattern examples
+```
+
+### Integration with Debugging Agents
+
+**When to use Researcher agent:**
+- Encountering unfamiliar errors
+- Working with new APIs
+- Before implementing solutions based on assumptions
+- When multiple attempts have failed
+
+**When to use Debugger agent:**
+- Root cause unclear
+- Behavior doesn't match expectations
+- Tests are failing
+- Hooks or plugins aren't working
+
+**When to use Test Runner agent:**
+- After implementing code changes
+- Before marking tasks complete
+- After fixing bugs
+- Before committing code
+
+### Remember
+
+**"Fixing errors immediately by researching is faster than letting them accumulate through trial-and-error."**
+
+Your context is precious. Use `sdk.help()` first, implement second, test third.
+"""
+
 ORCHESTRATOR_DIRECTIVES = """## 🎯 ORCHESTRATOR DIRECTIVES (IMPERATIVE)
 
 **YOU ARE THE ORCHESTRATOR.** Follow these directives:
@@ -1407,6 +1534,7 @@ Or create features manually in `.htmlgraph/features/`
     context_parts.append(orchestrator_status)
     context_parts.append(ORCHESTRATOR_DIRECTIVES)
     context_parts.append(TRACKER_WORKFLOW)
+    context_parts.append(RESEARCH_FIRST_DEBUGGING)
 
     # Previous session summary (enhanced with more detail)
     prev_session = get_session_summary(graph_dir)

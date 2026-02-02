@@ -30,56 +30,17 @@ CIGS Integration:
 import json
 import os
 import re
-import subprocess
 import sys
-from pathlib import Path
 
+# Bootstrap Python path and setup
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from bootstrap import bootstrap_pythonpath, resolve_project_dir
 
-# Bootstrap Python path to find local htmlgraph source  # noqa: E402
-def _resolve_project_dir(cwd: str | None = None) -> str:
-    """Prefer Claude's project dir env var; fall back to git root; then cwd."""
-    env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
-    if env_dir:
-        return env_dir
-    start_dir = cwd or os.getcwd()
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            cwd=start_dir,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return start_dir
+project_dir_for_import = resolve_project_dir()
+bootstrap_pythonpath(project_dir_for_import)
 
-
-def _bootstrap_pythonpath(project_dir: str) -> None:
-    """Make `htmlgraph` importable in two common modes."""
-    venv = Path(project_dir) / ".venv"
-    if venv.exists():
-        pyver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        candidates = [
-            venv / "lib" / pyver / "site-packages",
-            venv / "Lib" / "site-packages",
-        ]
-        for c in candidates:
-            if c.exists():
-                sys.path.insert(0, str(c))
-
-    repo_src = Path(project_dir) / "src" / "python"
-    if repo_src.exists():
-        sys.path.insert(0, str(repo_src))
-
-
-project_dir_for_import = _resolve_project_dir()
-_bootstrap_pythonpath(project_dir_for_import)
-
-# Patterns that indicate implementation intent
-IMPLEMENTATION_PATTERNS = [
+# Pre-compiled regex patterns (compiled once at module load)
+_IMPLEMENTATION_PATTERN_STRINGS = [
     r"\b(implement|add|create|build|write|develop|make)\b.*\b(feature|function|method|class|component|endpoint|api)\b",
     r"\b(fix|resolve|patch|repair)\b.*\b(bug|issue|error|problem)\b",
     r"\b(refactor|rewrite|restructure|reorganize)\b",
@@ -90,28 +51,31 @@ IMPLEMENTATION_PATTERNS = [
     r"\blet'?s\b.*\b(implement|add|create|build|fix)\b",
 ]
 
-# Patterns that indicate investigation/research
-INVESTIGATION_PATTERNS = [
+_INVESTIGATION_PATTERN_STRINGS = [
     r"\b(investigate|research|explore|analyze|understand|find out|look into)\b",
     r"\b(why|how come|what causes)\b.*\b(not working|broken|failing|error)\b",
     r"\b(where|which|what)\b.*\b(file|code|function|class)\b.*\b(handle|process|do)\b",
     r"\bcan you\b.*\b(find|search|look for|check)\b",
 ]
 
-# Patterns that indicate bug/issue
-BUG_PATTERNS = [
+_BUG_PATTERN_STRINGS = [
     r"\b(bug|issue|error|problem|broken|not working|fails|crash)\b",
     r"\b(something'?s? wrong|doesn'?t work|isn'?t working)\b",
     r"\bCI\b.*\b(fail|error|broken)\b",
     r"\btest.*\b(fail|error|broken)\b",
 ]
 
-# Patterns for continuation
-CONTINUATION_PATTERNS = [
+_CONTINUATION_PATTERN_STRINGS = [
     r"^(continue|resume|proceed|go on|keep going|next)\b",
     r"\b(where we left off|from before|last time)\b",
     r"^(ok|okay|yes|sure|do it|go ahead)\b",
 ]
+
+# Compile patterns once at module load time
+IMPLEMENTATION_PATTERNS = [re.compile(p) for p in _IMPLEMENTATION_PATTERN_STRINGS]
+INVESTIGATION_PATTERNS = [re.compile(p) for p in _INVESTIGATION_PATTERN_STRINGS]
+BUG_PATTERNS = [re.compile(p) for p in _BUG_PATTERN_STRINGS]
+CONTINUATION_PATTERNS = [re.compile(p) for p in _CONTINUATION_PATTERN_STRINGS]
 
 # CIGS: Patterns for delegation-critical operations
 EXPLORATION_KEYWORDS = [
@@ -186,32 +150,32 @@ def classify_prompt(prompt: str) -> dict:
 
     # Check for continuation first (short prompts like "ok", "continue")
     for pattern in CONTINUATION_PATTERNS:
-        if re.search(pattern, prompt_lower):
+        if pattern.search(prompt_lower):
             result["is_continuation"] = True
             result["confidence"] = 0.9
-            result["matched_patterns"].append(f"continuation: {pattern}")
+            result["matched_patterns"].append(f"continuation: {pattern.pattern}")
             return result
 
     # Check for implementation patterns
     for pattern in IMPLEMENTATION_PATTERNS:
-        if re.search(pattern, prompt_lower):
+        if pattern.search(prompt_lower):
             result["is_implementation"] = True
             result["confidence"] = max(result["confidence"], 0.8)
-            result["matched_patterns"].append(f"implementation: {pattern}")
+            result["matched_patterns"].append(f"implementation: {pattern.pattern}")
 
     # Check for investigation patterns
     for pattern in INVESTIGATION_PATTERNS:
-        if re.search(pattern, prompt_lower):
+        if pattern.search(prompt_lower):
             result["is_investigation"] = True
             result["confidence"] = max(result["confidence"], 0.7)
-            result["matched_patterns"].append(f"investigation: {pattern}")
+            result["matched_patterns"].append(f"investigation: {pattern.pattern}")
 
     # Check for bug patterns
     for pattern in BUG_PATTERNS:
-        if re.search(pattern, prompt_lower):
+        if pattern.search(prompt_lower):
             result["is_bug_report"] = True
             result["confidence"] = max(result["confidence"], 0.75)
-            result["matched_patterns"].append(f"bug: {pattern}")
+            result["matched_patterns"].append(f"bug: {pattern.pattern}")
 
     return result
 
@@ -519,7 +483,7 @@ def main():
         # CRITICAL FIX: Record UserQuery event BEFORE printing output
         # This ensures the query is tracked for dashboard display
         try:
-            from htmlgraph.hooks.bootstrap import get_graph_dir, resolve_project_dir
+            from bootstrap import get_graph_dir, resolve_project_dir
 
             project_dir = resolve_project_dir()
             graph_dir = get_graph_dir(project_dir)
