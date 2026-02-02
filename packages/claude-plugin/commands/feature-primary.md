@@ -1,3 +1,5 @@
+<!-- Efficiency: SDK calls: 2, Bash calls: 0, Context: ~4% -->
+
 # /htmlgraph:feature-primary
 
 Set the primary feature for activity attribution
@@ -24,7 +26,7 @@ Set feature-001 as the primary feature for activity attribution
 
 ## Instructions for Claude
 
-This command uses the SDK's `None()` method.
+This command uses the SDK's `features.set_primary()` method.
 
 ### Implementation:
 
@@ -36,19 +38,30 @@ sdk = SDK(agent="claude")
 # Parse arguments
 **DO THIS:**
 
-1. **Run this command:**
-   ```bash
-   htmlgraph feature primary <feature-id>
+1. **Set feature as primary using SDK:**
+   ```python
+   feature = sdk.features.set_primary(feature_id)
+   if not feature:
+       print(f"Error: Feature {feature_id} not found")
+       return
    ```
 
-2. **Parse the output** to extract:
-   - The feature ID and title
-   - Confirmation that it was set as primary
-   - List of other in-progress features
+2. **Extract feature details:**
+   - Feature ID: `feature.id`
+   - Feature title: `feature.title`
+   - Status: `feature.status`
 
-3. **Present a summary** using the output template above
+3. **Get other active features:**
+   ```python
+   other_active = [f for f in sdk.features.where(status="in-progress") if f.id != feature_id]
+   ```
 
-4. **Inform the user:**
+4. **Present a summary** using the output template below with:
+   - feature_id: The ID of the primary feature
+   - title: The feature title
+   - other_active_features: List of other in-progress features
+
+5. **Inform the user:**
    - All new activity will be attributed to this feature by default
    - The feature's patterns can override this for matching activity
    - Other features remain in progress and can be worked on

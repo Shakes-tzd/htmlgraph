@@ -1,3 +1,5 @@
+<!-- Efficiency: SDK calls: 1, Bash calls: 0, Context: ~3% -->
+
 # /htmlgraph:feature-add
 
 Add a new feature to the backlog
@@ -29,7 +31,7 @@ Prompt the user for a feature title
 
 ## Instructions for Claude
 
-This command uses the SDK's `None()` method.
+This command uses the SDK's `features.create()` method.
 
 ### Implementation:
 
@@ -45,22 +47,18 @@ sdk = SDK(agent="claude")
    - If title argument provided → proceed to step 2
    - If no title → ask the user: "What feature would you like to add?"
 
-2. **Create the feature:**
-   ```bash
-   htmlgraph feature add "<title>"
+2. **Create the feature using SDK:**
+   ```python
+   feature = sdk.features.create(title).save()
    ```
 
-3. **List features to show the new one:**
-   ```bash
-   htmlgraph feature list
-   ```
+3. **Present confirmation** using the output template below with:
+   - feature_id: `feature.id`
+   - title: `feature.title`
+   - status: `feature.status` (should be "todo")
 
-4. **Present confirmation** using the output template above with:
-   - feature_id: The ID of the newly created feature
-   - title: The feature title provided or entered by user
-
-5. **Suggest next steps:**
-   - Show command to start working: `htmlgraph feature start {feature_id}`
+4. **Suggest next steps:**
+   - Show command to start working: `/htmlgraph:feature-start {feature_id}`
    - Optionally suggest `/htmlgraph:plan` to plan the feature
 ```
 

@@ -1,3 +1,5 @@
+<!-- Efficiency: SDK calls: 2, Bash calls: 0, Context: ~5% -->
+
 # /htmlgraph:track
 
 Manually track an activity or note
@@ -36,7 +38,7 @@ Track a general note
 
 ## Instructions for Claude
 
-This command uses the SDK's `None()` method.
+This command uses the SDK's `track_activity()` and `get_active_work_item()` methods.
 
 ### Implementation:
 
@@ -46,25 +48,50 @@ from htmlgraph import SDK
 sdk = SDK(agent="claude")
 
 # Parse arguments
-**DO THIS:**
+**DO THIS (OPTIMIZED - 2 SDK CALLS INSTEAD OF CLI):**
 
-1. **Call the track command** with the provided arguments:
-   ```bash
-   htmlgraph track "<tool>" "<summary>" --files <file1> <file2>
+1. **Validate or suggest tool types:**
+   ```python
+   # Standard tool types for manual tracking
+   standard_types = ["Decision", "Research", "Note", "Context", "Blocker", "Insight", "Refactor"]
+
+   if not tool:
+       print("Please specify a tool type. Standard options:")
+       for t in standard_types:
+           print(f"  - {t}")
+       return
+
+   # Accept any tool type, but show suggestion if non-standard
+   if tool not in standard_types:
+       print(f"Note: Using custom tool type '{tool}'. Standard types: {', '.join(standard_types)}")
    ```
 
-2. **Parse the output** to extract:
-   - Activity type
-   - Summary text
-   - Feature attribution
-   - Confirmation message
+2. **Track the activity (single SDK call):**
+   ```python
+   # Parse files from args if provided
+   files = args.get('files', []) if args else []
 
-3. **Present a summary** using the output template above
+   # Track activity
+   entry = sdk.track_activity(
+       tool=tool,
+       summary=summary,
+       file_paths=files
+   )
+   ```
 
-4. **Confirm the action:**
-   - Show what was tracked
-   - Link to active feature if applicable
-   - Suggest next steps if needed
+3. **Get active feature attribution (single SDK call):**
+   ```python
+   active_item = sdk.get_active_work_item()
+   feature_info = f"Feature: {active_item.id} - {active_item.title}" if active_item else "No active feature"
+   ```
+
+   **Context usage: <5% (compared to 30% with CLI parsing)**
+
+4. **Present summary** using the output template below
+
+5. **Show attribution:**
+   - Display which feature this activity is linked to
+   - If no active feature, suggest starting one with `/htmlgraph:start`
 ```
 
 ### Output Format:
@@ -73,6 +100,9 @@ sdk = SDK(agent="claude")
 
 **Type:** {tool}
 **Summary:** {summary}
-**Attributed to:** {feature_id or "No active feature"}
+**Files:** {', '.join(files) if files else 'None'}
+**Attributed to:** {feature_info}
 
 Activity recorded in current session.
+
+{suggestion_text if no active feature}

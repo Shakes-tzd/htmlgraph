@@ -51,7 +51,26 @@ sdk = SDK(agent="claude")
 
 1. **Construct the commit message:**
    - Use conventional commit format (feat:, fix:, chore:, etc.)
-   - Include feature ID if working on tracked feature
+   - Auto-reference active work items:
+     ```python
+     from htmlgraph import SDK
+
+     sdk = SDK(agent="claude")
+
+     # Get active work item
+     active_work = sdk.get_active_work_item()
+
+     # Enhance commit message with references
+     if active_work:
+         # Add feature/track reference
+         commit_msg = f"{commit_msg}\n\nRefs: {active_work['id']}"
+
+         # Add track reference if available
+         if active_work.get('track_id'):
+             commit_msg += f", {active_work['track_id']}"
+
+         print(f"📌 Auto-added references: {active_work['id']}")
+     ```
    - Add standard footer for HtmlGraph features:
      ```
      🤖 Generated with Claude Code

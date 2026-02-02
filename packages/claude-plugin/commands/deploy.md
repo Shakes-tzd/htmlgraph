@@ -49,16 +49,59 @@ sdk = SDK(agent="claude")
 
 **PRE-DEPLOYMENT CHECKLIST:**
 
-1. ✅ **Verify tests pass:**
+1. ✅ **Verify version consistency:**
+   ```python
+   def check_version_consistency() -> tuple[bool, dict[str, str]]:
+       """Verify all version files match."""
+       import re
+       from pathlib import Path
+
+       files_to_check = {
+           "pyproject.toml": r'version\s*=\s*"([^"]+)"',
+           "src/python/htmlgraph/__init__.py": r'__version__\s*=\s*"([^"]+)"',
+           "packages/claude-plugin/.claude-plugin/plugin.json": r'"version":\s*"([^"]+)"',
+           "packages/gemini-extension/gemini-extension.json": r'"version":\s*"([^"]+)"',
+       }
+
+       versions = {}
+       for file_path, pattern in files_to_check.items():
+           full_path = Path(file_path)
+           if full_path.exists():
+               content = full_path.read_text()
+               match = re.search(pattern, content)
+               if match:
+                   versions[file_path] = match.group(1)
+
+       unique_versions = set(versions.values())
+       consistent = len(unique_versions) == 1
+
+       return consistent, versions
+
+   # Check versions before deployment
+   consistent, versions = check_version_consistency()
+
+   if not consistent:
+       print("⚠️  VERSION MISMATCH DETECTED")
+       print("\nVersion files:")
+       for file_path, version in versions.items():
+           print(f"- {file_path}: {version}")
+       print("\nRun: `./scripts/verify-versions.sh` to fix")
+       return False
+
+   print(f"✅ All version files consistent: {list(versions.values())[0]}")
+   print("Proceeding with deployment...")
+   ```
+
+2. ✅ **Verify tests pass:**
    ```bash
    uv run pytest
    ```
    ALL tests must pass before deployment.
 
-2. ✅ **Verify all work is committed:**
+3. ✅ **Verify all work is committed:**
    Check `git status` - working directory should be clean
 
-3. ✅ **Choose correct version number:**
+4. ✅ **Choose correct version number:**
    - Patch (X.Y.Z+1): Bug fixes only
    - Minor (X.Y+1.0): New features (backward compatible)
    - Major (X+1.0.0): Breaking changes

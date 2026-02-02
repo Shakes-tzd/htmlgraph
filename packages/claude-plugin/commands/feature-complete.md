@@ -91,6 +91,18 @@ sdk = SDK(agent="claude")
 **Active:** {status['in_progress_count']} features
 
 ### What's Next?
-{pending_features}
+{Use this code after showing progress:}
+```python
+# Get recommendations for next work
+recs = sdk.recommend_next_work(agent_count=3)
 
-Would you like to start the next feature?
+print(f"\n### What's Next?")
+if recs:
+    top = recs[0]
+    print(f"**Top recommendation:** {top['title']} (score: {top['score']:.2f})")
+    if top.get('reasons'):
+        print(f"**Reason:** {top['reasons'][0]}")
+    print(f"\nSee all recommendations: `/htmlgraph:recommend`")
+else:
+    print(f"No pending work. Plan new features: `/htmlgraph:plan`")
+```

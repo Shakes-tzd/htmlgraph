@@ -425,3 +425,63 @@ class OperationsMixin:
         from htmlgraph.operations import analytics
 
         return analytics.get_recommendations(graph_dir=self._directory)
+
+    def init_project(self, directory: Path | None = None) -> dict[str, Any]:
+        """
+        Initialize HtmlGraph directory structure.
+
+        Creates .htmlgraph/ with subdirectories:
+        - features/, sessions/, tracks/, spikes/
+        - bugs/, patterns/, insights/, metrics/
+        - todos/, task-delegations/
+
+        Args:
+            directory: Base directory (defaults to current working directory)
+
+        Returns:
+            Dict with status ("created" or "already_exists") and directories list
+
+        Example:
+            >>> sdk = SDK(agent="claude")
+            >>> result = sdk.init_project()
+            >>> print(result['status'])  # "created"
+            >>> print(result['directories'])  # ['features', 'sessions', ...]
+        """
+        from pathlib import Path
+
+        base_dir = directory or Path.cwd() / ".htmlgraph"
+
+        # Check if already initialized
+        if base_dir.exists():
+            existing_dirs = [d.name for d in base_dir.iterdir() if d.is_dir()]
+            return {
+                "status": "already_exists",
+                "directories": existing_dirs,
+                "path": str(base_dir),
+            }
+
+        # Create directory structure
+        dirs = [
+            "features",
+            "sessions",
+            "tracks",
+            "spikes",
+            "bugs",
+            "patterns",
+            "insights",
+            "metrics",
+            "todos",
+            "task-delegations",
+        ]
+
+        created = []
+        for dirname in dirs:
+            dir_path = base_dir / dirname
+            dir_path.mkdir(parents=True, exist_ok=True)
+            created.append(dirname)
+
+        return {
+            "status": "created",
+            "directories": created,
+            "path": str(base_dir),
+        }

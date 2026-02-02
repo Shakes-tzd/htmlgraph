@@ -1,4 +1,4 @@
-<!-- Efficiency: SDK calls: 0, Bash calls: 1, Context: ~5% -->
+<!-- Efficiency: SDK calls: 1, Bash calls: 0, Context: ~3% -->
 
 # /htmlgraph:init
 
@@ -25,58 +25,57 @@ Set up HtmlGraph directory structure in project
 
 ## Instructions for Claude
 
-This command uses the CLI's `htmlgraph init` command (no SDK method exists yet).
+This command uses the SDK's `init_project()` method.
 
 ### Implementation:
 
 ```python
 from htmlgraph import SDK
-import os
+
+sdk = SDK(agent="claude")
 
 # Parse arguments
-**DO THIS (OPTIMIZED - 1 CALL INSTEAD OF 4):**
+**DO THIS (OPTIMIZED - 1 SDK CALL INSTEAD OF CLI):**
 
-1. **Check if already initialized and run init if needed:**
+1. **Initialize project (single SDK call):**
    ```python
-   from pathlib import Path
+   result = sdk.init_project()
 
-   htmlgraph_dir = Path(".htmlgraph")
-
-   if htmlgraph_dir.exists():
+   # Check result status
+   if result['status'] == 'already_exists':
        print("## HtmlGraph Already Initialized")
-       print("\n`.htmlgraph/` directory already exists.")
+       print(f"\n`.htmlgraph/` directory already exists at: {result['path']}")
+       print(f"\nExisting directories: {', '.join(result['directories'])}")
 
-       # Show what's there
-       subdirs = [d.name for d in htmlgraph_dir.iterdir() if d.is_dir()]
-       print(f"\nExisting directories: {', '.join(subdirs)}")
-
-   else:
-       # Initialize
-       import subprocess
-       result = subprocess.run(["uv", "run", "htmlgraph", "init"],
-                              capture_output=True, text=True)
-
-       if result.returncode == 0:
-           print("## HtmlGraph Initialized")
-           print("\nCreated `.htmlgraph/` directory with:")
-           print("- `features/` - Feature HTML files")
-           print("- `sessions/` - Session HTML files")
-           print("- `tracks/` - Track HTML files")
-           print("- `spikes/` - Research spikes")
-           print("- `bugs/` - Bug tracking (optional)")
-       else:
-           print(f"Error: {result.stderr}")
-           return
+   elif result['status'] == 'created':
+       print("## HtmlGraph Initialized")
+       print(f"\nCreated `.htmlgraph/` at: {result['path']}")
+       print("\nDirectory structure:")
+       for dirname in result['directories']:
+           descriptions = {
+               'features': 'Feature work items',
+               'sessions': 'Session activity logs',
+               'tracks': 'Multi-feature tracks',
+               'spikes': 'Research and investigation',
+               'bugs': 'Bug tracking',
+               'patterns': 'Workflow patterns',
+               'insights': 'Session insights',
+               'metrics': 'Aggregated metrics',
+               'todos': 'Persistent tasks',
+               'task-delegations': 'Subagent work tracking'
+           }
+           desc = descriptions.get(dirname, dirname)
+           print(f"  - {dirname}/ - {desc}")
    ```
 
-   **Context usage: <5% (compared to 30% with 4 CLI calls)**
+   **Context usage: <3% (compared to 30% with CLI calls)**
 
 2. **Present next steps** using the output template below
 
 3. **Guide the user:**
-   - How to add features: `/htmlgraph:plan "title"`
-   - How to start working: `/htmlgraph:start`
-   - How to access dashboard: `htmlgraph serve`
+   - How to plan work: `/htmlgraph:plan "title"`
+   - How to start session: `/htmlgraph:start`
+   - How to view dashboard: `/htmlgraph:serve`
 
 4. **Highlight key points:**
    - All subsequent work will be tracked automatically
@@ -89,16 +88,21 @@ import os
 ## HtmlGraph Initialized
 
 Created `.htmlgraph/` directory with:
-- `features/` - Feature HTML files
-- `sessions/` - Session HTML files
-- `tracks/` - Track HTML files
-- `spikes/` - Research spikes
-- `bugs/` - Bug tracking (optional)
+- `features/` - Feature work items
+- `sessions/` - Session activity logs
+- `tracks/` - Multi-feature tracks
+- `spikes/` - Research and investigation
+- `bugs/` - Bug tracking
+- `patterns/` - Workflow patterns
+- `insights/` - Session insights
+- `metrics/` - Aggregated metrics
+- `todos/` - Persistent tasks
+- `task-delegations/` - Subagent work tracking
 
 ### Next Steps
 1. Plan new work: `/htmlgraph:plan "Feature title"`
 2. Start session: `/htmlgraph:start`
-3. View dashboard: `htmlgraph serve`
+3. View dashboard: `/htmlgraph:serve`
 
 ### Quick Start
 ```bash
@@ -109,6 +113,6 @@ Created `.htmlgraph/` directory with:
 /htmlgraph:start
 
 # View progress
-htmlgraph serve
+/htmlgraph:serve
 # Open http://localhost:8080
 ```

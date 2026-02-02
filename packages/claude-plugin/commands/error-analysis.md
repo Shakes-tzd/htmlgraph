@@ -92,6 +92,59 @@ This command follows the research-first debugging methodology from `.claude/rule
    from htmlgraph import SDK
    sdk = SDK(agent='claude-code')
 
+   # Extract keywords from error message
+   def extract_keywords(error_msg: str) -> list[str]:
+       """Extract key terms from error message."""
+       import re
+       # Remove stack traces and focus on error message
+       error_text = error_msg.split('\n')[0]  # First line
+       # Extract error type and key words
+       keywords = re.findall(r'\b\w{4,}\b', error_text.lower())
+       return keywords
+
+   error_keywords = extract_keywords(error_message)
+
+   # Search for similar errors in past spikes
+   spikes = sdk.spikes.all()
+   similar = []
+
+   def calculate_similarity(spike_title: str, keywords: list[str]) -> float:
+       """Calculate similarity score."""
+       title_words = set(spike_title.lower().split())
+       keyword_set = set(keywords)
+       intersection = len(title_words & keyword_set)
+       union = len(title_words | keyword_set)
+       return intersection / union if union > 0 else 0
+
+   for spike in spikes:
+       similarity_score = calculate_similarity(spike.title, error_keywords)
+
+       if similarity_score > 0.4:  # 40% similarity threshold
+           similar.append({
+               "id": spike.id,
+               "title": spike.title,
+               "similarity": similarity_score,
+               "resolution": spike.properties.get("resolution", "N/A"),
+               "created": spike.created,
+           })
+
+   # Sort by similarity and recency
+   similar.sort(key=lambda x: (x['similarity'], x['created']), reverse=True)
+
+   if similar:
+       print(f"\n### 📚 Similar Past Issues")
+       print(f"\nFound {len(similar)} similar issues from history:")
+       for s in similar[:3]:
+           print(f"\n**{s['title']}** ({s['id']})")
+           print(f"Similarity: {s['similarity']:.0%}")
+           print(f"Resolution: {s['resolution']}")
+           print(f"View: `/htmlgraph:spike {s['id']}`")
+
+       print(f"\nThese past issues may provide insights for resolution.")
+   else:
+       print(f"\nNo similar errors found in history.")
+       print(f"This appears to be a new type of error.")
+
    # Determine spike title based on error category
    title = f"Error Investigation: {error_category} - {brief_description}"
 
@@ -115,6 +168,9 @@ This command follows the research-first debugging methodology from `.claude/rule
 
        ## Recent Changes
        {recent_changes}
+
+       ## Similar Past Issues
+       {similar}
        """,
        timebox_hours=2.0  # Default 2-hour investigation timebox
    )
