@@ -29,6 +29,7 @@ dependencies = [
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
     "aiosqlite>=0.19.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +43,6 @@ dev = [
     "invoke>=2.2.0",
     "pdoc>=14.0.0",
     "tomli>=2.0.0; python_version < '3.11'",
-    "pyyaml>=6.0",
 ]
 sqlite = [
     "aiosqlite>=0.19.0",
