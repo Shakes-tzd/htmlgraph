@@ -134,5 +134,9 @@
   "spk-be4847c2": {
     "spike_subtype": "transition",
     "session_id": "519c5f43-07f4-4829-9868-587c93e15811"
+  },
+  "spike-init-7d98e1b7": {
+    "spike_subtype": "session-init",
+    "session_id": "7d98e1b7-df45-4ab4-a108-35edaa1126f6"
   }
 }

@@ -90,6 +90,11 @@ from htmlgraph.reflection import ComputationalReflection, get_reflection_context
 from htmlgraph.repo_hash import RepoHash
 from htmlgraph.sdk import SDK
 from htmlgraph.server import serve
+from htmlgraph.session_context import (
+    GitHooksInstaller,
+    SessionContextBuilder,
+    VersionChecker,
+)
 from htmlgraph.session_manager import SessionManager
 from htmlgraph.session_registry import SessionRegistry
 from htmlgraph.types import (
@@ -160,6 +165,9 @@ __all__ = [
     "find_all",
     "AgentInterface",
     "SessionManager",
+    "SessionContextBuilder",
+    "VersionChecker",
+    "GitHooksInstaller",
     "SessionRegistry",
     "RepoHash",
     "SDK",

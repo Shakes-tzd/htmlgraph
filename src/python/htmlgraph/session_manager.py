@@ -2801,3 +2801,73 @@ class SessionManager:
             "has_thinking_traces": transcript.has_thinking_traces(),
             "entry_count": len(transcript.entries),
         }
+
+    # =========================================================================
+    # Session Context Builder - Delegates to SessionContextBuilder
+    # =========================================================================
+
+    def get_version_status(self) -> dict[str, Any]:
+        """
+        Check installed htmlgraph version against latest on PyPI.
+
+        Returns:
+            Dict with installed_version, latest_version, is_outdated
+        """
+        from htmlgraph.session_context import VersionChecker
+
+        return VersionChecker.get_version_status()
+
+    def initialize_git_hooks(self, project_dir: str | Path) -> bool:
+        """
+        Install pre-commit hooks if not already installed.
+
+        Args:
+            project_dir: Path to the project root
+
+        Returns:
+            True if hooks were installed or already exist
+        """
+        from htmlgraph.session_context import GitHooksInstaller
+
+        return GitHooksInstaller.install(project_dir)
+
+    def get_start_context(
+        self,
+        session_id: str,
+        project_dir: str | Path | None = None,
+        compute_async: bool = True,
+    ) -> str:
+        """
+        Build complete session start context for AI agents.
+
+        This is the primary method for generating the full context string
+        that gets injected via additionalContext in the SessionStart hook.
+
+        Args:
+            session_id: Current session ID
+            project_dir: Project root directory (uses graph_dir parent if not provided)
+            compute_async: Use parallel async operations for performance
+
+        Returns:
+            Complete formatted Markdown context string
+        """
+        from htmlgraph.session_context import SessionContextBuilder
+
+        if project_dir is None:
+            project_dir = self.graph_dir.parent
+
+        builder = SessionContextBuilder(self.graph_dir, project_dir)
+        return builder.build(session_id=session_id, compute_async=compute_async)
+
+    def detect_feature_conflicts(self) -> list[dict[str, Any]]:
+        """
+        Detect features being worked on by multiple agents simultaneously.
+
+        Returns:
+            List of conflict dicts with feature_id, title, agents
+        """
+        from htmlgraph.session_context import SessionContextBuilder
+
+        project_dir = self.graph_dir.parent
+        builder = SessionContextBuilder(self.graph_dir, project_dir)
+        return builder.detect_feature_conflicts()
