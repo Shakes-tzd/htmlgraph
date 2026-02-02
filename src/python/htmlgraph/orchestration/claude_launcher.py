@@ -81,14 +81,12 @@ class ClaudeLauncher:
     def _launch_resume_mode(self) -> None:
         """Resume last session with orchestrator rules (--continue).
 
-        Installs plugin, loads plugin directory, and resumes the last Claude Code
-        session with orchestrator system prompt.
+        Installs/updates marketplace plugin and resumes the last Claude Code
+        session with orchestrator system prompt. Uses marketplace plugin, NOT
+        local source (only --dev uses local source).
         """
-        # Install plugin
+        # Install/update marketplace plugin
         PluginManager.install_or_update(verbose=self.interactive)
-
-        # Get plugin directory
-        plugin_dir = PluginManager.get_plugin_dir()
 
         # Load prompt
         prompt = get_orchestrator_prompt(include_dev_mode=False)
@@ -97,17 +95,10 @@ class ClaudeLauncher:
         if self.interactive:
             logger.info("Resuming last Claude Code session...")
             logger.info("  ✓ Multi-AI delegation rules injected")
+            logger.info("  ✓ Using marketplace plugin")
 
-        # Build command
-        builder = ClaudeCommandBuilder().with_resume().with_system_prompt(prompt)
-
-        # Add plugin directory if exists
-        if plugin_dir.exists():
-            builder.with_plugin_dir(str(plugin_dir))
-            if self.interactive:
-                logger.info(f"  ✓ Loading plugin from: {plugin_dir}")
-
-        cmd = builder.build()
+        # Build command (no --plugin-dir, uses marketplace)
+        cmd = ClaudeCommandBuilder().with_resume().with_system_prompt(prompt).build()
 
         # Execute
         SubprocessRunner.run_claude_command(cmd)
