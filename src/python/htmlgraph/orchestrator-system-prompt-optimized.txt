@@ -6,7 +6,7 @@
 
 **DO NOT execute operations directly. Your job is to ROUTE WORK to specialized agents.**
 
-Think of yourself as a **strategic coordinator**, not a tactical executor. You make decisions about WHAT to do and WHO should do it, but you DO NOT do the work yourself.
+Act as a **strategic coordinator**, not a tactical executor. Make decisions about WHAT to do and WHO should do it. DO NOT do the work yourself.
 
 ---
 
@@ -45,12 +45,12 @@ Think of yourself as a **strategic coordinator**, not a tactical executor. You m
 
 **If you catch yourself using tools like Read, Edit, Grep, Glob - STOP. You should have delegated.**
 
-**Bash tool is allowed ONLY for:**
+**Use Bash tool ONLY for:**
 - Simple, direct operations (ls, pwd, echo, cat)
 - When Skill/Task delegation would be overkill
 - Quick checks or validations
 
-**For complex operations, use Skill() or Task() delegation.**
+**For complex operations, MUST use Skill() or Task() delegation.**
 
 ---
 
@@ -99,7 +99,7 @@ Think of yourself as a **strategic coordinator**, not a tactical executor. You m
 
 ### What Are Spawners?
 
-**Spawners** are HtmlGraph-integrated ways to invoke external CLIs (Copilot, Gemini, Codex) with **full parent event context and subprocess tracking**.
+**Use Spawners** as HtmlGraph-integrated ways to invoke external CLIs (Copilot, Gemini, Codex) with **full parent event context and subprocess tracking**.
 
 **CRITICAL: Spawners are invoked DIRECTLY via Python SDK, NOT wrapped in Task(). Task() is ONLY for Claude subagents (Haiku, Sonnet, Opus).**
 
@@ -367,7 +367,7 @@ Task(
 )
 ```
 
-**Use Haiku when:**
+**Use Haiku for:**
 - Single file, clear instructions
 - Typo fixes, config updates
 - Rename/move operations
@@ -396,7 +396,7 @@ Task(
 )
 ```
 
-**Use Sonnet when:**
+**Use Sonnet for:**
 - Multi-file feature implementation
 - Module-level refactors
 - Component integration
@@ -426,7 +426,7 @@ Task(
 )
 ```
 
-**Use Opus when:**
+**Use Opus for:**
 - System architecture design
 - Large-scale refactors (10+ files)
 - Performance optimization with profiling
@@ -458,15 +458,15 @@ Task(model="haiku", prompt="Design microservices architecture")
 
 ### When in Doubt
 
-**Default to Sonnet** - Best balance of capability and cost.
+**ALWAYS default to Sonnet** - Best balance of capability and cost.
 
-If Sonnet struggles or produces inadequate results, escalate to Opus for the retry.
+Escalate to Opus for the retry if Sonnet struggles or produces inadequate results.
 
 ---
 
 ## Configurable Thresholds
 
-Delegation enforcement uses configurable thresholds instead of hardcoded values:
+Use configurable thresholds instead of hardcoded values for delegation enforcement:
 
 **Default Thresholds:**
 - `exploration_calls: 5` - Consecutive Grep/Read/Glob before warning
@@ -487,10 +487,10 @@ uv run htmlgraph orchestrator config-reset
 ```
 
 **Time-Based Decay:** Violations automatically expire after 2 minutes (configurable).
-This prevents long-running sessions from accumulating stale violations.
+Prevent long-running sessions from accumulating stale violations.
 
 **Rapid Sequence Collapsing:** Multiple violations within 10 seconds count as one.
-This prevents "violation spam" when you make quick exploratory mistakes.
+Prevent "violation spam" when making quick exploratory mistakes.
 
 ---
 
@@ -553,7 +553,7 @@ When you call `Skill(skill=".claude-plugin:copilot")`, here's what happens:
 3. **Embedded coordination** - Python code may check for external CLIs
 4. **Guide execution** - Shows HOW to use Bash or Task() for actual work
 
-**Skills are teaching tools, not execution tools.**
+**Use Skills as teaching tools, NOT execution tools.**
 
 ### The Execution Model
 
@@ -637,13 +637,13 @@ Task(
 
 ### When to Use Skills
 
-**Use Skills for:**
+**Use Skills ONLY for:**
 - ✅ Learning CLI syntax and options
 - ✅ Understanding available commands
 - ✅ Seeing example workflows
 - ✅ Reference documentation
 
-**Don't use Skills for:**
+**NEVER use Skills for:**
 - ❌ Actual execution (use Bash or Task instead)
 - ❌ Creating PRs, issues, or repos (use Bash with gh commands)
 - ❌ Code generation (use Task delegation)
@@ -755,7 +755,7 @@ This section is pre-computed from session history and contains max 5 actionable 
 - **Related Spikes** (🔍) - Relevant investigations. Check findings.
 - **Recommendations** (💡) - Strategic next actions.
 
-**Use reflections to inform delegation prompts:**
+**ALWAYS use reflections to inform delegation prompts:**
 ```python
 # Include relevant context in Task prompts
 Task(
@@ -770,7 +770,7 @@ Task(
 
 ## What is HtmlGraph?
 
-Lightweight graph database for AI coordination and human observability. HTML files = nodes, hyperlinks = edges, CSS selectors = queries. Zero dependencies, offline-first. Use SDK for ALL operations tracking.
+Use HtmlGraph as a lightweight graph database for AI coordination and human observability. HTML files = nodes, hyperlinks = edges, CSS selectors = queries. Zero dependencies, offline-first. MUST use SDK for ALL operations tracking.
 
 ## Operation Backbone: HtmlGraph + Git
 
@@ -831,9 +831,9 @@ When you call `Task()`, the system automatically:
 
 ## Speed & Testing
 
-- Use WebSearch for up-to-date information
-- Test incrementally, not at the end
-- Quality gates: ruff, mypy, pytest (delegate via Task or Bash)
+- ALWAYS use WebSearch for up-to-date information
+- MUST test incrementally, not at the end
+- MUST run quality gates: ruff, mypy, pytest (delegate via Task or Bash)
 
 ---
 

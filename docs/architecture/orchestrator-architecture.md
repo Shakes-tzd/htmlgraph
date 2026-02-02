@@ -2,31 +2,32 @@
 
 **"Coordination, Not Control" - Flexible Model Selection Based on Task Needs**
 
-This document describes HtmlGraph's orchestrator pattern for coordinating multiple AI agents in parallel, preserving context efficiency while maximizing model flexibility.
+Use this document to understand HtmlGraph's orchestrator pattern. MUST coordinate multiple AI agents in parallel. MUST preserve context efficiency while maximizing model flexibility.
 
 ---
 
 ## Core Principle: Flexibility Over Rigidity
 
-The orchestrator pattern is **NOT a rigid hierarchy** with fixed rules. Instead:
+Use the orchestrator pattern as **flexible coordination**, NOT a rigid hierarchy with fixed rules:
 
-- ✅ **Flexible model selection** - Any model can do any work; choose based on task fit and cost
+- ✅ **Flexible model selection** - Choose any model for any work based on task fit and cost
 - ✅ **Dynamic spawner composition** - Mix and match spawner types within the same workflow
-- ✅ **Cost optimization** - Use cheaper models for exploratory work, pay for expensive reasoning when needed
-- ✅ **Capability-first thinking** - What capability is needed? Which model/CLI provides it best?
+- ✅ **Cost optimization** - MUST use cheaper models for exploratory work, pay for expensive reasoning only when needed
+- ✅ **Capability-first thinking** - Identify needed capability, then select best model/CLI
 
 **Anti-Pattern: Rigid Rules**
 ```python
-# ❌ WRONG - "Gemini must do exploration"
-# ❌ WRONG - "Claude must do reasoning"
-# ❌ WRONG - "Copilot must do git operations"
+# ❌ NEVER enforce: "Gemini must do exploration"
+# ❌ NEVER enforce: "Claude must do reasoning"
+# ❌ NEVER enforce: "Copilot must do git operations"
 ```
 
 **Pattern: Capability-Based Selection**
 ```python
-# ✅ RIGHT - "This task needs fast, cheap exploration → Use Gemini spawner"
-# ✅ RIGHT - "This task needs deep reasoning → Use Claude Opus"
-# ✅ RIGHT - "This task needs GitHub integration → Use Copilot spawner"
+# ✅ ALWAYS use capability matching:
+# ✅ "This task needs fast, cheap exploration → MUST use Gemini spawner"
+# ✅ "This task needs deep reasoning → Use Claude Opus"
+# ✅ "This task needs GitHub integration → MUST use Copilot spawner"
 ```
 
 ---
@@ -68,7 +69,7 @@ The orchestrator pattern is **NOT a rigid hierarchy** with fixed rules. Instead:
 
 ## Using Spawner Agents via Task()
 
-You can now invoke spawner agents directly through Task() using simple names:
+Invoke spawner agents directly through Task() using simple names:
 
 **Syntax:**
 ```python
@@ -386,7 +387,7 @@ Does it need reasoning/analysis?
 └─ NO → Default to subagent_type="haiku"
 ```
 
-**But remember:** These are suggestions, not rules. Mix and match based on actual task needs:
+**Remember:** These are guidelines, not rigid rules. MUST mix and match based on actual task needs:
 
 ```python
 # ✅ Flexible approach - use best tool for each subtask
@@ -435,10 +436,10 @@ print("Exploration complete!")
 ```
 
 **Benefits:**
-- All work runs in parallel (not sequential)
-- Each agent uses best tool for their task
-- Orchestrator stays focused (just coordinates)
-- Total time = slowest subagent (not sum of all)
+- MUST run all work in parallel (NEVER sequential)
+- MUST use best tool for each agent's task
+- MUST keep orchestrator focused (only coordinates)
+- Total time = slowest subagent (NEVER sum of all)
 
 ---
 
@@ -578,7 +579,7 @@ Task(subagent_type="sonnet", prompt="...")  # Balanced
 Task(subagent_type="opus", prompt="...")    # Expensive
 ```
 
-**Principle:** Models are tools, not rigid assignments.
+**Principle:** ALWAYS treat models as tools, NEVER as rigid assignments.
 
 ---
 
@@ -750,28 +751,28 @@ Task(
 
 1. **Start with Orchestrator Mode (Guidance)**
    - Learn patterns before strict enforcement
-   - Warnings help identify optimization opportunities
+   - Use warnings to identify optimization opportunities
 
 2. **Delegate Early**
-   - Don't fill orchestrator context before delegating
-   - Delegate exploratory work immediately
+   - NEVER fill orchestrator context before delegating
+   - ALWAYS delegate exploratory work immediately
 
 3. **Mix Spawners Strategically**
-   - Cheap models for exploration
-   - Expensive models only for reasoning
-   - GitHub spawner for GitHub ops
+   - ALWAYS use cheap models for exploration
+   - ONLY use expensive models for reasoning
+   - ALWAYS use GitHub spawner for GitHub ops
 
 4. **Use Parallel Execution**
-   - Multiple Task() calls run in parallel
-   - Total time = slowest task, not sum of all
+   - ALWAYS run multiple Task() calls in parallel
+   - Total time = slowest task, NEVER sum of all
 
 5. **Request Structured Output**
-   - Ask for JSON, markdown tables, or organized text
-   - Makes consolidation easier
+   - ALWAYS ask for JSON, markdown tables, or organized text
+   - Make consolidation easier
 
 6. **Monitor Results**
-   - Check subagent status via session tracking
-   - Review child sessions for debugging
+   - ALWAYS check subagent status via session tracking
+   - MUST review child sessions for debugging
 
 ---
 
@@ -786,19 +787,19 @@ Task(
 
 ## Summary
 
-The orchestrator pattern is **flexible, not rigid**:
+Use the orchestrator pattern as **flexible coordination, NOT rigid control**:
 
-- ✅ **Choose models based on task needs** (not fixed rules)
-- ✅ **Mix spawner types within workflows** (pick the right tool)
-- ✅ **Optimize cost strategically** (cheap for exploration, expensive for reasoning)
-- ✅ **Preserve orchestrator context** (delegate heavy lifting)
-- ✅ **Maximize parallel execution** (run independent tasks simultaneously)
+- ✅ **MUST choose models based on task needs** (NEVER fixed rules)
+- ✅ **MUST mix spawner types within workflows** (pick the right tool)
+- ✅ **MUST optimize cost strategically** (cheap for exploration, expensive for reasoning)
+- ✅ **MUST preserve orchestrator context** (delegate heavy lifting)
+- ✅ **MUST maximize parallel execution** (run independent tasks simultaneously)
 
-**Key insight:** The orchestrator is a **coordinator, not a controller**. Its job is to:
+**Key insight:** The orchestrator is a **coordinator, NOT a controller**. MUST:
 1. Break work into parallel subtasks
 2. Delegate to best-fit spawner agents
 3. Wait for results
 4. Consolidate findings
 5. Make high-level decisions
 
-Everything else runs in subagents, keeping the orchestrator cheap and focused.
+ALWAYS run everything else in subagents, keeping the orchestrator cheap and focused.

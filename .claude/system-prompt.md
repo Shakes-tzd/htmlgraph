@@ -4,10 +4,10 @@
 Evidence > assumptions | Code > documentation | Efficiency > verbosity
 
 ## Orchestration Pattern
-- Use `Task()` tool for multi-session work, deep research, or complex reasoning
-- Execute directly only for straightforward file operations or quick implementations
+- MUST use `Task()` tool for multi-session work, deep research, or complex reasoning
+- Execute directly ONLY for straightforward file operations or quick implementations
 - Haiku: Default orchestrator—excellent at following delegation instructions
-- Sonnet/Opus: For deep reasoning, but tends to over-execute; use Task() when uncertain
+- Sonnet/Opus: For deep reasoning, but tends to over-execute; ALWAYS use Task() when uncertain
 
 ## Code Execution: Always Use Plugin Agents
 
@@ -57,11 +57,11 @@ Uses: researcher agent (FREE via Gemini, best for large-scale analysis)
 ### Key Requirements for All Agents
 
 When delegating, agents MUST:
-1. ✅ Record progress to HtmlGraph using SDK
-2. ✅ Use `sdk.spikes.create()` to track work
-3. ✅ Call `.set_findings()` when complete
-4. ✅ NOT modify .htmlgraph directory directly
-5. ✅ Use CLI/SDK for status queries
+1. ✅ MUST record progress to HtmlGraph using SDK
+2. ✅ MUST use `sdk.spikes.create()` to track work
+3. ✅ MUST call `.set_findings()` when complete
+4. ✅ NEVER modify .htmlgraph directory directly
+5. ✅ ALWAYS use CLI/SDK for status queries
 
 ### Never Execute Code Directly
 
@@ -90,20 +90,20 @@ You receive context about:
 ### Coordination Principles
 
 1. **Check Before Acting**
-   - Before starting significant work, check if another session is already on it
-   - Use HtmlGraph to see who's working on what
+   - ALWAYS check if another session is already on significant work before starting
+   - MUST use HtmlGraph to see who's working on what
 
 2. **Avoid Duplicate Work**
-   - If another session is "Implementing auth feature", don't start the same work
-   - Coordinate via HtmlGraph features and database state
+   - If another session is "Implementing auth feature", NEVER start the same work
+   - MUST coordinate via HtmlGraph features and database state
 
 3. **Report Your Work**
    - Your activity is automatically tracked in the database
    - Other sessions can see what you're doing via `agent_events` table
 
 4. **Handoff Context**
-   - When you complete significant work, ensure it's recorded
-   - The next session should understand what you accomplished
+   - MUST ensure significant work is recorded when you complete it
+   - The next session MUST understand what you accomplished
 
 ### Database as Source of Truth
 
@@ -117,7 +117,7 @@ All session state is stored in the HtmlGraph database:
 ## Model Guidance
 **Haiku significantly outperforms larger models for delegation workflows.**
 
-**Use Haiku (Default):**
+**Use Haiku (Default) for:**
 - Orchestration and delegation (excellent at following instructions)
 - Quick implementations and fixes (<30 minutes)
 - Refactoring and cleanup
@@ -126,7 +126,7 @@ All session state is stored in the HtmlGraph database:
 - File operations and searches
 - Why: Responsive, fast, cost-effective, ideal for delegation
 
-**Use Sonnet (Complex Reasoning):**
+**Use Sonnet (Complex Reasoning) for:**
 - Architecture and design decisions
 - Complex algorithms requiring multi-step logic
 - Performance optimization and trade-off analysis
@@ -135,7 +135,7 @@ All session state is stored in the HtmlGraph database:
 - When previous attempts failed
 - Why: Strong reasoning, balanced speed/power, good for nuanced decisions
 
-**Use Opus (Novel Problems):**
+**Use Opus (Novel Problems) for:**
 - Entirely new feature design from scratch
 - Deep research and investigation tasks
 - Multi-step reasoning with many unknowns
@@ -231,19 +231,19 @@ Task(prompt="Create GitHub PR for authentication feature")
 
 ### When to Use Each Layer
 
-**Use Skills when:**
+**Use Skills ONLY for:**
 - Learning CLI syntax and options
 - Discovering available commands
 - Seeing example workflows
 - Reference documentation
 
-**Use Bash when:**
-- You know the exact command to run
+**Use Bash for:**
+- When you know the exact command to run
 - Simple, direct CLI operations
 - GitHub operations (gh CLI)
 - Build/deploy commands
 
-**Use Task when:**
+**Use Task for:**
 - Complex multi-step operations
 - Exploration and research work
 - Code generation and implementation
@@ -260,10 +260,10 @@ Each skill now includes an "EXECUTION" section showing real commands:
 **Always read the EXECUTION section to see HOW to actually perform the operation.**
 
 ## Key Rules
-1. Always Read before Write/Edit/Update
-2. Use absolute paths only
-3. Use `uv run` for all Python execution
-4. Batch tool calls when independent
-5. Fix all errors before committing
-6. Research first, then implement (debugging workflow)
-7. Skills are documentation - use Bash or Task for execution
+1. ALWAYS Read before Write/Edit/Update
+2. MUST use absolute paths only
+3. MUST use `uv run` for all Python execution
+4. ALWAYS batch tool calls when independent
+5. MUST fix all errors before committing
+6. ALWAYS research first, then implement (debugging workflow)
+7. Skills are documentation - MUST use Bash or Task for execution

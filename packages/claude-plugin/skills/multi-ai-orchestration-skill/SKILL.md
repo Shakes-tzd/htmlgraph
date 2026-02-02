@@ -5,7 +5,7 @@ description: Spawner selection, cost optimization, and HeadlessSpawner patterns 
 
 # Multi-AI Orchestration Skill
 
-Use this skill for spawner selection, cost optimization, and HeadlessSpawner patterns when coordinating multiple AI models.
+Use this skill for spawner selection, cost optimization, and HeadlessSpawner patterns. MUST coordinate multiple AI models efficiently.
 
 **Trigger keywords:** spawner, multi-ai, headless, codex, gemini, copilot, model selection, cost optimization, parallel agents
 
@@ -56,20 +56,20 @@ COST HIERARCHY (lowest to highest):
 ### WRONG vs CORRECT Delegation
 
 ```
-❌ WRONG (using Haiku for everything):
-- Implementation → Haiku          # WRONG: Use Codex
-- Git commits → Haiku             # WRONG: Use Copilot
-- Code generation → Haiku         # WRONG: Use Codex
-- Research → Haiku                # WRONG: Use Gemini (FREE!)
-- File analysis → Haiku           # WRONG: Use Gemini (FREE!)
+❌ WRONG (NEVER use Haiku for everything):
+- Implementation → Haiku          # WRONG: MUST use Codex
+- Git commits → Haiku             # WRONG: MUST use Copilot
+- Code generation → Haiku         # WRONG: MUST use Codex
+- Research → Haiku                # WRONG: MUST use Gemini (FREE!)
+- File analysis → Haiku           # WRONG: MUST use Gemini (FREE!)
 
-✅ CORRECT (cost-first routing):
-- Implementation → spawn_codex    # Cheap, code-specialized
-- Git commits → spawn_copilot     # Cheap, GitHub integration
-- Research → spawn_gemini         # FREE, high context
-- File analysis → spawn_gemini    # FREE, multimodal
-- Strategic planning → Opus       # Expensive, but needed
-- Haiku → FALLBACK ONLY           # When others fail
+✅ CORRECT (ALWAYS use cost-first routing):
+- Implementation → spawn_codex    # MUST use: Cheap, code-specialized
+- Git commits → spawn_copilot     # MUST use: Cheap, GitHub integration
+- Research → spawn_gemini         # MUST use: FREE, high context
+- File analysis → spawn_gemini    # MUST use: FREE, multimodal
+- Strategic planning → Opus       # Use when needed: Expensive, but needed
+- Haiku → FALLBACK ONLY           # ONLY when others fail
 ```
 
 ---
@@ -151,21 +151,21 @@ SAVINGS: 80-90% reduction in Claude Code usage
 
 ## Decision Aid
 
-- **"Is this exploratory?"** → `spawn_gemini` (FREE)
-- **"Is this about code?"** → `spawn_codex` (cheap)
-- **"Does this involve git?"** → `spawn_copilot` (cheap)
-- **"Do I need vision?"** → `spawn_gemini` (FREE)
-- **"Is deep reasoning critical?"** → `spawn_claude` (expensive)
-- **"Everything else"** → `spawn_gemini` FIRST, then Haiku fallback
+- **"Is this exploratory?"** → MUST use `spawn_gemini` (FREE)
+- **"Is this about code?"** → MUST use `spawn_codex` (cheap)
+- **"Does this involve git?"** → MUST use `spawn_copilot` (cheap)
+- **"Do I need vision?"** → MUST use `spawn_gemini` (FREE)
+- **"Is deep reasoning critical?"** → Use `spawn_claude` (expensive)
+- **"Everything else"** → ALWAYS use `spawn_gemini` FIRST, then Haiku fallback
 
 ## Task() vs spawn_*() Decision
 
-**Use spawn_*() when:**
+**Use spawn_*() (PRIMARY):**
 - Work can run in isolation (most cases)
-- Want cost optimization (Gemini FREE)
+- MUST optimize cost (Gemini FREE)
 - Specialized tool needed (Codex sandbox, Copilot GitHub)
 
-**Use Task(haiku) when:**
+**Use Task(haiku) (FALLBACK ONLY):**
 - Work depends on conversation context
 - Cache hits matter (same conversation)
 - **AND** spawn_*() has failed or is unavailable
@@ -232,17 +232,17 @@ pr = spawn_copilot("Create PR for OAuth implementation")
 
 ## Verification After Spawning
 
-After Gemini/Codex generates code, MUST verify quality:
+After Gemini/Codex generates code, ALWAYS verify quality:
 
 ```bash
-# Run quality verification script
+# MUST run quality verification script
 ./scripts/test-quality.sh src/path/to/file.py
 
 # Returns: exit code 0 (pass) or 1 (fail)
 # Runs: ruff check, ruff format, mypy, pytest
 ```
 
-If verification fails, iterate with the same spawner (not Claude).
+If verification fails, MUST iterate with the same spawner (NEVER Claude).
 
 ---
 

@@ -17,7 +17,7 @@ Use this skill for delegation patterns and decision frameworks in orchestrator m
 
 ## Quick Start - What is Orchestration?
 
-Orchestration means delegating tactical work to specialized subagents while you focus on strategic decisions. This saves Claude Code context (expensive) by using FREE/CHEAP AIs for appropriate tasks.
+Delegate tactical work to specialized subagents while you focus on strategic decisions. Save Claude Code context (expensive) by using FREE/CHEAP AIs for appropriate tasks.
 
 **Basic pattern:**
 ```python
@@ -28,7 +28,7 @@ Task(
 )
 ```
 
-**When to use:** Complex tasks requiring research, code generation, git operations, or any work that could fail and require retries.
+**When to use:** ALWAYS use for complex tasks requiring research, code generation, git operations, or any work that could fail and require retries.
 
 **For complete guidance:** See sections below or run `/multi-ai-orchestration` for model selection details.
 
@@ -113,10 +113,10 @@ CORRECT (cost-optimized):
 - Consumes resources independently (saves your context)
 
 **Why separation matters:**
-- Context preservation (failures don't compound in your context)
-- Parallel efficiency (multiple subagents work simultaneously)
-- Cost optimization (subagents are cheaper than Claude Code)
-- Error isolation (failures stay in subagent context)
+- Context preservation (MUST prevent failures from compounding in your context)
+- Parallel efficiency (MUST run multiple subagents simultaneously)
+- Cost optimization (ALWAYS use cheaper subagents than Claude Code)
+- Error isolation (MUST keep failures in subagent context)
 
 </details>
 
@@ -171,7 +171,7 @@ Ask yourself these questions:
    - Strategic (decisions) → Do directly
    - Tactical (execution) → DELEGATE
 
-**Rule of thumb:** When in doubt, DELEGATE. Cascading failures are expensive.
+**Rule of thumb:** When in doubt, ALWAYS DELEGATE. Cascading failures are expensive.
 
 </details>
 
