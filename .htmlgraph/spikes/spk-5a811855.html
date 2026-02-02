@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Hook Architecture Debt Discovery: Duplicated Business Logic</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-5a811855"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-02T07:05:06.629329"
+             data-updated="2026-02-02T07:05:06.629332" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Hook Architecture Debt Discovery: Duplicated Business Logic</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Discovery: Hook Business Logic Should Be in SDK
+
+### Problem Statement
+The hook scripts (user-prompt-submit.py, session-start.py, etc.) contain 1,955+ lines of code
+implementing business logic that ALREADY EXISTS in the SDK. The hooks should be thin wrappers 
+that delegate to SDK methods, but instead they're duplicating the SDK's functionality.
+
+### Evidence of Duplication
+
+**1. Prompt Classification (400+ lines duplicated)**
+- Hook: user-prompt-submit.py lines 138-181 (classify_prompt)
+- SDK: src/python/htmlgraph/hooks/prompt_analyzer.py lines 122-186
+- Status: IDENTICAL implementation (code duplication)
+
+**2. CIGS Guidance Generation (100+ lines duplicated)**
+- Hook: user-prompt-submit.py lines 244-308 (generate_cigs_guidance)
+- SDK: src/python/htmlgraph/hooks/prompt_analyzer.py lines 449-521
+- Status: IDENTICAL implementation
+
+**3. Violation Tracking (50+ lines duplicated)**
+- Hook: user-prompt-submit.py lines 227-243 (get_session_violation_count)
+- SDK: src/python/htmlgraph/hooks/prompt_analyzer.py lines 245-273
+- Status: IDENTICAL implementation
+
+**4. Work Item Lookup (50+ lines duplicated)**
+- Hook: user-prompt-submit.py lines 309-319 (get_active_work_item)
+- SDK: src/python/htmlgraph/hooks/prompt_analyzer.py lines 276-305
+- Status: IDENTICAL implementation
+
+### Current Architecture (WRONG)
+```
+Hook (1,955 lines - contains ALL business logic)
+  ├─ Reimplements classification
+  ├─ Reimplements guidance
+  ├─ Reimplements tracking
+  └─ Reimplements lookups
+
+SDK (600+ lines - contains DUPLICATE code, NEVER USED)
+  ├─ prompt_analyzer.py (dead code)
+  ├─ cigs/ (dead code)
+  └─ session_manager.py (partially used)
+```
+
+### Correct Architecture (TARGET)
+```
+Hook (50 lines - thin wrapper)
+  1. Parse JSON input from Claude Code
+  2. Call SDK methods
+  3. Output JSON response
+
+SDK (600+ lines - single source of truth)
+  ├─ All business logic lives here
+  ├─ Reusable across CLI, API, hooks
+  └─ Maintainable, testable, documented
+```
+
+### Impact Analysis
+
+**Why This Matters:**
+1. **Code Duplication**: 1,900+ lines of duplicated business logic
+2. **Maintenance Burden**: Changes required in 2 places (hook + SDK)
+3. **Testing**: Same logic tested in 2 separate test suites
+4. **Dead Code**: SDK prompt_analyzer.py is never imported by hooks
+5. **Hook Size**: Hooks are massive (~2,000 lines) when they should be tiny (~50 lines)
+
+**What Needs to Happen:**
+1. Delete duplicate implementations from hooks
+2. Update hooks to import and call SDK functions
+3. Run tests to ensure no regressions
+4. Delete dead code from SDK (if any remains)
+
+### Next Steps
+
+This is a major **architectural refactoring** that should be part of the hooks optimization track:
+
+**Phase 5 (New) - Code Consolidation:**
+- Refactor user-prompt-submit.py to call prompt_analyzer functions
+- Refactor session-start.py to call SDK methods
+- Refactor track-event.py to call SDK methods
+- Delete duplicated code from hooks
+- Reduce hook files from 1,955+ lines to ~500 lines total (75% reduction!)
+
+### Example Refactoring
+
+**Before (hook reimplements):**
+```python
+# user-prompt-submit.py (200 lines)
+def classify_prompt(prompt: str) -> dict:
+    # ... 40 lines of classification logic ...
+    
+sdk.spikes.create('results').set_findings(findings).save()
+```
+
+**After (hook calls SDK):**
+```python
+# user-prompt-submit.py (30 lines)
+from htmlgraph.hooks.prompt_analyzer import classify_prompt
+
+classification = classify_prompt(prompt)
+
+sdk.spikes.create('results').set_findings(findings).save()
+```
+
+### Files to Refactor
+
+1. **user-prompt-submit.py** (561 lines → ~100 lines)
+   - Delete: classify_prompt, classify_cigs_intent, generate_cigs_guidance
+   - Import: from htmlgraph.hooks.prompt_analyzer import ...
+
+2. **session-start.py** (1,955 lines → ~200 lines)
+   - Delete: get_features, get_sessions, get_feature_summary, get_strategic_recommendations
+   - Import: from htmlgraph.sdk import ...
+
+3. **track-event.py** (688 lines → ~150 lines)
+   - Delete: load_drift_config, load_parent_activity, classification logic
+   - Import: from htmlgraph.sdk import ...
+
+4. **subagent-stop.py** (445 lines → ~100 lines)
+   - Delete: duplicated tracking logic
+   - Import: SDK tracking functions
+
+### Result
+
+- **Hook lines: 3,831 → ~550 (86% reduction!)**
+- **Dead code in SDK: Removed**
+- **Single source of truth: All business logic in SDK**
+- **Maintenance burden: Cut in half**
+- **Testability: Improved (test SDK code, not hook code)**
+
+This is the real architectural debt that's causing the hooks to be so large.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

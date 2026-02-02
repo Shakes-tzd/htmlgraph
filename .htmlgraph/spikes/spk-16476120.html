@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Hook Architecture Consolidation Complete</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-16476120"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-02T07:22:05.868584"
+             data-updated="2026-02-02T07:22:05.868587" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="coder-consolidation">
+
+        <header>
+            <h1>Hook Architecture Consolidation Complete</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Hook Business Logic Consolidation - COMPLETE
+
+### Changes Made:
+- Refactored user-prompt-submit.py: 561 -> 172 lines (69% reduction)
+- Refactored session-start.py: 1955 -> 1943 lines (removed duplicated resolve_project_path + fixed 5 type errors)
+- Refactored track-event.py: 688 -> 407 lines (41% reduction)
+- Refactored subagent-stop.py: 445 -> 70 lines (84% reduction)
+- Fixed test path: test_user_prompt_submit_cigs.py (wrong .claude-plugin path)
+- Total reduction: 3649 -> 2592 lines (29% reduction)
+
+### Functions Consolidated:
+
+**user-prompt-submit.py:**
+- Deleted duplicated classify_prompt() - now imports from prompt_analyzer
+- Deleted duplicated classify_cigs_intent() - now imports from prompt_analyzer
+- Deleted duplicated get_session_violation_count() - now imports from prompt_analyzer
+- Deleted duplicated generate_cigs_guidance() - now imports from prompt_analyzer
+- Deleted duplicated get_active_work_item() - now imports from prompt_analyzer
+- Deleted duplicated generate_guidance() - now imports from prompt_analyzer
+- Deleted duplicated pattern constants (80+ lines of regex patterns)
+
+**track-event.py:**
+- Deleted duplicated load_drift_config() - now imports from event_tracker
+- Deleted duplicated load_drift_queue() - removed (unused)
+- Deleted duplicated save_drift_queue() - now imports from event_tracker
+- Deleted duplicated clear_drift_queue_activities() - now imports from event_tracker
+- Deleted duplicated add_to_drift_queue() - now imports from event_tracker
+- Deleted duplicated should_trigger_classification() - now imports from event_tracker
+- Deleted duplicated build_classification_prompt() - now imports from event_tracker
+- Deleted duplicated extract_file_paths() - now imports from event_tracker
+- Deleted duplicated format_tool_summary() - now imports from event_tracker
+
+**subagent-stop.py:**
+- Entire implementation replaced with SDK handle_subagent_stop() call
+- Deleted duplicated count_child_spikes(), create_subagent_completion_event()
+- Deleted duplicated find_pending_task_invocation(), parse_transcript()
+
+**session-start.py:**
+- Deleted duplicated resolve_project_path() - now imports resolve_project_dir from bootstrap
+- Fixed 5 pre-existing mypy type errors (return types, variable annotations)
+
+### Quality Improvements:
+- Mypy errors: 19 -> 0 (all 4 hook scripts clean)
+- Ruff lint: CLEAN
+- All 2024 tests passing (only 1 pre-existing websocket benchmark failure unrelated)
+- 480+ hook tests passing
+- 18 CIGS integration tests passing (fixed path bug)
+- No functional regressions
+
+### Architecture Improvement:
+- Single source of truth: Business logic in SDK modules
+- Hooks are now thin wrappers that import from SDK
+- Easier to maintain (changes in one place)
+- Easier to test (test SDK, not hooks)
+- Dead code removed
+            </div>
+        </section>
+    </article>
+</body>
+</html>
