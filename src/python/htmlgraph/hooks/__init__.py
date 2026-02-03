@@ -14,6 +14,7 @@ All hooks use a unified architecture:
 
 from pathlib import Path
 
+from htmlgraph.hooks.event_tracker import track_event
 from htmlgraph.hooks.posttooluse import posttooluse_hook
 from htmlgraph.hooks.pretooluse import pretooluse_hook
 from htmlgraph.hooks.state_manager import (
@@ -35,6 +36,7 @@ AVAILABLE_HOOKS = [
 ]
 
 __all__ = [
+    "track_event",
     "pretooluse_hook",
     "posttooluse_hook",
     "ParentActivityTracker",
