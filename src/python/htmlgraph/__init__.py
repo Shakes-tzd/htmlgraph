@@ -89,6 +89,20 @@ from htmlgraph.query_builder import Condition, Operator, QueryBuilder
 from htmlgraph.reflection import ComputationalReflection, get_reflection_context
 from htmlgraph.repo_hash import RepoHash
 from htmlgraph.sdk import SDK
+from htmlgraph.sdk.auto_help import (
+    AutoHelpWrapper,
+    enable_auto_help,
+    get_help_for_exception,
+    show_help_on_error,
+)
+from htmlgraph.sdk.delegation_warnings import (
+    get_delegation_warning,
+    is_in_subagent_context,
+    is_orchestrator_mode_active,
+    should_show_delegation_warning,
+    show_delegation_warning,
+    track_tool_execution,
+)
 from htmlgraph.server import serve
 from htmlgraph.session_context import (
     GitHooksInstaller,
@@ -123,7 +137,7 @@ from htmlgraph.types import (
 )
 from htmlgraph.work_type_utils import infer_work_type, infer_work_type_from_id
 
-__version__ = "0.28.8"
+__version__ = "0.28.9"
 __all__ = [
     # Exceptions
     "HtmlGraphError",
@@ -244,4 +258,16 @@ __all__ = [
     "cleanup_orphaned_temp_files",
     "safe_temp_file",
     "validate_atomic_write",
+    # Auto-help system (Feature 1: Auto-Help on Failure)
+    "AutoHelpWrapper",
+    "enable_auto_help",
+    "get_help_for_exception",
+    "show_help_on_error",
+    # Delegation warnings (Feature 2: Orchestrator Mode Warnings)
+    "get_delegation_warning",
+    "is_in_subagent_context",
+    "is_orchestrator_mode_active",
+    "should_show_delegation_warning",
+    "show_delegation_warning",
+    "track_tool_execution",
 ]
