@@ -216,12 +216,32 @@ def main() -> None:
                 file=sys.stderr,
             )
 
-            # Record live event for WebSocket real-time dashboard
+            # Record to SQLite agent_events table (CRITICAL for Activity Feed)
+            # This creates the UserQuery parent event that the Activity Feed groups by
             try:
                 from htmlgraph.db.schema import HtmlGraphDB
+                from htmlgraph.hooks.event_tracker import record_event_to_sqlite
 
                 db = HtmlGraphDB(graph_dir / "htmlgraph.db")
                 db.connect()
+
+                # Record UserQuery event to agent_events table
+                event_id = record_event_to_sqlite(
+                    db=db,
+                    session_id=resolved_session_id,
+                    tool_name="UserQuery",
+                    tool_input={"prompt": prompt},
+                    tool_response={"content": "Query received"},
+                    is_error=False,
+                    agent_id="claude-code",
+                    model=None,
+                    feature_id=result.feature_id if result else None,
+                )
+
+                print(
+                    f"DEBUG UserPromptSubmit: Recorded to agent_events, event_id={event_id}",
+                    file=sys.stderr,
+                )
 
                 # Create event data for dashboard display
                 event_data = {
@@ -231,22 +251,25 @@ def main() -> None:
                     "timestamp": datetime.now().isoformat(),
                 }
 
-                # Insert live event
+                # Insert live event for WebSocket real-time dashboard
                 db.insert_live_event(
                     event_type="user_query",
                     event_data=event_data,
-                    parent_event_id=None,
+                    parent_event_id=event_id,
                     session_id=resolved_session_id,
                     spawner_type=None,
                 )
 
                 db.disconnect()
             except Exception as e:
-                # Don't fail the hook if live event insertion fails
+                # Don't fail the hook if database insertion fails
                 print(
-                    f"Warning: Could not record live event for user query: {e}",
+                    f"Warning: Could not record UserQuery to database: {e}",
                     file=sys.stderr,
                 )
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)
 
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
