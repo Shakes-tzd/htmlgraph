@@ -40,7 +40,26 @@ except Exception as e:
     sys.exit(0)
 
 
-def main():
+def _get_head_commit(project_dir: str) -> str | None:
+    """Get current HEAD commit hash (short form)."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=project_dir,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
+def main() -> None:
     try:
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:
@@ -59,6 +78,9 @@ def main():
     try:
         manager = SessionManager(graph_dir)
         active = manager.get_active_session()
+
+        # Capture current git commit for end_commit tracking
+        end_commit = _get_head_commit(project_dir)
 
         # Link transcript to session (but don't import events yet)
         if active and external_session_id:
@@ -94,14 +116,22 @@ def main():
         elif isinstance(blockers_raw, list):
             blockers = [str(b).strip() for b in blockers_raw if str(b).strip()]
 
-        if active and (handoff_notes or recommended_next or blockers):
+        # Update session with end_commit and handoff notes
+        if active:
             try:
-                manager.set_session_handoff(
-                    session_id=active.id,
-                    handoff_notes=handoff_notes,
-                    recommended_next=recommended_next,
-                    blockers=blockers,
-                )
+                # Set end_commit if available
+                if end_commit and not active.end_commit:
+                    active.end_commit = end_commit
+                    manager.session_converter.save(active)
+
+                # Set handoff notes if provided
+                if handoff_notes or recommended_next or blockers:
+                    manager.set_session_handoff(
+                        session_id=active.id,
+                        handoff_notes=handoff_notes,
+                        recommended_next=recommended_next,
+                        blockers=blockers,
+                    )
             except Exception:
                 pass
         elif sys.stderr.isatty():
