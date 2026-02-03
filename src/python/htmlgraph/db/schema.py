@@ -786,6 +786,18 @@ class HtmlGraphDB:
             )
             # Re-enable foreign key constraints
             cursor.execute("PRAGMA foreign_keys=ON")
+
+            # Update session metadata counters
+            cursor.execute(
+                """
+                UPDATE sessions
+                SET total_events = total_events + 1,
+                    total_tokens_used = total_tokens_used + ?
+                WHERE session_id = ?
+            """,
+                (cost_tokens, session_id),
+            )
+
             self.connection.commit()  # type: ignore[union-attr]
             return True
         except sqlite3.IntegrityError as e:
