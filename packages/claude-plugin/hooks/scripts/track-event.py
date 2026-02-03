@@ -157,13 +157,27 @@ def main() -> None:
 
     # Handle different hook types
     if hook_type == "Stop":
-        # Session is ending - track stop event
+        # Session is ending - get current commit and end session
         try:
-            manager.track_activity(
-                session_id=active_session_id, tool="Stop", summary="Agent stopped"
-            )
+            # Get current commit hash
+            end_commit = None
+            try:
+                result = subprocess.run(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    capture_output=True,
+                    text=True,
+                    cwd=project_dir,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    end_commit = result.stdout.strip()
+            except Exception:
+                pass
+
+            # End the session with commit info
+            manager.end_session(session_id=active_session_id, end_commit=end_commit)
         except Exception as e:
-            print(f"Warning: Could not track stop: {e}", file=sys.stderr)
+            print(f"Warning: Could not end session: {e}", file=sys.stderr)
         output_response()
         return
 
@@ -201,6 +215,39 @@ def main() -> None:
                 f"DEBUG UserPromptSubmit: tracked successfully, event_id={result.id if result else 'None'}",
                 file=sys.stderr,
             )
+
+            # Record live event for WebSocket real-time dashboard
+            try:
+                from htmlgraph.db.schema import HtmlGraphDB
+
+                db = HtmlGraphDB(graph_dir / "htmlgraph.db")
+                db.connect()
+
+                # Create event data for dashboard display
+                event_data = {
+                    "tool": "UserQuery",
+                    "summary": preview,
+                    "prompt": prompt,
+                    "timestamp": datetime.now().isoformat(),
+                }
+
+                # Insert live event
+                db.insert_live_event(
+                    event_type="user_query",
+                    event_data=event_data,
+                    parent_event_id=None,
+                    session_id=resolved_session_id,
+                    spawner_type=None,
+                )
+
+                db.disconnect()
+            except Exception as e:
+                # Don't fail the hook if live event insertion fails
+                print(
+                    f"Warning: Could not record live event for user query: {e}",
+                    file=sys.stderr,
+                )
+
         except Exception as e:
             print(f"Warning: Could not track query: {e}", file=sys.stderr)
             import traceback
@@ -302,6 +349,40 @@ def main() -> None:
                 success=not is_error,
                 parent_activity_id=parent_activity_id,
             )
+
+            # Record live event for WebSocket real-time dashboard
+            try:
+                from htmlgraph.db.schema import HtmlGraphDB
+
+                db = HtmlGraphDB(graph_dir / "htmlgraph.db")
+                db.connect()
+
+                # Create event data for dashboard display
+                event_data = {
+                    "tool": tool_name,
+                    "summary": summary,
+                    "success": not is_error,
+                    "feature_id": result.feature_id if result else None,
+                    "drift_score": result.drift_score
+                    if result and hasattr(result, "drift_score")
+                    else None,
+                    "file_paths": file_paths,
+                    "timestamp": datetime.now().isoformat(),
+                }
+
+                # Insert live event (event_type matches what dashboard expects)
+                db.insert_live_event(
+                    event_type="tool_call",
+                    event_data=event_data,
+                    parent_event_id=parent_activity_id,
+                    session_id=resolved_session_id,
+                    spawner_type=None,  # Regular tool calls don't have spawner_type
+                )
+
+                db.disconnect()
+            except Exception as e:
+                # Don't fail the hook if live event insertion fails
+                print(f"Warning: Could not record live event: {e}", file=sys.stderr)
 
             # If this was a parent tool, save its ID for subsequent activities
             if is_parent_tool and result:

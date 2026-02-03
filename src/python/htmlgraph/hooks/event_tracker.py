@@ -638,6 +638,28 @@ def record_event_to_sqlite(
         )
 
         if success:
+            # Also insert into live_events for real-time WebSocket dashboard
+            try:
+                event_data = {
+                    "tool": tool_name,
+                    "summary": input_summary,
+                    "success": not is_error,
+                    "feature_id": feature_id,
+                    "file_paths": file_paths,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+
+                db.insert_live_event(
+                    event_type="tool_call",
+                    event_data=event_data,
+                    parent_event_id=parent_event_id,
+                    session_id=session_id,
+                    spawner_type=None,
+                )
+            except Exception as e:
+                # Don't fail the hook if live event insertion fails
+                logger.debug(f"Could not insert live event: {e}")
+
             return event_id
         return None
 

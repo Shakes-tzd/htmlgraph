@@ -713,6 +713,7 @@ class SessionManager:
         handoff_notes: str | None = None,
         recommended_next: str | None = None,
         blockers: list[str] | None = None,
+        end_commit: str | None = None,
     ) -> Session | None:
         """
         End a session.
@@ -722,6 +723,7 @@ class SessionManager:
             handoff_notes: Optional handoff notes for next session
             recommended_next: Optional recommended next steps
             blockers: Optional list of blockers
+            end_commit: Optional git commit hash at session end
 
         Returns:
             Updated Session or None if not found
@@ -736,6 +738,11 @@ class SessionManager:
             session.recommended_next = recommended_next
         if blockers is not None:
             session.blockers = blockers
+        if end_commit is not None:
+            session.end_commit = end_commit
+        elif not session.end_commit:
+            # Auto-detect current commit if not provided
+            session.end_commit = self._get_current_commit()
 
         session.end()
         session.add_activity(

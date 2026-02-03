@@ -964,6 +964,7 @@ class Session(BaseModel):
     last_activity: datetime = Field(default_factory=datetime.now)
 
     start_commit: str | None = None  # Git commit hash at session start
+    end_commit: str | None = None  # Git commit hash at session end
     event_count: int = 0
 
     # Relationships

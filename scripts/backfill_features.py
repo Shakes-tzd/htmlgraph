@@ -10,11 +10,9 @@ Usage:
     uv run python scripts/backfill_features.py --dry-run
 """
 
-import json
 import re
 import sqlite3
 import sys
-from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -268,7 +266,9 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Backfill features from HTML to SQLite")
+    parser = argparse.ArgumentParser(
+        description="Backfill features from HTML to SQLite"
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",

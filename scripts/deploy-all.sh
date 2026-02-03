@@ -312,7 +312,10 @@ log_info "Syncing dashboard.html to index.html..."
 if [ "$DRY_RUN" = true ]; then
     log_info "[DRY-RUN] Would copy src/python/htmlgraph/dashboard.html → index.html"
 else
-    if cp src/python/htmlgraph/dashboard.html index.html; then
+    # Skip if dashboard.html doesn't exist (API-based dashboard now)
+    if [ ! -f "src/python/htmlgraph/dashboard.html" ]; then
+        log_info "⚠️  src/python/htmlgraph/dashboard.html not found (API-based dashboard), skipping sync"
+    elif cp src/python/htmlgraph/dashboard.html index.html; then
         log_success "Dashboard files synced"
 
         # Check if there are changes to commit

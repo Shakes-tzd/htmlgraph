@@ -142,5 +142,13 @@
   "spike-init-76ace32b": {
     "spike_subtype": "session-init",
     "session_id": "76ace32b-693a-48c6-b476-4b1229f33702"
+  },
+  "spike-init-sess-c18": {
+    "spike_subtype": "session-init",
+    "session_id": "sess-c181c5d1"
+  },
+  "spike-init-d62c4f67": {
+    "spike_subtype": "session-init",
+    "session_id": "d62c4f67-7779-4ec1-9cf3-97540d3f7129"
   }
 }
