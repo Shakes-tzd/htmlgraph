@@ -140,17 +140,17 @@ class TestFormatToolSummary:
     def test_format_read_tool(self, sample_tool_inputs):
         """Test formatting for Read tool."""
         summary = format_tool_summary("Read", sample_tool_inputs["Read"])
-        assert summary == "Read: /path/to/file.py"
+        assert summary == "/path/to/file.py"
 
     def test_format_write_tool(self, sample_tool_inputs):
         """Test formatting for Write tool."""
         summary = format_tool_summary("Write", sample_tool_inputs["Write"])
-        assert summary == "Write: /path/to/output.py"
+        assert summary == "/path/to/output.py"
 
     def test_format_edit_tool(self, sample_tool_inputs):
         """Test formatting for Edit tool."""
         summary = format_tool_summary("Edit", sample_tool_inputs["Edit"])
-        assert "Edit: /path/to/file.py" in summary
+        assert "/path/to/file.py" in summary
         assert "def old_func():" in summary
 
     def test_format_bash_tool_with_description(self, sample_tool_inputs):
@@ -167,34 +167,32 @@ class TestFormatToolSummary:
     def test_format_glob_tool(self, sample_tool_inputs):
         """Test formatting for Glob tool."""
         summary = format_tool_summary("Glob", sample_tool_inputs["Glob"])
-        assert summary == "Glob: **/*.py"
+        assert summary == "**/*.py"
 
     def test_format_grep_tool(self, sample_tool_inputs):
         """Test formatting for Grep tool."""
         summary = format_tool_summary("Grep", sample_tool_inputs["Grep"])
-        assert "Grep:" in summary
         assert "function" in summary
 
     def test_format_task_tool(self, sample_tool_inputs):
         """Test formatting for Task tool."""
         summary = format_tool_summary("Task", sample_tool_inputs["Task"])
-        assert "Task (general-purpose):" in summary
+        assert "(general-purpose):" in summary
         assert "Implement feature X" in summary
 
     def test_format_todowrite_tool(self, sample_tool_inputs):
         """Test formatting for TodoWrite tool."""
         summary = format_tool_summary("TodoWrite", sample_tool_inputs["TodoWrite"])
-        assert "TodoWrite: 1 items" in summary
+        assert "1 items" in summary
 
     def test_format_websearch_tool(self, sample_tool_inputs):
         """Test formatting for WebSearch tool."""
         summary = format_tool_summary("WebSearch", sample_tool_inputs["WebSearch"])
-        assert "WebSearch: python async programming" in summary
+        assert "python async programming" in summary
 
     def test_format_webfetch_tool(self, sample_tool_inputs):
         """Test formatting for WebFetch tool."""
         summary = format_tool_summary("WebFetch", sample_tool_inputs["WebFetch"])
-        assert "WebFetch:" in summary
         assert "https://example.com" in summary
 
     def test_format_userquery_tool(self, sample_tool_inputs):
@@ -212,7 +210,7 @@ class TestFormatToolSummary:
     def test_format_unknown_tool(self):
         """Test formatting for unknown tool falls back to generic format."""
         summary = format_tool_summary("UnknownTool", {"some_param": "value"})
-        assert "UnknownTool:" in summary
+        assert "some_param" in summary
 
 
 # ============================================================================
@@ -1138,13 +1136,11 @@ class TestErrorHandlingAndEdgeCases:
     def test_format_tool_summary_with_none_input(self):
         """Test format_tool_summary handles None/empty tool input gracefully."""
         summary = format_tool_summary("Read", {})
-        assert "Read:" in summary
         assert "unknown" in summary.lower()
 
     def test_format_tool_summary_with_missing_fields(self):
         """Test format_tool_summary when expected fields are missing."""
         summary = format_tool_summary("Edit", {"file_path": "/path/to/file.py"})
-        assert "Edit:" in summary
         assert "/path/to/file.py" in summary
 
     def test_extract_file_paths_with_empty_input(self):

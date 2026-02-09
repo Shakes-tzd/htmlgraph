@@ -1,27 +1,79 @@
 {
   "description": "Model pricing configuration for cost tracking",
-  "last_updated": "2026-01-16",
+  "last_updated": "2026-02-09",
   "models": {
-    "claude-haiku-4-5-20251001": {
-      "name": "Claude Haiku",
-      "display_name": "Haiku 4.5",
-      "input_cost_per_mtok": 0.80,
-      "output_cost_per_mtok": 4.00,
-      "description": "Fast, efficient model for routine tasks"
+    "claude-opus-4-6-20250910": {
+      "name": "Claude Opus 4.6",
+      "display_name": "Opus 4.6",
+      "input_cost_per_mtok": 5.00,
+      "output_cost_per_mtok": 25.00,
+      "description": "Latest flagship model with 1M context window"
     },
-    "claude-sonnet-4-20250514": {
-      "name": "Claude Sonnet",
-      "display_name": "Sonnet 4",
+    "claude-opus-4-5-20250815": {
+      "name": "Claude Opus 4.5",
+      "display_name": "Opus 4.5",
+      "input_cost_per_mtok": 5.00,
+      "output_cost_per_mtok": 25.00,
+      "description": "Flagship model for complex reasoning"
+    },
+    "claude-sonnet-4-5-20250929": {
+      "name": "Claude Sonnet 4.5",
+      "display_name": "Sonnet 4.5",
       "input_cost_per_mtok": 3.00,
       "output_cost_per_mtok": 15.00,
       "description": "Balanced model for most tasks"
     },
-    "claude-opus-4-1-20250805": {
-      "name": "Claude Opus",
-      "display_name": "Opus 4.1",
-      "input_cost_per_mtok": 15.00,
-      "output_cost_per_mtok": 75.00,
-      "description": "Most capable model for complex reasoning"
+    "claude-sonnet-4-20250514": {
+      "name": "Claude Sonnet 4",
+      "display_name": "Sonnet 4",
+      "input_cost_per_mtok": 3.00,
+      "output_cost_per_mtok": 15.00,
+      "description": "Previous generation balanced model"
+    },
+    "claude-haiku-4-5-20251001": {
+      "name": "Claude Haiku 4.5",
+      "display_name": "Haiku 4.5",
+      "input_cost_per_mtok": 1.00,
+      "output_cost_per_mtok": 5.00,
+      "description": "Fast, efficient model for routine tasks"
+    },
+    "claude-haiku-3-5-20241022": {
+      "name": "Claude Haiku 3.5",
+      "display_name": "Haiku 3.5",
+      "input_cost_per_mtok": 0.80,
+      "output_cost_per_mtok": 4.00,
+      "description": "Legacy fast model"
+    }
+  },
+  "pricing_tiers": {
+    "fast_mode": {
+      "description": "Fast mode for Opus 4.6 (6x standard rates)",
+      "models": ["claude-opus-4-6-20250910"],
+      "standard_context": {
+        "input_cost_per_mtok": 30.00,
+        "output_cost_per_mtok": 150.00
+      },
+      "extended_context": {
+        "input_cost_per_mtok": 60.00,
+        "output_cost_per_mtok": 225.00
+      }
+    },
+    "long_context": {
+      "description": "Premium pricing for >200K input tokens",
+      "models": ["claude-opus-4-6-20250910", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514"],
+      "threshold_tokens": 200000,
+      "opus_extended": {
+        "input_cost_per_mtok": 10.00,
+        "output_cost_per_mtok": 37.50
+      },
+      "sonnet_extended": {
+        "input_cost_per_mtok": 6.00,
+        "output_cost_per_mtok": 22.50
+      }
+    },
+    "batch": {
+      "description": "50% discount for async batch processing",
+      "discount_multiplier": 0.50
     }
   },
   "gemini_models": {

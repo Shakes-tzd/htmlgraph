@@ -355,7 +355,7 @@ class TestAlertAccuracy:
             event_id="evt-005",
             tool_name="Read",
             model="claude-haiku-4-5-20251001",
-            input_tokens=10_000_000,  # Will cost ~$8 (80% of $10)
+            input_tokens=8_000_000,  # Will cost ~$8 (80% of $10) with new Haiku pricing ($1.00/$5.00 per MTok)
             output_tokens=0,
         )
 

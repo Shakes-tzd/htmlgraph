@@ -22,16 +22,20 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Standard Claude pricing (tokens per 1M tokens)
+# Standard Claude pricing (per 1M tokens) - Updated Feb 2026
 CLAUDE_PRICING: dict[str, dict[str, float]] = {
-    "claude-3.5-sonnet": {"input": 3.0, "output": 15.0},  # $3/$15 per 1M
-    "claude-3-opus": {"input": 15.0, "output": 75.0},  # $15/$75 per 1M
-    "claude-3-haiku": {"input": 0.25, "output": 1.25},  # $0.25/$1.25 per 1M
-    "claude-3-sonnet": {"input": 3.0, "output": 15.0},  # $3/$15 per 1M (alias)
+    "claude-opus-4-6": {"input": 5.0, "output": 25.0},
+    "claude-opus-4-5": {"input": 5.0, "output": 25.0},
+    "claude-sonnet-4-5": {"input": 3.0, "output": 15.0},
+    "claude-sonnet-4": {"input": 3.0, "output": 15.0},
+    "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
+    "claude-haiku-3-5": {"input": 0.80, "output": 4.0},
+    # Legacy models (kept for historical cost analysis)
+    "claude-3.5-sonnet": {"input": 3.0, "output": 15.0},
+    "claude-3-opus": {"input": 15.0, "output": 75.0},
+    "claude-3-haiku": {"input": 0.25, "output": 1.25},
 }
-
-# Default model if not specified
-DEFAULT_MODEL = "claude-3.5-sonnet"
+DEFAULT_MODEL = "claude-sonnet-4-5"
 
 
 @dataclass

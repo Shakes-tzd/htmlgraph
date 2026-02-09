@@ -27,7 +27,6 @@ Design Reference:
 import json
 import logging
 import sqlite3
-import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -520,7 +519,9 @@ class CostMonitor:
         severity: str = "warning",
     ) -> CostAlert:
         """Create and store a cost alert."""
-        alert_id = f"alert-{int(time.time() * 1000)}"
+        from htmlgraph.ids import generate_id
+
+        alert_id = generate_id("event", title=f"{alert_type}:{message}")
         timestamp = datetime.now(timezone.utc)
 
         alert = CostAlert(

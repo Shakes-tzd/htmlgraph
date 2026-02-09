@@ -66,14 +66,14 @@ class TestCostCalculation:
 
     def test_calculate_cost_haiku_model(self, cost_monitor: CostMonitor) -> None:
         """Test cost calculation for Claude Haiku."""
-        # Haiku: $0.80/1M input, $4.00/1M output
+        # Haiku: $1.00/1M input, $5.00/1M output
         cost = cost_monitor.calculate_cost_usd(
             model="claude-haiku-4-5-20251001",
             input_tokens=1_000_000,
             output_tokens=1_000_000,
         )
-        # Expected: 0.80 + 4.00 = 4.80
-        assert abs(cost - 4.80) < 0.01
+        # Expected: 1.00 + 5.00 = 6.00
+        assert abs(cost - 6.00) < 0.01
 
     def test_calculate_cost_sonnet_model(self, cost_monitor: CostMonitor) -> None:
         """Test cost calculation for Claude Sonnet."""
@@ -88,14 +88,14 @@ class TestCostCalculation:
 
     def test_calculate_cost_opus_model(self, cost_monitor: CostMonitor) -> None:
         """Test cost calculation for Claude Opus."""
-        # Opus: $15.00/1M input, $75.00/1M output
+        # Opus 4.6: $5.00/1M input, $25.00/1M output
         cost = cost_monitor.calculate_cost_usd(
-            model="claude-opus-4-1-20250805",
+            model="claude-opus-4-6-20250910",
             input_tokens=1_000_000,
             output_tokens=1_000_000,
         )
-        # Expected: 15.00 + 75.00 = 90.00
-        assert abs(cost - 90.00) < 0.01
+        # Expected: 5.00 + 25.00 = 30.00
+        assert abs(cost - 30.00) < 0.01
 
     def test_calculate_cost_partial_tokens(self, cost_monitor: CostMonitor) -> None:
         """Test cost calculation with partial token counts."""
@@ -104,8 +104,8 @@ class TestCostCalculation:
             input_tokens=500_000,
             output_tokens=250_000,
         )
-        # Expected: (0.80 * 0.5) + (4.00 * 0.25) = 0.40 + 1.00 = 1.40
-        assert abs(cost - 1.40) < 0.01
+        # Expected: (1.00 * 0.5) + (5.00 * 0.25) = 0.50 + 1.25 = 1.75
+        assert abs(cost - 1.75) < 0.01
 
     def test_calculate_cost_unknown_model_uses_defaults(
         self, cost_monitor: CostMonitor
@@ -241,7 +241,7 @@ class TestCostBreakdown:
 
         assert "claude-haiku-4-5-20251001" in breakdown.by_model
         assert "claude-sonnet-4-20250514" in breakdown.by_model
-        assert abs(breakdown.by_model["claude-haiku-4-5-20251001"] - 0.80) < 0.01
+        assert abs(breakdown.by_model["claude-haiku-4-5-20251001"] - 1.00) < 0.01
         assert abs(breakdown.by_model["claude-sonnet-4-20250514"] - 3.00) < 0.01
 
     def test_get_cost_breakdown_by_tool(
@@ -269,7 +269,7 @@ class TestCostBreakdown:
         breakdown = cost_monitor.get_cost_breakdown(sample_session_id)
 
         assert "Read" in breakdown.by_tool
-        assert abs(breakdown.by_tool["Read"] - 1.60) < 0.01
+        assert abs(breakdown.by_tool["Read"] - 2.00) < 0.01
 
     def test_get_cost_breakdown_total_cost(
         self, cost_monitor: CostMonitor, setup_test_session, sample_session_id: str
@@ -286,8 +286,8 @@ class TestCostBreakdown:
 
         breakdown = cost_monitor.get_cost_breakdown(sample_session_id)
 
-        # Haiku: 0.80 + 4.00 = 4.80
-        assert abs(breakdown.total_cost_usd - 4.80) < 0.01
+        # Haiku: 1.00 + 5.00 = 6.00
+        assert abs(breakdown.total_cost_usd - 6.00) < 0.01
         assert breakdown.total_tokens == 2_000_000
 
 
@@ -393,7 +393,7 @@ class TestSessionCostTracking:
         session_cost = cost_monitor.get_session_cost(sample_session_id)
 
         assert session_cost["total_tokens"] == 2_000_000
-        assert abs(session_cost["total_cost_usd"] - 4.80) < 0.01
+        assert abs(session_cost["total_cost_usd"] - 6.00) < 0.01
 
 
 class TestCostAccuracy:
@@ -408,7 +408,7 @@ class TestCostAccuracy:
         )
 
         # Manual calculation
-        expected = (12_345 / 1_000_000 * 0.80) + (6_789 / 1_000_000 * 4.00)
+        expected = (12_345 / 1_000_000 * 1.00) + (6_789 / 1_000_000 * 5.00)
         error_percent = abs(cost - expected) / expected * 100
 
         assert error_percent < 5.0
