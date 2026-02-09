@@ -1244,6 +1244,19 @@ def get_app(db_path: str) -> FastAPI:
 
                 has_spawner = has_spawner_in_children(children)
 
+                # Count total tool calls including all nested levels
+                def count_total_children(
+                    children_list: list[dict[str, Any]],
+                ) -> int:
+                    """Recursively count all children at all nesting levels."""
+                    total = len(children_list)
+                    for child in children_list:
+                        if child.get("children"):
+                            total += count_total_children(child["children"])
+                    return total
+
+                total_tool_count = count_total_children(children)
+
                 # Step 4: Build conversation turn object
                 conversation_turn = {
                     "userQuery": {
@@ -1256,7 +1269,7 @@ def get_app(db_path: str) -> FastAPI:
                     "children": children,
                     "has_spawner": has_spawner,
                     "stats": {
-                        "tool_count": len(children),
+                        "tool_count": total_tool_count,
                         "total_duration": round(total_duration, 2),
                         "success_count": success_count,
                         "error_count": error_count,
