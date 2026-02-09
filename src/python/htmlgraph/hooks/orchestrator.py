@@ -32,14 +32,12 @@ Public API:
 """
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from htmlgraph.hooks.subagent_detection import is_subagent_context
 from htmlgraph.orchestrator_config import load_orchestrator_config
 from htmlgraph.orchestrator_mode import OrchestratorModeManager
-from htmlgraph.orchestrator_validator import OrchestratorValidator
 
 # Maximum number of recent tool calls to consider for pattern detection
 MAX_HISTORY_SIZE = 50  # Keep last 50 tool calls
@@ -199,23 +197,16 @@ def is_allowed_orchestrator_operation(
     except Exception:
         enforcement_level = "guidance"
 
-    # Use OrchestratorValidator for comprehensive validation
-    validator = OrchestratorValidator()
-    result, reason = validator.validate_tool_use(tool, params)
-
-    if result == "block":
-        return False, reason, "validator-blocked"
-    elif result == "warn":
-        # Continue but with warning
-        pass  # Fall through to existing checks
+    # PHASE 1 FIX: OrchestratorValidator provides warnings only, never blocks
+    # validator = OrchestratorValidator()
+    # result, reason = validator.validate_tool_use(tool, params)
+    # All validation converted to guidance-only in Phase 1
 
     # Category 1: ALWAYS ALLOWED - Orchestrator core operations
     if tool in ["Task", "AskUserQuestion", "TodoWrite"]:
         return True, "", "orchestrator-core"
 
-    # FIX #2: Block Skills in strict mode (must be invoked via Task delegation)
-    if tool == "Skill" and enforcement_level == "strict":
-        return False, "Skills must be invoked via Task delegation", "skill-blocked"
+    # PHASE 1 FIX: Allow Skills (guidance only, no blocking)
 
     # Category 2: SDK Operations - Always allowed
     if tool == "Bash":
@@ -236,33 +227,8 @@ def is_allowed_orchestrator_operation(
         if "from htmlgraph import" in command or "import htmlgraph" in command:
             return True, "", "sdk-inline"
 
-        # FIX #3: Check if bash command is in allowed whitelist (strict mode only)
-        # If we've gotten here, it's not a whitelisted command above
-        # Block non-whitelisted bash commands in strict mode
-        if enforcement_level == "strict":
-            # Check if it's a blocked test/build pattern (handled below)
-            blocked_patterns = [
-                r"^npm (run|test|build)",
-                r"^pytest",
-                r"^uv run pytest",
-                r"^python -m pytest",
-                r"^cargo (build|test)",
-                r"^mvn (compile|test|package)",
-                r"^make (test|build)",
-            ]
-            is_blocked_pattern = any(
-                re.match(pattern, command) for pattern in blocked_patterns
-            )
-
-            if not is_blocked_pattern:
-                # Not a specifically blocked pattern, but also not whitelisted
-                # In strict mode, we should delegate
-                return (
-                    False,
-                    f"Bash command not in allowed list. Delegate to subagent.\n\n"
-                    f"Command: {command[:100]}",
-                    "bash-blocked",
-                )
+        # PHASE 1 FIX: Remove bash whitelist block
+        # All bash commands allowed (guidance only, no blocking)
 
     # Category 3: Quick Lookups - Single operations only
     if tool in ["Read", "Grep", "Glob"]:
@@ -286,65 +252,17 @@ def is_allowed_orchestrator_operation(
                 "exploration-blocked",
             )
 
-        # Look at last 3 tool calls
-        recent_same_tool = sum(1 for h in history[-3:] if h["tool"] == tool)
+        # PHASE 1 FIX: Allow multiple lookups (guidance only, no blocking)
+        return True, "Multiple operations allowed", "allowed"
 
-        if recent_same_tool == 0:  # First use
-            return True, "Single lookup allowed", "single-lookup"
-        else:
-            return (
-                False,
-                f"Multiple {tool} calls detected. This is exploration work.\n\n"
-                f"Delegate to Explorer subagent using Task tool.",
-                "multi-lookup-blocked",
-            )
+    # PHASE 1 FIX: Allow implementation tools (guidance only, no blocking)
+    # These operations provide guidance but never block
 
-    # Category 4: BLOCKED - Implementation tools
-    if tool in ["Edit", "Write", "NotebookEdit"]:
-        return (
-            False,
-            f"{tool} is implementation work.\n\n"
-            f"Delegate to Coder subagent using Task tool.",
-            "implementation-blocked",
-        )
+    # PHASE 1 FIX: Allow test/build operations (guidance only, no blocking)
 
-    if tool == "Delete":
-        return (
-            False,
-            "Delete is a destructive implementation operation.\n\n"
-            "Delegate to Coder subagent using Task tool.",
-            "delete-blocked",
-        )
-
-    # Category 5: BLOCKED - Testing/Building
-    if tool == "Bash":
-        command = params.get("command", "")
-
-        # Block compilation, testing, building (should be in subagent)
-        test_build_patterns: list[tuple[str, str]] = [
-            (r"^npm (run|test|build)", "npm test/build"),
-            (r"^pytest", "pytest"),
-            (r"^uv run pytest", "pytest"),
-            (r"^python -m pytest", "pytest"),
-            (r"^cargo (build|test)", "cargo build/test"),
-            (r"^mvn (compile|test|package)", "maven build/test"),
-            (r"^make (test|build)", "make test/build"),
-        ]
-
-        for pattern, name in test_build_patterns:
-            if re.match(pattern, command):
-                return (
-                    False,
-                    f"Testing/building ({name}) should be delegated to subagent.\n\n"
-                    f"Use Task tool to run tests and report results.",
-                    "test-build-blocked",
-                )
-
-    # FIX #1: Remove "allowed-default" escape hatch in strict mode
-    if enforcement_level == "strict":
-        return False, "Not in allowed whitelist", "strict-blocked"
-    else:
-        return True, "Allowed in guidance mode", "guidance-allowed"
+    # PHASE 1 FIX: Allow all tools (no catch-all block)
+    # Enforcement provides guidance but never blocks
+    return True, "Allowed (no whitelist restriction)", "allowed"
 
 
 def create_task_suggestion(tool: str, params: dict[str, Any]) -> str:

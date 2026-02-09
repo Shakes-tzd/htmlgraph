@@ -45,6 +45,25 @@ from htmlgraph.hooks.validator import (
 
 logger = logging.getLogger(__name__)
 
+# NEVER_BLOCK_TOOLS: Tools that should NEVER be blocked by enforcement
+# These are essential for coordination, orchestration, and exploration
+NEVER_BLOCK_TOOLS = {
+    "Task",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskList",
+    "TaskGet",
+    "AskUserQuestion",
+    "TodoWrite",
+    "TodoRead",
+    "Skill",
+    "Read",
+    "Grep",
+    "Glob",
+    "WebSearch",
+    "WebFetch",
+}
+
 
 def generate_tool_use_id() -> str:
     """
@@ -677,6 +696,16 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
             }
         }
     """
+    # SAFETY NET: Never block essential tools or MCP tools
+    tool_name = tool_input.get("name", "") or tool_input.get("tool_name", "")
+    if tool_name in NEVER_BLOCK_TOOLS or "__" in tool_name:  # "__" indicates MCP tools
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+            }
+        }
+
     # Run all five checks in parallel using asyncio.gather
     (
         event_tracing_response,
@@ -767,6 +796,14 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
             response["hookSpecificOutput"]["permissionDecisionReason"] = (
                 combined_guidance
             )
+
+    # FINAL SAFETY NET: Strip any "deny" decisions and convert to guidance
+    # This ensures no tool calls are ever blocked, only guided
+    if response.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
+        reason = response["hookSpecificOutput"].get("permissionDecisionReason", "")
+        response["hookSpecificOutput"]["permissionDecision"] = "allow"
+        if reason:
+            response["hookSpecificOutput"]["additionalContext"] = f"[Guidance] {reason}"
 
     return response
 

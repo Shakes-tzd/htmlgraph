@@ -68,11 +68,11 @@ class OrchestratorValidator:
         """Validate Bash tool usage."""
         command = args.get("command", "")
 
-        # Check for git operations
+        # PHASE 1 FIX: Convert git block to warning
         if self._is_git_operation(command):
             return (
-                "block",
-                f"Git operations must be delegated to subagent. "
+                "warn",
+                f"Git operations may benefit from delegation, but allowed. "
                 f"Command: {command[:100]}",
             )
 

@@ -463,13 +463,9 @@ def validate_tool_call(
     result = {"decision": "allow"}
     guidance_parts = []
 
-    # Step 0a: Check orchestrator mode violations (if enabled)
-    orchestrator_violation = check_orchestrator_violation(
-        tool, params, session_id or "unknown"
-    )
-    if orchestrator_violation:
-        # BLOCK orchestrator violations in strict mode
-        return orchestrator_violation
+    # PHASE 1 FIX: Remove double enforcement
+    # Let orchestrator handle orchestration checks, validator only handles other patterns
+    # (Orchestrator violations were being checked twice: once in orchestrator.py, once here)
 
     # Step 0b: Check for pattern-based guidance (Active Learning)
     pattern_info = get_pattern_guidance(tool, history)

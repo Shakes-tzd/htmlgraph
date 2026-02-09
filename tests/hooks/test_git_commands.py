@@ -199,8 +199,9 @@ class TestOrchestratorIntegration:
             "Bash", params, session_id="test-session"
         )
 
-        # Should NOT be allowed in strict mode
-        assert is_allowed is False
+        # PHASE 1: Should be ALLOWED (with guidance) - no blocking
+        assert is_allowed is True
+        assert category == "allowed"
 
 
 class TestConsistencyBetweenHooks:
@@ -274,13 +275,13 @@ class TestConsistencyBetweenHooks:
         # Validator should NOT auto-allow
         validator_allows = is_always_allowed("Bash", params, config)
 
-        # Orchestrator should NOT allow in strict mode
+        # PHASE 1: Orchestrator should ALLOW (with guidance) - no blocking
         orch_allows, _, _ = is_allowed_orchestrator_operation(
             "Bash", params, session_id="test-session"
         )
 
-        assert validator_allows is False
-        assert orch_allows is False
+        assert validator_allows is False  # Validator still says not auto-allowed
+        assert orch_allows is True  # But orchestrator allows (with guidance)
 
     def test_git_push_blocked_by_both(self):
         """Test that git push is not auto-allowed by either hook."""
@@ -293,13 +294,13 @@ class TestConsistencyBetweenHooks:
         # Validator should NOT auto-allow
         validator_allows = is_always_allowed("Bash", params, config)
 
-        # Orchestrator should NOT allow in strict mode
+        # PHASE 1: Orchestrator should ALLOW (with guidance) - no blocking
         orch_allows, _, _ = is_allowed_orchestrator_operation(
             "Bash", params, session_id="test-session"
         )
 
-        assert validator_allows is False
-        assert orch_allows is False
+        assert validator_allows is False  # Validator still says not auto-allowed
+        assert orch_allows is True  # But orchestrator allows (with guidance)
 
 
 if __name__ == "__main__":
