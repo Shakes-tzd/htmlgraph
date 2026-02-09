@@ -162,9 +162,10 @@ def start_server(
         )
         watcher.start()
 
-    # Create handle
+    # Create handle with localhost URL for display (even if binding to 0.0.0.0)
+    display_host = "localhost" if host in ("0.0.0.0", "127.0.0.1") else host
     handle = ServerHandle(
-        url=f"http://{host}:{port}",
+        url=f"http://{display_host}:{port}",
         port=port,
         host=host,
         server={"httpserver": server, "watcher": watcher},
