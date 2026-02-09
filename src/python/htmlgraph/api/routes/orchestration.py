@@ -11,7 +11,7 @@ Handles:
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -307,8 +307,11 @@ async def get_orchestration_summary(
 
     try:
         _, orch_service, _ = deps.create_services(db)
-        return await orch_service.get_orchestration_summary(
-            session_id=session_id, agent_id=agent_id
+        return cast(
+            dict[str, Any],
+            await orch_service.get_orchestration_summary(
+                session_id=session_id, agent_id=agent_id
+            ),
         )
     finally:
         await db.close()
@@ -322,7 +325,10 @@ async def get_delegation_chain_endpoint(event_id: str) -> dict[str, Any]:
 
     try:
         _, orch_service, _ = deps.create_services(db)
-        return await orch_service.get_delegation_chain(root_event_id=event_id)
+        return cast(
+            dict[str, Any],
+            await orch_service.get_delegation_chain(root_event_id=event_id),
+        )
     finally:
         await db.close()
 

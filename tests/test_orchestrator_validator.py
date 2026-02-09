@@ -38,7 +38,7 @@ def test_git_commit_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git commit -m 'test'"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
     assert "Git operations" in reason
 
 
@@ -48,7 +48,7 @@ def test_git_push_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git push origin main"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
     assert "Git operations" in reason
 
 
@@ -58,7 +58,7 @@ def test_git_add_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git add src/main.py"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_git_pull_blocked():
@@ -67,7 +67,7 @@ def test_git_pull_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git pull origin main"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_git_merge_blocked():
@@ -76,7 +76,7 @@ def test_git_merge_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git merge feature-branch"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_git_branch_blocked():
@@ -85,7 +85,7 @@ def test_git_branch_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git branch new-feature"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_git_checkout_blocked():
@@ -94,14 +94,14 @@ def test_git_checkout_blocked():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "git checkout main"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_git_rebase_blocked():
     validator = OrchestratorValidator()
 
     result, reason = validator.validate_tool_use("Bash", {"command": "git rebase main"})
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_strategic_tools_allowed():
@@ -232,7 +232,7 @@ def test_active_work_items_parameter():
         {"command": "git commit -m 'test'"},
         active_work_items=["feat-123", "spk-456"],
     )
-    assert result == "block"  # Still blocks git operations
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_git_operation_in_complex_command():
@@ -242,7 +242,7 @@ def test_git_operation_in_complex_command():
     result, reason = validator.validate_tool_use(
         "Bash", {"command": "cd /tmp && git add . && git commit -m 'temp'"}
     )
-    assert result == "block"
+    assert result == "warn"  # Phase 1: warn mode (safety net)
 
 
 def test_non_git_operation_with_git_keyword():
