@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Task notification correlation alternatives investigation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-e583c804"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-06T02:52:37.711356"
+             data-updated="2026-02-06T02:52:37.711359" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Task notification correlation alternatives investigation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Task Notification Correlation Investigation
+
+## Executive Summary
+
+Investigated 5 alternative methods to correlate task notifications to originating Task events when multiple tasks run in parallel. **Method 1 (PostToolUse task_id extraction) is most reliable and immediately implementable.**
+
+## Key Findings
+
+### Method 1: PostToolUse Task Response Analysis - RECOMMENDED
+Status: Most Viable | Complexity: Low | Reliability: High
+
+When Task() completes, PostToolUse hook receives tool_response with Claude Code's internal task_id.
+
+**Location:** hook_input["tool_response"]["task_id"]
+**Capture Point:** PostToolUse hook before calling track_event()
+**Current Status:** Code checks for task_id but doesn't link to parent task_delegation event
+
+**Key Advantages:**
+- Minimal code changes (already partially implemented)
+- Direct 1:1 mapping to Claude Code's task_id
+- Database schema already supports it (claude_task_id column exists)
+- Works with parallel tasks (each has unique task_id)
+- No timing issues or race conditions
+- Available immediately after Task() completes
+
+**Implementation Requirements:**
+1. Extract claude_task_id from tool_response in PostToolUse
+2. Store in agent_events.claude_task_id (column already exists)
+3. Export HTMLGRAPH_CLAUDE_TASK_ID env variable
+4. Update task_delegation event with captured task_id
+5. Create mapping: agent_events.claude_task_id <-> Task delegation event
+
+**Database Support:**
+- Column exists: agent_events.claude_task_id (schema line 249)
+- Index exists: idx_agent_events_claude_task_id (schema line 603)
+- No migration needed!
+
+### Method 2: Output File Path as Correlation Key - FRAGILE
+Status: Fallback | Complexity: Medium | Reliability: Low-Medium
+
+Task notifications include output file path with task-id in filename.
+Can extract via regex: /tasks/([a-f0-9]{8}).output
+
+Limitations: Fragile, depends on file path format, requires parsing unstructured text, fails if Claude Code changes format.
+
+### Method 3: Subagent Session Linking - ALREADY IMPLEMENTED
+Status: Working | Complexity: Low | Reliability: High
+
+HtmlGraph already tracks parent-child session relationships.
+Uses sessions table: parent_session_id, parent_event_id, is_subagent fields.
+
+**Working:** Properly creates task_delegation events with session linking.
+**Limitation:** Uses HtmlGraph's own event_id, not Claude Code's task_id.
+
+### Method 4: Pending Task Registry - SUPPLEMENTARY
+Status: Optional | Complexity: Medium | Reliability: Medium
+
+Store pending tasks with fingerprint matching at PreToolUse time.
+Limitations: Requires fingerprint matching, file-based state, needs cleanup, hash collisions possible.
+
+### Method 5: Database-based Pending Tracking - SUPPLEMENTARY
+Status: Optional | Complexity: Low | Reliability: High
+
+Store pending tasks in database instead of files.
+New table: pending_tasks with session_id, tool_use_id, event_id, description, prompt_hash.
+
+Advantages: Structured data, query support, automatic cleanup, tracks metadata.
+
+## Recommended Implementation
+
+### Phase 1: Verify & Implement Method 1 (CRITICAL)
+Priority: CRITICAL | Effort: 2-4 hours
+
+1. Add debug logging to PostToolUse
+2. Verify tool_response["task_id"] exists
+3. Extract and store in agent_events.claude_task_id
+4. Export HTMLGRAPH_CLAUDE_TASK_ID environment variable
+5. Update task_delegation event with captured task_id
+6. Add database query helpers for task status
+7. Test with parallel tasks
+
+## Files to Modify
+
+1. src/python/htmlgraph/hooks/pretooluse.py (Lines 218-313)
+   - create_task_parent_event(): Export HTMLGRAPH_CLAUDE_TASK_ID
+
+2. src/python/htmlgraph/hooks/posttooluse.py (Lines 39-65)
+   - run_event_tracking(): Extract task_id before calling track_event()
+
+3. src/python/htmlgraph/hooks/event_tracker.py (Lines 620-625)
+   - record_event_to_sqlite(): Set claude_task_id parameter properly
+
+4. src/python/htmlgraph/db/schema.py (Line 249)
+   - agent_events.claude_task_id already exists
+   - No schema migration needed
+
+## Database Query Examples
+
+Find all events for a specific task:
+SELECT * FROM agent_events WHERE parent_event_id = (SELECT event_id FROM agent_events WHERE claude_task_id = 'task-xyz123');
+
+Get task status and child count:
+SELECT claude_task_id, COUNT(*) as event_count FROM agent_events WHERE event_type IN ('tool_call', 'tool_result') AND parent_event_id IN (SELECT event_id FROM agent_events WHERE event_type = 'task_delegation') GROUP BY claude_task_id;
+
+## Conclusion
+
+**Recommended Solution: Method 1 - PostToolUse task_id extraction**
+
+Most reliable, lowest-complexity approach:
+- Minimal code changes (mostly already implemented)
+- Database schema already supports it
+- Works reliably with parallel tasks
+- No timing or race condition issues
+- Integrates directly with Claude Code's task system
+
+**Next Step:** Add debug logging to verify Claude Code exposes task_id in PostToolUse hook, then implement proper linking of task_id to task_delegation events.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

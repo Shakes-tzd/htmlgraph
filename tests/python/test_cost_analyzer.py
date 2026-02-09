@@ -98,7 +98,7 @@ class TestTokenCostCalculation:
 
         breakdown = self.analyzer._calculate_event_cost(event)
         assert breakdown is not None
-        assert breakdown.model == "claude-3.5-sonnet"
+        assert breakdown.model == "claude-sonnet-4-5"
 
     def test_calculate_cost_zero_tokens(self):
         """Test cost calculation with zero tokens."""

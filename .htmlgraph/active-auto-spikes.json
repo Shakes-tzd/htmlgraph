@@ -150,5 +150,9 @@
   "spike-init-d62c4f67": {
     "spike_subtype": "session-init",
     "session_id": "d62c4f67-7779-4ec1-9cf3-97540d3f7129"
+  },
+  "spike-init-ce37a5ff": {
+    "spike_subtype": "session-init",
+    "session_id": "ce37a5ff-beff-4bd7-9180-a85d98df3079-general-purpose"
   }
 }

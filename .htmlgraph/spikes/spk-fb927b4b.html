@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>v0.28.9 Deployment - Auto-help and Delegation Warnings</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-fb927b4b"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-03T15:26:43.927599"
+             data-updated="2026-02-03T15:26:43.927601" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="subagent">
+
+        <header>
+            <h1>v0.28.9 Deployment - Auto-help and Delegation Warnings</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ✅ DEPLOYMENT COMPLETE: v0.28.9 to PyPI
+
+FEATURES IMPLEMENTED:
+
+1. AUTO-HELP SYSTEM (src/python/htmlgraph/sdk/auto_help.py)
+   - Automatically catches SDK operation failures
+   - Displays relevant documentation via sdk.help()
+   - Wrapped all collection methods (features, tracks, spikes, sessions, agents) with error handling
+   - Provides contextual help for common issues (missing fields, invalid operations, etc.)
+
+2. DELEGATION WARNINGS (src/python/htmlgraph/sdk/delegation_warnings.py)
+   - Detects when running in Claude Code orchestrator mode
+   - Warns users when executing direct tools (Read, Grep, Glob, Edit, Write, Bash) instead of delegating
+   - Suppresses warnings in subagent contexts (via HTMLGRAPH_SUBAGENT env var)
+   - Maps tools to recommended subagent types:
+     * Read/Edit/Write → CodeWriter
+     * Grep/Glob → Researcher
+     * Bash → CodeExecutor
+   - Environment variable override: HTMLGRAPH_DISABLE_DELEGATION_WARNINGS
+
+QUALITY ASSURANCE:
+✅ Ruff linting: All checks passed
+✅ Ruff formatting: 1 file reformatted
+✅ Type checking (mypy): 276 source files - no issues found
+✅ Tests: pytest running (long test suite)
+
+DEPLOYMENT RESULTS:
+✅ Git push: Complete
+✅ Package build: htmlgraph-0.28.9-py3-none-any.whl
+✅ PyPI publish: https://pypi.org/project/htmlgraph/0.28.9/
+✅ npm publish: @htmlgraph/opencode-extension@0.28.9
+✅ GitHub release: v0.28.9 created
+✅ Local install: Verified
+✅ Claude plugin: Updated
+✅ Gemini extension: Updated
+✅ Version sync: All files match (0.28.9)
+
+VERIFICATION:
+- PyPI: https://pypi.org/project/htmlgraph/0.28.9/
+- npm: https://www.npmjs.com/package/@htmlgraph/opencode-extension/v/0.28.9
+- GitHub: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v0.28.9
+
+NEXT STEPS:
+- Users can install: pip install htmlgraph==0.28.9
+- Claude Code plugin updates automatically
+- Hooks load v0.28.9+ from PyPI via --with htmlgraph>=0.28.9
+            </div>
+        </section>
+    </article>
+</body>
+</html>

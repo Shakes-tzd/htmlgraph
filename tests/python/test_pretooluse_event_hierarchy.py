@@ -102,18 +102,19 @@ class TestPreToolUseEventHierarchy:
 
                 assert tool_use_id is not None
 
-                # Verify the event was created with Task delegation as parent
+                # Verify the environment variable was set for PostToolUse
+                assert os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST") == task_delegation_event_id, (
+                    f"Expected HTMLGRAPH_PARENT_EVENT_FOR_POST={task_delegation_event_id}, got {os.environ.get('HTMLGRAPH_PARENT_EVENT_FOR_POST')}. "
+                    "PreToolUse should set environment variable for PostToolUse to use."
+                )
+
+                # Verify tool_traces was created (PreToolUse only inserts into tool_traces, not agent_events)
                 cursor = mock_db.connection.cursor()
                 cursor.execute(
-                    "SELECT parent_event_id FROM agent_events WHERE tool_name = 'Bash' LIMIT 1"
+                    "SELECT tool_name FROM tool_traces WHERE tool_name = 'Bash' LIMIT 1"
                 )
                 row = cursor.fetchone()
-
-                assert row is not None
-                assert row[0] == task_delegation_event_id, (
-                    f"Expected parent_event_id={task_delegation_event_id}, got {row[0]}. "
-                    "Tool events in subagent context should use HTMLGRAPH_PARENT_EVENT."
-                )
+                assert row is not None, "Tool trace should be created by PreToolUse"
         finally:
             # Cleanup
             if "HTMLGRAPH_PARENT_EVENT" in os.environ:
@@ -163,17 +164,18 @@ class TestPreToolUseEventHierarchy:
 
                 assert tool_use_id is not None
 
-                # Verify the event was created with UserQuery as parent
+                # Verify the environment variable was set for PostToolUse
+                assert os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST") == user_query_id, (
+                    f"Expected HTMLGRAPH_PARENT_EVENT_FOR_POST={user_query_id}, got {os.environ.get('HTMLGRAPH_PARENT_EVENT_FOR_POST')}. "
+                    "PreToolUse should fall back to UserQuery when no parent context available."
+                )
+
+                # Verify tool_traces was created
                 cursor.execute(
-                    "SELECT parent_event_id FROM agent_events WHERE tool_name = 'Read' LIMIT 1"
+                    "SELECT tool_name FROM tool_traces WHERE tool_name = 'Read' LIMIT 1"
                 )
                 row = cursor.fetchone()
-
-                assert row is not None
-                assert row[0] == user_query_id, (
-                    f"Expected parent_event_id={user_query_id}, got {row[0]}. "
-                    "Top-level tool events should fall back to UserQuery."
-                )
+                assert row is not None, "Tool trace should be created by PreToolUse"
         finally:
             pass  # No cleanup needed
 

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix UNIQUE constraint failure in cost_alerts_websocket test</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-92ed37e8"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-09T06:13:53.290449"
+             data-updated="2026-02-09T06:13:53.290451" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Fix UNIQUE constraint failure in cost_alerts_websocket test</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Fix: UNIQUE Constraint Failure in CostMonitor Alert Generation
+
+## Summary
+Fixed `sqlite3.IntegrityError: UNIQUE constraint failed: cost_events.event_id` in the test `TestCostAlertLatency::test_alert_fetch_latency` by replacing the non-collision-resistant alert ID generation with the project's standard `generate_id()` function.
+
+## Root Cause
+**File**: `src/python/htmlgraph/analytics/cost_monitor.py` (line 523)
+**Problem**: Alert IDs were generated using simple millisecond timestamps:
+```python
+alert_id = f"alert-{int(time.time() * 1000)}"
+```
+
+When the test created 10 alerts in rapid succession, multiple alerts received identical timestamps, causing duplicate `event_id` values in the `cost_events` table, which has a UNIQUE constraint.
+
+## Solution
+Replaced the timestamp-based ID generation with the project's collision-resistant `generate_id()` function from `htmlgraph.ids`, which:
+- Uses microsecond-precision timestamps
+- Includes 4 bytes of cryptographic random entropy
+- Incorporates content hashing (alert_type + message)
+- Produces format: `evt-{8-char-hex-hash}` (e.g., `evt-a1b2c3d4`)
+
+**Code Change**:
+```python
+# Before
+alert_id = f"alert-{int(time.time() * 1000)}"
+
+# After
+from htmlgraph.ids import generate_id
+alert_id = generate_id("event", title=f"{alert_type}:{message}")
+```
+
+## Testing
+- Test `test_alert_fetch_latency` now passes
+- No new linting or type errors introduced
+- File passes both `ruff check` and `mypy` validation
+
+## Why This Fix
+1. **Consistency**: Uses the same ID generation pattern as event tracking throughout the codebase
+2. **Collision-proof**: With random entropy + timestamp + content hash, collision probability is effectively zero
+3. **Human-readable**: Produces short, identifiable IDs like `evt-a1b2c3d4`
+4. **Minimal change**: Single line replacement, no architectural changes
+
+## Files Modified
+- `src/python/htmlgraph/analytics/cost_monitor.py` (line 523)
+
+## Verification
+```bash
+uv run pytest tests/integration/test_cost_alerts_websocket.py::TestCostAlertLatency::test_alert_fetch_latency
+# Result: PASSED ✓
+```
+            </div>
+        </section>
+    </article>
+</body>
+</html>

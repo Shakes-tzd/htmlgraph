@@ -255,13 +255,28 @@ def is_allowed_orchestrator_operation(
         # PHASE 1 FIX: Allow multiple lookups (guidance only, no blocking)
         return True, "Multiple operations allowed", "allowed"
 
-    # PHASE 1 FIX: Allow implementation tools (guidance only, no blocking)
-    # These operations provide guidance but never block
+    # PHASE 1 FIX: Implementation tools trigger violations but don't block
+    # Return False to track violation, enforcement logic allows but warns
+    if tool in ["Edit", "Write", "NotebookEdit"]:
+        return (
+            False,
+            f"{tool} should be delegated to implementation subagent.",
+            "implementation-violation",
+        )
 
-    # PHASE 1 FIX: Allow test/build operations (guidance only, no blocking)
+    # PHASE 1 FIX: Test/build operations trigger violations but don't block
+    if tool == "Bash":
+        command = params.get("command", "")
+        if any(
+            x in command.lower() for x in ["test", "pytest", "build", "compile", "make"]
+        ):
+            return (
+                False,
+                "Test/build operations should be delegated to subagent.",
+                "test-build-violation",
+            )
 
-    # PHASE 1 FIX: Allow all tools (no catch-all block)
-    # Enforcement provides guidance but never blocks
+    # PHASE 1 FIX: All other tools allowed without violations
     return True, "Allowed (no whitelist restriction)", "allowed"
 
 

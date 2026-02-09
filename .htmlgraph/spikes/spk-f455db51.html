@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Claude Code v2.1.37 Release Research - Latest Features, Breaking Changes, Plugin Impact</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-f455db51"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-09T06:01:13.446531"
+             data-updated="2026-02-09T06:01:13.446533" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="haiku">
+
+        <header>
+            <h1>Claude Code v2.1.37 Release Research - Latest Features, Breaking Changes, Plugin Impact</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                # Claude Code v2.1.37 Release Research
+
+## Executive Summary
+
+Latest Claude Code version: v2.1.37 (released Feb 7, 2026). Claude Code is releasing at a very rapid pace with significant new features and important bug fixes that directly affect plugin developers.
+
+Key milestone: Claude Opus 4.6 now available with 1M token context and fast mode support (2.5x faster output).
+
+## Latest Releases (Feb 2026)
+
+### v2.1.37 (Feb 7, 2026) - LATEST
+- Fixed /fast not immediately available after enabling /extra-usage
+
+### v2.1.36 (Feb 7, 2026)
+- Fast mode now available for Opus 4.6
+- 2.5x faster output token speeds at 6x cost ($30 input / $150 output per million)
+- Not available on cloud platforms (Bedrock/Vertex/Azure)
+
+### v2.1.34 (Feb 6, 2026)
+- Fixed agent teams setting crash
+- Security fix: Commands excluded from sandboxing could bypass Bash ask permission
+
+### v2.1.33 (Feb 6, 2026) - NEW HOOK EVENTS
+- NEW: TeammateIdle and TaskCompleted hook events for multi-agent workflows
+- NEW: Agent memory with persistent scopes (user, project, local)
+- NEW: Task agent type restrictions via Task(agent_type) syntax
+- Fixed /resume session picker showing raw XML
+
+### v2.1.32 (Feb 5, 2026) - MAJOR
+- Claude Opus 4.6 now available
+- Agent teams (research preview) for multi-agent collaboration
+- Enable with: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+
+### v2.1.30 (Feb 3, 2026) - MAJOR UPDATE
+- PDF support: pages parameter for Read tool (e.g. pages: "1-5")
+- MCP OAuth: Pre-configured client credentials for servers without DCR
+- /debug command for troubleshooting
+- Task metrics: token count, tool uses, duration in results
+- Critical fixes: phantom text blocks, prompt cache invalidation, Windows bash support
+- 68% memory reduction for --resume with many sessions
+
+## Breaking Changes & Deprecations
+
+### PreToolUse Hook Format Changed (CRITICAL)
+
+OLD (deprecated):
+```json
+{
+  "decision": "approve",
+  "reason": "Auto-approved"
+}
+```
+
+NEW (v2.1.30+):
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow",
+    "permissionDecisionReason": "Auto-approved"
+  }
+}
+```
+
+Decision values changed: "approve" -> "allow", "block" -> "deny", plus new "ask" option.
+
+**Other events (PostToolUse, Stop, SubagentStop) still use top-level decision/reason.**
+
+### New Hook Events (v2.1.33+)
+
+1. **TeammateIdle** - When agent team teammate about to go idle
+   - Exit code 2 blocks idle, feeds stderr as feedback
+
+2. **TaskCompleted** - When task marked as completed
+   - Exit code 2 prevents completion, feeds stderr to model
+
+### Async Hooks (v2.0.10+)
+
+Set "async": true on command hooks to run in background:
+```json
+{
+  "type": "command",
+  "command": "./run-tests.sh",
+  "async": true,
+  "timeout": 120
+}
+```
+
+- Only for type: "command" hooks
+- Cannot block or return decisions
+- Output on next conversation turn
+- Use for long-running tasks
+
+### Prompt-Based and Agent-Based Hooks
+
+NEW: Hooks can use LLMs for decision-making
+
+**Prompt hooks** (type: "prompt"):
+- Single-turn LLM evaluation
+- Returns {"ok": true/false, "reason": "..."}
+- Use $ARGUMENTS placeholder for input
+- Default model: Haiku (configurable)
+
+**Agent hooks** (type: "agent"):
+- Multi-turn subagent with file inspection (Read, Grep, Glob)
+- Up to 50 turns
+- Returns {"ok": true/false}
+- For verification requiring codebase inspection
+
+Supported events: PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, UserPromptSubmit, Stop, SubagentStop, TaskCompleted
+
+## Model Changes
+
+### Claude Opus 4.6 (v2.1.32+)
+- NOW AVAILABLE in Claude Code
+- Fast mode support (v2.1.36) - 2.5x faster at 6x cost
+- Toggle with /fast command
+- 1M token context window (beta)
+- Top Terminal-Bench 2.0 scores
+
+### Model IDs
+- claude-opus-4-6
+- claude-sonnet-4-5-20250929
+- claude-haiku-4-5 (Pro users, auto-switches to Sonnet in plan mode)
+
+**No breaking changes to model IDs.**
+
+## Critical Issues Affecting Plugin Developers
+
+1. **Orphaned Plugin Hooks (#21836)** - OPEN
+   - Plugin hooks remain in /hooks menu after uninstall
+   - Cannot delete via UI, continue firing
+   - No workaround available
+
+2. **Skill Name Resolution (#24228)** - CLOSED
+   - Plugin name = skill name causes short form failure
+   - Must use Skill("plugin:plugin") not Skill("plugin")
+   - NOW FIXED
+
+3. **Agent Team MCP Tools (#24309)** - CLOSED
+   - Teammates failed to use ToolSearch/MCP tools
+   - Would attempt Skill(ToolSearch) instead
+   - NOW FIXED
+
+4. **Hook Dedup Env Expansion (#16954)** - OPEN
+   - Hook dedup doesn't expand environment variables
+   - ${CLAUDE_PLUGIN_ROOT} in multiple plugins may conflict
+
+5. **Windows Input Freeze (#23234)** - OPEN
+   - Input freezes when hook errors on Windows
+   - Platform-specific issue
+
+6. **Memory Files in Worktrees (#24283)** - OPEN
+   - Git worktrees load memory files twice
+   - Causes premature compaction and quota exhaustion
+
+7. **CPU Usage Spikes (#24308)** - OPEN (High Priority)
+   - 100% CPU when statusLine command configured
+   - Regression of previous fix
+
+## New Features to Leverage
+
+### 1. Agent Teams (v2.1.32+)
+- Multi-agent collaboration
+- Enable: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+- New hooks: TeammateIdle, TaskCompleted
+- Opportunity: Build team coordination plugins
+
+### 2. Agent Memory (v2.1.33+)
+- Persistent memory across sessions
+- Scopes: user, project, local
+- Opportunity: Context-aware agents with long-term knowledge
+
+### 3. Task Metrics (v2.1.30+)
+- Token count, tool uses, duration in Task results
+- Opportunity: Analytics and cost tracking plugins
+
+### 4. PDF Page Ranges (v2.1.30+)
+- Read tool: pages: "1-5" parameter
+- Large PDFs (>10 pages) return lightweight reference
+- Opportunity: Document processing plugins
+
+### 5. MCP OAuth Support (v2.1.30+)
+- Pre-configured client credentials for servers without DCR
+- --client-id and --client-secret flags
+- Opportunity: Third-party integrations (Slack, etc.)
+
+### 6. Async Hooks (v2.0.10+)
+- Run hooks in background without blocking
+- Perfect for deployment, testing, long-running API calls
+
+### 7. Prompt/Agent Hook Validation (v2.1.30+)
+- LLM-based decision hooks for intelligent quality gates
+- Agent hooks can inspect codebase before allowing actions
+
+## Recommendations for HtmlGraph Plugin
+
+### Immediate Actions (CRITICAL)
+
+1. **Update Hook Format Migration**
+   - If using PreToolUse hooks, migrate from deprecated decision/reason format
+   - Test with latest v2.1.37
+   - Priority: HIGH
+
+2. **Test Agent Teams Compatibility**
+   - If tracking multi-agent sessions, test with agent teams enabled
+   - Consider TeammateIdle and TaskCompleted hooks for work tracking
+   - Priority: MEDIUM
+
+3. **Document Orphaned Hooks Workaround**
+   - Issue #21836 affects plugin uninstall cleanup
+   - Provide users with manual cleanup procedure
+   - Priority: MEDIUM
+
+### Testing Priorities
+
+1. Hook execution with v2.1.37 (PreToolUse format changes)
+2. Session tracking with agent teams (if applicable)
+3. MCP tool integration (ToolSearch now works in agent teams)
+4. Memory persistence with new agent memory feature
+5. Skill name resolution (no "plugin:plugin" stutter)
+
+### Future Opportunities
+
+1. **Agent Teams Integration** - Track collaborative work across teammates, visualize team coordination
+2. **Task Metrics Integration** - Capture token count, tool uses, duration from Task tool
+3. **Memory-Aware Agents** - Use persistent memory for context across sessions
+4. **Prompt/Agent Hooks** - LLM-based hooks for intelligent quality gates and codebase verification
+
+## Key Statistics
+
+- Latest version: v2.1.37
+- Release frequency: 1-2 releases per day in Feb 2026
+- Total issues tracked: 24,393
+- Recent critical bugs fixed: 7+
+- New hook events: 2 (TeammateIdle, TaskCompleted)
+- New hook types: 2 (prompt-based, agent-based)
+- New models available: 1 (Opus 4.6)
+
+## Documentation References
+
+- Official Hooks: https://code.claude.com/docs/en/hooks
+- GitHub Releases: https://github.com/anthropics/claude-code/releases
+- GitHub Issues: https://github.com/anthropics/claude-code/issues
+- Changelog: https://code.claude.com/docs/en/changelog
+            </div>
+        </section>
+    </article>
+</body>
+</html>

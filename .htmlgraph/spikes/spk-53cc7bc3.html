@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix InitCommand index.html creation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-53cc7bc3"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-03T15:11:26.054300"
+             data-updated="2026-02-03T15:11:26.054302" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="subagent">
+
+        <header>
+            <h1>Fix InitCommand index.html creation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem
+The InitCommand was not creating index.html at the project root during initialization. 
+The test test_cli_init_bootstraps_events_index_and_hooks was failing because it expected:
+- index.html to exist at the project root
+- The file should contain the dashboard template with "COLOR SYSTEM & THEME" text
+
+## Root Cause
+The create_dashboard_index() function in src/python/htmlgraph/operations/initialization.py was looking for dashboard.html in the wrong locations:
+- It checked htmlgraph_dir / "dashboard.html" (doesn't exist)
+- The correct dashboard with "COLOR SYSTEM & THEME" is at _archive/dashboard.html
+
+## Solution
+Updated create_dashboard_index() to check multiple possible locations in the correct priority order:
+1. htmlgraph_dir.parent.parent.parent / "_archive" / "dashboard.html" (preferred - has COLOR SYSTEM & THEME)
+2. htmlgraph_dir / "dashboard.html" (fallback)
+3. htmlgraph_dir / "api" / "templates" / "dashboard.html" (last resort)
+
+## Files Changed
+- /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/operations/initialization.py
+  - Updated create_dashboard_index() function to search multiple locations
+  - Prioritize archive dashboard template which has the full COLOR SYSTEM & THEME design
+
+## Test Results
+- Specific test now passes: test_cli_init_bootstraps_events_index_and_hooks ✓
+- Full test suite: 2090 passed, 34 skipped ✓
+- No regressions introduced
+            </div>
+        </section>
+    </article>
+</body>
+</html>

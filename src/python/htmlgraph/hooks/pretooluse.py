@@ -418,26 +418,53 @@ def create_start_event(
                 db, tool_input, session_id, start_time
             )
 
-        # NOTE: Do NOT insert into agent_events here!
-        # PostToolUse hook handles agent_events insertion with complete data
-        # (tool_input + model + tool_response). This avoids duplicate events.
-        #
-        # PreToolUse only:
-        # 1. Creates task_delegation events for Task() calls (done above)
-        # 2. Inserts into tool_traces for trace correlation (done below)
-        # 3. Sets environment variables for parent linking
-
-        # Determine parent for environment variable export
+        # Determine parent for this event
         if tool_name == "Task":
-            parent_event_id = task_parent_event_id
+            parent_event_id = user_query_event_id  # Task events link to UserQuery
         elif env_parent_event:
-            parent_event_id = env_parent_event
+            parent_event_id = env_parent_event  # Use explicit parent from environment
         else:
-            parent_event_id = user_query_event_id
+            parent_event_id = user_query_event_id  # Fall back to UserQuery
 
         # Export parent event for PostToolUse to use
         if parent_event_id:
             os.environ["HTMLGRAPH_PARENT_EVENT_FOR_POST"] = parent_event_id
+
+        # Generate event_id for this tool call
+        event_id = f"evt-{generate_tool_use_id()[:8]}"
+
+        # Insert preliminary event into agent_events for hierarchy tracking
+        # PostToolUse will update this with complete data (model, output, etc.)
+        try:
+            cursor.execute(
+                """
+                INSERT INTO agent_events
+                (event_id, agent_id, event_type, timestamp, tool_name, session_id,
+                 status, parent_event_id, input_summary)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    "claude-code",
+                    "task_delegation" if tool_name == "Task" else "tool_call",
+                    start_time,
+                    tool_name,
+                    session_id,
+                    "started",
+                    parent_event_id,
+                    json.dumps(sanitized_input)[:200],
+                ),
+            )
+        except Exception as e:
+            logger.debug(f"Could not insert into agent_events: {e}")
+
+        # For Bash tool, export this event as parent for spawner subprocesses
+        if tool_name == "Bash":
+            os.environ["HTMLGRAPH_PARENT_EVENT"] = event_id
+
+        # For Task delegation, export task_parent_event_id for subagent context
+        if tool_name == "Task" and task_parent_event_id:
+            os.environ["HTMLGRAPH_PARENT_EVENT"] = task_parent_event_id
 
         # Insert into tool_traces for correlation (if table exists)
         try:
@@ -466,10 +493,10 @@ def create_start_event(
         db.disconnect()
 
         logger.debug(
-            f"Created start event: tool_use_id={tool_use_id}, "
+            f"Created start event: event_id={event_id}, tool_use_id={tool_use_id}, "
             f"tool={tool_name}, session={session_id}, parent_event={parent_event_id}"
         )
-        return tool_use_id
+        return tool_use_id  # Return tool_use_id for PostToolUse correlation
 
     except Exception as e:
         logger.warning(f"Error creating start event: {e}")

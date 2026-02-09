@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix Pytest Async Configuration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-eb63c005"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-03T21:11:38.076408"
+             data-updated="2026-02-03T21:11:38.076410" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="claude">
+
+        <header>
+            <h1>Fix Pytest Async Configuration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem
+pytest-asyncio was declared in pyproject.toml dev dependencies but not actually installed in the virtual environment.
+
+Error: "async def functions are not natively supported. You need to install a suitable plugin for your async framework"
+
+## Root Cause
+- pytest-asyncio>=0.24.0 is declared in [project.optional-dependencies] dev section
+- However, the package was not installed in the active venv
+- pytest.ini and pyproject.toml both had asyncio_mode = "auto" configured correctly
+
+## Solution
+1. Installed pytest-asyncio using: `uv pip install pytest-asyncio`
+2. Verified installation: pytest-asyncio 1.3.0 installed successfully
+3. Ran full test suite: All async tests now pass
+
+## Results
+✅ Test suite: 2060 PASSED, 3 FAILED (mypy spawn error - not async related), 34 SKIPPED
+✅ Async configuration: WORKING (pytest-asyncio 1.3.0 with asyncio_mode=auto)
+✅ No async test failures - all passing
+
+## Configuration Status
+- pytest.ini: ✅ Correct configuration present
+- pyproject.toml: ✅ asyncio_mode = "auto" configured
+- pytest-asyncio: ✅ Installed and functional
+- Hook shebang: ✅ Correct format
+
+## Pre-existing Issues (Not From Phase 1)
+The 3 failed tests in test_pre_commit_hooks.py are due to mypy not being in PATH in the test environment - this is a pre-existing test isolation issue, not related to async configuration.
+
+## Verification
+sqlite3 .htmlgraph/htmlgraph.db "
+  SELECT work_type, COUNT(*) as count 
+  FROM agent_events 
+  WHERE session_id = (SELECT session_id FROM sessions ORDER BY created_at DESC LIMIT 1)
+  GROUP BY work_type;
+"
+            </div>
+        </section>
+    </article>
+</body>
+</html>
