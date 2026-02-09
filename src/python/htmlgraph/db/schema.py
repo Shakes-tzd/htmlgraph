@@ -106,6 +106,7 @@ class HtmlGraphDB:
             ("updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
             ("model", "TEXT"),
             ("claude_task_id", "TEXT"),
+            ("tool_input", "JSON"),
         ]
 
         for col_name, col_type in migrations:
@@ -227,11 +228,13 @@ class HtmlGraphDB:
                 agent_id TEXT NOT NULL,
                 event_type TEXT NOT NULL CHECK(
                     event_type IN ('tool_call', 'tool_result', 'error', 'delegation',
-                                   'completion', 'start', 'end', 'check_point', 'task_delegation')
+                                   'completion', 'start', 'end', 'check_point', 'task_delegation',
+                                   'teammate_idle', 'task_completed')
                 ),
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 tool_name TEXT,
                 input_summary TEXT,
+                tool_input JSON,
                 output_summary TEXT,
                 context JSON,
                 session_id TEXT NOT NULL,
@@ -709,6 +712,7 @@ class HtmlGraphDB:
         session_id: str,
         tool_name: str | None = None,
         input_summary: str | None = None,
+        tool_input: dict[str, Any] | None = None,
         output_summary: str | None = None,
         context: dict[str, Any] | None = None,
         parent_agent_id: str | None = None,
@@ -735,6 +739,7 @@ class HtmlGraphDB:
             session_id: Session this event belongs to
             tool_name: Tool that was called (optional)
             input_summary: Summary of tool input (optional)
+            tool_input: Raw tool input as JSON (optional)
             output_summary: Summary of tool output (optional)
             context: Additional metadata as JSON (optional)
             parent_agent_id: Parent agent if delegated (optional)
@@ -761,9 +766,9 @@ class HtmlGraphDB:
                 """
                 INSERT INTO agent_events
                 (event_id, agent_id, event_type, session_id, feature_id, tool_name,
-                 input_summary, output_summary, context, parent_agent_id,
+                 input_summary, tool_input, output_summary, context, parent_agent_id,
                  parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model, claude_task_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
@@ -773,6 +778,7 @@ class HtmlGraphDB:
                     feature_id,
                     tool_name,
                     input_summary,
+                    json.dumps(tool_input) if tool_input else None,
                     output_summary,
                     json.dumps(context) if context else None,
                     parent_agent_id,
@@ -1029,7 +1035,7 @@ class HtmlGraphDB:
             session_id: Session to query
 
         Returns:
-            List of event dictionaries
+            List of event dictionaries ordered by timestamp DESC (newest first)
         """
         if not self.connection:
             self.connect()
@@ -1040,7 +1046,7 @@ class HtmlGraphDB:
                 """
                 SELECT * FROM agent_events
                 WHERE session_id = ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
             """,
                 (session_id,),
             )

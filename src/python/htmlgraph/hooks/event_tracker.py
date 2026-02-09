@@ -491,51 +491,56 @@ def extract_file_paths(tool_input: dict[str, Any], tool_name: str) -> list[str]:
 def format_tool_summary(
     tool_name: str, tool_input: dict[str, Any], tool_result: dict | None = None
 ) -> str:
-    """Format a human-readable summary of the tool call."""
+    """
+    Format a human-readable summary of the tool call.
+
+    Returns only the description part (without tool name prefix) since tool_name
+    is stored as a separate field in the database. Frontend can format as needed.
+    """
     if tool_name == "Read":
-        path = tool_input.get("file_path", "unknown")
-        return f"Read: {path}"
+        path = str(tool_input.get("file_path", "unknown"))
+        return path
 
     elif tool_name == "Write":
-        path = tool_input.get("file_path", "unknown")
-        return f"Write: {path}"
+        path = str(tool_input.get("file_path", "unknown"))
+        return path
 
     elif tool_name == "Edit":
-        path = tool_input.get("file_path", "unknown")
-        old = tool_input.get("old_string", "")[:30]
-        return f"Edit: {path} ({old}...)"
+        path = str(tool_input.get("file_path", "unknown"))
+        old = str(tool_input.get("old_string", ""))[:30]
+        return f"{path} ({old}...)"
 
     elif tool_name == "Bash":
-        cmd = tool_input.get("command", "")[:60]
-        desc = tool_input.get("description", "")
+        cmd = str(tool_input.get("command", ""))[:60]
+        desc = str(tool_input.get("description", ""))
         if desc:
-            return f"Bash: {desc}"
-        return f"Bash: {cmd}"
+            return desc
+        return cmd
 
     elif tool_name == "Glob":
-        pattern = tool_input.get("pattern", "")
-        return f"Glob: {pattern}"
+        pattern = str(tool_input.get("pattern", ""))
+        return pattern
 
     elif tool_name == "Grep":
-        pattern = tool_input.get("pattern", "")
-        return f"Grep: {pattern}"
+        pattern = str(tool_input.get("pattern", ""))
+        return pattern
 
     elif tool_name == "Task":
-        desc = tool_input.get("description", "")[:50]
-        agent = tool_input.get("subagent_type", "")
-        return f"Task ({agent}): {desc}"
+        desc = str(tool_input.get("description", ""))[:50]
+        agent = str(tool_input.get("subagent_type", ""))
+        return f"({agent}): {desc}"
 
     elif tool_name == "TodoWrite":
         todos = tool_input.get("todos", [])
-        return f"TodoWrite: {len(todos)} items"
+        return f"{len(todos)} items"
 
     elif tool_name == "WebSearch":
-        query = tool_input.get("query", "")[:40]
-        return f"WebSearch: {query}"
+        query = str(tool_input.get("query", ""))[:40]
+        return query
 
     elif tool_name == "WebFetch":
-        url = tool_input.get("url", "")[:40]
-        return f"WebFetch: {url}"
+        url = str(tool_input.get("url", ""))[:40]
+        return url
 
     elif tool_name == "UserQuery":
         # Extract the actual prompt text from the tool_input
@@ -546,7 +551,7 @@ def format_tool_summary(
         return preview
 
     else:
-        return f"{tool_name}: {str(tool_input)[:50]}"
+        return str(tool_input)[:50]
 
 
 def record_event_to_sqlite(
@@ -627,6 +632,7 @@ def record_event_to_sqlite(
             session_id=session_id,
             tool_name=tool_name,
             input_summary=input_summary,
+            tool_input=tool_input,  # CRITICAL: Pass tool_input for dashboard display
             output_summary=output_summary,
             context=context,
             parent_event_id=parent_event_id,
@@ -1106,6 +1112,128 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             logger.warning(f"Warning: Could not track query: {e}")
         return {"continue": True}
 
+    elif hook_type == "TaskCompleted":
+        # Task delegation completed - update task_delegation event status
+        try:
+            if db and db.connection:
+                cursor = db.connection.cursor()
+
+                # Find the most recent task_delegation event with status='started'
+                cursor.execute(
+                    """
+                    SELECT event_id, subagent_type
+                    FROM agent_events
+                    WHERE session_id = ?
+                      AND event_type = 'task_delegation'
+                      AND status = 'started'
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    (active_session_id,),
+                )
+                row = cursor.fetchone()
+
+                if row:
+                    task_event_id, subagent_type_val = row
+
+                    # Extract result summary from hook_input if available
+                    result_summary = hook_input.get("result", "Task completed")
+                    if isinstance(result_summary, dict):
+                        result_summary = str(
+                            result_summary.get("summary", "Task completed")
+                        )
+
+                    # Update the task_delegation event to status='completed'
+                    cursor.execute(
+                        """
+                        UPDATE agent_events
+                        SET status = 'completed',
+                            output_summary = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE event_id = ?
+                        """,
+                        (result_summary[:200], task_event_id),
+                    )
+
+                    # Create a new task_completed event linked to the task_delegation
+                    completed_event_id = generate_id("event")
+                    cursor.execute(
+                        """
+                        INSERT INTO agent_events
+                        (event_id, agent_id, event_type, session_id, tool_name,
+                         input_summary, output_summary, parent_event_id, subagent_type,
+                         status, model)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            completed_event_id,
+                            detected_agent,
+                            "task_completed",
+                            active_session_id,
+                            "TaskCompleted",
+                            f"Task {subagent_type_val} completed",
+                            result_summary[:200],
+                            task_event_id,  # Link to parent task_delegation event
+                            subagent_type_val,
+                            "completed",
+                            detected_model,
+                        ),
+                    )
+
+                    db.connection.commit()
+                    logger.debug(
+                        f"TaskCompleted: Updated task_delegation={task_event_id} to completed, "
+                        f"created task_completed event={completed_event_id}"
+                    )
+                else:
+                    logger.warning(
+                        "TaskCompleted: No active task_delegation event found to update"
+                    )
+
+        except Exception as e:
+            logger.warning(f"Warning: Could not handle TaskCompleted: {e}")
+        return {"continue": True}
+
+    elif hook_type == "TeammateIdle":
+        # Teammate (subagent) became idle - track event for observability
+        try:
+            # Extract agent_id from hook input if available
+            idle_agent_id = hook_input.get("agent_id") or detected_agent
+
+            # Track the idle event
+            result = manager.track_activity(
+                session_id=active_session_id,
+                tool="TeammateIdle",
+                summary=f"Agent {idle_agent_id} became idle",
+            )
+
+            # Record to SQLite if available
+            if db:
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name="TeammateIdle",
+                    tool_input={"agent_id": idle_agent_id},
+                    tool_response={"content": "Agent became idle"},
+                    is_error=False,
+                    agent_id=idle_agent_id,
+                    model=detected_model,
+                    feature_id=result.feature_id if result else None,
+                )
+
+            # Update presence - mark as idle (not fully offline, just idle)
+            presence_mgr = get_presence_manager()
+            if presence_mgr:
+                # For now, we'll mark as offline - can enhance PresenceManager later
+                # to support "idle" state distinct from "offline"
+                presence_mgr.mark_offline(idle_agent_id)
+
+            logger.debug(f"TeammateIdle: Tracked idle event for agent {idle_agent_id}")
+
+        except Exception as e:
+            logger.warning(f"Warning: Could not track TeammateIdle: {e}")
+        return {"continue": True}
+
     elif hook_type == "PostToolUse":
         # Tool was used - track it
         tool_name = hook_input.get("tool_name", "unknown")
@@ -1156,9 +1284,13 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         parent_activity_id = None
 
         # Check environment variable FIRST for cross-process parent linking
-        # This is set by PreToolUse hook when Task() spawns a subagent
-        env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT") or os.environ.get(
-            "HTMLGRAPH_PARENT_QUERY_EVENT"
+        # HTMLGRAPH_PARENT_EVENT_FOR_POST is set by PreToolUse for same-process parent
+        # HTMLGRAPH_PARENT_EVENT is set for cross-process (Task delegation)
+        # HTMLGRAPH_PARENT_QUERY_EVENT is legacy fallback
+        env_parent = (
+            os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST")
+            or os.environ.get("HTMLGRAPH_PARENT_EVENT")
+            or os.environ.get("HTMLGRAPH_PARENT_QUERY_EVENT")
         )
         if env_parent:
             parent_activity_id = env_parent
@@ -1193,9 +1325,11 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         FROM agent_events
                         WHERE event_type = 'task_delegation'
                           AND status = 'started'
+                          AND session_id = ?
                         ORDER BY timestamp DESC
                         LIMIT 1
                         """,
+                        (active_session_id,),
                     )
                     task_row = cursor.fetchone()
                     if task_row:

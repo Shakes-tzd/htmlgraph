@@ -259,6 +259,17 @@ def create_task_parent_event(
         except Exception:
             pass
 
+        # Check if we're in a nested delegation context
+        # If HTMLGRAPH_PARENT_EVENT is set, we're already inside a subagent
+        # and should link to that Task delegation, not UserQuery
+        env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+        if env_parent:
+            # Nested Task() - parent is the enclosing Task delegation
+            parent_event_id_for_insertion = env_parent
+        else:
+            # Top-level Task() - parent is the UserQuery
+            parent_event_id_for_insertion = user_query_event_id or ""
+
         # Build input summary
         input_summary = json.dumps(
             {
@@ -287,7 +298,7 @@ def create_task_parent_event(
                 session_id,
                 "started",
                 subagent_type or "general-purpose",
-                user_query_event_id,  # Link to UserQuery event
+                parent_event_id_for_insertion,  # Link to parent Task or UserQuery
             ),
         )
 
@@ -388,55 +399,28 @@ def create_start_event(
                 db, tool_input, session_id, start_time
             )
 
-        # Insert into agent_events table (for dashboard display)
-        import uuid
+        # NOTE: Do NOT insert into agent_events here!
+        # PostToolUse hook handles agent_events insertion with complete data
+        # (tool_input + model + tool_response). This avoids duplicate events.
+        #
+        # PreToolUse only:
+        # 1. Creates task_delegation events for Task() calls (done above)
+        # 2. Inserts into tool_traces for trace correlation (done below)
+        # 3. Sets environment variables for parent linking
 
-        event_id = f"evt-{str(uuid.uuid4())[:8]}"
-
-        # Determine parent with proper hierarchy:
-        # - Task() tools: Use the newly created task_delegation event
-        # - Tools in subagent context: Use HTMLGRAPH_PARENT_EVENT (Task delegation)
-        # - Top-level tools: Fall back to UserQuery
+        # Determine parent for environment variable export
         if tool_name == "Task":
             parent_event_id = task_parent_event_id
         elif env_parent_event:
-            # Subagent context: tools should be children of Task delegation
             parent_event_id = env_parent_event
-            logger.debug(
-                f"Using parent from environment: {env_parent_event} for {tool_name}"
-            )
         else:
-            # Top-level context: tools are children of UserQuery
             parent_event_id = user_query_event_id
 
-        cursor.execute(
-            """
-            INSERT INTO agent_events
-            (event_id, agent_id, event_type, timestamp, tool_name,
-             input_summary, session_id, status, parent_event_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                event_id,
-                "claude-code",  # Agent executing the tool
-                "tool_call",
-                start_time,
-                tool_name,
-                json.dumps(sanitized_input)[:500],  # Truncate for summary
-                session_id,
-                "recorded",
-                parent_event_id,  # Link to UserQuery or Task parent
-            ),
-        )
+        # Export parent event for PostToolUse to use
+        if parent_event_id:
+            os.environ["HTMLGRAPH_PARENT_EVENT_FOR_POST"] = parent_event_id
 
-        # Export Bash event as parent for child processes (e.g., spawner executables)
-        if tool_name == "Bash":
-            os.environ["HTMLGRAPH_PARENT_EVENT"] = event_id
-            logger.debug(
-                f"Exported HTMLGRAPH_PARENT_EVENT={event_id} for Bash tool call"
-            )
-
-        # Also insert into tool_traces for correlation (if table exists)
+        # Insert into tool_traces for correlation (if table exists)
         try:
             cursor.execute(
                 """
