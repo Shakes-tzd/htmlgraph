@@ -1,3 +1,94 @@
+<!-- Macro for recursively rendering child events with collapsible nesting -->
+{% macro render_children(children_list, is_last_map=none) %}
+    {% for child in children_list %}
+        {% set has_nested = child.children is defined and child.children|length > 0 %}
+        {% set depth = child.depth|default(0) %}
+        <!-- Child Event Row -->
+        <div class="child-event-row depth-{{ depth }}{% if has_nested %} has-nested-children{% endif %}"
+             data-event-id="{{ child.event_id }}"
+             data-depth="{{ depth }}"
+             style="padding-left: {{ depth * 20 }}px;"
+             {% if has_nested %}onclick="toggleChildEvent('{{ child.event_id }}', event)"{% endif %}>
+
+            <!-- Expand/Collapse Toggle for nested children -->
+            {% if has_nested %}
+                <span class="expand-toggle-child" id="toggle-child-{{ child.event_id }}">▶</span>
+            {% else %}
+                <span class="tree-connector">
+                    {% if loop.last %}└─{% else %}├─{% endif %}
+                </span>
+            {% endif %}
+
+            <!-- Tool Name -->
+            <span class="child-tool-name">{{ child.tool_name }}</span>
+
+            <!-- Summary/Input -->
+            <span class="child-summary" title="{{ child.summary }}">
+                {{ child.summary[:80] }}{% if child.summary|length > 80 %}...{% endif %}
+            </span>
+
+            <!-- Agent Badge with Spawner Support -->
+            {% if child.spawner_type %}
+              <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
+                  {{ child.agent }}
+                  {% if child.model %}
+                    <span class="model-indicator">{{ child.model }}</span>
+                  {% endif %}
+              </span>
+              <span class="delegation-arrow">→</span>
+              <span class="spawner-badge spawner-{{ child.spawner_type|lower }}">
+                  {{ child.spawned_agent or child.subagent_type or child.spawner_type }}
+                  {% if child.cost_usd %}
+                    <span class="cost-badge">${{ "%.2f"|format(child.cost_usd) }}</span>
+                  {% endif %}
+              </span>
+            {% else %}
+              <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
+                  {{ child.agent }}
+                  {% if child.model %}
+                    <span class="model-indicator">{{ child.model }}</span>
+                  {% endif %}
+              </span>
+            {% endif %}
+
+            <!-- Nested children count badge -->
+            {% if has_nested %}
+                <span class="nested-count-badge" title="{{ child.children|length }} nested events">
+                    {{ child.children|length }}
+                </span>
+            {% endif %}
+
+            <!-- Feature Attribution -->
+            {% if child.feature_id %}
+              <span class="child-feature-badge" title="Linked to {{ child.feature_id }}">
+                  #{{ child.feature_id[:8] }}
+              </span>
+            {% endif %}
+
+            <!-- Duration -->
+            <span class="child-duration">
+                {{ "%.2f"|format(child.duration_seconds) }}s
+            </span>
+
+            <!-- Timestamp -->
+            <span class="child-timestamp">
+                {{ child.timestamp }}
+            </span>
+        </div>
+
+        <!-- Nested Children Container (collapsible) -->
+        {% if has_nested %}
+            <div class="child-children collapsed"
+                 id="children-child-{{ child.event_id }}"
+                 data-parent-event="{{ child.event_id }}"
+                 data-depth="{{ depth + 1 }}"
+                 style="padding-left: {{ depth * 20 }}px;">
+                {{ render_children(child.children) }}
+            </div>
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
 <!-- Grouped Activity Feed - Display events organized by conversation turn (user prompt) -->
 <div class="view-container activity-feed-view">
     <div class="view-header">
@@ -86,72 +177,7 @@
                         <!-- Child Events Container (Hidden by default) -->
                         <div class="turn-children collapsed" id="children-{{ turn.userQuery.event_id }}">
                             {% if turn.children %}
-                                {% for child in turn.children recursive %}
-                                    <!-- Child Event Row -->
-                                    <div class="child-event-row depth-{{ child.depth|default(0) }}"
-                                         data-event-id="{{ child.event_id }}"
-                                         style="margin-left: {{ (child.depth|default(0)) * 20 }}px;">
-                                        <!-- Tree Connector -->
-                                        <span class="tree-connector">
-                                            {% if loop.last and not child.children %}└─{% else %}├─{% endif %}
-                                        </span>
-
-                                        <!-- Tool Name -->
-                                        <span class="child-tool-name">{{ child.tool_name }}</span>
-
-                                        <!-- Summary/Input -->
-                                        <span class="child-summary" title="{{ child.summary }}">
-                                            {{ child.summary[:80] }}{% if child.summary|length > 80 %}...{% endif %}
-                                        </span>
-
-                                        <!-- Agent Badge with Spawner Support -->
-                                        {% if child.spawner_type %}
-                                          <!-- Spawner delegation: show orchestrator → spawned AI -->
-                                          <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
-                                              {{ child.agent }}
-                                              {% if child.model %}
-                                                <span class="model-indicator">{{ child.model }}</span>
-                                              {% endif %}
-                                          </span>
-                                          <span class="delegation-arrow">→</span>
-                                          <span class="spawner-badge spawner-{{ child.spawner_type|lower }}">
-                                              {{ child.spawned_agent or child.subagent_type or child.spawner_type }}
-                                              {% if child.cost_usd %}
-                                                <span class="cost-badge">${{ "%.2f"|format(child.cost_usd) }}</span>
-                                              {% endif %}
-                                          </span>
-                                        {% else %}
-                                          <!-- Regular agent: just show agent name + model if available -->
-                                          <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
-                                              {{ child.agent }}
-                                              {% if child.model %}
-                                                <span class="model-indicator">{{ child.model }}</span>
-                                              {% endif %}
-                                          </span>
-                                        {% endif %}
-
-                                        <!-- Feature Attribution -->
-                                        {% if child.feature_id %}
-                                          <span class="child-feature-badge" title="Linked to {{ child.feature_id }}">
-                                              #{{ child.feature_id[:8] }}
-                                          </span>
-                                        {% endif %}
-
-                                        <!-- Duration -->
-                                        <span class="child-duration">
-                                            {{ "%.2f"|format(child.duration_seconds) }}s
-                                        </span>
-
-                                        <!-- Timestamp -->
-                                        <span class="child-timestamp">
-                                            {{ child.timestamp }}
-                                        </span>
-                                    </div>
-                                    <!-- Recursively render nested children -->
-                                    {% if child.children %}
-                                        {{ loop(child.children) }}
-                                    {% endif %}
-                                {% endfor %}
+                                {{ render_children(turn.children) }}
                             {% else %}
                                 <div class="no-children-message">
                                     <span class="tree-connector">└─</span>
@@ -331,14 +357,97 @@
     display: flex;
     align-items: center;
     gap: 0.2rem;
-    padding: 0.5rem 0;
+    padding: 0.5rem 0.25rem;
     border-bottom: 1px solid rgba(163, 230, 53, 0.1);
     font-size: 0.75rem;
     margin-left: 0;
+    border-radius: 2px;
+    transition: background 0.1s ease;
 }
 
 .child-event-row:last-child {
     border-bottom: none;
+}
+
+/* Child rows with nested children are clickable */
+.child-event-row.has-nested-children {
+    cursor: pointer;
+    user-select: none;
+}
+
+.child-event-row.has-nested-children:hover {
+    background: rgba(163, 230, 53, 0.06);
+}
+
+.child-event-row.has-nested-children.expanded-child {
+    background: rgba(163, 230, 53, 0.04);
+    border-bottom-color: transparent;
+}
+
+/* Expand/Collapse Toggle for child events */
+.expand-toggle-child {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    color: var(--accent-lime, #a3e635);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    border-radius: 2px;
+}
+
+.expand-toggle-child:hover {
+    background: rgba(163, 230, 53, 0.15);
+}
+
+.expand-toggle-child.expanded {
+    transform: rotate(90deg);
+}
+
+/* Nested Children Container (collapsible) */
+.child-children {
+    display: flex;
+    flex-direction: column;
+    border-left: 2px solid rgba(163, 230, 53, 0.2);
+    margin-left: 10px;
+    padding-left: 8px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 4px 0;
+}
+
+.child-children.collapsed {
+    display: none;
+}
+
+/* Nested count badge - shows number of nested children */
+.nested-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 16px;
+    padding: 0 0.25rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: rgba(163, 230, 53, 0.2);
+    color: #a3e635;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/* Depth-based visual hierarchy - left border colors fade */
+.child-children[data-depth="1"] {
+    border-left-color: rgba(163, 230, 53, 0.15);
+}
+
+.child-children[data-depth="2"] {
+    border-left-color: rgba(163, 230, 53, 0.1);
+}
+
+.child-children[data-depth="3"] {
+    border-left-color: rgba(163, 230, 53, 0.07);
 }
 
 /* Tree Connector */
@@ -789,6 +898,10 @@
 // JavaScript functions for expand/collapse functionality
 // Called from onclick handlers in the template
 
+// ============================================
+// Conversation Turn (UserQuery) Toggle
+// ============================================
+
 function toggleConversationTurn(turnId) {
     const childrenContainer = document.getElementById(`children-${turnId}`);
     const toggleButton = document.getElementById(`toggle-${turnId}`);
@@ -801,27 +914,80 @@ function toggleConversationTurn(turnId) {
     }
 }
 
+// ============================================
+// Child Event Toggle (nested hierarchy)
+// ============================================
+
+/**
+ * Toggle visibility of a child event's nested children.
+ * Only affects the immediate children container of the clicked event.
+ * @param {string} eventId - The event_id of the child event
+ * @param {Event} evt - The click event (to stop propagation)
+ */
+function toggleChildEvent(eventId, evt) {
+    // Stop event from bubbling up to parent toggles
+    if (evt) evt.stopPropagation();
+
+    const childrenContainer = document.getElementById(`children-child-${eventId}`);
+    const toggleButton = document.getElementById(`toggle-child-${eventId}`);
+    const parentRow = document.querySelector(`.child-event-row[data-event-id="${eventId}"]`);
+
+    if (childrenContainer) {
+        const isCollapsed = childrenContainer.classList.contains('collapsed');
+        childrenContainer.classList.toggle('collapsed');
+
+        if (toggleButton) {
+            toggleButton.classList.toggle('expanded');
+        }
+        if (parentRow) {
+            parentRow.classList.toggle('expanded-child');
+        }
+    }
+}
+
+// ============================================
+// Expand All / Collapse All
+// ============================================
+
 function expandAllConversationTurns() {
-    // Get all child containers and remove the 'collapsed' class
+    // Expand all turn-level containers
     document.querySelectorAll('.turn-children').forEach(container => {
         container.classList.remove('collapsed');
     });
-
-    // Rotate all toggle buttons
     document.querySelectorAll('.expand-toggle-turn').forEach(toggle => {
         toggle.classList.add('expanded');
+    });
+
+    // Also expand all nested child containers
+    document.querySelectorAll('.child-children').forEach(container => {
+        container.classList.remove('collapsed');
+    });
+    document.querySelectorAll('.expand-toggle-child').forEach(toggle => {
+        toggle.classList.add('expanded');
+    });
+    document.querySelectorAll('.child-event-row.has-nested-children').forEach(row => {
+        row.classList.add('expanded-child');
     });
 }
 
 function collapseAllConversationTurns() {
-    // Get all child containers and add the 'collapsed' class
+    // Collapse all turn-level containers
     document.querySelectorAll('.turn-children').forEach(container => {
         container.classList.add('collapsed');
     });
-
-    // Rotate all toggle buttons back
     document.querySelectorAll('.expand-toggle-turn').forEach(toggle => {
         toggle.classList.remove('expanded');
+    });
+
+    // Also collapse all nested child containers
+    document.querySelectorAll('.child-children').forEach(container => {
+        container.classList.add('collapsed');
+    });
+    document.querySelectorAll('.expand-toggle-child').forEach(toggle => {
+        toggle.classList.remove('expanded');
+    });
+    document.querySelectorAll('.child-event-row.has-nested-children').forEach(row => {
+        row.classList.remove('expanded-child');
     });
 }
 
