@@ -2304,7 +2304,7 @@ def get_app(db_path: str) -> FastAPI:
                        cost_tokens
                 FROM agent_events
                 WHERE timestamp >= ? AND timestamp < datetime('now')
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
                 LIMIT 1000
             """
             cursor = await db.execute(historical_query, [last_timestamp])
@@ -2371,7 +2371,7 @@ def get_app(db_path: str) -> FastAPI:
                                cost_tokens
                         FROM agent_events
                         WHERE timestamp > ?
-                        ORDER BY timestamp ASC
+                        ORDER BY timestamp DESC
                         LIMIT 100
                     """
 

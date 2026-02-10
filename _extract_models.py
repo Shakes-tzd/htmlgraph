@@ -41,4 +41,3 @@ class SessionModel(BaseModel):
     ended_at: str | None = None
     event_count: int = 0
     duration_seconds: float | None = None
-

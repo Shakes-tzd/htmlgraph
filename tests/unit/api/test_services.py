@@ -20,7 +20,7 @@ from .conftest import PHASE2_COMPLETE, EventFactory
 # Skip all tests if Phase 2 is not complete
 pytestmark = pytest.mark.skipif(
     not PHASE2_COMPLETE,
-    reason="Phase 2 refactor incomplete: services/ module does not exist yet"
+    reason="Phase 2 refactor incomplete: services/ module does not exist yet",
 )
 
 
@@ -247,9 +247,7 @@ class TestAnalyticsService:
         result = await analytics_service.get_cost_summary()
 
         # Sum of individual models should equal total
-        total_by_model = sum(
-            m.get("cost", 0) for m in result["by_model"].values()
-        )
+        total_by_model = sum(m.get("cost", 0) for m in result["by_model"].values())
         assert abs(total_by_model - result["total_cost"]) < 0.01
 
     async def test_get_agent_metrics_bulk_aggregates(

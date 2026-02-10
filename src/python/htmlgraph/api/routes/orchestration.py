@@ -782,7 +782,7 @@ async def get_subagent_work(session_id: str) -> dict[str, Any]:
                 output_summary
             FROM agent_events
             WHERE session_id = ? AND subagent_type IS NOT NULL
-            ORDER BY timestamp ASC
+            ORDER BY timestamp DESC
         """
 
         cursor = await db.execute(query, (session_id,))

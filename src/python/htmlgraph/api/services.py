@@ -100,7 +100,7 @@ class ActivityService:
                     feature_id
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
             """
 
             # Step 2: For each UserQuery, fetch child events
@@ -595,7 +595,7 @@ class OrchestrationService:
                        input_summary, parent_event_id, subagent_type
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
             """
 
             async def fetch_chain(parent_id: str, depth: int) -> None:

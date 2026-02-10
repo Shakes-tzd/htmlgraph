@@ -46,4 +46,3 @@ def _ensure_database_initialized(db_path: str) -> None:
         except Exception as create_error:
             logger.error(f"Failed to create database: {create_error}")
             raise
-

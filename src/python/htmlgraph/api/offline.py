@@ -183,7 +183,7 @@ class OfflineEventLog:
                            operation, timestamp, payload, status
                     FROM offline_events
                     WHERE status = ?
-                    ORDER BY timestamp ASC
+                    ORDER BY timestamp DESC
                 """,
                     [OfflineEventStatus.LOCAL_ONLY.value],
                 )

@@ -235,7 +235,7 @@ class CostAlertStreamManager:
                 FROM cost_events
                 WHERE session_id = ? AND alert_type IS NOT NULL
                   AND timestamp > ?
-                ORDER BY timestamp ASC
+                ORDER BY timestamp DESC
                 LIMIT ?
                 """,
                 (session_id, since_timestamp, self.alert_batch_size * 2),

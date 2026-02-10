@@ -103,7 +103,10 @@ class TestPreToolUseEventHierarchy:
                 assert tool_use_id is not None
 
                 # Verify the environment variable was set for PostToolUse
-                assert os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST") == task_delegation_event_id, (
+                assert (
+                    os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST")
+                    == task_delegation_event_id
+                ), (
                     f"Expected HTMLGRAPH_PARENT_EVENT_FOR_POST={task_delegation_event_id}, got {os.environ.get('HTMLGRAPH_PARENT_EVENT_FOR_POST')}. "
                     "PreToolUse should set environment variable for PostToolUse to use."
                 )
@@ -165,7 +168,9 @@ class TestPreToolUseEventHierarchy:
                 assert tool_use_id is not None
 
                 # Verify the environment variable was set for PostToolUse
-                assert os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST") == user_query_id, (
+                assert (
+                    os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST") == user_query_id
+                ), (
                     f"Expected HTMLGRAPH_PARENT_EVENT_FOR_POST={user_query_id}, got {os.environ.get('HTMLGRAPH_PARENT_EVENT_FOR_POST')}. "
                     "PreToolUse should fall back to UserQuery when no parent context available."
                 )

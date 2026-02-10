@@ -40,6 +40,7 @@ try:
         AnalyticsService,
         OrchestrationService,
     )
+
     PHASE2_COMPLETE = True
 except ImportError:
     PHASE2_COMPLETE = False
@@ -88,7 +89,9 @@ def sync_db_connection(temp_db_path: str) -> Generator[sqlite3.Connection, None,
 
 
 @pytest_asyncio.fixture
-async def async_db_connection(temp_db_path: str) -> AsyncGenerator[aiosqlite.Connection, None]:
+async def async_db_connection(
+    temp_db_path: str,
+) -> AsyncGenerator[aiosqlite.Connection, None]:
     """Create asynchronous database connection for testing."""
     if not PHASE2_COMPLETE:
         yield None
@@ -186,6 +189,7 @@ def test_client(temp_db_path: str) -> TestClient:
 
 
 # Sample data factories
+
 
 class EventFactory:
     """Factory for creating sample events."""

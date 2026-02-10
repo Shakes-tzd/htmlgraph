@@ -18,7 +18,7 @@ from .conftest import PHASE2_COMPLETE, EventFactory, FeatureFactory, SessionFact
 # Skip all tests if Phase 2 is not complete
 pytestmark = pytest.mark.skipif(
     not PHASE2_COMPLETE,
-    reason="Phase 2 refactor incomplete: repositories/ module does not exist yet"
+    reason="Phase 2 refactor incomplete: repositories/ module does not exist yet",
 )
 
 
@@ -48,7 +48,9 @@ class TestEventsRepository:
         assert result["event_id"] == "evt-test-001"
         assert result["agent_id"] == event["agent_id"]
 
-    async def test_find_all_events_with_pagination(self, events_repository, db_with_events):
+    async def test_find_all_events_with_pagination(
+        self, events_repository, db_with_events
+    ):
         """Verify find_all() respects limit and offset."""
         # Get first 10 events
         result = await events_repository.find_all(limit=10, offset=0)
@@ -147,8 +149,7 @@ class TestFeaturesRepository:
 
         # Update status
         updated = await features_repository.update(
-            feature["id"],
-            {"status": "in_progress"}
+            feature["id"], {"status": "in_progress"}
         )
 
         assert updated["status"] == "in_progress"
@@ -211,8 +212,7 @@ class TestSessionsRepository:
 
         # Mark as completed
         updated = await sessions_repository.update(
-            session["session_id"],
-            {"status": "completed"}
+            session["session_id"], {"status": "completed"}
         )
 
         assert updated["status"] == "completed"
