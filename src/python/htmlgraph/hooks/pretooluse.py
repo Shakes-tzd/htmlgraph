@@ -255,7 +255,7 @@ def create_task_parent_event(
     Args:
         db: Database connection
         tool_input: Task() tool input parameters
-        session_id: Current session ID
+        session_id: Current session ID (may be subagent session with suffix)
         start_time: ISO8601 UTC timestamp
 
     Returns:
@@ -269,12 +269,19 @@ def create_task_parent_event(
         subagent_type = extract_subagent_type(tool_input)
         prompt = str(tool_input.get("prompt", ""))[:200]
 
+        # Extract parent session ID (remove subagent suffix if present)
+        # Example: "abc123-general-purpose" -> "abc123"
+        parent_session_id = (
+            session_id.rsplit("-", 1)[0] if "-" in session_id else session_id
+        )
+
         # Load UserQuery event ID for parent-child linking from database
+        # Use parent_session_id to ensure we find UserQuery in the main session
         user_query_event_id = None
         try:
             from htmlgraph.hooks.event_tracker import get_parent_user_query
 
-            user_query_event_id = get_parent_user_query(db, session_id)
+            user_query_event_id = get_parent_user_query(db, parent_session_id)
         except Exception:
             pass
 
@@ -299,7 +306,8 @@ def create_task_parent_event(
 
         cursor = db.connection.cursor()  # type: ignore[union-attr]
 
-        # Insert parent event
+        # Insert parent event in the PARENT session (not subagent session)
+        # This ensures task_delegation events are in the same session as UserQuery
         cursor.execute(
             """
             INSERT INTO agent_events
@@ -314,7 +322,7 @@ def create_task_parent_event(
                 start_time,
                 "Task",
                 input_summary,
-                session_id,
+                parent_session_id,  # Use parent session, not subagent session
                 "started",
                 subagent_type or "general-purpose",
                 parent_event_id_for_insertion,  # Link to parent Task or UserQuery
