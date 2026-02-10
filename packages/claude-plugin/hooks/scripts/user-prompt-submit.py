@@ -97,25 +97,65 @@ def main() -> None:
             from bootstrap import get_graph_dir, resolve_project_dir
 
             project_dir = resolve_project_dir()
-            graph_dir = get_graph_dir(project_dir)
+            get_graph_dir(project_dir)
 
             # Use session_id from hook_input if available
             session_id = hook_input.get("session_id") or hook_input.get("sessionId")
 
             if session_id and prompt:
-                from htmlgraph.session_manager import SessionManager
+                # Strip subagent suffixes to ensure UserQuery is in parent session
+                # Known suffixes: -general-purpose, -Explore, -Bash, -Plan, -researcher, -debugger, etc.
+                known_suffixes = [
+                    "-general-purpose",
+                    "-Explore",
+                    "-Bash",
+                    "-Plan",
+                    "-researcher",
+                    "-debugger",
+                    "-test-runner",
+                    "-codex-spawner",
+                    "-gemini-spawner",
+                ]
+                parent_session_id = session_id  # Default: same session
+                for suffix in known_suffixes:
+                    if session_id.endswith(suffix):
+                        parent_session_id = session_id[: -len(suffix)]
+                        print(
+                            f"[UserQuery] Stripped suffix '{suffix}' from session_id: {session_id} -> {parent_session_id}",
+                            file=sys.stderr,
+                        )
+                        break
 
-                manager = SessionManager(graph_dir=graph_dir)
+                # CRITICAL: Use direct SQLite INSERT to avoid SessionNotFoundError
+                # The parent session may not exist yet (subagents launched before parent session file created)
+                from htmlgraph.config import get_database_path
+                from htmlgraph.database import HtmlGraphDB
+                from htmlgraph.hooks.event_tracker import record_event
 
-                # Track UserQuery activity
+                db_path = str(get_database_path())
+                db = HtmlGraphDB(db_path)
+
+                # Ensure session exists (create placeholder if needed) - same pattern as PreToolUse
+                db._ensure_session_exists(parent_session_id, "system")
+
+                # Record UserQuery event directly to database
                 prompt_preview = prompt[:100].replace("\n", " ")
                 if len(prompt) > 100:
                     prompt_preview += "..."
 
-                manager.track_activity(
-                    session_id=session_id,
-                    tool="UserQuery",
+                record_event(
+                    db=db,
+                    session_id=parent_session_id,
+                    tool_name="UserQuery",
                     summary=f'"{prompt_preview}"',
+                    status="completed",
+                    tool_input={"prompt": prompt},
+                    parent_event_id=None,  # UserQuery is always a root event
+                )
+
+                print(
+                    f"[UserQuery] Created event in session {parent_session_id}",
+                    file=sys.stderr,
                 )
         except Exception as e:
             # Don't break the hook if tracking fails

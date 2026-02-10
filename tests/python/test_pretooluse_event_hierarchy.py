@@ -42,12 +42,17 @@ def mock_db(temp_db_path):
     db.connect()
     db.create_tables()
 
-    # Create a test session with all required NOT NULL fields
+    # Create test sessions with all required NOT NULL fields
     # sessions table requires: session_id, agent_assigned (NOT NULL), status (NOT NULL)
+    # Also create parent session: "test-session-123".rsplit("-", 1)[0] = "test-session"
     cursor = db.connection.cursor()
     cursor.execute(
         "INSERT INTO sessions (session_id, agent_assigned, created_at, status) VALUES (?, ?, ?, ?)",
         ("test-session-123", "claude", "2026-01-12T00:00:00", "active"),
+    )
+    cursor.execute(
+        "INSERT INTO sessions (session_id, agent_assigned, created_at, status) VALUES (?, ?, ?, ?)",
+        ("test-session", "claude", "2026-01-12T00:00:00", "active"),
     )
     db.connection.commit()
 
@@ -327,15 +332,16 @@ class TestPreToolUseEventHierarchy:
                     session_id="test-session-123",
                 )
 
-                # After Bash, HTMLGRAPH_PARENT_EVENT is now the Bash event ID (for spawner subprocess tracking)
+                # After Bash, HTMLGRAPH_PARENT_EVENT stays as the Task delegation ID
+                # (non-Task tools no longer overwrite HTMLGRAPH_PARENT_EVENT since
+                # PreToolUse doesn't create agent_events for them)
                 bash_event_id = os.environ.get("HTMLGRAPH_PARENT_EVENT")
                 assert bash_event_id is not None
-                assert bash_event_id != task_delegation_id, (
-                    "Bash should update HTMLGRAPH_PARENT_EVENT"
+                assert bash_event_id == task_delegation_id, (
+                    "Bash should NOT update HTMLGRAPH_PARENT_EVENT (stays as Task parent)"
                 )
 
-                # Step 4: Simulate Edit and Read - these will use the Bash event as parent
-                # This reflects the actual cascading parent behavior
+                # Step 4: Simulate Edit and Read - these also keep Task as parent
                 create_start_event(
                     tool_name="Edit",
                     tool_input={
@@ -352,10 +358,15 @@ class TestPreToolUseEventHierarchy:
                     session_id="test-session-123",
                 )
 
-                # Verify hierarchy
+                # Verify hierarchy:
+                # - Task delegation event exists in agent_events (created by PreToolUse)
+                # - Non-Task tools (Bash, Edit, Read) are NOT in agent_events from PreToolUse
+                #   (PostToolUse creates their events with full output data)
+                # - Environment variables are correctly set for parent chain
+
                 cursor.execute(
                     """
-                    SELECT tool_name, parent_event_id
+                    SELECT tool_name, parent_event_id, event_type
                     FROM agent_events
                     WHERE session_id = 'test-session-123'
                     ORDER BY rowid ASC
@@ -363,27 +374,32 @@ class TestPreToolUseEventHierarchy:
                 )
                 rows = cursor.fetchall()
 
-                # Build tool_name -> parent_event_id mapping
-                tool_events = {row[0]: row[1] for row in rows}
+                tool_events = {row[0]: (row[1], row[2]) for row in rows}
 
-                # UserQuery has no parent (or self-reference in some implementations)
-                assert (
-                    tool_events.get("UserQuery") is None
-                    or tool_events.get("UserQuery") == user_query_id
+                # UserQuery has no parent
+                assert tool_events.get("UserQuery") is not None
+                assert tool_events["UserQuery"][0] is None or tool_events["UserQuery"][0] == user_query_id
+
+                # Task delegation event should exist with UserQuery as parent
+                assert tool_events.get("Task") is not None, (
+                    "Task delegation event should exist in agent_events"
+                )
+                assert tool_events["Task"][0] == user_query_id, (
+                    f"Task should have parent={user_query_id}, got {tool_events['Task'][0]}"
+                )
+                assert tool_events["Task"][1] == "task_delegation", (
+                    "Task event should have event_type=task_delegation"
                 )
 
-                # Bash should have task_delegation as parent (set before Bash call)
-                assert tool_events.get("Bash") == task_delegation_id, (
-                    f"Bash should have parent={task_delegation_id}, got {tool_events.get('Bash')}"
+                # Non-Task tools should NOT be in agent_events (PostToolUse handles them)
+                assert tool_events.get("Bash") is None, (
+                    "Bash should not be in agent_events from PreToolUse"
                 )
-
-                # Edit and Read use Bash's event ID as parent (cascading behavior)
-                # This is correct - after Bash runs, it sets itself as parent for subprocess tracking
-                assert tool_events.get("Edit") == bash_event_id, (
-                    f"Edit should have parent={bash_event_id} (Bash's event), got {tool_events.get('Edit')}"
+                assert tool_events.get("Edit") is None, (
+                    "Edit should not be in agent_events from PreToolUse"
                 )
-                assert tool_events.get("Read") == bash_event_id, (
-                    f"Read should have parent={bash_event_id} (Bash's event), got {tool_events.get('Read')}"
+                assert tool_events.get("Read") is None, (
+                    "Read should not be in agent_events from PreToolUse"
                 )
 
         finally:
@@ -395,36 +411,36 @@ class TestPreToolUseEventHierarchy:
                 if env_var in os.environ:
                     del os.environ[env_var]
 
-    def test_bash_exports_parent_for_spawner_subprocess(self, mock_db, tmp_path):
-        """Test that Bash tool exports its event_id for spawner subprocess tracking."""
+    def test_bash_does_not_export_parent_event(self, mock_db, tmp_path):
+        """Test that non-Task tools do NOT set HTMLGRAPH_PARENT_EVENT (only Task does)."""
         from htmlgraph.hooks.pretooluse import create_start_event
 
         # Clear environment
-        if "HTMLGRAPH_PARENT_EVENT" in os.environ:
-            del os.environ["HTMLGRAPH_PARENT_EVENT"]
+        for var in ["HTMLGRAPH_PARENT_EVENT", "HTMLGRAPH_PARENT_EVENT_FOR_POST"]:
+            if var in os.environ:
+                del os.environ[var]
 
         try:
             with patch("htmlgraph.config.get_database_path") as mock_get_db:
                 mock_get_db.return_value = Path(mock_db.db_path)
 
-                # Execute Bash tool
+                # Execute Bash tool (standalone, no parent Task)
                 create_start_event(
                     tool_name="Bash",
                     tool_input={"command": "./spawner.py"},
                     session_id="test-session-123",
                 )
 
-                # Verify HTMLGRAPH_PARENT_EVENT was set for spawner subprocess
-                bash_event_id = os.environ.get("HTMLGRAPH_PARENT_EVENT")
-                assert bash_event_id is not None, (
-                    "Bash tool should export HTMLGRAPH_PARENT_EVENT for spawner subprocess"
-                )
-                assert bash_event_id.startswith("evt-"), (
-                    f"Expected event ID format evt-*, got {bash_event_id}"
+                # Non-Task tools no longer set HTMLGRAPH_PARENT_EVENT
+                # Only Task delegation sets it for subagent context
+                bash_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+                assert bash_parent is None, (
+                    "Bash should NOT set HTMLGRAPH_PARENT_EVENT (only Task does)"
                 )
         finally:
-            if "HTMLGRAPH_PARENT_EVENT" in os.environ:
-                del os.environ["HTMLGRAPH_PARENT_EVENT"]
+            for var in ["HTMLGRAPH_PARENT_EVENT", "HTMLGRAPH_PARENT_EVENT_FOR_POST"]:
+                if var in os.environ:
+                    del os.environ[var]
 
 
 class TestEventHierarchyRegression:
@@ -481,16 +497,17 @@ class TestEventHierarchyRegression:
                     session_id="test-session-123",
                 )
 
-                # Verify parent is the Task delegation, not UserQuery
-                cursor = mock_db.connection.cursor()
-                cursor.execute(
-                    "SELECT parent_event_id FROM agent_events WHERE tool_name = 'Bash' LIMIT 1"
+                # Verify HTMLGRAPH_PARENT_EVENT_FOR_POST was set to task_delegation
+                # (PostToolUse will use this to set parent_event_id when creating the event)
+                parent_for_post = os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST")
+                assert parent_for_post == task_delegation_id, (
+                    f"Spawner subprocess should have HTMLGRAPH_PARENT_EVENT_FOR_POST={task_delegation_id}, got {parent_for_post}"
                 )
-                row = cursor.fetchone()
 
-                assert row is not None
-                assert row[0] == task_delegation_id, (
-                    f"Spawner subprocess should have parent={task_delegation_id}, got {row[0]}"
+                # Verify Bash exports its event ID for subprocess tracking
+                bash_event = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+                assert bash_event is not None, (
+                    "Bash should export HTMLGRAPH_PARENT_EVENT for spawner subprocesses"
                 )
         finally:
             if "HTMLGRAPH_PARENT_EVENT" in os.environ:
@@ -566,21 +583,18 @@ class TestMultiLevelNesting:
                 )
 
                 # Level 4: Tool execution in deepest subagent
+                # PreToolUse no longer creates agent_events for non-Task tools
+                # (PostToolUse handles that). Verify env var is set correctly.
                 create_start_event(
                     tool_name="Bash",
                     tool_input={"command": "echo 'deep nested'"},
                     session_id="test-session-123",
                 )
 
-                # Verify hierarchy
-                cursor.execute(
-                    "SELECT tool_name, parent_event_id FROM agent_events WHERE tool_name = 'Bash' ORDER BY rowid DESC LIMIT 1"
-                )
-                bash_row = cursor.fetchone()
-
-                assert bash_row is not None
-                assert bash_row[1] == level3_parent, (
-                    f"Bash should have parent={level3_parent} (nested Task), got {bash_row[1]}"
+                # Verify the env var points to level3 Task as parent
+                bash_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+                assert bash_parent == level3_parent, (
+                    f"Bash env parent should be {level3_parent} (nested Task), got {bash_parent}"
                 )
 
         finally:

@@ -289,14 +289,29 @@
                 // Try to find parent row
                 const parentRow = tbody.querySelector(`tr[data-event-id="${eventData.parent_event_id}"]`);
                 if (parentRow) {
-                    // Insert after parent row
-                    parentRow.insertAdjacentHTML('afterend', eventRow);
+                    // Find the last child of this parent (or the parent itself if no children yet)
+                    let insertAfter = parentRow;
+                    let nextRow = parentRow.nextElementSibling;
+
+                    // Skip over any existing children of the same parent to insert at the end
+                    while (nextRow && nextRow.classList.contains('child-row')) {
+                        const nextParentId = nextRow.closest('[data-parent-event-id]')?.dataset.parentEventId;
+                        if (nextParentId === eventData.parent_event_id) {
+                            insertAfter = nextRow;
+                            nextRow = nextRow.nextElementSibling;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Insert after the last child (maintains chronological order within siblings)
+                    insertAfter.insertAdjacentHTML('afterend', eventRow);
                     highlightRow(tbody.querySelector(`tr[data-event-id="${eventData.event_id}"]`));
                     return;
                 }
             }
 
-            // Default: Insert at the top of tbody
+            // Default: Insert at the top of tbody (newest turn at top)
             const firstRow = tbody.querySelector('tr');
             if (firstRow) {
                 firstRow.insertAdjacentHTML('beforebegin', eventRow);

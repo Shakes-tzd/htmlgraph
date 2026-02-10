@@ -1,4 +1,5 @@
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -1071,20 +1072,71 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         # User submitted a query
         prompt = hook_input.get("prompt", "")
 
+        print(
+            f"[DEBUG UserPromptSubmit] REACHED HANDLER. active_session_id={active_session_id}, "
+            f"subagent_type={subagent_type}, parent_session_id={parent_session_id}, "
+            f"prompt_preview={prompt[:50]}...",
+            file=sys.stderr,
+        )
+
         # CRITICAL FIX: Filter out task notifications from Claude Code's background task system
         # Task notifications are NOT user conversation turns - they're system messages about
         # completed background tasks. These should not appear in the activity feed as UserQuery events.
         if prompt.strip().startswith("<task-notification>"):
             logger.debug("Skipping task notification (not a user query)")
+            print(
+                "[DEBUG UserPromptSubmit] SKIPPED: Task notification", file=sys.stderr
+            )
             return {"continue": True}
 
         preview = prompt[:100].replace("\n", " ")
         if len(prompt) > 100:
             preview += "..."
 
+        # CRITICAL FIX: UserQuery events MUST be in the parent session, not subagent session
+        # When in subagent context, active_session_id is the subagent session (e.g., "abc123-general-purpose")
+        # But UserQuery should be in parent session (e.g., "abc123") for proper event hierarchy
+        # Solution: Use parent_session_id if we're in subagent context, otherwise use active_session_id
+        userquery_session_id = active_session_id
+        if subagent_type and parent_session_id:
+            # We're in a subagent - record UserQuery to PARENT session
+            userquery_session_id = parent_session_id
+            logger.debug(
+                f"UserPromptSubmit in subagent context: Recording to parent session {parent_session_id} "
+                f"instead of subagent session {active_session_id}"
+            )
+        else:
+            # DEFENSIVE FALLBACK: Strip known subagent suffixes if Methods 1-3 failed to detect
+            # This handles edge cases where subagent detection fails but session_id has subagent suffix
+            known_suffixes = [
+                "-general-purpose",
+                "-Explore",
+                "-Bash",
+                "-Plan",
+                "-researcher",
+                "-debugger",
+                "-test-runner",
+            ]
+            for suffix in known_suffixes:
+                if active_session_id.endswith(suffix):
+                    userquery_session_id = active_session_id[: -len(suffix)]
+                    print(
+                        f"[DEBUG UserPromptSubmit] DEFENSIVE FALLBACK: Stripped suffix '{suffix}' from session_id. "
+                        f"Original: {active_session_id}, Parent: {userquery_session_id}",
+                        file=sys.stderr,
+                    )
+                    break
+
+        print(
+            f"[DEBUG UserPromptSubmit] FINAL DECISION: Recording UserQuery to session_id={userquery_session_id}",
+            file=sys.stderr,
+        )
+
         try:
             result = manager.track_activity(
-                session_id=active_session_id, tool="UserQuery", summary=f'"{preview}"'
+                session_id=userquery_session_id,
+                tool="UserQuery",
+                summary=f'"{preview}"',
             )
 
             # Record to SQLite if available
@@ -1093,7 +1145,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             if db:
                 event_id = record_event_to_sqlite(
                     db=db,
-                    session_id=active_session_id,
+                    session_id=userquery_session_id,  # Use parent session, not subagent
                     tool_name="UserQuery",
                     tool_input={"prompt": prompt},
                     tool_response={"content": "Query received"},
@@ -1110,7 +1162,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         agent_id=detected_agent,
                         event={
                             "tool_name": "UserQuery",
-                            "session_id": active_session_id,
+                            "session_id": userquery_session_id,  # Use parent session
                             "feature_id": result.feature_id if result else None,
                             "event_id": event_id,
                         },

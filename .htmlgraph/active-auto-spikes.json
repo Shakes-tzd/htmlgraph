@@ -154,5 +154,25 @@
   "spike-init-ce37a5ff": {
     "spike_subtype": "session-init",
     "session_id": "ce37a5ff-beff-4bd7-9180-a85d98df3079-general-purpose"
+  },
+  "spike-init-6d85f8bb": {
+    "spike_subtype": "session-init",
+    "session_id": "6d85f8bb-24bd-4c86-961a-5366171ca853-general-purpose"
+  },
+  "spike-init-test-123": {
+    "spike_subtype": "session-init",
+    "session_id": "test-123"
+  },
+  "spike-init-cd1cc782": {
+    "spike_subtype": "session-init",
+    "session_id": "cd1cc782-e97a-4224-aa5d-9783d1122d7b"
+  },
+  "spike-init-74539b77": {
+    "spike_subtype": "session-init",
+    "session_id": "74539b77-49ba-40ab-a7e4-557954569904-general-purpose"
+  },
+  "spike-init-0dc5adb6": {
+    "spike_subtype": "session-init",
+    "session_id": "0dc5adb6-48a4-42e8-b7c3-30e8421ee1cc-general-purpose"
   }
 }

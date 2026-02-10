@@ -271,9 +271,12 @@ def create_task_parent_event(
 
         # Extract parent session ID (remove subagent suffix if present)
         # Example: "abc123-general-purpose" -> "abc123"
-        parent_session_id = (
-            session_id.rsplit("-", 1)[0] if "-" in session_id else session_id
-        )
+        known_suffixes = ["-general-purpose", "-Explore", "-Bash", "-Plan"]
+        parent_session_id = session_id  # Default: same session (it IS the parent)
+        for suffix in known_suffixes:
+            if session_id.endswith(suffix):
+                parent_session_id = session_id[: -len(suffix)]
+                break
 
         # Load UserQuery event ID for parent-child linking from database
         # Use parent_session_id to ensure we find UserQuery in the main session
@@ -289,12 +292,13 @@ def create_task_parent_event(
         # If HTMLGRAPH_PARENT_EVENT is set, we're already inside a subagent
         # and should link to that Task delegation, not UserQuery
         env_parent = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+        parent_event_id_for_insertion: str | None = None
         if env_parent:
             # Nested Task() - parent is the enclosing Task delegation
             parent_event_id_for_insertion = env_parent
         else:
-            # Top-level Task() - parent is the UserQuery
-            parent_event_id_for_insertion = user_query_event_id or ""
+            # Top-level Task() - parent is the UserQuery (None if not found)
+            parent_event_id_for_insertion = user_query_event_id
 
         # Build input summary
         input_summary = json.dumps(
@@ -333,9 +337,7 @@ def create_task_parent_event(
 
         # Export to environment for subagent reference
         os.environ["HTMLGRAPH_PARENT_EVENT"] = parent_event_id
-        os.environ["HTMLGRAPH_PARENT_QUERY_EVENT"] = (
-            user_query_event_id or ""
-        )  # For spawners to use
+        os.environ["HTMLGRAPH_PARENT_QUERY_EVENT"] = user_query_event_id or ""
         os.environ["HTMLGRAPH_SUBAGENT_TYPE"] = subagent_type or "general-purpose"
 
         logger.debug(
@@ -426,11 +428,34 @@ def create_start_event(
                 db, tool_input, session_id, start_time
             )
 
-        # Determine parent for this event
-        if tool_name == "Task":
-            parent_event_id = user_query_event_id  # Task events link to UserQuery
+        # Detect if we're in a subagent session and find parent task_delegation
+        subagent_parent_event_id = None
+        known_suffixes = ["-general-purpose", "-Explore", "-Bash", "-Plan"]
+        for suffix in known_suffixes:
+            if session_id.endswith(suffix):
+                parent_session_id = session_id[: -len(suffix)]
+                try:
+                    cursor.execute(
+                        """SELECT event_id FROM agent_events
+                           WHERE session_id = ?
+                             AND event_type = 'task_delegation'
+                           ORDER BY timestamp DESC LIMIT 1""",
+                        (parent_session_id,),
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        subagent_parent_event_id = row[0]
+                except Exception:
+                    pass
+                break
+
+        # Determine parent for this event (priority order)
+        if tool_name == "Task" and task_parent_event_id:
+            parent_event_id = user_query_event_id  # Task links to UserQuery
+        elif subagent_parent_event_id:
+            parent_event_id = subagent_parent_event_id  # Subagent links to Task
         elif env_parent_event:
-            parent_event_id = env_parent_event  # Use explicit parent from environment
+            parent_event_id = env_parent_event  # Explicit parent from env
         else:
             parent_event_id = user_query_event_id  # Fall back to UserQuery
 
@@ -438,37 +463,14 @@ def create_start_event(
         if parent_event_id:
             os.environ["HTMLGRAPH_PARENT_EVENT_FOR_POST"] = parent_event_id
 
-        # Generate event_id for this tool call
-        event_id = f"evt-{generate_tool_use_id()[:8]}"
-
-        # Insert preliminary event into agent_events for hierarchy tracking
-        # PostToolUse will update this with complete data (model, output, etc.)
-        try:
-            cursor.execute(
-                """
-                INSERT INTO agent_events
-                (event_id, agent_id, event_type, timestamp, tool_name, session_id,
-                 status, parent_event_id, input_summary)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    event_id,
-                    "claude-code",
-                    "task_delegation" if tool_name == "Task" else "tool_call",
-                    start_time,
-                    tool_name,
-                    session_id,
-                    "started",
-                    parent_event_id,
-                    json.dumps(sanitized_input)[:200],
-                ),
-            )
-        except Exception as e:
-            logger.debug(f"Could not insert into agent_events: {e}")
-
-        # For Bash tool, export this event as parent for spawner subprocesses
-        if tool_name == "Bash":
-            os.environ["HTMLGRAPH_PARENT_EVENT"] = event_id
+        # For Task() calls, reuse the task_delegation event (no duplicate)
+        if tool_name == "Task" and task_parent_event_id:
+            event_id = task_parent_event_id
+        else:
+            event_id = f"evt-{generate_tool_use_id()[:8]}"
+            # Skip preliminary event insertion for non-Task tools.
+            # PostToolUse handler creates the full event with output data.
+            # Only Task() needs PreToolUse event creation (for task_delegation hierarchy).
 
         # For Task delegation, export task_parent_event_id for subagent context
         if tool_name == "Task" and task_parent_event_id:
@@ -734,12 +736,31 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
     # SAFETY NET: Never block essential tools or MCP tools
     tool_name = tool_input.get("name", "") or tool_input.get("tool_name", "")
     if tool_name in NEVER_BLOCK_TOOLS or "__" in tool_name:  # "__" indicates MCP tools
-        return {
+        # Still run event tracing for hierarchy tracking (especially Task delegation)
+        # but skip orchestrator/validator checks
+        event_tracing_response = await run_event_tracing(tool_input)
+
+        response: dict[str, Any] = {
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow",
             }
         }
+
+        # Add tool_use_id and context from event tracing
+        if "hookSpecificOutput" in event_tracing_response:
+            tool_use_id = event_tracing_response["hookSpecificOutput"].get(
+                "tool_use_id"
+            )
+            if tool_use_id:
+                response["hookSpecificOutput"]["tool_use_id"] = tool_use_id
+            ctx = event_tracing_response["hookSpecificOutput"].get("additionalContext")
+            if ctx:
+                response["hookSpecificOutput"]["additionalContext"] = (
+                    f"[EventTrace] {ctx}"
+                )
+
+        return response
 
     # Run all five checks in parallel using asyncio.gather
     (

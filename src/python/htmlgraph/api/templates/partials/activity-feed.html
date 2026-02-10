@@ -7,7 +7,6 @@
         <div class="child-event-row depth-{{ depth }}{% if has_nested %} has-nested-children{% endif %}"
              data-event-id="{{ child.event_id }}"
              data-depth="{{ depth }}"
-             style="margin-left: {{ depth * 20 }}px;"
              {% if has_nested %}onclick="toggleChildEvent('{{ child.event_id }}', event)"{% endif %}>
 
             <!-- Expand/Collapse Toggle for nested children -->
@@ -394,6 +393,7 @@
     transition: transform 0.2s ease;
     flex-shrink: 0;
     border-radius: 2px;
+    cursor: pointer;
 }
 
 .expand-toggle-child:hover {
@@ -404,12 +404,18 @@
     transform: rotate(90deg);
 }
 
+/* Ensure toggle is visible at all nesting levels */
+.child-event-row.has-nested-children .expand-toggle-child {
+    visibility: visible;
+    opacity: 1;
+}
+
 /* Nested Children Container (collapsible) */
 .child-children {
     display: flex;
     flex-direction: column;
     border-left: 2px solid rgba(163, 230, 53, 0.2);
-    margin-left: 10px;
+    margin-left: 20px;  /* Increased from 10px for better visual hierarchy */
     padding-left: 8px;
     background: rgba(0, 0, 0, 0.1);
     border-radius: 0 0 4px 0;
