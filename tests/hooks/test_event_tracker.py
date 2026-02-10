@@ -1057,6 +1057,41 @@ class TestTrackEvent:
     @mock.patch("htmlgraph.hooks.event_tracker.SessionManager")
     @mock.patch("htmlgraph.hooks.event_tracker.HtmlGraphDB")
     @mock.patch("htmlgraph.hooks.event_tracker.resolve_project_path")
+    def test_track_event_skip_task_notifications(
+        self, mock_resolve, mock_db_class, mock_sm_class, tmp_graph_dir
+    ):
+        """Test that task notifications are filtered out and not recorded as UserQuery events."""
+        mock_resolve.return_value = str(tmp_graph_dir.parent)
+        mock_sm = mock.MagicMock()
+        mock_db = mock.MagicMock()
+        mock_sm_class.return_value = mock_sm
+        mock_db_class.return_value = mock_db
+
+        session = mock.MagicMock()
+        session.id = "sess-abc123"
+        mock_sm.get_active_session.return_value = session
+
+        # Simulate a task notification from Claude Code's background task system
+        hook_input = {
+            "cwd": str(tmp_graph_dir.parent),
+            "prompt": """<task-notification>
+<task-id>b97254b</task-id>
+<output-file>/tmp/claude/tasks/b97254b.output</output-file>
+<status>completed</status>
+<summary>Background command completed</summary>
+</task-notification>""",
+        }
+
+        result = track_event("UserPromptSubmit", hook_input)
+
+        # Should return continue=True but not create a UserQuery event
+        assert result["continue"] is True
+        # Task notification should be skipped - no activity tracked
+        mock_sm.track_activity.assert_not_called()
+
+    @mock.patch("htmlgraph.hooks.event_tracker.SessionManager")
+    @mock.patch("htmlgraph.hooks.event_tracker.HtmlGraphDB")
+    @mock.patch("htmlgraph.hooks.event_tracker.resolve_project_path")
     def test_track_event_skip_aaskuserquestion(
         self, mock_resolve, mock_db_class, mock_sm_class, tmp_graph_dir
     ):

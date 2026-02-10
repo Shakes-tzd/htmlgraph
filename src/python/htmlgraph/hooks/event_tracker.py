@@ -1070,6 +1070,14 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
     elif hook_type == "UserPromptSubmit":
         # User submitted a query
         prompt = hook_input.get("prompt", "")
+
+        # CRITICAL FIX: Filter out task notifications from Claude Code's background task system
+        # Task notifications are NOT user conversation turns - they're system messages about
+        # completed background tasks. These should not appear in the activity feed as UserQuery events.
+        if prompt.strip().startswith("<task-notification>"):
+            logger.debug("Skipping task notification (not a user query)")
+            return {"continue": True}
+
         preview = prompt[:100].replace("\n", " ")
         if len(prompt) > 100:
             preview += "..."
