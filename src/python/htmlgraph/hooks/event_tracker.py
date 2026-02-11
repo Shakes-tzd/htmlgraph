@@ -408,6 +408,44 @@ def detect_model_from_hook_input(hook_input: dict[str, Any]) -> str | None:
     return None
 
 
+def get_model_from_parent_event(db_path: str | None = None) -> str | None:
+    """
+    Look up the model from the parent Task delegation event in the database.
+
+    This is used when a child event (Read, Bash, Grep, etc.) is running in a subagent
+    and needs to inherit the model from the parent Task that delegated to it.
+
+    Args:
+        db_path: Optional database path. If not provided, uses default path.
+
+    Returns:
+        Model name from parent event if found, None otherwise.
+    """
+    parent_event_id = os.environ.get("HTMLGRAPH_PARENT_EVENT")
+    if not parent_event_id:
+        return None
+
+    try:
+        from htmlgraph.config import get_database_path
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        path = db_path or str(get_database_path())
+        db = HtmlGraphDB(path)
+        if db.connection is None:
+            return None
+        cursor = db.connection.cursor()
+        cursor.execute(
+            "SELECT model FROM agent_events WHERE event_id = ? LIMIT 1",
+            (parent_event_id,),
+        )
+        row = cursor.fetchone()
+        if row and row[0]:
+            return str(row[0])
+    except Exception:
+        pass
+    return None
+
+
 def detect_agent_from_environment() -> tuple[str, str | None]:
     """
     Detect the agent/model name from environment variables and status cache.
@@ -419,7 +457,8 @@ def detect_agent_from_environment() -> tuple[str, str | None]:
     4. HTMLGRAPH_MODEL - Model name (e.g., claude-haiku, claude-opus)
     5. CLAUDE_MODEL - Model name if exposed by Claude Code
     6. ANTHROPIC_MODEL - Alternative model env var
-    7. Status line cache (model only) - ~/.cache/claude-code/status-{session_id}.json
+    7. Parent event model (from database) - If HTMLGRAPH_PARENT_EVENT is set
+    8. Status line cache (model only) - ~/.cache/claude-code/status-{session_id}.json
 
     Falls back to 'claude-code' if no environment variable is set.
 
@@ -453,6 +492,10 @@ def detect_agent_from_environment() -> tuple[str, str | None]:
         if value and value.strip():
             model_name = value.strip()
             break
+
+    # NEW: Check parent event model from database (before status cache fallback)
+    if not model_name:
+        model_name = get_model_from_parent_event()
 
     # Fallback: Try to read model from status line cache
     if not model_name:
@@ -609,6 +652,20 @@ def record_event_to_sqlite(
                     output_summary = f"{len(content)} items"
                 else:
                     output_summary = "success"
+
+        # If we have a parent event, inherit its model (child events inherit from parent Task)
+        if parent_event_id and db and db.connection:
+            try:
+                cursor = db.connection.cursor()
+                cursor.execute(
+                    "SELECT model FROM agent_events WHERE event_id = ? LIMIT 1",
+                    (parent_event_id,),
+                )
+                row = cursor.fetchone()
+                if row and row[0]:
+                    model = row[0]  # Inherit parent's model
+            except Exception:
+                pass
 
         # Build context metadata
         context = {

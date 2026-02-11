@@ -266,8 +266,25 @@ def create_task_parent_event(
             db.connect()
 
         parent_event_id = f"evt-{str(uuid.uuid4())[:8]}"
-        subagent_type = extract_subagent_type(tool_input)
-        prompt = str(tool_input.get("prompt", ""))[:200]
+
+        # Task parameters are nested inside "input" or "tool_input" key from hook_input
+        task_params = (
+            tool_input.get("input", {})
+            or tool_input.get("tool_input", {})
+            or tool_input
+        )
+
+        subagent_type = extract_subagent_type(task_params)
+        prompt = str(task_params.get("prompt", ""))[:200]
+
+        # Extract model from task parameters (e.g., "haiku" -> "claude-haiku")
+        model = None
+        if isinstance(task_params, dict) and "model" in task_params:
+            model_value = task_params.get("model")
+            if model_value and isinstance(model_value, str):
+                model = model_value.strip().lower()
+                if model and not model.startswith("claude-"):
+                    model = f"claude-{model}"
 
         # Extract parent session ID (remove subagent suffix if present)
         # Example: "abc123-general-purpose" -> "abc123"
@@ -316,8 +333,8 @@ def create_task_parent_event(
             """
             INSERT INTO agent_events
             (event_id, agent_id, event_type, timestamp, tool_name,
-             input_summary, session_id, status, subagent_type, parent_event_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             input_summary, session_id, status, subagent_type, parent_event_id, model)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 parent_event_id,
@@ -330,6 +347,7 @@ def create_task_parent_event(
                 "started",
                 subagent_type or "general-purpose",
                 parent_event_id_for_insertion,  # Link to parent Task or UserQuery
+                model,  # Model from tool_input (e.g., "claude-haiku")
             ),
         )
 

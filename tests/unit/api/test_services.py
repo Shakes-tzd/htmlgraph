@@ -184,7 +184,7 @@ class TestOrchestrationService:
         orchestration_service._execute_query = counting_query
 
         # This should use 1-2 bulk queries, not N+1
-        result = await orchestration_service.get_orchestration_chain(
+        await orchestration_service.get_orchestration_chain(
             session_id="sess-000",
         )
 
@@ -307,7 +307,7 @@ class TestCacheInvalidation:
     ):
         """Verify cache is invalidated when new event created."""
         # Prime cache
-        result1 = await activity_service.get_grouped_events(limit=10)
+        await activity_service.get_grouped_events(limit=10)
 
         # Create new event
         event = EventFactory.create()

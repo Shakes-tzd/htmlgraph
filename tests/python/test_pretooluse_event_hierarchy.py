@@ -378,7 +378,10 @@ class TestPreToolUseEventHierarchy:
 
                 # UserQuery has no parent
                 assert tool_events.get("UserQuery") is not None
-                assert tool_events["UserQuery"][0] is None or tool_events["UserQuery"][0] == user_query_id
+                assert (
+                    tool_events["UserQuery"][0] is None
+                    or tool_events["UserQuery"][0] == user_query_id
+                )
 
                 # Task delegation event should exist with UserQuery as parent
                 assert tool_events.get("Task") is not None, (
