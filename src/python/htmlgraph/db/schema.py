@@ -120,6 +120,93 @@ class HtmlGraphDB:
                     # Column may already exist
                     logger.debug(f"Could not add {col_name}: {e}")
 
+    def _run_data_migrations(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Run data migrations to normalize existing data.
+
+        This is idempotent and safe to run multiple times.
+        """
+        # Check if agent_events table exists
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='agent_events'"
+        )
+        if not cursor.fetchone():
+            return  # Table doesn't exist yet
+
+        try:
+            # Normalize agent_id to lowercase with hyphens
+            cursor.execute("""
+                UPDATE agent_events
+                SET agent_id = LOWER(REPLACE(agent_id, ' ', '-'))
+                WHERE agent_id != LOWER(REPLACE(agent_id, ' ', '-'))
+            """)
+            normalized_agents = cursor.rowcount
+            if normalized_agents > 0:
+                logger.info(f"Normalized {normalized_agents} agent_id values")
+
+            # Normalize model names to display format
+            cursor.execute("""
+                UPDATE agent_events
+                SET model = 'Opus 4.6'
+                WHERE LOWER(model) IN ('claude-opus-4-6', 'claude-opus', 'opus')
+                  AND model != 'Opus 4.6'
+            """)
+            normalized_opus = cursor.rowcount
+
+            cursor.execute("""
+                UPDATE agent_events
+                SET model = 'Sonnet 4.5'
+                WHERE LOWER(model) IN ('claude-sonnet-4-5-20250929', 'claude-sonnet', 'sonnet')
+                  AND model != 'Sonnet 4.5'
+            """)
+            normalized_sonnet = cursor.rowcount
+
+            cursor.execute("""
+                UPDATE agent_events
+                SET model = 'Haiku 4.5'
+                WHERE LOWER(model) IN ('claude-haiku-4-5-20251001', 'claude-haiku', 'haiku')
+                  AND model != 'Haiku 4.5'
+            """)
+            normalized_haiku = cursor.rowcount
+
+            total_normalized_models = (
+                normalized_opus + normalized_sonnet + normalized_haiku
+            )
+            if total_normalized_models > 0:
+                logger.info(f"Normalized {total_normalized_models} model values")
+
+            # Handle partial matches (e.g., "claude-opus-4-6-20250101")
+            cursor.execute("""
+                UPDATE agent_events
+                SET model = 'Opus 4.6'
+                WHERE LOWER(model) LIKE '%opus%'
+                  AND model NOT IN ('Opus 4.6', 'Sonnet 4.5', 'Haiku 4.5')
+            """)
+            partial_opus = cursor.rowcount
+
+            cursor.execute("""
+                UPDATE agent_events
+                SET model = 'Sonnet 4.5'
+                WHERE LOWER(model) LIKE '%sonnet%'
+                  AND model NOT IN ('Opus 4.6', 'Sonnet 4.5', 'Haiku 4.5')
+            """)
+            partial_sonnet = cursor.rowcount
+
+            cursor.execute("""
+                UPDATE agent_events
+                SET model = 'Haiku 4.5'
+                WHERE LOWER(model) LIKE '%haiku%'
+                  AND model NOT IN ('Opus 4.6', 'Sonnet 4.5', 'Haiku 4.5')
+            """)
+            partial_haiku = cursor.rowcount
+
+            total_partial = partial_opus + partial_sonnet + partial_haiku
+            if total_partial > 0:
+                logger.info(f"Normalized {total_partial} partial model matches")
+
+        except sqlite3.Error as e:
+            logger.warning(f"Error running data migrations: {e}")
+
     def _migrate_sessions_table(self, cursor: sqlite3.Cursor) -> None:
         """
         Migrate sessions table from old schema to new schema.
@@ -220,6 +307,9 @@ class HtmlGraphDB:
         # Run migrations for existing tables before creating new ones
         self._migrate_agent_events_table(cursor)
         self._migrate_sessions_table(cursor)
+
+        # Run data migrations to normalize existing data
+        self._run_data_migrations(cursor)
 
         # 1. AGENT_EVENTS TABLE - Core event tracking
         cursor.execute("""

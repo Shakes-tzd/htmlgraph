@@ -364,6 +364,35 @@ def resolve_project_path(cwd: str | None = None) -> str:
     return start_dir
 
 
+def normalize_model_name(model: str | None) -> str | None:
+    """Convert any model format to consistent display format."""
+    if not model:
+        return None
+    model_lower = model.strip().lower()
+    mapping = {
+        "claude-opus-4-6": "Opus 4.6",
+        "claude-opus": "Opus 4.6",
+        "opus": "Opus 4.6",
+        "claude-sonnet-4-5-20250929": "Sonnet 4.5",
+        "claude-sonnet": "Sonnet 4.5",
+        "sonnet": "Sonnet 4.5",
+        "claude-haiku-4-5-20251001": "Haiku 4.5",
+        "claude-haiku": "Haiku 4.5",
+        "haiku": "Haiku 4.5",
+    }
+    # Check exact match first
+    if model_lower in mapping:
+        return mapping[model_lower]
+    # Check partial match (e.g., "claude-opus-4-6-20250101")
+    for key, value in mapping.items():
+        if key in model_lower:
+            return value
+    # Already in display format?
+    if model.strip() in ("Opus 4.6", "Sonnet 4.5", "Haiku 4.5"):
+        return model.strip()
+    return model.strip()
+
+
 def detect_model_from_hook_input(hook_input: dict[str, Any]) -> str | None:
     """
     Detect the Claude model from hook input data.
@@ -395,7 +424,7 @@ def detect_model_from_hook_input(hook_input: dict[str, Any]) -> str | None:
             if model:
                 if not model.startswith("claude-"):
                     model = f"claude-{model}"
-                return cast(str, model)
+                return normalize_model_name(model)
 
     # 2. Check environment variables (set by PreToolUse hook)
     for env_var in ["HTMLGRAPH_MODEL", "ANTHROPIC_MODEL", "CLAUDE_MODEL"]:
@@ -403,7 +432,7 @@ def detect_model_from_hook_input(hook_input: dict[str, Any]) -> str | None:
         if value and isinstance(value, str):
             model = value.strip()
             if model:
-                return model
+                return normalize_model_name(model)
 
     return None
 
@@ -504,6 +533,12 @@ def detect_agent_from_environment() -> tuple[str, str | None]:
     # Default fallback for agent_id
     if not agent_id:
         agent_id = "claude-code"
+
+    # Normalize agent_id to lowercase with hyphens
+    agent_id = agent_id.lower().replace(" ", "-")
+
+    # Normalize model_name to display format
+    model_name = normalize_model_name(model_name)
 
     return agent_id, model_name
 
