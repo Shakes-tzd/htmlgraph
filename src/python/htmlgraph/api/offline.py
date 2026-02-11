@@ -183,7 +183,7 @@ class OfflineEventLog:
                            operation, timestamp, payload, status
                     FROM offline_events
                     WHERE status = ?
-                    ORDER BY timestamp DESC
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 """,
                     [OfflineEventStatus.LOCAL_ONLY.value],
                 )

@@ -72,7 +72,7 @@ async def orchestration_view(request: Request) -> HTMLResponse:
                 status
             FROM agent_events
             WHERE tool_name = 'Task'
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             LIMIT 50
         """
 
@@ -138,7 +138,7 @@ async def orchestration_api() -> dict[str, Any]:
                 status
             FROM agent_events
             WHERE tool_name = 'Task'
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             LIMIT 1000
         """
 
@@ -228,7 +228,7 @@ async def orchestration_delegations_api() -> dict[str, Any]:
                 status
             FROM agent_events
             WHERE tool_name = 'Task'
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             LIMIT 1000
         """
 
@@ -531,7 +531,7 @@ async def get_spawner_activities(
             query += " AND session_id = ?"
             params.append(session_id)
 
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
         cursor = await db.execute(query, params)
@@ -782,7 +782,7 @@ async def get_subagent_work(session_id: str) -> dict[str, Any]:
                 output_summary
             FROM agent_events
             WHERE session_id = ? AND subagent_type IS NOT NULL
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
         """
 
         cursor = await db.execute(query, (session_id,))

@@ -136,7 +136,7 @@ class CostAnalyzer:
                     parent_event_id
                 FROM agent_events
                 WHERE event_type = 'task_delegation'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 """
             )
 

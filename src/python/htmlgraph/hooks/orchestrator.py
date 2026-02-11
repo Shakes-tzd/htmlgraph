@@ -80,7 +80,7 @@ def load_tool_history(session_id: str) -> list[dict]:
             SELECT tool_name, timestamp
             FROM agent_events
             WHERE session_id = ?
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             LIMIT ?
         """,
             (session_id, MAX_HISTORY_SIZE),

@@ -136,7 +136,7 @@ class HookContext:
                     cursor.execute("""
                         SELECT session_id FROM agent_events
                         WHERE tool_name = 'UserQuery'
-                        ORDER BY timestamp DESC
+                        ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                         LIMIT 1
                     """)
                     row = cursor.fetchone()

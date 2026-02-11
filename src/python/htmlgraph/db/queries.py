@@ -112,7 +112,7 @@ class Queries:
             sql += " AND timestamp <= ?"
             params.append(end_time.isoformat())
 
-        sql += " ORDER BY timestamp DESC"
+        sql += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC"
         return sql, tuple(params)
 
     @staticmethod
@@ -137,7 +137,7 @@ class Queries:
             sql += " AND session_id = ?"
             params.append(session_id)
 
-        sql += " ORDER BY timestamp DESC"
+        sql += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC"
         return sql, tuple(params)
 
     @staticmethod

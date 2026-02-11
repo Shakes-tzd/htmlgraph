@@ -75,7 +75,7 @@ class ActivityService:
                     agent_id
                 FROM agent_events
                 WHERE tool_name = 'UserQuery'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT ?
             """
 
@@ -100,7 +100,7 @@ class ActivityService:
                     feature_id
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             """
 
             # Step 2: For each UserQuery, fetch child events
@@ -340,7 +340,7 @@ class ActivityService:
                     context
                 FROM agent_events
                 WHERE tool_name = 'TaskOutput'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT ?
             """
 
@@ -481,7 +481,7 @@ class OrchestrationService:
                 query += " AND agent_id = ?"
                 params.append(agent_id)
 
-            query += " ORDER BY timestamp DESC LIMIT 1000"
+            query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1000"
 
             async with self.db.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
@@ -595,7 +595,7 @@ class OrchestrationService:
                        input_summary, parent_event_id, subagent_type
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             """
 
             async def fetch_chain(parent_id: str, depth: int) -> None:

@@ -246,7 +246,7 @@ class ReactiveQueryManager:
                         input_summary, timestamp
                     FROM agent_events
                     WHERE event_type = 'tool_call'
-                    ORDER BY timestamp DESC
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                     LIMIT 20
                 """,
                 depends_on=["*events"],

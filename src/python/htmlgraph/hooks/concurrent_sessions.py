@@ -46,10 +46,10 @@ def get_concurrent_sessions(
                 status,
                 (SELECT input_summary FROM agent_events
                  WHERE session_id = sessions.session_id
-                 ORDER BY timestamp DESC LIMIT 1) as last_user_query,
+                 ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1) as last_user_query,
                 (SELECT timestamp FROM agent_events
                  WHERE session_id = sessions.session_id
-                 ORDER BY timestamp DESC LIMIT 1) as last_user_query_at
+                 ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1) as last_user_query_at
             FROM sessions
             WHERE status = 'active'
               AND session_id != ?
@@ -152,7 +152,7 @@ def get_recent_completed_sessions(
                    completed_at, total_events,
                    (SELECT input_summary FROM agent_events
                     WHERE session_id = sessions.session_id
-                    ORDER BY timestamp DESC LIMIT 1) as last_user_query
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1) as last_user_query
             FROM sessions
             WHERE status = 'completed'
               AND completed_at > ?

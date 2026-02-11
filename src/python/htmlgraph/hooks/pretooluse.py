@@ -317,13 +317,13 @@ def create_task_parent_event(
             # Top-level Task() - parent is the UserQuery (None if not found)
             parent_event_id_for_insertion = user_query_event_id
 
-        # Build input summary
-        input_summary = json.dumps(
-            {
-                "subagent_type": subagent_type or "general-purpose",
-                "prompt": prompt,
-            }
-        )[:500]
+        # Build input summary - human-readable, not raw JSON
+        description = str(task_params.get("description", ""))[:100]
+        if description:
+            input_summary = f"({subagent_type or 'general-purpose'}): {description}"
+        else:
+            # Fallback to prompt snippet if no description
+            input_summary = f"({subagent_type or 'general-purpose'}): {prompt[:100]}"
 
         cursor = db.connection.cursor()  # type: ignore[union-attr]
 
@@ -457,7 +457,7 @@ def create_start_event(
                         """SELECT event_id FROM agent_events
                            WHERE session_id = ?
                              AND event_type = 'task_delegation'
-                           ORDER BY timestamp DESC LIMIT 1""",
+                           ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1""",
                         (parent_session_id,),
                     )
                     row = cursor.fetchone()

@@ -149,7 +149,7 @@ async def websocket_events(websocket: WebSocket, since: str | None = None) -> No
                    cost_tokens
             FROM agent_events
             WHERE timestamp >= ? AND timestamp < datetime('now')
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             LIMIT 1000
         """
         cursor = await db.execute(historical_query, [last_timestamp])
@@ -210,7 +210,7 @@ async def websocket_events(websocket: WebSocket, since: str | None = None) -> No
                            cost_tokens
                     FROM agent_events
                     WHERE timestamp > ?
-                    ORDER BY timestamp DESC
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                     LIMIT 100
                 """
 

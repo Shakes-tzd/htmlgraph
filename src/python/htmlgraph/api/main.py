@@ -668,7 +668,7 @@ def get_app(db_path: str) -> FastAPI:
                 parent_query += " AND session_id = ?"
                 parent_params.append(session_id)
 
-            parent_query += " ORDER BY timestamp DESC LIMIT ?"
+            parent_query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?"
             parent_params.append(limit)
 
             async with db.execute(parent_query, parent_params) as cursor:
@@ -857,7 +857,7 @@ def get_app(db_path: str) -> FastAPI:
                 query += " AND session_id = ?"
                 params.append(session_id)
 
-            query += " ORDER BY timestamp DESC LIMIT ?"
+            query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?"
             params.append(limit)
 
             exec_start = time.time()
@@ -954,7 +954,7 @@ def get_app(db_path: str) -> FastAPI:
                         collab_query += " AND session_id = ?"
                         collab_params.append(session_id)
 
-                    collab_query += " ORDER BY timestamp DESC LIMIT ?"
+                    collab_query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?"
                     collab_params.append(limit)
 
                     async with db.execute(collab_query, collab_params) as collab_cursor:
@@ -1067,7 +1067,7 @@ def get_app(db_path: str) -> FastAPI:
                     agent_id
                 FROM agent_events
                 WHERE tool_name = 'UserQuery'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT ?
             """
 
@@ -1480,7 +1480,7 @@ def get_app(db_path: str) -> FastAPI:
                     status
                 FROM agent_events
                 WHERE tool_name = 'Task'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT 50
             """
 
@@ -1567,7 +1567,7 @@ def get_app(db_path: str) -> FastAPI:
                     status
                 FROM agent_events
                 WHERE tool_name = 'Task'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT 1000
             """
 
@@ -1682,7 +1682,7 @@ def get_app(db_path: str) -> FastAPI:
                     status
                 FROM agent_events
                 WHERE tool_name = 'Task'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT 1000
             """
 
@@ -2133,7 +2133,7 @@ def get_app(db_path: str) -> FastAPI:
                 query += " AND session_id = ?"
                 params.append(session_id)
 
-            query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
             cursor = await db.execute(query, params)
@@ -2304,7 +2304,7 @@ def get_app(db_path: str) -> FastAPI:
                        cost_tokens
                 FROM agent_events
                 WHERE timestamp >= ? AND timestamp < datetime('now')
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT 1000
             """
             cursor = await db.execute(historical_query, [last_timestamp])
@@ -2371,7 +2371,7 @@ def get_app(db_path: str) -> FastAPI:
                                cost_tokens
                         FROM agent_events
                         WHERE timestamp > ?
-                        ORDER BY timestamp DESC
+                        ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                         LIMIT 100
                     """
 

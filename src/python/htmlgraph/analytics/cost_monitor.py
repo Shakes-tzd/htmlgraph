@@ -576,7 +576,7 @@ class CostMonitor:
             """
             SELECT * FROM cost_events
             WHERE session_id = ? AND alert_type IS NOT NULL
-            ORDER BY timestamp DESC LIMIT ?
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?
             """,
             (session_id, limit),
         )

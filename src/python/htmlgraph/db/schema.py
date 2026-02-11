@@ -1046,7 +1046,7 @@ class HtmlGraphDB:
                 """
                 SELECT * FROM agent_events
                 WHERE session_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             """,
                 (session_id,),
             )
@@ -1332,7 +1332,7 @@ class HtmlGraphDB:
                     timestamp
                 FROM agent_collaboration
                 WHERE {where_sql}
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT ?
             """,
                 params + [limit],
@@ -1984,7 +1984,7 @@ class HtmlGraphDB:
                     """
                     SELECT * FROM sync_operations
                     WHERE operation = ?
-                    ORDER BY timestamp DESC
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                     LIMIT ?
                 """,
                     (operation, limit),
@@ -1993,7 +1993,7 @@ class HtmlGraphDB:
                 cursor.execute(
                     """
                     SELECT * FROM sync_operations
-                    ORDER BY timestamp DESC
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                     LIMIT ?
                 """,
                     (limit,),

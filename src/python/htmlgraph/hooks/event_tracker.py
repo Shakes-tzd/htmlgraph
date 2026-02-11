@@ -162,7 +162,7 @@ def get_parent_user_query(db: HtmlGraphDB, session_id: str) -> str | None:
             """
             SELECT event_id FROM agent_events
             WHERE session_id = ? AND tool_name = 'UserQuery'
-            ORDER BY timestamp DESC
+            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             LIMIT 1
             """,
             (session_id,),
@@ -881,7 +881,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                               AND subagent_type = ?
                               AND status = 'started'
                               AND session_id = ?
-                            ORDER BY timestamp DESC
+                            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                             LIMIT 1
                             """,
                             (subagent_type, parent_session_id),
@@ -900,7 +900,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                             WHERE event_type = 'task_delegation'
                               AND subagent_type = ?
                               AND status = 'started'
-                            ORDER BY timestamp DESC
+                            ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                             LIMIT 1
                             """,
                             (subagent_type,),
@@ -957,7 +957,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 WHERE event_type = 'task_delegation'
                   AND status = 'started'
                   AND tool_name = 'Task'
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                 LIMIT 1
                 """,
             )
@@ -1243,7 +1243,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     WHERE session_id = ?
                       AND event_type = 'task_delegation'
                       AND status = 'started'
-                    ORDER BY timestamp DESC
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                     LIMIT 1
                     """,
                     (active_session_id,),
@@ -1436,6 +1436,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             if db_to_use:
                 try:
                     cursor = db_to_use.connection.cursor()  # type: ignore[union-attr]
+                    # First try with active_session_id directly
                     cursor.execute(
                         """
                         SELECT event_id
@@ -1443,7 +1444,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         WHERE event_type = 'task_delegation'
                           AND status = 'started'
                           AND session_id = ?
-                        ORDER BY timestamp DESC
+                        ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
                         LIMIT 1
                         """,
                         (active_session_id,),
@@ -1454,6 +1455,42 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         logger.warning(
                             f"DEBUG: Found active task_delegation={parent_activity_id} in parent_activity_id fallback"
                         )
+                    else:
+                        # Task delegation is stored with PARENT session ID, not subagent session ID.
+                        # Strip known subagent suffixes to find the parent session.
+                        parent_sess = active_session_id
+                        known_suffixes = [
+                            "-general-purpose",
+                            "-Explore",
+                            "-Bash",
+                            "-Plan",
+                            "-researcher",
+                            "-debugger",
+                            "-test-runner",
+                        ]
+                        for suffix in known_suffixes:
+                            if active_session_id.endswith(suffix):
+                                parent_sess = active_session_id[: -len(suffix)]
+                                break
+                        if parent_sess != active_session_id:
+                            cursor.execute(
+                                """
+                                SELECT event_id
+                                FROM agent_events
+                                WHERE event_type = 'task_delegation'
+                                  AND status = 'started'
+                                  AND session_id = ?
+                                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                                LIMIT 1
+                                """,
+                                (parent_sess,),
+                            )
+                            task_row = cursor.fetchone()
+                            if task_row:
+                                parent_activity_id = task_row[0]
+                                logger.warning(
+                                    f"DEBUG: Found active task_delegation={parent_activity_id} via parent session {parent_sess}"
+                                )
                 except Exception as e:
                     logger.warning(
                         f"DEBUG: Error finding task_delegation in parent_activity_id: {e}"

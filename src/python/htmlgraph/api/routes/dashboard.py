@@ -574,7 +574,7 @@ async def get_event_traces(
             parent_query += " AND session_id = ?"
             parent_params.append(session_id)
 
-        parent_query += " ORDER BY timestamp DESC LIMIT ?"
+        parent_query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?"
         parent_params.append(limit)
 
         async with db.execute(parent_query, parent_params) as cursor:
@@ -611,7 +611,7 @@ async def get_event_traces(
                 SELECT event_id, agent_id, event_type, timestamp, status
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY timestamp DESC
+                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
             """
             async with db.execute(child_query, (parent_event_id,)) as child_cursor:
                 child_rows = await child_cursor.fetchall()
@@ -735,7 +735,7 @@ async def complete_activity_feed(
             query += " AND session_id = ?"
             params.append(session_id)
 
-        query += " ORDER BY timestamp DESC LIMIT ?"
+        query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?"
         params.append(limit)
 
         exec_start = time.time()
@@ -826,7 +826,7 @@ async def complete_activity_feed(
                     collab_query += " AND session_id = ?"
                     collab_params.append(session_id)
 
-                collab_query += " ORDER BY timestamp DESC LIMIT ?"
+                collab_query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT ?"
                 collab_params.append(limit)
 
                 async with db.execute(collab_query, collab_params) as collab_cursor:
