@@ -1,5 +1,5 @@
 {
-  "name": "HtmlGraph",
+  "name": "htmlgraph",
   "owner": {
     "name": "Shakes Dlamini",
     "email": "shakestzd@gmail.com",
@@ -11,7 +11,7 @@
     {
       "name": "htmlgraph",
       "version": "0.31.7",
-      "source": "../",
+      "source": "./packages/claude-plugin",
       "description": "HTML-based agent observability + workflow analytics (Git-first JSONL + rebuildable SQLite index)",
       "category": "Development Tools",
       "tags": [
