@@ -16,6 +16,13 @@ This research-first approach:
 - ✅ Chooses right tools upfront
 - ✅ Reduces context usage (targeted vs exploratory)
 
+**DELEGATION PATTERN**:
+- Research phase → `Task(subagent_type="htmlgraph:researcher")`
+- Simple fixes (1-2 files) → `Task(subagent_type="htmlgraph:haiku-coder")`
+- Features (3-8 files) → `Task(subagent_type="htmlgraph:sonnet-coder")` (default)
+- Architecture (10+ files) → `Task(subagent_type="htmlgraph:opus-coder")`
+- Validation → `Task(subagent_type="htmlgraph:test-runner")`
+
 ## Usage
 
 ```

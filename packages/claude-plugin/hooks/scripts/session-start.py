@@ -166,12 +166,22 @@ def _manage_conversation_spike(
         )
 
 
-def _setup_env_vars(active: object, env_file: str | None) -> None:
-    """Set environment variables for parent session context propagation."""
-    session_id = getattr(active, "id", None)
-    if not session_id:
+def _setup_env_vars(
+    active: object, external_session_id: str, env_file: str | None
+) -> None:
+    """
+    Set environment variables for parent session context propagation.
+
+    CRITICAL: Use external_session_id (from Claude Code) for cross-hook consistency.
+    This ensures UserPromptSubmit and PreToolUse hooks use the same session_id.
+    """
+    session_id = (
+        external_session_id  # Use Claude Code's session ID, not HtmlGraph's internal ID
+    )
+    if not session_id or session_id == "unknown":
         return
 
+    os.environ["HTMLGRAPH_SESSION_ID"] = session_id
     os.environ["HTMLGRAPH_PARENT_SESSION"] = session_id
     os.environ["HTMLGRAPH_PARENT_AGENT"] = "claude-code"
     os.environ["HTMLGRAPH_NESTING_DEPTH"] = "0"
@@ -224,7 +234,7 @@ def main() -> None:
             )
 
         # Set environment variables for parent session context
-        _setup_env_vars(active, os.environ.get("CLAUDE_ENV_FILE"))
+        _setup_env_vars(active, external_session_id, os.environ.get("CLAUDE_ENV_FILE"))
 
         # Manage conversation-level auto-spikes
         _manage_conversation_spike(manager, active, external_session_id, graph_dir)

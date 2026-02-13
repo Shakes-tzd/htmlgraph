@@ -105,4 +105,9 @@ if recs:
     print(f"\nSee all recommendations: `/htmlgraph:recommend`")
 else:
     print(f"No pending work. Plan new features: `/htmlgraph:plan`")
+
+print(f"\n**DELEGATION**: Delegate implementation based on complexity:")
+print(f"- Simple fixes (1-2 files) → `Task(subagent_type=\"htmlgraph:haiku-coder\")`")
+print(f"- Features (3-8 files) → `Task(subagent_type=\"htmlgraph:sonnet-coder\")`")
+print(f"- Architecture (10+ files) → `Task(subagent_type=\"htmlgraph:opus-coder\")`")
 ```

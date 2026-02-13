@@ -250,25 +250,27 @@ with open('packages/opencode-extension/package.json', 'w') as f:
         fi
     fi
 
-    # Update marketplace.json
-    if [ -f ".claude-plugin/marketplace.json" ]; then
-        if [ "$DRY_RUN" = true ]; then
-            log_info "[DRY-RUN] Would update marketplace.json version to $version"
-        else
-            uv run python -c "
+    # Update marketplace.json (both root and plugin copy)
+    for marketplace_file in ".claude-plugin/marketplace.json" "packages/claude-plugin/.claude-plugin/marketplace.json"; do
+        if [ -f "$marketplace_file" ]; then
+            if [ "$DRY_RUN" = true ]; then
+                log_info "[DRY-RUN] Would update $marketplace_file version to $version"
+            else
+                uv run python -c "
 import json
-with open('.claude-plugin/marketplace.json', 'r') as f:
+with open('$marketplace_file', 'r') as f:
     data = json.load(f)
-data['metadata']['version'] = '$version'
+data['version'] = '$version'
 for plugin in data.get('plugins', []):
     if plugin.get('name') == 'htmlgraph':
         plugin['version'] = '$version'
-with open('.claude-plugin/marketplace.json', 'w') as f:
+with open('$marketplace_file', 'w') as f:
     json.dump(data, f, indent=2)
 "
-            log_success "Updated marketplace.json"
+                log_success "Updated $marketplace_file"
+            fi
         fi
-    fi
+    done
 
     echo ""
 }
@@ -434,6 +436,8 @@ if [ "$VERSION" != "unknown" ] && [ "$DOCS_ONLY" != true ]; then
         git add pyproject.toml \
                 src/python/htmlgraph/__init__.py \
                 packages/claude-plugin/.claude-plugin/plugin.json \
+                .claude-plugin/marketplace.json \
+                packages/claude-plugin/.claude-plugin/marketplace.json \
                 packages/gemini-extension/gemini-extension.json
 
         if git diff --cached --quiet; then

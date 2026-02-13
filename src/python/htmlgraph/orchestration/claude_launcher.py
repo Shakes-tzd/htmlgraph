@@ -7,6 +7,7 @@ Coordinates launching Claude Code with various HtmlGraph integration options.
 
 import argparse
 import logging
+import subprocess
 import sys
 from pathlib import Path
 
@@ -109,6 +110,24 @@ class ClaudeLauncher:
         Loads plugin from local source directory for development/testing.
         Changes to plugin files take effect after restart.
         """
+        # Uninstall marketplace plugin to prevent conflicts
+        if self.interactive:
+            logger.info("Uninstalling marketplace plugin (if present)...")
+
+        result = subprocess.run(
+            ["claude", "plugin", "uninstall", "htmlgraph@htmlgraph"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode == 0:
+            if self.interactive:
+                logger.info("  ✓ Marketplace plugin uninstalled")
+        else:
+            if self.interactive:
+                logger.info("  ℹ️ No marketplace plugin installed (skipping)")
+
         # Get and validate plugin directory
         plugin_dir = PluginManager.get_plugin_dir()
         PluginManager.validate_plugin_dir(plugin_dir)

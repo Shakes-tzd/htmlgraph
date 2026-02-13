@@ -220,19 +220,23 @@ This command follows the research-first debugging methodology from `.claude/rule
    ```
    ## Debugging Resources Available
 
-   ### Research Agent
+   **DELEGATION**: Use `Task(subagent_type="htmlgraph:researcher")` for researching documentation and prior art.
+   Use `Task(subagent_type="htmlgraph:debugger")` for systematic error investigation.
+   Use `Task(subagent_type="htmlgraph:test-runner")` to validate fixes.
+
+   ### Researcher Agent (htmlgraph:researcher)
    Use when you need to understand unfamiliar concepts or APIs:
    - Research Claude Code hook behavior
    - Look up library documentation
    - Find best practices for error handling
 
-   ### Debugger Agent
+   ### Debugger Agent (htmlgraph:debugger)
    Use for systematic error analysis:
    - Reproduce errors consistently
    - Isolate root causes
    - Test hypotheses systematically
 
-   ### Test Runner Agent
+   ### Test Runner Agent (htmlgraph:test-runner)
    Use to validate fixes:
    - Run quality gates (lint, type, test)
    - Verify error is resolved
@@ -286,10 +290,10 @@ This command follows the research-first debugging methodology from `.claude/rule
 ### Next Steps
 1. Complete investigation checklist items
 2. Document findings in spike: `/htmlgraph:spike {spike.id}`
-3. Consider spawning specialized agent if needed:
-   - Research unfamiliar concepts
-   - Systematic debugging
-   - Validate fixes
+3. Delegate to specialized agents:
+   - `Task(subagent_type="htmlgraph:researcher")` for unfamiliar concepts
+   - `Task(subagent_type="htmlgraph:debugger")` for systematic debugging
+   - `Task(subagent_type="htmlgraph:test-runner")` to validate fixes
 
 ### Start Investigation
 Use these commands to begin:

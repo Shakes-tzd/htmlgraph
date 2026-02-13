@@ -26,28 +26,30 @@
                 {{ child.summary[:80] }}{% if child.summary|length > 80 %}...{% endif %}
             </span>
 
-            <!-- Agent Badge with Spawner Support -->
-            {% if child.spawner_type %}
-              <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
-                  {{ child.agent }}
-                  {% if child.model %}
-                    <span class="model-indicator">{{ child.model }}</span>
-                  {% endif %}
-              </span>
-              <span class="delegation-arrow">→</span>
-              <span class="spawner-badge spawner-{{ child.spawner_type|lower }}">
-                  {{ child.spawned_agent or child.subagent_type or child.spawner_type }}
-                  {% if child.cost_usd %}
-                    <span class="cost-badge">${{ "%.2f"|format(child.cost_usd) }}</span>
-                  {% endif %}
-              </span>
-            {% else %}
-              <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
-                  {{ child.agent }}
-                  {% if child.model %}
-                    <span class="model-indicator">{{ child.model }}</span>
-                  {% endif %}
-              </span>
+            <!-- Agent Badge - only on top-level events (depth 0); nested children inherit context from parent -->
+            {% if depth == 0 %}
+              {% if child.spawner_type %}
+                <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
+                    {{ child.agent }}
+                    {% if child.model %}
+                      <span class="model-indicator">{{ child.model }}</span>
+                    {% endif %}
+                </span>
+                <span class="delegation-arrow">→</span>
+                <span class="spawner-badge spawner-{{ child.spawner_type|lower }}">
+                    {{ child.spawned_agent or child.subagent_type or child.spawner_type }}
+                    {% if child.cost_usd %}
+                      <span class="cost-badge">${{ "%.2f"|format(child.cost_usd) }}</span>
+                    {% endif %}
+                </span>
+              {% else %}
+                <span class="child-agent-badge agent-{{ child.agent|lower|replace(' ', '-') }}">
+                    {{ child.agent }}
+                    {% if child.model %}
+                      <span class="model-indicator">{{ child.model }}</span>
+                    {% endif %}
+                </span>
+              {% endif %}
             {% endif %}
 
             <!-- Nested children count badge -->

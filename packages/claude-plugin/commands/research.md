@@ -2,6 +2,13 @@
 
 Perform structured research before planning implementation. Uses WebSearch to gather best practices, patterns, and solutions from the web.
 
+**DELEGATION**: This command delegates research to `Task(subagent_type="htmlgraph:researcher")`.
+The researcher agent will:
+1. Search the web first (official docs, GitHub issues, Stack Overflow)
+2. Query HtmlGraph database for institutional memory
+3. Search local codebase for relevant patterns
+4. Return structured findings
+
 ## Usage
 
 ```

@@ -35,6 +35,8 @@ sdk = SDK(agent="claude")
 # Parse arguments
 **DO THIS (OPTIMIZED - 2 CALLS INSTEAD OF 6+):**
 
+**DELEGATION**: For complex project reviews or analysis of large backlogs, delegate to `Task(subagent_type="htmlgraph:researcher")`.
+
 1. **Get comprehensive session start info:**
    ```bash
    uv run htmlgraph snapshot --summary  # Quick visual overview (colors preserved)

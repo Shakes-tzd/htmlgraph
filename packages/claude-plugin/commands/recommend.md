@@ -111,3 +111,8 @@ print(f"💡 Use `/htmlgraph:plan [id]` to start planning any of these items.")
 
 ---
 💡 Use `/htmlgraph:plan` to start planning any of these items.
+
+**DELEGATION**: To work on a recommendation, delegate based on complexity:
+- Simple fixes (1-2 files) → `Task(subagent_type="htmlgraph:haiku-coder")`
+- Features (3-8 files) → `Task(subagent_type="htmlgraph:sonnet-coder")`
+- Architecture (10+ files) → `Task(subagent_type="htmlgraph:opus-coder")`

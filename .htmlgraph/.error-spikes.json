@@ -333,5 +333,15 @@
     "spike_id": "spk-7d196fbf",
     "created": "2026-01-11T18:37:21.886370",
     "occurrences": 3
+  },
+  "Bash:Exit code 4\nERROR: usage: pytest [options] [file_or_dir] [file_or_dir] [...]\npytest: error: unrecogn": {
+    "spike_id": "spk-9d1c2c78",
+    "created": "2026-02-11T23:15:38.806782",
+    "occurrences": 3
+  },
+  "Bash:Exit code 7\n000": {
+    "spike_id": "spk-ed878d96",
+    "created": "2026-02-11T23:27:49.555586",
+    "occurrences": 3
   }
 }

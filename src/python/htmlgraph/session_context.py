@@ -1611,35 +1611,12 @@ Or create features manually in `.htmlgraph/features/`
         system_prompt: str | None,
         session_id: str,
     ) -> str:
+        """Return context without system prompt injection.
+
+        System prompt is now handled natively via --append-system-prompt flag
+        when launching Claude Code. No need to duplicate it in SessionStart context.
         """
-        Prepend system prompt to context if available.
-
-        Args:
-            context: Main context string
-            system_prompt: System prompt string or None
-            session_id: Session ID for source tracking
-
-        Returns:
-            Context with system prompt prepended (if available)
-        """
-        if not system_prompt:
-            return context
-
-        # Validate token count (informational only)
-        self.validate_token_count(system_prompt, max_tokens=500)
-
-        system_section = (
-            "## SYSTEM PROMPT RESTORED (via SessionStart)\n\n"
-            "This system prompt was injected at session startup to maintain "
-            "context across compacts and session transitions.\n\n"
-            "---\n\n"
-            f"{system_prompt}\n\n"
-            "---\n\n"
-            "*This prompt persists across tool executions and survives "
-            "compact/resume cycles.*"
-        )
-
-        return f"{system_section}\n\n---\n\n{context}"
+        return context
 
     def build_status_summary(
         self, features: list[dict[str, Any]], stats: dict[str, Any]

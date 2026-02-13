@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Research: Missing SubagentStart Hook Registration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-1506caf3"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-11T22:24:53.552758"
+             data-updated="2026-02-11T22:24:53.552761" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="researcher">
+
+        <header>
+            <h1>Research: Missing SubagentStart Hook Registration</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                ## Problem
+HtmlGraph subagents (htmlgraph:sonnet-coder, htmlgraph:test-runner) are not tracked in dashboard, 
+while htmlgraph:researcher IS tracked correctly.
+
+## Investigation Results
+
+### Root Cause Identified
+The `SubagentStart` hook is **NOT registered** in `packages/claude-plugin/hooks/hooks.json`, 
+even though the handler script exists at `packages/claude-plugin/hooks/scripts/subagent-start.py`.
+
+**Evidence:**
+1. ✅ `subagent-start.py` script EXISTS and contains proper logic
+2. ✅ `SubagentStop` hook IS registered in hooks.json
+3. ❌ `SubagentStart` hook is MISSING from hooks.json
+
+**Registered hooks (from hooks.json):**
+- UserPromptSubmit
+- Stop  
+- SessionStart
+- SessionEnd
+- PreToolUse
+- PostToolUse
+- SubagentStop ✅
+- TeammateIdle
+- TaskCompleted
+- PostToolUseFailure
+
+**Missing:**
+- SubagentStart ❌
+
+### Why This Breaks Subagent Tracking
+
+The SubagentStart hook is critical for mapping Claude Code's `agent_id` to task_delegation events:
+
+1. PreToolUse creates task_delegation event when Task() is called
+2. SubagentStart (MISSING) should map Claude's agent_id to that event
+3. Without mapping, agent_id remains NULL in database
+4. Dashboard cannot link subagent activities to the delegation event
+
+### Why Researcher Works
+
+The `htmlgraph:researcher` likely works because it's spawned differently or has a fallback 
+mechanism. Need to investigate further.
+
+## Solution
+
+Add SubagentStart hook registration to `packages/claude-plugin/hooks/hooks.json`:
+
+```json
+"SubagentStart": [
+  {
+    "matcher": "",
+    "hooks": [
+      {
+        "type": "command",
+        "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/subagent-start.py\""
+      }
+    ]
+  }
+]
+```
+
+## Next Steps
+
+1. Add SubagentStart hook to hooks.json
+2. Test with sonnet-coder and test-runner subagents
+3. Verify agent_id mapping in database
+4. Confirm dashboard shows all subagents correctly
+            </div>
+        </section>
+    </article>
+</body>
+</html>

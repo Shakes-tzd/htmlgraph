@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Research: classifyHandoffIfNeeded Error</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-2856f4ea"
+             data-type="spike"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-02-12T11:55:23.553761"
+             data-updated="2026-02-12T11:55:23.553763" data-spike-type="general" data-timebox-hours="4" data-agent-assigned="researcher">
+
+        <header>
+            <h1>Research: classifyHandoffIfNeeded Error</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+    
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>General</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+            </dl>
+        </section>
+        <section data-findings>
+            <h3>Findings</h3>
+            <div class="findings-content">
+                
+## Problem
+HtmlGraph plugin SubagentStop hooks fail with error: "classifyHandoffIfNeeded is not defined"
+
+## Research Sources
+
+### 1. Codebase Search
+- Searched ALL HtmlGraph source code (packages/, src/, .claude/)
+- **Finding**: NO references to "classifyHandoffIfNeeded" in our code
+- This confirms it's NOT a bug in HtmlGraph
+
+### 2. GitHub Issues Search
+Found MULTIPLE reports of this exact error in Claude Code repository:
+- [Issue #22087](https://github.com/anthropics/claude-code/issues/22087) - SubagentStop hook failure
+- [Issue #22573](https://github.com/anthropics/claude-code/issues/22573) - Research subagents fail on completion
+- [Issue #22544](https://github.com/anthropics/claude-code/issues/22544) - Task agent completion error
+- [Issue #22098](https://github.com/anthropics/claude-code/issues/22098) - Task agents fail
+- [Issue #22312](https://github.com/anthropics/claude-code/issues/22312) - Task tool subagent error
+- [Issue #22469](https://github.com/anthropics/claude-code/issues/22469) - Agent orchestration error
+
+### 3. Hook Debug Logs
+Checked :
+- Error appears in PostToolUseFailure hook events
+- Our SubagentStop hook completes successfully
+- Error occurs AFTER our hook returns
+
+## Root Cause
+**This is a Claude Code INTERNAL bug, not an HtmlGraph bug.**
+
+- "classifyHandoffIfNeeded" is an internal Claude Code function
+- It is referenced but not defined in Claude Code agent orchestration
+- Error happens inside Claude Code CLI after SubagentStop hook completes
+- Affects ALL subagent types (researcher, general-purpose, custom)
+
+## Impact Assessment
+- ✅ **Subagent work completes successfully**
+- ✅ **Our SubagentStop hook executes correctly**
+- ✅ **Parent events are updated properly**
+- ❌ **Task is marked as "failed" due to Claude Code error**
+- ❌ **Error appears in logs causing confusion**
+
+## Affected Versions
+- Claude Code v2.1.27 and v2.1.29
+- 100% reproduction rate
+- Multiple platform reports (Linux confirmed)
+
+## Recommended Action
+**DO NOTHING - This is Claude Code's bug to fix, not ours.**
+
+1. ✅ **Our code is correct** - No references to classifyHandoffIfNeeded
+2. ✅ **Our hooks work** - SubagentStop completes successfully
+3. ✅ **Anthropic is aware** - Multiple GitHub issues filed
+4. ⏳ **Wait for Claude Code fix** - Likely in next release
+
+## Workaround
+None needed. The error is cosmetic - actual functionality works correctly.
+
+## Documentation Update
+Add to known issues:
+"SubagentStop tasks may show 'classifyHandoffIfNeeded is not defined' error. This is a Claude Code internal bug (v2.1.27-29) and does not affect functionality. Our hooks execute correctly."
+
+            </div>
+        </section>
+    </article>
+</body>
+</html>

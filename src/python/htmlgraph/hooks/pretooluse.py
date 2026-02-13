@@ -302,8 +302,17 @@ def create_task_parent_event(
             from htmlgraph.hooks.event_tracker import get_parent_user_query
 
             user_query_event_id = get_parent_user_query(db, parent_session_id)
-        except Exception:
-            pass
+            if user_query_event_id:
+                logger.debug(
+                    f"Found UserQuery parent for Task: {user_query_event_id} in session {parent_session_id}"
+                )
+            else:
+                logger.warning(
+                    f"No UserQuery found for Task in session {parent_session_id}. "
+                    "Task will be orphaned in activity feed."
+                )
+        except Exception as e:
+            logger.warning(f"Error looking up UserQuery parent: {e}")
 
         # Check if we're in a nested delegation context
         # If HTMLGRAPH_PARENT_EVENT is set, we're already inside a subagent

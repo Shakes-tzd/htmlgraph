@@ -1,3 +1,11 @@
+---
+name: test-runner
+description: Quality assurance agent. Use after code changes to run tests, type checks, linting, and validate that quality gates pass.
+model: haiku
+color: yellow
+tools: Read, Grep, Glob, Bash
+---
+
 # Test Runner Agent
 
 Automatically test changes to ensure correctness and prevent regressions.
@@ -191,11 +199,8 @@ def test_invalid_feature_id():
 
 ### Before Committing
 ```bash
-# Run the full validation suite
-uv run ruff check --fix
-uv run ruff format
-uv run mypy src/
-uv run pytest
+# Run the full quality gate (all checks must pass)
+uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest
 
 # If all pass, commit is safe
 git add .
@@ -205,13 +210,29 @@ git commit -m "feat: description"
 ### Pre-Deployment
 ```bash
 # Full quality gate (from deploy-all.sh)
-uv run ruff check --fix || exit 1
-uv run ruff format || exit 1
-uv run mypy src/ || exit 1
-uv run pytest || exit 1
+uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest
 
 # Only deploy if all checks pass
 ```
+
+## Work Tracking & Institutional Memory
+
+Your testing work is automatically tracked via hooks, but you should also:
+
+**Reference existing tests**:
+- Check `.htmlgraph/features/` to understand what's being tested
+- Query database for past test failures and their resolutions
+- Review related test files before adding new tests
+
+**Capture test findings**:
+- Create spikes documenting test coverage gaps
+- Note patterns in test failures
+- Link test results to features being validated
+
+**Tool call recording**:
+- All test runs are recorded in the database
+- Test results can be queried by future agents
+- Builds institutional knowledge about test reliability
 
 ## Output Format
 

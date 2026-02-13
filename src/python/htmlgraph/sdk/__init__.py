@@ -165,6 +165,11 @@ class SDK(
         """
         if directory is None:
             directory = self._discover_htmlgraph()
+        else:
+            directory = Path(directory)
+            # Auto-discover .htmlgraph if given a project root
+            if directory.name != ".htmlgraph" and (directory / ".htmlgraph").exists():
+                directory = directory / ".htmlgraph"
 
         if agent is None:
             # Try environment variable fallback
@@ -290,19 +295,7 @@ class SDK(
 
         Searches current directory and parents.
         """
-        current = Path.cwd()
-
-        # Check current directory
-        if (current / ".htmlgraph").exists():
-            return current / ".htmlgraph"
-
-        # Check parent directories
-        for parent in current.parents:
-            if (parent / ".htmlgraph").exists():
-                return parent / ".htmlgraph"
-
-        # Default to current directory
-        return current / ".htmlgraph"
+        return discover_htmlgraph_dir()
 
     @property
     def agent(self) -> str | None:

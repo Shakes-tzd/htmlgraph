@@ -166,16 +166,21 @@ class FeatureListCommand(BaseCommand):
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> FeatureListCommand:
         # Validate inputs using FeatureFilter model
-        from htmlgraph.cli.models import FeatureFilter
+        from pydantic import ValidationError
+
+        from htmlgraph.cli.models import FeatureFilter, format_validation_error
 
         try:
-            filter_model = FeatureFilter(status=args.status)
-        except ValueError as e:
-            raise CommandError(str(e))
+            filter_model = FeatureFilter(
+                status=args.status,
+                quiet=getattr(args, "quiet", False),
+            )
+        except ValidationError as e:
+            raise CommandError(format_validation_error(e))
 
         return cls(
             status=filter_model.status,
-            quiet=args.quiet,
+            quiet=filter_model.quiet,
         )
 
     def execute(self) -> CommandResult:

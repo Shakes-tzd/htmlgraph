@@ -212,12 +212,29 @@ class ServeCommand(BaseCommand):
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> ServeCommand:
+        from pydantic import ValidationError
+
+        from htmlgraph.cli.models import ServeConfig, format_validation_error
+
+        try:
+            # Validate args through Pydantic model
+            config = ServeConfig(
+                port=args.port,
+                host=args.host,
+                graph_dir=getattr(args, "graph_dir", DEFAULT_GRAPH_DIR),
+                static_dir=args.static_dir,
+                no_watch=args.no_watch,
+                auto_port=args.auto_port,
+            )
+        except ValidationError as e:
+            raise CommandError(format_validation_error(e))
+
         return cls(
-            port=args.port,
-            host=args.host,
-            static_dir=args.static_dir,
-            no_watch=args.no_watch,
-            auto_port=args.auto_port,
+            port=config.port,
+            host=config.host,
+            static_dir=config.static_dir,
+            no_watch=config.no_watch,
+            auto_port=config.auto_port,
         )
 
     def execute(self) -> CommandResult:
@@ -321,12 +338,28 @@ class ServeApiCommand(BaseCommand):
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> ServeApiCommand:
+        from pydantic import ValidationError
+
+        from htmlgraph.cli.models import ServeApiConfig, format_validation_error
+
+        try:
+            # Validate args through Pydantic model
+            config = ServeApiConfig(
+                port=args.port,
+                host=args.host,
+                db=args.db,
+                auto_port=args.auto_port,
+                reload=args.reload,
+            )
+        except ValidationError as e:
+            raise CommandError(format_validation_error(e))
+
         return cls(
-            port=args.port,
-            host=args.host,
-            db=args.db,
-            auto_port=args.auto_port,
-            reload=args.reload,
+            port=config.port,
+            host=config.host,
+            db=config.db,
+            auto_port=config.auto_port,
+            reload=config.reload,
         )
 
     def execute(self) -> CommandResult:
@@ -434,19 +467,24 @@ class InitCommand(BaseCommand):
 
     def execute(self) -> CommandResult:
         """Initialize the .htmlgraph directory."""
+        from pydantic import ValidationError
+
         from htmlgraph.cli.base import TextOutputBuilder
-        from htmlgraph.cli.models import InitConfig
+        from htmlgraph.cli.models import InitConfig, format_validation_error
         from htmlgraph.operations.initialization import initialize_htmlgraph
 
-        # Create config from command parameters
-        config = InitConfig(
-            dir=self.dir,
-            install_hooks=self.install_hooks,
-            interactive=self.interactive,
-            no_index=self.no_index,
-            no_update_gitignore=self.no_update_gitignore,
-            no_events_keep=self.no_events_keep,
-        )
+        # Create config from command parameters with Pydantic validation
+        try:
+            config = InitConfig(
+                dir=self.dir,
+                install_hooks=self.install_hooks,
+                interactive=self.interactive,
+                no_index=self.no_index,
+                no_update_gitignore=self.no_update_gitignore,
+                no_events_keep=self.no_events_keep,
+            )
+        except ValidationError as e:
+            raise CommandError(format_validation_error(e))
 
         # Initialize using new module
         result = initialize_htmlgraph(config)
@@ -890,19 +928,23 @@ class BootstrapCommand(BaseCommand):
 
     def execute(self) -> CommandResult:
         """Bootstrap HtmlGraph setup."""
+        from pydantic import ValidationError
         from rich.console import Console
         from rich.panel import Panel
 
-        from htmlgraph.cli.models import BootstrapConfig
+        from htmlgraph.cli.models import BootstrapConfig, format_validation_error
         from htmlgraph.operations.bootstrap import bootstrap_htmlgraph
 
         console = Console()
 
-        # Create config
-        config = BootstrapConfig(
-            project_path=self.project_path,
-            no_plugins=self.no_plugins,
-        )
+        # Create config with Pydantic validation
+        try:
+            config = BootstrapConfig(
+                project_path=self.project_path,
+                no_plugins=self.no_plugins,
+            )
+        except ValidationError as e:
+            raise CommandError(format_validation_error(e))
 
         # Run bootstrap
         console.print()

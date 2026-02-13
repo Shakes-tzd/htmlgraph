@@ -72,10 +72,11 @@ class ActivityService:
                     input_summary,
                     execution_duration_seconds,
                     status,
-                    agent_id
+                    agent_id,
+                    session_id
                 FROM agent_events
                 WHERE tool_name = 'UserQuery'
-                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                ORDER BY timestamp DESC
                 LIMIT ?
             """
 
@@ -97,10 +98,39 @@ class ActivityService:
                     model,
                     context,
                     subagent_type,
-                    feature_id
+                    feature_id,
+                    session_id
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                ORDER BY timestamp DESC
+            """
+
+            # First-level children query (includes cross-session lookup)
+            first_level_children_sql = """
+                SELECT
+                    event_id,
+                    tool_name,
+                    timestamp,
+                    input_summary,
+                    execution_duration_seconds,
+                    status,
+                    agent_id,
+                    model,
+                    context,
+                    subagent_type,
+                    feature_id,
+                    session_id
+                FROM agent_events
+                WHERE (
+                    parent_event_id = ?
+                    OR (
+                        parent_event_id IS NULL
+                        AND session_id LIKE ? || '%'
+                        AND session_id != ?
+                        AND tool_name != 'UserQuery'
+                    )
+                )
+                ORDER BY timestamp DESC
             """
 
             # Step 2: For each UserQuery, fetch child events
@@ -110,19 +140,33 @@ class ActivityService:
                 uq_input = uq_row[2] or ""
                 uq_duration = uq_row[3] or 0.0
                 uq_status = uq_row[4]
+                uq_agent_id = uq_row[5]
+                uq_session_id = uq_row[6]
 
                 prompt_text = uq_input
 
                 # Recursive helper to fetch children at any depth
                 async def fetch_children_recursive(
-                    parent_id: str, depth: int = 0, max_depth: int = 4
+                    parent_id: str,
+                    parent_session_id: str | None = None,
+                    depth: int = 0,
+                    max_depth: int = 4,
                 ) -> tuple[list[dict[str, Any]], float, int, int]:
                     """Recursively fetch children up to max_depth levels."""
                     if depth >= max_depth:
                         return [], 0.0, 0, 0
 
-                    async with self.db.execute(children_sql, [parent_id]) as cur:
-                        rows = await cur.fetchall()
+                    # For first level (depth=0), use cross-session query
+                    # For deeper levels, use normal parent_event_id query
+                    if depth == 0 and parent_session_id:
+                        async with self.db.execute(
+                            first_level_children_sql,
+                            [parent_id, parent_session_id, parent_session_id],
+                        ) as cur:
+                            rows = await cur.fetchall()
+                    else:
+                        async with self.db.execute(children_sql, [parent_id]) as cur:
+                            rows = await cur.fetchall()
 
                     children_list: list[dict[str, Any]] = []
                     total_dur = 0.0
@@ -141,6 +185,7 @@ class ActivityService:
                         context_json = row[8]
                         subagent_type = row[9]
                         feature_id = row[10]
+                        # evt_session_id = row[11]  # Not used currently
 
                         # Parse context to extract spawner metadata
                         spawner_type = None
@@ -168,12 +213,15 @@ class ActivityService:
                         )
 
                         # Recursively fetch this child's children
+                        # Pass session_id only for first level to enable cross-session lookup
                         (
                             nested_children,
                             nested_dur,
                             nested_success,
                             nested_error,
-                        ) = await fetch_children_recursive(evt_id, depth + 1, max_depth)
+                        ) = await fetch_children_recursive(
+                            evt_id, None, depth + 1, max_depth
+                        )
 
                         child_dict: dict[str, Any] = {
                             "event_id": evt_id,
@@ -209,15 +257,153 @@ class ActivityService:
                         success_cnt += nested_success
                         error_cnt += nested_error
 
+                    # Ensure descending order (newest first)
+                    children_list.sort(key=lambda c: c["timestamp"], reverse=True)
+
                     return children_list, total_dur, success_cnt, error_cnt
 
                 # Step 3: Build child events with recursive nesting
+                # Pass session_id for first level to enable cross-session lookup
                 (
                     children,
                     children_duration,
                     children_success,
                     children_error,
-                ) = await fetch_children_recursive(uq_event_id, depth=0, max_depth=4)
+                ) = await fetch_children_recursive(
+                    uq_event_id, uq_session_id, depth=0, max_depth=4
+                )
+
+                # Step 3.5: Session-based re-parenting - nest subagent events under their Task events
+                # Solution: Use session_id pattern matching to find sub-session events
+                if children:
+                    import re
+
+                    # Separate Task events from other events
+                    task_events = [c for c in children if c["tool_name"] == "Task"]
+                    task_output_events = [
+                        c for c in children if c["tool_name"] == "TaskOutput"
+                    ]
+
+                    # Track which events to remove from top level (they'll be nested)
+                    events_to_nest: set[str] = set()
+
+                    # For each Task, extract agent name and fetch sub-session events
+                    for task_evt in task_events:
+                        input_summary = task_evt.get("summary", "")
+
+                        # Extract agent name from input_summary using regex: (agent-name):
+                        match = re.search(r"\(([^)]+)\):", input_summary)
+                        if not match:
+                            continue
+
+                        agent_name = match.group(1)
+                        # Build sub-session ID
+                        sub_session_id = f"{uq_session_id}-{agent_name}"
+
+                        # Query ALL events from that sub-session
+                        sub_session_query = """
+                            SELECT event_id, tool_name, timestamp, input_summary,
+                                   execution_duration_seconds, status, agent_id, model,
+                                   context, subagent_type, feature_id, parent_event_id
+                            FROM agent_events
+                            WHERE session_id = ?
+                            ORDER BY timestamp ASC
+                        """
+
+                        async with self.db.execute(
+                            sub_session_query, [sub_session_id]
+                        ) as cur:
+                            sub_rows = await cur.fetchall()
+
+                        # Build nested events from sub-session
+                        subagent_events: list[dict[str, Any]] = []
+                        for row in sub_rows:
+                            evt_id = row[0]
+                            tool = row[1]
+                            timestamp = row[2]
+                            input_text = row[3] or ""
+                            duration = row[4] or 0.0
+                            # status = row[5]  # Not used in child dict construction
+                            agent = row[6] or "unknown"
+                            model = row[7]
+                            context_json = row[8]
+                            subagent_type = row[9]
+                            feature_id = row[10]
+                            # parent_event_id = row[11]  # Available if needed for deeper nesting
+
+                            # Parse context to extract spawner metadata
+                            spawner_type = None
+                            spawned_agent = None
+                            if context_json:
+                                try:
+                                    context = json.loads(context_json)
+                                    spawner_type = context.get("spawner_type")
+                                    spawned_agent = context.get("spawned_agent")
+                                except (json.JSONDecodeError, TypeError):
+                                    pass
+
+                            # If no spawner_type but subagent_type is set, treat it as spawner
+                            if not spawner_type and subagent_type:
+                                if ":" in subagent_type:
+                                    spawner_type = subagent_type.split(":")[-1]
+                                else:
+                                    spawner_type = subagent_type
+                                spawned_agent = agent
+
+                            # Build summary
+                            summary = input_text[:80] + (
+                                "..." if len(input_text) > 80 else ""
+                            )
+
+                            child_dict: dict[str, Any] = {
+                                "event_id": evt_id,
+                                "tool_name": tool,
+                                "timestamp": timestamp,
+                                "summary": summary,
+                                "duration_seconds": round(duration, 2),
+                                "agent": agent,
+                                "depth": 1,  # Nested under Task
+                                "model": model,
+                                "feature_id": feature_id,
+                            }
+
+                            if spawner_type:
+                                child_dict["spawner_type"] = spawner_type
+                            if spawned_agent:
+                                child_dict["spawned_agent"] = spawned_agent
+                            if subagent_type:
+                                child_dict["subagent_type"] = subagent_type
+
+                            subagent_events.append(child_dict)
+
+                        # Nest the subagent events under this Task (newest first)
+                        if subagent_events:
+                            subagent_events.sort(
+                                key=lambda e: e["timestamp"], reverse=True
+                            )
+                            task_evt["children"] = subagent_events
+
+                        # Also find and nest matching TaskOutput under this Task
+                        for output_evt in task_output_events:
+                            # Match TaskOutput by checking if it's for the same agent
+                            # (temporal proximity could also be used, but agent name is more reliable)
+                            output_summary = output_evt.get("summary", "")
+                            if agent_name in output_summary or (
+                                output_evt["timestamp"] > task_evt["timestamp"]
+                                and output_evt["event_id"] not in events_to_nest
+                            ):
+                                output_evt["depth"] = 1
+                                task_evt.setdefault("children", []).append(output_evt)
+                                events_to_nest.add(output_evt["event_id"])
+                                break  # Only nest first matching TaskOutput
+
+                    # Rebuild children list with only top-level events (orchestrator's direct actions + Tasks)
+                    children = [
+                        c for c in children if c["event_id"] not in events_to_nest
+                    ]
+
+                    # Keep descending order (newest first) for top-level events
+                    children.sort(key=lambda c: c["timestamp"], reverse=True)
 
                 total_duration = uq_duration + children_duration
                 success_count = (
@@ -263,7 +449,7 @@ class ActivityService:
                         "timestamp": uq_timestamp,
                         "prompt": prompt_text[:200],
                         "duration_seconds": round(uq_duration, 2),
-                        "agent_id": uq_row[5],
+                        "agent_id": uq_agent_id,
                     },
                     "children": children,
                     "has_spawner": has_spawner,
@@ -340,7 +526,7 @@ class ActivityService:
                     context
                 FROM agent_events
                 WHERE tool_name = 'TaskOutput'
-                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                ORDER BY timestamp DESC
                 LIMIT ?
             """
 
@@ -481,7 +667,7 @@ class OrchestrationService:
                 query += " AND agent_id = ?"
                 params.append(agent_id)
 
-            query += " ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1000"
+            query += " ORDER BY timestamp DESC LIMIT 1000"
 
             async with self.db.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
@@ -595,7 +781,7 @@ class OrchestrationService:
                        input_summary, parent_event_id, subagent_type
                 FROM agent_events
                 WHERE parent_event_id = ?
-                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                ORDER BY timestamp DESC
             """
 
             async def fetch_chain(parent_id: str, depth: int) -> None:

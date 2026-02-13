@@ -99,6 +99,10 @@ class AnalyticsEngine:
         if self._dep_analytics is None:
             from htmlgraph.analytics import DependencyAnalytics
 
+            # Ensure graph is loaded before analytics
+            if len(self._graph.nodes) == 0:
+                self._graph.reload()
+
             self._dep_analytics = DependencyAnalytics(self._graph)
         return self._dep_analytics
 

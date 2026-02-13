@@ -5,13 +5,16 @@ from __future__ import annotations
 This module provides type-safe models for validating command inputs:
 - Filter models for list commands (features, sessions, tracks)
 - Configuration models for infrastructure commands (init, serve)
+- Validation helpers for converting argparse to Pydantic
 """
 
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+T = TypeVar("T", bound=BaseModel)
 
 # ============================================================================
 # Filter Models
@@ -26,12 +29,14 @@ class FeatureFilter(BaseModel):
         priority: Filter by priority (high, medium, low, critical, all)
         agent: Filter by agent name
         collection: Collection name to query (default: features)
+        quiet: Suppress empty output
     """
 
     status: Literal["todo", "in_progress", "completed", "blocked", "all"] | None = None
     priority: Literal["high", "medium", "low", "critical", "all"] | None = None
     agent: str | None = None
     collection: str = Field(default="features")
+    quiet: bool = Field(default=False)
 
     @field_validator("status")
     @classmethod
@@ -55,6 +60,36 @@ class FeatureFilter(BaseModel):
         return v
 
 
+class FeatureCreateConfig(BaseModel):
+    """Configuration for creating a new feature.
+
+    Attributes:
+        title: Feature title
+        description: Feature description
+        priority: Feature priority (low, medium, high, critical)
+        steps: Number of steps
+        collection: Collection name
+        track: Track ID to link feature to
+        agent: Agent name
+    """
+
+    title: str = Field(..., min_length=1, description="Feature title")
+    description: str | None = Field(None, description="Feature description")
+    priority: Literal["low", "medium", "high", "critical"] = Field(default="medium")
+    steps: int | None = Field(None, ge=1, description="Number of steps")
+    collection: str = Field(default="features")
+    track: str | None = Field(None, description="Track ID to link feature to")
+    agent: str = Field(default="claude-code")
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        """Validate title is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Feature title cannot be empty")
+        return v.strip()
+
+
 class SessionFilter(BaseModel):
     """Filter options for session listing.
 
@@ -75,6 +110,44 @@ class SessionFilter(BaseModel):
         if v and v not in ["active", "ended", "all"]:
             raise ValueError(f"Invalid status: {v}. Valid values: active, ended, all")
         return v
+
+
+class SessionStartConfig(BaseModel):
+    """Configuration for starting a new session.
+
+    Attributes:
+        session_id: Session ID (auto-generated if not provided)
+        agent: Agent name
+        title: Session title
+    """
+
+    session_id: str | None = Field(None, description="Session ID")
+    agent: str = Field(default="claude-code")
+    title: str | None = Field(None, description="Session title")
+
+
+class SessionEndConfig(BaseModel):
+    """Configuration for ending a session.
+
+    Attributes:
+        session_id: Session ID to end
+        notes: Handoff notes for the next session
+        recommend: Recommended next steps
+        blockers: List of blockers to record
+    """
+
+    session_id: str = Field(..., min_length=1, description="Session ID to end")
+    notes: str | None = Field(None, description="Handoff notes")
+    recommend: str | None = Field(None, description="Recommended next steps")
+    blockers: list[str] = Field(default_factory=list, description="Blockers to record")
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v: str) -> str:
+        """Validate session ID is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Session ID cannot be empty")
+        return v.strip()
 
 
 class TrackFilter(BaseModel):
@@ -473,3 +546,77 @@ class BootstrapConfig(BaseModel):
 
     project_path: str = Field(default=".")
     no_plugins: bool = Field(default=False)
+
+
+# ============================================================================
+# Validation Helpers
+# ============================================================================
+
+
+def validate_args(model: type[T], args: Any) -> T:
+    """Convert argparse Namespace to validated Pydantic model.
+
+    Args:
+        model: Pydantic model class to validate against
+        args: argparse.Namespace or dict of arguments
+
+    Returns:
+        Validated model instance
+
+    Raises:
+        ValidationError: If validation fails
+
+    Example:
+        >>> args = parser.parse_args(['--port', '8080'])
+        >>> config = validate_args(ServeConfig, args)
+        >>> config.port
+        8080
+    """
+    if hasattr(args, "__dict__"):
+        # Convert Namespace to dict
+        args_dict = vars(args)
+    else:
+        args_dict = args
+
+    # Filter out None values and command routing fields
+    filtered = {
+        k: v
+        for k, v in args_dict.items()
+        if v is not None
+        and k
+        not in [
+            "command",
+            "func",
+            "feature_command",
+            "session_command",
+            "track_command",
+            "cigs_command",
+        ]
+    }
+
+    return model(**filtered)
+
+
+def format_validation_error(error: ValidationError) -> str:
+    """Format Pydantic ValidationError for user-friendly CLI output.
+
+    Args:
+        error: Pydantic ValidationError
+
+    Returns:
+        Formatted error message with field details
+
+    Example:
+        >>> try:
+        ...     ServeConfig(port=99999)
+        ... except ValidationError as e:
+        ...     print(format_validation_error(e))
+        Validation error:
+          • port: Port must be between 1024 and 65535, got 99999
+    """
+    lines = ["Validation error:"]
+    for err in error.errors():
+        field = ".".join(str(x) for x in err["loc"])
+        msg = err["msg"]
+        lines.append(f"  • {field}: {msg}")
+    return "\n".join(lines)
