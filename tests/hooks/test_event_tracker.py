@@ -17,23 +17,24 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
-from htmlgraph.hooks.event_tracker import (
+from htmlgraph.hooks.drift import (
     add_to_drift_queue,
     build_classification_prompt,
     clear_drift_queue_activities,
-    detect_agent_from_environment,
-    extract_file_paths,
-    format_tool_summary,
-    get_parent_user_query,
     load_drift_config,
     load_drift_queue,
-    record_delegation_to_sqlite,
-    record_event_to_sqlite,
-    resolve_project_path,
     save_drift_queue,
     should_trigger_classification,
-    track_event,
 )
+from htmlgraph.hooks.event_recording import (
+    extract_file_paths,
+    format_tool_summary,
+    record_delegation_to_sqlite,
+    record_event_to_sqlite,
+)
+from htmlgraph.hooks.event_tracker import track_event
+from htmlgraph.hooks.model_detection import detect_agent_from_environment
+from htmlgraph.hooks.db_helpers import get_parent_user_query, resolve_project_path
 
 # ============================================================================
 # FIXTURES
