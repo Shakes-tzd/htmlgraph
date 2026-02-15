@@ -29,6 +29,8 @@ from htmlgraph.graph import HtmlGraph
 from htmlgraph.ids import generate_id
 from htmlgraph.models import ActivityEntry, ErrorEntry, Node, Session
 from htmlgraph.services import ClaimingService
+from htmlgraph.sessions.activity import LinkingOps
+from htmlgraph.sessions.spikes import SpikeManager
 from htmlgraph.spike_index import ActiveAutoSpikeIndex
 
 
@@ -53,6 +55,10 @@ class SessionManager:
         # End session
         manager.end_session("session-001")
     """
+
+    # Type annotations for lazy-initialized attributes
+    _spikes: SpikeManager
+    _linking: LinkingOps
 
     # Attribution scoring weights
     WEIGHT_FILE_PATTERN = 0.4
@@ -151,6 +157,19 @@ class SessionManager:
         # Append-only event log (Git-friendly source of truth for activities)
         self.events_dir = self.graph_dir / "events"
         self.event_log = JsonlEventLog(self.events_dir)
+
+        # Initialize spike manager and linking operations
+        self._spikes = SpikeManager(
+            graph_dir=self.graph_dir,
+            session_converter=self.session_converter,
+            spike_index=self._spike_index,
+            active_auto_spikes=self._active_auto_spikes,
+        )
+        self._linking = LinkingOps(
+            session_converter=self.session_converter,
+            features_graph=self.features_graph,
+            bugs_graph=self.bugs_graph,
+        )
 
     # =========================================================================
     # Session Lifecycle
