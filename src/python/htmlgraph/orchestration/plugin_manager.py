@@ -27,13 +27,8 @@ class PluginManager:
         Returns:
             Path to packages/claude-plugin (the plugin root, not .claude-plugin)
         """
-        # Path(__file__) = .../src/python/htmlgraph/orchestration/plugin_manager.py
-        # Need to go up 5 levels to reach project root
-        return (
-            Path(__file__).parent.parent.parent.parent.parent
-            / "packages"
-            / "claude-plugin"
-        )
+        # Resolve from cwd (project root), not from installed package location
+        return Path.cwd() / "packages" / "claude-plugin"
 
     @staticmethod
     def install_or_update(verbose: bool = True) -> None:
