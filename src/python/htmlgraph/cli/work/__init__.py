@@ -127,7 +127,14 @@ from htmlgraph.cli.work.features import (
     FeatureReleaseCommand,
     FeatureStartCommand,
 )
-from htmlgraph.cli.work.ingest import IngestClaudeCodeCommand
+from htmlgraph.cli.work.ingest import (
+    IngestClaudeCodeCommand,
+    IngestCodexCommand,
+    IngestCopilotCommand,
+    IngestCursorCommand,
+    IngestGeminiCommand,
+    IngestOpenCodeCommand,
+)
 from htmlgraph.cli.work.orchestration import (
     ArchiveCreateCommand,
     ArchiveListCommand,
@@ -160,6 +167,11 @@ __all__ = [
     "register_commands",
     # Ingest commands
     "IngestClaudeCodeCommand",
+    "IngestGeminiCommand",
+    "IngestOpenCodeCommand",
+    "IngestCursorCommand",
+    "IngestCopilotCommand",
+    "IngestCodexCommand",
     # Session commands
     "SessionStartCommand",
     "SessionEndCommand",

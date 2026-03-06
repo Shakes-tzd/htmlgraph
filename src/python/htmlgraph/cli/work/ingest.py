@@ -4,6 +4,11 @@ from __future__ import annotations
 
 Commands for ingesting sessions from external AI tool formats:
 - ingest claude-code: Import Claude Code native JSONL sessions
+- ingest gemini:      Import Gemini CLI sessions
+- ingest opencode:   Import OpenCode sessions
+- ingest cursor:     Import Cursor AI conversations
+- ingest copilot:    Import GitHub Copilot CLI sessions
+- ingest codex:      Import OpenAI Codex CLI sessions
 """
 
 import argparse
@@ -76,12 +81,199 @@ def register_ingest_commands(subparsers: _SubParsersAction) -> None:
         help="Re-ingest sessions that were already imported",
     )
     cc_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    cc_parser.add_argument(
         "--graph-dir",
         "-g",
         default=DEFAULT_GRAPH_DIR,
         help="HtmlGraph directory (default: .htmlgraph)",
     )
     cc_parser.set_defaults(func=IngestClaudeCodeCommand.from_args)
+
+    # ingest gemini
+    gemini_parser = ingest_subparsers.add_parser(
+        "gemini",
+        help="Ingest Gemini CLI session files (~/.gemini/tmp/)",
+    )
+    gemini_parser.add_argument(
+        "--path",
+        "-p",
+        help=(
+            "Path to Gemini session storage directory. "
+            "Defaults to ~/.gemini/tmp/ or ~/.config/gemini/tmp/."
+        ),
+    )
+    gemini_parser.add_argument(
+        "--agent",
+        default="gemini",
+        help="Agent name to assign to ingested sessions (default: gemini)",
+    )
+    gemini_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest",
+    )
+    gemini_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    gemini_parser.add_argument(
+        "--graph-dir",
+        "-g",
+        default=DEFAULT_GRAPH_DIR,
+        help="HtmlGraph directory (default: .htmlgraph)",
+    )
+    gemini_parser.set_defaults(func=IngestGeminiCommand.from_args)
+
+    # ingest opencode
+    opencode_parser = ingest_subparsers.add_parser(
+        "opencode",
+        help="Ingest OpenCode session files (~/.local/share/opencode/)",
+    )
+    opencode_parser.add_argument(
+        "--path",
+        "-p",
+        help=(
+            "Path to OpenCode storage root directory. "
+            "Defaults to ~/.local/share/opencode/storage/."
+        ),
+    )
+    opencode_parser.add_argument(
+        "--agent",
+        default="opencode",
+        help="Agent name to assign to ingested sessions (default: opencode)",
+    )
+    opencode_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest",
+    )
+    opencode_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    opencode_parser.add_argument(
+        "--graph-dir",
+        "-g",
+        default=DEFAULT_GRAPH_DIR,
+        help="HtmlGraph directory (default: .htmlgraph)",
+    )
+    opencode_parser.set_defaults(func=IngestOpenCodeCommand.from_args)
+
+    # ingest cursor
+    cursor_parser = ingest_subparsers.add_parser(
+        "cursor",
+        help="Ingest Cursor AI conversations from its SQLite tracking database",
+    )
+    cursor_parser.add_argument(
+        "--path",
+        "-p",
+        help=(
+            "Path to Cursor's AI tracking database file. "
+            "Defaults to the platform-specific Cursor data directory."
+        ),
+    )
+    cursor_parser.add_argument(
+        "--agent",
+        default="cursor",
+        help="Agent name to assign to ingested sessions (default: cursor)",
+    )
+    cursor_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of conversations to ingest",
+    )
+    cursor_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report conversations without writing to HtmlGraph",
+    )
+    cursor_parser.add_argument(
+        "--graph-dir",
+        "-g",
+        default=DEFAULT_GRAPH_DIR,
+        help="HtmlGraph directory (default: .htmlgraph)",
+    )
+    cursor_parser.set_defaults(func=IngestCursorCommand.from_args)
+
+    # ingest copilot
+    copilot_parser = ingest_subparsers.add_parser(
+        "copilot",
+        help="Ingest GitHub Copilot CLI session files",
+    )
+    copilot_parser.add_argument(
+        "--path",
+        "-p",
+        help=(
+            "Path to Copilot CLI session storage directory. "
+            "Defaults to the platform-specific Copilot data directory."
+        ),
+    )
+    copilot_parser.add_argument(
+        "--agent",
+        default="copilot",
+        help="Agent name to assign to ingested sessions (default: copilot)",
+    )
+    copilot_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest",
+    )
+    copilot_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    copilot_parser.add_argument(
+        "--graph-dir",
+        "-g",
+        default=DEFAULT_GRAPH_DIR,
+        help="HtmlGraph directory (default: .htmlgraph)",
+    )
+    copilot_parser.set_defaults(func=IngestCopilotCommand.from_args)
+
+    # ingest codex
+    codex_parser = ingest_subparsers.add_parser(
+        "codex",
+        help="Ingest OpenAI Codex CLI session files (~/.codex/)",
+    )
+    codex_parser.add_argument(
+        "--path",
+        "-p",
+        help=("Path to Codex session storage directory. Defaults to ~/.codex/."),
+    )
+    codex_parser.add_argument(
+        "--agent",
+        default="codex",
+        help="Agent name to assign to ingested sessions (default: codex)",
+    )
+    codex_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest",
+    )
+    codex_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    codex_parser.add_argument(
+        "--graph-dir",
+        "-g",
+        default=DEFAULT_GRAPH_DIR,
+        help="HtmlGraph directory (default: .htmlgraph)",
+    )
+    codex_parser.set_defaults(func=IngestCodexCommand.from_args)
 
 
 # ============================================================================
@@ -101,6 +293,7 @@ class IngestClaudeCodeCommand(BaseCommand):
         limit: int | None,
         since: str | None,
         overwrite: bool,
+        dry_run: bool = False,
     ) -> None:
         super().__init__()
         self.path = path
@@ -109,6 +302,7 @@ class IngestClaudeCodeCommand(BaseCommand):
         self.limit = limit
         self.since_str = since
         self.overwrite = overwrite
+        self.dry_run = dry_run
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> IngestClaudeCodeCommand:
@@ -119,6 +313,7 @@ class IngestClaudeCodeCommand(BaseCommand):
             limit=getattr(args, "limit", None),
             overwrite=args.overwrite,
             since=getattr(args, "since", None),
+            dry_run=getattr(args, "dry_run", False),
         )
 
     def execute(self) -> CommandResult:
@@ -281,3 +476,282 @@ class IngestClaudeCodeCommand(BaseCommand):
                 for r in summary.results
             ],
         }
+
+
+def _ingest_result_to_dict(result: object) -> dict:
+    """Convert a generic IngestResult (gemini/opencode/cursor/copilot/codex) to a dict."""
+    return {
+        "ingested": getattr(result, "ingested", 0),
+        "skipped": getattr(result, "skipped", 0),
+        "errors": getattr(result, "errors", 0),
+        "total": getattr(result, "total", 0),
+    }
+
+
+def _print_ingest_result(output: object, tool_name: str, result: object) -> None:
+    """Print a summary for a simple IngestResult."""
+    from htmlgraph.cli.base import TextOutputBuilder
+
+    assert isinstance(output, TextOutputBuilder)
+    ingested = getattr(result, "ingested", 0)
+    skipped = getattr(result, "skipped", 0)
+    errors = getattr(result, "errors", 0)
+    total = getattr(result, "total", 0)
+
+    if total == 0:
+        output.add_warning(
+            f"No {tool_name} sessions found. "
+            "Check that the tool is installed and has session files, "
+            "or specify --path to the session directory."
+        )
+    else:
+        output.add_success(f"Ingested {ingested} session(s) from {tool_name}")
+        output.add_field("Ingested", ingested)
+        output.add_field("Skipped", skipped)
+        if errors:
+            output.add_warning(f"{errors} error(s) encountered")
+
+
+# ============================================================================
+# Gemini
+# ============================================================================
+
+
+class IngestGeminiCommand(BaseCommand):
+    """Ingest Gemini CLI session files into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestGeminiCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=args.agent,
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.gemini import ingest_gemini_sessions
+
+        output = TextOutputBuilder()
+        result = ingest_gemini_sessions(
+            graph_dir=self.graph_dir,
+            agent=self.agent or "gemini",
+            base_path=Path(self.path) if self.path else None,
+            limit=self.limit,
+            dry_run=self.dry_run,
+        )
+        _print_ingest_result(output, "Gemini", result)
+        return CommandResult(
+            text=output.build(), json_data=_ingest_result_to_dict(result)
+        )
+
+
+# ============================================================================
+# OpenCode
+# ============================================================================
+
+
+class IngestOpenCodeCommand(BaseCommand):
+    """Ingest OpenCode session files into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestOpenCodeCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=args.agent,
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.opencode import ingest_opencode_sessions
+
+        output = TextOutputBuilder()
+        result = ingest_opencode_sessions(
+            graph_dir=self.graph_dir,
+            agent=self.agent or "opencode",
+            base_path=Path(self.path) if self.path else None,
+            limit=self.limit,
+            dry_run=self.dry_run,
+        )
+        _print_ingest_result(output, "OpenCode", result)
+        return CommandResult(
+            text=output.build(), json_data=_ingest_result_to_dict(result)
+        )
+
+
+# ============================================================================
+# Cursor
+# ============================================================================
+
+
+class IngestCursorCommand(BaseCommand):
+    """Ingest Cursor AI conversations into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestCursorCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=args.agent,
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.cursor import ingest_cursor_sessions
+
+        output = TextOutputBuilder()
+        result = ingest_cursor_sessions(
+            graph_dir=self.graph_dir,
+            agent=self.agent or "cursor",
+            db_path=Path(self.path) if self.path else None,
+            limit=self.limit,
+            dry_run=self.dry_run,
+        )
+        _print_ingest_result(output, "Cursor", result)
+        return CommandResult(
+            text=output.build(), json_data=_ingest_result_to_dict(result)
+        )
+
+
+# ============================================================================
+# Copilot
+# ============================================================================
+
+
+class IngestCopilotCommand(BaseCommand):
+    """Ingest GitHub Copilot CLI sessions into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestCopilotCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=args.agent,
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.copilot import ingest_copilot_sessions
+
+        output = TextOutputBuilder()
+        result = ingest_copilot_sessions(
+            graph_dir=self.graph_dir,
+            agent=self.agent or "copilot",
+            base_path=Path(self.path) if self.path else None,
+            limit=self.limit,
+            dry_run=self.dry_run,
+        )
+        _print_ingest_result(output, "Copilot", result)
+        return CommandResult(
+            text=output.build(), json_data=_ingest_result_to_dict(result)
+        )
+
+
+# ============================================================================
+# Codex
+# ============================================================================
+
+
+class IngestCodexCommand(BaseCommand):
+    """Ingest OpenAI Codex CLI sessions into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestCodexCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=args.agent,
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.codex import ingest_codex_sessions
+
+        output = TextOutputBuilder()
+        result = ingest_codex_sessions(
+            graph_dir=self.graph_dir,
+            agent=self.agent or "codex",
+            base_path=Path(self.path) if self.path else None,
+            limit=self.limit,
+            dry_run=self.dry_run,
+        )
+        _print_ingest_result(output, "Codex", result)
+        return CommandResult(
+            text=output.build(), json_data=_ingest_result_to_dict(result)
+        )
