@@ -225,6 +225,67 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     )
     ingest_gemini_parser.set_defaults(func=IngestGeminiCommand.from_args)
 
+    # ingest copilot
+    ingest_copilot_parser = ingest_subparsers.add_parser(
+        "copilot", help="Ingest sessions from GitHub Copilot CLI"
+    )
+    ingest_copilot_parser.add_argument(
+        "--path",
+        help=(
+            "Path to Copilot session storage directory "
+            "(default: ~/.copilot/session-state)"
+        ),
+    )
+    ingest_copilot_parser.add_argument(
+        "--agent",
+        default="copilot",
+        help="Agent name to attribute sessions to (default: copilot)",
+    )
+    ingest_copilot_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest (default: all)",
+    )
+    ingest_copilot_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    ingest_copilot_parser.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    ingest_copilot_parser.set_defaults(func=IngestCopilotCommand.from_args)
+
+    # ingest codex
+    ingest_codex_parser = ingest_subparsers.add_parser(
+        "codex", help="Ingest sessions from OpenAI Codex CLI"
+    )
+    ingest_codex_parser.add_argument(
+        "--path",
+        help=("Path to Codex session storage directory (default: ~/.codex/sessions)"),
+    )
+    ingest_codex_parser.add_argument(
+        "--agent",
+        default="codex",
+        help="Agent name to attribute sessions to (default: codex)",
+    )
+    ingest_codex_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest (default: all)",
+    )
+    ingest_codex_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    ingest_codex_parser.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    ingest_codex_parser.set_defaults(func=IngestCodexCommand.from_args)
+
 
 # ============================================================================
 # Command Implementations
@@ -1092,6 +1153,164 @@ class IngestGeminiCommand(BaseCommand):
             output.add_success(f"Dry run: found {result.ingested} sessions to ingest")
         else:
             output.add_success(f"Ingested {result.ingested} Gemini sessions")
+
+        if result.skipped:
+            output.add_field("Skipped", str(result.skipped))
+        if result.errors:
+            output.add_field("Errors", str(result.errors))
+        if result.session_ids:
+            output.add_field("Sessions", str(len(result.session_ids)))
+        if result.error_files:
+            output.add_field("Failed files", ", ".join(result.error_files[:3]))
+
+        return CommandResult(
+            text=output.build(),
+            json_data={
+                "ingested": result.ingested,
+                "skipped": result.skipped,
+                "errors": result.errors,
+                "session_ids": result.session_ids,
+                "error_files": result.error_files,
+                "dry_run": self.dry_run,
+            },
+        )
+
+
+class IngestCopilotCommand(BaseCommand):
+    """Ingest GitHub Copilot CLI sessions into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestCopilotCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=getattr(args, "agent", "copilot"),
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        """Ingest GitHub Copilot CLI sessions into HtmlGraph."""
+        from pathlib import Path
+
+        from rich.console import Console
+
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.copilot import ingest_copilot_sessions
+
+        console = Console()
+
+        base_path = Path(self.path) if self.path else None
+
+        dry_run_label = " (dry run)" if self.dry_run else ""
+        with console.status(
+            f"[blue]Ingesting Copilot sessions{dry_run_label}...", spinner="dots"
+        ):
+            result = ingest_copilot_sessions(
+                graph_dir=self.graph_dir,
+                agent=self.agent or "copilot",
+                base_path=base_path,
+                limit=self.limit,
+                dry_run=self.dry_run,
+            )
+
+        output = TextOutputBuilder()
+        if self.dry_run:
+            output.add_success(f"Dry run: found {result.ingested} sessions to ingest")
+        else:
+            output.add_success(f"Ingested {result.ingested} Copilot sessions")
+
+        if result.skipped:
+            output.add_field("Skipped", str(result.skipped))
+        if result.errors:
+            output.add_field("Errors", str(result.errors))
+        if result.session_ids:
+            output.add_field("Sessions", str(len(result.session_ids)))
+        if result.error_files:
+            output.add_field("Failed files", ", ".join(result.error_files[:3]))
+
+        return CommandResult(
+            text=output.build(),
+            json_data={
+                "ingested": result.ingested,
+                "skipped": result.skipped,
+                "errors": result.errors,
+                "session_ids": result.session_ids,
+                "error_files": result.error_files,
+                "dry_run": self.dry_run,
+            },
+        )
+
+
+class IngestCodexCommand(BaseCommand):
+    """Ingest OpenAI Codex CLI sessions into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestCodexCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=getattr(args, "agent", "codex"),
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        """Ingest OpenAI Codex CLI sessions into HtmlGraph."""
+        from pathlib import Path
+
+        from rich.console import Console
+
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.codex import ingest_codex_sessions
+
+        console = Console()
+
+        base_path = Path(self.path) if self.path else None
+
+        dry_run_label = " (dry run)" if self.dry_run else ""
+        with console.status(
+            f"[blue]Ingesting Codex sessions{dry_run_label}...", spinner="dots"
+        ):
+            result = ingest_codex_sessions(
+                graph_dir=self.graph_dir,
+                agent=self.agent or "codex",
+                base_path=base_path,
+                limit=self.limit,
+                dry_run=self.dry_run,
+            )
+
+        output = TextOutputBuilder()
+        if self.dry_run:
+            output.add_success(f"Dry run: found {result.ingested} sessions to ingest")
+        else:
+            output.add_success(f"Ingested {result.ingested} Codex sessions")
 
         if result.skipped:
             output.add_field("Skipped", str(result.skipped))
