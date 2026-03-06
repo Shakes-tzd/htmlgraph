@@ -138,6 +138,7 @@ class HtmlGraphDB(ExtensionOps):
         is_subagent: bool = False,
         transcript_id: str | None = None,
         transcript_path: str | None = None,
+        model: str | None = None,
     ) -> bool:
         """
         Insert a new session record.
@@ -166,8 +167,8 @@ class HtmlGraphDB(ExtensionOps):
                 """
                 INSERT OR IGNORE INTO sessions
                 (session_id, agent_assigned, parent_session_id, parent_event_id,
-                 is_subagent, transcript_id, transcript_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                 is_subagent, transcript_id, transcript_path, model)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     session_id,
@@ -177,6 +178,7 @@ class HtmlGraphDB(ExtensionOps):
                     is_subagent,
                     transcript_id,
                     transcript_path,
+                    model,
                 ),
             )
             self.connection.commit()  # type: ignore[union-attr]
@@ -194,8 +196,8 @@ class HtmlGraphDB(ExtensionOps):
                         """
                         INSERT OR IGNORE INTO sessions
                         (session_id, agent_assigned, parent_session_id, parent_event_id,
-                         is_subagent, transcript_id, transcript_path)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                         is_subagent, transcript_id, transcript_path, model)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                         (
                             session_id,
@@ -205,6 +207,7 @@ class HtmlGraphDB(ExtensionOps):
                             is_subagent,
                             transcript_id,
                             transcript_path,
+                            model,
                         ),
                     )
                     self.connection.commit()  # type: ignore[union-attr]
@@ -353,6 +356,7 @@ class HtmlGraphDB(ExtensionOps):
         model: str | None = None,
         feature_id: str | None = None,
         claude_task_id: str | None = None,
+        source: str = "hook",
     ) -> bool:
         """
         Insert an agent event into the database.
@@ -379,6 +383,7 @@ class HtmlGraphDB(ExtensionOps):
             model: Claude model name (optional)
             feature_id: Feature ID this event relates to (optional)
             claude_task_id: Claude Code's internal task ID (optional)
+            source: Event source identifier, e.g. 'hook', 'sdk' (defaults to 'hook')
 
         Returns:
             True if insert successful, False otherwise
@@ -394,8 +399,8 @@ class HtmlGraphDB(ExtensionOps):
                 INSERT INTO agent_events
                 (event_id, agent_id, event_type, session_id, feature_id, tool_name,
                  input_summary, tool_input, output_summary, context, parent_agent_id,
-                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model, claude_task_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 parent_event_id, cost_tokens, execution_duration_seconds, subagent_type, model, claude_task_id, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     event_id,
@@ -415,6 +420,7 @@ class HtmlGraphDB(ExtensionOps):
                     subagent_type,
                     model,
                     claude_task_id,
+                    source,
                 ),
             )
             cursor.execute("PRAGMA foreign_keys=ON")

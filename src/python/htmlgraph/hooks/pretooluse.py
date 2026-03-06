@@ -412,7 +412,9 @@ def create_start_event(
     """
     tool_use_id = None
     try:
-        tool_use_id = generate_tool_use_id()
+        # Use native tool_use_id from Claude Code if present (e.g. toolu_01ABC123),
+        # otherwise generate a UUID for correlation.
+        tool_use_id = tool_input.get("tool_use_id") or generate_tool_use_id()
         trace_id = os.environ.get("HTMLGRAPH_TRACE_ID", tool_use_id)
         start_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 

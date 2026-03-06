@@ -56,6 +56,9 @@ def mock_htmlgraph_db():
     db.insert_event.return_value = True
     db.insert_session.return_value = True
     db.insert_collaboration.return_value = True
+    # Ensure cursor fetchone returns None so record_event_to_sqlite takes the INSERT path
+    # (not the UPDATE path which is triggered when a matching PreToolUse event is "found")
+    db.connection.cursor.return_value.fetchone.return_value = None
     return db
 
 
@@ -280,14 +283,18 @@ class TestDetectAgentFromEnvironment:
 
     def test_detect_explicit_htmlgraph_agent(self):
         """Test detection with HTMLGRAPH_AGENT env var."""
-        with mock.patch.dict(os.environ, {"HTMLGRAPH_AGENT": "explicit-agent"}):
+        with mock.patch.dict(os.environ, {"HTMLGRAPH_AGENT": "explicit-agent"}, clear=True):
             with mock.patch(
-                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                "htmlgraph.hooks.model_detection.get_model_from_parent_event",
                 return_value=None,
             ):
-                agent_id, model = detect_agent_from_environment()
-                assert agent_id == "explicit-agent"
-                assert model is None
+                with mock.patch(
+                    "htmlgraph.hooks.model_detection.get_model_from_status_cache",
+                    return_value=None,
+                ):
+                    agent_id, model = detect_agent_from_environment()
+                    assert agent_id == "explicit-agent"
+                    assert model is None
 
     def test_detect_subagent_type(self):
         """Test detection with HTMLGRAPH_SUBAGENT_TYPE env var."""
@@ -295,12 +302,16 @@ class TestDetectAgentFromEnvironment:
             os.environ, {"HTMLGRAPH_SUBAGENT_TYPE": "researcher"}, clear=True
         ):
             with mock.patch(
-                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                "htmlgraph.hooks.model_detection.get_model_from_parent_event",
                 return_value=None,
             ):
-                agent_id, model = detect_agent_from_environment()
-                assert agent_id == "researcher"
-                assert model is None
+                with mock.patch(
+                    "htmlgraph.hooks.model_detection.get_model_from_status_cache",
+                    return_value=None,
+                ):
+                    agent_id, model = detect_agent_from_environment()
+                    assert agent_id == "researcher"
+                    assert model is None
 
     def test_detect_claude_model(self):
         """Test detection with CLAUDE_MODEL env var returns model separately."""
@@ -309,8 +320,8 @@ class TestDetectAgentFromEnvironment:
             agent_id, model = detect_agent_from_environment()
             # agent_id should default to 'claude-code' when no agent env vars set
             assert agent_id == "claude-code"
-            # model should be detected from CLAUDE_MODEL
-            assert model == "claude-opus"
+            # model should be detected from CLAUDE_MODEL and normalized to display format
+            assert model == "Opus 4.6"
 
     def test_detect_anthropic_model(self):
         """Test detection with ANTHROPIC_MODEL env var."""
@@ -319,31 +330,39 @@ class TestDetectAgentFromEnvironment:
             agent_id, model = detect_agent_from_environment()
             # agent_id should default to 'claude-code' when no agent env vars set
             assert agent_id == "claude-code"
-            # model should be detected from ANTHROPIC_MODEL
-            assert model == "claude-haiku"
+            # model should be detected from ANTHROPIC_MODEL and normalized to display format
+            assert model == "Haiku 4.5"
 
     def test_detect_parent_agent(self):
         """Test detection with HTMLGRAPH_PARENT_AGENT env var."""
         env = {"HTMLGRAPH_PARENT_AGENT": "parent-agent"}
         with mock.patch.dict(os.environ, env, clear=True):
             with mock.patch(
-                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                "htmlgraph.hooks.model_detection.get_model_from_parent_event",
                 return_value=None,
             ):
-                agent_id, model = detect_agent_from_environment()
-                assert agent_id == "parent-agent"
-                assert model is None
+                with mock.patch(
+                    "htmlgraph.hooks.model_detection.get_model_from_status_cache",
+                    return_value=None,
+                ):
+                    agent_id, model = detect_agent_from_environment()
+                    assert agent_id == "parent-agent"
+                    assert model is None
 
     def test_detect_fallback_to_claude_code(self):
         """Test fallback to 'claude-code' when no env vars set."""
         with mock.patch.dict(os.environ, {}, clear=True):
             with mock.patch(
-                "htmlgraph.hooks.event_tracker.get_model_from_status_cache",
+                "htmlgraph.hooks.model_detection.get_model_from_parent_event",
                 return_value=None,
             ):
-                agent_id, model = detect_agent_from_environment()
-                assert agent_id == "claude-code"
-                assert model is None
+                with mock.patch(
+                    "htmlgraph.hooks.model_detection.get_model_from_status_cache",
+                    return_value=None,
+                ):
+                    agent_id, model = detect_agent_from_environment()
+                    assert agent_id == "claude-code"
+                    assert model is None
 
     def test_detect_priority_order(self):
         """Test environment variable priority order."""
@@ -1259,6 +1278,7 @@ class TestIntegration:
         """Test complete workflow from tool execution to SQLite storage."""
         mock_db = mock.MagicMock()
         mock_db.insert_event.return_value = True
+        mock_db.connection.cursor.return_value.fetchone.return_value = None
 
         # Simulate recording multiple tools in sequence
         tool_sequence = [

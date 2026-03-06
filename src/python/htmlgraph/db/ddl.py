@@ -56,6 +56,7 @@ def create_all_tables(cursor: sqlite3.Cursor) -> None:
             status TEXT DEFAULT 'recorded',
             model TEXT,
             claude_task_id TEXT,
+            source TEXT DEFAULT 'hook',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -127,6 +128,7 @@ def create_all_tables(cursor: sqlite3.Cursor) -> None:
             cost_budget REAL,
             cost_threshold_breached INTEGER DEFAULT 0,
             predicted_cost REAL DEFAULT 0.0,
+            model TEXT,
             FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE,
             FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
             FOREIGN KEY (continued_from) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE
@@ -508,6 +510,7 @@ def migrate_agent_events(cursor: sqlite3.Cursor) -> None:
         ("model", "TEXT"),
         ("claude_task_id", "TEXT"),
         ("tool_input", "JSON"),
+        ("source", "TEXT"),
     ]
 
     for col_name, col_type in migrations:
@@ -575,6 +578,7 @@ def migrate_sessions(cursor: sqlite3.Cursor) -> None:
         ("cost_budget", "REAL"),
         ("cost_threshold_breached", "INTEGER DEFAULT 0"),
         ("predicted_cost", "REAL DEFAULT 0.0"),
+        ("model", "TEXT"),
     ]
 
     # Refresh columns after potential rename

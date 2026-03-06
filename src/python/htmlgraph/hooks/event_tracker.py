@@ -1734,5 +1734,35 @@ Or manually create a work item in .htmlgraph/ (bug, feature, spike, or chore).""
             }
         return response
 
+    elif hook_type == "PostToolUseFailure":
+        # Tool execution failed - record error event
+        tool_name = hook_input.get("tool_name", "unknown")
+        tool_input_data = hook_input.get("tool_input", {})
+        error_info = hook_input.get("error", {})
+        error_message = (
+            error_info.get("message", "unknown error")
+            if isinstance(error_info, dict)
+            else str(error_info)
+        )
+
+        if db:
+            try:
+                record_event_to_sqlite(
+                    db=db,
+                    session_id=active_session_id,
+                    tool_name=tool_name,
+                    tool_input=tool_input_data
+                    if isinstance(tool_input_data, dict)
+                    else {},
+                    tool_response={"error": error_message},
+                    is_error=True,
+                    agent_id=detected_agent,
+                    model=detected_model,
+                )
+            except Exception as e:
+                logger.warning(f"Could not record PostToolUseFailure event: {e}")
+
+        return {"continue": True}
+
     # Unknown hook type
     return {"continue": True}
