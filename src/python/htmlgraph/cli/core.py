@@ -225,6 +225,70 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     )
     ingest_gemini_parser.set_defaults(func=IngestGeminiCommand.from_args)
 
+    # ingest opencode
+    ingest_opencode_parser = ingest_subparsers.add_parser(
+        "opencode", help="Ingest sessions from OpenCode"
+    )
+    ingest_opencode_parser.add_argument(
+        "--path",
+        help=(
+            "Path to OpenCode storage root directory "
+            "(default: ~/.local/share/opencode/storage)"
+        ),
+    )
+    ingest_opencode_parser.add_argument(
+        "--agent",
+        default="opencode",
+        help="Agent name to attribute sessions to (default: opencode)",
+    )
+    ingest_opencode_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of sessions to ingest (default: all)",
+    )
+    ingest_opencode_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report sessions without writing to HtmlGraph",
+    )
+    ingest_opencode_parser.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    ingest_opencode_parser.set_defaults(func=IngestOpenCodeCommand.from_args)
+
+    # ingest cursor
+    ingest_cursor_parser = ingest_subparsers.add_parser(
+        "cursor", help="Ingest conversations from Cursor AI IDE"
+    )
+    ingest_cursor_parser.add_argument(
+        "--db",
+        help=(
+            "Path to Cursor AI tracking database "
+            "(default: ~/.cursor/ai-tracking/ai-code-tracking.db)"
+        ),
+    )
+    ingest_cursor_parser.add_argument(
+        "--agent",
+        default="cursor",
+        help="Agent name to attribute sessions to (default: cursor)",
+    )
+    ingest_cursor_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of conversations to ingest (default: all)",
+    )
+    ingest_cursor_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Parse and report conversations without writing to HtmlGraph",
+    )
+    ingest_cursor_parser.add_argument(
+        "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
+    )
+    ingest_cursor_parser.set_defaults(func=IngestCursorCommand.from_args)
+
 
 # ============================================================================
 # Command Implementations
@@ -1101,6 +1165,166 @@ class IngestGeminiCommand(BaseCommand):
             output.add_field("Sessions", str(len(result.session_ids)))
         if result.error_files:
             output.add_field("Failed files", ", ".join(result.error_files[:3]))
+
+        return CommandResult(
+            text=output.build(),
+            json_data={
+                "ingested": result.ingested,
+                "skipped": result.skipped,
+                "errors": result.errors,
+                "session_ids": result.session_ids,
+                "error_files": result.error_files,
+                "dry_run": self.dry_run,
+            },
+        )
+
+
+class IngestOpenCodeCommand(BaseCommand):
+    """Ingest OpenCode sessions into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        path: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.path = path
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestOpenCodeCommand:
+        return cls(
+            path=getattr(args, "path", None),
+            agent=getattr(args, "agent", "opencode"),
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        """Ingest OpenCode sessions into HtmlGraph."""
+        from pathlib import Path
+
+        from rich.console import Console
+
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.opencode import ingest_opencode_sessions
+
+        console = Console()
+
+        base_path = Path(self.path) if self.path else None
+
+        dry_run_label = " (dry run)" if self.dry_run else ""
+        with console.status(
+            f"[blue]Ingesting OpenCode sessions{dry_run_label}...", spinner="dots"
+        ):
+            result = ingest_opencode_sessions(
+                graph_dir=self.graph_dir,
+                agent=self.agent or "opencode",
+                base_path=base_path,
+                limit=self.limit,
+                dry_run=self.dry_run,
+            )
+
+        output = TextOutputBuilder()
+        if self.dry_run:
+            output.add_success(f"Dry run: found {result.ingested} sessions to ingest")
+        else:
+            output.add_success(f"Ingested {result.ingested} OpenCode sessions")
+
+        if result.skipped:
+            output.add_field("Skipped", str(result.skipped))
+        if result.errors:
+            output.add_field("Errors", str(result.errors))
+        if result.session_ids:
+            output.add_field("Sessions", str(len(result.session_ids)))
+        if result.error_files:
+            output.add_field("Failed files", ", ".join(result.error_files[:3]))
+
+        return CommandResult(
+            text=output.build(),
+            json_data={
+                "ingested": result.ingested,
+                "skipped": result.skipped,
+                "errors": result.errors,
+                "session_ids": result.session_ids,
+                "error_files": result.error_files,
+                "dry_run": self.dry_run,
+            },
+        )
+
+
+class IngestCursorCommand(BaseCommand):
+    """Ingest Cursor AI conversations into HtmlGraph."""
+
+    def __init__(
+        self,
+        *,
+        db: str | None,
+        agent: str,
+        limit: int | None,
+        dry_run: bool,
+    ) -> None:
+        super().__init__()
+        self.db = db
+        self.agent = agent
+        self.limit = limit
+        self.dry_run = dry_run
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> IngestCursorCommand:
+        return cls(
+            db=getattr(args, "db", None),
+            agent=getattr(args, "agent", "cursor"),
+            limit=getattr(args, "limit", None),
+            dry_run=getattr(args, "dry_run", False),
+        )
+
+    def execute(self) -> CommandResult:
+        """Ingest Cursor AI conversations into HtmlGraph."""
+        from pathlib import Path
+
+        from rich.console import Console
+
+        from htmlgraph.cli.base import TextOutputBuilder
+        from htmlgraph.ingest.cursor import ingest_cursor_sessions
+
+        console = Console()
+
+        db_path = Path(self.db) if self.db else None
+
+        dry_run_label = " (dry run)" if self.dry_run else ""
+        with console.status(
+            f"[blue]Ingesting Cursor conversations{dry_run_label}...", spinner="dots"
+        ):
+            result = ingest_cursor_sessions(
+                graph_dir=self.graph_dir,
+                agent=self.agent or "cursor",
+                db_path=db_path,
+                limit=self.limit,
+                dry_run=self.dry_run,
+            )
+
+        output = TextOutputBuilder()
+        if self.dry_run:
+            output.add_success(
+                f"Dry run: found {result.ingested} conversations to ingest"
+            )
+        else:
+            output.add_success(f"Ingested {result.ingested} Cursor conversations")
+
+        if result.skipped:
+            output.add_field("Skipped", str(result.skipped))
+        if result.errors:
+            output.add_field("Errors", str(result.errors))
+        if result.session_ids:
+            output.add_field("Conversations", str(len(result.session_ids)))
+        if result.error_files:
+            output.add_field("Failed", ", ".join(result.error_files[:3]))
 
         return CommandResult(
             text=output.build(),
