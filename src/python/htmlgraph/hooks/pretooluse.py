@@ -463,8 +463,15 @@ def create_start_event(
             )
 
         # Detect if we're in a subagent session and find parent task_delegation.
-        # Prefer native agent_id from hook_input to look up the mapped task_delegation
-        # event directly; fall back to suffix-stripping heuristics when agent_id is absent.
+        #
+        # Strategy:
+        # 1. If session_id is NOT present in the sessions table, this is a subagent
+        #    running in a new session that was never registered as a main session.
+        #    In that case, find the most recent task_delegation with status='started'
+        #    across ALL sessions — that delegation spawned us.
+        # 2. Fallback: suffix-stripping heuristics for session IDs with known suffixes.
+        # 3. Native agent_id from hook_input (Claude Code does not send this in PreToolUse,
+        #    kept for forward compatibility).
         subagent_parent_event_id = None
         native_agent_id = tool_input.get("agent_id")
         if native_agent_id:
@@ -483,24 +490,62 @@ def create_start_event(
             except Exception:
                 pass
         else:
-            known_suffixes = ["-general-purpose", "-Explore", "-Bash", "-Plan"]
-            for suffix in known_suffixes:
-                if session_id.endswith(suffix):
-                    parent_session_id = session_id[: -len(suffix)]
-                    try:
-                        cursor.execute(
-                            """SELECT event_id FROM agent_events
-                               WHERE session_id = ?
-                                 AND event_type = 'task_delegation'
-                               ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1""",
-                            (parent_session_id,),
+            # Primary: check if this session_id exists in the sessions table.
+            # If it does NOT exist, we are in a subagent with a brand-new session_id
+            # that Claude Code assigned. Find the most recently started task_delegation.
+            try:
+                cursor.execute(
+                    "SELECT 1 FROM sessions WHERE session_id = ? LIMIT 1",
+                    (session_id,),
+                )
+                session_known = cursor.fetchone() is not None
+            except Exception:
+                session_known = True  # Assume known on error to avoid false positives
+
+            if not session_known:
+                # This session is unknown → we are a subagent. Find the task that spawned us.
+                try:
+                    cursor.execute(
+                        """
+                        SELECT event_id
+                        FROM agent_events
+                        WHERE event_type = 'task_delegation'
+                          AND status = 'started'
+                        ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                        LIMIT 1
+                        """,
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        subagent_parent_event_id = row[0]
+                        logger.debug(
+                            f"Subagent detected via unknown session_id={session_id}: "
+                            f"parent task_delegation={subagent_parent_event_id}"
                         )
-                        row = cursor.fetchone()
-                        if row:
-                            subagent_parent_event_id = row[0]
-                    except Exception:
-                        pass
-                    break
+                except Exception as e:
+                    logger.debug(
+                        f"Could not find task_delegation for unknown session: {e}"
+                    )
+            else:
+                # Session is known (main agent). Try suffix-stripping as secondary check.
+                known_suffixes = ["-general-purpose", "-Explore", "-Bash", "-Plan"]
+                for suffix in known_suffixes:
+                    if session_id.endswith(suffix):
+                        parent_session_id = session_id[: -len(suffix)]
+                        try:
+                            cursor.execute(
+                                """SELECT event_id FROM agent_events
+                                   WHERE session_id = ?
+                                     AND event_type = 'task_delegation'
+                                   ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC LIMIT 1""",
+                                (parent_session_id,),
+                            )
+                            row = cursor.fetchone()
+                            if row:
+                                subagent_parent_event_id = row[0]
+                        except Exception:
+                            pass
+                        break
 
         # Determine parent for this event (priority order)
         if tool_name == "Task" and task_parent_event_id:

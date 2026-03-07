@@ -989,49 +989,52 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
         subagent_type = os.environ.get("HTMLGRAPH_SUBAGENT_TYPE")
         parent_session_id = os.environ.get("HTMLGRAPH_PARENT_SESSION")
 
-    # Method 3: Database detection of active task_delegation events
-    # CRITICAL: When Task() subprocess is launched, environment variables don't propagate
-    # So we must query the database for active task_delegation events to detect subagent context
-    # NOTE: Claude Code passes the SAME session_id to parent and subagent, so we CAN'T use
-    # session_id to distinguish them. Instead, look for the most recent task_delegation event
-    # and if found with status='started', we ARE the subagent.
+    # Method 3: Database detection via unknown session_id
     #
-    # CRITICAL FIX: The actual PARENT session is hook_session_id (what Claude Code passes),
-    # NOT the session_id from the task_delegation event (which is the same as current).
-    # NOTE: DO NOT reinitialize task_event_id_from_db here - it may have been set by Method 1!
-    if not subagent_type and db and db.connection:
+    # When a subagent runs, Claude Code gives it a brand-new session_id that was never
+    # registered in the sessions table by a UserPromptSubmit or SessionStart hook.
+    # If hook_session_id is NOT in the sessions table, we are a subagent.
+    # In that case, find the most recently started task_delegation — that's our parent.
+    #
+    # This avoids the prior false-positive problem where the main agent (which also had
+    # an active task_delegation in flight) mistakenly detected itself as a subagent.
+    #
+    # NOTE: DO NOT reinitialize task_event_id_from_db here — it may have been set by Method 1.
+    if not subagent_type and db and db.connection and hook_session_id:
         try:
             cursor = db.connection.cursor()
-            # Find the most recent active task_delegation event
+            # Check if this session_id is known in the sessions table
             cursor.execute(
-                """
-                SELECT event_id, subagent_type, session_id
-                FROM agent_events
-                WHERE event_type = 'task_delegation'
-                  AND status = 'started'
-                  AND tool_name = 'Task'
-                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
-                LIMIT 1
-                """,
+                "SELECT 1 FROM sessions WHERE session_id = ? LIMIT 1",
+                (hook_session_id,),
             )
-            row = cursor.fetchone()
-            if row:
-                task_event_id, detected_subagent_type, parent_sess = row
-                # If we found an active task_delegation, we're running as a subagent
-                # (Claude Code uses the same session_id for both parent and subagent)
-                subagent_type = detected_subagent_type or "general-purpose"
-                # IMPORTANT: Use the hook_session_id as parent, not parent_sess!
-                # The parent_sess from task_delegation is the same as current session
-                # (Claude Code reuses session_id). The actual parent is hook_session_id.
-                parent_session_id = hook_session_id
-                task_event_id_from_db = (
-                    task_event_id  # Store for later use as parent_event_id
+            session_known = cursor.fetchone() is not None
+
+            if not session_known:
+                # Unknown session → we are a subagent. Find the task_delegation that spawned us.
+                cursor.execute(
+                    """
+                    SELECT event_id, subagent_type, session_id
+                    FROM agent_events
+                    WHERE event_type = 'task_delegation'
+                      AND status = 'started'
+                      AND tool_name = 'Task'
+                    ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                    LIMIT 1
+                    """,
                 )
-                logger.debug(
-                    f"DEBUG subagent detection (database): Detected active task_delegation "
-                    f"type={subagent_type}, parent_session={parent_session_id}, "
-                    f"parent_event={task_event_id}"
-                )
+                row = cursor.fetchone()
+                if row:
+                    task_event_id, detected_subagent_type, parent_sess = row
+                    subagent_type = detected_subagent_type or "general-purpose"
+                    # The parent session is the one that owns the task_delegation event
+                    parent_session_id = parent_sess or hook_session_id
+                    task_event_id_from_db = task_event_id
+                    logger.debug(
+                        f"DEBUG subagent detection (unknown session): Detected active task_delegation "
+                        f"type={subagent_type}, parent_session={parent_session_id}, "
+                        f"parent_event={task_event_id}"
+                    )
         except Exception as e:
             logger.warning(f"DEBUG: Error detecting subagent from database: {e}")
 
