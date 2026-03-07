@@ -556,15 +556,39 @@ def create_start_event(
         # process environment.  If we let MCP tools inherit it they get attributed to the last
         # Task event rather than the current UserQuery, which is wrong.
         # Solution: MCP tools skip the env_parent_event branch entirely.
+        #
+        # RESTART BUG FIX: HTMLGRAPH_PARENT_EVENT also persists across Claude Code restarts.
+        # After a restart, the env var still holds the Task event from the previous session.
+        # Before trusting env_parent_event, validate it belongs to the CURRENT session by
+        # querying the database.  If the event belongs to a different session, discard it.
         is_mcp_tool = "__" in tool_name
+
+        # Validate env_parent_event belongs to the current session
+        if env_parent_event and not is_mcp_tool:
+            try:
+                cursor.execute(
+                    "SELECT session_id FROM agent_events WHERE event_id = ? LIMIT 1",
+                    (env_parent_event,),
+                )
+                row = cursor.fetchone()
+                if row is None or row[0] != session_id:
+                    # Stale env var from a previous session — discard it and clear the env
+                    logger.debug(
+                        f"Discarding stale HTMLGRAPH_PARENT_EVENT={env_parent_event}: "
+                        f"belongs to session {row[0] if row else 'unknown'}, "
+                        f"current session={session_id}"
+                    )
+                    env_parent_event = None
+                    os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
+            except Exception as e:
+                logger.debug(f"Could not validate env_parent_event session: {e}")
+
         if tool_name in ("Task", "Agent") and task_parent_event_id:
             parent_event_id = user_query_event_id  # Task links to UserQuery
         elif subagent_parent_event_id:
             parent_event_id = subagent_parent_event_id  # Subagent links to Task
         elif env_parent_event and not is_mcp_tool:
-            parent_event_id = (
-                env_parent_event  # Explicit parent from env (non-MCP only)
-            )
+            parent_event_id = env_parent_event  # Explicit parent from env (non-MCP only, current session)
         else:
             parent_event_id = user_query_event_id  # Fall back to UserQuery
 
