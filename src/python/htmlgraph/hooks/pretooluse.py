@@ -633,29 +633,24 @@ def create_start_event(
 
         # Validate env_parent_event belongs to the current session AND is not stale.
         #
-        # Staleness detection strategy: compare the task_delegation's parent_event_id
-        # against the most recent UserQuery (user_query_event_id, already resolved above).
+        # Staleness detection strategy: compare the task_delegation's timestamp
+        # against the most recent UserQuery's timestamp.  A valid in-flight
+        # Task() delegation was created AFTER the current UserQuery (same turn),
+        # so its timestamp will be greater.  A stale task from a prior turn will
+        # have a timestamp <= the current UserQuery.
         #
-        # A valid in-flight Task() delegation was created in the CURRENT turn, so its
-        # parent_event_id points to the current turn's UserQuery.  If they don't match,
-        # the task_delegation is from a prior turn and the env var is stale.
+        # This correctly handles nested tasks (task B under task A) because BOTH
+        # tasks were created after the current UserQuery, regardless of their
+        # parent_event_id chain.
         #
-        # This correctly handles the case where:
-        # - Turn N: Task() creates evt-X with parent_event_id=UQ-prev
-        # - Turn N+1: current UQ is UQ-curr (or not yet in DB)
-        #   → evt-X.parent_event_id (UQ-prev) != user_query_event_id (UQ-curr or None)
-        #   → correctly discarded
-        #
-        # The old approach compared created_at timestamps and was broken because the
-        # current turn's UserQuery is often not yet in the DB when PreToolUse fires,
-        # causing max(UserQuery.created_at) to return the previous turn's UQ — which
-        # is older than the stale task_delegation, making the staleness check pass
-        # incorrectly (task_delegation appeared "fresh" when it was not).
+        # NOTE: env vars don't propagate between hook processes, so this branch
+        # is effectively dead code in the real system.  The real staleness fix
+        # is in PostToolUse (event_tracker.py).  This is kept as defence-in-depth.
         if env_parent_event and not is_mcp_tool:
             try:
                 cursor.execute(
                     """
-                    SELECT ae.session_id, ae.parent_event_id
+                    SELECT ae.session_id, ae.timestamp
                     FROM agent_events ae
                     WHERE ae.event_id = ?
                     LIMIT 1
@@ -663,7 +658,14 @@ def create_start_event(
                     (env_parent_event,),
                 )
                 row = cursor.fetchone()
-                if row is None or row[0] != session_id:
+                # Session validation: the event must either belong to our session
+                # OR we are a subagent (unknown session) and the event belongs to
+                # the parent session.  In subagent context the task_delegation is
+                # stored under the parent session, not the subagent session.
+                event_session_ok = row is not None and (
+                    row[0] == session_id or not session_known
+                )
+                if not event_session_ok:
                     # Event doesn't exist or belongs to a different session
                     logger.debug(
                         f"Discarding stale HTMLGRAPH_PARENT_EVENT={env_parent_event}: "
@@ -672,16 +674,32 @@ def create_start_event(
                     )
                     env_parent_event = None
                     os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
-                elif row[1] != user_query_event_id:
-                    # Task delegation's parent UserQuery doesn't match the current
-                    # session's most recent UserQuery — it's from a previous turn.
-                    logger.debug(
-                        f"Discarding stale HTMLGRAPH_PARENT_EVENT={env_parent_event}: "
-                        f"parent_event_id={row[1]} does not match current UserQuery "
-                        f"{user_query_event_id} (task_delegation is from a prior turn)"
-                    )
-                    env_parent_event = None
-                    os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
+                else:
+                    # Timestamp-based staleness: task must have been created AFTER
+                    # the current UserQuery.
+                    task_ts = row[1] or ""
+                    uq_ts = None
+                    if user_query_event_id:
+                        try:
+                            cursor.execute(
+                                "SELECT timestamp FROM agent_events WHERE event_id = ? LIMIT 1",
+                                (user_query_event_id,),
+                            )
+                            uq_row = cursor.fetchone()
+                            if uq_row:
+                                uq_ts = uq_row[0]
+                        except Exception:
+                            pass
+                    task_ts_norm = task_ts.replace("T", " ")[:19]
+                    uq_ts_norm = (uq_ts or "").replace("T", " ")[:19]
+                    if uq_ts and task_ts_norm <= uq_ts_norm:
+                        logger.debug(
+                            f"Discarding stale HTMLGRAPH_PARENT_EVENT={env_parent_event}: "
+                            f"ts={task_ts} <= current UserQuery ts={uq_ts} "
+                            f"(task_delegation is from a prior turn)"
+                        )
+                        env_parent_event = None
+                        os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
             except Exception as e:
                 logger.debug(f"Could not validate env_parent_event: {e}")
 
@@ -690,7 +708,7 @@ def create_start_event(
         elif subagent_parent_event_id:
             parent_event_id = subagent_parent_event_id  # Subagent links to Task
         elif env_parent_event and not is_mcp_tool and not session_known:
-            parent_event_id = env_parent_event  # Subagent explicit parent (non-MCP, unknown session only)
+            parent_event_id = env_parent_event  # Explicit parent from env (non-MCP only; staleness validated above)
         else:
             parent_event_id = user_query_event_id  # Fall back to UserQuery
 

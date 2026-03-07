@@ -64,13 +64,30 @@ class TestPreToolUseEventHierarchy:
     """Test event hierarchy in PreToolUse hook's create_start_event function."""
 
     def test_tool_event_uses_env_parent_when_set(self, mock_db, tmp_path):
-        """Test that tool events use HTMLGRAPH_PARENT_EVENT when set (subagent context)."""
+        """Test that PreToolUse creates a tool trace in subagent context.
+
+        ARCHITECTURE NOTE: In the real system, each hook invocation is a
+        separate OS process.  HTMLGRAPH_PARENT_EVENT env vars set in PreToolUse
+        die with that process -- PostToolUse starts fresh.  Therefore PreToolUse
+        cannot use env vars to pass parent context to PostToolUse.
+
+        The real parent attribution to task_delegation happens in PostToolUse
+        (event_tracker.py) via DB fallback queries.  PreToolUse just creates
+        the tool_trace for timing correlation.
+
+        For the orchestrator's own session (session_known=True), the env_parent
+        branch is intentionally disabled.  The parent defaults to UserQuery or
+        None if no UserQuery exists.
+        """
         from htmlgraph.hooks.pretooluse import create_start_event
 
         # Simulate Task delegation context - subagent has parent event set
         task_delegation_event_id = f"evt-task-{uuid4().hex[:8]}"
 
-        # Create the parent event in the database first (to satisfy foreign key constraint)
+        # The parent session owns the task_delegation event
+        parent_session_id = "test-session-123"
+
+        # Create the parent event in the database first
         cursor = mock_db.connection.cursor()
         cursor.execute(
             """
@@ -84,13 +101,14 @@ class TestPreToolUseEventHierarchy:
                 "task_delegation",
                 "2026-01-12T00:00:00",
                 "Task",
-                "test-session-123",
+                parent_session_id,
                 "started",
             ),
         )
         mock_db.connection.commit()
 
-        # Set environment variable as would be set by Task() PreToolUse hook
+        # Set environment variable (simulates within-process env, though in real
+        # system this does NOT propagate to PostToolUse)
         os.environ["HTMLGRAPH_PARENT_EVENT"] = task_delegation_event_id
 
         try:
@@ -98,23 +116,15 @@ class TestPreToolUseEventHierarchy:
             with patch("htmlgraph.config.get_database_path") as mock_get_db:
                 mock_get_db.return_value = Path(mock_db.db_path)
 
-                # Execute tool in subagent context
+                # Execute tool -- _ensure_session_exists makes session_known=True,
+                # so env_parent branch is correctly skipped.
                 tool_use_id = create_start_event(
                     tool_name="Bash",
                     tool_input={"command": "echo test"},
-                    session_id="test-session-123",
+                    session_id=parent_session_id,
                 )
 
                 assert tool_use_id is not None
-
-                # Verify the environment variable was set for PostToolUse
-                assert (
-                    os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST")
-                    == task_delegation_event_id
-                ), (
-                    f"Expected HTMLGRAPH_PARENT_EVENT_FOR_POST={task_delegation_event_id}, got {os.environ.get('HTMLGRAPH_PARENT_EVENT_FOR_POST')}. "
-                    "PreToolUse should set environment variable for PostToolUse to use."
-                )
 
                 # Verify tool_traces was created (PreToolUse only inserts into tool_traces, not agent_events)
                 cursor = mock_db.connection.cursor()
@@ -127,6 +137,7 @@ class TestPreToolUseEventHierarchy:
             # Cleanup
             if "HTMLGRAPH_PARENT_EVENT" in os.environ:
                 del os.environ["HTMLGRAPH_PARENT_EVENT"]
+            os.environ.pop("HTMLGRAPH_PARENT_EVENT_FOR_POST", None)
 
     def test_tool_event_falls_back_to_userquery_without_env_parent(
         self, mock_db, tmp_path
@@ -450,19 +461,17 @@ class TestEventHierarchyRegression:
     """Regression tests to ensure spawner subprocess events continue to work."""
 
     def test_spawner_subprocess_events_not_affected(self, mock_db, tmp_path):
-        """Test that spawner subprocess events still get correct parent (regression test)."""
-        # This tests that the fix doesn't break the working spawner subprocess tracking
+        """Test that spawner subprocess creates tool trace (regression test).
 
-        # Spawner subprocess events are created by spawner scripts that:
-        # 1. Read HTMLGRAPH_PARENT_EVENT from environment
-        # 2. Create subprocess events with that parent
-
-        # The fix in create_start_event() now respects HTMLGRAPH_PARENT_EVENT,
-        # which is the same pattern spawners use. This should work correctly.
-
+        ARCHITECTURE NOTE: In the real system each hook is a separate process,
+        so HTMLGRAPH_PARENT_EVENT does NOT propagate from PreToolUse to PostToolUse.
+        For a known session (session_known=True), the env_parent branch is
+        intentionally disabled.  PostToolUse handles parent attribution via DB
+        fallback.  This test verifies PreToolUse still creates a tool_trace.
+        """
         task_delegation_id = f"evt-task-{uuid4().hex[:8]}"
 
-        # Create the parent event in the database first (to satisfy foreign key constraint)
+        # Create the parent event in the database first
         cursor = mock_db.connection.cursor()
         cursor.execute(
             """
@@ -486,35 +495,34 @@ class TestEventHierarchyRegression:
         os.environ["HTMLGRAPH_PARENT_EVENT"] = task_delegation_id
 
         try:
-            # Spawner would typically create its own event using similar logic
-            # The key is that HTMLGRAPH_PARENT_EVENT is respected
             from htmlgraph.hooks.pretooluse import create_start_event
 
             with patch("htmlgraph.config.get_database_path") as mock_get_db:
                 mock_get_db.return_value = Path(mock_db.db_path)
 
                 # Spawner subprocess creates events (simulated as tool events)
-                create_start_event(
-                    tool_name="Bash",  # Spawner runs via Bash
+                tool_use_id = create_start_event(
+                    tool_name="Bash",
                     tool_input={"command": "gemini-spawner --prompt 'test'"},
                     session_id="test-session-123",
                 )
 
-                # Verify HTMLGRAPH_PARENT_EVENT_FOR_POST was set to task_delegation
-                # (PostToolUse will use this to set parent_event_id when creating the event)
-                parent_for_post = os.environ.get("HTMLGRAPH_PARENT_EVENT_FOR_POST")
-                assert parent_for_post == task_delegation_id, (
-                    f"Spawner subprocess should have HTMLGRAPH_PARENT_EVENT_FOR_POST={task_delegation_id}, got {parent_for_post}"
+                # PreToolUse should still create a tool trace for correlation
+                assert tool_use_id is not None, (
+                    "PreToolUse should return a tool_use_id"
                 )
 
-                # Verify Bash exports its event ID for subprocess tracking
-                bash_event = os.environ.get("HTMLGRAPH_PARENT_EVENT")
-                assert bash_event is not None, (
-                    "Bash should export HTMLGRAPH_PARENT_EVENT for spawner subprocesses"
+                # Verify tool_traces was created
+                cursor = mock_db.connection.cursor()
+                cursor.execute(
+                    "SELECT tool_name FROM tool_traces WHERE tool_name = 'Bash' LIMIT 1"
                 )
+                row = cursor.fetchone()
+                assert row is not None, "Tool trace should be created by PreToolUse"
         finally:
             if "HTMLGRAPH_PARENT_EVENT" in os.environ:
                 del os.environ["HTMLGRAPH_PARENT_EVENT"]
+            os.environ.pop("HTMLGRAPH_PARENT_EVENT_FOR_POST", None)
 
 
 class TestMultiLevelNesting:
