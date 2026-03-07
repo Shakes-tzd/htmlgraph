@@ -1,14 +1,14 @@
 <link rel="stylesheet" href="/static/style-redesign.css">
 <div class="view-container activity-feed-view"
      hx-get="/views/activity-feed"
-     hx-trigger="every 5s, refresh"
+     hx-trigger="refresh"
      hx-ext="morph"
      hx-swap="morph:outerHTML"
      hx-target="this">
     <div class="view-header">
         <h2>Agent Activity Feed</h2>
         <div class="view-info">
-            <small>Table view of all agent activity - most recent events at top</small>
+            <small>Showing last {{ limit }} sessions • Table view of all agent activity - most recent events at top</small>
         </div>
         <div class="view-filters">
             <input type="text"
@@ -33,11 +33,18 @@
                 </thead>
                 <tbody id="activity-feed-tbody">
                     {% for group in hierarchical_events %}
-                        <!-- Parent Event (depth-0) -->
+                        <!-- Parent Event (depth-0): children lazy-loaded via HTMX on click -->
                         <tr class="activity-row parent-row event-{{ group.parent.status }} {% if group.has_children %}has-children{% endif %}"
                             id="{{ group.parent.event_id }}"
                             data-event-id="{{ group.parent.event_id }}"
-                            {% if group.has_children %}onclick="toggleChildren(this)"{% endif %}>
+                            data-children-loaded="false"
+                            {% if group.has_children %}
+                            hx-get="/views/activity-feed/children/{{ group.parent.event_id }}"
+                            hx-trigger="click once"
+                            hx-swap="afterend"
+                            hx-target="this"
+                            onclick="handleParentClick(this)"
+                            {% endif %}>
 
                             <td class="col-activity">
                                 <div class="activity-cell depth-0">
@@ -87,217 +94,6 @@
                                 </span>
                             </td>
                         </tr>
-
-                        <!-- Child Events (depth-1) - Hidden by default -->
-                        {% if group.has_children %}
-                            {% for child in group.children %}
-                            <tr class="activity-row child-row depth-1 event-{{ child.status }} hidden {% if child.children %}has-children{% endif %}"
-                                id="{{ child.event_id }}"
-                                data-event-id="{{ child.event_id }}"
-                                data-parent="{{ group.parent.event_id }}"
-                                data-depth="1"
-                                {% if child.children %}onclick="toggleChildren(this)"{% endif %}>
-
-                                <td class="col-activity">
-                                    <div class="activity-cell depth-1">
-                                        {% if child.children %}
-                                            <span class="expand-icon">&#9654;</span>
-                                        {% else %}
-                                            <span class="expand-placeholder"></span>
-                                        {% endif %}
-                                        <span class="event-dot type-{{ child.event_type }}"></span>
-                                        {% if child.tool_name and child.tool_name != 'UserQuery' %}
-                                            <code class="tool-chip">{{ child.tool_name }}</code>
-                                        {% endif %}
-                                        {% if child.tool_name in ('Task', 'Agent') %}
-                                            {% if child.subagent_type %}
-                                                {% set agent_type = child.subagent_type | lower %}
-                                                {% if 'researcher' in agent_type %}
-                                                    {% set badge_class = 'researcher-agent' %}
-                                                {% elif 'haiku' in agent_type %}
-                                                    {% set badge_class = 'haiku-agent' %}
-                                                {% elif 'opus' in agent_type %}
-                                                    {% set badge_class = 'opus-agent' %}
-                                                {% elif 'test' in agent_type or 'debug' in agent_type %}
-                                                    {% set badge_class = 'green-agent' %}
-                                                {% else %}
-                                                    {% set badge_class = 'claude-agent' %}
-                                                {% endif %}
-                                                <span class="agent-name-badge {{ badge_class }}" title="{{ child.subagent_type }}">{{ child.subagent_type }}</span>
-                                            {% endif %}
-                                            {% if child.model %}
-                                                {# Strip 'claude-' prefix, then replace last dash-separated version with dots #}
-                                                {% set m = child.model %}
-                                                {% if m.startswith('claude-') %}{% set m = m[7:] %}{% endif %}
-                                                {# e.g. sonnet-4-6 -> sonnet-4.6, haiku-4-5 -> haiku-4.5 #}
-                                                {% set parts = m.split('-') %}
-                                                {% if parts|length == 3 %}
-                                                    {% set m = parts[0] + '-' + parts[1] + '.' + parts[2] %}
-                                                {% elif parts|length == 2 %}
-                                                    {% set m = parts[0] + '-' + parts[1] %}
-                                                {% endif %}
-                                                <span class="model-badge" title="{{ child.model }}">{{ m }}</span>
-                                            {% endif %}
-                                        {% endif %}
-                                        {% if child.children %}
-                                            <span class="child-count">({{ child.total_count }})</span>
-                                        {% endif %}
-                                        {% if child.input_summary %}
-                                            <span class="activity-desc" title="{{ child.input_summary }}">{{ child.input_summary[:200] }}{% if child.input_summary|length > 200 %}&#8230;{% endif %}</span>
-                                        {% elif child.output_summary %}
-                                            <span class="activity-desc" title="{{ child.output_summary }}">{{ child.output_summary[:200] }}{% if child.output_summary|length > 200 %}&#8230;{% endif %}</span>
-                                        {% endif %}
-                                        {% if child.cost_tokens or child.execution_duration_seconds %}
-                                            <span class="detail-metrics">
-                                                {% if child.cost_tokens %}{{ child.cost_tokens }}t{% endif %}
-                                                {% if child.execution_duration_seconds %} {{ "%.1f"|format(child.execution_duration_seconds) }}s{% endif %}
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-
-                                <td class="col-status">
-                                    <span class="status-badge status-{{ child.status }}">{{ child.status }}</span>
-                                </td>
-
-                                <td class="col-ts">
-                                    <span class="timestamp-text"
-                                          data-utc-time="{{ child.timestamp }}"
-                                          title="{{ child.timestamp }}">
-                                        {{ child.timestamp[11:19] if child.timestamp|length >= 19 else child.timestamp }}
-                                    </span>
-                                </td>
-                            </tr>
-
-                            <!-- Grandchild Events (depth-2) -->
-                            {% if child.children %}
-                                {% for grandchild in child.children %}
-                                <tr class="activity-row child-row depth-2 event-{{ grandchild.status }} hidden {% if grandchild.children %}has-children{% endif %}"
-                                    id="{{ grandchild.event_id }}"
-                                    data-event-id="{{ grandchild.event_id }}"
-                                    data-parent="{{ child.event_id }}"
-                                    data-ancestor="{{ group.parent.event_id }}"
-                                    data-depth="2"
-                                    {% if grandchild.children %}onclick="toggleChildren(this)"{% endif %}>
-
-                                    <td class="col-activity">
-                                        <div class="activity-cell depth-2">
-                                            {% if grandchild.children %}
-                                                <span class="expand-icon">&#9654;</span>
-                                            {% else %}
-                                                <span class="expand-placeholder"></span>
-                                            {% endif %}
-                                            <span class="event-dot type-{{ grandchild.event_type }}"></span>
-                                            {% if grandchild.tool_name and grandchild.tool_name != 'UserQuery' %}
-                                                <code class="tool-chip">{{ grandchild.tool_name }}</code>
-                                            {% endif %}
-                                            {% if grandchild.tool_name in ('Task', 'Agent') %}
-                                                {% if grandchild.subagent_type %}
-                                                    {% set agent_type = grandchild.subagent_type | lower %}
-                                                    {% if 'researcher' in agent_type %}
-                                                        {% set badge_class = 'researcher-agent' %}
-                                                    {% elif 'haiku' in agent_type %}
-                                                        {% set badge_class = 'haiku-agent' %}
-                                                    {% elif 'opus' in agent_type %}
-                                                        {% set badge_class = 'opus-agent' %}
-                                                    {% elif 'test' in agent_type or 'debug' in agent_type %}
-                                                        {% set badge_class = 'green-agent' %}
-                                                    {% else %}
-                                                        {% set badge_class = 'claude-agent' %}
-                                                    {% endif %}
-                                                    <span class="agent-name-badge {{ badge_class }}" title="{{ grandchild.subagent_type }}">{{ grandchild.subagent_type }}</span>
-                                                {% endif %}
-                                                {% if grandchild.model %}
-                                                    {% set m = grandchild.model %}
-                                                    {% if m.startswith('claude-') %}{% set m = m[7:] %}{% endif %}
-                                                    {% set parts = m.split('-') %}
-                                                    {% if parts|length == 3 %}
-                                                        {% set m = parts[0] + '-' + parts[1] + '.' + parts[2] %}
-                                                    {% elif parts|length == 2 %}
-                                                        {% set m = parts[0] + '-' + parts[1] %}
-                                                    {% endif %}
-                                                    <span class="model-badge" title="{{ grandchild.model }}">{{ m }}</span>
-                                                {% endif %}
-                                            {% endif %}
-                                            {% if grandchild.children %}
-                                                <span class="child-count">({{ grandchild.total_count }})</span>
-                                            {% endif %}
-                                            {% if grandchild.input_summary %}
-                                                <span class="activity-desc" title="{{ grandchild.input_summary }}">{{ grandchild.input_summary[:200] }}{% if grandchild.input_summary|length > 200 %}&#8230;{% endif %}</span>
-                                            {% elif grandchild.output_summary %}
-                                                <span class="activity-desc" title="{{ grandchild.output_summary }}">{{ grandchild.output_summary[:200] }}{% if grandchild.output_summary|length > 200 %}&#8230;{% endif %}</span>
-                                            {% endif %}
-                                            {% if grandchild.cost_tokens or grandchild.execution_duration_seconds %}
-                                                <span class="detail-metrics">
-                                                    {% if grandchild.cost_tokens %}{{ grandchild.cost_tokens }}t{% endif %}
-                                                    {% if grandchild.execution_duration_seconds %} {{ "%.1f"|format(grandchild.execution_duration_seconds) }}s{% endif %}
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-
-                                    <td class="col-status">
-                                        <span class="status-badge status-{{ grandchild.status }}">{{ grandchild.status }}</span>
-                                    </td>
-
-                                    <td class="col-ts">
-                                        <span class="timestamp-text"
-                                              data-utc-time="{{ grandchild.timestamp }}"
-                                              title="{{ grandchild.timestamp }}">
-                                            {{ grandchild.timestamp[11:19] if grandchild.timestamp|length >= 19 else grandchild.timestamp }}
-                                        </span>
-                                    </td>
-                                </tr>
-
-                                <!-- Great-grandchild Events (depth-3) -->
-                                {% if grandchild.children %}
-                                    {% for ggchild in grandchild.children %}
-                                    <tr class="activity-row child-row depth-3 event-{{ ggchild.status }} hidden"
-                                        id="{{ ggchild.event_id }}"
-                                        data-event-id="{{ ggchild.event_id }}"
-                                        data-parent="{{ grandchild.event_id }}"
-                                        data-ancestor="{{ group.parent.event_id }}"
-                                        data-depth="3">
-
-                                        <td class="col-activity">
-                                            <div class="activity-cell depth-3">
-                                                <span class="expand-placeholder"></span>
-                                                <span class="event-dot type-{{ ggchild.event_type }}"></span>
-                                                {% if ggchild.tool_name and ggchild.tool_name != 'UserQuery' %}
-                                                    <code class="tool-chip">{{ ggchild.tool_name }}</code>
-                                                {% endif %}
-                                                {% if ggchild.input_summary %}
-                                                    <span class="activity-desc" title="{{ ggchild.input_summary }}">{{ ggchild.input_summary[:200] }}{% if ggchild.input_summary|length > 200 %}&#8230;{% endif %}</span>
-                                                {% elif ggchild.output_summary %}
-                                                    <span class="activity-desc" title="{{ ggchild.output_summary }}">{{ ggchild.output_summary[:200] }}{% if ggchild.output_summary|length > 200 %}&#8230;{% endif %}</span>
-                                                {% endif %}
-                                                {% if ggchild.cost_tokens or ggchild.execution_duration_seconds %}
-                                                    <span class="detail-metrics">
-                                                        {% if ggchild.cost_tokens %}{{ ggchild.cost_tokens }}t{% endif %}
-                                                        {% if ggchild.execution_duration_seconds %} {{ "%.1f"|format(ggchild.execution_duration_seconds) }}s{% endif %}
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-
-                                        <td class="col-status">
-                                            <span class="status-badge status-{{ ggchild.status }}">{{ ggchild.status }}</span>
-                                        </td>
-
-                                        <td class="col-ts">
-                                            <span class="timestamp-text"
-                                                  data-utc-time="{{ ggchild.timestamp }}"
-                                                  title="{{ ggchild.timestamp }}">
-                                                {{ ggchild.timestamp[11:19] if ggchild.timestamp|length >= 19 else ggchild.timestamp }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% endif %}
-                                {% endfor %}
-                            {% endif %}
-                            {% endfor %}
-                        {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
@@ -599,7 +395,7 @@ function collectDescendants(eventId) {
     return result;
 }
 
-// Toggle child rows visibility (handles multi-level nesting)
+// Toggle child rows visibility for already-loaded children (depth-1+)
 function toggleChildren(parentRow) {
     const eventId = parentRow.dataset.eventId;
     const directChildren = document.querySelectorAll(`[data-parent="${eventId}"]`);
@@ -616,7 +412,6 @@ function toggleChildren(parentRow) {
         // Collapse all descendants recursively
         collectDescendants(eventId).forEach(desc => {
             desc.classList.add('hidden');
-            // Also reset expand icons on nested rows
             const icon = desc.querySelector('.expand-icon');
             if (icon) icon.classList.remove('expanded');
         });
@@ -624,25 +419,28 @@ function toggleChildren(parentRow) {
     }
 }
 
-// Expand all parent rows (only direct children; user can drill deeper)
-function expandAll() {
-    document.querySelectorAll('.parent-row.has-children').forEach(row => {
-        const eventId = row.dataset.eventId;
-        const expandIcon = row.querySelector('.expand-icon');
-        document.querySelectorAll(`[data-parent="${eventId}"]`).forEach(child => {
-            child.classList.remove('hidden');
-        });
-        if (expandIcon) expandIcon.classList.add('expanded');
-    });
-    // Also expand depth-1 rows that have children
-    document.querySelectorAll('.child-row.has-children').forEach(row => {
-        const eventId = row.dataset.eventId;
-        const expandIcon = row.querySelector('.expand-icon');
-        document.querySelectorAll(`[data-parent="${eventId}"]`).forEach(child => {
-            child.classList.remove('hidden');
-        });
-        if (expandIcon) expandIcon.classList.add('expanded');
-    });
+// Handle click on a depth-0 parent row:
+// - First click: HTMX loads children (hx-trigger="click once" handles the request),
+//   then we mark loaded and expand the icon.
+// - Subsequent clicks: toggle already-loaded children visibility.
+function handleParentClick(row) {
+    const eventId = row.dataset.eventId;
+    const expandIcon = row.querySelector('.expand-icon');
+    const loaded = row.dataset.childrenLoaded === 'true';
+
+    if (!loaded) {
+        // Children not yet loaded — HTMX will fire the request (hx-trigger="click once").
+        // Mark as loaded now so the next click goes to the toggle branch.
+        row.dataset.childrenLoaded = 'true';
+        // Listen for HTMX afterSwap to expand the icon once children arrive.
+        row.addEventListener('htmx:afterSwap', function onSwap() {
+            row.removeEventListener('htmx:afterSwap', onSwap);
+            if (expandIcon) expandIcon.classList.add('expanded');
+        }, { once: true });
+    } else {
+        // Children already loaded — toggle visibility.
+        toggleChildren(row);
+    }
 }
 
 // Collapse all rows

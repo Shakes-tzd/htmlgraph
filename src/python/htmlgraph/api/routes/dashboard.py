@@ -200,7 +200,7 @@ async def agents_view(request: Request) -> HTMLResponse:
 @router.get("/views/activity-feed", response_class=HTMLResponse)
 async def activity_feed(
     request: Request,
-    limit: int = 50,
+    limit: int = 15,
     session_id: str | None = None,
     agent_id: str | None = None,
 ) -> HTMLResponse:
@@ -218,6 +218,11 @@ async def activity_feed(
         # each turn has a 'children' list which maps directly to the hierarchical format.
         conversation_turns = grouped_result.get("conversation_turns", [])
 
+        def count_descendants(node: dict) -> int:
+            """Recursively count all descendants of a node."""
+            children = node.get("children") or []
+            return len(children) + sum(count_descendants(ch) for ch in children)
+
         def build_child_node(c: dict) -> dict:
             """Recursively build a child node, preserving nested children."""
             node: dict = {
@@ -231,18 +236,25 @@ async def activity_feed(
                 "timestamp": c.get("timestamp", ""),
                 "cost_tokens": None,
                 "execution_duration_seconds": c.get("duration_seconds"),
+                "subagent_type": c.get("subagent_type"),
+                "model": c.get("model"),
             }
             nested = c.get("children")
             if nested:
                 node["children"] = [
                     build_child_node(grandchild) for grandchild in nested
                 ]
+            node["total_count"] = count_descendants(node)
             return node
 
         hierarchical_events = []
         for turn in conversation_turns:
             user_query = turn.get("userQuery") or {}
             children = turn.get("children", [])
+            built_children = [build_child_node(c) for c in children]
+            total_count = len(built_children) + sum(
+                count_descendants(ch) for ch in built_children
+            )
             hierarchical_events.append(
                 {
                     "parent": {
@@ -260,8 +272,9 @@ async def activity_feed(
                             "total_duration_seconds"
                         ),
                     },
-                    "children": [build_child_node(c) for c in children],
-                    "has_children": len(children) > 0,
+                    "children": built_children,
+                    "has_children": len(built_children) > 0,
+                    "total_count": total_count,
                 }
             )
 
@@ -274,6 +287,96 @@ async def activity_feed(
                 "total_turns": grouped_result.get("total_turns", 0),
                 "limit": limit,
             },
+        )
+    finally:
+        await db.close()
+
+
+@router.get(
+    "/views/activity-feed/children/{parent_event_id}", response_class=HTMLResponse
+)
+async def activity_feed_children(
+    parent_event_id: str,
+    request: Request,
+) -> HTMLResponse:
+    """Return child rows for a parent event (lazy loaded on expand)."""
+    deps = get_deps()
+    templates = get_templates()
+    db = await deps.get_db()
+
+    try:
+        activity_service, _, _ = deps.create_services(db)
+        grouped_result = await activity_service.get_grouped_events(limit=1000)
+
+        conversation_turns = grouped_result.get("conversation_turns", [])
+
+        def count_descendants(node: dict) -> int:
+            """Recursively count all descendants of a node."""
+            children = node.get("children") or []
+            return len(children) + sum(count_descendants(ch) for ch in children)
+
+        def build_child_node(c: dict) -> dict:
+            """Recursively build a child node, preserving nested children."""
+            node: dict = {
+                "event_id": c.get("event_id", ""),
+                "agent_id": c.get("agent", "claude-code"),
+                "event_type": "tool_call",
+                "tool_name": c.get("tool_name"),
+                "input_summary": c.get("summary", ""),
+                "output_summary": None,
+                "status": "completed",
+                "timestamp": c.get("timestamp", ""),
+                "cost_tokens": None,
+                "execution_duration_seconds": c.get("duration_seconds"),
+                "subagent_type": c.get("subagent_type"),
+                "model": c.get("model"),
+            }
+            nested = c.get("children")
+            if nested:
+                node["children"] = [
+                    build_child_node(grandchild) for grandchild in nested
+                ]
+            node["total_count"] = count_descendants(node)
+            return node
+
+        # Find the matching turn by parent event_id
+        target_group = None
+        for turn in conversation_turns:
+            user_query = turn.get("userQuery") or {}
+            if user_query.get("event_id", "") == parent_event_id:
+                children = turn.get("children", [])
+                built_children = [build_child_node(c) for c in children]
+                total_count = len(built_children) + sum(
+                    count_descendants(ch) for ch in built_children
+                )
+                target_group = {
+                    "parent": {
+                        "event_id": user_query.get("event_id", ""),
+                        "agent_id": user_query.get("agent_id", "claude-code"),
+                        "event_type": "user_query",
+                        "tool_name": "UserQuery",
+                        "input_summary": user_query.get("prompt", "")
+                        or user_query.get("input_summary", ""),
+                        "output_summary": None,
+                        "status": user_query.get("status", "completed"),
+                        "timestamp": user_query.get("timestamp", ""),
+                        "cost_tokens": None,
+                        "execution_duration_seconds": turn.get("stats", {}).get(
+                            "total_duration_seconds"
+                        ),
+                    },
+                    "children": built_children,
+                    "has_children": len(built_children) > 0,
+                    "total_count": total_count,
+                }
+                break
+
+        if target_group is None or not target_group["has_children"]:
+            return HTMLResponse("")
+
+        return templates.TemplateResponse(
+            "partials/activity-feed-children.html",
+            {"request": request, "group": target_group},
         )
     finally:
         await db.close()
