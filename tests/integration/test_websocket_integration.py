@@ -90,7 +90,8 @@ class TestWebSocketIntegration:
             result = await manager.connect(mock_ws, session_id, f"client-{i}")
             assert result is True
 
-        assert len(manager.connections[session_id]) == 5
+        session_clients = await manager.get_session_clients(session_id)
+        assert len(session_clients) == 5
 
         # Broadcast event to all
         event = {"event_type": "tool_call", "session_id": session_id}
@@ -102,7 +103,8 @@ class TestWebSocketIntegration:
         for i in range(5):
             await manager.disconnect(session_id, f"client-{i}")
 
-        assert session_id not in manager.connections
+        remaining = await manager.get_session_clients(session_id)
+        assert len(remaining) == 0
 
     @pytest.mark.asyncio
     async def test_client_reconnection(self, temp_db):
@@ -117,12 +119,14 @@ class TestWebSocketIntegration:
 
         # Disconnect
         await manager.disconnect(session_id, client_id)
-        assert session_id not in manager.connections
+        remaining = await manager.get_session_clients(session_id)
+        assert len(remaining) == 0
 
         # Reconnect
         mock_ws2 = AsyncMock()
         assert await manager.connect(mock_ws2, session_id, client_id)
-        assert session_id in manager.connections
+        reconnected = await manager.get_session_clients(session_id)
+        assert len(reconnected) == 1
 
     @pytest.mark.asyncio
     async def test_event_filtering_in_integration(self, temp_db):

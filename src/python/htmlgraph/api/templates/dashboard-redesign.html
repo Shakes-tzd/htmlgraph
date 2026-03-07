@@ -166,7 +166,12 @@
                         badge.classList.add('pulse');
                         setTimeout(() => badge.classList.remove('pulse'), 500);
 
-                        insertNewEventIntoActivityFeed(data);
+                        // Only refresh feed on meaningful events, not every tool call
+                        const HIGH_SIGNAL = new Set(['UserQuery', 'task_delegation', 'completion']);
+                        const isHighSignal = HIGH_SIGNAL.has(data.event_type) || HIGH_SIGNAL.has(data.tool_name);
+                        if (isHighSignal) {
+                            debouncedFeedRefresh();
+                        }
                     }
                 } catch (e) {
                     console.error('WebSocket message error:', e);
@@ -199,47 +204,79 @@
         }
 
         /**
-         * Insert new event into the grouped conversation turn activity feed
-         * Handles both UserQuery events (new turns) and child events (tool calls, etc.)
+         * Debounced feed refresh — prevents rapid-fire HTMX swaps when many
+         * low-signal tool events (Read, Bash, Grep) arrive in quick succession.
          */
-        function insertNewEventIntoActivityFeed(eventData) {
-            const conversationFeed = document.querySelector('.conversation-feed');
-            if (!conversationFeed) return;
-
-            // Check for empty state and remove it
-            const emptyState = conversationFeed.querySelector('.empty-state');
-            if (emptyState) {
-                emptyState.remove();
-            }
-
-            // Get or create the turns list container
-            let turnsList = conversationFeed.querySelector('.conversation-turns-list');
-            if (!turnsList) {
-                turnsList = document.createElement('div');
-                turnsList.className = 'conversation-turns-list';
-                conversationFeed.appendChild(turnsList);
-            }
-
-            // Check for duplicates
-            if (document.querySelector(`[data-event-id="${eventData.event_id}"]`)) {
-                console.log('Event already exists:', eventData.event_id);
-                return;
-            }
-
-            // Handle UserQuery events - create new conversation turn
-            if (eventData.tool_name === 'UserQuery') {
-                insertNewConversationTurn(eventData, turnsList);
-                return;
-            }
-
-            // Handle child events (tool calls, etc.)
-            if (eventData.parent_event_id) {
-                insertChildEvent(eventData);
-                return;
-            }
-
-            console.warn('Event with no parent_event_id and not UserQuery:', eventData);
+        let _feedRefreshTimer = null;
+        function debouncedFeedRefresh() {
+            if (_feedRefreshTimer) clearTimeout(_feedRefreshTimer);
+            _feedRefreshTimer = setTimeout(() => {
+                _feedRefreshTimer = null;
+                refreshActivityFeed();
+            }, 800);
         }
+
+        /**
+         * Refresh the activity feed via HTMX re-fetch.
+         * Called when a WebSocket event arrives — triggers the server to re-render
+         * the hierarchical activity feed partial and swap it into the content area.
+         */
+        function refreshActivityFeed() {
+            const feedContainer = document.querySelector('.activity-feed-view')
+                               || document.querySelector('[hx-get*="activity-feed"]');
+            if (feedContainer) {
+                htmx.trigger(feedContainer, 'refresh');
+            } else {
+                // Fallback: re-fetch and swap into the content area directly
+                htmx.ajax('GET', '/views/activity-feed', {
+                    target: document.querySelector('#content-area') || document.body,
+                    swap: 'innerHTML'
+                });
+            }
+        }
+
+        // Preserve expansion state across HTMX feed refreshes
+        document.addEventListener('htmx:beforeSwap', function(evt) {
+            if (evt.detail.target && evt.detail.target.classList.contains('activity-feed-view')) {
+                // toggleChildren() marks the .expand-icon, not the row
+                const expanded = new Set();
+                document.querySelectorAll('.activity-row .expand-icon.expanded').forEach(icon => {
+                    const row = icon.closest('[data-event-id]');
+                    if (!row) return;
+                    const eid = row.dataset.eventId;
+                    if (row.classList.contains('parent-row')) {
+                        expanded.add(eid);
+                    } else if (row.classList.contains('depth-1')) {
+                        expanded.add('child:' + eid);
+                    }
+                });
+                window._htmxFeedExpandedState = Array.from(expanded);
+            }
+        });
+
+        document.addEventListener('htmx:afterSettle', function(evt) {
+            if (!window._htmxFeedExpandedState || !window._htmxFeedExpandedState.length) return;
+
+            const expandedIds = new Set(window._htmxFeedExpandedState);
+            window._htmxFeedExpandedState = null;
+
+            // Use document query because outerHTML swap detaches the original target
+            const feedContainer = document.querySelector('.activity-feed-view');
+            if (!feedContainer) return;
+
+            // Re-expand parent rows
+            feedContainer.querySelectorAll('.parent-row').forEach(row => {
+                if (expandedIds.has(row.dataset.eventId)) {
+                    toggleChildren(row);
+                }
+            });
+            // Re-expand depth-1 child rows
+            feedContainer.querySelectorAll('.child-row.depth-1').forEach(row => {
+                if (expandedIds.has('child:' + row.dataset.eventId)) {
+                    toggleChildren(row);
+                }
+            });
+        });
 
         /**
          * Create and insert a new conversation turn for a UserQuery event
