@@ -283,7 +283,9 @@ class TestDetectAgentFromEnvironment:
 
     def test_detect_explicit_htmlgraph_agent(self):
         """Test detection with HTMLGRAPH_AGENT env var."""
-        with mock.patch.dict(os.environ, {"HTMLGRAPH_AGENT": "explicit-agent"}, clear=True):
+        with mock.patch.dict(
+            os.environ, {"HTMLGRAPH_AGENT": "explicit-agent"}, clear=True
+        ):
             with mock.patch(
                 "htmlgraph.hooks.model_detection.get_model_from_parent_event",
                 return_value=None,

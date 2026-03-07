@@ -216,8 +216,8 @@ async def suggest_debugging_resources(hook_input: dict[str, Any]) -> dict[str, A
             suggestions.append("  🐛 Debugger agent - Root cause analysis")
             suggestions.append("  Built-in: /doctor, /hooks, claude --debug")
 
-        # Check for Task tool without save evidence
-        if tool_name == "Task":
+        # Check for Task/Agent tool without save evidence
+        if tool_name in ("Task", "Agent"):
             result_text = str(tool_response).lower()
             save_indicators = [".save()", "spike", "htmlgraph", ".create("]
             if not any(ind in result_text for ind in save_indicators):

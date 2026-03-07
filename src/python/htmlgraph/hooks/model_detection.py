@@ -122,8 +122,8 @@ def detect_model_from_hook_input(hook_input: dict[str, Any]) -> str | None:
     )
     tool_input = tool_input_value if isinstance(tool_input_value, dict) else {}
 
-    # 1. Check for Task() model parameter first
-    if tool_name == "Task" and "model" in tool_input:
+    # 1. Check for Task()/Agent() model parameter first
+    if tool_name in ("Task", "Agent") and "model" in tool_input:
         model_value: Any = tool_input.get("model")
         if model_value and isinstance(model_value, str):
             model = model_value.strip().lower()

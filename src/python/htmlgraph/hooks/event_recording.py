@@ -92,7 +92,7 @@ def format_tool_summary(
         pattern = str(tool_input.get("pattern", ""))
         return pattern
 
-    elif tool_name == "Task":
+    elif tool_name in ("Task", "Agent"):
         desc = str(tool_input.get("description", ""))[:50]
         agent = str(tool_input.get("subagent_type", ""))
         return f"({agent}): {desc}"
@@ -199,7 +199,7 @@ def record_event_to_sqlite(
         # Extract task_id from Tool response if not provided
         if (
             not claude_task_id
-            and tool_name == "Task"
+            and tool_name in ("Task", "Agent")
             and isinstance(tool_response, dict)
         ):
             claude_task_id = tool_response.get("task_id")
