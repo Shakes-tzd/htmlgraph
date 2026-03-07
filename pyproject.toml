@@ -41,6 +41,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-xdist>=3.0.0",
     "black>=23.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
@@ -143,4 +144,5 @@ docformat = "google"
 dev = [
     "playwright>=1.57.0",
     "pytest-playwright>=0.7.2",
+    "pytest-xdist>=3.0.0",
 ]

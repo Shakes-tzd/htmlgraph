@@ -1,21 +1,18 @@
 """Tests for the Cursor AI session ingester."""
+
 from __future__ import annotations
 
 import json
 import sqlite3
-import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.ingest.cursor import (
     CursorConversation,
     IngestResult,
     find_cursor_db,
     load_cursor_conversations,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -127,8 +124,14 @@ def tmp_empty_cursor_db(tmp_path: Path) -> Path:
 class TestCursorConversation:
     def test_parse_full_row(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = (
             "conv-abc123",
@@ -151,8 +154,14 @@ class TestCursorConversation:
 
     def test_timestamp_parsed_from_ms(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("c1", None, None, None, "[]", None, None, 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -160,8 +169,14 @@ class TestCursorConversation:
 
     def test_invalid_updated_at_falls_back(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         # 0 ms → epoch (1970); verify graceful parse, not a crash
         row = ("c1", None, None, None, "[]", None, None, 0)
@@ -170,8 +185,14 @@ class TestCursorConversation:
 
     def test_invalid_bullets_json_becomes_empty(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("c1", None, None, None, "not json", None, None, 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -179,8 +200,14 @@ class TestCursorConversation:
 
     def test_none_fields_normalised(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("c1", "", "", "", "[]", "", "", 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -191,8 +218,14 @@ class TestCursorConversation:
 
     def test_description_uses_title(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("c1", "My title", "My tldr", None, "[]", None, None, 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -200,8 +233,14 @@ class TestCursorConversation:
 
     def test_description_falls_back_to_tldr(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("c1", None, "My tldr", None, "[]", None, None, 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -209,8 +248,14 @@ class TestCursorConversation:
 
     def test_description_falls_back_to_first_bullet(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("c1", None, None, None, '["First bullet"]', None, None, 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -218,8 +263,14 @@ class TestCursorConversation:
 
     def test_description_fallback_uses_id(self) -> None:
         columns = [
-            "conversationId", "title", "tldr", "overview",
-            "summaryBullets", "model", "mode", "updatedAt"
+            "conversationId",
+            "title",
+            "tldr",
+            "overview",
+            "summaryBullets",
+            "model",
+            "mode",
+            "updatedAt",
         ]
         row = ("conv-xyz999", None, None, None, "[]", None, None, 1767380654720)
         conv = CursorConversation.from_row(row, columns)
@@ -240,7 +291,9 @@ class TestFindCursorDb:
         result = find_cursor_db(db_path=tmp_path / "nonexistent.db")
         assert result is None
 
-    def test_returns_none_when_no_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_none_when_no_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """When default path doesn't exist and no explicit path given, returns None."""
         import htmlgraph.ingest.cursor as cursor_mod
 

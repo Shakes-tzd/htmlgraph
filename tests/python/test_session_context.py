@@ -564,7 +564,7 @@ class TestSessionContextBuilder:
                 assert "Test Feature" in context
 
     def test_build_with_system_prompt(self):
-        """Build prepends system prompt when available."""
+        """Build succeeds when system prompt is available (prompt handled natively, not injected)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             builder = self._make_builder(tmpdir)
 
@@ -584,8 +584,10 @@ class TestSessionContextBuilder:
                 patch.object(builder, "validate_token_count", return_value=(True, 10)),
             ):
                 context = builder.build(session_id="test-session", compute_async=True)
-                assert "SYSTEM PROMPT RESTORED" in context
-                assert "Test system prompt content" in context
+                # System prompt is now handled natively via --append-system-prompt flag,
+                # so it is NOT injected into the session context string.
+                assert "Test system prompt content" not in context
+                assert "HTMLGRAPH" in context
 
     def test_build_sync_mode(self):
         """Build works in synchronous mode (compute_async=False)."""
@@ -610,19 +612,16 @@ class TestSessionContextBuilder:
             assert result == "test context"
 
     def test_wrap_with_system_prompt_present(self):
-        """Wrapping with system prompt prepends it."""
+        """Wrapping with system prompt returns context unchanged (prompt handled natively)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             builder = self._make_builder(tmpdir)
             with patch.object(builder, "validate_token_count", return_value=(True, 10)):
                 result = builder._wrap_with_system_prompt(
                     "main context", "system prompt text", "sess-001"
                 )
-                assert "system prompt text" in result
-                assert "main context" in result
-                # System prompt should come first
-                sys_idx = result.index("system prompt text")
-                main_idx = result.index("main context")
-                assert sys_idx < main_idx
+                # System prompt is now handled natively via --append-system-prompt flag,
+                # so _wrap_with_system_prompt returns context unchanged.
+                assert result == "main context"
 
 
 # ===========================================================================

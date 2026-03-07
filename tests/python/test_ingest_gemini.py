@@ -1,21 +1,18 @@
 """Tests for the Gemini CLI session ingester."""
+
 from __future__ import annotations
 
 import json
-import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.ingest.gemini import (
     GeminiMessage,
     GeminiSession,
-    IngestResult,
     find_gemini_sessions,
     parse_gemini_session,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -97,7 +94,7 @@ def tmp_gemini_dir_multi(tmp_path: Path) -> Path:
                 session_id=f"session-{i}-{j}",
                 project_hash=project_hash,
             )
-            sf = chats_dir / f"session-2025-0{i+1}-0{j+1}T10-00-00.json"
+            sf = chats_dir / f"session-2025-0{i + 1}-0{j + 1}T10-00-00.json"
             sf.write_text(json.dumps(session_data), encoding="utf-8")
     return tmp_path
 
@@ -129,7 +126,9 @@ class TestGeminiMessage:
             "timestamp": "2025-01-01T12:00:05.000Z",
             "type": "gemini",
             "content": "Sure!",
-            "toolCalls": [{"id": "tc-1", "name": "read_file", "args": {}, "result": []}],
+            "toolCalls": [
+                {"id": "tc-1", "name": "read_file", "args": {}, "result": []}
+            ],
             "thoughts": "thinking...",
             "model": "gemini-2.5-pro",
             "tokens": {"input": 50, "output": 100},
@@ -249,7 +248,12 @@ class TestGeminiSession:
                     "toolCalls": [
                         {"id": "1", "name": "read_file", "args": {}, "result": []},
                         {"id": "2", "name": "read_file", "args": {}, "result": []},
-                        {"id": "3", "name": "run_shell_command", "args": {}, "result": []},
+                        {
+                            "id": "3",
+                            "name": "run_shell_command",
+                            "args": {},
+                            "result": [],
+                        },
                     ],
                 }
             ]

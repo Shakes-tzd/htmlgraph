@@ -6,9 +6,11 @@ Tests the real-time agent status dashboard functionality
 import asyncio
 from pathlib import Path
 
+import pytest
 from playwright.async_api import async_playwright
 
 
+@pytest.mark.asyncio
 async def test_presence_widget_html_structure():
     """Test that Presence Widget HTML is well-formed and contains required elements."""
     widget_path = (

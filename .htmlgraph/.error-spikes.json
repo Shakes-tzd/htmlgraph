@@ -353,5 +353,15 @@
     "spike_id": "spk-f97c50d1",
     "created": "2026-03-05T09:39:50.122664",
     "occurrences": 3
+  },
+  "Bash:Exit code 1\n\ud83d\udd0d Running pre-commit checks...\n  \u2192 checking for incomplete systematic changes...\nerror: ": {
+    "spike_id": "spk-a63b3b8b",
+    "created": "2026-03-06T06:19:07.934482",
+    "occurrences": 3
+  },
+  "Bash:Exit code 2\nerror: Failed to spawn: `mypy`\n  Caused by: No such file or directory (os error 2)": {
+    "spike_id": "spk-46c347f4",
+    "created": "2026-03-07T03:23:03.153490",
+    "occurrences": 3
   }
 }

@@ -98,10 +98,10 @@ class StandardFilterService(FilterService):
             field="priority",
             operator=FilterOperator.GREATER_EQUAL,
             value=priority_value,
-            predicate=lambda item: PRIORITY_MAP.get(
-                getattr(item, "priority", "low").lower(), 0
-            )
-            >= priority_value,
+            predicate=lambda item: (
+                PRIORITY_MAP.get(getattr(item, "priority", "low").lower(), 0)
+                >= priority_value
+            ),
         )
 
     def priority_lte(self, priority: str) -> Filter:
@@ -111,10 +111,10 @@ class StandardFilterService(FilterService):
             field="priority",
             operator=FilterOperator.LESS_EQUAL,
             value=priority_value,
-            predicate=lambda item: PRIORITY_MAP.get(
-                getattr(item, "priority", "low").lower(), 0
-            )
-            <= priority_value,
+            predicate=lambda item: (
+                PRIORITY_MAP.get(getattr(item, "priority", "low").lower(), 0)
+                <= priority_value
+            ),
         )
 
     def assigned_to(self, agent: str) -> Filter:

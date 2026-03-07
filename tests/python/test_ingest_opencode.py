@@ -1,21 +1,18 @@
 """Tests for the OpenCode session ingester."""
+
 from __future__ import annotations
 
 import json
-import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from htmlgraph.ingest.opencode import (
+    IngestResult,
     OpenCodeMessage,
     OpenCodeSession,
-    IngestResult,
     find_opencode_sessions,
     parse_opencode_session,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -120,9 +117,7 @@ def tmp_opencode_dir_multi(tmp_path: Path) -> Path:
                 created_ms=1767380654720 + (i * 10 + j) * 1000,
                 updated_ms=1767380654720 + (i * 10 + j) * 1000 + 500,
             )
-            (session_dir / f"{sid}.json").write_text(
-                json.dumps(data), encoding="utf-8"
-            )
+            (session_dir / f"{sid}.json").write_text(json.dumps(data), encoding="utf-8")
     return tmp_path
 
 
@@ -198,7 +193,9 @@ class TestOpenCodeSession:
         data = _make_session_json()
         msgs = [
             OpenCodeMessage.from_dict(_make_message_json(msg_id="m1", role="user")),
-            OpenCodeMessage.from_dict(_make_message_json(msg_id="m2", role="assistant")),
+            OpenCodeMessage.from_dict(
+                _make_message_json(msg_id="m2", role="assistant")
+            ),
             OpenCodeMessage.from_dict(_make_message_json(msg_id="m3", role="user")),
         ]
         session = OpenCodeSession.from_dict(
