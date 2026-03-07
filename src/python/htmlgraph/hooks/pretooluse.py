@@ -348,8 +348,9 @@ def create_task_parent_event(
             """
             INSERT INTO agent_events
             (event_id, agent_id, event_type, timestamp, tool_name,
-             input_summary, session_id, status, subagent_type, parent_event_id, model)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             input_summary, session_id, status, subagent_type, parent_event_id, model,
+             tool_input)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 parent_event_id,
@@ -363,6 +364,9 @@ def create_task_parent_event(
                 subagent_type or "general-purpose",
                 parent_event_id_for_insertion,  # Link to parent Task or UserQuery
                 model,  # Model from tool_input (e.g., "claude-haiku")
+                json.dumps(
+                    task_params
+                ),  # Store full task input for background detection
             ),
         )
 

@@ -1490,10 +1490,78 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             )
         if env_parent:
             parent_activity_id = env_parent
-        # If we detected a Task delegation event via database detection (Method 3),
-        # use that as the parent for all tool calls within the subagent
+        # If we detected a Task delegation event via database detection (Method 1/3),
+        # use that as the parent -- but ONLY if it's not stale.
+        #
+        # STALENESS FIX (v0.33.21): Method 1 and Method 3 find task_delegations
+        # without any staleness check.  After a session compaction, the old
+        # task_delegation from turn N still has status='started' and gets picked
+        # up again in turn N+1.  Validate that the task was created AFTER the
+        # current UserQuery (same turn) before trusting it.
         elif task_event_id_from_db:
-            parent_activity_id = task_event_id_from_db
+            task_is_stale = False
+            stale_fallback_uq_id: str | None = None
+            if db and db.connection:
+                try:
+                    _cursor = db.connection.cursor()
+                    # Fetch the task_delegation's timestamp
+                    _cursor.execute(
+                        "SELECT timestamp FROM agent_events WHERE event_id = ? LIMIT 1",
+                        (task_event_id_from_db,),
+                    )
+                    _task_row = _cursor.fetchone()
+                    # Determine the session to look up the UserQuery in.
+                    # For subagent sessions, the UserQuery lives in the parent session.
+                    uq_lookup_session = active_session_id
+                    if parent_session_id:
+                        uq_lookup_session = parent_session_id
+                    else:
+                        # Try suffix-stripping to find parent session
+                        _known_suffixes = [
+                            "-general-purpose",
+                            "-Explore",
+                            "-Bash",
+                            "-Plan",
+                            "-researcher",
+                            "-debugger",
+                            "-test-runner",
+                        ]
+                        for _sfx in _known_suffixes:
+                            if active_session_id.endswith(_sfx):
+                                uq_lookup_session = active_session_id[: -len(_sfx)]
+                                break
+                    # Fetch the most recent UserQuery's timestamp in the relevant session
+                    stale_fallback_uq_id = get_parent_user_query(db, uq_lookup_session)
+                    _uq_ts = None
+                    if stale_fallback_uq_id:
+                        _cursor.execute(
+                            "SELECT timestamp FROM agent_events WHERE event_id = ? LIMIT 1",
+                            (stale_fallback_uq_id,),
+                        )
+                        _uq_row = _cursor.fetchone()
+                        if _uq_row:
+                            _uq_ts = _uq_row[0]
+                    if _task_row and _uq_ts:
+                        _task_ts_norm = (
+                            _task_row[0].replace("T", " ")[:19] if _task_row[0] else ""
+                        )
+                        _uq_ts_norm = _uq_ts.replace("T", " ")[:19]
+                        if _task_ts_norm <= _uq_ts_norm:
+                            task_is_stale = True
+                            logger.debug(
+                                f"Discarding stale task_event_id_from_db={task_event_id_from_db}: "
+                                f"ts={_task_row[0]} <= UserQuery ts={_uq_ts} "
+                                f"(task from prior turn, session={uq_lookup_session})"
+                            )
+                except Exception as e:
+                    logger.debug(
+                        f"Could not validate task_event_id_from_db staleness: {e}"
+                    )
+            if not task_is_stale:
+                parent_activity_id = task_event_id_from_db
+            else:
+                # Task was stale -- fall back to UserQuery as parent.
+                parent_activity_id = stale_fallback_uq_id
         # CRITICAL FIX: Check for active task_delegation EVEN IF task_event_id_from_db not set
         # This handles Claude Code's session reuse where parent_session_id is NULL
         # When tool calls come from a subagent, they should be under the task_delegation parent,
@@ -1557,7 +1625,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     # Fetch event_id and timestamp for staleness check.
                     cursor.execute(
                         """
-                        SELECT event_id, timestamp
+                        SELECT event_id, timestamp, tool_input
                         FROM agent_events
                         WHERE event_type = 'task_delegation'
                           AND status = 'started'
@@ -1568,8 +1636,17 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                         (active_session_id,),
                     )
                     task_row = cursor.fetchone()
+                    # If this is a background task, don't attribute subsequent orchestrator
+                    # tool calls to it — treat it as if no active task_delegation exists.
                     if task_row:
-                        task_evt_id, task_evt_ts = task_row
+                        _ti = task_row[2]
+                        try:
+                            if _ti and json.loads(_ti).get("run_in_background"):
+                                task_row = None
+                        except Exception:
+                            pass
+                    if task_row:
+                        task_evt_id, task_evt_ts = task_row[0], task_row[1]
                         # Staleness check: task must have been created AFTER the
                         # current UserQuery.  Compare normalized timestamps.
                         task_ts_norm = (
@@ -1629,7 +1706,7 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                                     pass
                             cursor.execute(
                                 """
-                                SELECT event_id, timestamp
+                                SELECT event_id, timestamp, tool_input
                                 FROM agent_events
                                 WHERE event_type = 'task_delegation'
                                   AND status = 'started'
@@ -1640,8 +1717,19 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                                 (parent_sess,),
                             )
                             task_row = cursor.fetchone()
+                            # If this is a background task, don't attribute subsequent orchestrator
+                            # tool calls to it — treat it as if no active task_delegation exists.
                             if task_row:
-                                task_evt_id, task_evt_ts = task_row
+                                _ti2 = task_row[2]
+                                try:
+                                    if _ti2 and json.loads(_ti2).get(
+                                        "run_in_background"
+                                    ):
+                                        task_row = None
+                                except Exception:
+                                    pass
+                            if task_row:
+                                task_evt_id, task_evt_ts = task_row[0], task_row[1]
                                 # Staleness check for parent session using timestamps
                                 task_ts_norm = (
                                     task_evt_ts.replace("T", " ")[:19]
