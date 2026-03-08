@@ -196,9 +196,11 @@ class SDK(
         self._parent_session = parent_session or os.getenv("HTMLGRAPH_PARENT_SESSION")
 
         # Initialize SQLite database (Phase 2)
-        self._db = HtmlGraphDB(
-            db_path or str(Path.home() / ".htmlgraph" / "htmlgraph.db")
-        )
+        # Resolve DB path relative to the discovered .htmlgraph directory so that
+        # subagents launched from a different cwd still use the project-local DB,
+        # not ~/.htmlgraph/htmlgraph.db.
+        resolved_db_path = db_path or str(self._directory / "htmlgraph.db")
+        self._db = HtmlGraphDB(resolved_db_path)
         self._db.connect()
         self._db.create_tables()
 
