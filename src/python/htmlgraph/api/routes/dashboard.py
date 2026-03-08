@@ -212,7 +212,11 @@ async def activity_feed(
 
     try:
         activity_service, _, _ = deps.create_services(db)
-        grouped_result = await activity_service.get_grouped_events(limit=limit)
+        grouped_result = await activity_service.get_grouped_events(
+            limit=limit,
+            agent_id=agent_id,
+            session_id=session_id,
+        )
 
         # Build hierarchical_events list for the hierarchical template.
         # conversation_turns from get_grouped_events are already grouped by UserQuery;
@@ -233,7 +237,7 @@ async def activity_feed(
                 "tool_name": c.get("tool_name"),
                 "input_summary": c.get("summary", ""),
                 "output_summary": None,
-                "status": "completed",
+                "status": c.get("status", "completed"),
                 "timestamp": c.get("timestamp", ""),
                 "cost_tokens": None,
                 "execution_duration_seconds": c.get("duration_seconds"),
@@ -325,7 +329,7 @@ async def activity_feed_children(
                 "tool_name": c.get("tool_name"),
                 "input_summary": c.get("summary", ""),
                 "output_summary": None,
-                "status": "completed",
+                "status": c.get("status", "completed"),
                 "timestamp": c.get("timestamp", ""),
                 "cost_tokens": None,
                 "execution_duration_seconds": c.get("duration_seconds"),
@@ -509,7 +513,7 @@ async def activity_feed_delta(
                 "tool_name": c.get("tool_name"),
                 "input_summary": c.get("summary", ""),
                 "output_summary": None,
-                "status": "completed",
+                "status": c.get("status", "completed"),
                 "timestamp": c.get("timestamp", ""),
                 "cost_tokens": None,
                 "execution_duration_seconds": c.get("duration_seconds"),

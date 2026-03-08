@@ -33,7 +33,12 @@ class ActivityService:
         self.cache = cache
         self.logger = logger or logging.getLogger(__name__)
 
-    async def get_grouped_events(self, limit: int = 50) -> dict[str, Any]:
+    async def get_grouped_events(
+        self,
+        limit: int = 50,
+        agent_id: str | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Return activity events grouped by user prompt (conversation turns).
 
@@ -44,6 +49,8 @@ class ActivityService:
 
         Args:
             limit: Maximum number of conversation turns to return (default 50)
+            agent_id: Optional filter — only return turns from this agent
+            session_id: Optional filter — only return turns from this session
 
         Returns:
             Dictionary with conversation turns and metadata
@@ -51,7 +58,7 @@ class ActivityService:
         query_start_time = time.time()
 
         try:
-            cache_key = f"events_grouped_by_prompt:{limit}"
+            cache_key = f"events_grouped_by_prompt:{limit}:{agent_id}:{session_id}"
 
             cached_result = self.cache.get(cache_key)
             if cached_result is not None:
@@ -64,8 +71,20 @@ class ActivityService:
 
             exec_start = time.time()
 
-            # Step 1: Query UserQuery events (most recent first)
-            user_query_sql = """
+            # Step 1: Query UserQuery events (most recent first), with optional filters
+            filter_clauses = ["tool_name = 'UserQuery'"]
+            filter_params: list[Any] = []
+
+            if agent_id is not None:
+                filter_clauses.append("agent_id = ?")
+                filter_params.append(agent_id)
+
+            if session_id is not None:
+                filter_clauses.append("session_id = ?")
+                filter_params.append(session_id)
+
+            where_clause = " AND ".join(filter_clauses)
+            user_query_sql = f"""
                 SELECT
                     event_id,
                     timestamp,
@@ -75,12 +94,13 @@ class ActivityService:
                     agent_id,
                     session_id
                 FROM agent_events
-                WHERE tool_name = 'UserQuery'
+                WHERE {where_clause}
                 ORDER BY timestamp DESC
                 LIMIT ?
             """
+            filter_params.append(limit)
 
-            async with self.db.execute(user_query_sql, [limit]) as cursor:
+            async with self.db.execute(user_query_sql, filter_params) as cursor:
                 user_query_rows: list[Any] = list(await cursor.fetchall())
 
             conversation_turns: list[dict[str, Any]] = []
@@ -233,6 +253,7 @@ class ActivityService:
                             "depth": depth,
                             "model": model,
                             "feature_id": feature_id,
+                            "status": status,
                         }
 
                         if spawner_type:
@@ -386,6 +407,7 @@ class ActivityService:
                         "depth": 0,
                         "model": model,
                         "feature_id": feature_id,
+                        "status": status,
                     }
                     if spawner_type:
                         orphan_dict["spawner_type"] = spawner_type
@@ -495,6 +517,7 @@ class ActivityService:
                                 "depth": 1,  # Nested under Task
                                 "model": model,
                                 "feature_id": feature_id,
+                                "status": row[5],
                             }
 
                             if spawner_type:
