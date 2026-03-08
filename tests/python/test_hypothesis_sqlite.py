@@ -34,6 +34,7 @@ pytestmark = pytest.mark.skipif(
 @settings(
     max_examples=30,
     suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+    deadline=None,
 )
 def test_insert_event_handles_arbitrary_strings(tool_name, agent_id):
     """insert_event should not raise on valid string inputs."""

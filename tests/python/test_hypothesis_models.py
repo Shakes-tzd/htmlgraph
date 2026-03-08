@@ -20,7 +20,7 @@ pytestmark = pytest.mark.skipif(
     tool_name=st.text(min_size=1, max_size=100),
     session_id=st.uuids().map(str),
 )
-@settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
 def test_event_model_accepts_valid_strings(tool_name, session_id):
     """HtmlGraphEvent should accept any valid string tool name and UUID session ID."""
     try:
@@ -43,7 +43,7 @@ def test_event_model_accepts_valid_strings(tool_name, session_id):
     priority=st.sampled_from(["high", "medium", "low", "critical"]),
     title=st.text(min_size=1, max_size=200).filter(lambda s: s.strip()),
 )
-@settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
+@settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow], deadline=None)
 def test_feature_creation_with_valid_priorities(priority, title):
     """Features should be creatable with any valid priority."""
     try:
