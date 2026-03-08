@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 
@@ -33,8 +34,16 @@ class OplogSyncService:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
+    @asynccontextmanager
+    async def _get_connection(self) -> AsyncGenerator[aiosqlite.Connection, None]:
+        """Open a single aiosqlite connection with pragmas applied once."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            await apply_async_pragmas(db)
+            yield db
+
     async def push_entries(
-        self, entries: Sequence[OplogEntry], consumer_id: str | None = None
+        self, entries: list[OplogEntry], consumer_id: str | None = None
     ) -> OplogPushResponse:
         results: list[OplogPushResult] = []
         inserted_count = 0
@@ -42,9 +51,7 @@ class OplogSyncService:
         conflict_count = 0
         applied_seq = 0
 
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            await apply_async_pragmas(db)
+        async with self._get_connection() as db:
             await db.execute("BEGIN IMMEDIATE")
 
             try:
@@ -164,10 +171,7 @@ class OplogSyncService:
         entries: list[dict[str, Any]] = []
         server_max_seq = 0
 
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            await apply_async_pragmas(db)
-
+        async with self._get_connection() as db:
             max_cursor = await db.execute(
                 "SELECT COALESCE(MAX(seq), 0) as max_seq FROM oplog"
             )
@@ -229,10 +233,7 @@ class OplogSyncService:
         )
 
     async def ack_cursor(self, request: OplogAckRequest) -> OplogAckResponse:
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            await apply_async_pragmas(db)
-
+        async with self._get_connection() as db:
             cursor_state = await self._upsert_cursor(
                 db=db,
                 consumer_id=request.consumer_id,
@@ -244,10 +245,7 @@ class OplogSyncService:
         return OplogAckResponse(cursor=cursor_state)
 
     async def get_status(self, consumer_id: str | None = None) -> SyncStatusResponse:
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            await apply_async_pragmas(db)
-
+        async with self._get_connection() as db:
             max_cursor = await db.execute(
                 "SELECT COALESCE(MAX(seq), 0) as max_seq FROM oplog"
             )
