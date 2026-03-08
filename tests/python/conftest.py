@@ -218,3 +218,14 @@ def isolated_sdk_minimal(isolated_graph_dir: Path, isolated_db: Path) -> SDK:
         agent="test-agent",
         db_path=str(isolated_db),
     )
+
+
+def pytest_collection_modifyitems(items: list) -> None:
+    """Mark tests that should run serially.
+
+    Tests with @pytest.mark.serial are marked with xdist_group
+    to ensure they run serially when using -n auto.
+    """
+    for item in items:
+        if item.get_closest_marker("serial"):
+            item.add_marker(pytest.mark.xdist_group("serial"))

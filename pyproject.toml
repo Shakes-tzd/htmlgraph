@@ -92,8 +92,11 @@ include = [
 testpaths = ["tests/python"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --cov=src/python/htmlgraph --cov-report=term-missing"
+addopts = "-v --cov=src/python/htmlgraph --cov-report=term-missing -n auto"
 asyncio_mode = "auto"
+markers = [
+    "serial: marks tests as needing to run serially (deselect with '-m \"not serial\"')",
+]
 
 [tool.black]
 line-length = 88
