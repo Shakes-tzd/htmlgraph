@@ -280,6 +280,9 @@ async def activity_feed(
                     "children": built_children,
                     "has_children": len(built_children) > 0,
                     "total_count": total_count,
+                    "work_item_id": turn.get("work_item_id"),
+                    "work_item_title": turn.get("work_item_title"),
+                    "work_item_type": turn.get("work_item_type") or "feature",
                 }
             )
 
@@ -373,6 +376,9 @@ async def activity_feed_children(
                     "children": built_children,
                     "has_children": len(built_children) > 0,
                     "total_count": total_count,
+                    "work_item_id": turn.get("work_item_id"),
+                    "work_item_title": turn.get("work_item_title"),
+                    "work_item_type": turn.get("work_item_type") or "feature",
                 }
                 break
 
@@ -557,6 +563,9 @@ async def activity_feed_delta(
                     "children": built_children,
                     "has_children": len(built_children) > 0,
                     "total_count": total_count,
+                    "work_item_id": turn.get("work_item_id"),
+                    "work_item_title": turn.get("work_item_title"),
+                    "work_item_type": turn.get("work_item_type") or "feature",
                 }
             )
 
@@ -683,18 +692,16 @@ async def initial_stats() -> dict[str, Any]:
         stats_query = """
             SELECT
                 (SELECT COUNT(*) FROM agent_events) as total_events,
-                (SELECT COUNT(DISTINCT agent_id) FROM agent_events) as total_agents,
+                (SELECT COUNT(DISTINCT agent_assigned) FROM sessions WHERE agent_assigned IS NOT NULL) as total_agents,
                 (SELECT COUNT(*) FROM sessions) as total_sessions
         """
         async with db.execute(stats_query) as cursor:
             row = await cursor.fetchone()
 
-        agents_query = (
-            "SELECT DISTINCT agent_id FROM agent_events WHERE agent_id IS NOT NULL"
-        )
+        agents_query = "SELECT DISTINCT agent_assigned FROM sessions WHERE agent_assigned IS NOT NULL"
         async with db.execute(agents_query) as agents_cursor:
             agents_rows = await agents_cursor.fetchall()
-        agents = [row[0] for row in agents_rows]
+        agents = [r[0] for r in agents_rows]
 
         if row is None:
             return {

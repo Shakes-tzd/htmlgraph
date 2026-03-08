@@ -10,6 +10,7 @@ Provides business logic extracted from route handlers:
 import json
 import logging
 import time
+from collections import Counter
 from datetime import datetime
 from typing import Any
 
@@ -615,6 +616,44 @@ class ActivityService:
                 }
 
                 conversation_turns.append(conversation_turn)
+
+            # Step 5: Batch-fetch feature titles and annotate each turn with
+            # the most common work item among its children.
+            feature_ids: set[str] = set()
+            for turn in conversation_turns:
+                for child in turn.get("children", []):
+                    if child.get("feature_id"):
+                        feature_ids.add(child["feature_id"])
+
+            features_map: dict[str, dict[str, str]] = {}
+            if feature_ids:
+                placeholders = ",".join("?" * len(feature_ids))
+                async with self.db.execute(
+                    f"SELECT id, title, type FROM features WHERE id IN ({placeholders})",
+                    list(feature_ids),
+                ) as feat_cur:
+                    feat_rows = await feat_cur.fetchall()
+                features_map = {
+                    r[0]: {"title": r[1] or "", "type": r[2] or "feature"}
+                    for r in feat_rows
+                }
+
+            for turn in conversation_turns:
+                child_feature_ids = [
+                    c["feature_id"]
+                    for c in turn.get("children", [])
+                    if c.get("feature_id")
+                ]
+                if child_feature_ids:
+                    most_common_id = Counter(child_feature_ids).most_common(1)[0][0]
+                    feat = features_map.get(most_common_id, {})
+                    turn["work_item_id"] = most_common_id
+                    turn["work_item_title"] = feat.get("title", "")
+                    turn["work_item_type"] = feat.get("type", "feature")
+                else:
+                    turn["work_item_id"] = None
+                    turn["work_item_title"] = None
+                    turn["work_item_type"] = None
 
             exec_time_ms = (time.time() - exec_start) * 1000
 
