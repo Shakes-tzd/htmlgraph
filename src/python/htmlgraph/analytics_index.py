@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from htmlgraph.db.pragmas import PRAGMA_SETTINGS
+
 SCHEMA_VERSION = 4  # Bumped: renamed 'agent' column to 'agent_assigned'
 
 
@@ -39,10 +41,12 @@ class AnalyticsIndex:
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA synchronous=NORMAL;")
-        conn.execute("PRAGMA temp_store=MEMORY;")
-        conn.execute("PRAGMA busy_timeout=3000;")
+        # Apply standard pragmas but skip foreign_keys: this is a rebuildable
+        # cache where events are bulk-inserted before sessions, so FK enforcement
+        # would cause IntegrityError on valid data.
+        for pragma, value in PRAGMA_SETTINGS.items():
+            if pragma != "foreign_keys":
+                conn.execute(f"PRAGMA {pragma} = {value}")
         return conn
 
     def ensure_schema(self) -> None:
