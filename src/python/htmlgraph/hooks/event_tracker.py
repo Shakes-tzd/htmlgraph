@@ -1767,28 +1767,56 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     # agents. JSONL attribution handles this now.
                     if task_row:
                         task_evt_id, task_evt_ts = task_row[0], task_row[1]
-                        # Staleness check: task must have been created AFTER the
-                        # current UserQuery.  Compare normalized timestamps.
-                        task_ts_norm = (
-                            task_evt_ts.replace("T", " ")[:19] if task_evt_ts else ""
-                        )
-                        uq_ts_norm = (
-                            current_user_query_ts.replace("T", " ")[:19]
-                            if current_user_query_ts
-                            else ""
-                        )
-                        if current_user_query_ts and task_ts_norm > uq_ts_norm:
-                            parent_activity_id = task_evt_id
-                            logger.debug(
-                                f"Found active task_delegation={parent_activity_id} "
-                                f"(ts={task_evt_ts} > UQ ts={current_user_query_ts})"
+                        # Defence-in-depth: skip if a task_completed child already exists.
+                        # This handles the case where Fix 1 (PostToolUse UPDATE) ran but
+                        # the status update didn't propagate (e.g. different connection),
+                        # yet a task_completed child row was already created by the
+                        # TaskCompleted handler.
+                        _already_completed = False
+                        try:
+                            _chk_cursor = db_to_use.connection.cursor()  # type: ignore[union-attr]
+                            _chk_cursor.execute(
+                                """
+                                SELECT 1 FROM agent_events
+                                WHERE event_type = 'task_completed'
+                                  AND parent_event_id = ?
+                                LIMIT 1
+                                """,
+                                (task_evt_id,),
                             )
-                        else:
-                            logger.debug(
-                                f"Discarding stale task_delegation={task_evt_id}: "
-                                f"ts={task_evt_ts} <= "
-                                f"current UserQuery ts={current_user_query_ts}"
+                            if _chk_cursor.fetchone():
+                                _already_completed = True
+                                logger.debug(
+                                    f"Fallback scan: skipping task_delegation={task_evt_id} "
+                                    f"— task_completed child already exists"
+                                )
+                        except Exception:
+                            pass
+                        if not _already_completed:
+                            # Staleness check: task must have been created AFTER the
+                            # current UserQuery.  Compare normalized timestamps.
+                            task_ts_norm = (
+                                task_evt_ts.replace("T", " ")[:19]
+                                if task_evt_ts
+                                else ""
                             )
+                            uq_ts_norm = (
+                                current_user_query_ts.replace("T", " ")[:19]
+                                if current_user_query_ts
+                                else ""
+                            )
+                            if current_user_query_ts and task_ts_norm > uq_ts_norm:
+                                parent_activity_id = task_evt_id
+                                logger.debug(
+                                    f"Found active task_delegation={parent_activity_id} "
+                                    f"(ts={task_evt_ts} > UQ ts={current_user_query_ts})"
+                                )
+                            else:
+                                logger.debug(
+                                    f"Discarding stale task_delegation={task_evt_id}: "
+                                    f"ts={task_evt_ts} <= "
+                                    f"current UserQuery ts={current_user_query_ts}"
+                                )
                     else:
                         # Task delegation is stored with PARENT session ID, not subagent session ID.
                         # Strip known subagent suffixes to find the parent session.
@@ -1937,6 +1965,38 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     task_description=description,
                     task_input=tool_input_data,
                 )
+
+                # Fix: mark the most recently started task_delegation as completed so
+                # subsequent orchestrator tool calls (Bash, Read, etc.) are not
+                # incorrectly parented to it via the fallback scan.
+                if db.connection:
+                    try:
+                        _fix_cursor = db.connection.cursor()
+                        _fix_cursor.execute(
+                            """
+                            UPDATE agent_events
+                            SET status = 'completed'
+                            WHERE event_id = (
+                                SELECT event_id FROM agent_events
+                                WHERE event_type = 'task_delegation'
+                                  AND status = 'started'
+                                  AND session_id = ?
+                                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
+                                LIMIT 1
+                            )
+                            """,
+                            (active_session_id,),
+                        )
+                        db.connection.commit()
+                        logger.debug(
+                            f"PostToolUse Task/Agent: marked task_delegation completed "
+                            f"for session={active_session_id}"
+                        )
+                    except Exception as _fix_err:
+                        logger.debug(
+                            f"PostToolUse Task/Agent: could not mark task_delegation "
+                            f"completed: {_fix_err}"
+                        )
 
             # Check for drift and handle accordingly
             # Skip drift detection for child activities (they inherit parent's context)
