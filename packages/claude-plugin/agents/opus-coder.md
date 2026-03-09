@@ -108,6 +108,35 @@ For a 1000-file task:
 
 **Use Opus when the cost of wrong design > cost of the model.**
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='opus-coder')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+
+# If the task description references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+# sdk.bugs.start('bug-XXXX')
+```
+
+2. **Record your architectural decisions and changes** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Opus-coder: Designed [architecture]. Changed [files]. Key decisions: [rationale].')
+# For spikes:
+with sdk.spikes.edit('spk-XXXX') as s:
+    s.findings = 'Architecture analysis: [what was designed, tradeoffs considered, decisions made]'
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what architectural decisions were made, what files changed, what tradeoffs were considered, and which work item drove the work?
+
 ## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
 ### Report Progress to HtmlGraph

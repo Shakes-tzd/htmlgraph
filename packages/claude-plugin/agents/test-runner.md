@@ -302,6 +302,35 @@ This agent succeeds when:
 - ✅ Code quality improves over time
 - ✅ Technical debt decreases, not increases
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='test-runner')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+
+# If the task description references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+# sdk.bugs.start('bug-XXXX')
+```
+
+2. **Record your test results** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Test-runner: Ran [N] tests. Pass: [X], Fail: [Y]. Quality gates: ruff [pass/fail], mypy [pass/fail], pytest [pass/fail].')
+# For bugs:
+with sdk.bugs.edit('bug-XXXX') as b:
+    b.add_note('Test-runner: Verified fix. Tests pass: [X/Y]. No regressions detected.')
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what tests were run, what passed or failed, which quality gates were checked, and which work item was validated?
+
 ## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
 ### Report Progress to HtmlGraph

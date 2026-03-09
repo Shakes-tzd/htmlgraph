@@ -84,6 +84,35 @@ Task(
 - ~70% cheaper than Sonnet
 - Best for high-volume, simple tasks
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='haiku-coder')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+
+# If the task description references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+# sdk.bugs.start('bug-XXXX')
+```
+
+2. **Record what you changed** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Haiku-coder: Changed [files]. Reason: [why].')
+# For bugs:
+with sdk.bugs.edit('bug-XXXX') as b:
+    b.add_note('Haiku-coder: Fixed [what] in [file].')
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what did each agent actually change, in which files, and for which work item?
+
 ## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
 ### Report Progress to HtmlGraph

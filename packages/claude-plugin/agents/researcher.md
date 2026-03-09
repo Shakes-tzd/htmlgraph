@@ -205,6 +205,36 @@ This agent succeeds when:
 - ✅ First attempted fix is the correct fix
 - ✅ Similar future issues can reference this research
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='researcher')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+active_spikes = sdk.spikes.where(status='in-progress')
+
+# If the task description references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+# sdk.spikes.start('spk-XXXX')
+```
+
+2. **Record your research findings** when complete:
+```python
+# For features (research supporting a feature):
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Researcher: Investigated [topic]. Key findings: [summary]. Sources: [urls/docs].')
+# For spikes (dedicated research):
+with sdk.spikes.edit('spk-XXXX') as s:
+    s.findings = 'Research findings: [what was investigated, what was found, recommended approach]'
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what was researched, what sources were consulted, what conclusions were drawn, and which work item was it for?
+
 ## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
 ### Report Progress to HtmlGraph

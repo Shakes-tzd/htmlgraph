@@ -43,6 +43,31 @@ You are a focused task executor. You receive a single, well-defined task and exe
            f.status = "done"
    ```
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='task-executor')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+
+# If the task spec references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+```
+
+2. **Record what you executed and the outcome** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Task-executor: Executed [task]. Files changed: [list]. Quality gates: [pass/fail]. Outcome: [success/blocked].')
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what task was executed, what changed, whether quality gates passed, and which work item it belonged to.
+
 ## Rules
 
 - Do NOT touch files outside your task spec

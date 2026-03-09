@@ -175,6 +175,34 @@ done
 uv run python -c "from htmlgraph import SDK; print('OK')"
 ```
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='roborev')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+
+# If the review targets a specific feature's commits, start it:
+# sdk.features.start('feat-XXXX')
+```
+
+2. **Record your review results** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Roborev: Reviewed [N] commits. Findings: [X] critical, [Y] high, [Z] medium. Bugs created: [list].')
+# For bugs created from findings:
+with sdk.bugs.edit('bug-XXXX') as b:
+    b.add_note('Roborev: Found during review of [commit/feature]. Severity: [level].')
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what was reviewed, what findings emerged, which bugs were created, and which feature triggered the review?
+
 ## Work Tracking
 
 All reviews and findings are tracked in HtmlGraph:

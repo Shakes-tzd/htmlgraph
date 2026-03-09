@@ -254,6 +254,40 @@ This agent succeeds when:
 - ✅ Debugging process documented for future reference
 - ✅ Similar issues can be resolved faster next time
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='debugger')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+# Also check bugs — debugging often targets a specific bug
+active_bugs = sdk.bugs.where(status='in-progress')
+
+# If the task description references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+# sdk.bugs.start('bug-XXXX')
+```
+
+2. **Record your root cause analysis and fix** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Debugger: Root cause was X. Fixed by Y. Files changed: Z.')
+# For bugs:
+with sdk.bugs.edit('bug-XXXX') as b:
+    b.add_note('Debugger: Investigated symptoms, root cause was X. Applied fix Y.')
+# For spikes:
+with sdk.spikes.edit('spk-XXXX') as s:
+    s.findings = 'Root cause analysis: ...'
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what did the debugger actually investigate, what root cause was found, what fix was applied, and which work item was it for?
+
 ## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
 ### Report Progress to HtmlGraph

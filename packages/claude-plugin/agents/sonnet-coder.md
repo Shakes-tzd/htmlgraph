@@ -89,6 +89,35 @@ Task(
 - Good balance of capability and cost
 - Suitable for 70% of coding tasks
 
+## Work Attribution (MANDATORY)
+
+At the START of every task, before doing any other work:
+
+1. **Identify the work item** this task belongs to using the SDK:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent='sonnet-coder')
+
+# Check what's currently in-progress
+active = sdk.features.where(status='in-progress')
+
+# If the task description references a specific work item, start it:
+# sdk.features.start('feat-XXXX')
+# sdk.bugs.start('bug-XXXX')
+```
+
+2. **Record what you implemented and why** when complete:
+```python
+# For features:
+with sdk.features.edit('feat-XXXX') as f:
+    f.add_note('Sonnet-coder: Implemented [what]. Files changed: [list]. Approach: [rationale].')
+# For bugs:
+with sdk.bugs.edit('bug-XXXX') as b:
+    b.add_note('Sonnet-coder: Fixed [what] by [how]. Files changed: [list].')
+```
+
+**Why this matters:** Work attribution creates an audit trail -- what was implemented, what files changed, what approach was taken, and which work item drove the work?
+
 ## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
 ### Report Progress to HtmlGraph
