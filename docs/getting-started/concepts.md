@@ -1,17 +1,19 @@
 # Core Concepts
 
-HtmlGraph is built on a simple philosophy: **HTML is All You Need**. This guide explains the core concepts and how they work together.
+HtmlGraph coordinates AI-assisted development through a local-first stack: HTML files store work items, SQLite indexes them for fast queries, JSONL logs track all events, and a live FastAPI/HTMX dashboard surfaces observability. This guide explains the core concepts and how they work together.
 
-## The Web is a Graph
+## Architecture Layers
 
-Every webpage is a node. Every hyperlink is an edge. HtmlGraph uses this fundamental web structure to create a lightweight graph database.
+HtmlGraph stacks multiple representations of the same data for different purposes:
 
-```
-HTML File = Graph Node
-<a href> = Graph Edge
-data-* attributes = Node Properties
-CSS selectors = Query Language
-```
+| Layer | Format | Purpose | Examples |
+|-------|--------|---------|----------|
+| **Artifact** | HTML files | Durable work items, human-readable | `.htmlgraph/features/feat-123.html` |
+| **Query Index** | SQLite database | Fast lookups & analytics | Sessions, activities, relationships |
+| **Event Log** | JSONL (append-only) | Immutable history for auditing | `.htmlgraph/events/session-id.jsonl` |
+| **Observability** | FastAPI + HTMX | Live dashboard, activity feeds | `http://localhost:8080` |
+
+The artifact (HTML) is the source of truth for durable work items. SQLite and JSONL are derived, indexed representations that enable fast queries and event tracking.
 
 ## Key Components
 
@@ -205,31 +207,31 @@ claude_features = sdk.features.query('[data-agent-assigned="claude"]')
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Why HTML?
+## Why HTML for Work Items?
 
-### Human Readable
+### Human Readable & Durable
 
-Open any node in a browser and see it beautifully rendered with CSS styling. No special tools required.
+Open any work item in a browser and see it beautifully rendered with CSS styling. HTML is a stable format that survives decades of technology change. No special tools required.
 
 ### Git Native
 
-HTML is plain text. Git diffs show exactly what changed. Merge conflicts are readable.
+HTML is plain text. Git diffs show exactly what changed. Merge conflicts are readable. Work items live safely in source control.
 
 ### Minimal Infrastructure
 
-No Docker, no JVM, no external database servers. The SDK has minimal Python dependencies (pydantic, justhtml, watchdog) and uses SQLite for indexing and JSONL for event logs. HTML files work everywhere: browsers, Python, JavaScript, any language.
-
-### Standards-Based
-
-CSS selectors are a W3C standard. Everyone knows them. No proprietary query language to learn.
+No Docker, no JVM, no external database servers. The SDK has minimal Python dependencies (pydantic, justhtml, watchdog). SQLite for indexing is optional and local. JSONL for event logs is append-only and simple.
 
 ### Offline First
 
-Everything works offline. No server required. Copy the `.htmlgraph/` directory anywhere.
+Everything works offline. No server required for core functionality. Copy the `.htmlgraph/` directory anywhere and it works immediately.
+
+### Standards-Based Artifact Layer
+
+HTML is W3C standard. Every developer knows it. When work items are just HTML files, no proprietary format blocks future interoperability.
 
 ### Presentation Layer Included
 
-Styling, layout, and interactivity are built-in using CSS and JavaScript. No separate UI framework needed.
+Styling, layout, and interactivity are built-in using CSS and JavaScript. No separate UI framework needed for basic viewing. The FastAPI dashboard layers observability on top.
 
 ## SDK vs CLI vs Dashboard
 

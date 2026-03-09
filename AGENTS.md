@@ -121,20 +121,17 @@ with open(".htmlgraph/features/feature-123.html", "w") as f:
 Edit("/path/to/.htmlgraph/features/feature-123.html", ...)
 ```
 
-✅ **REQUIRED - Use SDK/API/CLI:**
+✅ **REQUIRED - Use SDK/CLI:**
 ```python
 # SDK (recommended)
 with sdk.features.edit("feature-123") as f:
     f.status = "done"
 
-# API
-curl -X PATCH http://localhost:8080/api/features/feature-123 \
-  -H "Content-Type: application/json" \
-  -d '{"status": "done"}'
-
 # CLI
 uv run htmlgraph feature complete feature-123
 ```
+
+**Feature CRUD is SDK-first.** The REST API is observability/sync-oriented — feature CRUD via HTTP is not currently implemented.
 
 **Why this matters:**
 - Direct edits bypass Pydantic validation
