@@ -78,7 +78,7 @@
         </nav>
 
         <!-- CONTENT AREA -->
-        <main class="content-area" id="content-area">
+        <main class="content-area" id="content-area" hx-ext="morph">
             <div class="loading-indicator">
                 <div class="spinner"></div>
                 <p>Loading dashboard...</p>
@@ -262,9 +262,9 @@
         function refreshActivityFeed() {
             if (activeView !== 'activity-feed' || !activityFeedReady) return;
 
-            // Full reload — the htmx:beforeSwap handler saves expand state first,
-            // and htmx:afterSettle restores it after the swap completes.
-            htmx.ajax('GET', '/views/activity-feed', {target: '#content-area'});
+            // Morph swap — idiomorph diffs the DOM in-place so expanded rows
+            // are patched rather than destroyed, preserving expand state natively.
+            htmx.ajax('GET', '/views/activity-feed', {target: '#content-area', swap: 'morph:innerHTML'});
         }
 
         /**
@@ -289,48 +289,8 @@
             connect();
         }
 
-        // Preserve expansion state across HTMX feed refreshes
-        document.addEventListener('htmx:beforeSwap', function(evt) {
-            if (evt.detail.target && evt.detail.target.classList.contains('activity-feed-view')) {
-                // toggleChildren() marks the .expand-icon, not the row
-                const expanded = new Set();
-                document.querySelectorAll('.activity-row .expand-icon.expanded').forEach(icon => {
-                    const row = icon.closest('[data-event-id]');
-                    if (!row) return;
-                    const eid = row.dataset.eventId;
-                    if (row.classList.contains('parent-row')) {
-                        expanded.add(eid);
-                    } else if (row.classList.contains('depth-1')) {
-                        expanded.add('child:' + eid);
-                    }
-                });
-                window._htmxFeedExpandedState = Array.from(expanded);
-            }
-        });
-
-        document.addEventListener('htmx:afterSettle', function(evt) {
-            if (!window._htmxFeedExpandedState || !window._htmxFeedExpandedState.length) return;
-
-            const expandedIds = new Set(window._htmxFeedExpandedState);
-            window._htmxFeedExpandedState = null;
-
-            // Use document query because outerHTML swap detaches the original target
-            const feedContainer = document.querySelector('.activity-feed-view');
-            if (!feedContainer) return;
-
-            // Re-expand parent rows using handleParentClick so HTMX lazy-load is re-triggered
-            feedContainer.querySelectorAll('.parent-row').forEach(row => {
-                if (expandedIds.has(row.dataset.eventId)) {
-                    handleParentClick(row);
-                }
-            });
-            // Re-expand depth-1 child rows
-            feedContainer.querySelectorAll('.child-row.depth-1').forEach(row => {
-                if (expandedIds.has('child:' + row.dataset.eventId)) {
-                    handleParentClick(row);
-                }
-            });
-        });
+        // Expansion state is preserved natively by idiomorph morph swaps —
+        // no manual save/restore needed.
 
         /**
          * Format timestamp to readable format (HH:MM:SS)
