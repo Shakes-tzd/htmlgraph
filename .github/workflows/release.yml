@@ -59,10 +59,10 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@v1
         with:
           attestations: false
-          skip_existing: true
+          skip-existing: true
 
   create-release:
     name: Create GitHub Release
@@ -92,7 +92,7 @@ jobs:
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           name: Release ${{ steps.get_version.outputs.version }}
-          body_path: RELEASE_NOTES_${{ steps.get_version.outputs.version }}.md
+          generate_release_notes: true
           draft: false
           prerelease: false
           files: |
