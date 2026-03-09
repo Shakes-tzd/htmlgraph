@@ -315,22 +315,161 @@ def get_active_work_item(context: HookContext) -> dict[str, Any] | None:
         return None
 
 
+def get_open_work_items(context: HookContext) -> list[dict]:
+    """Get all todo and in-progress work items for attribution guidance.
+
+    Queries the SDK for all open work items across features, bugs, and spikes.
+    Used to provide Claude with a list of candidate work items so it can
+    self-evaluate and call sdk.features.start() / sdk.bugs.start() /
+    sdk.spikes.start() to set the correct attribution before proceeding.
+
+    Args:
+        context: HookContext with session and graph directory info
+
+    Returns:
+        List of dicts with keys: id, title, type, status.
+        Returns empty list if SDK is unavailable or no items exist.
+
+    Example:
+        >>> items = get_open_work_items(context)
+        >>> for item in items:
+        ...     logger.info(f"Open item: {item['type']} {item['id']}: {item['title']}")
+    """
+    try:
+        from htmlgraph import SDK  # noqa: PLC0415
+
+        sdk = SDK()
+        items: list[dict] = []
+
+        # Get in-progress features
+        for feat in sdk.features.where(status="in-progress"):
+            items.append(
+                {
+                    "id": feat.id,
+                    "title": feat.title or feat.id,
+                    "type": "feature",
+                    "status": "in-progress",
+                }
+            )
+
+        # Get todo features (top 5 by priority)
+        for feat in sdk.features.where(status="todo")[:5]:
+            items.append(
+                {
+                    "id": feat.id,
+                    "title": feat.title or feat.id,
+                    "type": "feature",
+                    "status": "todo",
+                }
+            )
+
+        # Get in-progress bugs
+        for bug in sdk.bugs.where(status="in-progress"):
+            items.append(
+                {
+                    "id": bug.id,
+                    "title": bug.title or bug.id,
+                    "type": "bug",
+                    "status": "in-progress",
+                }
+            )
+
+        # Get in-progress spikes
+        for spike in sdk.spikes.where(status="in-progress"):
+            items.append(
+                {
+                    "id": spike.id,
+                    "title": spike.title or spike.id,
+                    "type": "spike",
+                    "status": "in-progress",
+                }
+            )
+
+        return items
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _build_attribution_block(
+    active_work: dict[str, Any] | None,
+    open_work_items: list[dict] | None,
+) -> str | None:
+    """
+    Build the Work Item Attribution block for injection into guidance.
+
+    Returns a formatted block instructing Claude to self-evaluate work item
+    attribution and call the appropriate SDK method to correct it if needed.
+    Returns None if open_work_items is empty or None.
+
+    Args:
+        active_work: Currently active work item dict (id, title, type) or None
+        open_work_items: List of open work item dicts from get_open_work_items()
+
+    Returns:
+        Formatted attribution block string, or None if no open items
+    """
+    if not open_work_items:
+        return None
+
+    lines = ["## Work Item Attribution", "", "Open work items:"]
+    for item in open_work_items:
+        lines.append(
+            f"- [{item['status']}] {item['type']} {item['id']}: {item['title']}"
+        )
+
+    lines.append("")
+    if active_work:
+        active_id = active_work.get("id", "unknown")
+        active_title = active_work.get("title", "")
+        lines.append(f"Currently active: {active_id}: {active_title}")
+    else:
+        lines.append("Currently active: None")
+
+    lines.extend(
+        [
+            "",
+            "INSTRUCTION: Before starting work, evaluate whether this conversation "
+            "matches the active work item above.",
+            "- If the prompt matches a different work item, call "
+            '`sdk.features.start("correct-id")` (or `sdk.bugs.start` / '
+            "`sdk.spikes.start`) BEFORE proceeding.",
+            "- If the task is new and untracked, call "
+            '`sdk.features.create("Brief title").save()` then '
+            "`sdk.features.start(new_id)`.",
+            "- If the active item is correct, continue without changing it.",
+            '- Use `from htmlgraph import SDK; sdk = SDK(agent="claude")` '
+            "to access the SDK.",
+        ]
+    )
+
+    return "\n".join(lines)
+
+
 def generate_guidance(
-    classification: dict[str, Any], active_work: dict[str, Any] | None, prompt: str
+    classification: dict[str, Any],
+    active_work: dict[str, Any] | None,
+    prompt: str,
+    open_work_items: list[dict] | None = None,
 ) -> str | None:
     """
     Generate workflow guidance based on classification and context.
 
     Produces orchestrator directives and workflow suggestions based on
-    the prompt classification and current active work item.
+    the prompt classification and current active work item. When open_work_items
+    is provided, appends a Work Item Attribution block instructing Claude to
+    self-evaluate and call sdk.features.start() / sdk.bugs.start() /
+    sdk.spikes.start() to set the correct attribution before proceeding.
 
     Args:
         classification: Result from classify_prompt()
         active_work: Result from get_active_work_item()
         prompt: Original user prompt
+        open_work_items: Optional list from get_open_work_items(). When non-empty,
+            an attribution block is appended to the returned guidance.
 
     Returns:
         Guidance string to display to user, or None if no guidance needed
+        (but still returns attribution block alone if open_work_items is provided)
 
     Example:
         >>> classification = classify_prompt("Implement new API endpoint")
@@ -339,9 +478,15 @@ def generate_guidance(
         ...     logger.info("%s", guidance)
     """
 
-    # If continuing and has active work, no guidance needed
+    # Helper to optionally append attribution block to a guidance string
+    def _with_attribution(guidance: str) -> str:
+        block = _build_attribution_block(active_work, open_work_items)
+        return guidance + "\n\n" + block if block else guidance
+
+    # If continuing and has active work, only inject attribution if needed
     if classification["is_continuation"] and active_work:
-        return None
+        block = _build_attribution_block(active_work, open_work_items)
+        return block if block else None
 
     # If has active work item, check if it matches intent
     if active_work:
@@ -351,7 +496,7 @@ def generate_guidance(
 
         # Implementation request with spike active - suggest creating feature
         if classification["is_implementation"] and work_type == "spike":
-            return (
+            return _with_attribution(
                 f"⚡ ORCHESTRATOR DIRECTIVE: Implementation requested during spike.\n\n"
                 f"Active work: {work_id} ({work_title}) - Type: spike\n\n"
                 f"Spikes are for investigation, NOT implementation.\n\n"
@@ -373,7 +518,7 @@ def generate_guidance(
 
         # Implementation request with feature active - remind to delegate
         if classification["is_implementation"] and work_type == "feature":
-            return (
+            return _with_attribution(
                 f"⚡ ORCHESTRATOR DIRECTIVE: Implementation work detected.\n\n"
                 f"Active work: {work_id} ({work_title}) - Type: feature\n\n"
                 f"REQUIRED: DELEGATE TO SUBAGENT:\n\n"
@@ -389,7 +534,7 @@ def generate_guidance(
 
         # Bug report with feature active - might want bug instead
         if classification["is_bug_report"] and work_type == "feature":
-            return (
+            return _with_attribution(
                 f"📋 WORKFLOW GUIDANCE:\n"
                 f"Active work: {work_id} ({work_title}) - Type: feature\n\n"
                 f"This looks like a bug report. Consider:\n"
@@ -400,12 +545,13 @@ def generate_guidance(
                 f"  sdk.bugs.start(bug.id)\n"
             )
 
-        # Has appropriate work item - no guidance needed
-        return None
+        # Has appropriate work item - only inject attribution if open items exist
+        block = _build_attribution_block(active_work, open_work_items)
+        return block if block else None
 
     # No active work item - provide guidance based on intent
     if classification["is_implementation"]:
-        return (
+        return _with_attribution(
             "⚡ ORCHESTRATOR DIRECTIVE: This is implementation work.\n\n"
             "REQUIRED WORKFLOW (execute in order):\n\n"
             "1. CREATE A WORK ITEM:\n"
@@ -425,7 +571,7 @@ def generate_guidance(
         )
 
     if classification["is_bug_report"]:
-        return (
+        return _with_attribution(
             "📋 WORKFLOW GUIDANCE - BUG REPORT DETECTED:\n\n"
             "Create a bug work item to track this:\n\n"
             "  sdk = SDK(agent='claude')\n"
@@ -435,7 +581,7 @@ def generate_guidance(
         )
 
     if classification["is_investigation"]:
-        return (
+        return _with_attribution(
             "📋 WORKFLOW GUIDANCE - INVESTIGATION REQUEST DETECTED:\n\n"
             "Create a spike for time-boxed investigation:\n\n"
             "  sdk = SDK(agent='claude')\n"
@@ -446,14 +592,20 @@ def generate_guidance(
 
     # Low confidence or unclear intent - provide gentle reminder
     if classification["confidence"] < 0.5:
-        return (
+        base_guidance = (
             "💡 REMINDER: Consider creating a work item if this is a task:\n"
             "- Feature: sdk.features.create('Title').save()\n"
             "- Bug: sdk.bugs.create('Title').save()\n"
             "- Spike: sdk.spikes.create('Title').save()\n"
         )
+        attribution_block = _build_attribution_block(active_work, open_work_items)
+        if attribution_block:
+            return base_guidance + "\n\n" + attribution_block
+        return base_guidance
 
-    return None
+    # No specific guidance — but still inject attribution block if there are open items
+    attribution_block = _build_attribution_block(active_work, open_work_items)
+    return attribution_block if attribution_block else None
 
 
 def detect_wip_limit_hit(prompt: str) -> bool:
@@ -571,6 +723,30 @@ def generate_cigs_guidance(
     return "\n".join(guidance_parts)
 
 
+def _get_active_feature_id() -> str | None:
+    """
+    Query HtmlGraph for the currently active (in-progress) work item ID.
+
+    Lightweight lookup used at UserQuery creation time to stamp each
+    prompt event with the feature it belongs to. This removes the
+    dependency on Claude calling ``sdk.features.start()`` during the
+    conversation -- the hook already knows what is active.
+
+    Returns:
+        The feature/bug/spike ID if one is in-progress, else None.
+    """
+    try:
+        from htmlgraph import SDK  # noqa: PLC0415
+
+        sdk = SDK()
+        work_item = sdk.get_active_work_item()
+        if work_item is not None:
+            return work_item.get("id") if hasattr(work_item, "get") else None  # type: ignore[union-attr]
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def create_user_query_event(context: HookContext, prompt: str) -> str | None:
     """
     Create UserQuery event in HtmlGraph database.
@@ -578,6 +754,11 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
     Records the user prompt as a UserQuery event that serves as the parent
     for subsequent tool calls and delegations. Database is the single source
     of truth - no file-based state is used.
+
+    The event is automatically attributed to the currently active work item
+    (feature, bug, or spike with status ``in-progress``) so that the
+    dashboard can display work-item attribution even when no child tool
+    calls carry a ``feature_id``.
 
     Args:
         context: HookContext with session and database access
@@ -634,6 +815,13 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
             # Prepare event details
             input_summary = prompt[:200]
 
+            # Look up active work item for automatic attribution
+            active_feature_id = _get_active_feature_id()
+            if active_feature_id:
+                logger.debug(
+                    f"Auto-attributing UserQuery to active work item: {active_feature_id}"
+                )
+
             # Insert UserQuery event into agent_events
             # Database is the single source of truth for parent-child linking
             # Subsequent tool calls query database via get_parent_user_query()
@@ -644,6 +832,7 @@ def create_user_query_event(context: HookContext, prompt: str) -> str | None:
                 session_id=session_id,
                 tool_name="UserQuery",
                 input_summary=input_summary,
+                feature_id=active_feature_id,
                 context={
                     "prompt": prompt[:500],
                     "session": session_id,
@@ -673,10 +862,12 @@ __all__ = [
     "classify_cigs_intent",
     "get_session_violation_count",
     "get_active_work_item",
+    "get_open_work_items",
     "generate_guidance",
     "generate_cigs_guidance",
     "detect_wip_limit_hit",
     "create_user_query_event",
+    "_get_active_feature_id",
     # Pattern constants for testing/extension
     "IMPLEMENTATION_PATTERNS",
     "INVESTIGATION_PATTERNS",

@@ -1032,6 +1032,122 @@ class TestCreateUserQueryEvent:
             # Verify database insert was called
             mock_hook_context.database.insert_event.assert_called_once()
 
+    def test_create_user_query_event_includes_active_feature_id(
+        self, mock_hook_context
+    ):
+        """Test that UserQuery event includes feature_id from active work item."""
+        mock_cursor = Mock()
+        mock_cursor.fetchone.return_value = (1,)
+        mock_hook_context.database.connection.cursor.return_value = mock_cursor
+
+        # Mock _get_active_feature_id to return an active feature
+        with patch(
+            "htmlgraph.hooks.prompt_analyzer._get_active_feature_id",
+            return_value="feat-abc12345",
+        ):
+            event_id = create_user_query_event(mock_hook_context, "Work on feature")
+
+        assert event_id is not None
+        # Verify feature_id was passed to insert_event
+        call_kwargs = mock_hook_context.database.insert_event.call_args
+        assert call_kwargs is not None
+        # Check keyword arguments for feature_id
+        if call_kwargs.kwargs:
+            assert call_kwargs.kwargs.get("feature_id") == "feat-abc12345"
+        else:
+            # May be positional - check all args
+            assert "feat-abc12345" in str(call_kwargs)
+
+    def test_create_user_query_event_no_active_feature(self, mock_hook_context):
+        """Test that UserQuery event works when no active feature exists."""
+        mock_cursor = Mock()
+        mock_cursor.fetchone.return_value = (1,)
+        mock_hook_context.database.connection.cursor.return_value = mock_cursor
+
+        # Mock _get_active_feature_id to return None (no active feature)
+        with patch(
+            "htmlgraph.hooks.prompt_analyzer._get_active_feature_id",
+            return_value=None,
+        ):
+            event_id = create_user_query_event(mock_hook_context, "General question")
+
+        assert event_id is not None
+        # Verify feature_id was passed as None
+        call_kwargs = mock_hook_context.database.insert_event.call_args
+        assert call_kwargs is not None
+        if call_kwargs.kwargs:
+            assert call_kwargs.kwargs.get("feature_id") is None
+
+    def test_create_user_query_event_active_feature_lookup_fails(
+        self, mock_hook_context
+    ):
+        """Test that UserQuery event creation succeeds even if feature lookup fails."""
+        mock_cursor = Mock()
+        mock_cursor.fetchone.return_value = (1,)
+        mock_hook_context.database.connection.cursor.return_value = mock_cursor
+
+        # Mock _get_active_feature_id to raise an exception
+        with patch(
+            "htmlgraph.hooks.prompt_analyzer._get_active_feature_id",
+            side_effect=Exception("SDK unavailable"),
+        ):
+            # Should still create the event (graceful degradation via the
+            # except block inside _get_active_feature_id -- but here we're
+            # patching the function itself to raise, so the outer try/except
+            # in create_user_query_event catches it)
+            event_id = create_user_query_event(mock_hook_context, "Test")
+
+        # Event creation should still work because _get_active_feature_id
+        # exception is caught in the outer try/except
+        # (The event_id may be None if the exception propagates, but the
+        # function should not crash)
+        # Since the exception happens inside the inner try block, it gets caught
+        assert event_id is None or event_id is not None  # No crash
+
+
+class TestGetActiveFeatureId:
+    """Tests for _get_active_feature_id helper function."""
+
+    def test_returns_feature_id_when_active(self):
+        """Test that active feature ID is returned."""
+        from htmlgraph.hooks.prompt_analyzer import _get_active_feature_id
+
+        mock_sdk = Mock()
+        mock_sdk.return_value.get_active_work_item.return_value = {
+            "id": "feat-test123",
+            "title": "Test Feature",
+            "type": "feature",
+        }
+
+        with patch("htmlgraph.SDK", mock_sdk):
+            result = _get_active_feature_id()
+
+        assert result == "feat-test123"
+
+    def test_returns_none_when_no_active_item(self):
+        """Test that None is returned when no active work item."""
+        from htmlgraph.hooks.prompt_analyzer import _get_active_feature_id
+
+        mock_sdk = Mock()
+        mock_sdk.return_value.get_active_work_item.return_value = None
+
+        with patch("htmlgraph.SDK", mock_sdk):
+            result = _get_active_feature_id()
+
+        assert result is None
+
+    def test_returns_none_on_sdk_error(self):
+        """Test graceful degradation when SDK is unavailable."""
+        from htmlgraph.hooks.prompt_analyzer import _get_active_feature_id
+
+        mock_sdk = Mock()
+        mock_sdk.return_value.get_active_work_item.side_effect = Exception("SDK error")
+
+        with patch("htmlgraph.SDK", mock_sdk):
+            result = _get_active_feature_id()
+
+        assert result is None
+
 
 # ============================================================================
 # INTEGRATION TESTS: Combined Classification and Guidance

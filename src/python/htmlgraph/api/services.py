@@ -121,7 +121,8 @@ class ActivityService:
                     execution_duration_seconds,
                     status,
                     agent_id,
-                    session_id
+                    session_id,
+                    feature_id
                 FROM agent_events
                 WHERE {where_clause}
                 ORDER BY timestamp DESC
@@ -193,6 +194,7 @@ class ActivityService:
                 uq_status = uq_row[4]
                 uq_agent_id = uq_row[5]
                 uq_session_id = uq_row[6]
+                uq_feature_id = uq_row[7] if len(uq_row) > 7 else None
 
                 prompt_text = uq_input
 
@@ -636,6 +638,7 @@ class ActivityService:
                         "prompt": prompt_text[:200],
                         "duration_seconds": round(uq_duration, 2),
                         "agent_id": uq_agent_id,
+                        "feature_id": uq_feature_id,
                     },
                     "children": children,
                     "has_spawner": has_spawner,
@@ -665,6 +668,10 @@ class ActivityService:
             feature_ids: set[str] = set()
             for turn in conversation_turns:
                 _collect_feature_ids_recursive(turn.get("children", []), feature_ids)
+                # Also collect feature_id from the UserQuery event itself
+                uq_fid = turn.get("userQuery", {}).get("feature_id")
+                if uq_fid:
+                    feature_ids.add(uq_fid)
 
             features_map: dict[str, dict[str, str]] = {}
             if feature_ids:
@@ -695,16 +702,24 @@ class ActivityService:
                 return result
 
             for turn in conversation_turns:
+                # Check the UserQuery event's own feature_id first (set at
+                # hook time from the currently active work item). Fall back
+                # to the most common feature_id among child tool-call events.
+                uq_fid = turn.get("userQuery", {}).get("feature_id")
                 child_feature_ids = _collect_feature_ids_flat(turn.get("children", []))
-                if child_feature_ids:
-                    most_common_id = Counter(child_feature_ids).most_common(1)[0][0]
-                    feat = features_map.get(most_common_id, {})
-                    turn["work_item_id"] = most_common_id
+
+                chosen_id: str | None = None
+                if uq_fid:
+                    chosen_id = uq_fid
+                elif child_feature_ids:
+                    chosen_id = Counter(child_feature_ids).most_common(1)[0][0]
+
+                if chosen_id:
+                    feat = features_map.get(chosen_id, {})
+                    turn["work_item_id"] = chosen_id
                     # Prefer DB title; fall back to parsing the HTML file directly
                     # (many items exist only as HTML files, not in the features table)
-                    title = feat.get("title") or self._read_title_from_html(
-                        most_common_id
-                    )
+                    title = feat.get("title") or self._read_title_from_html(chosen_id)
                     turn["work_item_title"] = title or ""
                     turn["work_item_type"] = feat.get("type", "feature")
                 else:

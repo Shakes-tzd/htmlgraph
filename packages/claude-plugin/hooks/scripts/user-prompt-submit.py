@@ -43,6 +43,7 @@ from htmlgraph.hooks.prompt_analyzer import (
     generate_cigs_guidance,
     generate_guidance,
     get_active_work_item,
+    get_open_work_items,
     get_session_violation_count,
 )
 
@@ -74,8 +75,13 @@ def main() -> None:
         # 4. Get active work item (SDK)
         active_work = get_active_work_item(context)
 
+        # 4b. Get all open work items for attribution guidance (SDK)
+        open_items = get_open_work_items(context)
+
         # 5. Generate workflow guidance (SDK)
-        workflow_guidance = generate_guidance(classification, active_work, prompt)
+        workflow_guidance = generate_guidance(
+            classification, active_work, prompt, open_work_items=open_items
+        )
 
         # 6. CIGS: Generate imperative delegation guidance (SDK)
         cigs_guidance = generate_cigs_guidance(
