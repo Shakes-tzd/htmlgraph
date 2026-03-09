@@ -88,13 +88,25 @@ class TestDiscoveryModule:
         assert result == "test-agent"
 
     def test_auto_discover_agent_fallback(self, monkeypatch: Any) -> None:
-        """Test auto_discover_agent fallback when env not set."""
+        """Test auto_discover_agent raises ValueError when no agent can be detected."""
+        # Clear all detection env vars
         monkeypatch.delenv("HTMLGRAPH_AGENT", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PARENT_AGENT", raising=False)
         monkeypatch.delenv("CLAUDE_AGENT_NAME", raising=False)
         monkeypatch.delenv("CLAUDE_CODE_VERSION", raising=False)
-        result = auto_discover_agent()
-        # Should return some default or detected agent
-        assert isinstance(result, str)
+        monkeypatch.delenv("CLAUDECODE", raising=False)
+        monkeypatch.delenv("CLAUDE_CODE_ENTRYPOINT", raising=False)
+        monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_AI_STUDIO", raising=False)
+
+        # Mock both detection functions to return "cli" (the fallback that gets rejected)
+        from htmlgraph import agent_detection
+        monkeypatch.setattr(agent_detection, "_is_claude_code", lambda: False)
+        monkeypatch.setattr(agent_detection, "_is_gemini", lambda: False)
+
+        with pytest.raises(ValueError, match="Agent identifier is required"):
+            auto_discover_agent()
 
 
 class TestPydanticConstants:
