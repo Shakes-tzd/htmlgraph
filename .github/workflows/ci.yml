@@ -29,11 +29,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv sync --extra dev
 
       - name: Run tests
         run: |
-          uv run pytest tests/ -v --tb=short
+          uv run pytest tests/python/ -v --tb=short
 
       - name: Check code formatting
         run: |
@@ -58,7 +58,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
+          uv sync --extra dev
 
       - name: Check formatting with ruff
         run: |

@@ -609,7 +609,7 @@ wheels = [
 
 [[package]]
 name = "htmlgraph"
-version = "0.33.29"
+version = "0.33.39"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -665,6 +665,7 @@ sqlite = [
 dev = [
     { name = "hypothesis" },
     { name = "playwright" },
+    { name = "pytest-asyncio" },
     { name = "pytest-playwright" },
     { name = "pytest-xdist" },
     { name = "schemathesis" },
@@ -716,6 +717,7 @@ provides-extras = ["dev", "observability", "sqlite", "deploy"]
 dev = [
     { name = "hypothesis", specifier = ">=6.0.0" },
     { name = "playwright", specifier = ">=1.57.0" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-playwright", specifier = ">=0.7.2" },
     { name = "pytest-xdist", specifier = ">=3.0.0" },
     { name = "schemathesis", specifier = ">=3.29.0" },
