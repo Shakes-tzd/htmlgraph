@@ -895,6 +895,10 @@ def _find_parent_via_jsonl(
                         continue
 
                     # Look up the task_delegation event that owns this tool_use_id.
+                    # NOTE: Do NOT filter on status='started' — the task_delegation
+                    # may already be marked 'completed' by the PostToolUse handler
+                    # before the subagent's tool calls arrive.  The structural parent
+                    # relationship is correct regardless of completion status.
                     try:
                         cursor.execute(
                             """
@@ -904,7 +908,6 @@ def _find_parent_via_jsonl(
                               ON tt.tool_use_id = ?
                              AND tt.session_id = ae.session_id
                             WHERE ae.event_type = 'task_delegation'
-                              AND ae.status = 'started'
                             ORDER BY ae.timestamp DESC
                             LIMIT 1
                             """,
@@ -918,13 +921,13 @@ def _find_parent_via_jsonl(
                             )
                             return str(row[0])
 
-                        # Fallback: find the most recent started task_delegation
-                        # whose tool_use_id matches the parentToolUseID directly.
+                        # Fallback: find the most recent task_delegation whose
+                        # tool_use_id matches the parentToolUseID directly.
+                        # NOTE: No status filter — see note above.
                         cursor.execute(
                             """
                             SELECT event_id FROM agent_events
                             WHERE event_type = 'task_delegation'
-                              AND status = 'started'
                             ORDER BY datetime(REPLACE(SUBSTR(timestamp,1,19),'T',' ')) DESC
                             LIMIT 1
                             """,
@@ -1966,37 +1969,11 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     task_input=tool_input_data,
                 )
 
-                # Fix: mark the most recently started task_delegation as completed so
-                # subsequent orchestrator tool calls (Bash, Read, etc.) are not
-                # incorrectly parented to it via the fallback scan.
-                if db.connection:
-                    try:
-                        _fix_cursor = db.connection.cursor()
-                        _fix_cursor.execute(
-                            """
-                            UPDATE agent_events
-                            SET status = 'completed'
-                            WHERE event_id = (
-                                SELECT event_id FROM agent_events
-                                WHERE event_type = 'task_delegation'
-                                  AND status = 'started'
-                                  AND session_id = ?
-                                ORDER BY datetime(REPLACE(SUBSTR(timestamp, 1, 19), 'T', ' ')) DESC
-                                LIMIT 1
-                            )
-                            """,
-                            (active_session_id,),
-                        )
-                        db.connection.commit()
-                        logger.debug(
-                            f"PostToolUse Task/Agent: marked task_delegation completed "
-                            f"for session={active_session_id}"
-                        )
-                    except Exception as _fix_err:
-                        logger.debug(
-                            f"PostToolUse Task/Agent: could not mark task_delegation "
-                            f"completed: {_fix_err}"
-                        )
+                # NOTE: Do NOT prematurely mark task_delegation as 'completed' here.
+                # The TaskCompleted hook handler does this correctly when the subagent
+                # actually finishes.  Marking it completed here causes subagent tool
+                # calls to miss their parent (Method 0's JOIN finds no 'started' row)
+                # and fall back to the orchestrator's UserQuery instead.
 
             # Check for drift and handle accordingly
             # Skip drift detection for child activities (they inherit parent's context)
