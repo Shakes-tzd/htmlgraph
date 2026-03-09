@@ -1760,6 +1760,52 @@ class SessionManager:
             title=f"Auto session ({agent})",
         )
 
+    def _backfill_turn1_userquery(self, session_id: str, feature_id: str) -> None:
+        """
+        Retroactively attribute the most recent unattributed UserQuery event in
+        the current session to the given feature.
+
+        The UserPromptSubmit hook writes a UserQuery event *before* Claude's Turn 1
+        response executes. So when sdk.features.start() is called during Turn 1, that
+        UserQuery already exists with feature_id IS NULL. This method stamps it with
+        the correct feature_id so Turn 1 appears attributed in the dashboard.
+
+        Only updates a single row — the latest NULL-feature_id UserQuery — to avoid
+        accidentally backfilling historical turns from previous conversations.
+
+        Args:
+            session_id: Current session ID
+            feature_id: Feature to attribute the UserQuery to
+        """
+        import sqlite3
+
+        db_path = self.graph_dir / "htmlgraph.db"
+        if not db_path.exists():
+            return
+        try:
+            conn = sqlite3.connect(str(db_path))
+            try:
+                conn.execute(
+                    """
+                    UPDATE agent_events
+                    SET feature_id = ?
+                    WHERE event_id = (
+                        SELECT event_id FROM agent_events
+                        WHERE session_id = ?
+                          AND tool_name = 'UserQuery'
+                          AND feature_id IS NULL
+                        ORDER BY timestamp DESC
+                        LIMIT 1
+                    )
+                    """,
+                    (feature_id, session_id),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.debug(f"_backfill_turn1_userquery: non-fatal error: {e}")
+
     def _maybe_log_work_item_action(
         self,
         *,
@@ -1977,6 +2023,14 @@ class SessionManager:
             active_session = self._ensure_session_for_agent(agent)
         if active_session:
             self._add_session_link_to_feature(feature_id, active_session.id)
+
+        # Backfill Turn 1 attribution: update the most recent unattributed UserQuery
+        # event in the current session. The UserPromptSubmit hook writes the UserQuery
+        # event before Claude can call sdk.features.start(), so Turn 1's event lands
+        # with feature_id IS NULL. This UPDATE retroactively stamps it with the correct
+        # feature so it shows up attributed in the dashboard.
+        if active_session:
+            self._backfill_turn1_userquery(active_session.id, feature_id)
 
         if log_activity and agent:
             self._maybe_log_work_item_action(
