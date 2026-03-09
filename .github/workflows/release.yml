@@ -62,6 +62,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: false
+          skip_existing: true
 
   create-release:
     name: Create GitHub Release
