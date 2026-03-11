@@ -42,16 +42,33 @@ from htmlgraph.sdk.discovery import (
 class TestDiscoveryModule:
     """Test discovery utilities in sdk/discovery.py"""
 
-    def test_find_project_root_exists(self, tmp_path: Path) -> None:
-        """Test find_project_root finds .htmlgraph directory."""
+    @pytest.mark.serial
+    def test_find_project_root_exists(self, tmp_path: Path, monkeypatch) -> None:
+        """Test find_project_root finds .htmlgraph directory.
+
+        Uses monkeypatch to unset env vars so the function searches from start_path.
+        """
+        # Unset env vars so the function doesn't find the project root via env
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PROJECT_DIR", raising=False)
+
         htmlgraph_dir = tmp_path / ".htmlgraph"
         htmlgraph_dir.mkdir()
 
         result = find_project_root(start_path=tmp_path)
+        # Now it should find tmp_path
         assert result == tmp_path
 
-    def test_find_project_root_parent(self, tmp_path: Path) -> None:
-        """Test find_project_root searches parent directories."""
+    @pytest.mark.serial
+    def test_find_project_root_parent(self, tmp_path: Path, monkeypatch) -> None:
+        """Test find_project_root searches parent directories.
+
+        Uses monkeypatch to unset env vars so the function searches from start_path.
+        """
+        # Unset env vars so the function doesn't find the project root via env
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PROJECT_DIR", raising=False)
+
         htmlgraph_dir = tmp_path / ".htmlgraph"
         htmlgraph_dir.mkdir()
 
@@ -59,15 +76,36 @@ class TestDiscoveryModule:
         subdir.mkdir(parents=True)
 
         result = find_project_root(start_path=subdir)
+        # Now it should find tmp_path since we're isolated
         assert result == tmp_path
 
-    def test_find_project_root_not_found(self, tmp_path: Path) -> None:
-        """Test find_project_root raises when not found."""
-        with pytest.raises(FileNotFoundError):
-            find_project_root(start_path=tmp_path)
+    @pytest.mark.serial
+    def test_find_project_root_not_found(self, tmp_path: Path, monkeypatch) -> None:
+        """Test find_project_root raises when not found.
 
-    def test_discover_htmlgraph_dir_exists(self, tmp_path: Path) -> None:
-        """Test discover_htmlgraph_dir finds existing directory."""
+        Uses monkeypatch to unset env vars and create isolated directory.
+        """
+        # Unset env vars so the function doesn't find the project root via env
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PROJECT_DIR", raising=False)
+
+        # Create a directory with no .htmlgraph
+        no_graph_dir = tmp_path / "no_graph"
+        no_graph_dir.mkdir()
+
+        with pytest.raises(FileNotFoundError):
+            find_project_root(start_path=no_graph_dir)
+
+    @pytest.mark.serial
+    def test_discover_htmlgraph_dir_exists(self, tmp_path: Path, monkeypatch) -> None:
+        """Test discover_htmlgraph_dir finds existing directory.
+
+        Uses monkeypatch to unset env vars so discover doesn't find project root.
+        """
+        # Unset env vars so discover doesn't find the project root via env
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PROJECT_DIR", raising=False)
+
         htmlgraph_dir = tmp_path / ".htmlgraph"
         htmlgraph_dir.mkdir()
 
@@ -75,8 +113,16 @@ class TestDiscoveryModule:
         assert result == htmlgraph_dir
         assert result.exists()
 
-    def test_discover_htmlgraph_dir_creates(self, tmp_path: Path) -> None:
-        """Test discover_htmlgraph_dir returns path even if not exists."""
+    @pytest.mark.serial
+    def test_discover_htmlgraph_dir_creates(self, tmp_path: Path, monkeypatch) -> None:
+        """Test discover_htmlgraph_dir returns path even if not exists.
+
+        Uses monkeypatch to unset env vars so discover doesn't find project root.
+        """
+        # Unset env vars so discover doesn't find the project root via env
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PROJECT_DIR", raising=False)
+
         result = discover_htmlgraph_dir(start_path=tmp_path)
         assert result == tmp_path / ".htmlgraph"
         # Note: discover doesn't create, just returns path
@@ -172,8 +218,16 @@ class TestBaseSDK:
         assert sdk._directory == htmlgraph_dir
         assert sdk._agent_id == "test-agent"
 
+    @pytest.mark.serial
     def test_basesdk_init_auto_discover(self, tmp_path: Path, monkeypatch: Any) -> None:
-        """Test BaseSDK auto-discovers directory."""
+        """Test BaseSDK auto-discovers directory.
+
+        Uses monkeypatch to unset env vars so discovery doesn't find project root.
+        """
+        # Unset env vars so discovery doesn't find the project root via env
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.delenv("HTMLGRAPH_PROJECT_DIR", raising=False)
+
         htmlgraph_dir = tmp_path / ".htmlgraph"
         htmlgraph_dir.mkdir()
 
