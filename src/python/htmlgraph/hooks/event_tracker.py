@@ -1597,6 +1597,36 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
             except Exception as _je:
                 logger.debug(f"PostToolUse: JSONL attribution skipped: {_je}")
 
+        # Method 0.5: agent_id-based lookup for subagent events.
+        # SubagentStart stamps the real agent_id on the Task event in agent_events.
+        # This is exact, unambiguous, and race-condition-free since SubagentStart
+        # fires before any subagent tool calls.
+        if not parent_activity_id and db and db.connection:
+            hook_agent_id = hook_input.get("agent_id", "")
+            if hook_agent_id and hook_agent_id != "claude-code":
+                try:
+                    _aid_cursor = db.connection.cursor()
+                    _aid_cursor.execute(
+                        """
+                        SELECT event_id FROM agent_events
+                        WHERE event_type = 'task_delegation'
+                          AND agent_id = ?
+                        ORDER BY timestamp DESC
+                        LIMIT 1
+                        """,
+                        (hook_agent_id,),
+                    )
+                    _aid_row = _aid_cursor.fetchone()
+                    if _aid_row:
+                        parent_activity_id = _aid_row[0]
+                        logger.debug(
+                            f"PostToolUse: agent_id lookup found parent "
+                            f"task_delegation={parent_activity_id} for "
+                            f"agent_id={hook_agent_id}"
+                        )
+                except Exception as _ae:
+                    logger.debug(f"PostToolUse: agent_id lookup failed: {_ae}")
+
         # MCP tool calls (tool_name contains "__") are always invoked directly by the
         # orchestrator, never from inside a subagent.  HTMLGRAPH_PARENT_EVENT persists
         # in the process after a Task() delegation and would incorrectly attribute MCP

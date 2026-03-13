@@ -25,6 +25,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +209,11 @@ def get_parent_event_start_time(db_path: str, parent_event_id: str) -> str | Non
         return None
 
 
-def get_parent_event_from_db(db_path: str, agent_id: str | None = None) -> str | None:
+def get_parent_event_from_db(
+    db_path: str,
+    agent_id: str | None = None,
+    session_id: str | None = None,
+) -> str | None:
     """
     Query database for the task_delegation event that spawned this subagent.
 
@@ -223,6 +228,8 @@ def get_parent_event_from_db(db_path: str, agent_id: str | None = None) -> str |
         agent_id: Native agent_id from hook input (e.g. subagent UUID). Used for
                   exact task_delegation lookup to avoid mis-attribution when
                   multiple subagents run in parallel.
+        session_id: Current session ID used to scope queries and avoid matching
+                    stale task_delegation rows from previous sessions.
 
     Returns:
         Parent event ID (evt-XXXXX) or None if not found
@@ -235,29 +242,58 @@ def get_parent_event_from_db(db_path: str, agent_id: str | None = None) -> str |
             # Exact lookup: find the task_delegation whose agent_id matches.
             # PreToolUse stores agent_id on task_delegation events so we can
             # correlate SubagentStop back to the right parent even in parallel.
-            cursor.execute(
-                """
-                SELECT event_id FROM agent_events
-                WHERE event_type = 'task_delegation'
-                  AND agent_id = ?
-                  AND status = 'started'
-                ORDER BY timestamp DESC
-                LIMIT 1
-                """,
-                (agent_id,),
-            )
+            # Scope to current session when available to avoid cross-session pollution.
+            if session_id:
+                cursor.execute(
+                    """
+                    SELECT event_id FROM agent_events
+                    WHERE event_type = 'task_delegation'
+                      AND agent_id = ?
+                      AND status = 'started'
+                      AND session_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    (agent_id, session_id),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT event_id FROM agent_events
+                    WHERE event_type = 'task_delegation'
+                      AND agent_id = ?
+                      AND status = 'started'
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    (agent_id,),
+                )
         else:
             # Fallback heuristic: most recent started task_delegation.
+            # Scope to current session when available to avoid cross-session pollution.
             # Only correct for single-subagent scenarios.
-            cursor.execute(
-                """
-                SELECT event_id FROM agent_events
-                WHERE event_type = 'task_delegation'
-                  AND status = 'started'
-                ORDER BY timestamp DESC
-                LIMIT 1
-                """
-            )
+            if session_id:
+                cursor.execute(
+                    """
+                    SELECT event_id FROM agent_events
+                    WHERE event_type = 'task_delegation'
+                      AND status = 'started'
+                      AND session_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """,
+                    (session_id,),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT event_id FROM agent_events
+                    WHERE event_type = 'task_delegation'
+                      AND status = 'started'
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                    """
+                )
 
         result = cursor.fetchone()
         conn.close()
@@ -267,6 +303,7 @@ def get_parent_event_from_db(db_path: str, agent_id: str | None = None) -> str |
             logger.debug(
                 f"Found parent task_delegation from database: {parent_event_id}"
                 + (f" (agent_id={agent_id})" if agent_id else " (heuristic)")
+                + (f" (session_id={session_id})" if session_id else "")
             )
             return parent_event_id
 
@@ -320,12 +357,15 @@ def handle_subagent_stop(hook_input: dict[str, Any]) -> dict[str, Any]:
     # If parent event ID not in environment, query database.
     # Pass agent_id from hook input for exact lookup (avoids mis-attribution
     # when multiple subagents run in parallel).
+    # Pass session_id to scope query to the current session only, preventing
+    # stale task_delegation rows from old sessions from being matched.
     if not parent_event_id:
         logger.debug("Parent event ID not in environment, querying database...")
         native_agent_id = hook_input.get("agent_id") or None
+        native_session_id = hook_input.get("session_id") or get_session_id() or None
         try:
             parent_event_id = get_parent_event_from_db(
-                db_path, agent_id=native_agent_id
+                db_path, agent_id=native_agent_id, session_id=native_session_id
             )
         except Exception as e:
             logger.debug(f"Could not query database for parent event: {e}")
@@ -361,9 +401,39 @@ def handle_subagent_stop(hook_input: dict[str, Any]) -> dict[str, Any]:
     )
 
     if success:
-        # Clear parent event from environment
-        os.environ.pop("HTMLGRAPH_PARENT_EVENT", None)
-        os.environ.pop("HTMLGRAPH_SUBAGENT_TYPE", None)
+        # Write a task_completed marker event to the database.
+        # This is the PRIMARY signal for PostToolUse to know the task is done.
+        # NOTE: os.environ.pop("HTMLGRAPH_PARENT_EVENT") is dead code here —
+        # each hook runs as a separate subprocess, so env var changes never
+        # propagate back to the parent process or other hooks.
+        # The task_completed marker row is the reliable inter-hook signal.
+        agent_id = hook_input.get("agent_id") or "claude-code"
+        session_id = hook_input.get("session_id") or get_session_id() or ""
+        try:
+            _marker_conn = sqlite3.connect(db_path)
+            _marker_cursor = _marker_conn.cursor()
+            _marker_cursor.execute(
+                """
+                INSERT INTO agent_events (
+                    event_id, session_id, event_type, tool_name,
+                    parent_event_id, agent_id, timestamp, status
+                ) VALUES (?, ?, 'task_completed', 'TaskCompleted', ?, ?, ?, 'completed')
+                """,
+                (
+                    f"evt-tc-{uuid4().hex[:8]}",
+                    session_id,
+                    parent_event_id,
+                    agent_id,
+                    completion_time,
+                ),
+            )
+            _marker_conn.commit()
+            _marker_conn.close()
+            logger.debug(
+                f"Wrote task_completed marker for parent_event={parent_event_id}"
+            )
+        except Exception as _e:
+            logger.warning(f"Could not write task_completed marker: {_e}")
 
         logger.info(
             f"Subagent stop recorded: parent_event={parent_event_id}, "

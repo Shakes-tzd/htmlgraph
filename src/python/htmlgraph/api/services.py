@@ -135,7 +135,10 @@ class ActivityService:
 
             conversation_turns: list[dict[str, Any]] = []
 
-            # Children query used by recursive fetcher
+            # Children query used by recursive fetcher.
+            # 'Agent' tool events are PostToolUse echoes of Task delegations — the Task
+            # node (from SubagentStart) carries the meaningful nested children, so we
+            # exclude Agent from display at all depths to avoid redundant rows.
             children_sql = """
                 SELECT
                     event_id,
@@ -153,10 +156,14 @@ class ActivityService:
                     event_type
                 FROM agent_events
                 WHERE parent_event_id = ?
+                AND tool_name != 'Agent'
                 ORDER BY timestamp DESC
             """
 
             # First-level children query (includes cross-session lookup)
+            # 'Agent' tool events are PostToolUse echoes of Task delegations — the Task
+            # node (from SubagentStart) carries the meaningful nested children, so we
+            # exclude Agent from the display to avoid duplicate top-level rows.
             first_level_children_sql = """
                 SELECT
                     event_id,
@@ -182,6 +189,7 @@ class ActivityService:
                         AND tool_name != 'UserQuery'
                     )
                 )
+                AND tool_name != 'Agent'
                 ORDER BY timestamp DESC
             """
 
@@ -358,7 +366,7 @@ class ActivityService:
                     FROM agent_events
                     WHERE session_id = ?
                       AND (parent_event_id IS NULL OR parent_event_id = '')
-                      AND tool_name NOT IN ('UserQuery', 'Stop', 'SessionStart', 'SessionEnd')
+                      AND tool_name NOT IN ('UserQuery', 'Stop', 'SessionStart', 'SessionEnd', 'Agent')
                       AND timestamp >= ?
                       AND timestamp < ?
                     ORDER BY timestamp ASC
@@ -379,7 +387,7 @@ class ActivityService:
                     FROM agent_events
                     WHERE session_id = ?
                       AND (parent_event_id IS NULL OR parent_event_id = '')
-                      AND tool_name NOT IN ('UserQuery', 'Stop', 'SessionStart', 'SessionEnd')
+                      AND tool_name NOT IN ('UserQuery', 'Stop', 'SessionStart', 'SessionEnd', 'Agent')
                       AND timestamp >= ?
                     ORDER BY timestamp ASC
                 """
@@ -487,13 +495,16 @@ class ActivityService:
                         # Build sub-session ID
                         sub_session_id = f"{uq_session_id}-{agent_name}"
 
-                        # Query ALL events from that sub-session
+                        # Query ALL events from that sub-session, excluding Agent tool
+                        # events which are PostToolUse echoes of Task delegations — the
+                        # Task node (from SubagentStart) carries the meaningful children.
                         sub_session_query = """
                             SELECT event_id, tool_name, timestamp, input_summary,
                                    execution_duration_seconds, status, agent_id, model,
                                    context, subagent_type, feature_id, parent_event_id
                             FROM agent_events
                             WHERE session_id = ?
+                            AND tool_name != 'Agent'
                             ORDER BY timestamp ASC
                         """
 

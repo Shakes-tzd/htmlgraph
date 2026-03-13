@@ -31,12 +31,15 @@ def handle_subagent_start(hook_input: dict[str, Any]) -> dict[str, Any]:
     """
     agent_id = hook_input.get("agent_id")
     agent_type = hook_input.get("agent_type", "")
+    session_id = hook_input.get("session_id") or ""
 
     if not agent_id:
         logger.debug("SubagentStart: No agent_id provided, skipping")
         return {"continue": True}
 
-    logger.info(f"SubagentStart: agent_id={agent_id}, agent_type={agent_type}")
+    logger.info(
+        f"SubagentStart: agent_id={agent_id}, agent_type={agent_type}, session_id={session_id}"
+    )
 
     # Get database path
     try:
@@ -52,17 +55,33 @@ def handle_subagent_start(hook_input: dict[str, Any]) -> dict[str, Any]:
         conn = sqlite3.connect(db_path, timeout=2.0)
         cursor = conn.cursor()
 
-        # Find the earliest unmatched task_delegation (no agent_id yet)
-        # that matches the agent_type, ordered by timestamp ASC (FIFO)
-        cursor.execute(
-            """
-            SELECT event_id, subagent_type FROM agent_events
-            WHERE event_type = 'task_delegation'
-              AND status = 'started'
-              AND (agent_id IS NULL OR agent_id = '')
-            ORDER BY timestamp ASC
-            """,
-        )
+        # Find the earliest unmatched task_delegation (no real agent_id yet)
+        # that matches the agent_type, ordered by timestamp ASC (FIFO).
+        # PreToolUse writes agent_id='claude-code' as a placeholder; treat that
+        # as "unmatched" alongside NULL/''.
+        # Scope to the current session to avoid matching stale rows from old sessions.
+        if session_id:
+            cursor.execute(
+                """
+                SELECT event_id, subagent_type FROM agent_events
+                WHERE event_type = 'task_delegation'
+                  AND status = 'started'
+                  AND (agent_id IS NULL OR agent_id = '' OR agent_id = 'claude-code')
+                  AND session_id = ?
+                ORDER BY timestamp ASC
+                """,
+                (session_id,),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT event_id, subagent_type FROM agent_events
+                WHERE event_type = 'task_delegation'
+                  AND status = 'started'
+                  AND (agent_id IS NULL OR agent_id = '' OR agent_id = 'claude-code')
+                ORDER BY timestamp ASC
+                """,
+            )
         rows = cursor.fetchall()
 
         matched_event_id = None
