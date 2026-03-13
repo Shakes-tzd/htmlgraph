@@ -32,6 +32,7 @@ async def test_presence_widget_html_structure():
     print("✅ HTML structure valid")
 
 
+@pytest.mark.asyncio
 async def test_presence_widget_functionality():
     """Test Presence Widget JavaScript functionality with mock data."""
     async with async_playwright() as p:
@@ -123,6 +124,7 @@ async def test_presence_widget_functionality():
         print("✅ All Playwright tests passed!")
 
 
+@pytest.mark.asyncio
 async def test_presence_widget_code_examples():
     """Test that code examples in documentation are complete and syntactically correct."""
     async with async_playwright() as p:
@@ -160,6 +162,7 @@ async def test_presence_widget_code_examples():
         await browser.close()
 
 
+@pytest.mark.asyncio
 async def test_widget_styling():
     """Test that widget CSS styling is applied correctly."""
     async with async_playwright() as p:
@@ -202,6 +205,7 @@ async def test_widget_styling():
         await browser.close()
 
 
+@pytest.mark.asyncio
 async def test_demo_functionality():
     """Test the mock data simulation and auto-update mechanism."""
     async with async_playwright() as p:

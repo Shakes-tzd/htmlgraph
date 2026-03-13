@@ -81,6 +81,7 @@ def create_all_tables(cursor: sqlite3.Cursor) -> None:
                 priority IN ('low', 'medium', 'high', 'critical')
             ),
             assigned_to TEXT,
+            assignee TEXT DEFAULT NULL,
             track_id TEXT,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -653,6 +654,37 @@ def migrate_sessions(cursor: sqlite3.Cursor) -> None:
             try:
                 cursor.execute(f"ALTER TABLE sessions ADD COLUMN {col_name} {col_type}")
                 logger.info(f"Added column sessions.{col_name}")
+            except sqlite3.OperationalError as e:
+                logger.debug(f"Could not add {col_name}: {e}")
+
+
+def migrate_features(cursor: sqlite3.Cursor) -> None:
+    """
+    Migrate features table to add missing columns.
+
+    Adds columns that may be missing from older database versions.
+
+    Args:
+        cursor: SQLite cursor for executing queries
+    """
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='features'"
+    )
+    if not cursor.fetchone():
+        return  # Table doesn't exist yet, will be created fresh
+
+    cursor.execute("PRAGMA table_info(features)")
+    columns = {row[1] for row in cursor.fetchall()}
+
+    migrations = [
+        ("assignee", "TEXT DEFAULT NULL"),
+    ]
+
+    for col_name, col_type in migrations:
+        if col_name not in columns:
+            try:
+                cursor.execute(f"ALTER TABLE features ADD COLUMN {col_name} {col_type}")
+                logger.info(f"Added column features.{col_name}")
             except sqlite3.OperationalError as e:
                 logger.debug(f"Could not add {col_name}: {e}")
 

@@ -824,3 +824,106 @@ class BaseCollection(Generic[CollectionT]):
         node.updated = datetime.now()
         graph.update(node)
         return node
+
+    def atomic_claim(self, node_id: str, agent: str | None = None) -> bool:
+        """
+        Atomically claim a work item using SQL compare-and-swap.
+
+        Uses a single UPDATE ... WHERE assignee IS NULL OR assignee = ?
+        so only one agent wins when multiple agents race to claim the same item.
+
+        Args:
+            node_id: Node ID to claim
+            agent: Agent ID (defaults to SDK agent or "unknown")
+
+        Returns:
+            True if this agent successfully claimed the item,
+            False if the item was already claimed by a different agent.
+
+        Example:
+            >>> if sdk.features.atomic_claim('feat-abc123'):
+            ...     # we own it, start working
+            ...     sdk.features.start('feat-abc123')
+            ... else:
+            ...     # someone else got there first
+            ...     pass
+        """
+        if agent is None:
+            agent = self._sdk.agent or "unknown"
+
+        db = self._sdk._db
+        if db.connection is None:
+            db.connect()
+
+        cursor = db.connection.execute(  # type: ignore[union-attr]
+            "UPDATE features SET assignee = ? WHERE id = ? AND (assignee IS NULL OR assignee = ?)",
+            (agent, node_id, agent),
+        )
+        db.connection.commit()  # type: ignore[union-attr]
+
+        if cursor.rowcount == 1:
+            self._update_html_assignee(node_id, agent)
+            return True
+        return False
+
+    def atomic_unclaim(self, node_id: str) -> None:
+        """
+        Release the atomic claim on a work item.
+
+        Clears the ``assignee`` column in SQLite and removes the
+        ``data-assignee`` attribute from the HTML file so both stores
+        stay in sync.
+
+        Args:
+            node_id: Node ID to unclaim
+
+        Example:
+            >>> sdk.features.atomic_unclaim('feat-abc123')
+        """
+        db = self._sdk._db
+        if db.connection is None:
+            db.connect()
+
+        db.connection.execute(  # type: ignore[union-attr]
+            "UPDATE features SET assignee = NULL WHERE id = ?", (node_id,)
+        )
+        db.connection.commit()  # type: ignore[union-attr]
+        self._update_html_assignee(node_id, None)
+
+    def _update_html_assignee(self, node_id: str, agent: str | None) -> None:
+        """
+        Sync the ``data-assignee`` HTML attribute to match the SQLite value.
+
+        Searches the standard work-item sub-directories (features, bugs,
+        spikes) for an HTML file whose name matches *node_id* and updates
+        (or removes) the ``data-assignee`` attribute in place.
+
+        Args:
+            node_id: Node ID whose HTML file should be updated
+            agent: New assignee string, or None to remove the attribute
+        """
+        import re
+        from pathlib import Path
+
+        graph_dir = Path(self._sdk._directory)
+        for subdir in ("features", "bugs", "spikes"):
+            html_path = graph_dir / subdir / f"{node_id}.html"
+            if html_path.exists():
+                content = html_path.read_text()
+                if agent:
+                    if "data-assignee=" in content:
+                        content = re.sub(
+                            r'data-assignee="[^"]*"',
+                            f'data-assignee="{agent}"',
+                            content,
+                        )
+                    else:
+                        content = content.replace(
+                            "data-status=",
+                            f'data-assignee="{agent}" data-status=',
+                            1,
+                        )
+                else:
+                    content = re.sub(r'\s*data-assignee="[^"]*"', "", content)
+                html_path.write_text(content)
+                break

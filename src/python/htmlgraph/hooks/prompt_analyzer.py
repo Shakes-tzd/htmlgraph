@@ -17,13 +17,24 @@ with graceful degradation if dependencies are unavailable.
 
 import logging
 import re
+import sqlite3
+import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from htmlgraph.hooks.context import HookContext
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# In-memory cache for get_open_work_items() — avoids repeated DB queries on
+# rapid prompt submissions.  Keyed by (db_path_str,) so multi-project setups
+# each get their own entry.
+# ---------------------------------------------------------------------------
+_WORK_ITEMS_CACHE: dict[str, tuple[list[dict], float]] = {}
+_CACHE_TTL_SECONDS = 30
 
 
 # Patterns that indicate implementation intent
@@ -316,78 +327,104 @@ def get_active_work_item(context: HookContext) -> dict[str, Any] | None:
 
 
 def get_open_work_items(context: HookContext) -> list[dict]:
-    """Get all todo and in-progress work items for attribution guidance.
+    """Get todo and in-progress work items for attribution guidance.
 
-    Queries the SDK for all open work items across features, bugs, and spikes.
-    Used to provide Claude with a list of candidate work items so it can
-    self-evaluate and call sdk.features.start() / sdk.bugs.start() /
-    sdk.spikes.start() to set the correct attribution before proceeding.
+    Queries SQLite directly (not via SDK file scanning) for performance.
+    Results are capped at 10 items (in-progress first, then todo, sorted by
+    priority desc then recency) and cached in-process for 30 seconds.
 
     Args:
         context: HookContext with session and graph directory info
 
     Returns:
-        List of dicts with keys: id, title, type, status.
-        Returns empty list if SDK is unavailable or no items exist.
+        List of dicts with keys: id, title, type, status (max 10 items).
+        Returns empty list if database is unavailable or no items exist.
 
     Example:
         >>> items = get_open_work_items(context)
         >>> for item in items:
         ...     logger.info(f"Open item: {item['type']} {item['id']}: {item['title']}")
     """
+    t_start = time.monotonic()
+    db_path = Path(context.graph_dir) / "htmlgraph.db"
+    cache_key = str(db_path)
+
+    # --- cache check ---
+    cached = _WORK_ITEMS_CACHE.get(cache_key)
+    if cached is not None:
+        items, ts = cached
+        if time.monotonic() - ts < _CACHE_TTL_SECONDS:
+            elapsed_ms = (time.monotonic() - t_start) * 1000
+            logger.debug(f"CIGS work items query took {elapsed_ms:.1f}ms (cache hit)")
+            return items
+
+    # --- SQLite query ---
+    items = []
     try:
-        from htmlgraph import SDK  # noqa: PLC0415
+        if not db_path.exists():
+            return []
 
-        sdk = SDK()
-        items: list[dict] = []
-
-        # Get in-progress features
-        for feat in sdk.features.where(status="in-progress"):
-            items.append(
-                {
-                    "id": feat.id,
-                    "title": feat.title or feat.id,
-                    "type": "feature",
-                    "status": "in-progress",
-                }
+        conn = sqlite3.connect(str(db_path), timeout=2.0)
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            # Fetch in-progress first, then todo; sorted by priority + recency.
+            # CASE expression maps priority strings to sort weight.
+            cursor.execute(
+                """
+                SELECT id, title, status, type
+                FROM features
+                WHERE status IN ('in-progress', 'todo')
+                ORDER BY
+                    CASE status WHEN 'in-progress' THEN 0 ELSE 1 END ASC,
+                    CASE priority
+                        WHEN 'critical' THEN 0
+                        WHEN 'high'     THEN 1
+                        WHEN 'medium'   THEN 2
+                        WHEN 'low'      THEN 3
+                        ELSE 4
+                    END ASC,
+                    updated_at DESC
+                LIMIT 10
+                """
             )
-
-        # Get todo features (top 5 by priority)
-        for feat in sdk.features.where(status="todo")[:5]:
-            items.append(
-                {
-                    "id": feat.id,
-                    "title": feat.title or feat.id,
-                    "type": "feature",
-                    "status": "todo",
-                }
-            )
-
-        # Get in-progress bugs
-        for bug in sdk.bugs.where(status="in-progress"):
-            items.append(
-                {
-                    "id": bug.id,
-                    "title": bug.title or bug.id,
-                    "type": "bug",
-                    "status": "in-progress",
-                }
-            )
-
-        # Get in-progress spikes
-        for spike in sdk.spikes.where(status="in-progress"):
-            items.append(
-                {
-                    "id": spike.id,
-                    "title": spike.title or spike.id,
-                    "type": "spike",
-                    "status": "in-progress",
-                }
-            )
-
-        return items
-    except Exception:  # noqa: BLE001
+            rows = cursor.fetchall()
+            for row in rows:
+                items.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"] or row["id"],
+                        "type": row["type"],
+                        "status": row["status"],
+                    }
+                )
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug(f"CIGS SQLite query failed: {exc}")
         return []
+
+    # --- populate cache ---
+    _WORK_ITEMS_CACHE[cache_key] = (items, time.monotonic())
+
+    elapsed_ms = (time.monotonic() - t_start) * 1000
+    logger.debug(f"CIGS work items query took {elapsed_ms:.1f}ms ({len(items)} items)")
+    return items
+
+
+def invalidate_work_items_cache(db_path: str | Path | None = None) -> None:
+    """Invalidate the in-process work items cache.
+
+    Call this after any SDK write that creates or updates a work item so
+    that the next prompt submission reflects the change immediately.
+
+    Args:
+        db_path: Specific DB path to invalidate.  If None, clears all entries.
+    """
+    if db_path is None:
+        _WORK_ITEMS_CACHE.clear()
+    else:
+        _WORK_ITEMS_CACHE.pop(str(db_path), None)
 
 
 def _build_attribution_block(
@@ -879,6 +916,7 @@ __all__ = [
     "get_session_violation_count",
     "get_active_work_item",
     "get_open_work_items",
+    "invalidate_work_items_cache",
     "generate_guidance",
     "generate_cigs_guidance",
     "detect_wip_limit_hit",
