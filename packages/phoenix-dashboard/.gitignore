@@ -1,0 +1,16 @@
+# Elixir/Phoenix
+/_build/
+/deps/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+
+# Node/Assets
+/assets/node_modules/
+/priv/static/assets/
+
+# Generated
+*.swp
+*~
