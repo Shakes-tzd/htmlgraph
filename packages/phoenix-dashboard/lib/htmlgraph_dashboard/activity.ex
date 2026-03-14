@@ -30,14 +30,18 @@ defmodule HtmlgraphDashboard.Activity do
         orphans = fetch_orphan_events(uq, user_queries)
         all_children = merge_children_by_timestamp(children, orphans)
 
-        stats = compute_stats(all_children)
         work_item = if uq["feature_id"], do: fetch_feature(uq["feature_id"]), else: nil
+
+        displayed_children =
+          all_children
+          |> Enum.map(&sanitize_tree/1)
+          |> Enum.filter(&has_meaningful_content/1)
+
+        stats = compute_stats(displayed_children)
 
         %{
           user_query: sanitize_event(uq),
-          children: all_children
-                    |> Enum.map(&sanitize_tree/1)
-                    |> Enum.filter(&has_meaningful_content/1),
+          children: displayed_children,
           stats: stats,
           work_item: work_item
         }
@@ -193,9 +197,16 @@ defmodule HtmlgraphDashboard.Activity do
     input_summary = event["input_summary"] || ""
     output_summary = event["output_summary"] || ""
 
-    # Keep events that have at least one meaningful summary
-    (String.trim(input_summary) != "" or String.trim(output_summary) != "") and
-      not is_empty_pretooluse(event)
+    # Filter out noise tool names that never carry useful content
+    noise_tool = event["tool_name"] in ["Stop", "SessionResume", "InstructionsLoaded"]
+
+    if noise_tool do
+      false
+    else
+      # Keep events that have at least one meaningful summary
+      (String.trim(input_summary) != "" or String.trim(output_summary) != "") and
+        not is_empty_pretooluse(event)
+    end
   end
 
   defp is_empty_pretooluse(event) do
