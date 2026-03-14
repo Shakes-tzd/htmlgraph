@@ -125,6 +125,22 @@ class BaseBuilder(Generic[BuilderT]):
         """Add blocked-by relationship (this node is blocked by another)."""
         return self._add_edge("blocked_by", node_id)  # type: ignore
 
+    def relates_to(self, node_id: str) -> BuilderT:
+        """Add relates-to relationship."""
+        return self._add_edge("relates_to", node_id)  # type: ignore
+
+    def spawned_from(self, node_id: str) -> BuilderT:
+        """Add spawned-from relationship (provenance)."""
+        return self._add_edge("spawned_from", node_id)  # type: ignore
+
+    def caused_by(self, node_id: str) -> BuilderT:
+        """Add caused-by relationship (causation)."""
+        return self._add_edge("caused_by", node_id)  # type: ignore
+
+    def implements(self, node_id: str) -> BuilderT:
+        """Add implements relationship (links implementation to spec)."""
+        return self._add_edge("implements", node_id)  # type: ignore
+
     def set_track(self, track_id: str) -> BuilderT:
         """Link to a track."""
         self._data["track_id"] = track_id

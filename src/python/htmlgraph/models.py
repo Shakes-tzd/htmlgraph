@@ -20,6 +20,23 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class RelationshipType(str, Enum):
+    """
+    Typed relationships between graph nodes.
+
+    Used for declaring dependencies, provenance, and associations
+    between features, bugs, spikes, and other work items.
+    """
+
+    BLOCKS = "blocks"
+    BLOCKED_BY = "blocked_by"
+    RELATES_TO = "relates_to"
+    IMPLEMENTS = "implements"
+    CAUSED_BY = "caused_by"
+    SPAWNED_FROM = "spawned_from"
+    IMPLEMENTED_IN = "implemented-in"
+
+
 class WorkType(str, Enum):
     """
     Classification of work/activity type for events and sessions.
@@ -273,6 +290,46 @@ class Node(BaseModel):
             self.edges[edge.relationship] = []
         self.edges[edge.relationship].append(edge)
         self.updated = utc_now()
+
+    def relates_to(self, other_id: str, title: str | None = None) -> None:
+        """Add a 'relates_to' edge to another node."""
+        self.add_edge(
+            Edge(
+                target_id=other_id,
+                relationship=RelationshipType.RELATES_TO,
+                title=title,
+            )
+        )
+
+    def spawned_from(self, other_id: str, title: str | None = None) -> None:
+        """Add a 'spawned_from' edge indicating provenance."""
+        self.add_edge(
+            Edge(
+                target_id=other_id,
+                relationship=RelationshipType.SPAWNED_FROM,
+                title=title,
+            )
+        )
+
+    def caused_by(self, other_id: str, title: str | None = None) -> None:
+        """Add a 'caused_by' edge indicating causation."""
+        self.add_edge(
+            Edge(
+                target_id=other_id,
+                relationship=RelationshipType.CAUSED_BY,
+                title=title,
+            )
+        )
+
+    def implements(self, other_id: str, title: str | None = None) -> None:
+        """Add an 'implements' edge linking implementation to spec/requirement."""
+        self.add_edge(
+            Edge(
+                target_id=other_id,
+                relationship=RelationshipType.IMPLEMENTS,
+                title=title,
+            )
+        )
 
     def complete_step(self, index: int, agent: str | None = None) -> bool:
         """Mark a step as completed."""

@@ -720,6 +720,172 @@ class HtmlGraphDB(ExtensionOps):
             logger.error(f"Error fetching feature: {e}")
             return None
 
+    # ------------------------------------------------------------------
+    # Graph Edge CRUD
+    # ------------------------------------------------------------------
+
+    def insert_graph_edge(
+        self,
+        from_node_id: str,
+        from_node_type: str,
+        to_node_id: str,
+        to_node_type: str,
+        relationship_type: str,
+        weight: float = 1.0,
+        metadata: dict[str, Any] | None = None,
+    ) -> str | None:
+        """
+        Insert a graph edge between two nodes.
+
+        Args:
+            from_node_id: Source node ID
+            from_node_type: Source node type (feature, bug, spike, etc.)
+            to_node_id: Target node ID
+            to_node_type: Target node type
+            relationship_type: Relationship type (blocks, relates_to, etc.)
+            weight: Edge weight (default 1.0)
+            metadata: Optional JSON metadata
+
+        Returns:
+            Edge ID if successful, None otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        from htmlgraph.ids import generate_id
+
+        edge_id = generate_id(
+            node_type="event", title=f"{from_node_id}-{relationship_type}-{to_node_id}"
+        )
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                """
+                INSERT INTO graph_edges
+                (edge_id, from_node_id, from_node_type, to_node_id, to_node_type,
+                 relationship_type, weight, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    edge_id,
+                    from_node_id,
+                    from_node_type,
+                    to_node_id,
+                    to_node_type,
+                    relationship_type,
+                    weight,
+                    json.dumps(metadata) if metadata else None,
+                ),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return edge_id
+        except sqlite3.Error as e:
+            logger.error(f"Error inserting graph edge: {e}")
+            return None
+
+    def get_graph_edges(
+        self,
+        node_id: str,
+        direction: str = "both",
+        relationship_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get graph edges for a node.
+
+        Args:
+            node_id: Node ID to query edges for
+            direction: 'outgoing', 'incoming', or 'both'
+            relationship_type: Optional filter by relationship type
+
+        Returns:
+            List of edge dictionaries
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            results: list[dict[str, Any]] = []
+
+            if direction in ("outgoing", "both"):
+                if relationship_type:
+                    cursor.execute(
+                        """
+                        SELECT * FROM graph_edges
+                        WHERE from_node_id = ? AND relationship_type = ?
+                        ORDER BY created_at DESC
+                    """,
+                        (node_id, relationship_type),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT * FROM graph_edges
+                        WHERE from_node_id = ?
+                        ORDER BY created_at DESC
+                    """,
+                        (node_id,),
+                    )
+                results.extend(dict(row) for row in cursor.fetchall())
+
+            if direction in ("incoming", "both"):
+                if relationship_type:
+                    cursor.execute(
+                        """
+                        SELECT * FROM graph_edges
+                        WHERE to_node_id = ? AND relationship_type = ?
+                        ORDER BY created_at DESC
+                    """,
+                        (node_id, relationship_type),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT * FROM graph_edges
+                        WHERE to_node_id = ?
+                        ORDER BY created_at DESC
+                    """,
+                        (node_id,),
+                    )
+                # Deduplicate edges that appear in both directions
+                existing_ids = {r["edge_id"] for r in results}
+                for row in cursor.fetchall():
+                    row_dict = dict(row)
+                    if row_dict["edge_id"] not in existing_ids:
+                        results.append(row_dict)
+
+            return results
+        except sqlite3.Error as e:
+            logger.error(f"Error querying graph edges: {e}")
+            return []
+
+    def delete_graph_edge(self, edge_id: str) -> bool:
+        """
+        Delete a graph edge by ID.
+
+        Args:
+            edge_id: Edge ID to delete
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute("DELETE FROM graph_edges WHERE edge_id = ?", (edge_id,))
+            self.connection.commit()  # type: ignore[union-attr]
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"Error deleting graph edge: {e}")
+            return False
+
+    # ------------------------------------------------------------------
+    # Feature CRUD (continued)
+    # ------------------------------------------------------------------
+
     def get_features_by_status(self, status: str) -> list[dict[str, Any]]:
         """
         Get all features with a specific status.

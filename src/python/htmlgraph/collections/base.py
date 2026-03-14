@@ -825,6 +825,261 @@ class BaseCollection(Generic[CollectionT]):
         graph.update(node)
         return node
 
+    # ------------------------------------------------------------------
+    # Graph Edge Operations (dual-write: HTML + SQLite)
+    # ------------------------------------------------------------------
+
+    def add_edge(
+        self,
+        from_id: str,
+        to_id: str,
+        relationship: str,
+        title: str | None = None,
+    ) -> str | None:
+        """
+        Add a typed edge between two nodes with dual-write.
+
+        Writes the edge to:
+        1. The source node's HTML file (via Node.add_edge)
+        2. The SQLite graph_edges table (if DB available)
+
+        Args:
+            from_id: Source node ID
+            to_id: Target node ID
+            relationship: Relationship type (blocks, relates_to, etc.)
+            title: Optional human-readable title for the edge
+
+        Returns:
+            Edge ID from SQLite if DB write succeeded, None otherwise
+        """
+        from htmlgraph.models import Edge
+
+        # 1. Update HTML: load source node, add edge, save
+        graph = self._ensure_graph()
+        source_node = graph.get(from_id)
+        if source_node:
+            edge = Edge(target_id=to_id, relationship=relationship, title=title)
+            source_node.add_edge(edge)
+            graph.update(source_node)
+
+        # 2. Write to SQLite if DB is available
+        edge_id: str | None = None
+        try:
+            db = self._sdk._db
+            if db:
+                # Infer node types from IDs
+                from_type = self._infer_node_type(from_id)
+                to_type = self._infer_node_type(to_id)
+                edge_id = db.insert_graph_edge(
+                    from_node_id=from_id,
+                    from_node_type=from_type,
+                    to_node_id=to_id,
+                    to_node_type=to_type,
+                    relationship_type=relationship,
+                )
+        except Exception as e:
+            logger.debug(f"SQLite edge write failed: {e}")
+
+        return edge_id
+
+    def related_to(self, node_id: str) -> list[Any]:
+        """
+        Get nodes related to the given node via any relationship.
+
+        Checks both HTML edges (in-memory graph) and SQLite edges.
+
+        Args:
+            node_id: Node ID to find related nodes for
+
+        Returns:
+            List of related Node objects (deduplicated)
+        """
+        related_ids: set[str] = set()
+
+        # Check HTML edges on the source node
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if node:
+            for edge_list in node.edges.values():
+                for edge in edge_list:
+                    related_ids.add(edge.target_id)
+
+        # Check SQLite edges (both directions)
+        try:
+            db = self._sdk._db
+            if db:
+                for edge_dict in db.get_graph_edges(node_id, direction="both"):
+                    if edge_dict["from_node_id"] == node_id:
+                        related_ids.add(edge_dict["to_node_id"])
+                    else:
+                        related_ids.add(edge_dict["from_node_id"])
+        except Exception as e:
+            logger.debug(f"SQLite edge query failed: {e}")
+
+        # Resolve to Node objects
+        result = []
+        for rid in related_ids:
+            related_node = graph.get(rid)
+            if related_node:
+                result.append(related_node)
+        return result
+
+    def query_blocked_by(self, node_id: str) -> list[Any]:
+        """
+        Get nodes that are blocking the given node.
+
+        Args:
+            node_id: Node ID to find blockers for
+
+        Returns:
+            List of blocking Node objects
+        """
+        return self._query_edges_by_relationship(node_id, "blocked_by")
+
+    def query_blocks(self, node_id: str) -> list[Any]:
+        """
+        Get nodes that the given node blocks.
+
+        Args:
+            node_id: Node ID to find blocked nodes for
+
+        Returns:
+            List of blocked Node objects
+        """
+        return self._query_edges_by_relationship(node_id, "blocks")
+
+    def edges_of(
+        self,
+        node_id: str,
+        relationship: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Get all edges for a node, optionally filtered by relationship type.
+
+        Merges edges from both HTML and SQLite sources.
+
+        Args:
+            node_id: Node ID to query edges for
+            relationship: Optional relationship type filter
+
+        Returns:
+            List of edge dictionaries with keys:
+            source, target_id, relationship, title
+        """
+        edges: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str]] = set()
+
+        # HTML edges from in-memory node
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if node:
+            for rel_type, edge_list in node.edges.items():
+                if relationship and rel_type != relationship:
+                    continue
+                for edge in edge_list:
+                    key = (node_id, edge.target_id, edge.relationship)
+                    if key not in seen:
+                        seen.add(key)
+                        edges.append(
+                            {
+                                "from_id": node_id,
+                                "target_id": edge.target_id,
+                                "relationship": edge.relationship,
+                                "title": edge.title,
+                                "source": "html",
+                            }
+                        )
+
+        # SQLite edges
+        try:
+            db = self._sdk._db
+            if db:
+                db_edges = db.get_graph_edges(
+                    node_id,
+                    direction="both",
+                    relationship_type=relationship,
+                )
+                for e in db_edges:
+                    from_id = e["from_node_id"]
+                    to_id = e["to_node_id"]
+                    rel = e["relationship_type"]
+                    key = (from_id, to_id, rel)
+                    if key not in seen:
+                        seen.add(key)
+                        edges.append(
+                            {
+                                "from_id": from_id,
+                                "target_id": to_id,
+                                "relationship": rel,
+                                "title": None,
+                                "source": "sqlite",
+                                "edge_id": e["edge_id"],
+                            }
+                        )
+        except Exception as ex:
+            logger.debug(f"SQLite edge query failed: {ex}")
+
+        return edges
+
+    def _query_edges_by_relationship(
+        self, node_id: str, relationship: str
+    ) -> list[Any]:
+        """
+        Internal helper: get target nodes for a specific relationship.
+
+        Args:
+            node_id: Source node ID
+            relationship: Relationship type to filter
+
+        Returns:
+            List of target Node objects
+        """
+        target_ids: set[str] = set()
+
+        # HTML edges
+        graph = self._ensure_graph()
+        node = graph.get(node_id)
+        if node:
+            for edge in node.edges.get(relationship, []):
+                target_ids.add(edge.target_id)
+
+        # SQLite edges (outgoing only for directional relationships)
+        try:
+            db = self._sdk._db
+            if db:
+                db_edges = db.get_graph_edges(
+                    node_id,
+                    direction="outgoing",
+                    relationship_type=relationship,
+                )
+                for e in db_edges:
+                    target_ids.add(e["to_node_id"])
+        except Exception as e:
+            logger.debug(f"SQLite edge query failed: {e}")
+
+        result = []
+        for tid in target_ids:
+            target_node = graph.get(tid)
+            if target_node:
+                result.append(target_node)
+        return result
+
+    @staticmethod
+    def _infer_node_type(node_id: str) -> str:
+        """
+        Infer node type from ID prefix.
+
+        Args:
+            node_id: Node ID like 'feat-abc123' or 'bug-xyz789'
+
+        Returns:
+            Node type string (feature, bug, spike, etc.)
+        """
+        from htmlgraph.ids import PREFIX_TO_TYPE
+
+        prefix = node_id.split("-")[0] if "-" in node_id else node_id
+        return PREFIX_TO_TYPE.get(prefix, "feature")
+
     def atomic_claim(self, node_id: str, agent: str | None = None) -> bool:
         """
         Atomically claim a work item using SQL compare-and-swap.
