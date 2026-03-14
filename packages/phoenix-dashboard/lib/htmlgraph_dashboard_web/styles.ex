@@ -294,6 +294,86 @@ defmodule HtmlgraphDashboardWeb.Styles do
       border: 1px solid rgba(57, 210, 192, 0.2);
     }
 
+    /* Subagent family badges */
+    .badge-subagent-researcher {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--accent-orange);
+      border: 1px solid rgba(210, 153, 34, 0.3);
+    }
+
+    .badge-subagent-haiku {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+
+    .badge-subagent-opus {
+      background: rgba(188, 140, 255, 0.15);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188, 140, 255, 0.3);
+    }
+
+    .badge-subagent-green {
+      background: rgba(63, 185, 80, 0.1);
+      color: var(--accent-green);
+      border: 1px solid rgba(63, 185, 80, 0.2);
+    }
+
+    .badge-subagent-claude {
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--accent-blue);
+      border: 1px solid rgba(88, 166, 255, 0.2);
+    }
+
+    /* Work item type badges */
+    .badge-wi-feature {
+      background: rgba(205, 255, 0, 0.15);
+      color: #cdff00;
+      border: 1px solid rgba(205, 255, 0, 0.3);
+    }
+
+    .badge-wi-bug {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--accent-red);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+
+    .badge-wi-spike {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .badge-wi-task {
+      background: rgba(139, 92, 246, 0.15);
+      color: #8b5cf6;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .badge-wi-chore {
+      background: rgba(107, 114, 128, 0.15);
+      color: #9ca3af;
+      border: 1px solid rgba(107, 114, 128, 0.3);
+    }
+
+    .badge-wi-epic {
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .badge-wi-track {
+      background: rgba(57, 210, 192, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(57, 210, 192, 0.3);
+    }
+
+    .badge-wi-insight {
+      background: rgba(188, 140, 255, 0.15);
+      color: var(--accent-purple);
+      border: 1px solid rgba(188, 140, 255, 0.3);
+    }
+
     .badge-count {
       background: var(--bg-tertiary);
       color: var(--text-secondary);
@@ -411,6 +491,79 @@ defmodule HtmlgraphDashboardWeb.Styles do
       padding: 8px 16px;
       border-radius: var(--radius);
       margin-top: 8px;
+    }
+
+    /* Agent filter */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 24px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-input {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: var(--font-sans);
+      width: 220px;
+      transition: border-color 0.15s;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+
+    .filter-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .filter-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Sync status bar */
+    .sync-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 4px 24px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .sync-metric {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .sync-metric-label {
+      color: var(--text-muted);
+    }
+
+    .sync-metric-value {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .sync-metric-value.warn {
+      color: var(--accent-orange);
+    }
+
+    .sync-metric-value.error {
+      color: var(--accent-red);
     }
 
     /* Scrollbar */

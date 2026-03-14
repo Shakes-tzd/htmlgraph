@@ -24,8 +24,10 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
     socket =
       socket
       |> assign(:session_filter, session_id)
+      |> assign(:agent_filter, nil)
       |> assign(:expanded, MapSet.new())
       |> assign(:new_event_ids, MapSet.new())
+      |> assign(:sync_status, nil)
       |> load_feed()
 
     {:ok, socket}
@@ -71,6 +73,17 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
     {:noreply, assign(socket, :expanded, expanded)}
   end
 
+  def handle_event("filter_agent", %{"agent_id" => agent_id}, socket) do
+    filter = if agent_id == "", do: nil, else: agent_id
+
+    socket =
+      socket
+      |> assign(:agent_filter, filter)
+      |> load_feed()
+
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info({:new_event, event}, socket) do
     # Mark the new event for flash animation
@@ -92,11 +105,23 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
     {:noreply, assign(socket, :new_event_ids, new_ids)}
   end
 
+  def handle_info({:sync_status, status}, socket) do
+    {:noreply, assign(socket, :sync_status, status)}
+  end
+
   defp load_feed(socket) do
+    opts = [limit: 50]
+
     opts =
       case socket.assigns[:session_filter] do
-        nil -> [limit: 50]
-        sid -> [limit: 50, session_id: sid]
+        nil -> opts
+        sid -> Keyword.put(opts, :session_id, sid)
+      end
+
+    opts =
+      case socket.assigns[:agent_filter] do
+        nil -> opts
+        aid -> Keyword.put(opts, :agent_id, aid)
       end
 
     feed = Activity.list_activity_feed(opts)
@@ -121,6 +146,48 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
       "Glob" -> "badge-tool"
       "Grep" -> "badge-tool"
       _ -> "badge-tool"
+    end
+  end
+
+  defp subagent_badge_class(nil), do: "badge-subagent"
+
+  defp subagent_badge_class(subagent_type) do
+    lower = String.downcase(subagent_type)
+
+    cond do
+      String.contains?(lower, "researcher") -> "badge-subagent-researcher"
+      String.contains?(lower, "haiku") -> "badge-subagent-haiku"
+      String.contains?(lower, "opus") -> "badge-subagent-opus"
+      String.contains?(lower, "test") or String.contains?(lower, "debug") -> "badge-subagent-green"
+      true -> "badge-subagent-claude"
+    end
+  end
+
+  defp format_model_name(nil), do: ""
+
+  defp format_model_name(model) when is_binary(model) do
+    m = if String.starts_with?(model, "claude-"), do: String.slice(model, 7..-1//1), else: model
+
+    case String.split(m, "-") do
+      [a, b, c] -> "#{a}-#{b}.#{c}"
+      [a, b] -> "#{a}-#{b}"
+      _ -> m
+    end
+  end
+
+  defp work_item_type_class(nil), do: "badge-feature"
+
+  defp work_item_type_class(type) do
+    case type do
+      "feature" -> "badge-wi-feature"
+      "bug" -> "badge-wi-bug"
+      "spike" -> "badge-wi-spike"
+      "task" -> "badge-wi-task"
+      "chore" -> "badge-wi-chore"
+      "epic" -> "badge-wi-epic"
+      "track" -> "badge-wi-track"
+      "insight" -> "badge-wi-insight"
+      _ -> "badge-feature"
     end
   end
 
@@ -230,6 +297,45 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
       </div>
     </div>
 
+    <div class="filter-bar">
+      <span class="filter-label">Filter:</span>
+      <form phx-change="filter_agent">
+        <input
+          class="filter-input"
+          type="text"
+          name="agent_id"
+          placeholder="Filter by agent..."
+          value={@agent_filter || ""}
+          phx-debounce="500"
+        />
+      </form>
+    </div>
+
+    <%= if @sync_status do %>
+      <div class="sync-status-bar">
+        <span class="sync-metric">
+          <span class="sync-metric-label">oplog:</span>
+          <span class="sync-metric-value"><%= @sync_status.server_max_seq %></span>
+        </span>
+        <span class="sync-metric">
+          <span class="sync-metric-label">conflicts:</span>
+          <span class={"sync-metric-value #{if @sync_status.pending_conflicts > 0, do: "warn"}"}>
+            <%= @sync_status.pending_conflicts %>
+          </span>
+        </span>
+        <span class="sync-metric">
+          <span class="sync-metric-label">consumers:</span>
+          <span class="sync-metric-value"><%= @sync_status.consumer_count %></span>
+        </span>
+        <span class="sync-metric">
+          <span class="sync-metric-label">lag:</span>
+          <span class={"sync-metric-value #{if @sync_status.pipeline_lag > 10, do: "error", else: if(@sync_status.pipeline_lag > 0, do: "warn")}"}>
+            <%= @sync_status.pipeline_lag %>
+          </span>
+        </span>
+      </div>
+    <% end %>
+
     <div class="feed-container">
       <%= if @feed == [] do %>
         <div class="empty-state">
@@ -338,12 +444,12 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
                           </span>
                         <% end %>
                         <%= if turn.work_item do %>
-                          <span class="badge badge-feature">
+                          <span class={"badge #{work_item_type_class(turn.work_item["type"])}"}>
                             <%= truncate(turn.work_item["title"], 30) %>
                           </span>
                         <% end %>
                         <%= for model <- turn.stats.models do %>
-                          <span class="badge badge-model"><%= model %></span>
+                          <span class="badge badge-model" title={model}><%= format_model_name(model) %></span>
                         <% end %>
                       </div>
                     </td>
@@ -424,13 +530,13 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
       <td>
         <div class="stats-badges">
           <%= if @event["subagent_type"] do %>
-            <span class="badge badge-subagent">
+            <span class={"badge #{subagent_badge_class(@event["subagent_type"])}"} title={@event["subagent_type"]}>
               <%= @event["subagent_type"] %>
             </span>
           <% end %>
           <%= if @event["model"] do %>
-            <span class="badge badge-model">
-              <%= @event["model"] %>
+            <span class="badge badge-model" title={@event["model"]}>
+              <%= format_model_name(@event["model"]) %>
             </span>
           <% end %>
           <%= if @event["event_type"] == "error" do %>

@@ -17,9 +17,10 @@ defmodule HtmlgraphDashboard.Activity do
   def list_activity_feed(opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
     session_id = Keyword.get(opts, :session_id, nil)
+    agent_id = Keyword.get(opts, :agent_id, nil)
 
     # Fetch UserQuery events (conversation turns) — these are the top-level entries
-    user_queries = fetch_user_queries(limit, session_id)
+    user_queries = fetch_user_queries(limit, session_id, agent_id)
 
     # For each UserQuery, recursively fetch children
     turns =
@@ -88,7 +89,7 @@ defmodule HtmlgraphDashboard.Activity do
 
   # --- Private ---
 
-  defp fetch_user_queries(limit, nil) do
+  defp fetch_user_queries(limit, nil, nil) do
     sql = """
     SELECT event_id, tool_name, event_type, timestamp, input_summary,
            output_summary, session_id, agent_id, parent_event_id,
@@ -106,7 +107,7 @@ defmodule HtmlgraphDashboard.Activity do
     end
   end
 
-  defp fetch_user_queries(limit, session_id) do
+  defp fetch_user_queries(limit, session_id, nil) when not is_nil(session_id) do
     sql = """
     SELECT event_id, tool_name, event_type, timestamp, input_summary,
            output_summary, session_id, agent_id, parent_event_id,
@@ -119,6 +120,54 @@ defmodule HtmlgraphDashboard.Activity do
     """
 
     case Repo.query_maps(sql, [session_id, limit]) do
+      {:ok, rows} -> rows
+      {:error, _} -> []
+    end
+  end
+
+  defp fetch_user_queries(limit, nil, agent_id) when not is_nil(agent_id) do
+    sql = """
+    SELECT DISTINCT uq.event_id, uq.tool_name, uq.event_type, uq.timestamp,
+           uq.input_summary, uq.output_summary, uq.session_id, uq.agent_id,
+           uq.parent_event_id, uq.subagent_type, uq.model, uq.status,
+           uq.cost_tokens, uq.execution_duration_seconds, uq.feature_id,
+           uq.context
+    FROM agent_events uq
+    WHERE uq.tool_name = 'UserQuery'
+      AND EXISTS (
+        SELECT 1 FROM agent_events child
+        WHERE child.parent_event_id = uq.event_id
+          AND child.agent_id LIKE '%' || ? || '%'
+      )
+    ORDER BY uq.timestamp DESC
+    LIMIT ?
+    """
+
+    case Repo.query_maps(sql, [agent_id, limit]) do
+      {:ok, rows} -> rows
+      {:error, _} -> []
+    end
+  end
+
+  defp fetch_user_queries(limit, session_id, agent_id) do
+    sql = """
+    SELECT DISTINCT uq.event_id, uq.tool_name, uq.event_type, uq.timestamp,
+           uq.input_summary, uq.output_summary, uq.session_id, uq.agent_id,
+           uq.parent_event_id, uq.subagent_type, uq.model, uq.status,
+           uq.cost_tokens, uq.execution_duration_seconds, uq.feature_id,
+           uq.context
+    FROM agent_events uq
+    WHERE uq.tool_name = 'UserQuery' AND uq.session_id = ?
+      AND EXISTS (
+        SELECT 1 FROM agent_events child
+        WHERE child.parent_event_id = uq.event_id
+          AND child.agent_id LIKE '%' || ? || '%'
+      )
+    ORDER BY uq.timestamp DESC
+    LIMIT ?
+    """
+
+    case Repo.query_maps(sql, [session_id, agent_id, limit]) do
       {:ok, rows} -> rows
       {:error, _} -> []
     end

@@ -10,6 +10,7 @@ defmodule HtmlgraphDashboard.EventPoller do
   alias HtmlgraphDashboard.Repo
 
   @poll_interval_ms 1_000
+  @sync_poll_interval 3
   @topic "activity_feed"
 
   def start_link(opts) do
@@ -25,7 +26,9 @@ defmodule HtmlgraphDashboard.EventPoller do
   def init(_opts) do
     state = %{
       last_event_id: nil,
-      last_timestamp: nil
+      last_timestamp: nil,
+      last_sync_signature: nil,
+      poll_count: 0
     }
 
     schedule_poll()
@@ -35,6 +38,7 @@ defmodule HtmlgraphDashboard.EventPoller do
   @impl true
   def handle_info(:poll, state) do
     new_state = poll_new_events(state)
+    new_state = maybe_poll_sync_status(new_state)
     schedule_poll()
     {:noreply, new_state}
   end
@@ -84,6 +88,58 @@ defmodule HtmlgraphDashboard.EventPoller do
 
       {:error, _reason} ->
         state
+    end
+  end
+
+  defp maybe_poll_sync_status(%{poll_count: count} = state) do
+    state = %{state | poll_count: count + 1}
+
+    if rem(state.poll_count, @sync_poll_interval) == 0 do
+      poll_sync_status(state)
+    else
+      state
+    end
+  end
+
+  defp poll_sync_status(state) do
+    with {:ok, [[max_seq]]} <-
+           Repo.query("SELECT COALESCE(MAX(seq), 0) FROM oplog"),
+         {:ok, [[conflicts]]} <-
+           Repo.query(
+             "SELECT COUNT(*) FROM sync_conflicts WHERE status != 'resolved'"
+           ),
+         {:ok, [[consumer_count, max_lag, min_acked]]} <-
+           Repo.query("""
+           SELECT COUNT(*),
+                  COALESCE(MAX(last_seen_seq - last_acked_seq), 0),
+                  COALESCE(MIN(last_acked_seq), 0)
+           FROM sync_cursors
+           """) do
+      pipeline_lag =
+        if consumer_count > 0, do: max(max_seq - min_acked, 0), else: 0
+
+      signature = {max_seq, conflicts, max_lag, consumer_count, pipeline_lag}
+
+      if signature != state.last_sync_signature do
+        Phoenix.PubSub.broadcast(
+          HtmlgraphDashboard.PubSub,
+          @topic,
+          {:sync_status,
+           %{
+             server_max_seq: max_seq,
+             pending_conflicts: conflicts,
+             max_consumer_lag: max_lag,
+             consumer_count: consumer_count,
+             pipeline_lag: pipeline_lag
+           }}
+        )
+
+        %{state | last_sync_signature: signature}
+      else
+        state
+      end
+    else
+      _ -> state
     end
   end
 end
