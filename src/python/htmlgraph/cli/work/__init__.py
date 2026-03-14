@@ -6,7 +6,6 @@ Commands for managing work items:
 - Features: Work item tracking
 - Sessions: Session management
 - Tracks: Multi-feature planning
-- Archives: Archival management
 - Orchestrator: Claude Code integration
 - Other work-related operations
 """
@@ -29,7 +28,6 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     from htmlgraph.cli.work.graph import register_graph_commands
     from htmlgraph.cli.work.ingest import register_ingest_commands
     from htmlgraph.cli.work.orchestration import (
-        register_archive_commands,
         register_claude_commands,
         register_orchestrator_commands,
     )
@@ -44,7 +42,6 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     register_feature_commands(subparsers)
     register_graph_commands(subparsers)
     register_track_commands(subparsers)
-    register_archive_commands(subparsers)
     register_orchestrator_commands(subparsers)
     register_claude_commands(subparsers)
     register_report_commands(subparsers)
@@ -141,8 +138,6 @@ from htmlgraph.cli.work.ingest import (
     IngestSessionCommand,
 )
 from htmlgraph.cli.work.orchestration import (
-    ArchiveCreateCommand,
-    ArchiveListCommand,
     ClaudeCommand,
     OrchestratorDisableCommand,
     OrchestratorEnableCommand,
@@ -210,8 +205,6 @@ __all__ = [
     "WipShowCommand",
     "WipResetCommand",
     # Orchestration commands
-    "ArchiveCreateCommand",
-    "ArchiveListCommand",
     "OrchestratorStatusCommand",
     "OrchestratorEnableCommand",
     "OrchestratorDisableCommand",
