@@ -118,6 +118,7 @@ defmodule HtmlgraphDashboard.Activity do
       |> strip_xml_tags()
       |> strip_json_dumps()
       |> String.trim()
+      |> strip_agent_prefix()
       |> truncate_text(120)
     end
   end
@@ -165,6 +166,11 @@ defmodule HtmlgraphDashboard.Activity do
     else
       text
     end
+  end
+
+  defp strip_agent_prefix(text) do
+    # Strip agent type prefix like "(htmlgraph:haiku-coder): " since it's shown as a badge
+    Regex.replace(~r/^\([a-zA-Z0-9:_-]+\):\s*/, text, "")
   end
 
   defp truncate_text(text, max_len) do
