@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Pythonx Setup — embed Python SDK in Phoenix dashboard</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-4e5254c8"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-15T16:35:40.916548"
+             data-updated="2026-03-15T16:47:41.401637" data-agent-assigned="claude-code" data-track-id="trk-5639dde8">
+
+        <header>
+            <h1>Pythonx Setup — embed Python SDK in Phoenix dashboard</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="abfaeabd-c6e6-4109-a575-06e0b9548eb7.html" data-relationship="implemented-in" data-since="2026-03-15T16:35:43.901002">abfaeabd-c6e6-4109-a575-06e0b9548eb7</a></li>
+                    <li><a href="sess-b55e1899.html" data-relationship="implemented-in" data-since="2026-03-15T16:47:24.198414">sess-b55e1899</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-03-15T16:47:41.401648">2026-03-15T16:47:41.401648</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'abfaeabd-c6e6-4109-a575-06e0b9548eb7', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 10, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 3, 'description': 'Multiple edits without testing - run tests between changes'}], 'errors': [], 'error_count': 0, 'efficiency': 0.7173913043478262, 'issues': ['High retry rate: 28%'], 'recommendations': ['Consider reading more context before acting'], 'test_runs': [], 'test_summary': None, 'summary': '⚠️ Issues: 13 anti-pattern occurrences'}">{'session_id': 'abfaeabd-c6e6-4109-a575-06e0b9548eb7', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 10, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 3, 'description': 'Multiple edits without testing - run tests between changes'}], 'errors': [], 'error_count': 0, 'efficiency': 0.7173913043478262, 'issues': ['High retry rate: 28%'], 'recommendations': ['Consider reading more context before acting'], 'test_runs': [], 'test_summary': None, 'summary': '⚠️ Issues: 13 anti-pattern occurrences'}</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-4e5254c8-0">✅ Add pythonx to mix.exs dependencies</li>
+                <li data-completed="true" data-step-id="step-feat-4e5254c8-1">✅ Configure Pythonx.uv_init with htmlgraph dep in Application.start</li>
+                <li data-completed="true" data-step-id="step-feat-4e5254c8-2">✅ Create HtmlgraphDashboard.PythonSDK GenServer for cached SDK calls</li>
+                <li data-completed="true" data-step-id="step-feat-4e5254c8-3">✅ Verify SDK imports and basic eval works</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

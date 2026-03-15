@@ -79,7 +79,7 @@ class GraphManager:
         """
         self._graph_dir = Path(graph_dir) if graph_dir else None
         self._db_path = db_path or _get_default_db_path()
-        self._G: nx.DiGraph | None = None
+        self._g: nx.DiGraph | None = None
         # Cache feature metadata keyed by id
         self._features: dict[str, dict[str, Any]] = {}
 
@@ -95,7 +95,7 @@ class GraphManager:
 
         Falls back to an empty graph when the database is unavailable.
         """
-        G = nx.DiGraph()
+        G = nx.DiGraph()  # noqa: N806
 
         try:
             conn = sqlite3.connect(self._db_path)
@@ -146,7 +146,7 @@ class GraphManager:
         except sqlite3.Error as exc:
             logger.warning("Could not load graph from DB: %s", exc)
 
-        self._G = G
+        self._g = G
         return G
 
     def refresh(self) -> nx.DiGraph:
@@ -155,12 +155,12 @@ class GraphManager:
         return self.build_graph()
 
     @property
-    def G(self) -> nx.DiGraph:
+    def G(self) -> nx.DiGraph:  # noqa: N802
         """Return the cached DiGraph, building it on first access."""
-        if self._G is None:
+        if self._g is None:
             self.build_graph()
-        assert self._G is not None
-        return self._G
+        assert self._g is not None
+        return self._g
 
     # ------------------------------------------------------------------
     # Cycle detection

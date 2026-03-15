@@ -12,16 +12,16 @@ from typing import Any
 
 import networkx as nx
 import pytest
-
 from htmlgraph.graph.networkx_manager import GraphManager
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _create_db(tmp_path: Path, features: list[dict[str, Any]], edges: list[tuple[str, str, str]]) -> str:
+def _create_db(
+    tmp_path: Path, features: list[dict[str, Any]], edges: list[tuple[str, str, str]]
+) -> str:
     """Create a minimal SQLite DB with features and graph_edges tables."""
     db_path = str(tmp_path / "test.db")
     conn = sqlite3.connect(db_path)
@@ -79,7 +79,9 @@ def _create_db(tmp_path: Path, features: list[dict[str, Any]], edges: list[tuple
     return db_path
 
 
-def _make_manager(tmp_path: Path, features: list[dict[str, Any]], edges: list[tuple[str, str, str]]) -> GraphManager:
+def _make_manager(
+    tmp_path: Path, features: list[dict[str, Any]], edges: list[tuple[str, str, str]]
+) -> GraphManager:
     """Create a GraphManager backed by a test DB."""
     db_path = _create_db(tmp_path, features, edges)
     gm = GraphManager(graph_dir=str(tmp_path), db_path=db_path)
@@ -180,20 +182,20 @@ def disconnected(tmp_path: Path) -> GraphManager:
 
 class TestBuildGraph:
     def test_build_graph_from_db(self, simple_chain: GraphManager) -> None:
-        G = simple_chain.build_graph()
+        G = simple_chain.build_graph()  # noqa: N806
         assert isinstance(G, nx.DiGraph)
         assert set(G.nodes) == {"A", "B", "C"}
         assert G.has_edge("A", "B")
         assert G.has_edge("B", "C")
 
     def test_build_graph_node_attributes(self, simple_chain: GraphManager) -> None:
-        G = simple_chain.G
+        G = simple_chain.G  # noqa: N806
         assert G.nodes["A"]["title"] == "Alpha"
         assert G.nodes["A"]["status"] == "done"
 
     def test_build_graph_empty(self, tmp_path: Path) -> None:
         gm = _make_manager(tmp_path, features=[], edges=[])
-        G = gm.build_graph()
+        G = gm.build_graph()  # noqa: N806
         assert G.number_of_nodes() == 0
         assert G.number_of_edges() == 0
 
@@ -205,13 +207,13 @@ class TestBuildGraph:
         ]
         edges = [("B", "A", "blocked_by")]  # B is blocked by A => A -> B
         gm = _make_manager(tmp_path, features, edges)
-        G = gm.G
+        G = gm.G  # noqa: N806
         assert G.has_edge("A", "B")
         assert not G.has_edge("B", "A")
 
     def test_refresh_rebuilds(self, simple_chain: GraphManager) -> None:
-        G1 = simple_chain.G
-        G2 = simple_chain.refresh()
+        G1 = simple_chain.G  # noqa: N806
+        G2 = simple_chain.refresh()  # noqa: N806
         assert G1 is not G2
         assert set(G2.nodes) == {"A", "B", "C"}
 
@@ -425,6 +427,6 @@ class TestSDKGraphProperty:
 
     def test_sdk_graph_builds_empty(self, isolated_sdk: Any) -> None:
         """Empty project DB produces an empty graph."""
-        G = isolated_sdk.graph.G
+        G = isolated_sdk.graph.G  # noqa: N806
         assert isinstance(G, nx.DiGraph)
         # May have features from test setup, but should not error

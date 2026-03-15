@@ -155,30 +155,62 @@ def check_file(filepath: Path) -> FileReport:
     # Check module size
     if total_lines > MODULE_CRITICAL:
         report.issues.append(
-            Issue(rel_path, "module", rel_path, total_lines, "critical", MODULE_CRITICAL, grandfathered)
+            Issue(
+                rel_path,
+                "module",
+                rel_path,
+                total_lines,
+                "critical",
+                MODULE_CRITICAL,
+                grandfathered,
+            )
         )
     elif total_lines > MODULE_FAIL:
         report.issues.append(
-            Issue(rel_path, "module", rel_path, total_lines, "failure", MODULE_FAIL, grandfathered)
+            Issue(
+                rel_path,
+                "module",
+                rel_path,
+                total_lines,
+                "failure",
+                MODULE_FAIL,
+                grandfathered,
+            )
         )
     elif total_lines > MODULE_WARN:
         report.issues.append(
-            Issue(rel_path, "module", rel_path, total_lines, "warning", MODULE_WARN, grandfathered)
+            Issue(
+                rel_path,
+                "module",
+                rel_path,
+                total_lines,
+                "warning",
+                MODULE_WARN,
+                grandfathered,
+            )
         )
 
     # Check function sizes
     for name, size in functions:
         if size > FUNCTION_FAIL:
-            report.issues.append(Issue(rel_path, "function", name, size, "failure", FUNCTION_FAIL))
+            report.issues.append(
+                Issue(rel_path, "function", name, size, "failure", FUNCTION_FAIL)
+            )
         elif size > FUNCTION_WARN:
-            report.issues.append(Issue(rel_path, "function", name, size, "warning", FUNCTION_WARN))
+            report.issues.append(
+                Issue(rel_path, "function", name, size, "warning", FUNCTION_WARN)
+            )
 
     # Check class sizes
     for name, size in classes:
         if size > CLASS_FAIL:
-            report.issues.append(Issue(rel_path, "class", name, size, "failure", CLASS_FAIL))
+            report.issues.append(
+                Issue(rel_path, "class", name, size, "failure", CLASS_FAIL)
+            )
         elif size > CLASS_WARN:
-            report.issues.append(Issue(rel_path, "class", name, size, "warning", CLASS_WARN))
+            report.issues.append(
+                Issue(rel_path, "class", name, size, "warning", CLASS_WARN)
+            )
 
     return report
 
@@ -242,10 +274,14 @@ def print_summary(reports: list[FileReport]) -> None:
 
     total_over = len(oversized)
     critical = sum(1 for r in oversized if r.total_lines > MODULE_CRITICAL)
-    failures = sum(1 for r in oversized if MODULE_FAIL < r.total_lines <= MODULE_CRITICAL)
+    failures = sum(
+        1 for r in oversized if MODULE_FAIL < r.total_lines <= MODULE_CRITICAL
+    )
     warnings = sum(1 for r in oversized if MODULE_WARN < r.total_lines <= MODULE_FAIL)
 
-    print(f"\nTotal: {total_over} oversized modules ({critical} critical, {failures} failures, {warnings} warnings)")
+    print(
+        f"\nTotal: {total_over} oversized modules ({critical} critical, {failures} failures, {warnings} warnings)"
+    )
 
 
 def print_issues(reports: list[FileReport], *, verbose: bool = True) -> None:
@@ -260,14 +296,18 @@ def print_issues(reports: list[FileReport], *, verbose: bool = True) -> None:
 
     # Group by level
     for level in ("critical", "failure", "warning"):
-        level_issues = [i for i in all_issues if i.level == level and not i.grandfathered]
+        level_issues = [
+            i for i in all_issues if i.level == level and not i.grandfathered
+        ]
         if not level_issues:
             continue
 
         icon = {"critical": "!!!", "failure": "XX", "warning": "~~"}[level]
         print(f"\n{icon} {level.upper()} ({len(level_issues)} issues):")
         for issue in sorted(level_issues, key=lambda i: -i.lines):
-            print(f"  {issue.file}: {issue.kind} '{issue.name}' is {issue.lines} lines (limit: {issue.threshold})")
+            print(
+                f"  {issue.file}: {issue.kind} '{issue.name}' is {issue.lines} lines (limit: {issue.threshold})"
+            )
 
     # Show grandfathered separately
     gf_issues = [i for i in all_issues if i.grandfathered]
@@ -281,7 +321,11 @@ def to_json(reports: list[FileReport]) -> str:
     """Convert reports to JSON."""
     data = {
         "thresholds": {
-            "module": {"warn": MODULE_WARN, "fail": MODULE_FAIL, "critical": MODULE_CRITICAL},
+            "module": {
+                "warn": MODULE_WARN,
+                "fail": MODULE_FAIL,
+                "critical": MODULE_CRITICAL,
+            },
             "function": {"warn": FUNCTION_WARN, "fail": FUNCTION_FAIL},
             "class": {"warn": CLASS_WARN, "fail": CLASS_FAIL},
         },
@@ -314,13 +358,29 @@ def to_json(reports: list[FileReport]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check Python module sizes against standards")
-    parser.add_argument("files", nargs="*", help="Specific files to check (default: all)")
-    parser.add_argument("--changed-only", action="store_true", help="Only check git-changed files")
-    parser.add_argument("--fail-on-warning", action="store_true", help="Treat warnings as failures")
-    parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
-    parser.add_argument("--summary", action="store_true", help="Show summary table only")
-    parser.add_argument("--no-grandfathered", action="store_true", help="Don't show grandfathered modules")
+    parser = argparse.ArgumentParser(
+        description="Check Python module sizes against standards"
+    )
+    parser.add_argument(
+        "files", nargs="*", help="Specific files to check (default: all)"
+    )
+    parser.add_argument(
+        "--changed-only", action="store_true", help="Only check git-changed files"
+    )
+    parser.add_argument(
+        "--fail-on-warning", action="store_true", help="Treat warnings as failures"
+    )
+    parser.add_argument(
+        "--json", action="store_true", dest="json_output", help="Output as JSON"
+    )
+    parser.add_argument(
+        "--summary", action="store_true", help="Show summary table only"
+    )
+    parser.add_argument(
+        "--no-grandfathered",
+        action="store_true",
+        help="Don't show grandfathered modules",
+    )
     args = parser.parse_args()
 
     # Determine which files to check
@@ -351,9 +411,7 @@ def main() -> int:
         print_issues(reports, verbose=not args.no_grandfathered)
 
     # Determine exit code
-    non_gf_issues = [
-        i for r in reports for i in r.issues if not i.grandfathered
-    ]
+    non_gf_issues = [i for r in reports for i in r.issues if not i.grandfathered]
 
     has_failures = any(i.level in ("failure", "critical") for i in non_gf_issues)
     has_warnings = any(i.level == "warning" for i in non_gf_issues)
