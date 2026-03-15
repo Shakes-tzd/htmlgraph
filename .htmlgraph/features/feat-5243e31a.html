@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Add relationship methods to Collections</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-5243e31a"
+             data-type="feature"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-03-15T04:38:06.814793"
+             data-updated="2026-03-15T04:38:06.815901+00:00" data-agent-assigned="claude" data-track-id="trk-7da3070a">
+
+        <header>
+            <h1>Add relationship methods to Collections</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-e7fbbebd.html" data-relationship="blocked_by">feat-e7fbbebd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-03-15T04:38:06.815894">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Add blocked_by(node_id) to BaseCollection</li>
+                <li data-completed="false">⏳ Add depends_on(node_id) to BaseCollection</li>
+                <li data-completed="false">⏳ Add ready() — items with no unresolved blocked_by edges</li>
+                <li data-completed="false">⏳ Add blocked() — items with unresolved blocked_by edges</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add blocked_by(), depends_on(), ready(), and blocked() methods to BaseCollection. These use the EdgeIndex/NetworkX backend to filter by graph relationships.</p>
+        </section>
+    </article>
+</body>
+</html>

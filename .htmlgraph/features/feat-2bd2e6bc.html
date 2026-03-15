@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Write tests for edge sync round-trip</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-2bd2e6bc"
+             data-type="feature"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-03-15T04:38:06.812801"
+             data-updated="2026-03-15T04:38:06.814091+00:00" data-agent-assigned="claude" data-track-id="trk-7da3070a">
+
+        <header>
+            <h1>Write tests for edge sync round-trip</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-d7ea74c7.html" data-relationship="blocked_by">feat-d7ea74c7</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-03-15T04:38:06.814084">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Test edge insert populates graph_edges table</li>
+                <li data-completed="false">⏳ Test edge load from SQLite matches HTML source</li>
+                <li data-completed="false">⏳ Test backfill migration processes existing HTML files</li>
+                <li data-completed="false">⏳ Test edge deletion removes from SQLite</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Test that edges round-trip: HTML → SQLite → EdgeIndex correctly.</p>
+        </section>
+    </article>
+</body>
+</html>

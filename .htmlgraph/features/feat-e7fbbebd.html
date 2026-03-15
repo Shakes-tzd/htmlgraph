@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Write tests for nx_adapter round-trip</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-e7fbbebd"
+             data-type="feature"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-03-15T04:38:06.805650"
+             data-updated="2026-03-15T04:38:06.806676+00:00" data-agent-assigned="claude" data-track-id="trk-7da3070a">
+
+        <header>
+            <h1>Write tests for nx_adapter round-trip</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-8d5b8396.html" data-relationship="blocked_by">feat-8d5b8396</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6c56e756.html" data-relationship="implemented-in" data-since="2026-03-15T04:38:06.806669">sess-6c56e756</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Test empty graph produces empty DiGraph</li>
+                <li data-completed="false">⏳ Test single edge HTML→DiGraph preserves source, target, relationship</li>
+                <li data-completed="false">⏳ Test multiple edge types (blocked_by, depends_on, related)</li>
+                <li data-completed="false">⏳ Test edge attributes preserved (since, properties)</li>
+                <li data-completed="false">⏳ Test node attributes loaded from HTML data-* attrs</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            <p>Test that edges round-trip correctly: HTML → EdgeIndex → nx.DiGraph → query results.</p>
+        </section>
+    </article>
+</body>
+</html>
