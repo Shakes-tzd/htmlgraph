@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="htmlgraph-version" content="1.0">
-    <title>Add ready_items() and blocked_items() to Graph</title>
+    <title>Add generic graph.neighbors() and graph.query() methods</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -13,10 +13,10 @@
              data-status="todo"
              data-priority="high"
              data-created="2026-03-15T04:38:06.816579"
-             data-updated="2026-03-15T04:38:06.817936+00:00" data-agent-assigned="claude" data-track-id="trk-7da3070a">
+             data-updated="2026-03-15T04:38:06.817936+00:00" data-agent-assigned="claude" data-track-id="trk-0c23b03a">
 
         <header>
-            <h1>Add ready_items() and blocked_items() to Graph</h1>
+            <h1>Add generic graph.neighbors() and graph.query() methods</h1>
             <div class="metadata">
                 <span class="badge status-todo">Todo</span>
                 <span class="badge priority-high">High Priority</span>
@@ -47,7 +47,7 @@
         </section>
         <section data-content>
             <h3>Description</h3>
-            <p>Convenience methods on Graph class for the most common relational queries.</p>
+            Add graph.neighbors(id, relationship=None) that returns nodes connected by any edge type. Add graph.query(relationship=...) for filtered traversal. ready_items() and blocked_items() become convenience wrappers.
         </section>
     </article>
 </body>

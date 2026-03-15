@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="htmlgraph-version" content="1.0">
-    <title>Add CLI graph query commands</title>
+    <title>Add relationship-agnostic CLI graph commands</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
@@ -13,10 +13,10 @@
              data-status="todo"
              data-priority="high"
              data-created="2026-03-15T04:38:06.820426"
-             data-updated="2026-03-15T04:38:06.821560+00:00" data-agent-assigned="claude" data-track-id="trk-7da3070a">
+             data-updated="2026-03-15T04:38:06.821560+00:00" data-agent-assigned="claude" data-track-id="trk-0c23b03a">
 
         <header>
-            <h1>Add CLI graph query commands</h1>
+            <h1>Add relationship-agnostic CLI graph commands</h1>
             <div class="metadata">
                 <span class="badge status-todo">Todo</span>
                 <span class="badge priority-high">High Priority</span>
@@ -44,14 +44,14 @@
             <ol>
                 <li data-completed="false">⏳ Add 'htmlgraph ready' — list unblocked todo items</li>
                 <li data-completed="false">⏳ Add 'htmlgraph blocked' — list blocked items with their blockers</li>
-                <li data-completed="false">⏳ Add 'htmlgraph deps <id>' — show dependency tree</li>
-                <li data-completed="false">⏳ Add 'htmlgraph impact <id>' — show what a node blocks</li>
+                <li data-completed="false">⏳ Add 'htmlgraph deps ' — show dependency tree</li>
+                <li data-completed="false">⏳ Add 'htmlgraph impact ' — show what a node blocks</li>
                 <li data-completed="false">⏳ Add 'htmlgraph bottlenecks' — PageRank/centrality report</li>
             </ol>
         </section>
         <section data-content>
             <h3>Description</h3>
-            <p>Add CLI commands: htmlgraph ready, blocked, deps <id>, impact <id>, bottlenecks. These expose the NetworkX-powered graph queries to end users.</p>
+            Add CLI commands: htmlgraph neighbors, query --relationship, path, impact, bottlenecks. All commands work with ANY relationship type, not just blocked_by.
         </section>
     </article>
 </body>

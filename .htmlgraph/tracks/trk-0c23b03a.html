@@ -240,7 +240,7 @@
         <nav class="track-nav">
             <a href="#top" class="nav-link">Track</a><a href="#overview" class="nav-link">Spec</a><a href="#plan" class="nav-link">Plan</a>
         </nav>
-    <article id="trk-7da3070a" data-type="track" data-status="todo" data-priority="high">
+    <article id="trk-0c23b03a" data-type="track" data-status="todo" data-priority="high">
         <header id="top">
             <h1>NetworkX Graph Engine Integration</h1>
             <div class="metadata">
@@ -251,16 +251,16 @@
         </header>
 
         <section data-section="description">
-            <p>Integrate NetworkX as the graph algorithm engine for HtmlGraph. HTML files remain the source of truth (git-friendly). NetworkX provides battle-tested algorithms (shortest path, topological sort, cycle detection, PageRank, community detection) replacing ~500 lines of hand-rolled BFS/DFS in graph.py. The EdgeIndex feeds a nx.DiGraph that powers all relational queries.</p>
+            <p>Integrate NetworkX as the graph algorithm engine for HtmlGraph. HTML files remain the source of truth (git-friendly). Hyperlinks represent ANY relationship type — related_to, connected_to, blocked_by, depends_on, parent/child, references, authored_by, or any custom edge type. NetworkX provides battle-tested algorithms (shortest path, topological sort, cycle detection, PageRank, community detection, clustering) replacing hand-rolled BFS/DFS. The EdgeIndex feeds a nx.DiGraph powering all relational queries across ALL edge types equally.</p>
         </section>
         
             <section data-section="overview" id="overview">
                 <h2>Overview</h2>
-                <p>Replace custom graph algorithms with NetworkX DiGraph, keeping HTML as the storage layer</p>
+                <p>Replace custom graph algorithms with NetworkX DiGraph, keeping HTML as storage. All relationship types are first-class — the engine is relationship-agnostic. blocked_by is just one edge type among many (related_to, connected_to, depends_on, parent/child, references, authored_by, custom).</p>
             </section>
             <section data-section="context" id="context">
                 <h2>Context</h2>
-                <p>HtmlGraph's core philosophy is 'HTML is all you need' — HTML files are graph nodes, hyperlinks are edges, CSS selectors are the query language. The current graph.py has ~500 lines of hand-rolled BFS/DFS for shortest_path, transitive_deps, topological_sort, find_cycles, and find_bottlenecks. These work but lack the breadth and battle-testing of NetworkX. Meanwhile, the graph_edges SQLite table is defined but never populated, Collections don't support relational queries, and the CLI has no graph query commands.</p>
+                <p>HtmlGraph's core philosophy is 'HTML is all you need' — HTML files are graph nodes, hyperlinks are edges, CSS selectors are the query language. Any relationship type is valid. The Edge.relationship field is already free-form and EdgeIndex indexes all types. However, graph.py has ~500 lines of hand-rolled BFS/DFS that often hardcode 'blocked_by' as the default. The graph_edges SQLite table is defined but never populated. Collections don't support relational queries. The CLI has no graph query commands. The integration must treat all relationship types equally.</p>
             </section>
             <section data-section="requirements" id="requirements">
                 <h2>Requirements</h2>
@@ -271,35 +271,35 @@
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-2" data-priority="must-have">
-                    <h4>⏳ Create nx.DiGraph adapter that loads edges from HTML files via EdgeIndex</h4>
+                    <h4>⏳ Create nx.DiGraph adapter that loads ALL edge types from HTML via EdgeIndex</h4>
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-3" data-priority="must-have">
-                    <h4>⏳ Replace graph.py algorithms with NetworkX equivalents</h4>
+                    <h4>⏳ Replace graph.py algorithms with NetworkX equivalents, parameterized by relationship type</h4>
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-4" data-priority="must-have">
-                    <h4>⏳ Populate graph_edges SQLite table on node save/load</h4>
+                    <h4>⏳ Populate graph_edges SQLite table for ALL relationship types on save/load</h4>
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-5" data-priority="must-have">
-                    <h4>⏳ Add Collection methods: blocked_by(), depends_on(), ready()</h4>
+                    <h4>⏳ Add Collection methods: related_to(), connected_to(), neighbors() — generic, not just blocked_by</h4>
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-6" data-priority="must-have">
-                    <h4>⏳ Add CLI commands: ready, blocked, deps, impact</h4>
+                    <h4>⏳ Add CLI commands: query, neighbors, path, impact — relationship-agnostic</h4>
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-7" data-priority="must-have">
-                    <h4>⏳ Add ready_items() and blocked_items() convenience methods on Graph</h4>
+                    <h4>⏳ Add graph.query(relationship=...) that works with ANY edge type</h4>
                     <span class="badge">must-have</span>
                 </article>
                 <article class="requirement priority-should-have" data-requirement="req-8" data-priority="should-have">
-                    <h4>⏳ Expose PageRank and centrality metrics via CLI</h4>
+                    <h4>⏳ Expose PageRank, centrality, and clustering metrics via CLI</h4>
                     <span class="badge">should-have</span>
                 </article>
                 <article class="requirement priority-nice-to-have" data-requirement="req-9" data-priority="nice-to-have">
-                    <h4>⏳ Add graph visualization export (DOT/GraphML format)</h4>
+                    <h4>⏳ Add graph visualization export (DOT/GraphML) showing all edge types</h4>
                     <span class="badge">nice-to-have</span>
                 </article>
                 <article class="requirement priority-must-have" data-requirement="req-10" data-priority="must-have">
@@ -311,7 +311,7 @@
             <section data-section="acceptance-criteria" id="acceptance">
                 <h2>Acceptance Criteria</h2>
                 <ol class="criteria-list">
-                    <li>⏳ graph.shortest_path() uses nx.shortest_path under the hood <code>test_networkx_adapter.py</code></li><li>⏳ graph.transitive_deps() matches nx.ancestors output <code>test_networkx_adapter.py</code></li><li>⏳ graph_edges SQLite table is populated when edges are created <code>test_edge_sync.py</code></li><li>⏳ sdk.features.blocked_by(id) returns correct features <code>test_collection_relations.py</code></li><li>⏳ 'htmlgraph ready' CLI command lists unblocked todo items <code>test_cli_graph.py</code></li><li>⏳ All existing pytest tests pass with no regressions <code>pytest</code></li>
+                    <li>⏳ graph.shortest_path(a, b, relationship='related_to') works for any edge type <code>test_networkx_adapter.py</code></li><li>⏳ graph.neighbors(id) returns nodes connected by ANY relationship <code>test_networkx_adapter.py</code></li><li>⏳ graph.neighbors(id, relationship='connected_to') filters by type <code>test_networkx_adapter.py</code></li><li>⏳ graph_edges SQLite table stores all edge types <code>test_edge_sync.py</code></li><li>⏳ sdk.features.related_to(id) returns features connected by any relationship <code>test_collection_relations.py</code></li><li>⏳ 'htmlgraph query --relationship connected_to feat-001' works in CLI <code>test_cli_graph.py</code></li><li>⏳ 'htmlgraph neighbors feat-001' shows all connections <code>test_cli_graph.py</code></li><li>⏳ All existing pytest tests pass with no regressions <code>pytest</code></li>
                 </ol>
             </section>
             <section data-section="plan" id="plan">
@@ -319,7 +319,7 @@
                 <div class="progress-container">
                     <div class="progress-info">
                         <span class="progress-label">0% Complete</span>
-                        <span class="progress-count">(0/29 tasks)</span>
+                        <span class="progress-count">(0/30 tasks)</span>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: 0%"></div>
@@ -328,7 +328,7 @@
                 <div class="phases-container">
                     
                 <details open data-phase="phase-1">
-                    <summary>Phase 1: Phase 1: NetworkX Adapter (Foundation) (0/3 tasks)</summary>
+                    <summary>Phase 1: Phase 1: NetworkX Adapter — Relationship-Agnostic Foundation (0/3 tasks)</summary>
                     
                     <div data-task="task-1-1" data-status="todo">
                         <input type="checkbox"  disabled>
@@ -340,190 +340,197 @@
                     <div data-task="task-1-2" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Create src/python/htmlgraph/nx_adapter.py — load EdgeIndex into nx.DiGraph</strong>
+                            <strong>○ Create nx_adapter.py — load ALL edge types from EdgeIndex into nx.DiGraph with edge attributes</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                     <div data-task="task-1-3" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Write tests for nx_adapter: round-trip edges HTML→EdgeIndex→DiGraph</strong>
+                            <strong>○ Write tests: round-trip edges for multiple relationship types HTML→EdgeIndex→DiGraph</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                 </details>
                 <details  data-phase="phase-2">
-                    <summary>Phase 2: Phase 2: Replace Graph Algorithms (Parallel Stream A) (0/7 tasks)</summary>
+                    <summary>Phase 2: Phase 2: Replace Graph Algorithms — Parameterized by Relationship (Parallel Stream A) (0/7 tasks)</summary>
                     
                     <div data-task="task-2-1" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Replace graph.shortest_path with nx.shortest_path</strong>
+                            <strong>○ Replace graph.shortest_path with nx.shortest_path, accept relationship= param</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-2-2" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Replace graph.transitive_deps with nx.ancestors</strong>
+                            <strong>○ Replace graph.transitive_deps with nx.ancestors, parameterized by relationship</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-2-3" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Replace graph.topological_sort with nx.topological_sort</strong>
+                            <strong>○ Replace graph.topological_sort with nx.topological_sort, works across any edge type</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-2-4" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Replace graph.find_cycles with nx.simple_cycles</strong>
+                            <strong>○ Replace graph.find_cycles with nx.simple_cycles, parameterized by relationship</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-2-5" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Replace graph.find_bottlenecks with nx.in_degree_centrality</strong>
+                            <strong>○ Replace graph.find_bottlenecks with nx.in_degree_centrality, any relationship</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-2-6" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Replace graph.ancestors/descendants with nx equivalents</strong>
+                            <strong>○ Add graph.neighbors(id, relationship=None) — all connected nodes, optionally filtered</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-2-7" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Update all graph algorithm tests to verify NetworkX backend</strong>
+                            <strong>○ Update all graph algorithm tests to verify relationship-agnostic behavior</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                 </details>
                 <details  data-phase="phase-3">
-                    <summary>Phase 3: Phase 3: SQLite Edge Sync (Parallel Stream B) (0/4 tasks)</summary>
+                    <summary>Phase 3: Phase 3: SQLite Edge Sync — All Relationship Types (Parallel Stream B) (0/4 tasks)</summary>
                     
                     <div data-task="task-3-1" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Implement edge sync: write edges to graph_edges table on node save</strong>
+                            <strong>○ Implement edge sync: write ALL edge types to graph_edges on node save</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                     <div data-task="task-3-2" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Implement edge load: populate EdgeIndex from graph_edges on startup</strong>
+                            <strong>○ Implement edge load: populate EdgeIndex from graph_edges for all types</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-3-3" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add migration to backfill graph_edges from existing HTML files</strong>
+                            <strong>○ Add migration to backfill graph_edges from existing HTML across all edge types</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-3-4" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Write tests for edge sync round-trip: HTML→SQLite→EdgeIndex</strong>
+                            <strong>○ Write tests for edge sync with mixed types: related_to, connected_to, blocked_by</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                 </details>
                 <details  data-phase="phase-4">
-                    <summary>Phase 4: Phase 4: Collection Relationship API (Parallel Stream C) (0/5 tasks)</summary>
+                    <summary>Phase 4: Phase 4: Collection Relationship API — Generic Edge Queries (Parallel Stream C) (0/6 tasks)</summary>
                     
                     <div data-task="task-4-1" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add blocked_by(node_id) method to BaseCollection</strong>
+                            <strong>○ Add related_to(node_id) to BaseCollection — generic relationship query</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-4-2" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add depends_on(node_id) method to BaseCollection</strong>
+                            <strong>○ Add connected_to(node_id) to BaseCollection — find connected nodes</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-4-3" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add ready() method — returns items with no unresolved blocked_by edges</strong>
+                            <strong>○ Add neighbors(node_id, relationship=None) — all connections, optionally by type</strong>
                         </div>
-                         <span class="estimate">(2.0h)</span>
+                         <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-4-4" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add blocked() method — returns items with unresolved blocked_by edges</strong>
+                            <strong>○ Add by_relationship(relationship, node_id) — generic find-by-edge method</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-4-5" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Write tests for collection relationship queries</strong>
+                            <strong>○ Add ready() and blocked() as convenience wrappers over generic edge query</strong>
+                        </div>
+                         <span class="estimate">(1.0h)</span>
+                    </div>
+                    <div data-task="task-4-6" data-status="todo">
+                        <input type="checkbox"  disabled>
+                        <div>
+                            <strong>○ Write tests for collection queries across multiple relationship types</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                 </details>
                 <details  data-phase="phase-5">
-                    <summary>Phase 5: Phase 5: CLI Graph Commands (depends on Phase 2+3+4) (0/6 tasks)</summary>
+                    <summary>Phase 5: Phase 5: CLI Graph Commands — Relationship-Agnostic (depends on Phases 2+3+4) (0/6 tasks)</summary>
                     
                     <div data-task="task-5-1" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add 'htmlgraph ready' command — list unblocked todo items</strong>
+                            <strong>○ Add 'htmlgraph neighbors <id>' — all connections regardless of type</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-5-2" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add 'htmlgraph blocked' command — list blocked items with blockers</strong>
+                            <strong>○ Add 'htmlgraph query --relationship <type> <id>' — filter by relationship</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-5-3" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add 'htmlgraph deps <id>' command — show dependency tree</strong>
+                            <strong>○ Add 'htmlgraph path <from> <to>' — shortest path via any edge</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-5-4" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add 'htmlgraph impact <id>' command — show what a node blocks</strong>
+                            <strong>○ Add 'htmlgraph impact <id>' — transitive reach through any edge type</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
                     <div data-task="task-5-5" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Add 'htmlgraph bottlenecks' command — PageRank/centrality report</strong>
+                            <strong>○ Add 'htmlgraph bottlenecks' — PageRank/centrality across full graph</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                     <div data-task="task-5-6" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Write CLI integration tests</strong>
+                            <strong>○ Write CLI integration tests covering multiple relationship types</strong>
                         </div>
                          <span class="estimate">(2.0h)</span>
                     </div>
                 </details>
                 <details  data-phase="phase-6">
-                    <summary>Phase 6: Phase 6: Integration & Cleanup (0/4 tasks)</summary>
+                    <summary>Phase 6: Phase 6: Integration and Cleanup (0/4 tasks)</summary>
                     
                     <div data-task="task-6-1" data-status="todo">
                         <input type="checkbox"  disabled>
@@ -542,7 +549,7 @@
                     <div data-task="task-6-3" data-status="todo">
                         <input type="checkbox"  disabled>
                         <div>
-                            <strong>○ Update AGENTS.md and API docs with new graph query capabilities</strong>
+                            <strong>○ Update AGENTS.md with relationship-agnostic graph query docs</strong>
                         </div>
                          <span class="estimate">(1.0h)</span>
                     </div>
