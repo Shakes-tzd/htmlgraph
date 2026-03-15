@@ -45,3 +45,47 @@ git commit -m "..."
 ```
 
 **Remember: Fixing errors immediately is faster than letting them accumulate.**
+
+## Module Size & Complexity Standards
+
+### Line Count Limits
+
+| Metric | Target | Warning | Fail (new code) |
+|--------|--------|---------|------------------|
+| Module | 200-500 lines | >300 lines | >500 lines |
+| Function | 10-20 lines | >30 lines | >50 lines |
+| Class | 100-200 lines | >200 lines | >300 lines |
+
+### Principles
+
+1. **Single Responsibility**: Each module should have one clear purpose describable in one sentence
+2. **No Duplication**: Check `src/python/htmlgraph/utils/` for shared utilities before writing new ones
+3. **Prefer Existing Dependencies**: Check `pyproject.toml` and stdlib before custom implementations
+4. **Import Direction**: Dependencies flow one way (services -> models, never models -> services)
+
+### Enforcement
+
+- **Script**: `python scripts/check-module-size.py` checks all modules against limits
+- **Pre-commit**: Runs automatically on changed files
+- **Grandfathered modules**: 15 existing modules >1000 lines are tracked but not blocking (see `scripts/check-module-size.py` for list)
+- **Ratchet rule**: Any modification to a grandfathered module must not increase its line count
+- **Refactoring track**: See `docs/tracks/MODULE_REFACTORING_TRACK.md` for planned splits
+
+### Quick Commands
+
+```bash
+# Check all modules
+python scripts/check-module-size.py
+
+# Check only changed files
+python scripts/check-module-size.py --changed-only
+
+# Summary table of oversized modules
+python scripts/check-module-size.py --summary
+
+# JSON output for CI
+python scripts/check-module-size.py --json
+
+# Strict mode (warnings = failures)
+python scripts/check-module-size.py --fail-on-warning
+```

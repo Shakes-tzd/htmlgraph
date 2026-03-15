@@ -90,6 +90,18 @@ Task(
 - Use sparingly for tasks that truly need deep reasoning
 - Overkill for simple or moderate complexity tasks
 
+## Module Size Standards
+
+When implementing or refactoring code:
+- **Target**: 200-500 lines per module, 10-20 lines per function, 100-200 lines per class
+- **Hard limits**: 500 lines/module (new), 50 lines/function, 300 lines/class
+- **Before adding code** to any module >400 lines, evaluate whether it should be split first
+- **When refactoring**: Use split patterns documented in `docs/tracks/MODULE_REFACTORING_TRACK.md`
+- **Run** `python scripts/check-module-size.py --changed-only` before committing
+- **Never** add code to a module >1000 lines without splitting it first
+- **Prefer** existing dependencies and stdlib over custom implementations (check `pyproject.toml`)
+- **Consolidate** duplicate utilities — check `src/python/htmlgraph/utils/` before writing new helpers
+
 ## Decision Criteria
 
 Ask yourself:

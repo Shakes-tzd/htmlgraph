@@ -280,6 +280,19 @@ Testing fits into the workflow:
 - ❌ Writing tests after implementation (TDD backwards)
 - ❌ Not updating tests when code changes
 
+## Module Size Checks
+
+After tests pass, also verify module size standards:
+```bash
+# Check changed files against size limits
+python scripts/check-module-size.py --changed-only
+
+# Full codebase check (summary only)
+python scripts/check-module-size.py --summary
+```
+
+Report module size violations alongside test results. If any changed file exceeds 500 lines (non-grandfathered), flag it as a quality gate failure.
+
 ## Code Hygiene Rules
 
 From CLAUDE.md - MANDATORY:

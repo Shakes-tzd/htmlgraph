@@ -27,8 +27,15 @@ sdk.features.create("Feature name").save()          # Track features
 sdk.spikes.create("Investigation").set_findings("results").save()  # Track research
 ```
 
+## Module Size Standards (Enforced)
+- New modules: max 500 lines. Functions: max 50 lines. Classes: max 300 lines
+- Never add code to a module >1000 lines without splitting it first
+- Run `python scripts/check-module-size.py --changed-only` before committing
+- Check `src/python/htmlgraph/utils/` for shared utilities before creating new ones
+- Prefer stdlib and existing dependencies over custom implementations
+
 ## Quality Gates
-Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest`
+Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest && python scripts/check-module-size.py --changed-only`
 
 ## Key Rules
 1. Read before Write/Edit — always check existing content first

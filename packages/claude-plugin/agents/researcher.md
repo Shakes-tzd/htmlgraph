@@ -125,6 +125,14 @@ Your research is automatically tracked via hooks, but you should also:
 - Future researchers can query what you searched for
 - This builds institutional knowledge over time
 
+## Module Size Awareness
+
+When researching a module or codebase area:
+- **Note the module's line count** — if >500 lines, recommend refactoring as part of your findings
+- **Check for duplicated utilities** — search `src/python/htmlgraph/utils/` before suggesting custom implementations
+- **Reference** `docs/tracks/MODULE_REFACTORING_TRACK.md` for existing refactoring plans
+- **Prefer** existing dependencies (check `pyproject.toml`) and stdlib over new custom code
+
 ## Output Format
 
 Document findings in HtmlGraph spike:

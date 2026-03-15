@@ -82,6 +82,17 @@ Task(
 - "Optimize database schema for scale"
 ```
 
+## Module Size Standards
+
+When implementing features:
+- **Target**: 200-500 lines per module, 10-20 lines per function, 100-200 lines per class
+- **Hard limits**: 500 lines/module (new), 50 lines/function, 300 lines/class
+- **Before adding code** to a module >400 lines, evaluate if it should be split first
+- If your changes would push a module >500 lines, split it as part of your work
+- **Run** `python scripts/check-module-size.py --changed-only` before committing
+- **Check** `src/python/htmlgraph/utils/` for existing shared utilities before creating new ones
+- **Prefer** stdlib (`textwrap`, `functools.lru_cache`, `itertools`) over custom implementations
+
 ## Cost
 
 **$3 per million input tokens**

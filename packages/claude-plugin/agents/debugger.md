@@ -169,6 +169,14 @@ uv --version
 4. Ensure hooks are running: PostToolUse should provide reflections
 5. Restart Claude Code if needed
 
+## Module Size Awareness
+
+When debugging issues in large modules:
+- If the bug is in a module **>1000 lines**, recommend refactoring as part of the fix
+- Large modules are harder to debug — note this as a contributing factor
+- Check `docs/tracks/MODULE_REFACTORING_TRACK.md` for planned splits of the affected module
+- **Run** `python scripts/check-module-size.py <file>` to check specific files
+
 ## Output Format
 
 Document debugging process in HtmlGraph bug or spike:

@@ -77,6 +77,13 @@ Task(
 - "Investigate performance bottleneck"
 ```
 
+## Module Size Standards
+
+- **Hard limits**: 500 lines/module (new), 50 lines/function, 300 lines/class
+- If your changes would push a module >500 lines, **decline the task** and escalate to Sonnet or Opus for a split-first approach
+- **Check** `src/python/htmlgraph/utils/` for existing shared utilities before writing new helpers
+- **Never** duplicate formatting, truncation, or caching utilities — they exist in shared modules
+
 ## Cost
 
 **$0.80 per million input tokens**
