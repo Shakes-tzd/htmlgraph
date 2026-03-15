@@ -43,6 +43,7 @@ from htmlgraph.collections import (
 from htmlgraph.collections.session import SessionCollection
 from htmlgraph.db.schema import HtmlGraphDB
 from htmlgraph.graph import HtmlGraph
+from htmlgraph.graph.networkx_manager import GraphManager
 from htmlgraph.sdk.analytics import AnalyticsRegistry
 from htmlgraph.sdk.base import BaseSDK
 from htmlgraph.sdk.constants import SDKSettings
@@ -199,6 +200,9 @@ class SDK(
             bugs_graph=self._bugs_graph,
         )
 
+        # NetworkX graph manager (lazy-initialized)
+        self._nx_graph_manager: GraphManager | None = None
+
         # Agent interface (for backward compatibility)
         self._agent_interface = AgentInterface(
             self._directory / "features", agent_id=agent
@@ -260,6 +264,16 @@ class SDK(
     def agent(self) -> str | None:
         """Get current agent ID."""
         return self._agent_id
+
+    @property
+    def graph(self) -> GraphManager:
+        """NetworkX graph manager for dependency analysis, critical path, and cycle detection."""
+        if self._nx_graph_manager is None:
+            self._nx_graph_manager = GraphManager(
+                graph_dir=str(self._directory),
+                db_path=str(self._directory / "htmlgraph.db"),
+            )
+        return self._nx_graph_manager
 
     @property
     def system_prompts(self) -> SystemPromptManager:

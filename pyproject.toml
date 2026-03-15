@@ -43,6 +43,7 @@ dependencies = [
     "asgi-correlation-id>=4.0.0",
     "structlog>=23.0.0",
     "tenacity>=8.0",
+    "networkx>=3.4.2",
 ]
 
 [project.optional-dependencies]
