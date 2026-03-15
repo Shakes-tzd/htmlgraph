@@ -728,6 +728,189 @@ def resolve_active_step(
         return None
 
 
+# Minimum successful events before a step is eligible for auto-completion.
+_STEP_COMPLETION_THRESHOLD = 3
+
+
+def _maybe_complete_step(
+    feature_id: str | None,
+    step_id: str | None,
+    success: bool,
+    db: HtmlGraphDB | None,
+) -> None:
+    """Auto-complete the active step after enough successful tool events.
+
+    Only completes when *_STEP_COMPLETION_THRESHOLD* or more successful events
+    have already been recorded with this ``step_id`` / ``feature_id`` pair.
+    This prevents premature completion on the very first tool call.
+
+    The step is marked complete in **both** the feature HTML file (canonical)
+    and the SQLite ``features`` table (``steps_completed`` counter).
+
+    Args:
+        feature_id: Feature the step belongs to.
+        step_id: Step to potentially complete.
+        success: Whether the triggering event was successful.
+        db: HtmlGraphDB instance for counting prior events.
+    """
+    if not step_id or not success or not feature_id or not db:
+        return
+    try:
+        conn = db.connection
+        if not conn:
+            return
+
+        # Check if enough events have accumulated for this step
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM agent_events WHERE step_id = ? AND feature_id = ?",
+            (step_id, feature_id),
+        )
+        row = cursor.fetchone()
+        count = row[0] if row else 0
+        if count < _STEP_COMPLETION_THRESHOLD:
+            return
+
+        # Find the feature HTML file
+        graph_dir = Path.cwd() / ".htmlgraph" / "features"
+        if not graph_dir.exists():
+            return
+
+        feature_file = graph_dir / f"{feature_id}.html"
+        if not feature_file.exists():
+            # Scan directory for matching file
+            for f in graph_dir.glob("*.html"):
+                if feature_id in f.stem:
+                    feature_file = f
+                    break
+            else:
+                return
+
+        content = feature_file.read_text(encoding="utf-8")
+
+        # Quick guard: is this step already completed?
+        # Look for data-step-id="<step_id>" data-completed="true"  (either order)
+        if (
+            f'data-step-id="{step_id}"' in content
+            and 'data-completed="true"' in content
+        ):
+            # Need finer check: ensure the *same* <li> has both
+            import re as _re
+
+            li_pat = _re.compile(
+                rf'<li[^>]*data-step-id="{_re.escape(step_id)}"[^>]*>', _re.DOTALL
+            )
+            m = li_pat.search(content)
+            if m and 'data-completed="true"' in m.group(0):
+                return  # already completed
+
+        # Update HTML: flip data-completed="false" to "true" on the matching <li>
+        import re as _re
+
+        def _flip_completed(match: _re.Match) -> str:  # type: ignore[type-arg]
+            tag: str = str(match.group(0))
+            return tag.replace('data-completed="false"', 'data-completed="true"', 1)
+
+        pattern = _re.compile(
+            rf'<li[^>]*data-step-id="{_re.escape(step_id)}"[^>]*>',
+            _re.DOTALL,
+        )
+        new_content, n_subs = pattern.subn(_flip_completed, content)
+        if n_subs > 0 and new_content != content:
+            feature_file.write_text(new_content, encoding="utf-8")
+
+            # Bump steps_completed counter in SQLite
+            try:
+                cursor.execute(
+                    "UPDATE features SET steps_completed = steps_completed + 1 WHERE id = ?",
+                    (feature_id,),
+                )
+                conn.commit()
+            except Exception:
+                pass  # Table may not have the row; non-fatal
+
+            logger.debug(
+                "Auto-completed step %s for feature %s (after %d events)",
+                step_id,
+                feature_id,
+                count,
+            )
+    except Exception as exc:
+        logger.debug("Step auto-complete failed for %s: %s", step_id, exc)
+
+
+def _detect_step_divergence(
+    feature_id: str | None,
+    tool_summary: str,
+) -> str | None:
+    """Detect keyword divergence between tool activity and feature steps.
+
+    Compares keywords extracted from *tool_summary* against keywords from
+    the active feature's incomplete steps.  When there is **zero overlap**,
+    returns a guidance string suggesting divergence; otherwise ``None``.
+
+    This is intentionally lightweight -- no ML, just keyword intersection --
+    to avoid adding latency to every hook call.
+
+    Args:
+        feature_id: Currently attributed feature ID.
+        tool_summary: Summary string of the current tool call.
+
+    Returns:
+        Divergence guidance string, or ``None`` if no divergence detected.
+    """
+    if not feature_id or not tool_summary:
+        return None
+    try:
+        from htmlgraph.sessions.features import extract_keywords
+
+        task_keywords = extract_keywords(tool_summary)
+        if not task_keywords:
+            return None
+
+        # Read feature HTML to get step descriptions
+        graph_dir = Path.cwd() / ".htmlgraph" / "features"
+        if not graph_dir.exists():
+            return None
+
+        feature_file = graph_dir / f"{feature_id}.html"
+        if not feature_file.exists():
+            for f in graph_dir.glob("*.html"):
+                if feature_id in f.stem:
+                    feature_file = f
+                    break
+            else:
+                return None
+
+        from htmlgraph.parser import HtmlParser
+
+        parser = HtmlParser.from_file(feature_file)
+        raw_steps = parser.get_steps()
+        if not raw_steps:
+            return None
+
+        # Collect keywords from incomplete steps only
+        step_keywords: set[str] = set()
+        for step in raw_steps:
+            if not step.get("completed", False):
+                step_keywords |= extract_keywords(step.get("description", ""))
+
+        if not step_keywords:
+            return None
+
+        overlap = task_keywords & step_keywords
+        if not overlap:
+            return (
+                f"DIVERGENCE DETECTED: Current activity keywords ({', '.join(sorted(task_keywords)[:5])}) "
+                f"have no overlap with active feature steps. "
+                f"Consider: sdk.features.auto_create_divergent_feature('{feature_id}', 'description')"
+            )
+        return None
+    except Exception as exc:
+        logger.debug("Divergence detection failed: %s", exc)
+        return None
+
+
 def record_event_to_sqlite(
     db: HtmlGraphDB,
     session_id: str,
@@ -2055,6 +2238,15 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                     step_id=resolved_step_id,
                 )
 
+                # Auto-complete step after enough successful events
+                if not is_error:
+                    _maybe_complete_step(
+                        feature_id=resolved_feature_id,
+                        step_id=resolved_step_id,
+                        success=True,
+                        db=db,
+                    )
+
                 # Update presence
                 presence_mgr = get_presence_manager()
                 if presence_mgr and event_id:
@@ -2087,6 +2279,12 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 # actually finishes.  Marking it completed here causes subagent tool
                 # calls to miss their parent (Method 0's JOIN finds no 'started' row)
                 # and fall back to the orchestrator's UserQuery instead.
+
+            # Check for step-level keyword divergence (lightweight, no ML)
+            if not parent_activity_id and resolved_feature_id:
+                divergence_hint = _detect_step_divergence(resolved_feature_id, summary)
+                if divergence_hint:
+                    nudge = divergence_hint
 
             # Check for drift and handle accordingly
             # Skip drift detection for child activities (they inherit parent's context)

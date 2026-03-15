@@ -158,8 +158,13 @@ def test_spawned_from_edge_in_html(workflow, manager, temp_graph):
 # ---------------------------------------------------------------------------
 
 
-def _classification(is_implementation=False, is_investigation=False,
-                    is_bug_report=False, is_continuation=False, confidence=0.8):
+def _classification(
+    is_implementation=False,
+    is_investigation=False,
+    is_bug_report=False,
+    is_continuation=False,
+    confidence=0.8,
+):
     return {
         "is_implementation": is_implementation,
         "is_investigation": is_investigation,
@@ -234,7 +239,9 @@ def test_generate_guidance_all_steps_complete():
 
 def test_generate_guidance_continuation_with_step():
     """Continuation prompts still surface the active step when present."""
-    steps = [{"description": "Step 2: Implement graph edge queries", "completed": False}]
+    steps = [
+        {"description": "Step 2: Implement graph edge queries", "completed": False}
+    ]
     active = _active_work(steps=steps)
     cls = _classification(is_continuation=True, confidence=0.9)
     guidance = generate_guidance(cls, active, "continue")
@@ -329,5 +336,146 @@ def test_divergence_hint_empty_task_summary():
     """Empty task summary does not trigger divergence (no keywords)."""
     task_keywords = extract_keywords("")
     step_keywords = extract_keywords("implement core functionality")
-    divergence_detected = bool(task_keywords and step_keywords and not (task_keywords & step_keywords))
+    divergence_detected = bool(
+        task_keywords and step_keywords and not (task_keywords & step_keywords)
+    )
     assert not divergence_detected
+
+
+# ---------------------------------------------------------------------------
+# Tests: _detect_step_divergence (integrated function in event_tracker)
+# ---------------------------------------------------------------------------
+
+
+class TestDetectStepDivergence:
+    """Test the keyword-based divergence detection helper."""
+
+    def _create_feature_html(self, tmpdir, feature_id: str, steps: list[dict]) -> None:
+        """Create a feature HTML file with given steps."""
+        from pathlib import Path
+
+        features_dir = Path(tmpdir) / ".htmlgraph" / "features"
+        features_dir.mkdir(parents=True, exist_ok=True)
+
+        step_items = []
+        for s in steps:
+            completed = str(s.get("completed", False)).lower()
+            sid = s.get("step_id", "")
+            sid_attr = f' data-step-id="{sid}"' if sid else ""
+            step_items.append(
+                f'<li data-completed="{completed}"{sid_attr}>{s["description"]}</li>'
+            )
+
+        html = f"""<!DOCTYPE html>
+<html><body>
+<article id="{feature_id}" data-type="feature" data-status="in-progress">
+    <header><h1>Test Feature</h1></header>
+    <section data-steps>
+        <ol>
+            {"".join(step_items)}
+        </ol>
+    </section>
+</article>
+</body></html>"""
+
+        filepath = features_dir / f"{feature_id}.html"
+        filepath.write_text(html, encoding="utf-8")
+
+    def test_detects_divergence_no_overlap(self, tmp_path):
+        """Returns guidance when tool summary has zero keyword overlap with steps."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from htmlgraph.hooks.event_tracker import _detect_step_divergence
+
+        feature_id = "feat-div-001"
+        self._create_feature_html(
+            tmp_path,
+            feature_id,
+            [
+                {"description": "Implement database migrations", "completed": False},
+                {"description": "Write integration tests", "completed": False},
+            ],
+        )
+
+        with patch.object(Path, "cwd", return_value=tmp_path):
+            result = _detect_step_divergence(
+                feature_id, "Build Phoenix LiveView dashboard with real-time charts"
+            )
+
+        assert result is not None
+        assert "DIVERGENCE DETECTED" in result
+        assert feature_id in result
+
+    def test_no_divergence_when_overlap(self, tmp_path):
+        """Returns None when tool summary overlaps with step keywords."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from htmlgraph.hooks.event_tracker import _detect_step_divergence
+
+        feature_id = "feat-div-002"
+        self._create_feature_html(
+            tmp_path,
+            feature_id,
+            [
+                {"description": "Implement database migrations", "completed": False},
+                {"description": "Write integration tests", "completed": False},
+            ],
+        )
+
+        with patch.object(Path, "cwd", return_value=tmp_path):
+            result = _detect_step_divergence(
+                feature_id, "Run database migrations and check tests"
+            )
+
+        assert result is None
+
+    def test_no_divergence_with_none_inputs(self):
+        """Returns None for None/empty inputs."""
+        from htmlgraph.hooks.event_tracker import _detect_step_divergence
+
+        assert _detect_step_divergence(None, "some summary") is None
+        assert _detect_step_divergence("feat-x", "") is None
+        assert _detect_step_divergence(None, None) is None  # type: ignore[arg-type]
+
+    def test_no_divergence_all_steps_complete(self, tmp_path):
+        """Returns None when all steps are complete (no incomplete steps to compare)."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from htmlgraph.hooks.event_tracker import _detect_step_divergence
+
+        feature_id = "feat-div-003"
+        self._create_feature_html(
+            tmp_path,
+            feature_id,
+            [
+                {"description": "Implement core", "completed": True},
+                {"description": "Write tests", "completed": True},
+            ],
+        )
+
+        with patch.object(Path, "cwd", return_value=tmp_path):
+            result = _detect_step_divergence(
+                feature_id, "Build something completely unrelated"
+            )
+
+        assert result is None
+
+    def test_no_divergence_missing_feature(self):
+        """Returns None when feature HTML file doesn't exist."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from htmlgraph.hooks.event_tracker import _detect_step_divergence
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            (tmpdir_path / ".htmlgraph" / "features").mkdir(parents=True)
+
+            with patch.object(Path, "cwd", return_value=tmpdir_path):
+                result = _detect_step_divergence("feat-nonexistent", "Build something")
+
+        assert result is None

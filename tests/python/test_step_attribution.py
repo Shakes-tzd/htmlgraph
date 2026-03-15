@@ -837,3 +837,168 @@ class TestRecordEventStepId:
         assert row[0] is None
 
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# _maybe_complete_step tests
+# ---------------------------------------------------------------------------
+
+
+class TestMaybeCompleteStep:
+    """Test auto-completion of steps after enough successful events."""
+
+    def _setup_feature_and_db(
+        self, tmpdir: Path, feature_id: str, step_id: str
+    ) -> tuple:
+        """Create a feature HTML file and DB with events for the step."""
+        from htmlgraph.db.schema import HtmlGraphDB
+
+        features_dir = tmpdir / ".htmlgraph" / "features"
+        features_dir.mkdir(parents=True, exist_ok=True)
+
+        html = f"""<!DOCTYPE html>
+<html><body>
+<article id="{feature_id}" data-type="feature" data-status="in-progress">
+    <header><h1>Test Feature</h1></header>
+    <section data-steps>
+        <ol>
+            <li data-completed="false" data-step-id="{step_id}">Active Step</li>
+            <li data-completed="false" data-step-id="step-2">Next Step</li>
+        </ol>
+    </section>
+</article>
+</body></html>"""
+
+        filepath = features_dir / f"{feature_id}.html"
+        filepath.write_text(html, encoding="utf-8")
+
+        db_path = str(tmpdir / ".htmlgraph" / "htmlgraph.db")
+        db = HtmlGraphDB(db_path)
+        db.insert_session(session_id="test-session", agent_assigned="claude")
+
+        return db, filepath
+
+    def _insert_events(self, db, feature_id: str, step_id: str, count: int) -> None:
+        """Insert N successful events with the given step_id."""
+        from htmlgraph.ids import generate_id
+
+        for _ in range(count):
+            db.insert_event(
+                event_id=generate_id("event"),
+                agent_id="claude",
+                event_type="tool_call",
+                session_id="test-session",
+                tool_name="Edit",
+                feature_id=feature_id,
+                step_id=step_id,
+            )
+
+    def test_completes_after_threshold(self) -> None:
+        """Step is auto-completed after _STEP_COMPLETION_THRESHOLD events."""
+        from htmlgraph.hooks.event_tracker import (
+            _STEP_COMPLETION_THRESHOLD,
+            _maybe_complete_step,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            feature_id = "feat-auto-001"
+            step_id = "step-feat-auto-001-0"
+            db, filepath = self._setup_feature_and_db(tmpdir_path, feature_id, step_id)
+
+            # Insert enough events to meet threshold
+            self._insert_events(db, feature_id, step_id, _STEP_COMPLETION_THRESHOLD)
+
+            with patch.object(Path, "cwd", return_value=tmpdir_path):
+                _maybe_complete_step(
+                    feature_id=feature_id,
+                    step_id=step_id,
+                    success=True,
+                    db=db,
+                )
+
+            # Verify the HTML was updated
+            content = filepath.read_text(encoding="utf-8")
+            assert f'data-step-id="{step_id}"' in content
+            # The <li> with our step_id should now have data-completed="true"
+            import re
+
+            li_pat = re.compile(rf'<li[^>]*data-step-id="{re.escape(step_id)}"[^>]*>')
+            m = li_pat.search(content)
+            assert m is not None
+            assert 'data-completed="true"' in m.group(0)
+
+            db.close()
+
+    def test_does_not_complete_below_threshold(self) -> None:
+        """Step is NOT completed when event count is below threshold."""
+        from htmlgraph.hooks.event_tracker import (
+            _STEP_COMPLETION_THRESHOLD,
+            _maybe_complete_step,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            feature_id = "feat-auto-002"
+            step_id = "step-feat-auto-002-0"
+            db, filepath = self._setup_feature_and_db(tmpdir_path, feature_id, step_id)
+
+            # Insert fewer events than threshold
+            self._insert_events(db, feature_id, step_id, _STEP_COMPLETION_THRESHOLD - 1)
+
+            with patch.object(Path, "cwd", return_value=tmpdir_path):
+                _maybe_complete_step(
+                    feature_id=feature_id,
+                    step_id=step_id,
+                    success=True,
+                    db=db,
+                )
+
+            # Verify the HTML was NOT updated
+            content = filepath.read_text(encoding="utf-8")
+            import re
+
+            li_pat = re.compile(rf'<li[^>]*data-step-id="{re.escape(step_id)}"[^>]*>')
+            m = li_pat.search(content)
+            assert m is not None
+            assert 'data-completed="false"' in m.group(0)
+
+            db.close()
+
+    def test_skips_on_failure(self) -> None:
+        """Step is NOT completed when success=False."""
+        from htmlgraph.hooks.event_tracker import _maybe_complete_step
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            feature_id = "feat-auto-003"
+            step_id = "step-feat-auto-003-0"
+            db, filepath = self._setup_feature_and_db(tmpdir_path, feature_id, step_id)
+            self._insert_events(db, feature_id, step_id, 10)
+
+            with patch.object(Path, "cwd", return_value=tmpdir_path):
+                _maybe_complete_step(
+                    feature_id=feature_id,
+                    step_id=step_id,
+                    success=False,
+                    db=db,
+                )
+
+            content = filepath.read_text(encoding="utf-8")
+            import re
+
+            li_pat = re.compile(rf'<li[^>]*data-step-id="{re.escape(step_id)}"[^>]*>')
+            m = li_pat.search(content)
+            assert m is not None
+            assert 'data-completed="false"' in m.group(0)
+
+            db.close()
+
+    def test_skips_none_inputs(self) -> None:
+        """_maybe_complete_step safely handles None inputs."""
+        from htmlgraph.hooks.event_tracker import _maybe_complete_step
+
+        # Should not raise
+        _maybe_complete_step(feature_id=None, step_id=None, success=True, db=None)
+        _maybe_complete_step(feature_id="feat-x", step_id=None, success=True, db=None)
+        _maybe_complete_step(feature_id=None, step_id="step-x", success=True, db=None)

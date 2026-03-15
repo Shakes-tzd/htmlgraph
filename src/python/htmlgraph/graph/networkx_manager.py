@@ -104,8 +104,7 @@ class GraphManager:
 
             # Load features as nodes
             cursor.execute(
-                "SELECT id, title, status, priority, type, track_id "
-                "FROM features"
+                "SELECT id, title, status, priority, type, track_id FROM features"
             )
             for row in cursor.fetchall():
                 row_dict = dict(row)
@@ -122,8 +121,7 @@ class GraphManager:
 
             # Load edges
             cursor.execute(
-                "SELECT from_node_id, to_node_id, relationship_type "
-                "FROM graph_edges"
+                "SELECT from_node_id, to_node_id, relationship_type FROM graph_edges"
             )
             for row in cursor.fetchall():
                 from_id = row["from_node_id"]
@@ -188,11 +186,7 @@ class GraphManager:
         if track_id is None:
             return self.G
 
-        nodes = [
-            n
-            for n, d in self.G.nodes(data=True)
-            if d.get("track_id") == track_id
-        ]
+        nodes = [n for n, d in self.G.nodes(data=True) if d.get("track_id") == track_id]
         return self.G.subgraph(nodes).copy()
 
     def critical_path(self, track_id: str | None = None) -> list[str]:
@@ -278,9 +272,7 @@ class GraphManager:
         sub = self._subgraph_for_track(track_id)
         return list(nx.topological_sort(sub))
 
-    def execution_order(
-        self, track_id: str | None = None
-    ) -> list[dict[str, Any]]:
+    def execution_order(self, track_id: str | None = None) -> list[dict[str, Any]]:
         """Return enriched dependency order with ``can_start`` flags.
 
         ``can_start`` is *True* when every predecessor has status
@@ -298,9 +290,7 @@ class GraphManager:
         for node_id in order:
             data = sub.nodes[node_id]
             preds = list(sub.predecessors(node_id))
-            can_start = all(
-                sub.nodes[p].get("status") == "done" for p in preds
-            )
+            can_start = all(sub.nodes[p].get("status") == "done" for p in preds)
             results.append(
                 {
                     "id": node_id,
@@ -329,17 +319,15 @@ class GraphManager:
         """All transitive dependencies (predecessors) of *node_id*."""
         if node_id not in self.G:
             return set()
-        return nx.ancestors(self.G, node_id)
+        return set(nx.ancestors(self.G, node_id))
 
     def descendants(self, node_id: str) -> set[str]:
         """All transitive dependents (successors) of *node_id*."""
         if node_id not in self.G:
             return set()
-        return nx.descendants(self.G, node_id)
+        return set(nx.descendants(self.G, node_id))
 
-    def shortest_path(
-        self, from_id: str, to_id: str
-    ) -> list[str] | None:
+    def shortest_path(self, from_id: str, to_id: str) -> list[str] | None:
         """Shortest path between two nodes, or *None* if unreachable."""
         try:
             return list(nx.shortest_path(self.G, from_id, to_id))
@@ -348,6 +336,4 @@ class GraphManager:
 
     def connected_components(self) -> list[set[str]]:
         """Return weakly connected components of the graph."""
-        return [
-            set(c) for c in nx.weakly_connected_components(self.G)
-        ]
+        return [set(c) for c in nx.weakly_connected_components(self.G)]
