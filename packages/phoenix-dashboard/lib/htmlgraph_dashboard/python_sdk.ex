@@ -117,30 +117,77 @@ result
   def handle_call({:get_work_item, feature_id}, _from, state) do
     code = """
 import json
+import sqlite3
 import os
-from htmlgraph import SDK
-os.chdir(graph_dir)
-sdk = SDK(agent='phoenix-dashboard')
+import re
+
+db_path_str = db_path.decode() if isinstance(db_path, bytes) else db_path
+graph_dir_str = graph_dir.decode() if isinstance(graph_dir, bytes) else graph_dir
 feature_id = feature_id.decode() if isinstance(feature_id, bytes) else feature_id
-try:
-    f = sdk.features.get(feature_id)
-    if f:
-        result = json.dumps({
-            'id': f.id,
-            'title': f.title,
-            'status': f.status,
-            'priority': getattr(f, 'priority', 'medium'),
-            'type': getattr(f, 'type', 'feature'),
-            'steps': [{'description': s.description, 'completed': s.completed, 'step_id': getattr(s, 'step_id', None)} for s in (f.steps or [])],
-        })
-    else:
-        result = 'null'
-except Exception:
+
+conn = sqlite3.connect(db_path_str)
+conn.row_factory = sqlite3.Row
+cursor = conn.cursor()
+cursor.execute(
+    "SELECT id, title, type, status, priority, track_id, steps_total, steps_completed FROM features WHERE id = ?",
+    (feature_id,)
+)
+row = cursor.fetchone()
+if row:
+    result = json.dumps({
+        'id': row['id'],
+        'title': row['title'],
+        'type': row['type'] or 'feature',
+        'status': row['status'] or 'todo',
+        'priority': row['priority'] or 'medium',
+        'track_id': row['track_id'],
+        'steps_total': row['steps_total'] or 0,
+        'steps_completed': row['steps_completed'] or 0,
+        'steps': [],
+    })
+else:
+    # Fallback: read HTML file (covers spikes and bugs not in SQLite features table)
     result = 'null'
+    for subdir in ['features', 'bugs', 'spikes']:
+        html_path = os.path.join(graph_dir_str, '.htmlgraph', subdir, feature_id + '.html')
+        if os.path.exists(html_path):
+            try:
+                content = open(html_path).read()
+                title_match = re.search(r'<title>(.*?)</title>', content)
+                status_match = re.search(r'data-status="([^"]*)"', content)
+                priority_match = re.search(r'data-priority="([^"]*)"', content)
+                item_type = 'spike' if feature_id.startswith('spk-') else 'bug' if feature_id.startswith('bug-') else 'feature'
+                # Extract steps from HTML list items
+                steps = []
+                for li_match in re.finditer(r'<li[^>]*data-completed="([^"]*)"[^>]*>(.*?)</li>', content, re.DOTALL):
+                    completed = li_match.group(1) == 'true'
+                    desc = re.sub(r'<[^>]+>', '', li_match.group(2)).strip()
+                    if desc:
+                        steps.append({'description': desc, 'completed': completed})
+                result = json.dumps({
+                    'id': feature_id,
+                    'title': title_match.group(1).strip() if title_match else feature_id,
+                    'type': item_type,
+                    'status': status_match.group(1) if status_match else 'todo',
+                    'priority': priority_match.group(1) if priority_match else 'medium',
+                    'steps': steps,
+                    'steps_total': len(steps),
+                    'steps_completed': sum(1 for s in steps if s['completed']),
+                })
+            except Exception:
+                pass
+            break
+conn.close()
 result
 """
 
-    {result, _} = Pythonx.eval(code, %{"feature_id" => feature_id, "graph_dir" => state.graph_dir})
+    {result, _} =
+      Pythonx.eval(code, %{
+        "feature_id" => feature_id,
+        "db_path" => state.db_path,
+        "graph_dir" => state.graph_dir
+      })
+
     decoded = result |> Pythonx.decode() |> Jason.decode!()
 
     {:reply, {:ok, decoded}, state}
