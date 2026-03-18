@@ -2224,7 +2224,6 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 # Fallback: if no feature, check for in-progress bugs then spikes
                 if not resolved_feature_id and graph_dir:
                     try:
-                        from pathlib import Path
                         gd = Path(str(graph_dir))
                         for subdir, prefix in [("bugs", "bug-"), ("spikes", "spk-"), ("features", "spk-")]:
                             search = gd / subdir
