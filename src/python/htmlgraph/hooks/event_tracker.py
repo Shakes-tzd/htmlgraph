@@ -2225,7 +2225,11 @@ def track_event(hook_type: str, hook_input: dict[str, Any]) -> dict[str, Any]:
                 if not resolved_feature_id and graph_dir:
                     try:
                         gd = Path(str(graph_dir))
-                        for subdir, prefix in [("bugs", "bug-"), ("spikes", "spk-"), ("features", "spk-")]:
+                        for subdir, prefix in [
+                            ("bugs", "bug-"),
+                            ("spikes", "spk-"),
+                            ("features", "spk-"),
+                        ]:
                             search = gd / subdir
                             if not search.exists():
                                 continue
