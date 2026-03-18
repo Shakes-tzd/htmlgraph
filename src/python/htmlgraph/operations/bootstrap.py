@@ -111,6 +111,8 @@ def create_bootstrap_structure(project_dir: Path) -> dict[str, list[str]]:
         "features",
         "spikes",
         "tracks",
+        "events",
+        "logs",
     ]
 
     for subdir in subdirs:
