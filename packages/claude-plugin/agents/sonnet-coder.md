@@ -26,6 +26,15 @@ when_not_to_use: |
 
 # Sonnet Coder Agent
 
+## Work Attribution (MANDATORY — do this FIRST)
+
+Before ANY tool calls, identify and activate the work item:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="sonnet-coder")
+sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
+```
+
 **Balanced performance for moderate complexity implementation work.**
 
 ## Capabilities

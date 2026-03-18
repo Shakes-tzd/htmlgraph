@@ -450,7 +450,22 @@ def _build_attribution_block(
         Formatted attribution block string, or None if no open items
     """
     if not open_work_items:
-        return None
+        return "\n".join(
+            [
+                "## ⛔ MANDATORY FIRST STEP — DO NOT SKIP",
+                "",
+                "No open work items found. Before doing ANY work, create one:",
+                "",
+                "```python",
+                "from htmlgraph import SDK",
+                'sdk = SDK(agent="claude")',
+                'f = sdk.features.create("Brief description of what you\'re doing").save()',
+                "sdk.features.start(f.id)",
+                "```",
+                "",
+                "This ensures all tool calls are attributed to a work item.",
+            ]
+        )
 
     lines = [
         "## ⛔ MANDATORY FIRST STEP — DO NOT SKIP",

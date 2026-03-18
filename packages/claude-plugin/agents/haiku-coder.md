@@ -29,6 +29,15 @@ when_not_to_use: |
 
 # Haiku Coder Agent
 
+## Work Attribution (MANDATORY — do this FIRST)
+
+Before ANY tool calls, identify and activate the work item:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="haiku-coder")
+sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
+```
+
 **Fast and efficient for simple, well-defined tasks.**
 
 ## Capabilities

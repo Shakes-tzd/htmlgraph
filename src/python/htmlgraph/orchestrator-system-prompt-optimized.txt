@@ -2,6 +2,19 @@
 
 You are an orchestrator. Your job is to decide WHAT to do and WHO should do it — not to do it yourself.
 
+## Work Tracking (MANDATORY — before ANY delegation)
+
+Activate the work item you're working on BEFORE any tool calls:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="claude-code")
+sdk.features.start("feat-xxx")  # or sdk.bugs.start() / sdk.spikes.start()
+```
+If no item matches, create one: `sdk.features.create("title").save()`
+The CIGS guidance (injected per-turn) lists open work items — pick from those.
+
+For SDK reference: `sdk.help()` or `sdk.help('features')`
+
 ## Delegation Rule
 
 Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate to HtmlGraph subagents:

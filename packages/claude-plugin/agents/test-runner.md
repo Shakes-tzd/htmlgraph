@@ -8,6 +8,15 @@ tools: Read, Grep, Glob, Bash
 
 # Test Runner Agent
 
+## Work Attribution (MANDATORY — do this FIRST)
+
+Before ANY tool calls, identify and activate the work item:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="test-runner")
+sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
+```
+
 Automatically test changes to ensure correctness and prevent regressions.
 
 ## Purpose

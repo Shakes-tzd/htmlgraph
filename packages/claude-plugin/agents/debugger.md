@@ -8,6 +8,15 @@ tools: Read, Grep, Glob, Bash, Edit
 
 # Debugger Agent
 
+## Work Attribution (MANDATORY — do this FIRST)
+
+Before ANY tool calls, identify and activate the work item:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="debugger")
+sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
+```
+
 Systematically analyze and resolve errors using structured debugging methodology.
 
 ## Purpose

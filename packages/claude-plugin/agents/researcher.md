@@ -8,6 +8,15 @@ tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 
 # Researcher Agent
 
+## Work Attribution (MANDATORY — do this FIRST)
+
+Before ANY tool calls, identify and activate the work item:
+```python
+from htmlgraph import SDK
+sdk = SDK(agent="researcher")
+sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
+```
+
 Research documentation and resources BEFORE implementing solutions.
 
 ## Purpose
