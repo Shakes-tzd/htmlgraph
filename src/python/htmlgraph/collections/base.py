@@ -670,10 +670,11 @@ class BaseCollection(Generic[CollectionT]):
 
         Delegates to SessionManager if available for event logging and
         transcript linking:
-        1. Update status to 'done'
-        2. Log 'FeatureComplete' event
-        3. Release claim (optional behavior)
-        4. Link transcript if provided (for parallel agent tracking)
+        1. Auto-complete all pending steps
+        2. Update status to 'done'
+        3. Log 'FeatureComplete' event
+        4. Release claim (optional behavior)
+        5. Link transcript if provided (for parallel agent tracking)
 
         Falls back to simple status update if SessionManager not available.
 
@@ -712,6 +713,13 @@ class BaseCollection(Generic[CollectionT]):
         node = self.get(node_id)
         if not node:
             raise NodeNotFoundError(self._node_type, node_id)
+
+        # Auto-complete all pending steps
+        for step in node.steps:
+            if not step.completed:
+                step.completed = True
+                step.agent = agent
+                step.timestamp = datetime.now()
 
         node.status = "done"
         node.updated = datetime.now()
