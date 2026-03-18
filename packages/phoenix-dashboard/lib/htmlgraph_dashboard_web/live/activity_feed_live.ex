@@ -12,6 +12,16 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
 
   alias HtmlgraphDashboard.Activity
   alias HtmlgraphDashboard.EventPoller
+  alias HtmlgraphDashboard.PythonSDK
+
+  @default_graph_stats %{
+    "nodes" => 0,
+    "edges" => 0,
+    "cycles" => 0,
+    "components" => 0,
+    "critical_path" => [],
+    "bottlenecks" => []
+  }
 
   @impl true
   def mount(params, _session, socket) do
@@ -21,11 +31,15 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
 
     session_id = params["session_id"]
 
+    graph_stats = load_graph_stats()
+
     socket =
       socket
       |> assign(:session_filter, session_id)
       |> assign(:expanded, MapSet.new())
       |> assign(:reload_timer, nil)
+      |> assign(:graph_stats, graph_stats)
+      |> assign(:selected_work_item, nil)
       |> load_feed()
 
     {:ok, socket}
@@ -71,6 +85,26 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
     {:noreply, assign(socket, :expanded, expanded)}
   end
 
+  def handle_event("select_work_item", %{"id" => work_item_id}, socket) do
+    work_item =
+      try do
+        case PythonSDK.get_work_item(work_item_id) do
+          {:ok, item} -> item
+          _ -> nil
+        end
+      rescue
+        _ -> nil
+      catch
+        :exit, _ -> nil
+      end
+
+    {:noreply, assign(socket, :selected_work_item, work_item)}
+  end
+
+  def handle_event("close_work_item_detail", _params, socket) do
+    {:noreply, assign(socket, :selected_work_item, nil)}
+  end
+
   @impl true
   def handle_info({:new_event, _event}, socket) do
     # Debounce: schedule a single reload 500ms from now
@@ -90,6 +124,19 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
       |> load_feed()
 
     {:noreply, socket}
+  end
+
+  defp load_graph_stats do
+    try do
+      case PythonSDK.get_graph_stats() do
+        {:ok, stats} when is_map(stats) -> Map.merge(@default_graph_stats, stats)
+        _ -> @default_graph_stats
+      end
+    rescue
+      _ -> @default_graph_stats
+    catch
+      :exit, _ -> @default_graph_stats
+    end
   end
 
   defp load_feed(socket) do
@@ -290,6 +337,44 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
       </div>
     </div>
 
+    <div class="graph-stats-bar">
+      <div class="stat-card">
+        <span class="stat-label">Work Items</span>
+        <span class="stat-value"><%= @graph_stats["nodes"] || 0 %></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Relationships</span>
+        <span class="stat-value"><%= @graph_stats["edges"] || 0 %></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Cycles</span>
+        <span class={"stat-value #{if (@graph_stats["cycles"] || 0) > 0, do: "stat-warning"}"}>
+          <%= @graph_stats["cycles"] || 0 %>
+        </span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Components</span>
+        <span class="stat-value"><%= @graph_stats["components"] || 0 %></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Critical Path</span>
+        <span class="stat-value"><%= length(@graph_stats["critical_path"] || []) %></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Bottlenecks</span>
+        <span class={"stat-value #{if length(@graph_stats["bottlenecks"] || []) > 0, do: "stat-warning"}"}>
+          <%= length(@graph_stats["bottlenecks"] || []) %>
+        </span>
+      </div>
+    </div>
+
+    <%= if @selected_work_item do %>
+      <.work_item_detail_panel
+        selected_work_item={@selected_work_item}
+        graph_stats={@graph_stats}
+      />
+    <% end %>
+
     <div class="feed-container">
       <%= if @feed == [] do %>
         <div class="empty-state">
@@ -395,7 +480,12 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
                         </span>
                       <% end %>
                       <%= if turn.work_item do %>
-                        <span class="badge badge-feature">
+                        <span
+                          class="badge badge-feature"
+                          style="cursor: pointer"
+                          phx-click="select_work_item"
+                          phx-value-id={turn.work_item["id"]}
+                        >
                           <%= truncate(turn.work_item["title"], 30) %>
                         </span>
                       <% end %>
@@ -464,6 +554,11 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
           <span class="summary-text">
             <%= truncate(summary_text(@event), 80) %>
           </span>
+          <%= if @event["step_id"] do %>
+            <span class="badge badge-step" title={@event["step_id"]}>
+              Step <%= @event["step_id"] |> String.split("-") |> List.last() %>
+            </span>
+          <% end %>
         </div>
         <div class="row-meta">
           <%= if @event["subagent_type"] do %>
@@ -503,6 +598,79 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
         />
       <% end %>
     <% end %>
+    """
+  end
+
+  defp work_item_detail_panel(assigns) do
+    critical_path = assigns.graph_stats["critical_path"] || []
+    bottlenecks = assigns.graph_stats["bottlenecks"] || []
+    work_item = assigns.selected_work_item
+
+    on_critical_path =
+      is_map(work_item) and work_item["id"] in critical_path
+
+    bottleneck =
+      Enum.find(bottlenecks, fn b ->
+        is_map(b) and b["id"] == work_item["id"]
+      end)
+
+    assigns =
+      assigns
+      |> assign(:on_critical_path, on_critical_path)
+      |> assign(:bottleneck, bottleneck)
+
+    ~H"""
+    <div
+      style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); margin: 12px 24px; padding: 16px;"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="font-weight: 600; font-size: 15px;">
+          <%= @selected_work_item["title"] || "Work Item" %>
+        </span>
+        <button
+          phx-click="close_work_item_detail"
+          style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px;"
+        >
+          &#10005;
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+        <span class={"badge badge-status-#{@selected_work_item["status"] || "active"}"}>
+          <%= @selected_work_item["status"] || "unknown" %>
+        </span>
+        <span class="badge badge-session" style="font-size: 10px;">
+          <%= @selected_work_item["id"] %>
+        </span>
+      </div>
+
+      <%= if @on_critical_path do %>
+        <div style="margin-bottom: 6px;">
+          <span class="badge badge-critical-path">On Critical Path</span>
+        </div>
+      <% end %>
+
+      <%= if @bottleneck do %>
+        <div class="bottleneck-warning">
+          Blocks <%= @bottleneck["blocks_count"] || 0 %> downstream features
+        </div>
+      <% end %>
+
+      <%= if is_list(@selected_work_item["steps"]) and length(@selected_work_item["steps"]) > 0 do %>
+        <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+          <div style="font-weight: 600; margin-bottom: 4px;">Steps</div>
+          <%= for step <- @selected_work_item["steps"] do %>
+            <div style="padding: 2px 0; display: flex; align-items: center; gap: 6px;">
+              <span><%= if step["completed"], do: "done", else: "pending" %></span>
+              <span><%= step["description"] || "" %></span>
+              <%= if step["step_id"] do %>
+                <span class="badge badge-step"><%= step["step_id"] %></span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
     """
   end
 end
