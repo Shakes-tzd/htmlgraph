@@ -1,8 +1,8 @@
 site_name: HtmlGraph
 site_description: HTML is All You Need - Graph database on web standards
 site_url: https://shakes-tzd.github.io/htmlgraph/
-repo_url: https://github.com/Shakes-tzd/htmlgraph
-repo_name: Shakes-tzd/htmlgraph
+repo_url: https://github.com/shakestzd/htmlgraph
+repo_name: shakestzd/htmlgraph
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2025 TZDLabs
 
@@ -150,7 +150,7 @@ extra:
     property: !ENV GOOGLE_ANALYTICS_KEY
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Shakes-tzd/htmlgraph
+      link: https://github.com/shakestzd/htmlgraph
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/htmlgraph/
     - icon: fontawesome/brands/twitter

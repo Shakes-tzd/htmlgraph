@@ -3,7 +3,7 @@
   "owner": {
     "name": "Shakes Dlamini",
     "email": "shakestzd@gmail.com",
-    "url": "https://github.com/Shakes-tzd"
+    "url": "https://github.com/shakestzd"
   },
   "description": "HTML-based agent observability + workflow analytics. Git-first JSONL event tracking with rebuildable SQLite index. Zero external dependencies, works offline, version control friendly.",
   "version": "0.34.12",
@@ -27,10 +27,10 @@
       "author": {
         "name": "Shakes Dlamini",
         "email": "shakestzd@gmail.com",
-        "url": "https://github.com/Shakes-tzd"
+        "url": "https://github.com/shakestzd"
       },
-      "repository": "https://github.com/Shakes-tzd/htmlgraph",
-      "homepage": "https://github.com/Shakes-tzd/htmlgraph#readme",
+      "repository": "https://github.com/shakestzd/htmlgraph",
+      "homepage": "https://github.com/shakestzd/htmlgraph#readme",
       "license": "MIT",
       "keywords": [
         "observability",

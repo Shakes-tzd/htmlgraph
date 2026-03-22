@@ -221,7 +221,7 @@ def test_feature_creation(sdk):
 
 ```bash
 # Clone repository
-git clone https://github.com/Shakes-tzd/htmlgraph.git
+git clone https://github.com/shakestzd/htmlgraph.git
 cd htmlgraph
 
 # Install dependencies
@@ -292,8 +292,8 @@ For maintainers preparing a release:
 
 ## Getting Help
 
-- **Issues**: https://github.com/Shakes-tzd/htmlgraph/issues
-- **Discussions**: https://github.com/Shakes-tzd/htmlgraph/discussions
+- **Issues**: https://github.com/shakestzd/htmlgraph/issues
+- **Discussions**: https://github.com/shakestzd/htmlgraph/discussions
 - **Documentation**: See `AGENTS.md` and `docs/`
 
 ## License

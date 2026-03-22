@@ -814,7 +814,7 @@ System prompt should persist and reappear in new session after compact.
 
 ### Support Resources
 
-- **GitHub Issues**: https://github.com/Shakes-tzd/htmlgraph/issues
+- **GitHub Issues**: https://github.com/shakestzd/htmlgraph/issues
 - **Documentation**: [System Prompt Architecture](SYSTEM_PROMPT_ARCHITECTURE.md)
 - **Customization**: [System Prompt Customization Guide](SYSTEM_PROMPT_CUSTOMIZATION.md)
 - **Admin Setup**: [Delegation Enforcement Guide](DELEGATION_ENFORCEMENT_ADMIN_GUIDE.md)

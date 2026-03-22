@@ -826,7 +826,7 @@ A: Yes - any agent using HtmlGraph respects orchestrator mode (Claude, Gemini, e
 
 **Q: How do I contribute improvements?**
 
-A: Open issues/PRs at: https://github.com/Shakes-tzd/htmlgraph
+A: Open issues/PRs at: https://github.com/shakestzd/htmlgraph
 
 ---
 
@@ -853,5 +853,5 @@ A: Open issues/PRs at: https://github.com/Shakes-tzd/htmlgraph
 
 **Get Help:**
 - Docs: `/Users/shakes/DevProjects/htmlgraph/AGENTS.md#orchestrator-mode`
-- Issues: https://github.com/Shakes-tzd/htmlgraph/issues
+- Issues: https://github.com/shakestzd/htmlgraph/issues
 - Examples: See "Examples & Patterns" section above

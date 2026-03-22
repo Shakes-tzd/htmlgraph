@@ -161,10 +161,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Git Integration**: Text-based storage for version control
 - **Zero Dependencies**: Pure Python with justhtml
 
-[0.3.0]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.2.2...v0.3.0
-[0.2.2]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.2.0...v0.2.2
-[0.2.0]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.1.3...v0.2.0
-[0.1.3]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v0.1.0
+[0.3.0]: https://github.com/shakestzd/htmlgraph/compare/v0.2.2...v0.3.0
+[0.2.2]: https://github.com/shakestzd/htmlgraph/compare/v0.2.0...v0.2.2
+[0.2.0]: https://github.com/shakestzd/htmlgraph/compare/v0.1.3...v0.2.0
+[0.1.3]: https://github.com/shakestzd/htmlgraph/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/shakestzd/htmlgraph/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/shakestzd/htmlgraph/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/shakestzd/htmlgraph/releases/tag/v0.1.0

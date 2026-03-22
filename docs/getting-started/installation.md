@@ -23,7 +23,7 @@ uv pip install htmlgraph
 Clone the repository and install in development mode:
 
 ```bash
-git clone https://github.com/Shakes-tzd/htmlgraph.git
+git clone https://github.com/shakestzd/htmlgraph.git
 cd htmlgraph
 uv pip install -e .
 ```

@@ -461,9 +461,9 @@ htmlgraph session list --status active
 
 ## Support
 
-- GitHub Issues: https://github.com/Shakes-tzd/htmlgraph/issues
+- GitHub Issues: https://github.com/shakestzd/htmlgraph/issues
 - Documentation: https://htmlgraph.dev/docs/git-hooks
-- Examples: https://github.com/Shakes-tzd/htmlgraph/tree/main/examples
+- Examples: https://github.com/shakestzd/htmlgraph/tree/main/examples
 
 ---
 

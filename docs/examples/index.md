@@ -95,9 +95,9 @@ print(feature.handoff_notes)  # See what Agent 1 did
 
 Browse the example implementations:
 
-- [Todo List](https://github.com/Shakes-tzd/htmlgraph/tree/main/examples/todo-list)
-- [Agent Coordination](https://github.com/Shakes-tzd/htmlgraph/tree/main/examples/agent-coordination)
-- [Knowledge Base](https://github.com/Shakes-tzd/htmlgraph/tree/main/examples/knowledge-base)
+- [Todo List](https://github.com/shakestzd/htmlgraph/tree/main/examples/todo-list)
+- [Agent Coordination](https://github.com/shakestzd/htmlgraph/tree/main/examples/agent-coordination)
+- [Knowledge Base](https://github.com/shakestzd/htmlgraph/tree/main/examples/knowledge-base)
 
 ## Next Steps
 

@@ -730,8 +730,8 @@ htmlgraph install-hooks --use-copy
 - Run diagnostics: `htmlgraph doctor`
 
 **Community support**:
-- GitHub Issues: [github.com/Shakes-tzd/htmlgraph/issues](https://github.com/Shakes-tzd/htmlgraph/issues)
-- Discussions: [github.com/Shakes-tzd/htmlgraph/discussions](https://github.com/Shakes-tzd/htmlgraph/discussions)
+- GitHub Issues: [github.com/shakestzd/htmlgraph/issues](https://github.com/shakestzd/htmlgraph/issues)
+- Discussions: [github.com/shakestzd/htmlgraph/discussions](https://github.com/shakestzd/htmlgraph/discussions)
 
 ### Feedback
 

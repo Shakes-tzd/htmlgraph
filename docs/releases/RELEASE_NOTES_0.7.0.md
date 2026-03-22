@@ -299,10 +299,10 @@ This release demonstrates the power of AI-assisted development:
 
 ### 📞 Support
 
-- GitHub Issues: https://github.com/Shakes-tzd/htmlgraph/issues
+- GitHub Issues: https://github.com/shakestzd/htmlgraph/issues
 - Documentation: `docs/` directory
 - Examples: `demo_agent_planning.py`, `demo_real_project_analytics.py`
 
 ---
 
-**Full Changelog:** https://github.com/Shakes-tzd/htmlgraph/compare/v0.6.1...v0.7.0
+**Full Changelog:** https://github.com/shakestzd/htmlgraph/compare/v0.6.1...v0.7.0

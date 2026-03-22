@@ -56,10 +56,10 @@ htmlgraph = "htmlgraph.cli.main:main"
 htmlgraph-deploy = "htmlgraph.scripts.deploy:main"
 
 [project.urls]
-Homepage = "https://github.com/Shakes-tzd/htmlgraph"
-Documentation = "https://github.com/Shakes-tzd/htmlgraph#readme"
-Repository = "https://github.com/Shakes-tzd/htmlgraph"
-Issues = "https://github.com/Shakes-tzd/htmlgraph/issues"
+Homepage = "https://github.com/shakestzd/htmlgraph"
+Documentation = "https://github.com/shakestzd/htmlgraph#readme"
+Repository = "https://github.com/shakestzd/htmlgraph"
+Issues = "https://github.com/shakestzd/htmlgraph/issues"
 
 [build-system]
 requires = ["hatchling"]

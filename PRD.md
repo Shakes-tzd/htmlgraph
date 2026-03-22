@@ -705,4 +705,4 @@ See CLAUDE.md section "Use Cases"
 
 **Next Review Date**: 2024-12-30
 
-**Contact**: github.com/Shakes-tzd/htmlgraph
+**Contact**: github.com/shakestzd/htmlgraph

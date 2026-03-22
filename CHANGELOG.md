@@ -109,11 +109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pydantic models for validation
 - SQLite indexing (optional)
 
-[Unreleased]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.13.9...HEAD
-[0.13.9]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.13.8...v0.13.9
-[0.13.8]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.13.5...v0.13.8
-[0.13.5]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.13.0...v0.13.5
-[0.13.0]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.12.0...v0.13.0
-[0.12.0]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.11.0...v0.12.0
-[0.11.0]: https://github.com/Shakes-tzd/htmlgraph/compare/v0.10.0...v0.11.0
-[0.10.0]: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v0.10.0
+[Unreleased]: https://github.com/shakestzd/htmlgraph/compare/v0.13.9...HEAD
+[0.13.9]: https://github.com/shakestzd/htmlgraph/compare/v0.13.8...v0.13.9
+[0.13.8]: https://github.com/shakestzd/htmlgraph/compare/v0.13.5...v0.13.8
+[0.13.5]: https://github.com/shakestzd/htmlgraph/compare/v0.13.0...v0.13.5
+[0.13.0]: https://github.com/shakestzd/htmlgraph/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/shakestzd/htmlgraph/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/shakestzd/htmlgraph/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/shakestzd/htmlgraph/releases/tag/v0.10.0

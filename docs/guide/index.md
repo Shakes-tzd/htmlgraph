@@ -117,4 +117,4 @@ htmlgraph feature complete feature-001
 - Check the [API Reference](../api/index.md) for detailed SDK documentation
 - Browse [Examples](../examples/index.md) for real-world use cases
 - Read the [Philosophy](../philosophy/why-html.md) to understand design decisions
-- Visit [GitHub Discussions](https://github.com/Shakes-tzd/htmlgraph/discussions) for community support
+- Visit [GitHub Discussions](https://github.com/shakestzd/htmlgraph/discussions) for community support

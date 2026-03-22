@@ -117,16 +117,16 @@ No manual migration required.
 
 ## 🔗 Related Links
 
-- **GitHub Release:** https://github.com/Shakes-tzd/htmlgraph/releases/tag/v0.7.2
+- **GitHub Release:** https://github.com/shakestzd/htmlgraph/releases/tag/v0.7.2
 - **PyPI Package:** https://pypi.org/project/htmlgraph/0.7.2/
-- **Full Changelog:** https://github.com/Shakes-tzd/htmlgraph/compare/v0.7.1...v0.7.2
+- **Full Changelog:** https://github.com/shakestzd/htmlgraph/compare/v0.7.1...v0.7.2
 - **Documentation:** https://shakes-tzd.github.io/htmlgraph/
 
 ---
 
 ## 👥 Contributors
 
-- **Shakes Tzedakis** (@Shakes-tzd) - Bug fix and release
+- **Shakes Tzedakis** (@shakestzd) - Bug fix and release
 
 ---
 
@@ -145,4 +145,4 @@ cf9d11c - fix: add primary_work_type and work_breakdown to Session HTML serializ
 
 **Thank you for using HtmlGraph!** 🎉
 
-For questions or issues, please visit: https://github.com/Shakes-tzd/htmlgraph/issues
+For questions or issues, please visit: https://github.com/shakestzd/htmlgraph/issues

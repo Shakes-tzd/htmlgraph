@@ -825,7 +825,7 @@ if [ "$SKIP_GIT" != true ] && [ "$SKIP_BUILD" != true ]; then
                     --title "v$VERSION" \
                     --notes "Release v$VERSION
 
-See [CHANGELOG](https://github.com/Shakes-tzd/htmlgraph/blob/main/docs/changelog.md) for details.
+See [CHANGELOG](https://github.com/shakestzd/htmlgraph/blob/main/docs/changelog.md) for details.
 
 **Installation:**
 \`\`\`bash
@@ -835,7 +835,7 @@ uv pip install htmlgraph==$VERSION
 **PyPI:** https://pypi.org/project/htmlgraph/$VERSION/" \
                     "dist/htmlgraph-$VERSION-py3-none-any.whl" \
                     "dist/htmlgraph-$VERSION.tar.gz"; then
-                    log_success "GitHub release created: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
+                    log_success "GitHub release created: https://github.com/shakestzd/htmlgraph/releases/tag/v$VERSION"
                 else
                     log_warning "GitHub release creation failed (may already exist)"
                 fi
@@ -867,7 +867,7 @@ echo "✅ Git push: Complete"
 echo "✅ Package build: htmlgraph-$VERSION"
 echo "✅ PyPI publish: https://pypi.org/project/htmlgraph/$VERSION/"
 echo "✅ npm publish: https://www.npmjs.com/package/@htmlgraph/opencode-extension/v/$VERSION"
-echo "✅ GitHub release: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
+echo "✅ GitHub release: https://github.com/shakestzd/htmlgraph/releases/tag/v$VERSION"
 echo "✅ Local install: $INSTALLED_VERSION"
 echo "✅ Claude plugin: Updated"
 echo "✅ Gemini extension: Updated"
@@ -877,7 +877,7 @@ echo ""
 echo "Verify deployment:"
 echo "  - PyPI: https://pypi.org/project/htmlgraph/$VERSION/"
 echo "  - npm: https://www.npmjs.com/package/@htmlgraph/opencode-extension/v/$VERSION"
-echo "  - GitHub Release: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
-echo "  - GitHub Repo: https://github.com/Shakes-tzd/htmlgraph"
+echo "  - GitHub Release: https://github.com/shakestzd/htmlgraph/releases/tag/v$VERSION"
+echo "  - GitHub Repo: https://github.com/shakestzd/htmlgraph"
 echo "  - Local: uv run python -c 'import htmlgraph; print(htmlgraph.__version__)'"
 echo ""

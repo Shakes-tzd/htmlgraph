@@ -14,7 +14,7 @@ Detailed guide for setting up a development environment.
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/Shakes-tzd/htmlgraph.git
+git clone https://github.com/shakestzd/htmlgraph.git
 cd htmlgraph
 ```
 

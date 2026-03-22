@@ -43,7 +43,7 @@ python -c "import htmlgraph; print(htmlgraph.__version__)"
 
 ## 🔗 Related Links
 
-- **GitHub Release:** https://github.com/Shakes-tzd/htmlgraph/releases/tag/v0.7.3
+- **GitHub Release:** https://github.com/shakestzd/htmlgraph/releases/tag/v0.7.3
 - **PyPI Package:** https://pypi.org/project/htmlgraph/0.7.3/
 - **Documentation:** https://shakes-tzd.github.io/htmlgraph/
 

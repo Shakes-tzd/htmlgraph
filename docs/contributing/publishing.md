@@ -224,7 +224,7 @@ gh release create v$VERSION --title "v$VERSION" --generate-notes
 
 echo "✅ Release $VERSION complete!"
 echo "   PyPI: https://pypi.org/project/htmlgraph/$VERSION/"
-echo "   GitHub: https://github.com/Shakes-tzd/htmlgraph/releases/tag/v$VERSION"
+echo "   GitHub: https://github.com/shakestzd/htmlgraph/releases/tag/v$VERSION"
 ```
 
 Usage:

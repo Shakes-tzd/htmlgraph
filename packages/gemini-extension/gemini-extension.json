@@ -5,10 +5,10 @@
   "author": "Shakes",
   "license": "MIT",
   "contextFileName": "GEMINI.md",
-  "homepage": "https://github.com/Shakes-tzd/htmlgraph",
+  "homepage": "https://github.com/shakestzd/htmlgraph",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shakes-tzd/htmlgraph.git",
+    "url": "https://github.com/shakestzd/htmlgraph.git",
     "directory": "packages/gemini-extension"
   }
 }

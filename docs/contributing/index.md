@@ -172,8 +172,8 @@ See [Development Guide](development.md) for detailed setup instructions.
 
 ## Questions?
 
-- [GitHub Discussions](https://github.com/Shakes-tzd/htmlgraph/discussions)
-- [GitHub Issues](https://github.com/Shakes-tzd/htmlgraph/issues)
+- [GitHub Discussions](https://github.com/shakestzd/htmlgraph/discussions)
+- [GitHub Issues](https://github.com/shakestzd/htmlgraph/issues)
 - Email: [shakes@example.com](mailto:shakes@example.com)
 
 ## Next Steps

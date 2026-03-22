@@ -274,7 +274,7 @@ sdk.chores.delete("chore-cleanup")
 ## 🔗 Links
 
 - **PyPI Package**: https://pypi.org/project/htmlgraph/0.7.1/
-- **GitHub Repository**: https://github.com/Shakes-tzd/htmlgraph
+- **GitHub Repository**: https://github.com/shakestzd/htmlgraph
 - **Documentation**: See `AGENTS.md` in the repository
 - **Previous Release**: [RELEASE_NOTES_0.7.0.md](./RELEASE_NOTES_0.7.0.md)
 

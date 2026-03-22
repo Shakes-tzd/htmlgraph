@@ -408,7 +408,7 @@ def deploy(
         if not dry_run:
             print("\nVerify deployment:")
             print(f"  - PyPI: https://pypi.org/project/{PACKAGE_NAME}/{version}/")
-            print(f"  - GitHub: https://github.com/Shakes-tzd/{PACKAGE_NAME}")
+            print(f"  - GitHub: https://github.com/shakestzd/{PACKAGE_NAME}")
             print(
                 f"  - Local: python -c 'import {PACKAGE_NAME}; print({PACKAGE_NAME}.__version__)'"
             )

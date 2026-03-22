@@ -41,7 +41,7 @@ If you're developing or want to use the latest version:
 
 ```bash
 # Clone the HtmlGraph repository
-git clone https://github.com/Shakes-tzd/htmlgraph.git
+git clone https://github.com/shakestzd/htmlgraph.git
 cd htmlgraph
 
 # Install the extension from the local path
@@ -54,7 +54,7 @@ For active development work on the extension:
 
 ```bash
 # Clone the HtmlGraph repository
-git clone https://github.com/Shakes-tzd/htmlgraph.git
+git clone https://github.com/shakestzd/htmlgraph.git
 cd htmlgraph
 
 # Link the extension (changes reflect immediately)
@@ -255,8 +255,8 @@ uv run htmlgraph status
 
 ## Documentation
 
-- **HtmlGraph SDK Guide**: https://github.com/Shakes-tzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
-- **HtmlGraph Project**: https://github.com/Shakes-tzd/htmlgraph
+- **HtmlGraph SDK Guide**: https://github.com/shakestzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
+- **HtmlGraph Project**: https://github.com/shakestzd/htmlgraph
 - **Gemini CLI Docs**: https://geminicli.com/docs/
 - **Gemini CLI Hooks**: https://geminicli.com/docs/hooks/
 - **Gemini Extensions**: https://geminicli.com/docs/extensions/
@@ -264,7 +264,7 @@ uv run htmlgraph status
 ## Support
 
 For issues or questions:
-- **HtmlGraph Issues**: https://github.com/Shakes-tzd/htmlgraph/issues
+- **HtmlGraph Issues**: https://github.com/shakestzd/htmlgraph/issues
 - **Gemini CLI Issues**: https://github.com/google-gemini/gemini-cli/issues
 
 ## License

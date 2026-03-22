@@ -209,7 +209,7 @@ HtmlGraph is developed using HtmlGraph itself (dogfooding). This means:
 **Quick start for contributors:**
 ```bash
 # Clone and setup
-git clone https://github.com/Shakes-tzd/htmlgraph
+git clone https://github.com/shakestzd/htmlgraph
 cd htmlgraph
 uv sync
 
@@ -239,7 +239,7 @@ For Claude Code users and teams using HtmlGraph for AI agent coordination:
 
 ## Links
 
-- [GitHub](https://github.com/Shakes-tzd/htmlgraph)
+- [GitHub](https://github.com/shakestzd/htmlgraph)
 - [API Reference](docs/API_REFERENCE.md) - Complete SDK API documentation
 - [Documentation](docs/) - SDK guide, workflows, development principles
 - [Examples](examples/) - Real-world usage examples

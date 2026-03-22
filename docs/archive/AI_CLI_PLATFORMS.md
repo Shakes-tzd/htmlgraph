@@ -92,7 +92,7 @@ ln -s /path/to/htmlgraph/packages/codex-skill ~/.codex/skills/htmlgraph-tracker
 cp -r packages/codex-skill ~/.codex/skills/htmlgraph-tracker
 
 # Option 3: From GitHub
-git clone https://github.com/Shakes-tzd/htmlgraph.git
+git clone https://github.com/shakestzd/htmlgraph.git
 cp -r htmlgraph/packages/codex-skill ~/.codex/skills/htmlgraph-tracker
 ```
 
@@ -138,7 +138,7 @@ htmlgraph setup codex [--auto-install]
 **Installation:**
 ```bash
 # From GitHub
-gemini extensions install https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/gemini-extension
+gemini extensions install https://github.com/shakestzd/htmlgraph/tree/main/packages/gemini-extension
 
 # Link from repo
 gemini extensions link packages/gemini-extension
@@ -395,9 +395,9 @@ HtmlGraph is designed to support any AI CLI with:
 
 ## Support
 
-- **Documentation:** https://github.com/Shakes-tzd/htmlgraph
-- **SDK Guide:** https://github.com/Shakes-tzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
-- **Issues:** https://github.com/Shakes-tzd/htmlgraph/issues
+- **Documentation:** https://github.com/shakestzd/htmlgraph
+- **SDK Guide:** https://github.com/shakestzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
+- **Issues:** https://github.com/shakestzd/htmlgraph/issues
 
 ---
 

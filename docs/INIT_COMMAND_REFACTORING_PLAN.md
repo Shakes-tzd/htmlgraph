@@ -874,7 +874,7 @@ Next steps:
   2. View dashboard: htmlgraph serve
   3. Check status: htmlgraph status
 
-Documentation: https://github.com/Shakes-tzd/htmlgraph
+Documentation: https://github.com/shakestzd/htmlgraph
 ```
 
 ### Error Handling Example

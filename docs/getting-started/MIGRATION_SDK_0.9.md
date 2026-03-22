@@ -252,7 +252,7 @@ print("✓ All imports successful")
 
 - **Documentation:** See `docs/api/sdk.md` for complete SDK reference
 - **Examples:** Check `docs/examples/` for updated code samples
-- **Issues:** Report problems at https://github.com/Shakes-tzd/htmlgraph/issues
+- **Issues:** Report problems at https://github.com/shakestzd/htmlgraph/issues
 
 ---
 

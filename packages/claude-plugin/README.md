@@ -20,7 +20,7 @@ uv pip install --upgrade htmlgraph
 
 ```bash
 # Add the htmlgraph marketplace
-claude plugin marketplace add https://github.com/Shakes-tzd/htmlgraph
+claude plugin marketplace add https://github.com/shakestzd/htmlgraph
 
 # Install the plugin
 claude plugin install htmlgraph@htmlgraph
