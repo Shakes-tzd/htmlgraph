@@ -360,8 +360,8 @@ def main() -> None:
             except Exception as e:
                 logger.warning(f"Could not write HTMLGRAPH_LAUNCHED to env file: {e}")
 
-        # Manage conversation-level auto-spikes
-        _manage_conversation_spike(manager, active, external_session_id, graph_dir)
+        # Manage conversation-level auto-spikes disabled (caused OPEN list bloat)
+        # _manage_conversation_spike(manager, active, external_session_id, graph_dir)
 
     except Exception as e:
         print(f"Warning: Could not start session: {e}", file=sys.stderr)

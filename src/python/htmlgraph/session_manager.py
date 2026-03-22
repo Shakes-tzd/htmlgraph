@@ -365,8 +365,8 @@ class SessionManager:
         # This marks the end of the previous conversation's transition period
         self._complete_transition_spikes_on_conversation_start(session.agent)
 
-        # Auto-create session-init spike for transitional activities
-        self._create_session_init_spike(session)
+        # Auto-create session-init spike disabled (caused OPEN list bloat)
+        # self._create_session_init_spike(session)
 
         return session
 

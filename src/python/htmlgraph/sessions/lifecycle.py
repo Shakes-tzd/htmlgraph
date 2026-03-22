@@ -216,10 +216,10 @@ class SessionLifecycleOps:
         self._sessions_cache_dirty = True
         self._active_session = session
 
-        # Spike management
+        # Spike management (create_session_init_spike disabled — caused OPEN list bloat)
         if spikes:
             spikes.complete_transition_spikes_on_conversation_start(session.agent)
-            spikes.create_session_init_spike(session)
+            # spikes.create_session_init_spike(session)
 
         return session
 
