@@ -6,14 +6,21 @@ defmodule HtmlgraphDashboard.Repo do
   Uses exqlite for lightweight SQLite3 connectivity.
   """
 
+  # Compile-time anchor: lib/htmlgraph_dashboard/ → ../../ → app root (packages/phoenix-dashboard/)
+  # Then the default config path ../../.htmlgraph/htmlgraph.db goes up two more levels to the repo root.
+  @app_root Path.expand("../../", __DIR__)
+
   @doc """
-  Returns the configured database path, resolved relative to the app root.
+  Returns the configured database path, resolved relative to the Phoenix app root.
+
+  Uses a compile-time anchor (__DIR__) instead of File.cwd!() so the path is
+  stable regardless of what directory the beam process was started from.
   """
   def db_path do
     path = Application.get_env(:htmlgraph_dashboard, :db_path, "../../.htmlgraph/htmlgraph.db")
 
     if Path.type(path) == :relative do
-      Path.join(File.cwd!(), path)
+      Path.join(@app_root, path)
       |> Path.expand()
     else
       path

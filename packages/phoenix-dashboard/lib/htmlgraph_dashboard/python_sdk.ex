@@ -5,6 +5,10 @@ defmodule HtmlgraphDashboard.PythonSDK do
   """
   use GenServer
 
+  # Compile-time anchor: lib/htmlgraph_dashboard/ → ../../ → app root (packages/phoenix-dashboard/)
+  # Stable regardless of what directory beam was launched from.
+  @app_root Path.expand("../../", __DIR__)
+
   # Client API
 
   def start_link(opts \\ []) do
@@ -53,12 +57,14 @@ defmodule HtmlgraphDashboard.PythonSDK do
     # Get DB path from application config
     db_path = Application.get_env(:htmlgraph_dashboard, :db_path, "../../.htmlgraph/htmlgraph.db")
 
-    # Resolve to absolute path
+    # Resolve to absolute path using compile-time anchor, not File.cwd!().
+    # File.cwd!() is unreliable — the beam process cwd depends on how the server
+    # was launched (e.g. from repo root vs packages/phoenix-dashboard/).
     abs_path =
-      if String.starts_with?(db_path, "/") do
+      if Path.type(db_path) == :absolute do
         db_path
       else
-        Path.join(File.cwd!(), db_path)
+        Path.join(@app_root, db_path) |> Path.expand()
       end
 
     graph_dir = abs_path |> Path.dirname() |> Path.dirname()
