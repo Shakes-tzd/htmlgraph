@@ -150,6 +150,7 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
       <a href="/" class="nav-tab">Activity Feed</a>
       <a href="/graph" class="nav-tab active">Graph</a>
       <a href="/kanban" class="nav-tab">Kanban</a>
+      <a href="/costs" class="nav-tab">Costs</a>
     </nav>
 
     <div class="graph-stats-bar">

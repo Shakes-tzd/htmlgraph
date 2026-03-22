@@ -1103,3 +1103,69 @@ body {
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+/* ========================================
+   Costs View
+   ======================================== */
+.costs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.costs-th {
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.costs-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.costs-row:hover {
+  background: var(--bg-hover);
+}
+
+.costs-td {
+  padding: 10px 14px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.costs-number {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.costs-cost {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.costs-feature-title {
+  display: flex;
+  align-items: center;
+}
+
+.costs-total-row {
+  background: var(--bg-secondary);
+  border-top: 2px solid var(--border);
+}
+
+.costs-total-row .costs-td {
+  padding: 12px 14px;
+}
+
+.costs-total-row .costs-cost {
+  color: var(--accent-orange);
+}
