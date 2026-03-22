@@ -125,11 +125,18 @@ defmodule HtmlgraphDashboard.Activity do
 
   defp strip_xml_tags(text) do
     text
-    # Strip matched pairs first (greedy within each pair)
+    # Strip complete matched pairs first
     |> String.replace(~r/<task-notification>[\s\S]*?<\/task-notification>/i, "")
     |> String.replace(~r/<system-reminder>[\s\S]*?<\/system-reminder>/i, "")
     |> String.replace(~r/<[a-zA-Z_-]+>[\s\S]*?<\/[a-zA-Z_-]+>/i, "")
-    # Strip orphaned opening/closing tags (no matching pair in string)
+    # Strip unclosed/truncated <task-notification> blocks — these occur when the
+    # stored text was truncated before the closing tag was written.
+    # The block starts with <task-notification> and everything after is noise.
+    |> String.replace(~r/<task-notification>[\s\S]*/i, "")
+    # Strip residual /private/tmp/... or /tmp/... file paths left after tag removal
+    |> String.replace(~r|/private/tmp/\S*|, "")
+    |> String.replace(~r|/tmp/\S*|, "")
+    # Strip orphaned opening/closing tags
     |> String.replace(~r/<\/?[a-zA-Z_-]+>/i, "")
   end
 
