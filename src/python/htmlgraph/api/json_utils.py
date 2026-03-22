@@ -116,9 +116,10 @@ class JSONHandler:
         try:
             if ORJSON_AVAILABLE:
                 option = orjson.OPT_INDENT_2 if pretty else 0
-                return orjson.dumps(obj, option=option, default=default_handler).decode(
-                    "utf-8"
-                )
+                result: str = orjson.dumps(
+                    obj, option=option, default=default_handler
+                ).decode("utf-8")
+                return result
             else:
                 return json.dumps(
                     obj,

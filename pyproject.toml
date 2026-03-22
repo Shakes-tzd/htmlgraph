@@ -30,6 +30,11 @@ dependencies = [
     "pyyaml>=6.0",
     "tenacity>=8.0",
     "networkx>=3.4.2",
+    "fastapi>=0.100.0",
+    "sqlalchemy>=2.0.0",
+    "aiosqlite>=0.19.0",
+    "structlog>=23.0.0",
+    "fastapi-cache2>=0.2.0",
 ]
 
 [project.optional-dependencies]
