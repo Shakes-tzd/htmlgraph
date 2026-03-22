@@ -107,6 +107,7 @@ Fluent Python SDK with Pydantic validation. TrackBuilder for deterministic workf
 
 AI-assisted development creates an observability gap: multiple agents running across sessions, no unified view of what was done, why, or by whom.
 
+- ✅ **Purpose-built for Claude Code**: Understands Claude Code concepts natively — sessions, hooks, features, spikes, agent attribution. Not a generic APM tool adapted for AI; built from the ground up for how developers actually work with AI coding agents.
 - ✅ **Local-first**: HTML files and SQLite require no servers or cloud services to configure or maintain
 - ✅ **Observable**: every AI agent action is tracked and browsable in the dashboard
 - ✅ **Multi-AI**: works with Claude Code, Gemini CLI, Codex, Copilot — not locked to one tool

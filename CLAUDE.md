@@ -12,6 +12,7 @@ Local-first observability and coordination platform for AI-assisted development.
 
 **"Local-first observability and coordination platform for AI-assisted development"**
 
+- **Purpose-built for AI-assisted development** — Natively understands Claude Code sessions, hooks, and agent attribution. Built from the ground up for how developers actually work with AI coding agents, not a generic observability tool adapted for AI.
 - HTML files = canonical work item store (features, bugs, spikes, tracks)
 - SQLite = operational read index for queries, dashboard, analytics
 - Phoenix LiveView = live observability dashboard with real-time event feed (optional, requires Elixir/Erlang runtime)

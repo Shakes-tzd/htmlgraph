@@ -128,6 +128,7 @@ HtmlGraph nodes are standard HTML files:
 
 ## Features
 
+- **Purpose-built for Claude Code** — Purpose-built observability for AI-assisted development. Natively understands Claude Code sessions, hooks, features, spikes, and agent attribution — not a generic monitoring tool adapted for AI.
 - **No external infrastructure** — 10 runtime deps (justhtml, pydantic, jinja2, rich, watchdog, pyyaml, tenacity, networkx, pydantic-settings, typing_extensions), no Postgres/Redis/cloud required
 - **HTML canonical store** - work items are standard HTML files, git-diffable and browser-readable
 - **SQLite operational layer** - fast local queries, dashboard analytics, rebuild from HTML source
