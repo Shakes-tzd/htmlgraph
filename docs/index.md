@@ -63,15 +63,15 @@ Features, bugs, spikes, and tracks stored as HTML files. Git-diffable, browser-r
 <span class="feature-icon">&#128065;</span>
 <div class="feature-title">Live Dashboard</div>
 <div class="feature-desc">
-FastAPI + HTMX dashboard with real-time event feed, session tracking, and agent activity — all local, no external services.
+Phoenix LiveView dashboard with real-time event feed, session tracking, and agent activity monitoring — all local, no external services.
 </div>
 </div>
 
 <div class="feature-card">
 <span class="feature-icon">&#9889;</span>
-<div class="feature-title">No External Infrastructure</div>
+<div class="feature-title">Local-First Core</div>
 <div class="feature-desc">
-SQLite for fast local indexing. No Docker, no Postgres, no Redis, no cloud sync. Works offline, always.
+HTML files and SQLite require no external servers. Git-diffable, browser-readable, and fully offline. The optional Phoenix dashboard adds real-time observability.
 </div>
 </div>
 
@@ -107,7 +107,7 @@ Fluent Python SDK with Pydantic validation. TrackBuilder for deterministic workf
 
 AI-assisted development creates an observability gap: multiple agents running across sessions, no unified view of what was done, why, or by whom.
 
-- ✅ **Local-first**: no servers, databases, or cloud services to configure or maintain
+- ✅ **Local-first**: HTML files and SQLite require no servers or cloud services to configure or maintain
 - ✅ **Observable**: every AI agent action is tracked and browsable in the dashboard
 - ✅ **Multi-AI**: works with Claude Code, Gemini CLI, Codex, Copilot — not locked to one tool
 - ✅ **Human-readable**: HTML files you can open in any browser, inspect with DevTools, and diff in git
@@ -118,7 +118,7 @@ AI-assisted development creates an observability gap: multiple agents running ac
 ## Core Philosophy
 
 !!! quote "Local-first observability"
-    Track, coordinate, and observe AI-assisted development workflows. HTML files as canonical work items, SQLite for operational queries, and a live FastAPI + HTMX dashboard — all local, no external infrastructure required.
+    Track, coordinate, and observe AI-assisted development workflows. HTML files as canonical work items, SQLite for operational queries, and an optional Phoenix LiveView dashboard for real-time observability — local-first, no external infrastructure required for the core.
 
 ---
 
@@ -140,7 +140,7 @@ AI-assisted development creates an observability gap: multiple agents running ac
 |---------|------|-----------|
 | Human readable | 🟡 Text editor | ✅ Browser with styling |
 | Query | ❌ jq or custom | ✅ SQLite + CSS selectors |
-| Live dashboard | ❌ Needs UI | ✅ Built-in FastAPI + HTMX |
+| Live dashboard | ❌ Needs UI | ✅ Optional Phoenix LiveView |
 | Agent hooks | ❌ Manual | ✅ Automatic event capture |
 
 ---

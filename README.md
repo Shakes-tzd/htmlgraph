@@ -2,7 +2,7 @@
 
 **Local-first observability and coordination platform for AI-assisted development.**
 
-No external infrastructure required — no Postgres, no Redis, no cloud sync. HTML files as nodes, hyperlinks as edges, SQLite for fast local queries, and a FastAPI + HTMX live dashboard out of the box.
+Local-first core — HTML files as nodes, hyperlinks as edges, SQLite for fast local queries. No Postgres, no Redis, no cloud sync required. An optional Phoenix LiveView dashboard provides real-time observability.
 
 > **Design philosophy:** "HTML is All You Need" — work items are standard HTML files readable in any browser, diffable in git, and editable without tooling.
 
@@ -131,7 +131,7 @@ HtmlGraph nodes are standard HTML files:
 - **No external infrastructure** — 10 runtime deps (justhtml, pydantic, jinja2, rich, watchdog, pyyaml, tenacity, networkx, pydantic-settings, typing_extensions), no Postgres/Redis/cloud required
 - **HTML canonical store** - work items are standard HTML files, git-diffable and browser-readable
 - **SQLite operational layer** - fast local queries, dashboard analytics, rebuild from HTML source
-- **FastAPI + HTMX live dashboard** - real-time activity feed, no frontend build step
+- **Phoenix LiveView dashboard** - real-time activity feed and agent activity monitoring (optional, requires Elixir/Erlang)
 - **Multi-AI agent support** - Claude, Gemini, Codex, Copilot coordination out of the box
 - **Event-driven hook system** - Claude Code hooks record all tool calls and session events
 - **SDK for programmatic access** - features, bugs, spikes, tracks with fluent API

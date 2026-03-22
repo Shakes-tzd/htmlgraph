@@ -14,7 +14,7 @@ Local-first observability and coordination platform for AI-assisted development.
 
 - HTML files = canonical work item store (features, bugs, spikes, tracks)
 - SQLite = operational read index for queries, dashboard, analytics
-- FastAPI + HTMX = live observability dashboard with SSE/WebSocket
+- Phoenix LiveView = live observability dashboard with real-time event feed (optional, requires Elixir/Erlang runtime)
 - No external infrastructure required (no Postgres, no Redis, no cloud)
 - 10 Python runtime dependencies (justhtml, pydantic, rich, jinja2, networkx, etc.)
 
