@@ -1,11 +1,11 @@
-# HTML is All You Need
+# HtmlGraph
 
 <div class="hero-subtitle" style="text-align: center; margin: 2rem 0 3rem; font-size: 1.5rem; font-weight: 300; letter-spacing: 0.02em;">
-A lightweight graph database framework built entirely on web standards
+Local-first observability and coordination platform for AI-assisted development
 </div>
 
 <div style="text-align: center; margin: 2rem 0;">
-<img src="assets/graph-hero.png" alt="HtmlGraph - Graph Database Visualization" style="width: 100%; max-width: 1200px; border-radius: 8px; box-shadow: 0 4px 20px rgba(205, 255, 0, 0.2);">
+<img src="assets/graph-hero.png" alt="HtmlGraph - AI-assisted development observability" style="width: 100%; max-width: 1200px; border-radius: 8px; box-shadow: 0 4px 20px rgba(205, 255, 0, 0.2);">
 </div>
 
 <div class="quick-start">
@@ -16,7 +16,7 @@ A lightweight graph database framework built entirely on web standards
 pip install htmlgraph
 ```
 
-## Create Your First Graph
+## Start Tracking Your Work
 
 ```python
 from htmlgraph import SDK
@@ -52,34 +52,34 @@ track = sdk.tracks.builder() \
 <div class="feature-grid">
 
 <div class="feature-card">
-<span class="feature-icon">&lt;/&gt;</span>
-<div class="feature-title">Pure Web Standards</div>
+<span class="feature-icon">&#128196;</span>
+<div class="feature-title">HTML Work Items</div>
 <div class="feature-desc">
-HTML files as nodes, hyperlinks as edges, CSS selectors as queries. No Docker, no JVM, no external databases.
+Features, bugs, spikes, and tracks stored as HTML files. Git-diffable, browser-readable, and human-inspectable without any tooling.
 </div>
 </div>
 
 <div class="feature-card">
 <span class="feature-icon">&#128065;</span>
-<div class="feature-title">Human Readable</div>
+<div class="feature-title">Live Dashboard</div>
 <div class="feature-desc">
-Open any node in a browser. View relationships visually. Git diffs work perfectly. Inspect and debug with DevTools.
+FastAPI + HTMX dashboard with real-time event feed, session tracking, and agent activity — all local, no external services.
 </div>
 </div>
 
 <div class="feature-card">
 <span class="feature-icon">&#9889;</span>
-<div class="feature-title">Minimal Infrastructure</div>
+<div class="feature-title">No External Infrastructure</div>
 <div class="feature-desc">
-No Docker, JVM, or external database servers. HTML files work in any browser. SDK uses pydantic, justhtml, SQLite. Offline-first.
+SQLite for fast local indexing. No Docker, no Postgres, no Redis, no cloud sync. Works offline, always.
 </div>
 </div>
 
 <div class="feature-card">
 <span class="feature-icon">&#128226;</span>
-<div class="feature-title">AI Agent First</div>
+<div class="feature-title">Multi-AI Coordination</div>
 <div class="feature-desc">
-Fluent SDK for Claude, Codex, Gemini. Automatic session tracking. TrackBuilder for deterministic workflows.
+Works with Claude Code, Gemini CLI, Codex, and Copilot. Event-driven hook system captures every agent action automatically.
 </div>
 </div>
 
@@ -93,9 +93,9 @@ Text-based storage means perfect version control. Diffs show what changed. Merge
 
 <div class="feature-card">
 <span class="feature-icon">&#128640;</span>
-<div class="feature-title">Production Ready</div>
+<div class="feature-title">SDK for Programmatic Access</div>
 <div class="feature-desc">
-Pydantic validation. SQLite index for scale. Built-in dashboard. Session management. Event tracking. Type safe.
+Fluent Python SDK with Pydantic validation. TrackBuilder for deterministic workflows. Full type safety throughout.
 </div>
 </div>
 
@@ -105,45 +105,43 @@ Pydantic validation. SQLite index for scale. Built-in dashboard. Session managem
 
 ## Why HtmlGraph?
 
-Modern AI agent systems are drowning in complexity:
+AI-assisted development creates an observability gap: multiple agents running across sessions, no unified view of what was done, why, or by whom.
 
-- ❌ **Neo4j/Memgraph**: Docker, JVM, learn Cypher
-- ❌ **Redis**: Caching and state management overhead
-- ❌ **PostgreSQL**: Heavy relational database setup
-- ❌ **Custom Protocols**: Proprietary agent coordination
-- ❌ **Separate UIs**: Additional observability tools
-
-**HtmlGraph eliminates all of this.** The web is already a graph database. Use it.
+- ✅ **Local-first**: no servers, databases, or cloud services to configure or maintain
+- ✅ **Observable**: every AI agent action is tracked and browsable in the dashboard
+- ✅ **Multi-AI**: works with Claude Code, Gemini CLI, Codex, Copilot — not locked to one tool
+- ✅ **Human-readable**: HTML files you can open in any browser, inspect with DevTools, and diff in git
+- ✅ **Git-native**: all work items are diffable, versionable, and mergeable
 
 ---
 
 ## Core Philosophy
 
-!!! quote "The Web is the Graph"
-    Every webpage is a node. Every hyperlink is an edge. Every browser is a graph viewer. Every CSS selector is a query. Version control works. Humans can read it. Agents can navigate it. **HTML is all you need.**
+!!! quote "Local-first observability"
+    Track, coordinate, and observe AI-assisted development workflows. HTML files as canonical work items, SQLite for operational queries, and a live FastAPI + HTMX dashboard — all local, no external infrastructure required.
 
 ---
 
 ## Quick Comparisons
 
-### vs Neo4j
+### vs External Tracking Tools
 
-| Feature | Neo4j | HtmlGraph |
-|---------|-------|-----------|
-| Setup | Docker, JVM, learn Cypher | `pip install htmlgraph` |
-| Human readable | ❌ Browser required | ✅ Any web browser |
-| Version control | ❌ Binary dumps | ✅ Git diff works |
-| Query language | Cypher (learn it) | CSS selectors (know it) |
-| Cost | $$$ Enterprise | Free, MIT license |
+| Feature | External Tools | HtmlGraph |
+|---------|---------------|-----------|
+| Setup | Accounts, APIs, cloud config | `pip install htmlgraph` |
+| Offline | ❌ Requires internet | ✅ Fully offline |
+| Human readable | 🟡 Web UI only | ✅ Any browser or text editor |
+| Version control | ❌ Not git-native | ✅ Git diff works perfectly |
+| Multi-AI support | ❌ Usually one tool | ✅ Claude, Gemini, Codex, Copilot |
 
-### vs JSON/YAML
+### vs JSON/YAML Files
 
 | Feature | JSON | HtmlGraph |
 |---------|------|-----------|
 | Human readable | 🟡 Text editor | ✅ Browser with styling |
-| Graph structure | ❌ Manual references | ✅ Native hyperlinks |
-| Query | ❌ jq or custom | ✅ CSS selectors |
-| Presentation | ❌ Needs UI | ✅ Built-in rendering |
+| Query | ❌ jq or custom | ✅ SQLite + CSS selectors |
+| Live dashboard | ❌ Needs UI | ✅ Built-in FastAPI + HTMX |
+| Agent hooks | ❌ Manual | ✅ Automatic event capture |
 
 ---
 
@@ -154,7 +152,7 @@ Modern AI agent systems are drowning in complexity:
 <div class="feature-card">
 <div class="feature-title">📚 Get Started</div>
 <div class="feature-desc">
-<a href="getting-started/">Installation guide, first graph, and core concepts →</a>
+<a href="getting-started/">Installation guide, first project, and core concepts →</a>
 </div>
 </div>
 
@@ -168,7 +166,7 @@ Modern AI agent systems are drowning in complexity:
 <div class="feature-card">
 <div class="feature-title">📖 User Guide</div>
 <div class="feature-desc">
-<a href="guide/concepts/">Learn tracks, features, and session management →</a>
+<a href="guide/">Learn tracks, features, and session management →</a>
 </div>
 </div>
 
@@ -184,8 +182,8 @@ Modern AI agent systems are drowning in complexity:
 ---
 
 <div style="text-align: center; margin: 4rem 0 2rem; font-size: 0.875rem; color: var(--hg-text-muted);">
-<p>Built with web standards. Designed for AI agents. Loved by developers.</p>
-<p style="color: var(--hg-accent); font-weight: 600; margin-top: 1rem;">HTML is All You Need</p>
+<p>Built with web standards. Designed for AI-assisted development.</p>
+<p style="color: var(--hg-accent); font-weight: 600; margin-top: 1rem;">Local-first. Observable. Multi-AI.</p>
 </div>
 
 <script>

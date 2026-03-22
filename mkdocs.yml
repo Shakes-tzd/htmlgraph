@@ -1,6 +1,6 @@
 site_name: HtmlGraph
-site_description: HTML is All You Need - Graph database on web standards
-site_url: https://shakes-tzd.github.io/htmlgraph/
+site_description: Local-first observability and coordination platform for AI-assisted development
+site_url: https://shakestzd.github.io/htmlgraph/
 repo_url: https://github.com/shakestzd/htmlgraph
 repo_name: shakestzd/htmlgraph
 edit_uri: edit/main/docs/
