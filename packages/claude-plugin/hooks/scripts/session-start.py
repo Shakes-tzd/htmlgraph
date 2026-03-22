@@ -309,6 +309,22 @@ def main() -> None:
     external_session_id = hook_input.get("session_id") or os.environ.get(
         "CLAUDE_SESSION_ID", "unknown"
     )
+
+    # Normalize: Claude Code sometimes passes the full transcript path as
+    # session_id for subagent sessions, e.g.:
+    #   /private/tmp/claude-501/-Users-shakes-DevProjects-htmlgraph/<uuid>
+    # Extract just the UUID portion.
+    if external_session_id and "/" in external_session_id:
+        import re
+
+        uuid_match = re.search(
+            r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+            external_session_id,
+            re.IGNORECASE,
+        )
+        if uuid_match:
+            external_session_id = uuid_match.group(1)
+
     cwd = hook_input.get("cwd")
     project_dir = resolve_project_dir(cwd if cwd else None)
     graph_dir = Path(project_dir) / ".htmlgraph"

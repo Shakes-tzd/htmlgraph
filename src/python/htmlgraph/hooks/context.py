@@ -121,6 +121,21 @@ class HookContext:
             or os.environ.get("CLAUDE_SESSION_ID")
         )
 
+        # Normalize: Claude Code sometimes passes the full transcript path as
+        # session_id for subagent sessions, e.g.:
+        #   /private/tmp/claude-501/-Users-shakes-DevProjects-htmlgraph/<uuid>
+        # Extract just the UUID portion.
+        if session_id and "/" in session_id:
+            import re
+
+            uuid_match = re.search(
+                r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+                session_id,
+                re.IGNORECASE,
+            )
+            if uuid_match:
+                session_id = uuid_match.group(1)
+
         # Fallback: Query database for session with most recent UserQuery event
         # This solves the issue where PostToolUse hooks don't receive session_id
         # in hook_input. UserPromptSubmit hooks DO receive it and create UserQuery

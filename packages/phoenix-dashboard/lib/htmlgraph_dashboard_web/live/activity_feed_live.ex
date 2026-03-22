@@ -254,6 +254,18 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
     end
   end
 
+  defp format_session_id(session_id) when is_binary(session_id) do
+    case Regex.run(
+           ~r/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+           session_id
+         ) do
+      [uuid] -> String.slice(uuid, 0, 8)
+      nil -> String.slice(session_id, 0, 12)
+    end
+  end
+
+  defp format_session_id(_), do: "unknown"
+
   defp has_children?(event) do
     children = event["children"] || []
     length(children) > 0
@@ -335,11 +347,11 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
           if String.trim(text) != "" do
             truncate(text, 80)
           else
-            truncate(group.session_id, 12)
+            format_session_id(group.session_id)
           end
 
         [] ->
-          truncate(group.session_id, 12)
+          format_session_id(group.session_id)
       end
     end
   end
@@ -489,7 +501,7 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
                   Started: <%= format_relative_time(group.session["created_at"]) %>
                 </span>
                 <span class="badge badge-session" style="font-size: 10px;">
-                  <%= truncate(group.session_id, 16) %>
+                  <%= format_session_id(group.session_id) %>
                 </span>
                 <%= if group.session["model"] do %>
                   <span class="badge badge-model"><%= group.session["model"] %></span>
