@@ -46,7 +46,7 @@ feature = sdk.features.create(
 )
 
 print(f"Created feature: {feature.id}")
-# Output: Created feature: feature-20241216-103045
+# Output: Created feature: feat-a1b2c3d4
 ```
 
 ### Query Features
@@ -59,7 +59,7 @@ high_priority = sdk.features.where(priority="high")
 in_progress = sdk.features.where(status="in-progress")
 
 # Get a specific feature
-feature = sdk.features.get("feature-20241216-103045")
+feature = sdk.features.get("feat-a1b2c3d4")
 ```
 
 ### Update Feature Status
@@ -90,10 +90,10 @@ htmlgraph feature list
 htmlgraph feature create "Add OAuth support" --priority high
 
 # Start working on a feature
-htmlgraph feature start feature-20241216-103045
+htmlgraph feature start feat-a1b2c3d4
 
 # Mark a feature as complete
-htmlgraph feature complete feature-20241216-103045
+htmlgraph feature complete feat-a1b2c3d4
 ```
 
 ### Session Management
@@ -172,10 +172,10 @@ All graph nodes are HTML files that you can open in any browser:
 
 ```bash
 # Open a feature in your browser
-open .htmlgraph/features/feature-20241216-103045.html
+open .htmlgraph/features/feat-a1b2c3d4.html
 
 # Open a track
-open .htmlgraph/tracks/track-20241216-120000/index.html
+open .htmlgraph/tracks/trk-a1b2c3d4/index.html
 
 # Open the dashboard
 open index.html

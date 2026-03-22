@@ -323,7 +323,5 @@ dependents = graph.dependents("feature-001")
 
 ## See Also
 
-- [Query Cookbook](/docs/guide/queries.md) - Comprehensive query examples
-- [Migration Guide](/docs/guide/migration.md) - Migrating from CSS-only queries
-- [QueryBuilder](/docs/api/query-builder.md) - QueryBuilder API reference
-- [FindAPI](/docs/api/find-api.md) - Find API reference
+- [Query Cookbook](../guide/queries.md) - Comprehensive query examples
+- [Migration Guide](../guide/migration.md) - Migrating from CSS-only queries

@@ -20,7 +20,7 @@ Detailed comparisons with alternative approaches.
 - Complex deployment
 
 **HtmlGraph Approach:**
-- Minimal dependencies (`pip install htmlgraph`)
+- Straightforward install (`pip install htmlgraph`) — 14 runtime dependencies, no native extensions
 - No infrastructure (no Docker, JVM, or database servers)
 - CSS selectors (already know them)
 - Plain text HTML files
@@ -131,7 +131,7 @@ Similar to Notion but with better graph features. Still cloud-based with same li
 **HtmlGraph Approach:**
 
 - Adopted hash-based IDs (inspired by Beads)
-- Minimal Python dependencies (pydantic, justhtml, watchdog)
+- 14 runtime Python dependencies including pydantic, justhtml, rich, jinja2, networkx
 - Uses SQLite for indexing, JSONL for event logs
 - No daemon process required
 - HTML renders in any browser

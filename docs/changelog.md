@@ -1,5 +1,7 @@
 # Changelog
 
+> **Note:** This changelog covers early releases. For recent changes (v0.34.x), see the [GitHub Releases](https://github.com/shakestzd/htmlgraph/releases) page.
+
 All notable changes to HtmlGraph will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -159,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **HTML Files**: Features as HTML files on disk
 - **Basic Queries**: Filter features by status and priority
 - **Git Integration**: Text-based storage for version control
-- **Zero Dependencies**: Pure Python with justhtml
+- **Minimal Dependencies**: Pure Python with justhtml
 
 [0.3.0]: https://github.com/shakestzd/htmlgraph/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/shakestzd/htmlgraph/compare/v0.2.0...v0.2.2

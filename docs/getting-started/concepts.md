@@ -1,6 +1,6 @@
 # Core Concepts
 
-HtmlGraph coordinates AI-assisted development through a local-first stack: HTML files store work items, SQLite indexes them for fast queries, JSONL logs track all events, and a live FastAPI/HTMX dashboard surfaces observability. This guide explains the core concepts and how they work together.
+HtmlGraph coordinates AI-assisted development through a local-first stack: HTML files store work items, SQLite indexes them for fast queries, JSONL logs track all events, and a Phoenix LiveView dashboard surfaces observability. This guide explains the core concepts and how they work together.
 
 ## Architecture Layers
 
@@ -11,7 +11,7 @@ HtmlGraph stacks multiple representations of the same data for different purpose
 | **Artifact** | HTML files | Durable work items, human-readable | `.htmlgraph/features/feat-123.html` |
 | **Query Index** | SQLite database | Fast lookups & analytics | Sessions, activities, relationships |
 | **Event Log** | JSONL (append-only) | Immutable history for auditing | `.htmlgraph/events/session-id.jsonl` |
-| **Observability** | FastAPI + HTMX | Live dashboard, activity feeds | `http://localhost:8080` |
+| **Observability** | Phoenix LiveView | Live dashboard, activity feeds | `http://localhost:8080` |
 
 The artifact (HTML) is the source of truth for durable work items. SQLite and JSONL are derived, indexed representations that enable fast queries and event tracking.
 
@@ -40,7 +40,7 @@ feature = sdk.features.create(
 )
 ```
 
-**File location**: `.htmlgraph/features/feature-{timestamp}.html`
+**File location**: `.htmlgraph/features/feat-{hash8}.html`
 
 ### Tracks
 
@@ -63,7 +63,7 @@ track = sdk.tracks.builder() \
     .create()
 ```
 
-**File location**: `.htmlgraph/tracks/track-{timestamp}/`
+**File location**: `.htmlgraph/tracks/trk-{hash8}/`
 
 ### Sessions
 
@@ -219,7 +219,7 @@ HTML is plain text. Git diffs show exactly what changed. Merge conflicts are rea
 
 ### Minimal Infrastructure
 
-No Docker, no JVM, no external database servers. The SDK has minimal Python dependencies (pydantic, justhtml, watchdog). SQLite for indexing is optional and local. JSONL for event logs is append-only and simple.
+No Docker, no JVM, no external database servers. Python dependencies include pydantic, justhtml, rich, jinja2, networkx, and others (14 runtime dependencies total). SQLite for indexing is local and append-only JSONL tracks all events.
 
 ### Offline First
 
@@ -231,7 +231,7 @@ HTML is W3C standard. Every developer knows it. When work items are just HTML fi
 
 ### Presentation Layer Included
 
-Styling, layout, and interactivity are built-in using CSS and JavaScript. No separate UI framework needed for basic viewing. The FastAPI dashboard layers observability on top.
+Styling, layout, and interactivity are built-in using CSS and JavaScript. No separate UI framework needed for basic viewing. The Phoenix LiveView dashboard layers observability on top.
 
 ## SDK vs CLI vs Dashboard
 

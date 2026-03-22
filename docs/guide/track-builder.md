@@ -28,7 +28,7 @@ track = sdk.tracks.builder() \
     .create()
 
 print(f"Created: {track.track_id}")
-# Creates: .htmlgraph/tracks/track-YYYYMMDD-HHMMSS/index.html
+# Creates: .htmlgraph/tracks/trk-xxxxxxxx/index.html
 ```
 
 ### Track with Specification
@@ -56,8 +56,8 @@ track = sdk.tracks.builder() \
     .create()
 
 # Creates:
-#   - .htmlgraph/tracks/track-YYYYMMDD-HHMMSS/index.html
-#   - .htmlgraph/tracks/track-YYYYMMDD-HHMMSS/spec.html
+#   - .htmlgraph/tracks/trk-xxxxxxxx/index.html
+#   - .htmlgraph/tracks/trk-xxxxxxxx/spec.html
 ```
 
 ### Track with Implementation Plan
@@ -87,8 +87,8 @@ track = sdk.tracks.builder() \
     .create()
 
 # Creates:
-#   - .htmlgraph/tracks/track-YYYYMMDD-HHMMSS/index.html
-#   - .htmlgraph/tracks/track-YYYYMMDD-HHMMSS/plan.html
+#   - .htmlgraph/tracks/trk-xxxxxxxx/index.html
+#   - .htmlgraph/tracks/trk-xxxxxxxx/plan.html
 ```
 
 ### Complete Track (Spec + Plan)
@@ -133,7 +133,7 @@ track = sdk.tracks.builder() \
     .create()
 
 # Output:
-# ✓ Created track: track-20251221-220000
+# ✓ Created track: trk-a1b2c3d4
 #   - Spec with 4 requirements
 #   - Plan with 3 phases, 9 tasks
 ```
@@ -230,7 +230,7 @@ Execute the build and create all files. Returns `Track` object.
 ```python
 track = builder.create()
 
-print(track.track_id)        # "track-20251221-220000"
+print(track.track_id)        # "trk-a1b2c3d4"
 print(track.title)           # "Track: User Authentication"
 print(track.priority)        # "high"
 print(track.has_spec)        # True
@@ -242,7 +242,7 @@ print(track.has_plan)        # True
 TrackBuilder creates a directory with up to three HTML files:
 
 ```
-.htmlgraph/tracks/track-YYYYMMDD-HHMMSS/
+.htmlgraph/tracks/trk-xxxxxxxx/
 ├── index.html    # Track metadata with links to spec/plan
 ├── spec.html     # Specification (if with_spec() used)
 └── plan.html     # Implementation plan (if with_plan_phases() used)

@@ -12,7 +12,6 @@ Real-world examples of using HtmlGraph.
 ### Multi-Agent Orchestration
 - **[Multi-Agent Workflow](multi-agent-workflow.md)** - Real-world: Parallel delegation of backend, frontend, and testing work (⭐ **Start here for orchestration**)
 - **[Agent Coordination](agent-coordination.md)** - Two-phase explorer+coder pattern
-- **[Delegation](delegation.md)** - How to delegate work to subagents
 
 ## Use Cases
 

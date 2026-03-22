@@ -38,7 +38,7 @@ This installs:
 uv run pytest
 
 # Check version
-python -c "import htmlgraph; print(htmlgraph.__version__)"
+uv run python -c "import htmlgraph; print(htmlgraph.__version__)"
 ```
 
 ## Development Tools
@@ -66,23 +66,23 @@ uv run ptw
 
 ```bash
 # Format all code
-ruff format src/ tests/
+uv run ruff format src/ tests/
 
 # Check formatting without changes
-ruff format --check src/ tests/
+uv run ruff format --check src/ tests/
 ```
 
 ### Linting
 
 ```bash
 # Lint all code
-ruff check src/ tests/
+uv run ruff check src/ tests/
 
 # Fix auto-fixable issues
-ruff check --fix src/ tests/
+uv run ruff check --fix src/ tests/
 
 # Show rule details
-ruff rule E501
+uv run ruff rule E501
 ```
 
 ### Type Checking
@@ -282,10 +282,10 @@ uv run pytest -vv
 uv run pytest --profile
 
 # Profile specific code
-python -m cProfile -o profile.stats script.py
+uv run python -m cProfile -o profile.stats script.py
 
 # View profile
-python -m pstats profile.stats
+uv run python -m pstats profile.stats
 ```
 
 ## Pre-commit Hooks
@@ -294,7 +294,7 @@ Set up pre-commit hooks:
 
 ```bash
 # Install pre-commit
-pip install pre-commit
+uv pip install pre-commit
 
 # Install hooks
 pre-commit install

@@ -33,7 +33,7 @@ uv pip install -e .
 Check that HtmlGraph is installed correctly:
 
 ```bash
-python -c "import htmlgraph; print(htmlgraph.__version__)"
+uv run python -c "import htmlgraph; print(htmlgraph.__version__)"
 ```
 
 Or using the CLI:

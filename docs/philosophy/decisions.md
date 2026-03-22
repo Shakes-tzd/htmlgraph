@@ -67,20 +67,21 @@ Key design decisions and their rationale.
 
 **Why it's worth it:** Zero-dependency install works everywhere. Performance is fine for typical graph sizes (thousands of nodes).
 
-## Optional SQLite Index
+## SQLite Index
 
-**Decision:** Make SQLite index optional, not required.
+**Decision:** Use SQLite as the operational query and event store.
 
 **Rationale:**
-- Most use cases work fine with file system queries
-- Adds complexity
-- Must be kept in sync
+- Fast local queries without an external server
+- Central to the dashboard, hooks, and session tracking
+- Standard library support via `sqlite3`
+- Must be kept in sync with HTML artifacts (HTML is canonical)
 
 **Trade-offs:**
-- Slower queries for large graphs without index
-- More features when index is enabled
+- Adds a derived layer that must stay consistent with HTML files
+- SQLite is not truly optional in practice — the dashboard and hooks depend on it
 
-**Why it's worth it:** Start simple. Add complexity only when needed. The 80% case doesn't need a database.
+**Why it's worth it:** Zero-infrastructure relational queries. The HTML files remain the source of truth; SQLite is a read cache that can always be rebuilt.
 
 ## TrackBuilder Fluent API
 
@@ -109,21 +110,23 @@ track = sdk.tracks.builder() \
 
 ## Auto-generated IDs
 
-**Decision:** Auto-generate IDs (timestamp-based) instead of user-provided.
+**Decision:** Auto-generate hash-based IDs instead of user-provided or timestamp-based IDs.
 
 **Rationale:**
-- No collision risk
-- Sortable by creation time
-- Deterministic (timestamp + type)
+- Collision-resistant across multiple concurrent agents
 - No user decision required
+- Works across time zones without ambiguity
+- Short enough to read and type
 
-**Format:** `{type}-YYYYMMDD-HHMMSS`
+**Format:** `{prefix}-{hash8}` — e.g., `feat-a1b2c3d4`, `bug-12345678`, `trk-abcdef12`
+
+The 8-character hash is derived from SHA256 of (title + microsecond timestamp + random entropy). See [ID Generation API](../api/ids.md) for details.
 
 **Trade-offs:**
 - Less human-friendly than `"user-auth"`
-- Not portable across time zones (uses UTC)
+- Not sortable by creation time (unlike timestamp IDs)
 
-**Why it's worth it:** One less thing for users to think about. Collisions impossible. Easy to debug (timestamp shows when created).
+**Why it's worth it:** Multiple agents can create nodes simultaneously without conflicts. Opaque IDs also discourage treating IDs as semantic, which keeps the data model clean.
 
 ## Session Management via Hooks
 
@@ -142,22 +145,22 @@ track = sdk.tracks.builder() \
 
 **Why it's worth it:** Agent developers don't think about sessions. Attribution happens automatically. Context preserved across conversations.
 
-## HTML + CSS + JS Dashboard
+## Phoenix LiveView Dashboard
 
-**Decision:** Build dashboard with vanilla HTML/CSS/JS, not React/Vue.
+**Decision:** Build the live observability dashboard with Phoenix LiveView (Elixir), not vanilla HTML/CSS/JS or React/Vue.
 
 **Rationale:**
-- No build step required
-- Works offline immediately
-- Easier to understand and modify
-- No framework lock-in
+- Real-time server-push updates without writing custom WebSocket code
+- HTMX-style DOM morphing (via LiveView's diff protocol) without a JS build step
+- Elixir/OTP concurrency model handles many simultaneous agent sessions cleanly
+- HTML artifact layer remains framework-independent; the dashboard is an optional layer on top
 
 **Trade-offs:**
-- More verbose code
-- Less sophisticated state management
-- Limited component reuse
+- Adds an Elixir/Erlang runtime dependency for users who want the live dashboard
+- Increases operational complexity compared to a static HTML file
+- Smaller community than React/Vue
 
-**Why it's worth it:** Open `index.html` in a browser and it works. No `npm install`, no build process. View source to understand how it works.
+**Why it's worth it:** The core HTML artifact layer still works in any browser without the dashboard. Phoenix LiveView gives the live dashboard production-grade real-time capabilities that vanilla JS approaches struggle with at scale. Users who only need static viewing never need to install Elixir.
 
 ## Git as Version Control
 

@@ -126,10 +126,8 @@ htmlgraph serve --watch
 - No build step required
 
 **Access**:
-- Dashboard: `http://localhost:8080`
-- Features view: `http://localhost:8080#features`
-- Sessions view: `http://localhost:8080#sessions`
-- Graph view: `http://localhost:8080#graph`
+- Dashboard: `http://localhost:4000` (Phoenix LiveView)
+- API server: `http://localhost:8080` (FastAPI/WebSocket backend)
 
 ---
 

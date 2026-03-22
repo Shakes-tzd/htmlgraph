@@ -294,10 +294,13 @@ uv build && uv publish dist/*
 
 ## Version History
 
+- **0.34.x** (current): See [GitHub Releases](https://github.com/shakestzd/htmlgraph/releases) for recent changes
 - **0.3.0** (2024-12-22): TrackBuilder API, multi-agent support
 - **0.2.2** (2024-12-20): Drift detection, session improvements
 - **0.2.0** (2024-12-18): Track creation, specs and plans
 - **0.1.x** (2024-12-15): Initial release, basic features
+
+> **Note:** Use `./scripts/deploy-all.sh VERSION --no-confirm` as the recommended deployment method. It automates version bumps, git tagging, PyPI publishing, and plugin updates in a single command.
 
 See [Changelog](../changelog.md) for details.
 

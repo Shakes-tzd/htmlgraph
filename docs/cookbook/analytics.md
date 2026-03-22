@@ -48,6 +48,13 @@ OAuth Integration
 - Use to prioritize critical path items
 - Recomputed dynamically as tasks complete
 
+**Note**: Both calling styles are valid. The top-level convenience method is recommended:
+```python
+sdk.find_bottlenecks(top_n=5)          # recommended
+sdk.dep_analytics.find_bottlenecks(top_n=5)  # explicit, also valid
+```
+The same applies to `recommend_next_work`, `get_parallel_work`, and `assess_risks`.
+
 ---
 
 ## Get Work Recommendations

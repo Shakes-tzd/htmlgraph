@@ -68,14 +68,14 @@ high_priority = sdk.features.where(priority="high")
 blocked_high = sdk.features.where(status="blocked", priority="high")
 
 # Get a specific feature
-feature = sdk.features.get("feature-20241216-103045")
+feature = sdk.features.get("feat-a1b2c3d4")
 ```
 
 ### Updating Features
 
 ```python
 # Get the feature
-feature = sdk.features.get("feature-20241216-103045")
+feature = sdk.features.get("feat-a1b2c3d4")
 
 # Update status
 feature.status = "in-progress"
@@ -100,7 +100,7 @@ sdk.track_activity(
 
 ```python
 # Delete a feature
-sdk.features.delete("feature-20241216-103045")
+sdk.features.delete("feat-a1b2c3d4")
 ```
 
 ## Tracks
@@ -238,7 +238,7 @@ test_feature = sdk.features.create(
 all_tracks = sdk.tracks.all()
 
 # Get a specific track
-track = sdk.tracks.get("track-20241216-120000")
+track = sdk.tracks.get("trk-a1b2c3d4")
 
 # Get all features for a track
 features = sdk.features.where(track_id=track.track_id)
@@ -249,7 +249,7 @@ features = sdk.features.where(track_id=track.track_id)
 Each track creates a directory with three HTML files:
 
 ```
-.htmlgraph/tracks/track-20241216-120000/
+.htmlgraph/tracks/trk-a1b2c3d4/
 ├── index.html    # Track overview and status
 ├── spec.html     # Requirements and success criteria
 └── plan.html     # Phased implementation plan
@@ -314,10 +314,10 @@ todo → in-progress → blocked → in-progress → done
 htmlgraph feature create "Add profile page" --priority high
 
 # Start working on it
-htmlgraph feature start feature-20241216-103045
+htmlgraph feature start feat-a1b2c3d4
 
 # Mark as complete
-htmlgraph feature complete feature-20241216-103045
+htmlgraph feature complete feat-a1b2c3d4
 ```
 
 ## Best Practices

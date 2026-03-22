@@ -22,7 +22,7 @@ claude plugin install htmlgraph
 - Feature creation decision framework
 - Session continuity across conversations
 
-**Documentation:** See the `htmlgraph-tracker` skill in Claude Code.
+**Documentation:** See the `htmlgraph` skill in Claude Code.
 
 ### Gemini CLI
 
@@ -91,7 +91,7 @@ feature = sdk.features.create(
 )
 
 # Or select existing feature
-feature = sdk.features.get("feature-20241216-103045")
+feature = sdk.features.get("feat-a1b2c3d4")
 
 # Start working on it
 sdk.features.start(feature.id)
@@ -128,7 +128,7 @@ feature.status = "done"
 feature.save()
 
 # Or via CLI
-# htmlgraph feature complete feature-20241216-103045
+# htmlgraph feature complete feat-a1b2c3d4
 ```
 
 ## Multi-Agent Collaboration
@@ -262,16 +262,10 @@ HtmlGraph uses hooks to automatically track agent activity.
 
 **Claude Code:**
 
-Add to `.claude/config.json`:
+Hooks are configured automatically via the Claude Code plugin. The plugin bundles a `hooks.json` that registers all event handlers. Hook scripts live in `packages/claude-plugin/hooks/scripts/` in the plugin source. Install the plugin to activate all hooks:
 
-```json
-{
-  "hooks": {
-    "sessionStart": "~/.claude/plugins/htmlgraph/hooks/session-start.py",
-    "sessionEnd": "~/.claude/plugins/htmlgraph/hooks/session-end.py",
-    "postToolUse": "~/.claude/plugins/htmlgraph/hooks/post-tool-use.py"
-  }
-}
+```bash
+claude plugin install htmlgraph
 ```
 
 ### Custom Hooks

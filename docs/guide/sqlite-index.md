@@ -16,7 +16,7 @@ HtmlGraph stores all data as HTML files (the source of truth). For performance, 
 
 ```
 HTML Files (source of truth)    SQLite Index (performance cache)
-.htmlgraph/features/*.html  →   .htmlgraph/index.sqlite
+.htmlgraph/features/*.html  →   .htmlgraph/htmlgraph.db
 .htmlgraph/sessions/*.html  →
 .htmlgraph/tracks/*/*.html  →
 ```
@@ -93,7 +93,7 @@ sdk.rebuild_index()
 To remove the index entirely:
 
 ```bash
-rm .htmlgraph/index.sqlite
+rm .htmlgraph/htmlgraph.db
 
 # It will be recreated on next use
 ```
@@ -144,8 +144,8 @@ htmlgraph index rebuild --force
 The index typically uses 10-20% of HTML file size:
 
 ```bash
-# Check index size
-du -sh .htmlgraph/index.sqlite
+# Check database size
+du -sh .htmlgraph/htmlgraph.db
 
 # Compare to HTML size
 du -sh .htmlgraph/features/
@@ -200,5 +200,6 @@ Yes. All SDK operations use SQLite transactions for consistency.
 ## See Also
 
 - [Performance Optimization Guide](../cookbook/analytics.md)
-- [Troubleshooting](../cookbook/troubleshooting.md)
 - [Architecture Overview](../philosophy/why-html.md)
+
+For troubleshooting help, run `htmlgraph --help` or `htmlgraph index --help` for CLI reference.

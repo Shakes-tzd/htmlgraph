@@ -1,6 +1,6 @@
 # Why HTML?
 
-The philosophy behind "HTML is All You Need"
+The HTML-first design philosophy — an origin story
 
 ## The Problem
 
@@ -71,20 +71,25 @@ Optimizing for human readability has unexpected benefits:
 - A file system
 - A web browser
 
-**The SDK** requires minimal Python dependencies:
+**The SDK** has 14 runtime Python dependencies, including:
 
 - `pydantic` - Data validation and models
 - `justhtml` - HTML parsing
-- `watchdog` - File watching for live updates
+- `rich` - Terminal output
+- `jinja2` - HTML templating
+- `networkx` - Graph algorithms
 - `sqlite3` - Indexing (Python standard library)
+- ...and others
 
-**What you don't need:**
+**What the core does not need:**
 
 - Docker containers
 - External database servers (Neo4j, Redis, PostgreSQL)
 - Build tools or compilation
 - Cloud services or API keys
 - Daemon processes
+
+**Note:** The optional Phoenix LiveView dashboard adds an Elixir/Erlang runtime for live observability features, but the core SDK and HTML artifact layer work without it.
 
 ### 4. Offline First
 
@@ -239,7 +244,7 @@ HTML isn't going anywhere. By building on web standards, HtmlGraph will work:
 - With any tools
 - For any use case
 
-**HTML is all you need.**
+Built on web standards. Designed for AI-assisted development.
 
 ## Next Steps
 

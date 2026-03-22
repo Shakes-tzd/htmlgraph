@@ -20,26 +20,11 @@ Practical recipes for common HtmlGraph tasks. Copy, paste, and adapt these patte
 - [Link Features to a Track](tracks.md#link-features)
 - [Track Progress Across Multiple Features](tracks.md#track-progress)
 
-### Sessions & Activity
-- [Start a Work Session](sessions.md#start-session)
-- [Query Session Events](sessions.md#query-events)
-- [Generate Session Reports](sessions.md#session-reports)
-
 ### Strategic Planning
 - [Find Bottlenecks](analytics.md#find-bottlenecks)
 - [Get Work Recommendations](analytics.md#recommendations)
 - [Identify Parallel Work](analytics.md#parallel-work)
 - [Assess Project Risks](analytics.md#assess-risks)
-
-### Integration
-- [Set Up CI/CD Automation](integration.md#cicd)
-- [Sync with External Tools](integration.md#external-tools)
-- [Export to Other Formats](integration.md#export)
-
-### Troubleshooting
-- [Fix SQLite Index Corruption](troubleshooting.md#sqlite-corruption)
-- [Resolve Drift Warnings](troubleshooting.md#drift-warnings)
-- [Debug Missing Attribution](troubleshooting.md#missing-attribution)
 
 ## Recipe Format
 

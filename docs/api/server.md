@@ -4,7 +4,7 @@ Development server for the dashboard.
 
 ## Overview
 
-The server module provides a lightweight HTTP server for serving the HtmlGraph dashboard during development.
+The server module runs the HtmlGraph FastAPI application, which provides the REST API, WebSocket and SSE endpoints, and the activity feed backend used by the dashboard. The primary interactive dashboard is served by a separate Phoenix LiveView application at `http://localhost:4000`; the FastAPI server (default port 8080) handles the data layer.
 
 ## Usage
 
@@ -40,12 +40,12 @@ serve(
 
 ## Features
 
-- Serves static HTML/CSS/JS files
-- Watches for file changes (optional)
+- FastAPI application with REST endpoints
+- WebSocket and SSE support for live dashboard updates
 - CORS headers for local development
 - Gzip compression
 - Cache headers
 
 ## Complete API Reference
 
-For detailed API documentation with method signatures and server configuration, see the Python source code in `src/python/htmlgraph/server.py`.
+For detailed API documentation with method signatures and server configuration, see the Python source code in `src/python/htmlgraph/api/`.

@@ -296,16 +296,13 @@ htmlgraph session list --recent 5
 
 ## Integration with Claude Code
 
-When using the Claude Code plugin, sessions are managed automatically:
+When using the Claude Code plugin, sessions are managed automatically via hooks bundled in the plugin. Install the plugin with:
 
-```python
-# In your Claude Code hook configuration
-SESSION_START_HOOK = "~/.claude/plugins/htmlgraph/hooks/session-start.py"
-SESSION_END_HOOK = "~/.claude/plugins/htmlgraph/hooks/session-end.py"
-POST_TOOL_USE_HOOK = "~/.claude/plugins/htmlgraph/hooks/post-tool-use.py"
+```bash
+claude plugin install htmlgraph
 ```
 
-These hooks:
+The plugin registers hooks (configured in `hooks.json` inside the plugin) that:
 
 - Start sessions when Claude begins working
 - Log all tool calls automatically
