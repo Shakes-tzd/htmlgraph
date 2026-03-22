@@ -17,7 +17,6 @@ with graceful degradation if dependencies are unavailable.
 
 import logging
 import re
-import sqlite3
 import time
 import uuid
 from datetime import datetime, timezone
@@ -326,19 +325,22 @@ def get_active_work_item(context: HookContext) -> dict[str, Any] | None:
         return None
 
 
-def get_open_work_items(context: HookContext) -> list[dict]:
+def get_open_work_items(context: "HookContext | None") -> list[dict]:
     """Get todo and in-progress work items for attribution guidance.
 
-    Queries SQLite directly (not via SDK file scanning) for performance.
-    Results are capped at 10 items (in-progress first, then todo, sorted by
-    priority desc then recency) and cached in-process for 30 seconds.
+    # HTML files are the write layer; SQLite is a derived read cache that can lag.
+    # This function reads from HTML files via SDK collections to get authoritative state.
+
+    Results are capped at 10 items (in-progress first, then todo) and cached
+    in-process for 30 seconds.  Items with status='done' are never returned.
 
     Args:
-        context: HookContext with session and graph directory info
+        context: HookContext with session and graph directory info, or None.
+                 When None, the SDK resolves the project directory automatically.
 
     Returns:
         List of dicts with keys: id, title, type, status (max 10 items).
-        Returns empty list if database is unavailable or no items exist.
+        Returns empty list if SDK is unavailable or no items exist.
 
     Example:
         >>> items = get_open_work_items(context)
@@ -346,62 +348,85 @@ def get_open_work_items(context: HookContext) -> list[dict]:
         ...     logger.info(f"Open item: {item['type']} {item['id']}: {item['title']}")
     """
     t_start = time.monotonic()
-    db_path = Path(context.graph_dir) / "htmlgraph.db"
-    cache_key = str(db_path)
+
+    # Resolve graph_dir — context may be None when called from outside a hook.
+    if context is None:
+        from htmlgraph import SDK
+
+        sdk = SDK()
+        graph_dir = Path(sdk._directory)
+    else:
+        graph_dir = Path(context.graph_dir)
+
+    cache_key = str(graph_dir)
 
     # --- cache check ---
     cached = _WORK_ITEMS_CACHE.get(cache_key)
     if cached is not None:
-        items, ts = cached
+        cached_items, ts = cached
         if time.monotonic() - ts < _CACHE_TTL_SECONDS:
             elapsed_ms = (time.monotonic() - t_start) * 1000
             logger.debug(f"CIGS work items query took {elapsed_ms:.1f}ms (cache hit)")
-            return items
+            return cached_items
 
-    # --- SQLite query ---
-    items = []
+    # --- HTML-first reads via SDK collections ---
+    # HTML files are authoritative; SQLite can be stale after direct edits.
+    items: list[dict] = []
     try:
-        if not db_path.exists():
-            return []
+        from htmlgraph import SDK
 
-        conn = sqlite3.connect(str(db_path), timeout=2.0)
-        conn.row_factory = sqlite3.Row
-        try:
-            cursor = conn.cursor()
-            # Fetch in-progress first, then todo; sorted by priority + recency.
-            # CASE expression maps priority strings to sort weight.
-            cursor.execute(
-                """
-                SELECT id, title, status, type
-                FROM features
-                WHERE status IN ('in-progress', 'todo')
-                ORDER BY
-                    CASE status WHEN 'in-progress' THEN 0 ELSE 1 END ASC,
-                    CASE priority
-                        WHEN 'critical' THEN 0
-                        WHEN 'high'     THEN 1
-                        WHEN 'medium'   THEN 2
-                        WHEN 'low'      THEN 3
-                        ELSE 4
-                    END ASC,
-                    updated_at DESC
-                LIMIT 10
-                """
-            )
-            rows = cursor.fetchall()
-            for row in rows:
-                items.append(
+        sdk = SDK()
+
+        _priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+        in_progress: list[dict] = []
+        todo: list[dict] = []
+
+        for collection_name, collection in [
+            ("feature", sdk.features),
+            ("bug", sdk.bugs),
+            ("spike", sdk.spikes),
+        ]:
+            collection_any: Any = collection
+            for node in collection_any.where(status="in-progress"):
+                in_progress.append(
                     {
-                        "id": row["id"],
-                        "title": row["title"] or row["id"],
-                        "type": row["type"],
-                        "status": row["status"],
+                        "id": node.id,
+                        "title": getattr(node, "title", None) or node.id,
+                        "type": collection_name,
+                        "status": "in-progress",
+                        "_priority": _priority_order.get(
+                            getattr(node, "priority", None) or "", 4
+                        ),
                     }
                 )
-        finally:
-            conn.close()
+            for node in collection_any.where(status="todo"):
+                todo.append(
+                    {
+                        "id": node.id,
+                        "title": getattr(node, "title", None) or node.id,
+                        "type": collection_name,
+                        "status": "todo",
+                        "_priority": _priority_order.get(
+                            getattr(node, "priority", None) or "", 4
+                        ),
+                    }
+                )
+
+        # Sort each bucket by priority, then combine; in-progress items come first.
+        in_progress.sort(key=lambda x: x["_priority"])
+        todo.sort(key=lambda x: x["_priority"])
+
+        combined = in_progress + todo
+
+        # Strip internal sort key and cap at 10.
+        items = [
+            {k: v for k, v in item.items() if k != "_priority"}
+            for item in combined[:10]
+        ]
+
     except Exception as exc:  # noqa: BLE001
-        logger.debug(f"CIGS SQLite query failed: {exc}")
+        logger.debug(f"CIGS HTML work items query failed: {exc}")
         return []
 
     # --- populate cache ---
@@ -443,7 +468,11 @@ def _build_attribution_block(
     Returns:
         Compact attribution string, or None if no open items and no active work
     """
-    if not open_work_items:
+    # None means caller did not fetch open items — omit the attribution block entirely.
+    # An empty list means caller fetched and found nothing — show the "create one" hint.
+    if open_work_items is None:
+        return None
+    if len(open_work_items) == 0:
         return (
             "No open items. Create one: "
             "sdk.features.create('title').save() then sdk.features.start(id)"

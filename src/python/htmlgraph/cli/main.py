@@ -64,7 +64,7 @@ Analytics:
   htmlgraph analytics               # Project-wide analytics
   htmlgraph analytics --recent 10   # Analyze last 10 sessions
 
-For more help: https://github.com/Shakes-tzd/htmlgraph
+For more help: https://github.com/shakestzd/htmlgraph
 """,
     )
 

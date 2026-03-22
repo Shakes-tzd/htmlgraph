@@ -429,12 +429,14 @@ def validate_tool_call(
     config: dict[str, Any],
     history: list[dict],
     session_id: str | None = None,
+    hook_input: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Validate tool call and return GUIDANCE with active learning.
 
     Subagents spawned via Task() have unrestricted tool access.
-    Detection uses 5-level strategy: env vars, session state, database.
+    Detection uses native agent_id/agent_type from hook_input (most reliable),
+    then falls back to env vars, session state, and database checks.
 
     Args:
         tool: Tool name (e.g., "Edit", "Bash", "Read")
@@ -442,6 +444,8 @@ def validate_tool_call(
         config: Validation configuration (from load_validation_config())
         history: Tool usage history (from load_tool_history(session_id))
         session_id: Optional session ID for loading history if not provided
+        hook_input: Optional raw hook input from Claude Code stdin. When provided,
+                    native agent_id/agent_type fields are used for subagent detection.
 
     Returns:
         dict[str, Any]: {"decision": "allow" | "block", "guidance": "...", "suggestion": "...", ...}
@@ -457,7 +461,7 @@ def validate_tool_call(
             logger.debug("Validation guidance: %s", result["guidance"])
     """
     # Check if this is a subagent context - subagents have unrestricted tool access
-    if is_subagent_context():
+    if is_subagent_context(hook_input):
         return {"decision": "allow"}
 
     result = {"decision": "allow"}

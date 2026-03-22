@@ -71,7 +71,9 @@ def _attribution_verified(conn: sqlite3.Connection, session_id: str) -> bool:
     ).fetchone()
 
     if not uq_row or not uq_row[0]:
-        # No UserQuery yet — can't verify turn boundary; allow without warning
+        # No UserQuery yet — can't verify turn boundary; allow without warning.
+        # Callers that need to warn on Task regardless of UserQuery state
+        # should check the tool_name before calling this function.
         return True
 
     last_userquery_ts = uq_row[0]
@@ -110,6 +112,36 @@ _WARNING_MESSAGE = (
     "To suppress this warning: call sdk.features.start() before your tool call."
 )
 
+_ESCALATED_ATTRIBUTION_WARNING = (
+    "⚠️ REPEATED UNATTRIBUTED TOOL CALLS ({count} tools without work item)\n\n"
+    "You have executed {count} tool calls without an active work item. "
+    "All are attributed to NULL.\n\n"
+    "REQUIRED NOW:\n"
+    "  sdk.bugs.create('title').save() → sdk.bugs.start('id')\n"
+    "  OR sdk.features.start('existing-id')\n\n"
+    "Do this BEFORE your next tool call."
+)
+
+_STRONG_ATTRIBUTION_WARNING = (
+    "🛑 ATTRIBUTION ENFORCEMENT: {count} unattributed tool calls this turn\n\n"
+    "You are consistently executing tools without attribution. "
+    "This defeats work tracking.\n\n"
+    "STOP and run: sdk.bugs.start('id') or sdk.features.start('id')\n\n"
+    "Check CIGS OPEN line for existing work items, or create one now."
+)
+
+_AGENT_DELEGATION_WARNING = (
+    "STOP: AGENT DELEGATION WITHOUT ACTIVE WORK ITEM\n\n"
+    "You are about to delegate to a subagent, but no work item is active. "
+    "All subagent tool calls will be attributed to NULL — orphaned in the dashboard.\n\n"
+    "REQUIRED before delegating:\n"
+    "  1. Find or create the right work item:\n"
+    "     sdk.bugs.create('title').save() or sdk.features.create('title').save()\n"
+    "  2. Start it: sdk.bugs.start('id') or sdk.features.start('id')\n"
+    "  3. THEN delegate with Task/Agent\n\n"
+    "This is mandatory — delegation without attribution defeats the purpose of work tracking."
+)
+
 _STEP_REMINDER_MESSAGE = (
     "STEP TRACKING REMINDER: The active feature has steps that haven't been "
     "updated this session.\n\n"
@@ -120,6 +152,36 @@ _STEP_REMINDER_MESSAGE = (
     "      f.steps[N].completed = True\n\n"
     "Or check the CIGS 'Steps:' line to see which steps remain."
 )
+
+
+def _count_unattributed_events(conn: sqlite3.Connection, session_id: str) -> int:
+    """Count tool calls since the last UserQuery that have no feature attribution.
+
+    Returns the number of unattributed events, used to escalate warning severity.
+    Query is intentionally simple for speed (< 100ms with session_id index).
+    """
+    uq_row = conn.execute(
+        "SELECT MAX(timestamp) FROM agent_events WHERE session_id = ? AND tool_name = 'UserQuery'",
+        (session_id,),
+    ).fetchone()
+
+    if not uq_row or not uq_row[0]:
+        return 0
+
+    last_userquery_ts = uq_row[0]
+
+    count_row = conn.execute(
+        """
+        SELECT COUNT(*) FROM agent_events
+        WHERE session_id = ?
+          AND feature_id IS NULL
+          AND tool_name NOT IN ('UserQuery', 'TodoRead', 'TodoWrite')
+          AND timestamp > ?
+        """,
+        (session_id, last_userquery_ts),
+    ).fetchone()
+
+    return count_row[0] if count_row else 0
 
 
 def _check_stale_steps(
@@ -184,10 +246,29 @@ def main() -> None:
         print(json.dumps({"decision": "allow"}))
         return
 
+    is_delegation = tool_name == "Task"
+
     session_id = hook_input.get("session_id", "") or os.environ.get(
         "HTMLGRAPH_SESSION_ID", ""
     )
     if not session_id:
+        # For Task calls with no session context, still warn — delegation
+        # without attribution is always wrong regardless of session state.
+        if is_delegation:
+            # Check HTML for active work item before warning (fast path)
+            try:
+                from htmlgraph import SDK
+
+                sdk = SDK()
+                if not sdk.get_active_work_item():
+                    print(
+                        json.dumps(
+                            {"decision": "allow", "message": _AGENT_DELEGATION_WARNING}
+                        )
+                    )
+                    return
+            except Exception:
+                pass
         print(json.dumps({"decision": "allow"}))
         return
 
@@ -201,18 +282,42 @@ def main() -> None:
         conn = sqlite3.connect(db_file, timeout=3)
         conn.row_factory = sqlite3.Row
         try:
-            verified = _attribution_verified(conn, session_id)
-            if verified:
-                # Check whether step tracking has gone stale
-                # Get active feature ID from HTML (canonical source)
+            # For Task calls, check active work item directly first so we warn
+            # even when there is no UserQuery yet (first tool call of session).
+            if is_delegation:
                 try:
                     from htmlgraph import SDK
 
                     sdk = SDK()
                     active = sdk.get_active_work_item()
-                    feature_id = active.get("id") if active else None
                 except Exception:
-                    feature_id = None
+                    active = None
+                if not active:
+                    print(
+                        json.dumps(
+                            {"decision": "allow", "message": _AGENT_DELEGATION_WARNING}
+                        )
+                    )
+                    return
+                # Active item found — fall through to stale-step check below
+                verified = True
+                feature_id = active.get("id") if active else None
+            else:
+                verified = _attribution_verified(conn, session_id)
+                feature_id = None
+
+            if verified:
+                # Check whether step tracking has gone stale
+                if feature_id is None:
+                    # Get active feature ID from HTML (canonical source)
+                    try:
+                        from htmlgraph import SDK
+
+                        sdk = SDK()
+                        active_item = sdk.get_active_work_item()
+                        feature_id = active_item.get("id") if active_item else None
+                    except Exception:
+                        feature_id = None
                 if feature_id and _check_stale_steps(conn, session_id, feature_id):
                     print(
                         json.dumps(
@@ -230,7 +335,32 @@ def main() -> None:
     if verified:
         print(json.dumps({"decision": "allow"}))
     else:
-        print(json.dumps({"decision": "allow", "message": _WARNING_MESSAGE}))
+        # Use stronger warning for delegation — most impactful case
+        if is_delegation:
+            print(
+                json.dumps({"decision": "allow", "message": _AGENT_DELEGATION_WARNING})
+            )
+        else:
+            try:
+                conn = sqlite3.connect(db_file, timeout=3)
+                conn.row_factory = sqlite3.Row
+                try:
+                    unattributed_count = _count_unattributed_events(conn, session_id)
+                finally:
+                    conn.close()
+            except Exception:
+                unattributed_count = 0
+
+            if unattributed_count >= 8:
+                message = _STRONG_ATTRIBUTION_WARNING.format(count=unattributed_count)
+            elif unattributed_count >= 4:
+                message = _ESCALATED_ATTRIBUTION_WARNING.format(
+                    count=unattributed_count
+                )
+            else:
+                message = _WARNING_MESSAGE
+
+            print(json.dumps({"decision": "allow", "message": message}))
 
 
 if __name__ == "__main__":

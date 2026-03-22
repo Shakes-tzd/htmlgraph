@@ -14,7 +14,10 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from htmlgraph.db.schema import HtmlGraphDB
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,7 @@ class SessionManager:
         session_dedupe_window_seconds: int = DEFAULT_SESSION_DEDUPE_WINDOW_SECONDS,
         features_graph: HtmlGraph | None = None,
         bugs_graph: HtmlGraph | None = None,
+        db: "HtmlGraphDB | None" = None,
     ):
         """
         Initialize SessionManager.
@@ -105,6 +109,7 @@ class SessionManager:
         self.graph_dir = Path(graph_dir)
         self.wip_limit = wip_limit
         self.session_dedupe_window_seconds = session_dedupe_window_seconds
+        self._db = db
 
         # Initialize graphs for each collection
         self.sessions_dir = self.graph_dir / "sessions"
@@ -366,17 +371,9 @@ class SessionManager:
         return session
 
     def _create_session_init_spike(self, session: Session) -> Node | None:
-        """
-        Auto-create a session-init spike to catch pre-feature activities.
-
-        This spike captures work done before the first feature is started:
-        - Session startup, reviewing context
-        - Planning what to work on
-        - General exploration
-
-        The spike auto-completes when the first feature is started.
-        """
-        from htmlgraph.converter import NodeConverter
+        """Disabled: auto session-init spikes caused OPEN list bloat."""
+        return None
+        from htmlgraph.converter import NodeConverter  # unreachable
 
         spike_id = f"spike-init-{session.id[:8]}"
 
@@ -2065,6 +2062,9 @@ class SessionManager:
             active_session = self._ensure_session_for_agent(agent)
         if active_session:
             self._add_session_link_to_feature(feature_id, active_session.id)
+            # Record this as the session-scoped active work item
+            if self._db is not None:
+                self._db.set_active_work_item_for_session(active_session.id, feature_id)
 
         # Backfill Turn 1 attribution: update the most recent unattributed UserQuery
         # event in the current session. The UserPromptSubmit hook writes the UserQuery
@@ -2135,6 +2135,13 @@ class SessionManager:
 
         # Invalidate active features cache
         self._features_cache_dirty = True
+
+        # Clear session-scoped active work item if this was the active one
+        active_session = self.get_active_session(agent=agent)
+        if active_session and self._db is not None:
+            current = self._db.get_active_work_item_for_session(active_session.id)
+            if current == feature_id:
+                self._db.set_active_work_item_for_session(active_session.id, None)
 
         if log_activity and agent:
             # Include transcript_id in payload for traceability

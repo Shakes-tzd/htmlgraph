@@ -170,11 +170,9 @@ def _manage_conversation_spike(
     external_session_id: str,
     graph_dir: Path,
 ) -> None:
-    """
-    Handle conversation-level auto-spike management.
-
-    Each new conversation gets a new auto-spike; previous auto-spikes are closed.
-    """
+    """Disabled: auto-conversation spikes caused OPEN list bloat."""
+    return None
+    # --- disabled body below ---
     try:
         last_conversation_id = getattr(active, "last_conversation_id", None)
         is_new_conversation = last_conversation_id != external_session_id

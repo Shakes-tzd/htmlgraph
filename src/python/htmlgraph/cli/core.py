@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 
 from htmlgraph.cli.base import BaseCommand, CommandError, CommandResult
 from htmlgraph.cli.constants import (
-    COLLECTIONS,
     DEFAULT_DATABASE_NAME,
     DEFAULT_GRAPH_DIR,
     DEFAULT_SERVER_HOST,
@@ -586,10 +585,11 @@ class StatusCommand(BaseCommand):
 
     def execute(self) -> CommandResult:
         """Show the current graph status."""
-        from collections import Counter
-
         from rich.console import Console
+        from rich.markup import escape
         from rich.progress import Progress, SpinnerColumn, TextColumn
+        from rich.text import Text
+        from rich.tree import Tree
 
         console = Console()
 
@@ -598,64 +598,150 @@ class StatusCommand(BaseCommand):
             sdk = self.get_sdk()
 
         total = 0
-        by_status: Counter[str] = Counter()
+        by_status: dict[str, int] = {}
         by_collection: dict[str, int] = {}
+        # collection_name -> status -> list of nodes
+        collection_nodes: dict[str, dict[str, list]] = {}
 
-        # Scan all collections
+        # Collections to show with display labels (skip internal ones)
+        display_collections = [
+            ("features", "Features"),
+            ("bugs", "Bugs"),
+            ("spikes", "Spikes"),
+            ("chores", "Chores"),
+            ("epics", "Epics"),
+            ("tracks", "Tracks"),
+        ]
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("Scanning collections...", total=len(COLLECTIONS))
+            task = progress.add_task(
+                "Scanning collections...", total=len(display_collections)
+            )
 
-            for coll_name in COLLECTIONS:
-                progress.update(task, description=f"Scanning {coll_name}...")
+            for coll_attr, _label in display_collections:
+                progress.update(task, description=f"Scanning {coll_attr}...")
                 try:
-                    coll = getattr(sdk, coll_name)
+                    coll = getattr(sdk, coll_attr.replace("-", "_"), None)
+                    if coll is None:
+                        progress.update(task, advance=1)
+                        continue
                     nodes = coll.all()
                     count = len(nodes)
 
                     if count > 0:
-                        by_collection[coll_name] = count
+                        by_collection[coll_attr] = count
                         total += count
 
-                        # Count by status
+                        grouped: dict[str, list] = {}
                         for node in nodes:
-                            status = getattr(node, "status", "unknown")
-                            by_status[status] += 1
+                            status = getattr(node, "status", "unknown") or "unknown"
+                            by_status[status] = by_status.get(status, 0) + 1
+                            grouped.setdefault(status, []).append(node)
+                        collection_nodes[coll_attr] = grouped
 
                 except Exception:
-                    # Collection might not exist yet
                     pass
 
                 progress.update(task, advance=1)
 
-        # Build status table
-        from htmlgraph.cli.base import TableBuilder
+        # Status color mapping
+        status_colors = {
+            "in-progress": "yellow",
+            "todo": "blue",
+            "done": "green",
+            "blocked": "red",
+            "active": "yellow",
+            "ended": "dim",
+            "stale": "dim",
+        }
 
-        builder = TableBuilder.create_list_table(f"HtmlGraph Status: {self.graph_dir}")
-        builder.add_column("Collection", style="cyan")
-        builder.add_numeric_column("Count", style="green")
+        # Status display order (in-progress first)
+        status_order = [
+            "in-progress",
+            "active",
+            "todo",
+            "blocked",
+            "done",
+            "ended",
+            "stale",
+        ]
 
-        for coll_name in sorted(by_collection.keys()):
-            builder.add_row(coll_name, str(by_collection[coll_name]))
+        # Build Rich Tree
+        tree = Tree(
+            Text.assemble(
+                ("HtmlGraph Status", "bold"),
+                " (",
+                (str(self.graph_dir), "dim"),
+                ")",
+            )
+        )
 
-        builder.add_separator()
-        builder.add_row("[bold]Total", f"[bold]{total}")
-        table = builder.table
+        for coll_attr, label in display_collections:
+            if coll_attr not in by_collection:
+                continue
 
-        # Display results
+            count = by_collection[coll_attr]
+            grouped = collection_nodes.get(coll_attr, {})
+
+            coll_branch = tree.add(Text.assemble((label, "bold cyan"), f" ({count})"))
+
+            # Sort statuses: known order first, then alphabetical for unknowns
+            sorted_statuses = sorted(
+                grouped.keys(),
+                key=lambda s: (status_order.index(s) if s in status_order else 99, s),
+            )
+
+            for status in sorted_statuses:
+                items = grouped[status]
+                color = status_colors.get(status, "white")
+                status_label = status.replace("-", " ").title()
+                status_branch = coll_branch.add(
+                    f"[{color}]{status_label}[/{color}] ({len(items)})"
+                )
+
+                show_details = status in ("in-progress", "active", "blocked")
+
+                if show_details:
+                    # Show per-item details for actionable statuses
+                    for node in items[:10]:
+                        node_id = getattr(node, "id", "?")
+                        node_title = getattr(node, "title", "") or ""
+                        steps = getattr(node, "steps", [])
+                        steps_info = ""
+                        if steps:
+                            done = sum(
+                                1 for s in steps if getattr(s, "completed", False)
+                            )
+                            steps_info = f" ({done}/{len(steps)} steps)"
+                        elif getattr(node, "status", "") == "in-progress":
+                            steps_info = " (no steps)"
+                        label_text = (
+                            f"[dim]{node_id}[/dim]: "
+                            f"{escape(node_title[:50])}"
+                            f"[dim]{steps_info}[/dim]"
+                        )
+                        status_branch.add(label_text)
+                    if len(items) > 10:
+                        status_branch.add(f"[dim]... and {len(items) - 10} more[/dim]")
+                elif len(items) <= 3:
+                    # Show all items when there are only a few
+                    for node in items:
+                        node_id = getattr(node, "id", "?")
+                        node_title = getattr(node, "title", "") or ""
+                        status_branch.add(
+                            f"[dim]{node_id}[/dim]: {escape(node_title[:50])}"
+                        )
+                else:
+                    status_branch.add(f"[dim]... ({len(items)} items)[/dim]")
+
         console.print()
-        console.print(table)
-
-        # Show status breakdown
-        if by_status:
-            console.print()
-            console.print("[cyan]By Status:[/cyan]")
-            for status, count in sorted(by_status.items()):
-                console.print(f"  {status}: {count}")
+        console.print(tree)
+        console.print()
 
         return CommandResult(
             data={
@@ -805,7 +891,7 @@ class DebugCommand(BaseCommand):
         # Footer
         console.print()
         console.print(
-            "[dim]For more help: https://github.com/Shakes-tzd/htmlgraph[/dim]"
+            "[dim]For more help: https://github.com/shakestzd/htmlgraph[/dim]"
         )
         console.print()
 
@@ -1038,7 +1124,7 @@ class BootstrapCommand(BaseCommand):
 
         # Show documentation link
         console.print(
-            "[dim]📚 Learn more: https://github.com/Shakes-tzd/htmlgraph[/dim]"
+            "[dim]📚 Learn more: https://github.com/shakestzd/htmlgraph[/dim]"
         )
         console.print()
 

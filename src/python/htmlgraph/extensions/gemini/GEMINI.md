@@ -720,7 +720,7 @@ sdk.bugs.batch_update(
 ## Documentation
 
 For complete SDK documentation, see:
-https://github.com/Shakes-tzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
+https://github.com/shakestzd/htmlgraph/blob/main/docs/SDK_FOR_AI_AGENTS.md
 
 For HtmlGraph project:
-https://github.com/Shakes-tzd/htmlgraph
+https://github.com/shakestzd/htmlgraph

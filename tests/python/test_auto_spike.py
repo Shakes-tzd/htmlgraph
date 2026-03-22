@@ -17,36 +17,26 @@ from htmlgraph.session_manager import SessionManager
 
 
 class TestSessionInitSpike:
-    """Test session-init spike auto-creation."""
+    """Test session-init spike auto-creation (disabled — see bug-22c05e3b)."""
 
-    def test_session_init_spike_created_on_start(self, tmp_path):
-        """Test that session-init spike is auto-created when session starts."""
+    def test_session_init_spike_not_created_on_start(self, tmp_path):
+        """Auto session-init spike creation is disabled (bug-22c05e3b: OPEN list bloat)."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir()
 
         manager = SessionManager(graph_dir)
-        session = manager.start_session(agent="test-agent", title="Test Session")
+        manager.start_session(agent="test-agent", title="Test Session")
 
-        # Check that session-init spike was created
+        # No session-init spike should be created
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-
-        # Should have one session-init spike
         session_init_spikes = [
             s for s in spikes if s.spike_subtype == "session-init" and s.auto_generated
         ]
-        assert len(session_init_spikes) == 1
-
-        spike = session_init_spikes[0]
-        assert spike.type == "spike"
-        assert spike.spike_subtype == "session-init"
-        assert spike.auto_generated is True
-        assert spike.status == "in-progress"
-        assert spike.session_id == session.id
-        assert "Session Init:" in spike.title
+        assert len(session_init_spikes) == 0
 
     def test_session_init_spike_idempotent(self, tmp_path):
-        """Test that restarting session doesn't create duplicate spikes."""
+        """Restarting session does not create session-init spikes (disabled, bug-22c05e3b)."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir()
 
@@ -60,15 +50,15 @@ class TestSessionInitSpike:
             session_id="test-session", agent="test-agent", title="Test Session"
         )
 
-        # Should only have one session-init spike
+        # Should have zero session-init spikes (creation is disabled)
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
         session_init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
 
-        assert len(session_init_spikes) == 1
+        assert len(session_init_spikes) == 0
 
-    def test_session_init_spike_linked_to_session(self, tmp_path):
-        """Test that session-init spike is linked to session."""
+    def test_session_init_spike_not_linked_to_session(self, tmp_path):
+        """Session worked_on does not contain auto spike (creation disabled, bug-22c05e3b)."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir()
 
@@ -79,14 +69,15 @@ class TestSessionInitSpike:
         converter = SessionConverter(graph_dir / "sessions")
         reloaded_session = converter.load(session.id)
 
-        # Session should have spike in worked_on
+        # No session-init spikes should exist
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
         session_init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
 
-        assert len(session_init_spikes) == 1
-        spike = session_init_spikes[0]
-        assert spike.id in reloaded_session.worked_on
+        assert len(session_init_spikes) == 0
+        # worked_on should not contain any session-init spike IDs
+        for item_id in reloaded_session.worked_on:
+            assert "spike-init" not in item_id
 
 
 class TestTransitionSpike:
@@ -151,31 +142,26 @@ class TestTransitionSpike:
 class TestAutoSpikeCompletion:
     """Test auto-spike completion when features start."""
 
-    def test_session_init_spike_completes_on_feature_start(self, tmp_path):
-        """Test that session-init spike completes when first feature starts."""
+    def test_session_init_spike_not_created_before_feature_start(self, tmp_path):
+        """No session-init spike is created before feature start (disabled, bug-22c05e3b)."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir()
 
         manager = SessionManager(graph_dir)
 
-        # Start session (creates session-init spike)
+        # Start session — no session-init spike should be created
         manager.start_session(agent="test-agent", title="Test Session")
 
-        # Verify session-init spike is in-progress
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        init_spike = [s for s in spikes if s.spike_subtype == "session-init"][0]
-        assert init_spike.status == "in-progress"
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
-        # Start a feature (should complete session-init spike)
+        # Start a feature — still no session-init spike
         feature = manager.create_feature("Test Feature", agent="test-agent")
         manager.start_feature(feature.id, agent="test-agent")
 
-        # Reload and verify spike is completed
         spikes = spike_converter.load_all()
-        init_spike = [s for s in spikes if s.spike_subtype == "session-init"][0]
-        assert init_spike.status == "done"
-        assert init_spike.to_feature_id == feature.id
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
     def test_no_transition_spike_between_features(self, tmp_path):
         """Test that no transition spike is created between features (disabled, bug-63423134)."""
@@ -205,35 +191,28 @@ class TestAutoSpikeCompletion:
         transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
         assert len(transition_spikes) == 0
 
-    def test_session_init_spike_completes_without_transition_spike(self, tmp_path):
-        """Test that session-init completes when feature starts, with no transition spike after."""
+    def test_no_auto_spikes_created_during_feature_lifecycle(self, tmp_path):
+        """No auto spikes are created at any point in the feature lifecycle (bug-22c05e3b)."""
         graph_dir = tmp_path / ".htmlgraph"
         graph_dir.mkdir()
 
         manager = SessionManager(graph_dir)
 
-        # Start session (creates session-init spike)
+        # Start session — no session-init spike
         manager.start_session(agent="test-agent", title="Test Session")
 
-        # Verify session-init spike exists
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 1
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
-        # Start first feature (should complete session-init)
+        # Start and complete first feature — no transition spike
         feature1 = manager.create_feature("Feature 1", agent="test-agent")
         manager.start_feature(feature1.id, agent="test-agent")
-
-        # Complete first feature — no transition spike created
         manager.complete_feature(feature1.id, agent="test-agent")
 
-        # Verify we have session-init (done) and NO transition spike
         spikes = spike_converter.load_all()
-        init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
-        transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
-        assert len(init_spikes) == 1
-        assert init_spikes[0].status == "done"
-        assert len(transition_spikes) == 0
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
+        assert len([s for s in spikes if s.spike_subtype == "transition"]) == 0
 
 
 class TestSessionConverterAutoSpikeFields:

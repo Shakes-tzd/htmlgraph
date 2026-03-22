@@ -72,7 +72,7 @@ Examples:
   htmlgraph-deploy --dry-run                Preview actions
   htmlgraph-deploy --help                   Show this help
 
-For more information, see: https://github.com/Shakes-tzd/htmlgraph#deployment
+For more information, see: https://github.com/shakestzd/htmlgraph#deployment
         """,
     )
 

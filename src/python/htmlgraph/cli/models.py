@@ -12,7 +12,7 @@ This module provides type-safe models for validating command inputs:
 from datetime import datetime
 from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, computed_field, field_validator
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -416,6 +416,13 @@ class FeatureDisplay(BaseModel):
     created: datetime | None = Field(None, description="Creation time")
     track_id: str | None = Field(None, description="Associated track ID")
     agent_assigned: str | None = Field(None, description="Assigned agent")
+    blockers: list[str] = Field(
+        default_factory=list, description="IDs of blocking features"
+    )
+    total_steps: int = Field(default=0, ge=0, description="Total number of steps")
+    completed_steps: int = Field(
+        default=0, ge=0, description="Number of completed steps"
+    )
 
     @classmethod
     def from_node(cls, node: object) -> FeatureDisplay:
@@ -428,6 +435,19 @@ class FeatureDisplay(BaseModel):
         Returns:
             FeatureDisplay instance
         """
+        # Extract steps information from node
+        steps = getattr(node, "steps", [])
+        total_steps = len(steps)
+        completed_steps = sum(1 for step in steps if getattr(step, "completed", False))
+
+        # Extract blocking edges from node
+        blocking_edges = getattr(node, "blocking_edges", [])
+        blockers = [
+            edge.target_id
+            for edge in blocking_edges
+            if getattr(edge, "relationship", "") == "blocked_by"
+        ]
+
         return cls(
             id=getattr(node, "id"),
             title=getattr(node, "title", "Untitled"),
@@ -437,7 +457,25 @@ class FeatureDisplay(BaseModel):
             created=getattr(node, "created", None),
             track_id=getattr(node, "track_id", None),
             agent_assigned=getattr(node, "agent_assigned", None),
+            blockers=blockers,
+            total_steps=total_steps,
+            completed_steps=completed_steps,
         )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_blocked(self) -> bool:
+        """Whether this feature is blocked by unresolved dependencies."""
+        return bool(self.blockers)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def completion_status(self) -> str:
+        """Human-readable completion status based on steps."""
+        if self.total_steps == 0:
+            return "no steps"
+        pct = int((self.completed_steps / self.total_steps) * 100)
+        return f"{self.completed_steps}/{self.total_steps} ({pct}%)"
 
     @property
     def updated_str(self) -> str:

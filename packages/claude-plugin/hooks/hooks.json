@@ -49,6 +49,16 @@
             "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-integrator.py\""
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "comment": "Block direct .htmlgraph/ file modifications; SDK use required",
+            "command": "uv run \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pretooluse-htmlgraph-guard.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

@@ -333,6 +333,94 @@ class HtmlGraphDB(ExtensionOps):
             logger.error(f"Error querying concurrent sessions: {e}")
             return []
 
+    def get_active_work_item_for_session(self, session_id: str) -> str | None:
+        """
+        Return the active_feature_id stored on a session row, or None.
+
+        Args:
+            session_id: Session to query
+
+        Returns:
+            active_feature_id value or None if not set / session not found
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                "SELECT active_feature_id FROM sessions WHERE session_id = ?",
+                (session_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return None
+            value = row[0]
+            return str(value) if value is not None else None
+        except sqlite3.Error as e:
+            logger.error(
+                f"Error reading active_feature_id for session {session_id}: {e}"
+            )
+            return None
+
+    def set_active_work_item_for_session(
+        self, session_id: str, feature_id: str | None
+    ) -> bool:
+        """
+        Write active_feature_id onto a session row.
+
+        Args:
+            session_id: Session to update
+            feature_id: Work item ID to mark as active, or None to clear
+
+        Returns:
+            True if the UPDATE affected a row, False otherwise
+        """
+        if not self.connection:
+            self.connect()
+
+        try:
+            cursor = self.connection.cursor()  # type: ignore[union-attr]
+            cursor.execute(
+                "UPDATE sessions SET active_feature_id = ? WHERE session_id = ?",
+                (feature_id, session_id),
+            )
+            self.connection.commit()  # type: ignore[union-attr]
+            return cursor.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(
+                f"Error setting active_feature_id={feature_id} "
+                f"for session {session_id}: {e}"
+            )
+            return False
+
+    def set_active_work_item(self, session_id: str, feature_id: str) -> bool:
+        """
+        Set the active work item for a session.
+
+        Convenience wrapper for set_active_work_item_for_session with a non-None value.
+
+        Args:
+            session_id: Session to update
+            feature_id: Work item ID to mark as active
+
+        Returns:
+            True if the UPDATE affected a row, False otherwise
+        """
+        return self.set_active_work_item_for_session(session_id, feature_id)
+
+    def clear_active_work_item(self, session_id: str) -> bool:
+        """
+        Clear the active work item for a session (set to NULL).
+
+        Args:
+            session_id: Session to update
+
+        Returns:
+            True if the UPDATE affected a row, False otherwise
+        """
+        return self.set_active_work_item_for_session(session_id, None)
+
     # ------------------------------------------------------------------
     # Event CRUD
     # ------------------------------------------------------------------

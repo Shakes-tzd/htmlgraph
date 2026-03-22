@@ -2,10 +2,10 @@
 Integration tests for full feature→session→spike lifecycle.
 
 Tests the complete workflow:
-1. Session start → session-init spike created
-2. Feature start → session-init spike completes
-3. Feature complete → (no transition spike — disabled in bug-63423134)
-4. Session end → all spikes finalized
+1. Session start → no auto-spike created (disabled in bug-22c05e3b)
+2. Feature start → no auto-spike completion
+3. Feature complete → no transition spike (disabled in bug-63423134)
+4. Session end → session finalised
 """
 
 import pytest
@@ -18,30 +18,26 @@ class TestFullLifecycle:
     """Test complete feature→session→spike lifecycle."""
 
     def test_single_feature_lifecycle(self, isolated_graph_dir_full, isolated_db):
-        """Test complete lifecycle with a single feature."""
+        """Test complete lifecycle with a single feature — no auto-spikes created."""
         graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
-        # 1. Start session → creates session-init spike
+        # 1. Start session → no auto-spike (disabled, bug-22c05e3b)
         session = manager.start_session(
             agent="test-agent", title="Single Feature Session"
         )
 
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 1
-        init_spike = [s for s in spikes if s.spike_subtype == "session-init"][0]
-        assert init_spike.status == "in-progress"
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
-        # 2. Create and start feature → session-init spike completes
+        # 2. Create and start feature → still no auto-spike
         feature = manager.create_feature("Test Feature", agent="test-agent")
         manager.start_feature(feature.id, agent="test-agent")
 
         spikes = spike_converter.load_all()
-        init_spike = [s for s in spikes if s.spike_subtype == "session-init"][0]
-        assert init_spike.status == "done"
-        assert init_spike.to_feature_id == feature.id
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
         # 3. Complete feature → no transition spike (disabled, bug-63423134)
         manager.complete_feature(feature.id, agent="test-agent")
@@ -107,12 +103,11 @@ class TestFullLifecycle:
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
 
-        # Should have: 1 session-init (done), no transition spikes (disabled, bug-63423134)
+        # No auto-spikes: session-init disabled (bug-22c05e3b), transition disabled (bug-63423134)
         init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
         transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
 
-        assert len(init_spikes) == 1
-        assert init_spikes[0].status == "done"
+        assert len(init_spikes) == 0
         assert len(transition_spikes) == 0
 
         # End session
@@ -160,29 +155,25 @@ class TestFullLifecycle:
     def test_activity_attribution_with_spikes(
         self, isolated_graph_dir_full, isolated_db
     ):
-        """Test that activities are correctly attributed to features after spike completion."""
+        """Test that activities are correctly attributed to features (no auto-spikes, bug-22c05e3b)."""
         graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
 
-        # Start session (creates session-init spike)
+        # Start session — no auto-spike created (disabled, bug-22c05e3b)
         session = manager.start_session(agent="test-agent", title="Attribution Test")
 
-        # Verify session-init spike was created
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
-        init_spike = [s for s in spikes if s.spike_subtype == "session-init"][0]
-        assert init_spike.status == "in-progress"
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
-        # Start a feature (completes session-init spike)
+        # Start a feature
         feature = manager.create_feature("Test Feature", agent="test-agent")
         manager.start_feature(feature.id, agent="test-agent")
 
-        # Verify spike was completed
+        # Still no session-init spike
         spikes = spike_converter.load_all()
-        init_spike = [s for s in spikes if s.spike_subtype == "session-init"][0]
-        assert init_spike.status == "done"
-        assert init_spike.to_feature_id == feature.id
+        assert len([s for s in spikes if s.spike_subtype == "session-init"]) == 0
 
         # Track activity after feature start (should go to feature)
         manager.track_activity(
@@ -198,7 +189,7 @@ class TestFullLifecycle:
         assert edit_activity.feature_id == feature.id
 
     def test_session_continuity_with_spikes(self, isolated_graph_dir_full, isolated_db):
-        """Test that spikes work correctly across session continuity."""
+        """Test session continuity — no auto-spikes created (disabled, bug-22c05e3b)."""
         graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
@@ -215,17 +206,13 @@ class TestFullLifecycle:
             agent="test-agent", title="Session 2", continued_from=session1.id
         )
 
-        # Should have its own session-init spike
+        # No session-init spikes should be created for either session (disabled, bug-22c05e3b)
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
         init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
 
-        # Each session should have its own session-init spike
-        session1_spikes = [s for s in init_spikes if s.session_id == session1.id]
-        session2_spikes = [s for s in init_spikes if s.session_id == session2.id]
-
-        assert len(session1_spikes) == 1
-        assert len(session2_spikes) == 1
+        assert len([s for s in init_spikes if s.session_id == session1.id]) == 0
+        assert len([s for s in init_spikes if s.session_id == session2.id]) == 0
 
     def test_transcript_integration_lifecycle(
         self, isolated_graph_dir_full, isolated_db
@@ -268,7 +255,7 @@ class TestEdgeCases:
     """Test edge cases and error conditions."""
 
     def test_no_features_only_spikes(self, isolated_graph_dir_full, isolated_db):
-        """Test session with no regular features, only auto-spikes."""
+        """Test session with no features — no auto-spikes created (disabled, bug-22c05e3b)."""
         graph_dir = isolated_graph_dir_full
 
         manager = SessionManager(graph_dir)
@@ -280,14 +267,12 @@ class TestEdgeCases:
         )
         manager.end_session(session.id)
 
-        # Should have session-init spike that never completed
+        # No session-init spike should be created (disabled, bug-22c05e3b)
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
         init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
 
-        assert len(init_spikes) == 1
-        # Still in-progress since no feature was started
-        assert init_spikes[0].status == "in-progress"
+        assert len(init_spikes) == 0
 
     def test_feature_start_without_session(self, isolated_graph_dir_full, isolated_db):
         """Test that feature start without active session still works."""
@@ -313,7 +298,7 @@ class TestEdgeCases:
     def test_spike_persistence_across_reloads(
         self, isolated_graph_dir_full, isolated_db
     ):
-        """Test that spikes persist correctly when reloading from disk."""
+        """Test that manually created spikes persist across manager reloads (no auto-spikes, bug-22c05e3b)."""
         graph_dir = isolated_graph_dir_full
 
         # Create session and feature with one manager instance
@@ -326,17 +311,15 @@ class TestEdgeCases:
         # Create new manager instance (simulates process restart)
         SessionManager(graph_dir)
 
-        # Verify spikes are still there
+        # No auto-spikes should be present (all disabled)
         spike_converter = NodeConverter(graph_dir / "spikes")
         spikes = spike_converter.load_all()
 
-        assert len(spikes) > 0
         init_spikes = [s for s in spikes if s.spike_subtype == "session-init"]
         transition_spikes = [s for s in spikes if s.spike_subtype == "transition"]
 
-        assert len(init_spikes) == 1
+        assert len(init_spikes) == 0  # disabled, bug-22c05e3b
         assert len(transition_spikes) == 0  # disabled, bug-63423134
-        assert init_spikes[0].status == "done"
 
 
 if __name__ == "__main__":

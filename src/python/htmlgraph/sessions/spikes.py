@@ -59,17 +59,9 @@ class SpikeManager:
         return None
 
     def create_session_init_spike(self, session: Session) -> Node | None:
-        """
-        Auto-create a session-init spike to catch pre-feature activities.
-
-        This spike captures work done before the first feature is started:
-        - Session startup, reviewing context
-        - Planning what to work on
-        - General exploration
-
-        The spike auto-completes when the first feature is started.
-        """
-        spike_id = f"spike-init-{session.id[:8]}"
+        """Disabled: auto session-init spikes caused OPEN list bloat."""
+        return None
+        spike_id = f"spike-init-{session.id[:8]}"  # unreachable
         spike_converter = self._get_spike_converter()
 
         # Check if spike already exists (idempotency)

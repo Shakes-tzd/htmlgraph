@@ -165,12 +165,12 @@ def setup_codex(args: Any) -> bool:
                     print(f"   ❌ Failed to link skill: {e}")
 
         print("\n   Option 2: Copy from GitHub:")
-        print("   git clone https://github.com/Shakes-tzd/htmlgraph.git")
+        print("   git clone https://github.com/shakestzd/htmlgraph.git")
         print(f"   cp -r htmlgraph/packages/codex-skill {htmlgraph_skill_dir}")
 
         print("\n   Option 3: Download manually:")
         print(
-            "   https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/codex-skill"
+            "   https://github.com/shakestzd/htmlgraph/tree/main/packages/codex-skill"
         )
 
     # Check MCP configuration
@@ -243,7 +243,7 @@ def setup_gemini(args: Any) -> bool:
 
             print("\n   Option 2: Install from GitHub:")
             print(
-                "   gemini extensions install https://github.com/Shakes-tzd/htmlgraph/tree/main/packages/gemini-extension"
+                "   gemini extensions install https://github.com/shakestzd/htmlgraph/tree/main/packages/gemini-extension"
             )
 
             print("\n   Option 3: Create manually:")

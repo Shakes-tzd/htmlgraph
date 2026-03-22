@@ -383,7 +383,10 @@ def create_task_suggestion(tool: str, params: dict[str, Any]) -> str:
 
 
 def enforce_orchestrator_mode(
-    tool: str, params: dict[str, Any], session_id: str = "unknown"
+    tool: str,
+    params: dict[str, Any],
+    session_id: str = "unknown",
+    hook_input: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Enforce orchestrator mode rules.
@@ -392,19 +395,22 @@ def enforce_orchestrator_mode(
     is enabled, classifies the operation, and returns a hook response dict.
 
     Subagents spawned via Task() have unrestricted tool access.
-    Detection uses 5-level strategy: env vars, session state, database.
+    Detection uses native agent_id/agent_type from hook_input (most reliable),
+    then falls back to env vars, session state, and database checks.
 
     Args:
         tool: Tool being called
         params: Tool parameters
         session_id: Session identifier for loading tool history
+        hook_input: Optional raw hook input from Claude Code stdin. When provided,
+                    native agent_id/agent_type fields are used for subagent detection.
 
     Returns:
         Hook response dict with decision (allow/block) and guidance
         Format: {"continue": bool, "hookSpecificOutput": {...}}
     """
     # Check if this is a subagent context - subagents have unrestricted tool access
-    if is_subagent_context():
+    if is_subagent_context(hook_input):
         return {
             "continue": True,
             "hookSpecificOutput": {

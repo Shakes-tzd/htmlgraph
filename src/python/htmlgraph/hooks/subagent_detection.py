@@ -32,15 +32,23 @@ from pathlib import Path
 from typing import Any
 
 
-def is_subagent_context() -> bool:
+def is_subagent_context(hook_input: dict[str, Any] | None = None) -> bool:
     """
     Check if we're executing within a delegated subagent (spawned via Task()).
 
     Detection Strategy (in priority order):
+    0. Native hook_input["agent_id"] / ["agent_type"] fields (most reliable)
+       - agent_id not in ("main", "claude-code", "") → subagent
+       - agent_type not in ("main", "") → subagent
     1. CLAUDE_SUBAGENT_ID environment variable (set by Task() spawner)
     2. CLAUDE_PARENT_SESSION_ID environment variable (set by Task() spawner)
     3. Session state marker in database (is_subagent flag)
     4. Active session has parent_session_id set
+
+    Args:
+        hook_input: Optional hook input dict from Claude Code. When provided,
+                    native agent_id and agent_type fields take priority over
+                    all other detection methods.
 
     Returns:
         True if executing in subagent context, False if orchestrator context
@@ -50,6 +58,15 @@ def is_subagent_context() -> bool:
         - False positives are safe (allow direct tool use)
         - False negatives would break subagents (must be avoided)
     """
+    # Check 0: Native Claude Code hook input fields (most reliable)
+    if hook_input:
+        native_agent_id = (hook_input.get("agent_id") or "").strip()
+        native_agent_type = (hook_input.get("agent_type") or "").strip()
+        if native_agent_id and native_agent_id not in ("main", "claude-code"):
+            return True
+        if native_agent_type and native_agent_type not in ("main",):
+            return True
+
     # Check 1: Direct environment variable from Task() spawner
     if os.getenv("CLAUDE_SUBAGENT_ID"):
         return True

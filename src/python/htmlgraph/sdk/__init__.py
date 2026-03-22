@@ -198,6 +198,7 @@ class SDK(
             self._directory,
             features_graph=self._graph,
             bugs_graph=self._bugs_graph,
+            db=self._db,
         )
 
         # NetworkX graph manager (lazy-initialized)
