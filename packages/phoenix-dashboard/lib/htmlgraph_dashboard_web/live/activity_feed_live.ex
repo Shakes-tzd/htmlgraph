@@ -13,14 +13,15 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
   alias HtmlgraphDashboard.Activity
   alias HtmlgraphDashboard.EventPoller
   alias HtmlgraphDashboard.PythonSDK
+  alias HtmlgraphDashboard.Repo
 
-  @default_graph_stats %{
-    "nodes" => 0,
-    "edges" => 0,
-    "cycles" => 0,
-    "components" => 0,
-    "critical_path" => [],
-    "bottlenecks" => []
+  @default_activity_stats %{
+    "sessions" => 0,
+    "events" => 0,
+    "features" => 0,
+    "bugs" => 0,
+    "active" => 0,
+    "tools" => 0
   }
 
   @impl true
@@ -31,14 +32,14 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
 
     session_id = params["session_id"]
 
-    graph_stats = load_graph_stats()
+    activity_stats = load_activity_stats()
 
     socket =
       socket
       |> assign(:session_filter, session_id)
       |> assign(:expanded, MapSet.new())
       |> assign(:reload_timer, nil)
-      |> assign(:graph_stats, graph_stats)
+      |> assign(:activity_stats, activity_stats)
       |> assign(:selected_work_item, nil)
       |> load_feed()
 
@@ -121,22 +122,29 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
     socket =
       socket
       |> assign(:reload_timer, nil)
+      |> assign(:activity_stats, load_activity_stats())
       |> load_feed()
 
     {:noreply, socket}
   end
 
-  defp load_graph_stats do
-    try do
-      case PythonSDK.get_graph_stats() do
-        {:ok, stats} when is_map(stats) -> Map.merge(@default_graph_stats, stats)
-        _ -> @default_graph_stats
+  defp load_activity_stats do
+    queries = [
+      {"sessions", "SELECT COUNT(DISTINCT session_id) as v FROM agent_events"},
+      {"events", "SELECT COUNT(*) as v FROM agent_events"},
+      {"features", "SELECT COUNT(*) as v FROM features WHERE type = 'feature'"},
+      {"bugs", "SELECT COUNT(*) as v FROM features WHERE type = 'bug'"},
+      {"active", "SELECT COUNT(*) as v FROM features WHERE status = 'in-progress'"},
+      {"tools",
+       "SELECT COUNT(*) as v FROM agent_events WHERE event_type NOT IN ('UserQuery', 'session_start', 'session_end')"}
+    ]
+
+    Enum.reduce(queries, @default_activity_stats, fn {key, sql}, acc ->
+      case Repo.query_maps(sql) do
+        {:ok, [%{"v" => val} | _]} -> Map.put(acc, key, val || 0)
+        _ -> acc
       end
-    rescue
-      _ -> @default_graph_stats
-    catch
-      :exit, _ -> @default_graph_stats
-    end
+    end)
   end
 
   defp load_feed(socket) do
@@ -408,39 +416,36 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
 
     <div class="graph-stats-bar">
       <div class="stat-card">
-        <span class="stat-label">Work Items</span>
-        <span class="stat-value"><%= @graph_stats["nodes"] || 0 %></span>
+        <span class="stat-label">Sessions</span>
+        <span class="stat-value"><%= @activity_stats["sessions"] || 0 %></span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Relationships</span>
-        <span class="stat-value"><%= @graph_stats["edges"] || 0 %></span>
+        <span class="stat-label">Events</span>
+        <span class="stat-value"><%= @activity_stats["events"] || 0 %></span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Cycles</span>
-        <span class={"stat-value #{if (@graph_stats["cycles"] || 0) > 0, do: "stat-warning"}"}>
-          <%= @graph_stats["cycles"] || 0 %>
+        <span class="stat-label">Features</span>
+        <span class="stat-value"><%= @activity_stats["features"] || 0 %></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Bugs</span>
+        <span class="stat-value"><%= @activity_stats["bugs"] || 0 %></span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Active</span>
+        <span class={"stat-value #{if (@activity_stats["active"] || 0) > 0, do: "stat-active"}"}>
+          <%= @activity_stats["active"] || 0 %>
         </span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Components</span>
-        <span class="stat-value"><%= @graph_stats["components"] || 0 %></span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Critical Path</span>
-        <span class="stat-value"><%= length(@graph_stats["critical_path"] || []) %></span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Bottlenecks</span>
-        <span class={"stat-value #{if length(@graph_stats["bottlenecks"] || []) > 0, do: "stat-warning"}"}>
-          <%= length(@graph_stats["bottlenecks"] || []) %>
-        </span>
+        <span class="stat-label">Tools</span>
+        <span class="stat-value"><%= @activity_stats["tools"] || 0 %></span>
       </div>
     </div>
 
     <%= if @selected_work_item do %>
       <.work_item_detail_panel
         selected_work_item={@selected_work_item}
-        graph_stats={@graph_stats}
       />
     <% end %>
 
@@ -673,23 +678,6 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
   end
 
   defp work_item_detail_panel(assigns) do
-    critical_path = assigns.graph_stats["critical_path"] || []
-    bottlenecks = assigns.graph_stats["bottlenecks"] || []
-    work_item = assigns.selected_work_item
-
-    on_critical_path =
-      is_map(work_item) and work_item["id"] in critical_path
-
-    bottleneck =
-      Enum.find(bottlenecks, fn b ->
-        is_map(b) and b["id"] == work_item["id"]
-      end)
-
-    assigns =
-      assigns
-      |> assign(:on_critical_path, on_critical_path)
-      |> assign(:bottleneck, bottleneck)
-
     ~H"""
     <div
       style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); margin: 12px 24px; padding: 16px;"
@@ -714,18 +702,6 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
           <%= @selected_work_item["id"] %>
         </span>
       </div>
-
-      <%= if @on_critical_path do %>
-        <div style="margin-bottom: 6px;">
-          <span class="badge badge-critical-path">On Critical Path</span>
-        </div>
-      <% end %>
-
-      <%= if @bottleneck do %>
-        <div class="bottleneck-warning">
-          Blocks <%= @bottleneck["blocks_count"] || 0 %> downstream features
-        </div>
-      <% end %>
 
       <%= if is_list(@selected_work_item["steps"]) and length(@selected_work_item["steps"]) > 0 do %>
         <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">

@@ -8,6 +8,7 @@ defmodule HtmlgraphDashboardWeb.KanbanLive do
   use HtmlgraphDashboardWeb, :live_view
 
   alias HtmlgraphDashboard.PythonSDK
+  alias HtmlgraphDashboard.Repo
 
   @columns [
     %{key: "todo", label: "Todo", color: "#94a3b8"},
@@ -60,15 +61,46 @@ defmodule HtmlgraphDashboardWeb.KanbanLive do
   end
 
   defp load_kanban_data do
-    try do
-      case PythonSDK.get_kanban_data() do
-        {:ok, data} when is_list(data) -> data
-        _ -> []
-      end
-    rescue
-      _ -> []
-    catch
-      :exit, _ -> []
+    sql = """
+    SELECT
+      id,
+      title,
+      status,
+      type,
+      priority,
+      steps_total,
+      steps_completed
+    FROM features
+    WHERE type IN ('feature', 'bug', 'spike')
+    ORDER BY
+      CASE status
+        WHEN 'in-progress' THEN 0
+        WHEN 'todo' THEN 1
+        WHEN 'blocked' THEN 2
+        WHEN 'done' THEN 3
+        ELSE 4
+      END,
+      title ASC
+    """
+
+    case Repo.query_maps(sql) do
+      {:ok, rows} ->
+        Enum.map(rows, fn row ->
+          %{
+            "id" => row["id"],
+            "title" => row["title"],
+            "status" => row["status"] || "todo",
+            "type" => row["type"] || "feature",
+            "priority" => row["priority"] || "medium",
+            "steps_total" => row["steps_total"] || 0,
+            "steps_completed" => row["steps_completed"] || 0
+          }
+        end)
+
+      {:error, reason} ->
+        require Logger
+        Logger.error("KanbanLive: load_kanban_data failed: #{inspect(reason)}")
+        []
     end
   end
 
