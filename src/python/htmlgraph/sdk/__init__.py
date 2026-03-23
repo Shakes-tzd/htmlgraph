@@ -68,6 +68,37 @@ from htmlgraph.session_warning import check_and_show_warning
 from htmlgraph.system_prompts import SystemPromptManager
 from htmlgraph.track_builder import TrackCollection
 
+# Agent name normalization
+AGENT_ALIASES: dict[str, str] = {
+    "opus": "claude-opus",
+    "sonnet": "claude-sonnet",
+    "haiku": "claude-haiku",
+    "claude": "claude-code",
+    "claude-code": "claude-code",
+    "gemini": "gemini-cli",
+    "codex": "openai-codex",
+    "copilot": "github-copilot",
+    "phoenix": "phoenix-dashboard",
+    "phoenix-dashboard": "phoenix-dashboard",
+    "dashboard": "phoenix-dashboard",
+}
+
+
+def normalize_agent_name(agent: str) -> str:
+    """
+    Normalize agent name to canonical form.
+
+    Maps common aliases and shorthand to their canonical forms.
+    Unknown agents pass through unchanged.
+
+    Args:
+        agent: Agent name or alias (case-insensitive)
+
+    Returns:
+        Canonical agent name
+    """
+    return AGENT_ALIASES.get(agent.lower(), agent)
+
 
 class SDK(
     AnalyticsRegistry,
@@ -176,7 +207,7 @@ class SDK(
                 )
 
         self._directory = Path(directory)
-        self._agent_id = agent
+        self._agent_id = normalize_agent_name(agent)
         self._parent_session = parent_session or os.getenv("HTMLGRAPH_PARENT_SESSION")
 
         # Initialize SQLite database (Phase 2)
@@ -360,6 +391,9 @@ __all__ = [
     "find_project_root",
     "discover_htmlgraph_dir",
     "auto_discover_agent",
+    # Agent normalization
+    "normalize_agent_name",
+    "AGENT_ALIASES",
     # Constants and configuration
     "SDKSettings",
 ]
