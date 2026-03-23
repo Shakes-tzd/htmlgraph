@@ -70,12 +70,22 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
     try do
       case PythonSDK.get_dependency_graph() do
         {:ok, data} when is_map(data) -> Map.merge(@default_graph, data)
+        {:error, msg} ->
+          require Logger
+          Logger.error("GraphLive: dependency graph failed: #{msg}")
+          @default_graph
         _ -> @default_graph
       end
     rescue
-      _ -> @default_graph
+      e ->
+        require Logger
+        Logger.error("GraphLive: dependency graph exception: #{Exception.message(e)}")
+        @default_graph
     catch
-      :exit, _ -> @default_graph
+      :exit, reason ->
+        require Logger
+        Logger.error("GraphLive: dependency graph exit: #{inspect(reason)}")
+        @default_graph
     end
   end
 

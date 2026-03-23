@@ -333,8 +333,14 @@ if len(G.nodes()) > 0:
         keep = [n for n, _ in sorted_nodes[:100]]
         G = G.subgraph(keep).copy()
 
-critical_path_ids = set(gm.critical_path())
-bottleneck_ids = set(b['id'] for b in gm.bottlenecks(top_n=10))
+try:
+    critical_path_ids = set(gm.critical_path())
+except Exception:
+    critical_path_ids = set()
+try:
+    bottleneck_ids = set(b['id'] for b in gm.bottlenecks(top_n=10))
+except Exception:
+    bottleneck_ids = set()
 
 # Grid layout: arrange nodes in a readable grid instead of a single column
 nodes_list = list(G.nodes(data=True))
@@ -419,7 +425,10 @@ result
 
     {:reply, {:ok, decoded}, state}
   rescue
-    e -> {:reply, {:error, Exception.message(e)}, state}
+    e ->
+      require Logger
+      Logger.error("PythonSDK get_dependency_graph failed: #{Exception.message(e)}")
+      {:reply, {:error, Exception.message(e)}, state}
   end
 
   @impl true
