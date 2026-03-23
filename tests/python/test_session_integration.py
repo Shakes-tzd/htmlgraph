@@ -166,10 +166,6 @@ class TestSessionHookIntegration:
         assert "export HTMLGRAPH_INSTANCE_ID=" in content
         assert "export HTMLGRAPH_REPO_HASH=" in content
 
-    @pytest.mark.skipif(
-        os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true",
-        reason="Session registry requires local environment, flaky in CI"
-    )
     def test_finalize_session_archives(self, tmp_path, monkeypatch):
         """Test SessionEnd hook archives session."""
         monkeypatch.chdir(tmp_path)
@@ -220,10 +216,6 @@ class TestSessionHookIntegration:
         assert not registry.read_session(instance_id)  # No longer in active
         assert (registry.archive_dir / f"{instance_id}.json").exists()
 
-    @pytest.mark.skipif(
-        os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true",
-        reason="Session registry requires local environment, flaky in CI"
-    )
     def test_heartbeat_updates_timestamp(self, tmp_path, monkeypatch):
         """Test heartbeat mechanism updates activity timestamp."""
         monkeypatch.chdir(tmp_path)

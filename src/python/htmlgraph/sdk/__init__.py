@@ -236,8 +236,9 @@ class SDK(
         self._nx_graph_manager: GraphManager | None = None
 
         # Agent interface (for backward compatibility)
+        # Use normalized agent_id so it matches SDK._agent_id
         self._agent_interface = AgentInterface(
-            self._directory / "features", agent_id=agent
+            self._directory / "features", agent_id=self._agent_id
         )
 
         # Collection interfaces - core work item types

@@ -91,6 +91,9 @@ class SessionRegistry:
     ACTIVE_DIR = "active"
     ARCHIVE_DIR = "archive"
 
+    # Cached instance ID — computed once per process, stable across second boundaries
+    _cached_instance_id: str | None = None
+
     def __init__(self, registry_dir: Path | None = None):
         """
         Initialize registry with custom or default directory.
@@ -146,8 +149,9 @@ class SessionRegistry:
 
         Format: inst-{pid}-{hostname}-{timestamp}
 
-        The ID is stable for the lifetime of this process (same PID always
-        generates the same ID). Different processes always get different IDs.
+        The ID is cached on first call and remains stable for the lifetime of
+        the process, even if called across a second boundary. Different
+        processes always get different IDs.
 
         Returns:
             Unique instance identifier string.
@@ -158,12 +162,14 @@ class SessionRegistry:
             >>> instance_id
             'inst-12345-hostname-1234567890'
         """
+        if SessionRegistry._cached_instance_id is not None:
+            return SessionRegistry._cached_instance_id
+
         pid = os.getpid()
         hostname = socket.gethostname()
-        # Use integer seconds for stability - always same for same process
         start_time = int(time.time())
-
-        return f"inst-{pid}-{hostname}-{start_time}"
+        SessionRegistry._cached_instance_id = f"inst-{pid}-{hostname}-{start_time}"
+        return SessionRegistry._cached_instance_id
 
     def register_session(
         self,
