@@ -352,8 +352,8 @@ nodes_list.sort(key=lambda x: status_order.get(x[1].get('status', 'todo'), 1))
 
 margin_x = 80
 margin_y = 80
-col_width = 280
-row_height = 100
+col_width = 350
+row_height = 120
 
 if n > 0:
     cols = max(3, int(math.ceil(math.sqrt(n))))

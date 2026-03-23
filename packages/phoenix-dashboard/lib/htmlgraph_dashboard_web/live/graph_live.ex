@@ -103,9 +103,9 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
 
   defp node_radius(node) do
     cond do
-      node["is_bottleneck"] -> 20
-      node["is_critical"] -> 16
-      true -> 12
+      node["is_bottleneck"] -> 22
+      node["is_critical"] -> 18
+      true -> 14
     end
   end
 
@@ -131,8 +131,8 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
   defp truncate_label(nil), do: ""
 
   defp truncate_label(text) when is_binary(text) do
-    if String.length(text) > 22 do
-      String.slice(text, 0, 22) <> "..."
+    if String.length(text) > 25 do
+      String.slice(text, 0, 25) <> "..."
     else
       text
     end
@@ -221,21 +221,21 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
-                <marker id="arrowhead" markerWidth="8" markerHeight="6"
-                        refX="8" refY="3" orient="auto" fill="#475569">
-                  <polygon points="0 0, 8 3, 0 6" />
+                <marker id="arrowhead" markerWidth="10" markerHeight="7"
+                        refX="10" refY="3.5" orient="auto" fill="#94a3b8">
+                  <polygon points="0 0, 10 3.5, 0 7" />
                 </marker>
-                <marker id="arrowhead-blocks" markerWidth="8" markerHeight="6"
-                        refX="8" refY="3" orient="auto" fill="#f87171">
-                  <polygon points="0 0, 8 3, 0 6" />
+                <marker id="arrowhead-blocks" markerWidth="10" markerHeight="7"
+                        refX="10" refY="3.5" orient="auto" fill="#f87171">
+                  <polygon points="0 0, 10 3.5, 0 7" />
                 </marker>
-                <marker id="arrowhead-relates" markerWidth="8" markerHeight="6"
-                        refX="8" refY="3" orient="auto" fill="#60a5fa">
-                  <polygon points="0 0, 8 3, 0 6" />
+                <marker id="arrowhead-relates" markerWidth="10" markerHeight="7"
+                        refX="10" refY="3.5" orient="auto" fill="#60a5fa">
+                  <polygon points="0 0, 10 3.5, 0 7" />
                 </marker>
-                <marker id="arrowhead-spawned" markerWidth="8" markerHeight="6"
-                        refX="8" refY="3" orient="auto" fill="#a78bfa">
-                  <polygon points="0 0, 8 3, 0 6" />
+                <marker id="arrowhead-spawned" markerWidth="10" markerHeight="7"
+                        refX="10" refY="3.5" orient="auto" fill="#a78bfa">
+                  <polygon points="0 0, 10 3.5, 0 7" />
                 </marker>
                 <filter id="glow-critical">
                   <feGaussianBlur stdDeviation="3" result="blur" />
@@ -253,9 +253,9 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
                   y1={edge["y1"]}
                   x2={edge["x2"]}
                   y2={edge["y2"]}
-                  stroke="#4b5563"
-                  stroke-width="1.5"
-                  opacity="0.5"
+                  stroke={edge_stroke_color(edge)}
+                  stroke-width="2"
+                  opacity="0.65"
                   marker-end={edge_marker(edge)}
                 />
               <% end %>
@@ -272,7 +272,7 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
                     <circle
                       cx={node["x"]}
                       cy={node["y"]}
-                      r={node_radius(node) + 5}
+                      r={node_radius(node) + 6}
                       fill="none"
                       stroke="#fbbf24"
                       stroke-width="2"
@@ -285,27 +285,41 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
                     cy={node["y"]}
                     r={node_radius(node)}
                     fill={node["color"] || node_status_color(node)}
-                    stroke={if node["is_bottleneck"], do: "#f87171", else: "rgba(255,255,255,0.2)"}
-                    stroke-width={if node["is_bottleneck"], do: "2.5", else: "1"}
+                    stroke={if node["is_bottleneck"], do: "#f87171", else: "rgba(255,255,255,0.3)"}
+                    stroke-width={if node["is_bottleneck"], do: "3", else: "1.5"}
                   />
                   <!-- Type initial inside circle -->
                   <text
                     x={node["x"]}
-                    y={node["y"] + 4}
+                    y={node["y"] + 5}
                     text-anchor="middle"
                     fill="white"
-                    font-size="9"
+                    font-size="11"
                     font-weight="bold"
                     style="pointer-events: none;"
                   >
                     <%= String.upcase(String.first(type_label(node["type"]) || "f")) %>
                   </text>
-                  <!-- Label to the right of the node -->
+                  <!-- Label to the right of the node — text shadow via stroke trick -->
                   <text
-                    x={node["x"] + node_radius(node) + 6}
-                    y={node["y"] + 4}
-                    fill="#d1d5db"
-                    font-size="11"
+                    x={node["x"] + node_radius(node) + 8}
+                    y={node["y"] + 5}
+                    fill="#1a1a2e"
+                    font-size="13"
+                    font-weight="600"
+                    stroke="#1a1a2e"
+                    stroke-width="4"
+                    paint-order="stroke"
+                    style="pointer-events: none;"
+                  >
+                    <%= truncate_label(node["title"]) %>
+                  </text>
+                  <text
+                    x={node["x"] + node_radius(node) + 8}
+                    y={node["y"] + 5}
+                    fill="#e2e8f0"
+                    font-size="13"
+                    font-weight="600"
                     style="pointer-events: none;"
                   >
                     <%= truncate_label(node["title"]) %>
@@ -382,6 +396,15 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
       "relates_to" -> "url(#arrowhead-relates)"
       "spawned_from" -> "url(#arrowhead-spawned)"
       _ -> "url(#arrowhead)"
+    end
+  end
+
+  defp edge_stroke_color(edge) do
+    case edge["relationship"] do
+      "blocks" -> "#f87171"
+      "relates_to" -> "#60a5fa"
+      "spawned_from" -> "#a78bfa"
+      _ -> "#94a3b8"
     end
   end
 end
