@@ -23,6 +23,7 @@ Thin wrapper around SDK subagent_start module. All business logic lives in:
 import json
 import os
 import sys
+from pathlib import Path
 
 # Bootstrap Python path and setup
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,6 +31,12 @@ from bootstrap import bootstrap_pythonpath, is_tracking_disabled, resolve_projec
 
 # Skip tracking if disabled
 if is_tracking_disabled():
+    print(json.dumps({"continue": True}))
+    sys.exit(0)
+
+# Early exit if not an HtmlGraph project
+_project_dir_check = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+if not Path(_project_dir_check, ".htmlgraph").is_dir():
     print(json.dumps({"continue": True}))
     sys.exit(0)
 

@@ -15,6 +15,7 @@ Uses htmlgraph Python API directly for all storage operations.
 import json
 import os
 import sys
+from pathlib import Path
 
 # Bootstrap Python path and setup
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,10 +25,14 @@ if is_tracking_disabled():
     print(json.dumps({}))
     sys.exit(0)
 
+# Early exit if not an HtmlGraph project
+_project_dir_check = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+if not Path(_project_dir_check, ".htmlgraph").is_dir():
+    print(json.dumps({"continue": True}))
+    sys.exit(0)
+
 project_dir_for_import = resolve_project_dir()
 bootstrap_pythonpath(project_dir_for_import)
-
-from pathlib import Path
 
 try:
     from htmlgraph.hooks.version_check import check_hook_version

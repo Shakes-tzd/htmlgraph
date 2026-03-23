@@ -10,8 +10,10 @@ Exit code 0 = allow the tool call.
 """
 
 import json
+import os
 import re
 import sys
+from pathlib import Path
 
 try:
     from htmlgraph.hooks.version_check import check_hook_version
@@ -19,6 +21,11 @@ try:
     check_hook_version("0.34.14")
 except Exception:
     pass
+
+# Early exit if not an HtmlGraph project
+_project_dir_check = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+if not Path(_project_dir_check, ".htmlgraph").is_dir():
+    sys.exit(0)
 
 # --- Constants ---
 

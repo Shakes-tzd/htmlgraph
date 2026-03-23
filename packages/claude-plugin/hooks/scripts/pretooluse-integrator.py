@@ -17,10 +17,19 @@ Performance: ~40-50% faster than previous subprocess-based approach.
 
 import os
 import sys
+from pathlib import Path
 
 # Bootstrap Python path and setup
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from bootstrap import bootstrap_pythonpath, resolve_project_dir
+
+# Early exit if not an HtmlGraph project
+_project_dir_check = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+if not Path(_project_dir_check, ".htmlgraph").is_dir():
+    import json
+
+    print(json.dumps({}))
+    sys.exit(0)
 
 project_dir_for_import = resolve_project_dir()
 bootstrap_pythonpath(project_dir_for_import)

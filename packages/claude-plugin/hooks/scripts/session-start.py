@@ -42,6 +42,12 @@ if os.environ.get("HTMLGRAPH_DISABLE_TRACKING") == "1":
     print(json.dumps({}))
     sys.exit(0)
 
+# Early exit if not an HtmlGraph project
+_project_dir_check = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+if not Path(_project_dir_check, ".htmlgraph").is_dir():
+    print(json.dumps({}))
+    sys.exit(0)
+
 
 try:
     from htmlgraph import generate_id
