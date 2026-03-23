@@ -800,10 +800,56 @@ else
 fi
 
 # ============================================================================
-# STEP 9: Create GitHub Release
+# STEP 9: Build and Push Docker Image
+# ============================================================================
+if [ "$SKIP_BUILD" != true ]; then
+    log_section "Step 9: Build and Push Docker Image"
+
+    if command -v docker &> /dev/null; then
+        log_info "Building Docker image for Phoenix dashboard..."
+
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY-RUN] Would build: ghcr.io/shakestzd/htmlgraph-dashboard:$VERSION"
+        else
+            # Build the Docker image
+            if docker build \
+                -t ghcr.io/shakestzd/htmlgraph-dashboard:$VERSION \
+                -t ghcr.io/shakestzd/htmlgraph-dashboard:latest \
+                packages/phoenix-dashboard/ 2>&1; then
+                log_success "Docker image built: ghcr.io/shakestzd/htmlgraph-dashboard:$VERSION"
+
+                # Check if logged into GHCR
+                if docker info 2>&1 | grep -q "Username:"; then
+                    log_info "Pushing Docker image to GHCR..."
+                    if docker push ghcr.io/shakestzd/htmlgraph-dashboard:$VERSION && \
+                       docker push ghcr.io/shakestzd/htmlgraph-dashboard:latest; then
+                        log_success "Docker image pushed to GHCR"
+                    else
+                        log_warning "Docker push failed - you may need to: docker login ghcr.io"
+                    fi
+                else
+                    log_warning "Not authenticated to GHCR - image built but not pushed"
+                    log_info "To push manually, authenticate and run:"
+                    log_info "  docker login ghcr.io"
+                    log_info "  docker push ghcr.io/shakestzd/htmlgraph-dashboard:$VERSION"
+                    log_info "  docker push ghcr.io/shakestzd/htmlgraph-dashboard:latest"
+                fi
+            else
+                log_warning "Docker build failed (non-blocking - continuing with other steps)"
+            fi
+        fi
+    else
+        log_info "⏭️  Docker not installed, skipping image build"
+    fi
+else
+    log_info "⏭️  Skipping Docker Build (--build-only or --docs-only)"
+fi
+
+# ============================================================================
+# STEP 10: Create GitHub Release
 # ============================================================================
 if [ "$SKIP_GIT" != true ] && [ "$SKIP_BUILD" != true ]; then
-    log_section "Step 8: Creating GitHub Release"
+    log_section "Step 10: Creating GitHub Release"
 
     # Check if gh CLI is available
     if ! command -v gh &> /dev/null; then
@@ -856,17 +902,17 @@ else
 fi
 
 # ============================================================================
-# STEP 9: Verify CI Pipeline
+# STEP 11: Verify CI Pipeline
 # ============================================================================
 CI_STATUS="skipped"
 if [ "$SKIP_GIT" != true ] && [ "$BUILD_ONLY" != true ] && [ "$DRY_RUN" != true ]; then
     if ! command -v gh &> /dev/null; then
-        log_section "Step 9: Verifying CI Pipeline"
+        log_section "Step 11: Verifying CI Pipeline"
         log_warning "GitHub CLI (gh) not found — skipping CI verification"
         log_info "Install with: brew install gh"
         CI_STATUS="skipped"
     else
-        log_section "Step 9: Verifying CI Pipeline"
+        log_section "Step 11: Verifying CI Pipeline"
 
         log_info "Waiting for CI to start..."
         sleep 10
