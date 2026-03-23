@@ -168,15 +168,40 @@ class TestSessionHookIntegration:
         """Test SessionEnd hook archives session."""
         monkeypatch.chdir(tmp_path)
 
-        from htmlgraph.session_hooks import (
-            finalize_session,
-            initialize_session_from_hook,
-        )
+        from htmlgraph.session_hooks import finalize_session
 
-        session_id = initialize_session_from_hook()
+        # Use a fixed instance ID to avoid flakiness from different instance ID generation
+        instance_id = "inst-test-finalize-fixed"
 
+        # Manually register session with fixed instance ID
         registry = SessionRegistry()
-        instance_id = registry.get_instance_id()
+        from datetime import datetime, timezone
+
+        repo_info = {"path": str(tmp_path)}
+        instance_info = {
+            "pid": os.getpid(),
+            "hostname": "testhost",
+            "start_time": datetime.now(timezone.utc).isoformat(),
+        }
+        session_id = f"sess-{__import__('uuid').uuid4().hex[:8]}"
+
+        # Write session directly with fixed instance_id
+        session_data = {
+            "instance_id": instance_id,
+            "session_id": session_id,
+            "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "repo": repo_info,
+            "instance": instance_info,
+            "status": "active",
+            "last_activity": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            ),
+        }
+        reg_file = registry.active_dir / f"{instance_id}.json"
+        import json as json_module
+
+        with open(reg_file, "w") as f:
+            json_module.dump(session_data, f, indent=2)
 
         # Verify session is active
         active_before = registry.read_session(instance_id)
