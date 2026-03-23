@@ -297,19 +297,40 @@ gm = sdk.graph
 # Get graph data
 G = gm.G
 
-# Filter to non-done items for readable graph
-active_nodes = [n for n, d in G.nodes(data=True) if d.get('status') != 'done']
-G = G.subgraph(active_nodes).copy()
+# If graph is empty, skip all processing
+if len(G.nodes()) > 0:
+    # Separate connected nodes (have edges) from isolated nodes
+    connected = set()
+    for u, v in G.edges():
+        connected.add(u)
+        connected.add(v)
 
-# Cap at 50 nodes, prioritising in-progress > todo > blocked
-if len(G.nodes()) > 50:
-    status_priority = {'in-progress': 0, 'todo': 1, 'blocked': 2}
-    sorted_nodes = sorted(
-        G.nodes(data=True),
-        key=lambda x: status_priority.get(x[1].get('status', 'todo'), 3),
-    )
-    keep = [n for n, _ in sorted_nodes[:50]]
-    G = G.subgraph(keep).copy()
+    isolated = [n for n in G.nodes() if n not in connected]
+
+    # Always include ALL connected nodes (they form the actual dependency graph)
+    # For isolated nodes, include only non-done ones (up to 30) — done isolates are clutter
+    isolated_active = [n for n in isolated if G.nodes[n].get('status') != 'done'][:30]
+
+    keep = list(connected) + isolated_active
+    if keep:
+        G = G.subgraph(keep).copy()
+    else:
+        # All nodes are isolated and done — show up to 30 non-done anyway
+        non_done = [n for n, d in G.nodes(data=True) if d.get('status') != 'done'][:30]
+        G = G.subgraph(non_done).copy() if non_done else G.subgraph([]).copy()
+
+    # Cap at 100 nodes total, prioritising connected > in-progress > todo > blocked
+    if len(G.nodes()) > 100:
+        status_priority = {'in-progress': 0, 'todo': 1, 'blocked': 2}
+        sorted_nodes = sorted(
+            G.nodes(data=True),
+            key=lambda x: (
+                0 if x[0] in connected else 1,
+                status_priority.get(x[1].get('status', 'todo'), 3),
+            ),
+        )
+        keep = [n for n, _ in sorted_nodes[:100]]
+        G = G.subgraph(keep).copy()
 
 critical_path_ids = set(gm.critical_path())
 bottleneck_ids = set(b['id'] for b in gm.bottlenecks(top_n=10))
