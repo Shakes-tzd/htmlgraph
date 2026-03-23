@@ -69,7 +69,7 @@ class TestAgentBadgeRendering:
         feat2 = sdk2.features.create("Codex Feature").set_track(track.id).save()
 
         assert feat1.agent_assigned == "orchestrator"
-        assert feat2.agent_assigned == "codex"
+        assert feat2.agent_assigned == "openai-codex"
 
 
 class TestAgentWorkTimeline:
@@ -307,7 +307,7 @@ class TestSDKAgentQuerying:
         # Retrieve and verify
         retrieved = sdk.features.get(feature.id)
         assert retrieved is not None
-        assert retrieved.agent_assigned == "claude"
+        assert retrieved.agent_assigned == "claude-code"
 
     def test_query_features_by_agent(self, tmp_htmlgraph: Path, isolated_db):
         """Should be able to query features created by specific agent."""
