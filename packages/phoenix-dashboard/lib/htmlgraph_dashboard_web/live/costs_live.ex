@@ -54,6 +54,25 @@ defmodule HtmlgraphDashboardWeb.CostsLive do
   end
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    case params["project"] do
+      nil ->
+        {:noreply, socket}
+
+      project_id ->
+        project = Enum.find(socket.assigns.projects, socket.assigns.selected_project, &(&1.id == project_id))
+        features = load_cost_data(project && project.id)
+        totals = compute_totals(features)
+
+        {:noreply,
+         socket
+         |> assign(:selected_project, project)
+         |> assign(:features, features)
+         |> assign(:totals, totals)}
+    end
+  end
+
+  @impl true
   def handle_event("refresh_costs", _params, socket) do
     project_id = socket.assigns[:selected_project] && socket.assigns.selected_project.id
     features = load_cost_data(project_id)
@@ -78,7 +97,7 @@ defmodule HtmlgraphDashboardWeb.CostsLive do
       |> assign(:features, features)
       |> assign(:totals, totals)
 
-    {:noreply, socket}
+    {:noreply, push_patch(socket, to: "/costs?project=#{project_id}")}
   end
 
   defp load_cost_data(project_id \\ nil) do

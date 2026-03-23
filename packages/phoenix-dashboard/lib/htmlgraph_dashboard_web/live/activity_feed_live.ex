@@ -57,6 +57,21 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
   def handle_params(params, _uri, socket) do
     session_id = params["session_id"]
 
+    # Re-resolve selected_project from URL param on every navigation
+    socket =
+      case params["project"] do
+        nil ->
+          socket
+
+        project_id ->
+          project = Enum.find(socket.assigns.projects, socket.assigns.selected_project, &(&1.id == project_id))
+          pid = project && project.id
+
+          socket
+          |> assign(:selected_project, project)
+          |> assign(:activity_stats, load_activity_stats(pid))
+      end
+
     socket =
       socket
       |> assign(:session_filter, session_id)
@@ -123,7 +138,7 @@ defmodule HtmlgraphDashboardWeb.ActivityFeedLive do
       |> assign(:activity_stats, load_activity_stats(project_id_val))
       |> load_feed()
 
-    {:noreply, socket}
+    {:noreply, push_patch(socket, to: "/?project=#{project_id_val}")}
   end
 
   @impl true

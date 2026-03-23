@@ -39,6 +39,24 @@ defmodule HtmlgraphDashboardWeb.KanbanLive do
   end
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    case params["project"] do
+      nil ->
+        {:noreply, socket}
+
+      project_id ->
+        project = Enum.find(socket.assigns.projects, socket.assigns.selected_project, &(&1.id == project_id))
+        items = load_kanban_data(project && project.id)
+
+        {:noreply,
+         socket
+         |> assign(:selected_project, project)
+         |> assign(:items, items)
+         |> assign(:selected_card, nil)}
+    end
+  end
+
+  @impl true
   def handle_event("select_card", %{"id" => card_id}, socket) do
     card = Enum.find(socket.assigns.items, fn i -> i["id"] == card_id end)
 
@@ -78,7 +96,7 @@ defmodule HtmlgraphDashboardWeb.KanbanLive do
       |> assign(:items, items)
       |> assign(:selected_card, nil)
 
-    {:noreply, socket}
+    {:noreply, push_patch(socket, to: "/kanban?project=#{project_id}")}
   end
 
   defp load_kanban_data(project_id \\ nil) do

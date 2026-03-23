@@ -21,15 +21,16 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
 
   @impl true
   def mount(params, _session, socket) do
-    graph_data = load_dependency_graph()
+    projects = ProjectRegistry.list_projects()
+    selected_project_id = params["project"] || (List.first(projects, %{}) |> Map.get(:id))
+    selected_project = Enum.find(projects, List.first(projects), &(&1.id == selected_project_id))
+
+    graph_opts = project_graph_opts(selected_project)
+    graph_data = load_dependency_graph(graph_opts)
 
     if connected?(socket) do
       :timer.send_interval(30_000, self(), :refresh_graph)
     end
-
-    projects = ProjectRegistry.list_projects()
-    selected_project_id = params["project"] || (List.first(projects, %{}) |> Map.get(:id))
-    selected_project = Enum.find(projects, List.first(projects), &(&1.id == selected_project_id))
 
     socket =
       socket
@@ -43,8 +44,27 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
   end
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    case params["project"] do
+      nil ->
+        {:noreply, socket}
+
+      project_id ->
+        project = Enum.find(socket.assigns.projects, socket.assigns.selected_project, &(&1.id == project_id))
+        graph_data = load_dependency_graph(project_graph_opts(project))
+
+        {:noreply,
+         socket
+         |> assign(:selected_project, project)
+         |> assign(:graph_data, graph_data)
+         |> assign(:selected_node, nil)}
+    end
+  end
+
+  @impl true
   def handle_info(:refresh_graph, socket) do
-    graph_data = load_dependency_graph()
+    project = socket.assigns[:selected_project]
+    graph_data = load_dependency_graph(project_graph_opts(project))
     {:noreply, assign(socket, :graph_data, graph_data)}
   end
 
@@ -63,7 +83,8 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
   end
 
   def handle_event("refresh_graph", _params, socket) do
-    graph_data = load_dependency_graph()
+    project = socket.assigns[:selected_project]
+    graph_data = load_dependency_graph(project_graph_opts(project))
 
     socket =
       socket
@@ -75,7 +96,7 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
 
   def handle_event("select_project", %{"project_id" => project_id}, socket) do
     project = Enum.find(socket.assigns.projects, &(&1.id == project_id))
-    graph_data = load_dependency_graph()
+    graph_data = load_dependency_graph(project_graph_opts(project))
 
     socket =
       socket
@@ -83,12 +104,25 @@ defmodule HtmlgraphDashboardWeb.GraphLive do
       |> assign(:graph_data, graph_data)
       |> assign(:selected_node, nil)
 
-    {:noreply, socket}
+    {:noreply, push_patch(socket, to: "/graph?project=#{project_id}")}
   end
 
-  defp load_dependency_graph do
+  defp project_graph_opts(nil), do: %{}
+
+  defp project_graph_opts(project) do
+    case HtmlgraphDashboard.ProjectRegistry.get_project(project.id) do
+      %{db_path: db_path} ->
+        graph_dir = db_path |> Path.dirname() |> Path.dirname()
+        %{db_path: db_path, graph_dir: graph_dir}
+
+      nil ->
+        %{}
+    end
+  end
+
+  defp load_dependency_graph(opts \\ %{}) do
     try do
-      case PythonSDK.get_dependency_graph() do
+      case PythonSDK.get_dependency_graph(opts) do
         {:ok, data} when is_map(data) -> Map.merge(@default_graph, data)
         {:error, msg} ->
           require Logger

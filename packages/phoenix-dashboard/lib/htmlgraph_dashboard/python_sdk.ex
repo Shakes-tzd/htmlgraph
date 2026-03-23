@@ -31,13 +31,13 @@ defmodule HtmlgraphDashboard.PythonSDK do
   end
 
   @doc "Get graph stats: nodes, edges, cycles, critical path"
-  def get_graph_stats do
-    GenServer.call(__MODULE__, :get_graph_stats, 30_000)
+  def get_graph_stats(opts \\ %{}) do
+    GenServer.call(__MODULE__, {:get_graph_stats, opts}, 30_000)
   end
 
   @doc "Get full dependency graph with nodes and edges for visualization"
-  def get_dependency_graph do
-    GenServer.call(__MODULE__, :get_dependency_graph, 30_000)
+  def get_dependency_graph(opts \\ %{}) do
+    GenServer.call(__MODULE__, {:get_dependency_graph, opts}, 30_000)
   end
 
   @doc "Get kanban board data: features grouped by status"
@@ -202,7 +202,9 @@ result
   end
 
   @impl true
-  def handle_call(:get_graph_stats, _from, state) do
+  def handle_call({:get_graph_stats, opts}, _from, state) do
+    graph_dir = Map.get(opts, :graph_dir, state.graph_dir)
+
     code = """
 import json
 import os
@@ -224,7 +226,7 @@ result = json.dumps(stats, default=str)
 result
 """
 
-    {result, _} = Pythonx.eval(code, %{"graph_dir" => state.graph_dir})
+    {result, _} = Pythonx.eval(code, %{"graph_dir" => graph_dir})
     decoded = result |> Pythonx.decode() |> Jason.decode!()
 
     {:reply, {:ok, decoded}, state}
@@ -283,7 +285,8 @@ result
   end
 
   @impl true
-  def handle_call(:get_dependency_graph, _from, state) do
+  def handle_call({:get_dependency_graph, opts}, _from, state) do
+    graph_dir = Map.get(opts, :graph_dir, state.graph_dir)
     code = """
 import json
 import math
@@ -420,7 +423,7 @@ result = json.dumps({
 result
 """
 
-    {result, _} = Pythonx.eval(code, %{"graph_dir" => state.graph_dir})
+    {result, _} = Pythonx.eval(code, %{"graph_dir" => graph_dir})
     decoded = result |> Pythonx.decode() |> Jason.decode!()
 
     {:reply, {:ok, decoded}, state}
