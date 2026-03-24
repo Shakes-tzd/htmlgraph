@@ -92,13 +92,14 @@ For more help: https://github.com/shakestzd/htmlgraph
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Import command registration functions
-    from htmlgraph.cli import analytics, core, plan, work
+    from htmlgraph.cli import analytics, core, plan, skill_scout, work
 
     # Register commands from each module
     core.register_commands(subparsers)
     work.register_commands(subparsers)
     analytics.register_commands(subparsers)
     plan.register_commands(subparsers)
+    skill_scout.register_commands(subparsers)
 
     return parser
 
