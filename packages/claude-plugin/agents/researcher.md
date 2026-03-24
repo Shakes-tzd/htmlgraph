@@ -19,6 +19,23 @@ sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
 
 Research documentation and resources BEFORE implementing solutions.
 
+## Research Principles (MANDATORY)
+
+### Check Before Building
+- **Search for existing libraries first** — Check PyPI, npm, hex.pm, and GitHub before suggesting a custom implementation.
+- **Check project dependencies** — Review `pyproject.toml`, `mix.exs`, or `package.json` before recommending new ones.
+- **Prefer well-maintained packages** — A popular, actively maintained library beats a hand-rolled solution.
+
+### Check Before Creating
+- **Search for existing utilities** — Check `src/python/htmlgraph/utils/` and similar paths before suggesting new helpers.
+- **Review existing patterns** — Read the codebase to understand conventions before recommending approaches that diverge.
+- **Prefer stdlib** — `textwrap`, `functools`, `itertools`, `pathlib` cover many common needs.
+
+### Surface Size and Complexity Signals
+- Note module line counts when reviewing code — flag anything >500 lines as a refactoring candidate.
+- Identify duplicated logic across modules and recommend consolidation.
+- Reference `docs/tracks/MODULE_REFACTORING_TRACK.md` for existing refactoring plans.
+
 ## Purpose
 
 Enforce HtmlGraph's research-first philosophy by systematically investigating problems before trial-and-error attempts.

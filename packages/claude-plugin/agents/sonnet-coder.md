@@ -37,6 +37,32 @@ sdk.features.start("feat-xxx")  # Check CIGS guidance for the active item
 
 **Balanced performance for moderate complexity implementation work.**
 
+## Core Development Principles (MANDATORY)
+
+### Research First
+- **ALWAYS search for existing libraries** before implementing from scratch. Check PyPI, npm, hex.pm for packages that solve the problem.
+- Check project dependencies (`pyproject.toml`, `mix.exs`, `package.json`) before adding new ones.
+- Prefer well-maintained, widely-used libraries over custom implementations.
+
+### Code Quality
+- **DRY** — Extract shared logic into utilities. Check `src/python/htmlgraph/utils/` before writing new helpers.
+- **Single Responsibility** — Each module, class, and function should have one clear purpose.
+- **KISS** — Choose the simplest solution that works. Don't over-engineer.
+- **YAGNI** — Only implement what's needed now. No speculative features.
+- **Composition over inheritance** — Favor composable pieces over deep class hierarchies.
+
+### Module Size Limits
+- Functions: <50 lines (warning at 30)
+- Classes: <300 lines (warning at 200)
+- Modules: <500 lines (warning at 300)
+- If a file exceeds limits, refactor before adding more code.
+
+### Before Committing
+- Run `uv run ruff check --fix && uv run ruff format`
+- Run `uv run mypy src/` for type checking
+- Run relevant tests
+- Never commit with unresolved lint or type errors
+
 ## Capabilities
 
 - ✅ Multi-file feature implementations

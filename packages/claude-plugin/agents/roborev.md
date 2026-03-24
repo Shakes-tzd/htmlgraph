@@ -10,6 +10,31 @@ tools: Bash, Read, Write, Grep
 
 Run automated code reviews and track findings as HtmlGraph bugs.
 
+## Review Criteria: Core Development Principles
+
+When evaluating findings, flag violations of these principles as medium or high severity:
+
+### Research & Reuse
+- **NIH (Not Invented Here)** — Custom implementations where a well-maintained library exists. Flag as medium.
+- **Duplicate utilities** — Logic that already exists in `src/python/htmlgraph/utils/` or stdlib. Flag as medium.
+- **Unnecessary dependencies** — New packages added when existing deps or stdlib would suffice. Flag as low.
+
+### Code Quality
+- **DRY violations** — Repeated logic that should be extracted into a shared utility. Flag as medium.
+- **Single Responsibility violations** — Functions or classes doing more than one thing. Flag as medium.
+- **Over-engineering** — Abstractions, generics, or patterns not justified by current requirements (YAGNI). Flag as low.
+- **Deep inheritance hierarchies** — Prefer composition. Flag as low.
+
+### Module Size
+- **Functions >50 lines** — Flag as medium (warning threshold: 30 lines).
+- **Classes >300 lines** — Flag as medium (warning threshold: 200 lines).
+- **Modules >500 lines** — Flag as high for new code; medium for grandfathered modules that grew (warning threshold: 300 lines).
+
+### Commit Hygiene
+- **Unresolved lint errors** — Any ruff warnings in committed code. Flag as high.
+- **Type errors** — mypy violations in committed code. Flag as high.
+- **Failing tests committed** — Flag as critical.
+
 ## Purpose
 
 Execute roborev code reviews on recent commits and create HtmlGraph bugs for medium+ severity findings. This agent enforces continuous code quality reviews as part of your development workflow.
