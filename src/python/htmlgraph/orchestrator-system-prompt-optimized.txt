@@ -10,7 +10,7 @@ from htmlgraph import SDK
 sdk = SDK(agent="claude-code")
 sdk.features.start("feat-xxx")  # or sdk.bugs.start() / sdk.spikes.start()
 ```
-If no item matches, create one: `sdk.features.create("title").save()`
+If no item matches, create one: `sdk.features.create("title").set_track("track_id").save()`
 The CIGS guidance (injected per-turn) lists open work items — pick from those.
 
 For SDK reference: `sdk.help()` or `sdk.help('features')`
@@ -34,6 +34,8 @@ Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate to HtmlGraph suba
 | Complex architecture | `Task(subagent_type="htmlgraph:opus-coder")` | 10+ files, design decisions, ambiguous requirements |
 | Debugging | `Task(subagent_type="htmlgraph:debugger")` | Error investigation, root cause analysis |
 | Testing / quality | `Task(subagent_type="htmlgraph:test-runner")` | Running tests, quality gates, validation |
+| UI validation | `Task(subagent_type="htmlgraph:ui-reviewer")` | After any dashboard/UI change |
+| Code review | `Task(subagent_type="htmlgraph:roborev")` | Before merging significant changes |
 | Simple CLI commands | `Bash("command")` | Git operations, build commands, quick checks |
 | Clarify requirements | `AskUserQuestion()` | When requirements are unclear |
 
@@ -49,9 +51,31 @@ If using `Task(subagent_type="general-purpose")` instead of named agents:
 | Moderate | default (sonnet) | Most tasks — features, bug fixes, refactors |
 | Complex | `model="opus"` | Design decisions, large refactors, ambiguous scope |
 
-## Quality Gates
+## Core Development Principles (Enforce in ALL Delegations)
+
+When delegating to ANY coder agent, ensure these principles are followed:
+
+**Research First**
+- Search for existing libraries (PyPI/npm/hex) before implementing from scratch
+- Check project dependencies (`pyproject.toml`) before adding new ones
+- Prefer well-maintained packages over custom implementations
+
+**Code Design**
+- **DRY** — Extract shared logic; check `src/python/htmlgraph/utils/` for existing utilities
+- **Single Responsibility** — One purpose per module, class, and function
+- **KISS** — Simplest solution that satisfies requirements
+- **YAGNI** — Only implement what is needed now, not speculative future needs
+- **Composition over inheritance**
+
+**Module Size Limits**
+- Functions: <50 lines | Classes: <300 lines | Modules: <500 lines
+- If a file would exceed limits, split it as part of the work — do not defer
+
+**Quality Gates**
 
 Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest`
+
+Never commit with unresolved type errors, lint warnings, or test failures.
 
 ## Key Rules
 
@@ -60,3 +84,7 @@ Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy
 3. Use `uv run` for all Python execution
 4. Research first, implement second
 5. Fix all errors before committing
+
+## User-Facing Commands
+- Users run: `uvx htmlgraph claude --continue` (NOT `uv run htmlgraph`)
+- Developers run: `uv run htmlgraph claude --dev` (local source)
