@@ -179,6 +179,28 @@ def test_record_installation_not_written_on_failure(tmp_path: Path) -> None:
     assert not history_file.exists()
 
 
+def test_record_installation_handles_corrupt_json_dict(tmp_path: Path) -> None:
+    """If installed-plugins.json contains a dict instead of list, recover gracefully."""
+    history_file = tmp_path / ".htmlgraph" / "installed-plugins.json"
+    history_file.parent.mkdir(parents=True)
+    # Write a dict (corrupt format) instead of a list
+    history_file.write_text(json.dumps({"error": "corrupted"}))
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        result = install_plugin("recovery-plugin", project_root=tmp_path)
+
+    assert result.success is True
+    # History should be reset to a list with the new plugin
+    history = json.loads(history_file.read_text())
+    assert isinstance(history, list)
+    assert len(history) == 1
+    assert history[0]["plugin_name"] == "recovery-plugin"
+
+
 # ============================================================================
 # get_install_history
 # ============================================================================
@@ -241,3 +263,13 @@ def test_verify_plugin_timeout() -> None:
         side_effect=subprocess.TimeoutExpired(cmd="claude", timeout=30),
     ):
         assert verify_plugin("any-plugin") is False
+
+
+def test_verify_plugin_not_matching_substring() -> None:
+    """Searching 'code' should NOT match 'code-review' — exact match per line only."""
+    mock_result = MagicMock()
+    mock_result.stdout = "htmlgraph  code-review-toolkit  pr-review"
+
+    with patch("subprocess.run", return_value=mock_result):
+        assert verify_plugin("code") is False
+        assert verify_plugin("code-review-toolkit") is True

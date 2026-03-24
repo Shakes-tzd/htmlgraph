@@ -85,7 +85,10 @@ def _record_installation(root: Path, result: InstallResult) -> None:
     history: list[dict] = []  # type: ignore[type-arg]
     if history_file.exists():
         try:
-            history = json.loads(history_file.read_text())
+            loaded_history = json.loads(history_file.read_text())
+            # Handle corrupt JSON that's a dict instead of list
+            if isinstance(loaded_history, list):
+                history = loaded_history
         except json.JSONDecodeError:
             history = []
 
@@ -121,6 +124,9 @@ def verify_plugin(plugin_name: str) -> bool:
             text=True,
             timeout=30,
         )
-        return plugin_name in result.stdout
+        # Split stdout into lines and check for exact name match per line
+        # to avoid false positives from substring matches (e.g., "code" matching "code-review")
+        lines = result.stdout.split()
+        return plugin_name in lines
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
