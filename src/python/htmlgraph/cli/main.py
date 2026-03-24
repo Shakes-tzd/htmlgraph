@@ -151,6 +151,26 @@ def main() -> None:
         err_console.print(f"[dim]Full traceback saved to:[/dim] {log_file}")
         sys.exit(1)
 
+    # Check for updates (non-blocking, cached)
+    try:
+        from importlib.metadata import version
+
+        from htmlgraph.hooks.version_check import check_pypi_version
+
+        latest = check_pypi_version()
+        if latest:
+            current = version("htmlgraph")
+            print(
+                f"\n  A newer version of htmlgraph is available: {current} → {latest}",
+                file=sys.stderr,
+            )
+            print(
+                "  Update: uvx --upgrade htmlgraph claude --continue",
+                file=sys.stderr,
+            )
+    except Exception:
+        pass
+
 
 if __name__ == "__main__":
     main()
