@@ -128,7 +128,7 @@ with sdk.features.edit("feature-123") as f:
     f.status = "done"
 
 # CLI
-uv run htmlgraph feature complete feature-123
+uvx htmlgraph feature complete feature-123
 ```
 
 **Feature CRUD is SDK-first.** The REST API is observability/sync-oriented — feature CRUD via HTTP is not currently implemented.
@@ -258,11 +258,11 @@ sdk.epics.assign(["epic-1"], agent="claude")
 
 ```bash
 # See all feature commands
-uv run htmlgraph feature --help
+uvx htmlgraph feature --help
 # Shows: create, start, complete, delete, claim, release, list, etc.
 
 # Most CLI commands have SDK equivalents:
-# CLI: uv run htmlgraph feature delete feat-001
+# CLI: uvx htmlgraph feature delete feat-001
 # SDK: sdk.features.delete("feat-001")
 ```
 
@@ -373,7 +373,7 @@ sdk.reload()
 ### Start Server
 
 ```bash
-uv run htmlgraph serve
+uvx htmlgraph serve
 # Open http://localhost:8080
 ```
 
@@ -424,33 +424,34 @@ curl -X PATCH http://localhost:8080/api/features/feature-001 \
 
 ## CLI (Alternative)
 
-**IMPORTANT:** Always use `uv run` to ensure correct environment.
+**IMPORTANT:** Use `uvx htmlgraph` to always get the latest installed version.
+If you are working inside the `htmlgraph` project itself (developing HtmlGraph), use `uv run htmlgraph` instead.
 
 ### Check Status
 ```bash
-uv run htmlgraph status
-uv run htmlgraph feature list
+uvx htmlgraph status
+uvx htmlgraph feature list
 ```
 
 ### Start Feature
 ```bash
-uv run htmlgraph feature start <feature-id>
+uvx htmlgraph feature start <feature-id>
 ```
 
 ### Set Primary Feature
 ```bash
 # When multiple features are active
-uv run htmlgraph feature primary <feature-id>
+uvx htmlgraph feature primary <feature-id>
 ```
 
 ### Complete Feature
 ```bash
-uv run htmlgraph feature complete <feature-id>
+uvx htmlgraph feature complete <feature-id>
 ```
 
 ### Server
 ```bash
-uv run htmlgraph serve
+uvx htmlgraph serve
 ```
 
 ---
@@ -675,16 +676,16 @@ Orchestrator Mode is an **enforcement system** that guides AI agents to delegate
 
 ```bash
 # Enable orchestrator mode (strict enforcement)
-uv run htmlgraph orchestrator enable
+uvx htmlgraph orchestrator enable
 
 # Enable with guidance only (warnings, no blocks)
-uv run htmlgraph orchestrator enable --mode guidance
+uvx htmlgraph orchestrator enable --mode guidance
 
 # Check current status
-uv run htmlgraph orchestrator status
+uvx htmlgraph orchestrator status
 
 # Disable orchestrator mode
-uv run htmlgraph orchestrator disable
+uvx htmlgraph orchestrator disable
 ```
 
 ### How It Works
@@ -810,7 +811,7 @@ Orchestrator mode is configured via `.htmlgraph/orchestrator.json`:
 vim .htmlgraph/orchestrator.json
 
 # Or use CLI (future)
-uv run htmlgraph orchestrator set-threshold max_bash_calls 5
+uvx htmlgraph orchestrator set-threshold max_bash_calls 5
 ```
 
 ### When to Use Orchestrator Mode
@@ -834,7 +835,7 @@ uv run htmlgraph orchestrator set-threshold max_bash_calls 5
 
 Solution: Use `--mode guidance` for warnings only:
 ```bash
-uv run htmlgraph orchestrator enable --mode guidance
+uvx htmlgraph orchestrator enable --mode guidance
 ```
 
 **Problem: Too many operations blocked**
@@ -845,7 +846,7 @@ Solution: Increase thresholds or disable temporarily:
 vim .htmlgraph/orchestrator.json  # Edit max_* values
 
 # Or disable temporarily
-uv run htmlgraph orchestrator disable
+uvx htmlgraph orchestrator disable
 ```
 
 **Problem: Don't understand why operation was blocked**
@@ -861,7 +862,7 @@ Example: Task(subagent_type="general-purpose", prompt="Run pytest and report fai
 
 1. **Start with Guidance Mode** - Learn the patterns before enforcing
    ```bash
-   uv run htmlgraph orchestrator enable --mode guidance
+   uvx htmlgraph orchestrator enable --mode guidance
    ```
 
 2. **Delegate Early** - Don't wait until you hit thresholds
@@ -907,7 +908,7 @@ A: Open an issue - we want to improve the classification logic.
 A: Yes - any agent using HtmlGraph will respect orchestrator mode.
 
 **Q: How do I know it's working?**
-A: Check status: `uv run htmlgraph orchestrator status`
+A: Check status: `uvx htmlgraph orchestrator status`
 
 ---
 
@@ -1257,34 +1258,34 @@ Transcripts capture the **reasoning** behind code changes:
 
 ```bash
 # List available transcripts
-uv run htmlgraph transcript list [--limit N]
+uvx htmlgraph transcript list [--limit N]
 
 # Import a transcript session
-uv run htmlgraph transcript import SESSION_ID [--link-feature FEAT_ID]
+uvx htmlgraph transcript import SESSION_ID [--link-feature FEAT_ID]
 
 # Auto-link transcripts by git branch
-uv run htmlgraph transcript auto-link [--branch BRANCH]
+uvx htmlgraph transcript auto-link [--branch BRANCH]
 
 # Export transcript to HTML
-uv run htmlgraph transcript export SESSION_ID -o output.html
+uvx htmlgraph transcript export SESSION_ID -o output.html
 
 # Get session health metrics
-uv run htmlgraph transcript health SESSION_ID
+uvx htmlgraph transcript health SESSION_ID
 
 # Detect workflow patterns
-uv run htmlgraph transcript patterns [--transcript-id ID]
+uvx htmlgraph transcript patterns [--transcript-id ID]
 
 # Show tool transition matrix
-uv run htmlgraph transcript transitions
+uvx htmlgraph transcript transitions
 
 # Get improvement recommendations
-uv run htmlgraph transcript recommendations
+uvx htmlgraph transcript recommendations
 
 # Comprehensive analytics
-uv run htmlgraph transcript insights
+uvx htmlgraph transcript insights
 
 # Track-level aggregation
-uv run htmlgraph transcript track-stats TRACK_ID
+uvx htmlgraph transcript track-stats TRACK_ID
 ```
 
 ### Analytics Features
@@ -1328,7 +1329,7 @@ The hook tracks tool usage and provides guidance (never blocks) to improve workf
 Export transcripts to browser-viewable HTML:
 
 ```bash
-uv run htmlgraph transcript export SESSION_ID -o transcript.html --include-thinking
+uvx htmlgraph transcript export SESSION_ID -o transcript.html --include-thinking
 ```
 
 Compatible with [claude-code-transcripts](https://github.com/simonw/claude-code-transcripts) format.
@@ -1372,7 +1373,7 @@ sdk._graph.update(feature)  # Manual save
 - **API Reference**: [docs/API_REFERENCE.md](docs/API_REFERENCE.md) - Complete SDK API reference with all methods, parameters, and examples
 - **SDK Guide**: `docs/SDK_FOR_AI_AGENTS.md`
 - **Quickstart**: `docs/quickstart.md`
-- **Dashboard**: Run `uv run htmlgraph serve` and open http://localhost:8080
+- **Dashboard**: Run `uvx htmlgraph serve` and open http://localhost:8080
 
 ---
 

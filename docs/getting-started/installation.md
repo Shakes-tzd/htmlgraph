@@ -18,6 +18,10 @@ Or using uv (recommended):
 uv pip install htmlgraph
 ```
 
+> **Note:** Use `uvx htmlgraph` (not `uv run htmlgraph`) to run CLI commands after installation.
+> `uv run` uses your project's lockfile and may run a cached/locked version instead of the latest.
+> `uvx` always runs the installed package directly, ensuring you get the correct version.
+
 ## Install from Source
 
 Clone the repository and install in development mode:

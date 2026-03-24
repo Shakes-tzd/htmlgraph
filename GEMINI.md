@@ -109,7 +109,7 @@ All HtmlGraph commands are available in Gemini through the extension:
 **Both platforms use the same:**
 - Python SDK (`htmlgraph` package)
 - REST API (port 8080)
-- CLI commands (`uv run htmlgraph`)
+- CLI commands (`uvx htmlgraph`)
 - HTML file format
 
 ---
@@ -228,7 +228,7 @@ pip install htmlgraph
 
 ## Memory File Synchronization
 
-**CRITICAL: Use `uv run htmlgraph sync-docs` to maintain documentation consistency.**
+**CRITICAL: Use `uvx htmlgraph sync-docs` to maintain documentation consistency.**
 
 HtmlGraph uses a centralized documentation pattern:
 - **AGENTS.md** - Single source of truth (SDK, API, CLI, workflows)
@@ -238,14 +238,14 @@ HtmlGraph uses a centralized documentation pattern:
 **Quick Usage:**
 ```bash
 # Check if files are synchronized
-uv run htmlgraph sync-docs --check
+uvx htmlgraph sync-docs --check
 
 # Generate platform-specific file
-uv run htmlgraph sync-docs --generate gemini
-uv run htmlgraph sync-docs --generate claude
+uvx htmlgraph sync-docs --generate gemini
+uvx htmlgraph sync-docs --generate claude
 
 # Synchronize all files (default)
-uv run htmlgraph sync-docs
+uvx htmlgraph sync-docs
 ```
 
 **Why This Matters:**

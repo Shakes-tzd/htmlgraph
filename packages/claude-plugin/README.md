@@ -48,12 +48,12 @@ claude plugin install htmlgraph@htmlgraph
 
 - `.htmlgraph/events/*.jsonl` is the **Git-friendly source of truth** (append-only).
 - `.htmlgraph/index.sqlite` is a **rebuildable cache** for the dashboard (gitignored).
-- `.htmlgraph/sessions/*.html` are human-readable session summaries (should stay small; run `uv run htmlgraph session dedupe` if you have legacy explosion).
+- `.htmlgraph/sessions/*.html` are human-readable session summaries (should stay small; run `uvx htmlgraph session dedupe` if you have legacy explosion).
 
 ## Dashboard
 
 ```bash
-uv run htmlgraph serve
+uvx htmlgraph serve
 # Open http://localhost:8080
 ```
 
