@@ -626,6 +626,47 @@ body {
   border-bottom-color: var(--accent-blue);
 }
 
+/* Project context indicator (left of view tabs) */
+.nav-project-context {
+  display: flex;
+  align-items: center;
+  padding: 0 16px 0 0;
+}
+
+.nav-project-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-left: 3px solid;
+  transition: opacity 0.15s;
+}
+
+.nav-project-link:hover {
+  opacity: 0.8;
+}
+
+.nav-project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 8px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
 /* ========================================
    Graph View
    ======================================== */

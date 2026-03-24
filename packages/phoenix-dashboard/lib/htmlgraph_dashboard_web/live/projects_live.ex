@@ -95,13 +95,6 @@ defmodule HtmlgraphDashboardWeb.ProjectsLive do
       </div>
     </div>
 
-    <nav class="dashboard-nav">
-      <a href="/" class="nav-tab">Activity Feed</a>
-      <a href="/graph" class="nav-tab">Graph</a>
-      <a href="/kanban" class="nav-tab">Kanban</a>
-      <a href="/costs" class="nav-tab">Costs</a>
-      <a href="/projects" class="nav-tab active">Projects</a>
-    </nav>
 
     <div class="projects-header">
       <div class="projects-header-left">

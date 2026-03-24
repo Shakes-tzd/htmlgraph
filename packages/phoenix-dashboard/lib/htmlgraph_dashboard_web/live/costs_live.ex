@@ -205,25 +205,21 @@ defmodule HtmlgraphDashboardWeb.CostsLive do
     </div>
 
     <nav class="dashboard-nav">
-      <a href="/" class="nav-tab">Activity Feed</a>
-      <a href="/graph" class="nav-tab">Graph</a>
-      <a href="/kanban" class="nav-tab">Kanban</a>
-      <a href="/costs" class="nav-tab active">Costs</a>
-      <a href="/projects" class="nav-tab">Projects</a>
-      <%= if length(@projects) > 1 do %>
-        <div class="project-selector" style="margin-left: auto; display: flex; align-items: center; gap: 0.5rem;">
-          <span style="color: #888; font-size: 0.8rem;">Project:</span>
-          <form phx-change="select_project" style="margin: 0;">
-            <select name="project_id" style="background: #1C1C20; color: #e0ded8; border: 1px solid #333; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-              <%= for project <- @projects do %>
-                <option value={project.id} selected={@selected_project && project.id == @selected_project.id}>
-                  <%= project.name %>
-                </option>
-              <% end %>
-            </select>
-          </form>
+      <%= if @selected_project do %>
+        <% color = HtmlgraphDashboardWeb.ProjectComponents.project_color(@selected_project.id) %>
+        <div class="nav-project-context">
+          <a href="/projects" class="nav-project-link" style={"border-color: #{color}"}>
+            <span class="nav-project-dot" style={"background: #{color}"}></span>
+            <span><%= @selected_project.name %></span>
+          </a>
         </div>
+        <div class="nav-divider"></div>
       <% end %>
+      <% project_param = if @selected_project, do: "?project=#{@selected_project.id}", else: "" %>
+      <a href={"/" <> project_param} class="nav-tab">Activity Feed</a>
+      <a href={"/graph" <> project_param} class="nav-tab">Graph</a>
+      <a href={"/kanban" <> project_param} class="nav-tab">Kanban</a>
+      <a href={"/costs" <> project_param} class="nav-tab active">Costs</a>
     </nav>
 
     <div class="graph-stats-bar">
