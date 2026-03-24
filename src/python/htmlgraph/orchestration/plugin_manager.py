@@ -40,6 +40,20 @@ class PluginManager:
         if verbose:
             logger.info("\n📦 Installing/upgrading HtmlGraph plugin...\n")
 
+        # Step 0: Refresh marketplace to get latest version info
+        try:
+            if verbose:
+                logger.info("  Refreshing marketplace...")
+            subprocess.run(
+                ["claude", "plugin", "marketplace", "update", "htmlgraph"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+        except Exception:
+            pass  # Non-fatal — update may still work from cache
+
         # Step 1: Always try update first (ensures latest version)
         try:
             if verbose:
