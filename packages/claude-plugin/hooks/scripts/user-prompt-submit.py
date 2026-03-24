@@ -51,6 +51,7 @@ from htmlgraph.hooks.prompt_analyzer import (
     generate_guidance,
     get_active_work_item,
     get_open_work_items,
+    get_plugin_recommendations,
     get_session_violation_count,
 )
 from htmlgraph.hooks.version_check import check_hook_version
@@ -110,6 +111,14 @@ def main() -> None:
 
         if workflow_guidance:
             combined_guidance.append(workflow_guidance)
+
+        # Skill Scout recommendations (from SessionStart cache, no network calls)
+        try:
+            plugin_recs = get_plugin_recommendations(context)
+            if plugin_recs:
+                combined_guidance.append(plugin_recs)
+        except Exception:
+            pass  # Never break prompt handling
 
         # Print the JSON output for Claude Code
         if combined_guidance:

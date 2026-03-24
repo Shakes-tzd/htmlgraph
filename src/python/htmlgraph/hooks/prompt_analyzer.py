@@ -857,6 +857,51 @@ def _get_active_feature_id() -> str | None:
         return None
 
 
+def get_plugin_recommendations(context: "HookContext") -> str | None:
+    """Read cached Skill Scout recommendations and return compact guidance string.
+
+    Reads the ``plugin-recommendations.json`` cache written by the SessionStart
+    hook and formats the top three recommendations as a single guidance string.
+    Returns ``None`` when the cache is absent, corrupt, or empty.
+
+    Args:
+        context: HookContext with ``graph_dir`` pointing to the ``.htmlgraph``
+            directory for the current project.
+
+    Returns:
+        Compact multi-line string with up to three recommendations, or ``None``.
+
+    Example:
+        >>> recs = get_plugin_recommendations(context)
+        >>> if recs:
+        ...     combined_guidance.append(recs)
+    """
+    import json as _json
+
+    cache_file = Path(context.graph_dir) / "plugin-recommendations.json"
+    if not cache_file.exists():
+        return None
+
+    try:
+        data = _json.loads(cache_file.read_text())
+    except (_json.JSONDecodeError, ValueError):
+        return None
+
+    recs = data.get("recommendations", [])
+    if not recs:
+        return None
+
+    lines = [
+        "Suggested plugins (run `htmlgraph skills-install <name>` or"
+        " `htmlgraph skills-dismiss <name>` to dismiss):"
+    ]
+    for r in recs[:3]:  # Show top 3 max
+        reasons_short = r["reasons"][0] if r.get("reasons") else ""
+        lines.append(f"  -> {r['plugin_name']} ({r['score']}pts): {reasons_short}")
+
+    return "\n".join(lines)
+
+
 def create_user_query_event(context: HookContext, prompt: str) -> str | None:
     """
     Create UserQuery event in HtmlGraph database.

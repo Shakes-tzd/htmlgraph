@@ -1,12 +1,13 @@
-from __future__ import annotations
-
 """HtmlGraph CLI - Skill Scout commands.
 
 Commands for project auditing and plugin recommendation:
 - audit: Analyze project and recommend Claude Code plugins
 - skills-search: Search for Claude Code plugins by keyword
+- skills-install: Install a Claude Code plugin with tracking
+- skills-dismiss: Dismiss a plugin recommendation
 """
 
+from __future__ import annotations
 
 import argparse
 import json
@@ -87,6 +88,19 @@ def register_commands(subparsers: _SubParsersAction) -> None:
         "--graph-dir", "-g", default=DEFAULT_GRAPH_DIR, help="Graph directory"
     )
     search_parser.set_defaults(func=SkillsSearchCommand.from_args)
+
+    # skills-dismiss command
+    dismiss_parser = subparsers.add_parser(
+        "skills-dismiss",
+        help="Dismiss a plugin recommendation so it no longer appears",
+    )
+    dismiss_parser.add_argument("plugin_name", help="Plugin name to dismiss")
+    dismiss_parser.add_argument(
+        "--path",
+        default=".",
+        help="Project root (default: current directory)",
+    )
+    dismiss_parser.set_defaults(func=SkillsDismissCommand.from_args)
 
 
 # ============================================================================
@@ -251,4 +265,66 @@ class SkillsSearchCommand(BaseCommand):
             table.add_row(p.name, p.repo, p.description)
 
         console.print(table)
+        return CommandResult()
+
+
+# ============================================================================
+# SkillsDismissCommand
+# ============================================================================
+
+
+def dismiss_plugin(plugin_name: str, project_root: Path | None = None) -> None:
+    """Dismiss a plugin recommendation so it no longer appears.
+
+    Adds ``plugin_name`` to the ``dismissed`` list in
+    ``.htmlgraph/plugin-recommendations.json`` and removes it from the
+    ``recommendations`` list if present.  Creates the cache file with an
+    empty recommendations block if it does not exist yet.
+
+    Args:
+        plugin_name: Name of the plugin to dismiss (e.g. ``"pyright-lsp"``).
+        project_root: Project root directory.  Defaults to ``Path.cwd()``.
+    """
+    root = project_root or Path.cwd()
+    cache_file = root / ".htmlgraph" / "plugin-recommendations.json"
+
+    data: dict = {}
+    if cache_file.exists():
+        try:
+            data = json.loads(cache_file.read_text())
+        except json.JSONDecodeError:
+            data = {}
+
+    dismissed: list[str] = data.get("dismissed", [])
+    if plugin_name not in dismissed:
+        dismissed.append(plugin_name)
+    data["dismissed"] = dismissed
+
+    # Also remove from recommendations list
+    recs: list[dict] = data.get("recommendations", [])
+    data["recommendations"] = [r for r in recs if r.get("plugin_name") != plugin_name]
+
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(json.dumps(data, indent=2) + "\n")
+
+
+class SkillsDismissCommand(BaseCommand):
+    """Dismiss a plugin recommendation."""
+
+    def __init__(self, plugin_name: str, path: Path) -> None:
+        super().__init__()
+        self.plugin_name = plugin_name
+        self.path = path
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> SkillsDismissCommand:
+        return cls(
+            plugin_name=args.plugin_name,
+            path=Path(getattr(args, "path", ".")),
+        )
+
+    def execute(self) -> CommandResult:
+        dismiss_plugin(self.plugin_name, project_root=self.path)
+        console.print(f"[green]Dismissed[/green] {self.plugin_name}")
+        console.print("[dim]It will no longer appear in recommendations.[/dim]")
         return CommandResult()

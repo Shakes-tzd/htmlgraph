@@ -410,6 +410,12 @@ def main() -> None:
     except Exception:
         pass
 
+    # Skill Scout: proactive plugin recommendations (cached, 24h TTL)
+    try:
+        _run_skill_scout(graph_dir, project_dir)
+    except Exception:
+        pass  # Never break session start
+
     # Output response
     print(
         json.dumps(
@@ -422,6 +428,58 @@ def main() -> None:
             }
         )
     )
+
+
+def _run_skill_scout(graph_dir: Path, project_dir: str) -> None:
+    """Run Skill Scout analysis and cache recommendations (24h TTL)."""
+    import dataclasses
+    from datetime import datetime, timezone
+
+    cache_file = graph_dir / "plugin-recommendations.json"
+
+    # Check cache freshness (24h TTL)
+    if cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text())
+            ts = cached.get("timestamp", "")
+            if ts:
+                cached_time = datetime.fromisoformat(ts)
+                age_hours = (
+                    datetime.now(timezone.utc) - cached_time
+                ).total_seconds() / 3600
+                if age_hours < 24:
+                    return  # Cache is fresh, skip
+        except (json.JSONDecodeError, ValueError, KeyError):
+            pass  # Corrupt cache, re-run
+
+    from htmlgraph.skill_scout.project_analyzer import ProjectAnalyzer
+    from htmlgraph.skill_scout.recommender import recommend
+
+    analyzer = ProjectAnalyzer(Path(project_dir))
+    signals = analyzer.analyze()
+    recs = recommend(signals, limit=5)
+
+    # Load dismissed list from existing cache
+    dismissed: list[str] = []
+    if cache_file.exists():
+        try:
+            dismissed = json.loads(cache_file.read_text()).get("dismissed", [])
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Filter out dismissed
+    recs = [r for r in recs if r.plugin_name not in dismissed]
+
+    cache_data = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "project_signals": dataclasses.asdict(signals),
+        "recommendations": [
+            {"plugin_name": r.plugin_name, "score": r.score, "reasons": r.reasons}
+            for r in recs
+        ],
+        "dismissed": dismissed,
+    }
+    cache_file.write_text(json.dumps(cache_data, indent=2) + "\n")
 
 
 if __name__ == "__main__":
