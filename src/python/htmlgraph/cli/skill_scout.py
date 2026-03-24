@@ -59,6 +59,24 @@ def register_commands(subparsers: _SubParsersAction) -> None:
     )
     audit_parser.set_defaults(func=AuditCommand.from_args)
 
+    # skills-install command
+    install_parser = subparsers.add_parser(
+        "skills-install",
+        help="Install a Claude Code plugin with HtmlGraph tracking",
+    )
+    install_parser.add_argument("plugin_name", help="Plugin name to install")
+    install_parser.add_argument(
+        "--marketplace",
+        default="",
+        help="Optional marketplace qualifier (e.g., anthropics-claude-code)",
+    )
+    install_parser.add_argument(
+        "--path",
+        default=".",
+        help="Project root for tracking (default: current directory)",
+    )
+    install_parser.set_defaults(func=SkillsInstallCommand.from_args)
+
     # skills-search command
     search_parser = subparsers.add_parser(
         "skills-search",
@@ -155,6 +173,43 @@ def _print_audit_results(signals: object, recs: list) -> None:  # type: ignore[t
 
     console.print(table)
     console.print("\n[dim]Install: claude plugin install <plugin-name>[/dim]")
+
+
+# ============================================================================
+# SkillsInstallCommand
+# ============================================================================
+
+
+class SkillsInstallCommand(BaseCommand):
+    """Install a Claude Code plugin with HtmlGraph tracking."""
+
+    def __init__(self, plugin_name: str, marketplace: str, path: Path) -> None:
+        super().__init__()
+        self.plugin_name = plugin_name
+        self.marketplace = marketplace
+        self.path = path
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> SkillsInstallCommand:
+        return cls(
+            plugin_name=args.plugin_name,
+            marketplace=getattr(args, "marketplace", ""),
+            path=Path(getattr(args, "path", ".")),
+        )
+
+    def execute(self) -> CommandResult:
+        from htmlgraph.skill_scout.installer import install_plugin
+
+        console.print(f"[dim]Installing {self.plugin_name}...[/dim]")
+        result = install_plugin(self.plugin_name, self.marketplace, self.path)
+
+        if result.success:
+            console.print(f"[green]✓[/green] {result.message}")
+            console.print("[dim]Tracked in .htmlgraph/installed-plugins.json[/dim]")
+        else:
+            console.print(f"[red]✗[/red] {result.message}")
+
+        return CommandResult()
 
 
 # ============================================================================

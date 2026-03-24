@@ -8,7 +8,14 @@ Claude Code skills/plugins that would benefit the project.
 # Phase 1: Project auditing and work pattern analysis
 # Phase 2: Plugin discovery and indexing
 # Phase 3: Recommendation engine
+# Phase 4: Plugin installation and tracking
 from htmlgraph.skill_scout.github_search import PluginInfo, discover_plugins
+from htmlgraph.skill_scout.installer import (
+    InstallResult,
+    get_install_history,
+    install_plugin,
+    verify_plugin,
+)
 from htmlgraph.skill_scout.plugin_index import PluginIndex
 from htmlgraph.skill_scout.project_analyzer import ProjectAnalysis, ProjectAnalyzer
 from htmlgraph.skill_scout.recommender import Recommendation, recommend
@@ -27,4 +34,9 @@ __all__ = [
     # Phase 3 exports
     "Recommendation",
     "recommend",
+    # Phase 4 exports
+    "install_plugin",
+    "InstallResult",
+    "get_install_history",
+    "verify_plugin",
 ]
