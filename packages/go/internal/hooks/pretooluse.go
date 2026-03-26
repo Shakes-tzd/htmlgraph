@@ -30,6 +30,13 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	featureID := GetActiveFeatureID(database, sessionID)
 	parentEventID := os.Getenv("HTMLGRAPH_PARENT_EVENT")
+	// Fall back to most recent UserQuery in this session (enables tree nesting)
+	if parentEventID == "" {
+		_ = database.QueryRow(
+			`SELECT event_id FROM agent_events WHERE session_id = ? AND tool_name = 'UserQuery' ORDER BY timestamp DESC LIMIT 1`,
+			sessionID,
+		).Scan(&parentEventID)
+	}
 
 	inputSummary := summariseInput(event.ToolName, event.ToolInput)
 

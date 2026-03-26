@@ -46,6 +46,7 @@ func runServer(port int) error {
 
 	// API endpoints registered before file server so they take precedence.
 	mux.Handle("/api/events/recent", corsMiddleware(recentEventsHandler(database)))
+	mux.Handle("/api/events/tree", corsMiddleware(treeHandler(database)))
 	mux.Handle("/api/events/stream", corsMiddleware(sseHandler(database)))
 	mux.Handle("/api/sessions", corsMiddleware(sessionsHandler(database)))
 	mux.Handle("/api/features", corsMiddleware(featuresHandler(database, htmlgraphDir)))

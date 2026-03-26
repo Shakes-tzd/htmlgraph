@@ -327,6 +327,170 @@ button { cursor: pointer; font-family: inherit; font-size: inherit; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ── Event Tree ───────────────────────────────────────────── */
+.turn-group {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  border-left: 3px solid transparent;
+  cursor: default;
+  min-height: 2rem;
+}
+
+.event-row:hover {
+  background: rgba(205,255,0,0.03) !important;
+}
+
+.user-query-row {
+  border-left-color: #58a6ff;
+  background: rgba(0,0,0,0.1);
+  font-weight: 600;
+}
+
+.border-task { border-left-color: #f778ba !important; }
+.border-error { border-left-color: #f85149 !important; }
+
+.depth-0 { border-left-color: rgba(148,163,184,0.3); }
+.depth-1 { border-left-color: rgba(148,163,184,0.2); }
+.depth-2 { border-left-color: rgba(100,116,139,0.15); }
+.depth-3 { border-left-color: rgba(100,116,139,0.10); }
+
+/* Expand icon */
+.expand-icon {
+  cursor: pointer;
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.expand-icon:hover { color: var(--accent); }
+
+.expand-icon-spacer {
+  display: inline-block;
+  width: 1rem;
+  flex-shrink: 0;
+}
+
+/* Tool chips -- colored per tool name */
+.tool-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 4rem;
+  text-align: center;
+}
+
+.tool-Bash      { background: rgba(34,197,94,0.2);  color: #4ade80; }
+.tool-Read      { background: rgba(96,165,250,0.2); color: #60a5fa; }
+.tool-Edit      { background: rgba(250,204,21,0.2); color: #fbbf24; }
+.tool-Write     { background: rgba(34,211,238,0.2); color: #22d3ee; }
+.tool-Grep      { background: rgba(251,146,60,0.2); color: #fb923c; }
+.tool-Glob      { background: rgba(168,85,247,0.2); color: #a855f7; }
+.tool-Task, .tool-Agent { background: rgba(236,72,153,0.2); color: #ec4899; }
+.tool-UserQuery { background: rgba(88,166,255,0.2); color: #58a6ff; }
+.tool-Stop      { background: rgba(139,148,158,0.2); color: #8b949e; }
+
+/* Agent badges */
+.agent-badge {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.agent-researcher { background: rgba(88,166,255,0.2); color: #58a6ff; }
+.agent-haiku      { background: rgba(63,185,80,0.2);  color: #3fb950; }
+.agent-sonnet     { background: rgba(210,153,34,0.2); color: #d29922; }
+.agent-opus       { background: rgba(188,140,255,0.2); color: #bc8cff; }
+.agent-test       { background: rgba(63,185,80,0.2);  color: #3fb950; }
+.agent-debug      { background: rgba(248,81,73,0.2);  color: #f85149; }
+.agent-default    { background: rgba(139,148,158,0.2); color: #8b949e; }
+
+/* Subagent badge */
+.badge-subagent {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(236,72,153,0.15);
+  color: #f778ba;
+  white-space: nowrap;
+}
+
+/* Status badges (tree view) */
+.badge-status-completed { background: rgba(63,185,80,0.2); color: #3fb950; }
+.badge-status-started   { background: rgba(210,153,34,0.2); color: #d29922; }
+.badge-status-failed    { background: rgba(248,81,73,0.2); color: #f85149; }
+.badge-status-recorded  { background: rgba(139,148,158,0.2); color: #8b949e; }
+.badge-status-unknown   { background: rgba(139,148,158,0.2); color: #6e7681; }
+
+/* Feature badge */
+.badge-feature {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(210,153,34,0.15);
+  color: #d29922;
+  margin-left: auto;
+}
+
+/* Turn stats */
+.turn-stats {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.event-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  min-width: 5rem;
+  flex-shrink: 0;
+}
+
+.event-summary {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Slide-in animation for new tree events */
+@keyframes treeSlideIn {
+  from { opacity: 0; transform: translateX(-10px); background: rgba(205,255,0,0.08); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.event-new { animation: treeSlideIn 0.4s ease-out; }
+
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
 </style>
 </head>
 <body>
@@ -378,25 +542,10 @@ button { cursor: pointer; font-family: inherit; font-size: inherit; }
   <!-- ── Content ─────────────────────────────────────────── -->
   <main class="content">
 
-    <!-- Activity Feed -->
+    <!-- Activity Feed (hierarchical tree) -->
     <section class="view active" id="v-activity">
       <div class="view-title">Activity Feed <span class="count" id="activity-count">0</span></div>
-      <div style="overflow-x:auto">
-        <table class="tbl" id="activity-table">
-          <thead><tr>
-            <th style="width:80px">Time</th>
-            <th style="width:110px">Agent</th>
-            <th style="width:100px">Tool</th>
-            <th>Summary</th>
-            <th style="width:80px">Status</th>
-          </tr></thead>
-          <tbody id="activity-body"></tbody>
-        </table>
-      </div>
-      <div class="empty" id="activity-empty" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <div>No events yet. Start a Claude Code session to see activity.</div>
-      </div>
+      <hg-event-tree data-limit="50"></hg-event-tree>
     </section>
 
     <!-- Sessions -->
@@ -515,6 +664,8 @@ function fmtTime(ts) {
   } catch(e) { return ts.slice(11, 19) || ts; }
 }
 
+function formatTime(ts) { return fmtTime(ts); }
+
 function statusBadgeClass(s) {
   var map = { 'todo': 'badge-todo', 'in-progress': 'badge-ip', 'done': 'badge-done',
     'blocked': 'badge-blocked', 'active': 'badge-active', 'ended': 'badge-ended',
@@ -536,6 +687,18 @@ function truncId(id) {
   if (!id) return '--';
   if (id.length <= 16) return id;
   return id.slice(0, 8) + '..' + id.slice(-6);
+}
+
+function agentClass(agentId) {
+  if (!agentId) return 'default';
+  var lower = agentId.toLowerCase();
+  if (lower.includes('researcher')) return 'researcher';
+  if (lower.includes('haiku')) return 'haiku';
+  if (lower.includes('opus')) return 'opus';
+  if (lower.includes('test')) return 'test';
+  if (lower.includes('sonnet')) return 'sonnet';
+  if (lower.includes('debug')) return 'debug';
+  return 'default';
 }
 
 // ── Safe DOM builders ─────────────────────────────────────────
@@ -571,6 +734,193 @@ function tdWithChild(child, opts) {
   cell.appendChild(child);
   return cell;
 }
+
+// ── <hg-event-tree> Web Component ─────────────────────────────
+class HgEventTree extends HTMLElement {
+  constructor() {
+    super();
+    this.turns = [];
+    this.expanded = new Set(JSON.parse(localStorage.getItem('hg-expanded') || '[]'));
+  }
+
+  connectedCallback() {
+    this.load();
+    this.evtSource = new EventSource('/api/events/stream');
+    this.evtSource.onmessage = (msg) => this.handleSSE(JSON.parse(msg.data));
+    this.evtSource.onopen = () => {
+      var dot = document.getElementById('conn-dot');
+      var label = document.getElementById('conn-label');
+      if (dot) dot.className = 'conn-dot live';
+      if (label) label.textContent = 'Live';
+    };
+    this.evtSource.onerror = () => {
+      var dot = document.getElementById('conn-dot');
+      var label = document.getElementById('conn-label');
+      if (dot) dot.className = 'conn-dot dead';
+      if (label) label.textContent = 'Disconnected';
+      setTimeout(() => {
+        if (this.evtSource && this.evtSource.readyState === EventSource.CONNECTING) {
+          if (dot) dot.className = 'conn-dot retry';
+          if (label) label.textContent = 'Reconnecting...';
+        }
+      }, 2000);
+    };
+  }
+
+  disconnectedCallback() {
+    if (this.evtSource) this.evtSource.close();
+  }
+
+  async load() {
+    var limit = this.dataset.limit || 50;
+    try {
+      var resp = await fetch('/api/events/tree?limit=' + limit);
+      if (!resp.ok) return;
+      this.turns = await resp.json();
+    } catch(e) {
+      this.turns = [];
+    }
+    this.updateCount();
+    this.render();
+  }
+
+  updateCount() {
+    var countEl = document.getElementById('activity-count');
+    if (countEl) countEl.textContent = this.turns.length;
+  }
+
+  saveExpanded() {
+    localStorage.setItem('hg-expanded', JSON.stringify([...this.expanded]));
+  }
+
+  toggle(eventId) {
+    if (this.expanded.has(eventId)) {
+      this.expanded.delete(eventId);
+    } else {
+      this.expanded.add(eventId);
+    }
+    this.saveExpanded();
+    this.render();
+  }
+
+  handleSSE(data) {
+    // Update header stats
+    if (stats.total_events != null) {
+      stats.total_events++;
+      setVal('sv-events', stats.total_events);
+    }
+
+    if (data.tool_name === 'UserQuery') {
+      this.turns.unshift({
+        session_id: data.session_id,
+        user_query: data,
+        children: [],
+        stats: { tool_count: 0, error_count: 0, models: [] }
+      });
+      this.updateCount();
+      this.render();
+      return;
+    }
+    // Increment stats on most recent turn
+    if (this.turns.length > 0) {
+      this.turns[0].stats.tool_count++;
+      this.updateCount();
+      this.render();
+    }
+  }
+
+  render() {
+    if (!this.turns || this.turns.length === 0) {
+      this.innerHTML = '<div class="empty-state">No activity yet. Start a Claude Code session to see activity.</div>';
+      return;
+    }
+    this.innerHTML = this.turns.map(t => this.renderTurn(t)).join('');
+  }
+
+  renderTurn(turn) {
+    var uq = turn.user_query;
+    var isExp = this.expanded.has(uq.event_id);
+    var hasChildren = turn.children && turn.children.length > 0;
+    var expandIcon = hasChildren
+      ? '<span class="expand-icon ' + (isExp ? 'expanded' : '') + '" data-toggle="' + esc(uq.event_id) + '">\u25B6</span>'
+      : '<span class="expand-icon-spacer"></span>';
+
+    var s = turn.stats || {};
+    var statsHtml = '<span class="turn-stats">' + (s.tool_count || 0) + ' tools' + (s.error_count ? ', ' + s.error_count + ' errors' : '') + '</span>';
+
+    var featureBadge = uq.feature_id
+      ? '<span class="badge badge-feature">' + esc(uq.feature_id) + '</span>'
+      : '';
+
+    var html = '<div class="turn-group">'
+      + '<div class="event-row depth-0 user-query-row" data-event-id="' + esc(uq.event_id) + '">'
+      + expandIcon
+      + '<span class="event-time">' + formatTime(uq.timestamp) + '</span>'
+      + '<span class="tool-chip tool-UserQuery">UserQuery</span>'
+      + '<span class="event-summary">' + esc(uq.input_summary || '') + '</span>'
+      + featureBadge
+      + statsHtml
+      + '</div>';
+
+    if (isExp && turn.children) {
+      html += turn.children.map(c => this.renderEvent(c, 1)).join('');
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  renderEvent(evt, depth) {
+    if (depth > 3) return '';
+    var hasChildren = evt.children && evt.children.length > 0;
+    var isExp = this.expanded.has(evt.event_id);
+    var expandIcon = hasChildren
+      ? '<span class="expand-icon ' + (isExp ? 'expanded' : '') + '" data-toggle="' + esc(evt.event_id) + '">\u25B6</span>'
+      : '<span class="expand-icon-spacer"></span>';
+
+    var isTask = evt.tool_name === 'Task' || evt.tool_name === 'Agent';
+    var isError = evt.event_type === 'error' || evt.status === 'failed';
+    var borderClass = isTask ? 'border-task' : isError ? 'border-error' : '';
+
+    var agentBadge = (evt.agent_id && evt.agent_id !== 'claude-code')
+      ? '<span class="agent-badge agent-' + agentClass(evt.agent_id) + '">' + esc(evt.agent_id) + '</span>'
+      : '';
+    var subagentBadge = evt.subagent_type
+      ? '<span class="badge badge-subagent">' + esc(evt.subagent_type) + '</span>'
+      : '';
+    var statusBdg = '<span class="badge badge-status-' + (evt.status || 'unknown') + '">' + esc(evt.status || 'unknown') + '</span>';
+
+    var padLeft = (depth + 1) * 1.25;
+    var bgAlpha = 0.05 + depth * 0.08;
+
+    var html = '<div class="event-row depth-' + depth + ' ' + borderClass + '"'
+      + ' data-event-id="' + esc(evt.event_id) + '"'
+      + ' style="padding-left: ' + padLeft + 'rem; background: rgba(0,0,0,' + bgAlpha + ')">'
+      + expandIcon
+      + '<span class="event-time">' + formatTime(evt.timestamp) + '</span>'
+      + agentBadge
+      + '<span class="tool-chip tool-' + esc(evt.tool_name) + '">' + esc(evt.tool_name) + '</span>'
+      + subagentBadge
+      + '<span class="event-summary">' + esc(evt.input_summary || evt.output_summary || '') + '</span>'
+      + statusBdg
+      + '</div>';
+
+    if (isExp && evt.children) {
+      html += evt.children.map(c => this.renderEvent(c, depth + 1)).join('');
+    }
+
+    return html;
+  }
+}
+customElements.define('hg-event-tree', HgEventTree);
+
+// Delegate click events for expand/collapse toggles
+document.addEventListener('click', function(e) {
+  var toggle = e.target.closest('[data-toggle]');
+  if (!toggle) return;
+  var tree = document.querySelector('hg-event-tree');
+  if (tree) tree.toggle(toggle.dataset.toggle);
+});
 
 // ── Navigation ────────────────────────────────────────────────
 document.querySelector('.nav').addEventListener('click', function(e) {
@@ -623,7 +973,6 @@ function fetchEvents() {
     return r.json().then(function(data) {
       events = data;
       events.forEach(function(e) { seenEventIds.add(e.event_id); });
-      renderActivity();
       renderAgentCount();
     });
   }).catch(function() {});
@@ -647,99 +996,6 @@ function fetchFeatures() {
       renderFeatures();
     });
   }).catch(function() {});
-}
-
-// ── Rendering: Activity ───────────────────────────────────────
-function renderActivity() {
-  var body = document.getElementById('activity-body');
-  var empty = document.getElementById('activity-empty');
-  document.getElementById('activity-count').textContent = events.length;
-  body.textContent = '';
-  if (events.length === 0) { empty.style.display = ''; return; }
-  empty.style.display = 'none';
-  var frag = document.createDocumentFragment();
-  events.forEach(function(evt) {
-    frag.appendChild(buildEventRow(evt, false));
-    frag.appendChild(buildDetailRow(evt));
-  });
-  body.appendChild(frag);
-}
-
-function buildEventRow(evt, isNew) {
-  var tr = document.createElement('tr');
-  tr.className = 'evt-row' + (isNew ? ' evt-new' : '');
-  tr.dataset.eid = evt.event_id || '';
-  tr.addEventListener('click', function() { toggleDetail(evt.event_id); });
-
-  tr.appendChild(td(fmtTime(evt.timestamp), { className: 'mono' }));
-  tr.appendChild(td(evt.agent_id || '--'));
-  tr.appendChild(td(evt.tool_name || evt.event_type || '', { style: 'color:var(--text-primary);font-weight:500' }));
-  tr.appendChild(td(summaryText(evt), { className: 'ellipsis', title: true }));
-  tr.appendChild(tdWithChild(createStatusBadge(evt.status)));
-
-  return tr;
-}
-
-function buildDetailRow(evt) {
-  var tr = document.createElement('tr');
-  tr.className = 'evt-detail';
-  tr.dataset.eidDetail = evt.event_id || '';
-
-  var cell = document.createElement('td');
-  cell.colSpan = 5;
-
-  var dl = document.createElement('dl');
-  dl.className = 'detail-grid';
-
-  function addPair(label, value) {
-    if (!value) return;
-    var dt = document.createElement('dt');
-    dt.textContent = label;
-    var dd = document.createElement('dd');
-    dd.textContent = value;
-    dl.appendChild(dt);
-    dl.appendChild(dd);
-  }
-
-  addPair('Event ID', evt.event_id);
-  addPair('Session', evt.session_id);
-  addPair('Feature', evt.feature_id);
-  addPair('Type', evt.event_type);
-  addPair('Timestamp', evt.timestamp);
-  addPair('Parent', evt.parent_event_id);
-  addPair('Input', evt.input_summary);
-  addPair('Output', evt.output_summary);
-
-  cell.appendChild(dl);
-  tr.appendChild(cell);
-  return tr;
-}
-
-function toggleDetail(eid) {
-  var detail = document.querySelector('[data-eid-detail="' + eid + '"]');
-  if (detail) detail.classList.toggle('open');
-}
-
-function prependEvent(evt) {
-  if (seenEventIds.has(evt.event_id)) return;
-  seenEventIds.add(evt.event_id);
-  events.unshift(evt);
-  if (events.length > 200) events.pop();
-  document.getElementById('activity-count').textContent = events.length;
-  var body = document.getElementById('activity-body');
-  var empty = document.getElementById('activity-empty');
-  empty.style.display = 'none';
-
-  var newRow = buildEventRow(evt, true);
-  var detailRow = buildDetailRow(evt);
-
-  if (body.firstChild) {
-    body.insertBefore(detailRow, body.firstChild);
-    body.insertBefore(newRow, body.firstChild);
-  } else {
-    body.appendChild(newRow);
-    body.appendChild(detailRow);
-  }
 }
 
 // ── Rendering: Sessions ───────────────────────────────────────
@@ -983,69 +1239,10 @@ function renderHoursChart() {
   renderBarChart('chart-hours', entries);
 }
 
-// ── SSE live updates ──────────────────────────────────────────
-var eventSource = null;
-
-function connectSSE() {
-  if (eventSource) { eventSource.close(); eventSource = null; }
-  var dot = document.getElementById('conn-dot');
-  var label = document.getElementById('conn-label');
-
-  eventSource = new EventSource('/api/events/stream');
-
-  eventSource.onopen = function() {
-    dot.className = 'conn-dot live';
-    label.textContent = 'Live';
-  };
-
-  eventSource.onmessage = function(msg) {
-    try {
-      var data = JSON.parse(msg.data);
-
-      if (stats.total_events != null) {
-        stats.total_events++;
-        setVal('sv-events', stats.total_events);
-      }
-
-      var agentsBefore = 0;
-      var agentSet = new Set();
-      events.forEach(function(e) { if (e.agent_id) agentSet.add(e.agent_id); });
-      agentsBefore = agentSet.size;
-
-      if (currentView === 'activity') {
-        prependEvent(data);
-      } else {
-        if (!seenEventIds.has(data.event_id)) {
-          seenEventIds.add(data.event_id);
-          events.unshift(data);
-          if (events.length > 200) events.pop();
-        }
-      }
-
-      var agentsAfter = 0;
-      var agentSet2 = new Set();
-      events.forEach(function(e) { if (e.agent_id) agentSet2.add(e.agent_id); });
-      agentsAfter = agentSet2.size;
-      if (agentsAfter !== agentsBefore) setVal('sv-agents', agentsAfter);
-    } catch(e) {}
-  };
-
-  eventSource.onerror = function() {
-    dot.className = 'conn-dot dead';
-    label.textContent = 'Disconnected';
-    setTimeout(function() {
-      if (eventSource && eventSource.readyState === EventSource.CONNECTING) {
-        dot.className = 'conn-dot retry';
-        label.textContent = 'Reconnecting...';
-      }
-    }, 2000);
-  };
-}
-
 // ── Init ──────────────────────────────────────────────────────
-Promise.all([fetchStats(), fetchEvents()]).then(function() {
-  connectSSE();
-});
+// The <hg-event-tree> component self-loads and manages its own SSE.
+// We still fetch stats and flat events (for agents/metrics views).
+Promise.all([fetchStats(), fetchEvents()]);
 setInterval(fetchStats, 30000);
 </script>
 </body>
