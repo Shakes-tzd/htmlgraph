@@ -298,6 +298,9 @@ func sseHandler(database *sql.DB) http.HandlerFunc {
 			case <-r.Context().Done():
 				return
 			case <-ticker.C:
+				// Force WAL checkpoint so we see writes from hook processes.
+				database.Exec("PRAGMA wal_checkpoint(PASSIVE)")
+
 				rows, err := database.Query(`
 					SELECT rowid, event_id, agent_id, event_type, timestamp,
 					       tool_name, COALESCE(output_summary, ''), session_id,
