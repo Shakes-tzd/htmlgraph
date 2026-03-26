@@ -23,11 +23,20 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	promptSummary := sanitizePrompt(event.Prompt)
 	if promptSummary == "" {
-		// Nothing left after stripping notifications — skip recording
 		return &HookResult{Continue: true}, nil
 	}
 	if len(promptSummary) > 300 {
 		promptSummary = promptSummary[:300] + "…"
+	}
+
+	// Dedup: skip if identical UserQuery was recorded in last 5 seconds
+	var recentCount int
+	_ = database.QueryRow(
+		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'UserQuery' AND input_summary = ? AND timestamp > datetime('now', '-5 seconds')`,
+		sessionID, promptSummary,
+	).Scan(&recentCount)
+	if recentCount > 0 {
+		return &HookResult{Continue: true}, nil
 	}
 
 	ev := &models.AgentEvent{
