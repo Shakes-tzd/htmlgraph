@@ -372,6 +372,29 @@ Task(
 </details>
 
 <details>
+<summary><strong>Git/Code Operations (Copilot-Operator Agent)</strong></summary>
+
+**MANDATORY: All git write operations must be delegated to the copilot-operator agent.**
+
+```python
+# For commits, pushes, PRs, and code generation
+Agent(
+    subagent_type="htmlgraph:copilot-operator",
+    description="Commit and push changes",
+    prompt="Commit all staged files with message: 'feat: add X'. Then push to origin main.",
+)
+```
+
+**The copilot-operator agent:**
+1. Tries GitHub Copilot CLI first (cost-optimized, external AI)
+2. Falls back to direct git/gh if copilot unavailable
+3. Hook enforcement verifies copilot was attempted before allowing git-write
+
+**Never run git commit/push directly from the orchestrator.** The PreToolUse hook will deny it in strict mode.
+
+</details>
+
+<details>
 <summary><strong>Parallel Delegation (Multiple Independent Tasks)</strong></summary>
 
 **MANDATORY: Always analyze parallelizability when 2+ tasks are identified.**

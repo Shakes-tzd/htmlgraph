@@ -106,11 +106,39 @@ def _query_session_events(
         (session_id,),
     ).fetchall()
 
+    copilot_calls: list[Any] = conn.execute(
+        """
+        SELECT agent_id, COUNT(*)
+        FROM agent_events
+        WHERE session_id = ? AND tool_name = 'Bash'
+          AND input_summary LIKE '%copilot%'
+        GROUP BY agent_id
+        """,
+        (session_id,),
+    ).fetchall()
+
+    git_direct_calls: list[Any] = conn.execute(
+        """
+        SELECT agent_id, COUNT(*), GROUP_CONCAT(input_summary, '|')
+        FROM agent_events
+        WHERE session_id = ? AND tool_name = 'Bash'
+          AND (
+            input_summary LIKE '%git commit%'
+            OR input_summary LIKE '%git push%'
+            OR input_summary LIKE '%git tag%'
+          )
+        GROUP BY agent_id
+        """,
+        (session_id,),
+    ).fetchall()
+
     return {
         "direct_ops": direct_ops,
         "git_writes": git_writes,
         "delegations": delegations,
         "direct_impl": direct_impl,
+        "copilot_calls": copilot_calls,
+        "git_direct_calls": git_direct_calls,
     }
 
 
@@ -172,6 +200,8 @@ class DiagnoseCommand(BaseCommand):
         git_writes = events["git_writes"]
         delegations = events["delegations"]
         direct_impl = events["direct_impl"]
+        copilot_calls = events["copilot_calls"]
+        git_direct_calls = events["git_direct_calls"]
 
         # Compute delegation score
         impl_total = len(delegations) + len(direct_impl) + len(git_writes)
@@ -185,6 +215,8 @@ class DiagnoseCommand(BaseCommand):
             "implementation_total": impl_total,
             "git_write_gaps": len(git_writes),
             "direct_impl_gaps": len(direct_impl),
+            "copilot_calls": len(copilot_calls),
+            "git_direct_calls": len(git_direct_calls),
         }
 
         text = self._format_report(
@@ -194,6 +226,8 @@ class DiagnoseCommand(BaseCommand):
             delegations=delegations,
             git_writes=git_writes,
             direct_impl=direct_impl,
+            copilot_calls=copilot_calls,
+            git_direct_calls=git_direct_calls,
         )
 
         return CommandResult(text=text, json_data=json_data)
@@ -234,6 +268,8 @@ class DiagnoseCommand(BaseCommand):
         delegations: list[Any],
         git_writes: list[Any],
         direct_impl: list[Any],
+        copilot_calls: list[Any],
+        git_direct_calls: list[Any],
     ) -> str:
         """Render the diagnostic report as Rich-formatted text."""
         lines: list[str] = []
@@ -261,6 +297,8 @@ class DiagnoseCommand(BaseCommand):
 
         if score >= 80 and not git_writes and not direct_impl:
             lines.append("[green]No enforcement gaps found in this session.[/green]")
+            lines.append("")
+            self._append_copilot_compliance(lines, copilot_calls, git_direct_calls)
             return "\n".join(lines)
 
         lines.append("[bold underline]Gaps Found[/bold underline]\n")
@@ -268,7 +306,7 @@ class DiagnoseCommand(BaseCommand):
         # Git write gaps
         if git_writes:
             lines.append(
-                "[yellow]Git Write Operations[/yellow] — should use /htmlgraph:copilot"
+                "[yellow]Git Write Operations[/yellow] — should use copilot-operator agent"
             )
             for op in git_writes:
                 summary = (op[2] or "")[:60]
@@ -285,6 +323,9 @@ class DiagnoseCommand(BaseCommand):
                 lines.append(f"  [{_fmt_time(op[3])}] {op[1]}: {summary}")
             lines.append("")
 
+        # Copilot Compliance section
+        self._append_copilot_compliance(lines, copilot_calls, git_direct_calls)
+
         # Recommendations
         lines.append("[bold underline]Recommendations[/bold underline]")
         recs: list[str] = []
@@ -294,7 +335,10 @@ class DiagnoseCommand(BaseCommand):
                 "`uv run htmlgraph orchestrator enable --level strict`"
             )
         if git_writes:
-            recs.append("Use /htmlgraph:copilot skill for git commit/push/tag")
+            recs.append(
+                "Delegate git commit/push/tag to copilot-operator: "
+                'Agent(subagent_type="htmlgraph:copilot-operator", prompt="...")'
+            )
         if direct_impl:
             recs.append(
                 "Delegate Edit/Write to coder agents: "
@@ -310,3 +354,48 @@ class DiagnoseCommand(BaseCommand):
             lines.append(f"  {i}. {rec}")
 
         return "\n".join(lines)
+
+    def _append_copilot_compliance(
+        self,
+        lines: list[str],
+        copilot_calls: list[Any],
+        git_direct_calls: list[Any],
+    ) -> None:
+        """Append the Copilot Compliance section to the report lines."""
+        lines.append("[bold underline]Copilot Compliance[/bold underline]")
+
+        copilot_by_agent: dict[str, int] = {row[0]: row[1] for row in copilot_calls}
+        git_by_agent: dict[str, int] = {row[0]: row[1] for row in git_direct_calls}
+
+        all_agents = sorted(set(copilot_by_agent) | set(git_by_agent))
+
+        if not all_agents:
+            lines.append("  [dim]No git write activity recorded in this session.[/dim]")
+            lines.append("")
+            return
+
+        for agent_id in all_agents:
+            cp = copilot_by_agent.get(agent_id, 0)
+            gd = git_by_agent.get(agent_id, 0)
+            short = (agent_id or "main")[:12]
+
+            if agent_id in ("", "claude-code", "main"):
+                icon = "i"
+                color = "blue"
+                detail = f"{gd} git calls (main agent exempt)"
+            elif cp > 0 and gd == 0:
+                icon = "v"
+                color = "green"
+                detail = f"copilot attempted ({cp} calls), no direct git"
+            elif cp > 0 and gd > 0:
+                icon = "v"
+                color = "yellow"
+                detail = f"copilot attempted ({cp} calls), {gd} git fallback"
+            else:
+                icon = "x"
+                color = "red"
+                detail = f"{gd} direct git calls, 0 copilot attempts"
+
+            lines.append(f"  [{color}][{icon}][/{color}] {short}: {detail}")
+
+        lines.append("")

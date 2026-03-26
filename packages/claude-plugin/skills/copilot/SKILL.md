@@ -11,6 +11,10 @@ when_to_use:
 skill_type: executable
 ---
 
+> **DEPRECATED:** This skill is replaced by the `copilot-operator` agent.
+> Use `Agent(subagent_type="htmlgraph:copilot-operator", prompt="...")` instead.
+> The copilot-operator agent tries Copilot CLI first with hook-based compliance verification.
+
 # GitHub Copilot & GitHub CLI (gh) Operations
 
 ⚠️ **IMPORTANT: This skill provides TWO EXECUTION PATTERNS**

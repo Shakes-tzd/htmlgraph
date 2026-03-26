@@ -5,6 +5,7 @@ Delegate work to subagents. Your job is to decide WHAT to do, not to do it yours
 
 - **Research/exploration** → `Task(subagent_type="Explore", prompt="...")`
 - **Code implementation** → `Task(subagent_type="general-purpose", prompt="...")`
+- **Git/code operations** → `Agent(subagent_type="htmlgraph:copilot-operator", prompt="...")`
 - **Simple CLI operations** → `Bash("command here")`
 - **Clarify requirements** → `AskUserQuestion()`
 - **Everything else** → Delegate via `Task()`

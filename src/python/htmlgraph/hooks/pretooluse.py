@@ -69,6 +69,60 @@ NEVER_BLOCK_TOOLS = {
 }
 
 
+def _has_copilot_attempt(db_path: str, agent_id: str, session_id: str) -> bool:
+    """Check agent_events for a copilot CLI invocation by this agent in this session.
+
+    Uses the agent_events table to persist copilot attempt state across hook
+    process boundaries (each hook invocation is a separate OS process).
+
+    Args:
+        db_path: Path to the SQLite database.
+        agent_id: The agent's unique identifier.
+        session_id: The current session ID.
+
+    Returns:
+        True if the agent has attempted copilot in this session, or if the
+        check itself fails (fail-open — never block due to a compliance bug).
+    """
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(db_path, timeout=2)
+        row = conn.execute(
+            "SELECT COUNT(*) FROM agent_events WHERE agent_id = ? AND session_id = ? "
+            "AND tool_name = 'Bash' AND input_summary LIKE '%copilot%'",
+            (agent_id, session_id),
+        ).fetchone()
+        conn.close()
+        return (row[0] or 0) > 0
+    except Exception:
+        return True  # Fail-open: on DB error assume compliant, never block
+
+
+def _is_git_write_command(command: str) -> bool:
+    """Return True if the Bash command performs a destructive git write operation.
+
+    Checks for git commit, push, tag, and merge at the start of the command
+    or after a shell separator (&&, ;, |).
+
+    Args:
+        command: The Bash command string.
+
+    Returns:
+        True if the command contains a git write operation.
+    """
+    git_write_ops = ("git commit", "git push", "git tag", "git merge")
+    cmd = command.strip()
+    for op in git_write_ops:
+        if cmd.startswith(op):
+            return True
+        # Also detect after shell separators
+        for sep in (" && ", " ; ", " | "):
+            if f"{sep}{op}" in cmd:
+                return True
+    return False
+
+
 def generate_tool_use_id() -> str:
     """
     Generate UUID v4 for tool_use_id.
@@ -1187,6 +1241,40 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
                 if tool_use_id:
                     response["hookSpecificOutput"]["tool_use_id"] = tool_use_id
             return response
+
+    # COPILOT COMPLIANCE: Subagents must try copilot before direct git-write operations.
+    # Only enforces for named subagents (agent_id present and not main/claude-code).
+    # Fails open on any error — never block due to a compliance check bug.
+    if tool_name == "Bash":
+        _tool_params = tool_input.get("input", {}) or tool_input.get("tool_input", {})
+        _bash_cmd = (
+            _tool_params.get("command", "") if isinstance(_tool_params, dict) else ""
+        )
+        _agent_id = (
+            tool_input.get("agent_id", "") or tool_input.get("agentId", "") or ""
+        )
+        _is_subagent = bool(_agent_id) and _agent_id not in ("", "main", "claude-code")
+        if _is_subagent and _is_git_write_command(_bash_cmd):
+            try:
+                from htmlgraph.config import get_database_path
+
+                _db_path = str(get_database_path())
+                _session_id = get_current_session_id() or ""
+                if not _has_copilot_attempt(_db_path, _agent_id, _session_id):
+                    return {
+                        "continue": False,
+                        "hookSpecificOutput": {
+                            "hookEventName": "PreToolUse",
+                            "permissionDecision": "deny",
+                            "permissionDecisionReason": (
+                                "Try copilot CLI first before direct git operations. Run:\n"
+                                "  copilot -p 'YOUR_TASK' --allow-all-tools --no-color --add-dir .\n"
+                                "If copilot is not installed or fails, you may then use git directly."
+                            ),
+                        },
+                    }
+            except Exception:
+                pass  # Fail-open: compliance error must never block the agent
 
     # Run all five checks in parallel using asyncio.gather
     (
