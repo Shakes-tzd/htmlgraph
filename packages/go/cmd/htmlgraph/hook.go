@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/shakestzd/htmlgraph/internal/db"
@@ -69,7 +68,7 @@ func hookSessionStartCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Empty()
 				}
 				defer database.Close()
@@ -92,7 +91,7 @@ func hookSessionEndCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Continue()
 				}
 				defer database.Close()
@@ -114,7 +113,7 @@ func hookSessionResumeCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Continue()
 				}
 				defer database.Close()
@@ -136,7 +135,7 @@ func hookUserPromptCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Empty()
 				}
 				defer database.Close()
@@ -158,7 +157,7 @@ func hookPreToolUseCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Allow()
 				}
 				defer database.Close()
@@ -180,7 +179,7 @@ func hookPostToolUseCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Continue()
 				}
 				defer database.Close()
@@ -202,7 +201,7 @@ func hookSubagentStartCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Continue()
 				}
 				defer database.Close()
@@ -224,7 +223,7 @@ func hookSubagentStopCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Continue()
 				}
 				defer database.Close()
@@ -251,7 +250,7 @@ func hookTrackEventCmd() *cobra.Command {
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "htmlgraph hook: %v\n", err)
+					_ = err // Non-fatal: never show hook errors to user
 					return nil, hooks.Continue()
 				}
 				defer database.Close()
@@ -267,13 +266,13 @@ func hookTrackEventCmd() *cobra.Command {
 func runHook(handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
 	event, err := hooks.ReadInput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph hook: read input: %v\n", err)
+		_ = err
 		return hooks.Empty()
 	}
 
 	result, err := handler(event)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph hook: handler error: %v\n", err)
+		_ = err
 		return hooks.Empty()
 	}
 	if result == nil {
