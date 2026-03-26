@@ -596,6 +596,91 @@ class BootstrapConfig(BaseModel):
 # ============================================================================
 
 
+class FeatureListArgs(BaseModel):
+    """Pydantic model for 'feature list' CLI arguments.
+
+    Attributes:
+        status: Optional status filter (todo, in_progress, completed, blocked)
+        format: Output format (text, json)
+        quiet: Suppress empty output
+    """
+
+    status: Literal["todo", "in_progress", "completed", "blocked"] | None = Field(
+        default=None, description="Filter by status"
+    )
+    format: Literal["text", "json"] = Field(default="text", description="Output format")
+    quiet: bool = Field(default=False, description="Suppress empty output")
+
+
+class FeatureStartArgs(BaseModel):
+    """Pydantic model for 'feature start' CLI arguments.
+
+    Attributes:
+        feature_id: Feature ID to start (required, non-empty)
+        collection: Collection name (default: features)
+    """
+
+    feature_id: str = Field(..., min_length=1, description="Feature ID to start")
+    collection: str = Field(default="features", description="Collection name")
+
+    @field_validator("feature_id")
+    @classmethod
+    def validate_feature_id(cls, v: str) -> str:
+        """Validate feature_id is not empty or whitespace only."""
+        if not v.strip():
+            raise ValueError("Feature ID cannot be empty or whitespace only")
+        return v.strip()
+
+
+class FeatureCompleteArgs(BaseModel):
+    """Pydantic model for 'feature complete' CLI arguments.
+
+    Attributes:
+        feature_id: Feature ID to complete (required, non-empty)
+        collection: Collection name (default: features)
+    """
+
+    feature_id: str = Field(..., min_length=1, description="Feature ID to complete")
+    collection: str = Field(default="features", description="Collection name")
+
+    @field_validator("feature_id")
+    @classmethod
+    def validate_feature_id(cls, v: str) -> str:
+        """Validate feature_id is not empty or whitespace only."""
+        if not v.strip():
+            raise ValueError("Feature ID cannot be empty or whitespace only")
+        return v.strip()
+
+
+class OrchestratorEnableArgs(BaseModel):
+    """Pydantic model for 'orchestrator enable' CLI arguments.
+
+    Attributes:
+        level: Enforcement level (strict or guidance)
+    """
+
+    level: Literal["strict", "guidance"] = Field(
+        default="strict", description="Enforcement level"
+    )
+
+
+class OrchestratorDisableArgs(BaseModel):
+    """Pydantic model for 'orchestrator disable' CLI arguments.
+
+    No required arguments — disable always operates on current state.
+    """
+
+
+class OrchestratorStatusArgs(BaseModel):
+    """Pydantic model for 'orchestrator status' CLI arguments.
+
+    Attributes:
+        format: Output format (text, json)
+    """
+
+    format: Literal["text", "json"] = Field(default="text", description="Output format")
+
+
 class FeatureCreateArgs(BaseModel):
     """Pydantic model for 'feature create' CLI arguments.
 

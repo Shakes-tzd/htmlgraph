@@ -112,7 +112,16 @@ print(f"💡 Use `/htmlgraph:plan [id]` to start planning any of these items.")
 ---
 💡 Use `/htmlgraph:plan` to start planning any of these items.
 
-**DELEGATION**: To work on a recommendation, delegate based on complexity:
-- Simple fixes (1-2 files) → `Task(subagent_type="htmlgraph:haiku-coder")`
-- Features (3-8 files) → `Task(subagent_type="htmlgraph:sonnet-coder")`
-- Architecture (10+ files) → `Task(subagent_type="htmlgraph:opus-coder")`
+**PARALLEL ANALYSIS (MANDATORY when 2+ recommendations):**
+Before presenting results, analyze whether recommendations can execute in parallel:
+1. Check dependency graph between recommended items
+2. Check file/module overlap (would they touch the same files?)
+3. If independent → present a parallel execution plan as the DEFAULT action
+4. Format: table showing Feature | Agent | Scope | Parallelizable?
+
+**DELEGATION** (per-task model selection):
+- Simple fixes (1-2 files) → `Agent(subagent_type="htmlgraph:haiku-coder", isolation="worktree")`
+- Features (3-8 files) → `Agent(subagent_type="htmlgraph:sonnet-coder", isolation="worktree")`
+- Architecture (10+ files) → `Agent(subagent_type="htmlgraph:opus-coder", isolation="worktree")`
+
+**When parallelizable**, propose: "These N items have no dependencies or file overlap. Launch in parallel?"

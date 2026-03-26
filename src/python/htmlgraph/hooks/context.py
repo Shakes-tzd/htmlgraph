@@ -35,7 +35,12 @@ class HookContext:
         project_dir: Absolute path to project root directory
         graph_dir: Path to .htmlgraph directory for tracking data
         session_id: Unique session identifier for this execution
-        agent_id: Agent/tool that's executing (e.g., 'claude-code', 'codex')
+        agent_id: Native agent identifier from Claude Code hook input
+            (e.g. 'agent-abc123' for subagents, '' for the main agent).
+            When non-empty and not 'main'/'claude-code', indicates a subagent context.
+        agent_type: Named agent type from Claude Code hook input
+            (e.g. 'htmlgraph:sonnet-coder', 'general-purpose', 'main').
+            Used as fallback subagent identifier when agent_id is absent.
         hook_input: Raw hook input data from Claude Code
         model_name: Specific Claude model name (e.g., 'claude-haiku', 'claude-opus', 'claude-sonnet')
         _session_manager: Cached SessionManager instance (lazy-loaded)
@@ -47,9 +52,34 @@ class HookContext:
     session_id: str
     agent_id: str
     hook_input: dict[str, Any]
+    agent_type: str | None = field(default=None)
     model_name: str | None = field(default=None, repr=False)
     _session_manager: Any | None = field(default=None, repr=False)
     _database: Any | None = field(default=None, repr=False)
+
+    @property
+    def is_subagent(self) -> bool:
+        """
+        Return True when this hook context belongs to a subagent (non-main) invocation.
+
+        Uses native agent_id/agent_type fields from Claude Code hook input.
+        agent_id is authoritative when present; agent_type is the fallback.
+
+        A context is considered a subagent when:
+        - agent_id is set and not one of the main-agent sentinel values
+          ('main', 'claude-code', '', 'unknown'), OR
+        - agent_id is absent/sentinel but agent_type is set and not 'main'/''.
+
+        'unknown' is treated as a sentinel because it is the last-resort default
+        assigned by from_input() when no native hook_input field and no env var
+        provides an agent identifier. It does not indicate a real subagent identity.
+        """
+        _main_sentinels = {"main", "claude-code", "", "unknown"}
+        if self.agent_id and self.agent_id not in _main_sentinels:
+            return True
+        if self.agent_type and self.agent_type not in _main_sentinels:
+            return True
+        return False
 
     @classmethod
     def from_input(cls, hook_input: dict[str, Any]) -> "HookContext":
@@ -58,7 +88,8 @@ class HookContext:
 
         Performs automatic environment resolution:
         - Extracts session_id from hook_input
-        - Detects agent_id from environment or hook_input
+        - Detects agent_id and agent_type from hook_input (native Claude Code fields)
+        - Falls back to environment variables when hook_input fields are absent
         - Detects model_name (e.g., claude-haiku, claude-opus, claude-sonnet)
         - Resolves project directory via bootstrap
         - Initializes graph directory
@@ -171,16 +202,36 @@ class HookContext:
                     "For multi-window support, set HTMLGRAPH_SESSION_ID env var."
                 )
 
-        # Detect agent ID (priority order)
-        # 1. Explicit agent_id in hook input
-        # 2. HTMLGRAPH_AGENT_ID environment variable
-        # 3. CLAUDE_AGENT_NICKNAME environment variable (Claude Code)
-        # 4. Default to 'unknown'
-        agent_id = (
-            hook_input.get("agent_id")
-            or os.environ.get("HTMLGRAPH_AGENT_ID")
-            or os.environ.get("CLAUDE_AGENT_NICKNAME", "unknown")
-        )
+        # Detect agent ID and agent type (priority order)
+        # agent_id: native Claude Code field (e.g. 'agent-abc123' for subagents)
+        # agent_type: named agent type (e.g. 'htmlgraph:sonnet-coder', 'main')
+        # Both fields may be passed as camelCase (agentId/agentType) in some Claude Code versions.
+        # 1. Native hook_input fields (authoritative — set by Claude Code).
+        #    NOTE: Use key-presence check (not truthiness) so an explicit empty string
+        #    in hook_input is preserved and we don't fall through to env vars.
+        # 2. HTMLGRAPH_AGENT_ID / CLAUDE_AGENT_NICKNAME env vars (legacy fallbacks)
+        # 3. Default agent_id to 'unknown' when nothing else is available
+        _native_agent_id: str | None = None
+        for _key in ("agent_id", "agentId"):
+            if _key in hook_input:
+                _native_agent_id = (
+                    str(hook_input[_key]) if hook_input[_key] is not None else ""
+                )
+                break
+
+        if _native_agent_id is not None:
+            agent_id = _native_agent_id
+        else:
+            agent_id = os.environ.get("HTMLGRAPH_AGENT_ID") or os.environ.get(
+                "CLAUDE_AGENT_NICKNAME", "unknown"
+            )
+
+        _native_agent_type: str | None = None
+        for _key in ("agent_type", "agentType"):
+            if _key in hook_input and hook_input[_key]:
+                _native_agent_type = str(hook_input[_key])
+                break
+        agent_type: str | None = _native_agent_type
 
         # Detect model name (priority order)
         # 1. Explicit model_name in hook input
@@ -203,7 +254,7 @@ class HookContext:
 
         logger.info(
             f"Initializing hook context: session={session_id}, "
-            f"agent={agent_id}, model={model_name}, project={project_dir}"
+            f"agent={agent_id}, agent_type={agent_type}, model={model_name}, project={project_dir}"
         )
 
         return cls(
@@ -212,6 +263,7 @@ class HookContext:
             session_id=session_id,
             agent_id=agent_id,
             hook_input=hook_input,
+            agent_type=agent_type,
             model_name=model_name,
         )
 

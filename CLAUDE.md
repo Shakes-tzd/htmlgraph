@@ -68,6 +68,7 @@ See `.claude/rules/deployment.md` for full deployment workflow and options.
 | Deploy | `./scripts/deploy-all.sh VERSION --no-confirm` |
 | Serve dashboard | `uv run htmlgraph serve` |
 | Status | `uv run htmlgraph status` |
+| Install hooks | `git config core.hooksPath .githooks` |
 
 ---
 

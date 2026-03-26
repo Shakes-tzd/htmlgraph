@@ -405,6 +405,8 @@ class FeatureCreateCommand(BaseCommand):
 class FeatureStartCommand(BaseCommand):
     """Start working on a feature."""
 
+    _args_model = None  # Set after class body via lazy import (see from_args)
+
     def __init__(self, *, feature_id: str, collection: str) -> None:
         super().__init__()
         self.feature_id = feature_id
@@ -412,7 +414,11 @@ class FeatureStartCommand(BaseCommand):
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> FeatureStartCommand:
-        return cls(feature_id=args.id, collection=args.collection)
+        from htmlgraph.cli.models import FeatureStartArgs
+
+        cls._args_model = FeatureStartArgs
+        validated = cls.parse_validated_args(args, feature_id=args.id)
+        return cls(feature_id=validated.feature_id, collection=validated.collection)
 
     def execute(self) -> CommandResult:
         """Start working on a feature."""
@@ -452,6 +458,8 @@ class FeatureStartCommand(BaseCommand):
 class FeatureCompleteCommand(BaseCommand):
     """Mark feature as completed."""
 
+    _args_model = None  # Set lazily in from_args
+
     def __init__(self, *, feature_id: str, collection: str) -> None:
         super().__init__()
         self.feature_id = feature_id
@@ -459,7 +467,11 @@ class FeatureCompleteCommand(BaseCommand):
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> FeatureCompleteCommand:
-        return cls(feature_id=args.id, collection=args.collection)
+        from htmlgraph.cli.models import FeatureCompleteArgs
+
+        cls._args_model = FeatureCompleteArgs
+        validated = cls.parse_validated_args(args, feature_id=args.id)
+        return cls(feature_id=validated.feature_id, collection=validated.collection)
 
     def execute(self) -> CommandResult:
         """Mark feature as completed."""

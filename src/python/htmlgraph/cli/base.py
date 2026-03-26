@@ -548,11 +548,18 @@ class BaseCommand(ABC):
     - Structured error handling
     - Validation lifecycle hook
     - Output formatting
+    - Optional Pydantic validation via _args_model
 
     Subclasses must implement:
     - from_args(): Create command instance from argparse.Namespace
     - execute(): Execute command logic and return CommandResult
+
+    Subclasses may optionally set:
+    - _args_model: A Pydantic BaseModel class. When set, parse_validated_args()
+      can be called in from_args() to validate argparse.Namespace through it.
     """
+
+    _args_model: type | None = None
 
     def __init__(self) -> None:
         self.graph_dir: str | None = None
@@ -561,6 +568,54 @@ class BaseCommand(ABC):
         self.override_output_format: str | None = (
             None  # Allow commands to override formatter
         )
+
+    @classmethod
+    def parse_validated_args(cls, args: argparse.Namespace, **overrides: Any) -> Any:
+        """Validate an argparse.Namespace through the command's _args_model.
+
+        Maps argparse Namespace fields to the Pydantic model, applying any
+        field name overrides (e.g. argparse 'id' -> model 'feature_id').
+
+        Args:
+            args: argparse.Namespace from the CLI parser
+            **overrides: Explicit field values that override Namespace attributes
+                         (useful when argparse field names differ from model fields)
+
+        Returns:
+            Validated Pydantic model instance
+
+        Raises:
+            CommandError: If _args_model is not set or validation fails
+            CommandError: If validation fails with a user-friendly message
+
+        Example:
+            @classmethod
+            def from_args(cls, args):
+                from htmlgraph.cli.models import FeatureStartArgs
+                validated = cls.parse_validated_args(args, feature_id=args.id)
+                return cls(feature_id=validated.feature_id, ...)
+        """
+        if cls._args_model is None:
+            raise CommandError(
+                f"{cls.__name__} does not define _args_model. "
+                "Set _args_model = YourArgsModel to use parse_validated_args()."
+            )
+
+        from pydantic import ValidationError
+
+        # Build dict from Namespace, then apply overrides
+        args_dict = vars(args) if hasattr(args, "__dict__") else dict(args)
+        # Get model field names to filter only relevant keys
+        model_fields = set(cls._args_model.model_fields.keys())  # type: ignore[attr-defined]
+        filtered = {k: v for k, v in args_dict.items() if k in model_fields}
+        filtered.update(overrides)
+
+        try:
+            return cls._args_model(**filtered)
+        except ValidationError as exc:
+            from htmlgraph.cli.models import format_validation_error
+
+            raise CommandError(format_validation_error(exc)) from exc
 
     @classmethod
     @abstractmethod

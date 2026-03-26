@@ -42,4 +42,4 @@ Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy
 2. Use `uv run` for all Python execution — never raw `python` or `pip`
 3. Research first, implement second — understand before changing
 4. Fix all errors before committing — no accumulating debt
-5. Batch independent tool calls in parallel
+5. **Parallel-first**: When 2+ tasks are identified, ALWAYS analyze dependencies and file overlap. If independent, propose parallel worktree execution as the default — don't wait for the user to ask

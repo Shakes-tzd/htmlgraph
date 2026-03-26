@@ -148,13 +148,19 @@ def register_claude_commands(subparsers: _SubParsersAction) -> None:
 class OrchestratorEnableCommand(BaseCommand):
     """Enable orchestrator mode."""
 
+    _args_model = None  # Set lazily in from_args
+
     def __init__(self, *, level: str = "strict") -> None:
         super().__init__()
         self.level: str = level
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> OrchestratorEnableCommand:
-        return cls(level=getattr(args, "level", "strict"))
+        from htmlgraph.cli.models import OrchestratorEnableArgs
+
+        cls._args_model = OrchestratorEnableArgs
+        validated = cls.parse_validated_args(args)
+        return cls(level=validated.level)
 
     def execute(self) -> CommandResult:
         """Enable orchestrator mode."""
@@ -188,8 +194,16 @@ class OrchestratorEnableCommand(BaseCommand):
 class OrchestratorDisableCommand(BaseCommand):
     """Disable orchestrator mode."""
 
+    _args_model = None  # Set lazily in from_args
+
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> OrchestratorDisableCommand:
+        from htmlgraph.cli.models import OrchestratorDisableArgs
+
+        cls._args_model = OrchestratorDisableArgs
+        cls.parse_validated_args(
+            args
+        )  # Validate (no fields, confirms no unknown inputs)
         return cls()
 
     def execute(self) -> CommandResult:
@@ -218,8 +232,14 @@ class OrchestratorDisableCommand(BaseCommand):
 class OrchestratorStatusCommand(BaseCommand):
     """Show orchestrator status."""
 
+    _args_model = None  # Set lazily in from_args
+
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> OrchestratorStatusCommand:
+        from htmlgraph.cli.models import OrchestratorStatusArgs
+
+        cls._args_model = OrchestratorStatusArgs
+        cls.parse_validated_args(args)  # Validate format field if present
         return cls()
 
     def execute(self) -> CommandResult:

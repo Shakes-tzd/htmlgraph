@@ -374,38 +374,59 @@ Task(
 <details>
 <summary><strong>Parallel Delegation (Multiple Independent Tasks)</strong></summary>
 
-**Pattern: Spawn all at once, retrieve results independently**
+**MANDATORY: Always analyze parallelizability when 2+ tasks are identified.**
+
+Before presenting recommendations or starting multi-task work, ALWAYS:
+1. Check dependency graph — do any tasks depend on outputs of others?
+2. Check file overlap — do tasks touch the same files/modules?
+3. If independent → propose parallel worktree execution as the DEFAULT
+4. If dependent → identify the critical path and parallelize what you can
+
+**Decision matrix:**
+
+| Dependency? | File Overlap? | Action |
+|-------------|---------------|--------|
+| No | No | Parallel worktrees (DEFAULT) |
+| No | Yes | Sequential (same files = merge conflicts) |
+| Yes | No | Pipeline (parallel where deps allow) |
+| Yes | Yes | Sequential |
+
+**Pattern: Spawn all at once in isolated worktrees**
 
 ```python
-# Create all tasks in parallel (single message)
-Task(
-    subagent_type="gemini",
-    description="Research auth patterns",
-    prompt="Analyze existing authentication patterns..."
+# Launch parallel agents in worktrees — one per feature
+Agent(
+    subagent_type="htmlgraph:sonnet-coder",
+    description="Feature A",
+    prompt="Implement feature A...",
+    isolation="worktree",
+    run_in_background=True,
 )
 
-Task(
-    subagent_type="codex",
-    description="Implement OAuth",
-    prompt="Implement OAuth flow..."
+Agent(
+    subagent_type="htmlgraph:sonnet-coder",
+    description="Feature B",
+    prompt="Implement feature B...",
+    isolation="worktree",
+    run_in_background=True,
 )
 
-Task(
-    subagent_type="copilot",
-    description="Create PR",
-    prompt="Commit and create pull request..."
+Agent(
+    subagent_type="htmlgraph:haiku-coder",
+    description="Feature C (simple)",
+    prompt="Implement feature C...",
+    isolation="worktree",
+    run_in_background=True,
 )
-
-# All run in parallel, optimized for cost:
-# - Gemini: FREE
-# - Codex: $ (cheap)
-# - Copilot: $ (cheap)
 ```
 
 **Benefits:**
 - 3 tasks in parallel: time = max(T1, T2, T3) instead of T1+T2+T3
 - Cost optimization: Uses cheapest model for each task
+- Worktree isolation: No merge conflicts during execution
 - Independent results: Each task tracked separately
+
+**After completion:** Merge worktree branches to main, run quality gates, clean up.
 
 </details>
 
