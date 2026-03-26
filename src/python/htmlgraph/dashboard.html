@@ -856,7 +856,6 @@ class HgEventTree extends HTMLElement {
       + '<div class="event-row depth-0 user-query-row" data-event-id="' + esc(uq.event_id) + '">'
       + expandIcon
       + '<span class="event-time">' + formatTime(uq.timestamp) + '</span>'
-      + '<span class="tool-chip tool-UserQuery">UserQuery</span>'
       + '<span class="event-summary">' + esc(uq.input_summary || '') + '</span>'
       + featureBadge
       + statsHtml
