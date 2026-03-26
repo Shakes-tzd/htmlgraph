@@ -40,10 +40,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	s.ParentSessionID = os.Getenv("HTMLGRAPH_PARENT_SESSION")
 	s.ParentEventID = os.Getenv("HTMLGRAPH_PARENT_EVENT")
 
-	if err := upsertSession(database, s); err != nil {
-		// Non-fatal: log and continue so Claude is never blocked.
-		fmt.Fprintf(os.Stderr, "htmlgraph session-start: db error: %v\n", err)
-	}
+	_ = upsertSession(database, s) // Non-fatal: never block Claude
 
 	// Propagate session ID to downstream hooks via CLAUDE_ENV_FILE.
 	writeEnvVars(sessionID, projectDir)

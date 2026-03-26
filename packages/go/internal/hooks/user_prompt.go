@@ -3,7 +3,6 @@ package hooks
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,9 +40,7 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		UpdatedAt:    time.Now().UTC(),
 	}
 
-	if err := db.InsertEvent(database, ev); err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph user-prompt: db error: %v\n", err)
-	}
+	_ = db.InsertEvent(database, ev) // Non-fatal
 
 	// Update session last_user_query fields.
 	updateLastQuery(database, sessionID, event.Prompt)

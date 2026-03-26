@@ -3,7 +3,6 @@ package hooks
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,9 +42,7 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		UpdatedAt:    time.Now().UTC(),
 	}
 
-	if err := db.InsertEvent(database, ev); err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph subagent-start: db error: %v\n", err)
-	}
+	_ = db.InsertEvent(database, ev) // Non-fatal
 
 	// Write traceparent so the subagent's session-start can claim it.
 	writeTraceparent(sessionID, eventID)
@@ -75,21 +72,15 @@ func SubagentStop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	).Scan(&eventID)
 
 	if err != nil {
-		if err != sql.ErrNoRows {
-			fmt.Fprintf(os.Stderr, "htmlgraph subagent-stop: query error: %v\n", err)
-		}
 		return &HookResult{Continue: true}, nil
 	}
 
-	_, err = database.Exec(`
+	_, _ = database.Exec(`
 		UPDATE agent_events
 		SET status = 'completed', updated_at = ?
 		WHERE event_id = ?`,
 		now, eventID,
 	)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph subagent-stop: update error: %v\n", err)
-	}
 
 	return &HookResult{Continue: true}, nil
 }

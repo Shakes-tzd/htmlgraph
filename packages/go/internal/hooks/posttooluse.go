@@ -2,7 +2,6 @@ package hooks
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"time"
 )
@@ -33,9 +32,7 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		WHERE event_id = ?`,
 		status, outputSummary, now, eventID,
 	)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph posttooluse: db error: %v\n", err)
-	}
+	_ = err // Non-fatal: never block Claude on DB errors
 
 	// Clear env var so the next tool gets a fresh slot.
 	os.Unsetenv("HTMLGRAPH_CURRENT_EVENT_ID")

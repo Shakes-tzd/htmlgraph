@@ -3,7 +3,6 @@ package hooks
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
@@ -50,9 +49,8 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		UpdatedAt:     time.Now().UTC(),
 	}
 
-	if err := db.InsertEvent(database, ev); err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph pretooluse: db error: %v\n", err)
-	}
+	// Ignore insert errors (FK violations are expected before session-start runs).
+	_ = db.InsertEvent(database, ev)
 
 	// Export event ID so posttooluse can link the result.
 	os.Setenv("HTMLGRAPH_CURRENT_EVENT_ID", ev.EventID)

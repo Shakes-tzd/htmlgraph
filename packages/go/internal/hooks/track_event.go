@@ -3,7 +3,6 @@ package hooks
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,9 +35,7 @@ func TrackEvent(toolName string, event *CloudEvent, database *sql.DB) (*HookResu
 		UpdatedAt:    time.Now().UTC(),
 	}
 
-	if err := db.InsertEvent(database, ev); err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph track-event %s: db error: %v\n", toolName, err)
-	}
+	_ = db.InsertEvent(database, ev) // Non-fatal
 
 	return &HookResult{Continue: true}, nil
 }

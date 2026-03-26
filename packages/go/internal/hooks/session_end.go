@@ -3,7 +3,6 @@ package hooks
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 )
 
@@ -26,9 +25,7 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 		WHERE session_id = ?`,
 		now, endCommit, sessionID,
 	)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph session-end: db error: %v\n", err)
-	}
+	_ = err // Non-fatal
 
 	return &HookResult{Continue: true}, nil
 }
@@ -41,15 +38,12 @@ func SessionResume(event *CloudEvent, database *sql.DB, projectDir string) (*Hoo
 		return &HookResult{Continue: true}, nil
 	}
 
-	_, err := database.Exec(`
+	_, _ = database.Exec(`
 		UPDATE sessions
 		SET status = 'active', completed_at = NULL
 		WHERE session_id = ? AND status = 'completed'`,
 		sessionID,
 	)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph session-resume: db error: %v\n", err)
-	}
 
 	// Re-export env vars so downstream hooks have the session ID.
 	writeEnvVars(sessionID, projectDir)
