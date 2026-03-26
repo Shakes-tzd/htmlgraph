@@ -31,15 +31,20 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	featureID := GetActiveFeatureID(database, sessionID)
 	parentEventID := os.Getenv("HTMLGRAPH_PARENT_EVENT")
 
+	// Detect if this is a subagent from CloudEvent agent_id field.
+	// Claude Code passes agent_id for subagent hooks (e.g., "a8804c62534299395").
+	// The orchestrator gets "" or "claude-code".
+	isSubagent := event.AgentID != "" && event.AgentID != "claude-code"
+
 	// Multi-method parent resolution (matches Python event_tracker.py):
-	// 1. Env var HTMLGRAPH_PARENT_EVENT (set by SubagentStart for subagent processes)
-	// 2. If this IS a subagent (HTMLGRAPH_AGENT_ID set): find parent task_delegation
-	// 3. Most recent UserQuery in this session (for top-level orchestrator tool calls)
-	if parentEventID == "" && os.Getenv("HTMLGRAPH_AGENT_ID") != "" {
-		// This is a subagent — link to the task_delegation that spawned us
+	// 1. Env var HTMLGRAPH_PARENT_EVENT (set by SubagentStart)
+	// 2. If subagent: find the task_delegation that matches our agent_id
+	// 3. Most recent UserQuery in this session (for orchestrator tool calls)
+	if parentEventID == "" && isSubagent {
+		// Method 0.5: find the task_delegation whose agent_id matches ours
 		_ = database.QueryRow(
-			`SELECT event_id FROM agent_events WHERE session_id = ? AND event_type IN ('task_delegation', 'delegation') AND status = 'started' ORDER BY timestamp DESC LIMIT 1`,
-			sessionID,
+			`SELECT event_id FROM agent_events WHERE session_id = ? AND event_type IN ('task_delegation', 'delegation') AND agent_id = ? ORDER BY timestamp DESC LIMIT 1`,
+			sessionID, event.AgentID,
 		).Scan(&parentEventID)
 	}
 	if parentEventID == "" {
@@ -51,9 +56,15 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	inputSummary := summariseInput(event.ToolName, event.ToolInput)
 
+	// Use CloudEvent agent_id if present (subagent), else env var, else default
+	agentID := event.AgentID
+	if agentID == "" {
+		agentID = agentIDFromEnv()
+	}
+
 	ev := &models.AgentEvent{
 		EventID:       uuid.New().String(),
-		AgentID:       agentIDFromEnv(),
+		AgentID:       agentID,
 		EventType:     models.EventToolCall,
 		Timestamp:     time.Now().UTC(),
 		ToolName:      event.ToolName,
