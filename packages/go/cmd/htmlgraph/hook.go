@@ -66,12 +66,12 @@ func hookSessionStartCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Empty()
+					return &hooks.HookResult{}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Empty()
+					return &hooks.HookResult{}, nil
 				}
 				defer database.Close()
 				hooks.ApplyTraceparent()
@@ -89,12 +89,12 @@ func hookSessionEndCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				defer database.Close()
 				return hooks.SessionEnd(event, database, projectDir)
@@ -111,12 +111,12 @@ func hookSessionResumeCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				defer database.Close()
 				return hooks.SessionResume(event, database, projectDir)
@@ -133,12 +133,12 @@ func hookUserPromptCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Empty()
+					return &hooks.HookResult{}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Empty()
+					return &hooks.HookResult{}, nil
 				}
 				defer database.Close()
 				return hooks.UserPrompt(event, database)
@@ -155,12 +155,12 @@ func hookPreToolUseCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Allow()
+					return &hooks.HookResult{Decision: "allow"}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Allow()
+					return &hooks.HookResult{Decision: "allow"}, nil
 				}
 				defer database.Close()
 				return hooks.PreToolUse(event, database)
@@ -177,12 +177,12 @@ func hookPostToolUseCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				defer database.Close()
 				return hooks.PostToolUse(event, database)
@@ -199,12 +199,12 @@ func hookSubagentStartCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				defer database.Close()
 				return hooks.SubagentStart(event, database)
@@ -221,12 +221,12 @@ func hookSubagentStopCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				defer database.Close()
 				return hooks.SubagentStop(event, database)
@@ -248,12 +248,12 @@ func hookTrackEventCmd() *cobra.Command {
 			return runHook(func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD)
 				if !hooks.IsHtmlGraphProject(projectDir) {
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				database, err := db.Open(hooks.DBPath(projectDir))
 				if err != nil {
 					_ = err // Non-fatal: never show hook errors to user
-					return nil, hooks.Continue()
+					return &hooks.HookResult{Continue: true}, nil
 				}
 				defer database.Close()
 				return hooks.TrackEvent(toolName, event, database)
@@ -268,17 +268,12 @@ func hookTrackEventCmd() *cobra.Command {
 func runHook(handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
 	event, err := hooks.ReadInput()
 	if err != nil {
-		_ = err
-		return hooks.Empty()
+		return hooks.WriteResult(&hooks.HookResult{})
 	}
 
 	result, err := handler(event)
-	if err != nil {
-		_ = err
-		return hooks.Empty()
-	}
-	if result == nil {
-		return nil // handler already wrote to stdout
+	if err != nil || result == nil {
+		return hooks.WriteResult(&hooks.HookResult{})
 	}
 	return hooks.WriteResult(result)
 }
