@@ -1,98 +1,107 @@
 # /htmlgraph:git-commit
 
-Commit and push all staged/unstaged changes in a single script call.
-
-**Cost:** ~$0.002 (one Bash call) vs ~$0.037-0.086 (8 separate git tool calls)
-**Savings:** 93-97% token reduction vs multi-tool approach
+Commit changes using the copilot-operator delegation pattern.
 
 ## Usage
 
 ```
-/htmlgraph:git-commit <message>
+/htmlgraph:git-commit [message] [--push] [--files <list>]
 ```
 
 ## Parameters
 
-- `message` (required): Commit message in conventional commit format
-- `--no-confirm` (optional, default: included): Skip confirmation prompt
+- `message` (optional): Commit message. If omitted, Claude analyzes the diff and drafts one.
+- `--push`: Also push after committing.
+- `--files <list>`: Specific files to stage. Default: analyze git diff and select source files, excluding `.htmlgraph/`.
 
 ## Examples
 
-```bash
-/htmlgraph:git-commit "feat: add parallel execution engine"
-/htmlgraph:git-commit "fix: resolve PostToolUse import error"
-/htmlgraph:git-commit "chore: bump version to 0.9.5"
+```
+/htmlgraph:git-commit "feat: add user authentication"
+/htmlgraph:git-commit --push
+/htmlgraph:git-commit --files src/foo.py tests/test_foo.py "fix: resolve null pointer"
 ```
 
 ## Instructions for Claude
 
-Execute the commit-and-push script in a **single Bash call**. Do NOT use multiple git tool calls.
+Follow this priority order. Never skip straight to direct git — always try earlier paths first.
 
-### Step 1: Check what changed (one call)
+### Step 1: Analyze what to commit
 
 ```bash
+git diff --stat HEAD
 git status --short
 ```
 
-Understand the files changed — use this to write an accurate commit message.
+Select source files to stage. Exclude `.htmlgraph/` directory unless explicitly requested.
 
-### Step 2: Stage, commit, and push (one call)
+If no message was provided, draft one from the diff using conventional commit format.
 
-```bash
-git add -A && git commit -m "your message here" && git push
+### Priority 1: Delegate to copilot-operator agent (preferred)
+
+```python
+Agent(
+    subagent_type="htmlgraph:copilot-operator",
+    description="Commit: <message>",
+    prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push."
+)
 ```
 
-That's it — stage everything, commit, and push in a single Bash call.
+The copilot-operator agent tries Copilot CLI first, falls back to direct git, and hook
+enforcement verifies compliance. Use this path whenever the agent is available.
 
-> **Note on `${CLAUDE_PLUGIN_ROOT}`:** This variable is only substituted in JSON config files
-> (`hooks.json`, `.mcp.json`). It is NOT available as a shell env var in command markdown or
-> direct Bash calls. Use the one-liner above instead of referencing the bundled script.
+If `--push` was passed, add: "Then push to origin."
 
-### Commit Message Format
+### Priority 2: Bash-copilot pattern (fallback if agent unavailable)
+
+If the copilot-operator agent is not loaded (e.g., mid-session before restart), try copilot
+directly in a single Bash call:
+
+```bash
+copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+```
+
+If copilot is not installed, times out, or errors — fall back to direct git:
+
+```bash
+git add <files> && git commit -m "<message>"
+```
+
+### Priority 3: Direct git (last resort only)
+
+```bash
+git add <files> && git commit -m "<message>"
+```
+
+Only reach this if both copilot-operator agent and Bash-copilot have failed or are unavailable.
+
+## Commit Message Format
 
 ```
 <type>: <short description>
 
 [optional body]
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 ```
 
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
-When working on a tracked feature, reference it:
-```
-feat(feat-abc123): implement session ingester
+Always append the Co-Authored-By line.
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
+## Pre-commit Checks
 
-### NEVER do this (wastes context):
-
-```bash
-# ❌ 8 separate calls = 8K-25K tokens
-git status
-git add .
-git status --short
-git diff --cached
-git commit -m "message"
-git log -1
-git push origin main
-git status
-```
-
-### ALWAYS do this (saves 93-97%):
-
-```bash
-# ✅ 2 calls = ~545 tokens
-git status --short   # understand what changed
-git add -A && git commit -m "feat: description" && git push
-```
+This project uses `.githooks/` with pre-commit checks (ruff, mypy, systematic change
+detection). If pre-commit fails, the commit fails — fix the reported issues and retry.
 
 ## Output Format
 
-✅ **Changes committed and pushed**
+Report which path was used and the result:
 
-Commit: `<hash>`
-Files changed: `<count>`
-Branch: `main → origin/main`
+```
+Committed via: copilot-operator agent | bash-copilot | direct git
+Commit: <hash>
+Files changed: <count>
+Message: <message>
+```
