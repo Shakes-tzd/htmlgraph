@@ -22,6 +22,10 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	featureID := GetActiveFeatureID(database, sessionID)
 
 	promptSummary := sanitizePrompt(event.Prompt)
+	if promptSummary == "" {
+		// Nothing left after stripping notifications — skip recording
+		return &HookResult{Continue: true}, nil
+	}
 	if len(promptSummary) > 300 {
 		promptSummary = promptSummary[:300] + "…"
 	}
@@ -157,7 +161,22 @@ func sanitizePrompt(s string) string {
 			s = s[:i] + s[i+j+len(close):]
 		}
 	}
-	return strings.TrimSpace(s)
+	// Strip lines that are just notification artifacts
+	var cleaned []string
+	for _, line := range strings.Split(s, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "Full transcript available at:") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "Read the output file to retrieve") {
+			continue
+		}
+		cleaned = append(cleaned, trimmed)
+	}
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
 }
 
 func joinLines(lines []string) string {

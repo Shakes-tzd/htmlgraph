@@ -427,14 +427,15 @@ button { cursor: pointer; font-family: inherit; font-size: inherit; }
 .agent-debug      { background: rgba(248,81,73,0.2);  color: #f85149; }
 .agent-default    { background: rgba(139,148,158,0.2); color: #8b949e; }
 
-/* Subagent badge */
+/* Subagent badge — colors inherited from agent-* class */
 .badge-subagent {
   font-size: 0.65rem;
   padding: 0.1rem 0.35rem;
   border-radius: 3px;
-  background: rgba(236,72,153,0.15);
-  color: #f778ba;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
 }
 
 /* Status badges (tree view) */
@@ -900,7 +901,7 @@ class HgEventTree extends HTMLElement {
       ? '<span class="agent-badge agent-' + agentClass(evt.agent_id) + '">' + esc(evt.agent_id) + '</span>'
       : '';
     var subagentBadge = evt.subagent_type
-      ? '<span class="badge badge-subagent">' + esc(evt.subagent_type) + '</span>'
+      ? '<span class="badge badge-subagent agent-' + agentClass(evt.subagent_type) + '">' + esc(evt.subagent_type) + '</span>'
       : '';
     var statusBdg = '<span class="badge badge-status-' + (evt.status || 'unknown') + '">' + esc(evt.status || 'unknown') + '</span>';
 
