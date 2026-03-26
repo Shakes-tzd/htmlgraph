@@ -137,6 +137,11 @@ def register_claude_commands(subparsers: _SubParsersAction) -> None:
         action="store_true",
         help="Launch with local plugin for development",
     )
+    claude_parser.add_argument(
+        "--go",
+        action="store_true",
+        help="Use Go plugin with binary hooks (near-zero cold start); implies --dev",
+    )
     claude_parser.set_defaults(func=ClaudeCommand.from_args)
 
 
@@ -489,6 +494,7 @@ class ClaudeCommand(BaseCommand):
         init: bool,
         continue_session: bool,
         dev: bool,
+        go: bool,
         quiet: bool,
         format: str,
     ) -> None:
@@ -496,6 +502,7 @@ class ClaudeCommand(BaseCommand):
         self.init = init
         self.continue_session = continue_session
         self.dev = dev
+        self.go = go
         self.quiet = quiet
         self.format = format
 
@@ -505,6 +512,7 @@ class ClaudeCommand(BaseCommand):
             init=getattr(args, "init", False),
             continue_session=getattr(args, "continue_session", False),
             dev=getattr(args, "dev", False),
+            go=getattr(args, "go", False),
             quiet=getattr(args, "quiet", False),
             format=getattr(args, "format", "text"),
         )
@@ -518,6 +526,7 @@ class ClaudeCommand(BaseCommand):
             init=self.init,
             continue_session=self.continue_session,
             dev=self.dev,
+            go=self.go,
             quiet=self.quiet,
             format=self.format,
         )

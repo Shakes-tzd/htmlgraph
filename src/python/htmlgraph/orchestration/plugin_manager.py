@@ -31,6 +31,16 @@ class PluginManager:
         return Path.cwd() / "packages" / "claude-plugin"
 
     @staticmethod
+    def get_go_plugin_dir() -> Path:
+        """Get the Go plugin directory path.
+
+        Returns:
+            Path to packages/go-plugin, which uses a compiled Go binary for hooks.
+            Build the binary with: packages/go-plugin/build.sh
+        """
+        return Path.cwd() / "packages" / "go-plugin"
+
+    @staticmethod
     def install_or_update(verbose: bool = True) -> None:
         """Install or update HtmlGraph plugin.
 

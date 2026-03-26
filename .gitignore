@@ -47,6 +47,9 @@ Thumbs.db
 # Legacy static dashboard artifact (replaced by FastAPI dashboard)
 index.html
 
+# Go plugin compiled binary (built locally via packages/go-plugin/build.sh)
+packages/go-plugin/hooks/bin/
+
 # Dashboard screenshot artifacts
 dashboard-*.png
 
@@ -125,3 +128,4 @@ __marimo__/
 # Build artifacts
 _build/
 archive/
+packages/go-plugin/hooks/bin/

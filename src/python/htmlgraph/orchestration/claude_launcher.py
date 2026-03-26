@@ -52,6 +52,8 @@ class ClaudeLauncher:
                 self._launch_orchestrator_mode()
             elif self.args.continue_session:
                 self._launch_resume_mode()
+            elif getattr(self.args, "go", False):
+                self._launch_go_mode()
             elif self.args.dev:
                 self._launch_dev_mode()
             else:
@@ -180,6 +182,68 @@ class ClaudeLauncher:
 
         # Write launch marker before handing off to Claude
         self._write_launch_marker("dev")
+
+        # Execute
+        SubprocessRunner.run_claude_command(cmd)
+
+    def _launch_go_mode(self) -> None:
+        """Launch with Go plugin using compiled binary hooks (--go).
+
+        Uses packages/go-plugin/ which contains a compiled Go binary for hooks
+        instead of Python scripts, eliminating the ~500ms uv cold-start cost
+        per hook invocation.
+
+        Build the binary first with: packages/go-plugin/build.sh
+        """
+        # Uninstall marketplace plugin to prevent conflicts
+        if self.interactive:
+            logger.info("Uninstalling marketplace plugin (if present)...")
+
+        result = subprocess.run(
+            ["claude", "plugin", "uninstall", "htmlgraph@htmlgraph"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode == 0:
+            if self.interactive:
+                logger.info("  Marketplace plugin uninstalled")
+        else:
+            if self.interactive:
+                logger.info("  No marketplace plugin installed (skipping)")
+
+        # Resolve Go plugin directory
+        plugin_dir = PluginManager.get_go_plugin_dir()
+
+        # Verify the binary exists
+        binary = plugin_dir / "hooks" / "bin" / "htmlgraph-hooks"
+        if not binary.exists():
+            logger.warning(
+                f"Go binary not found: {binary}\n"
+                "Build it with: packages/go-plugin/build.sh"
+            )
+            sys.exit(1)
+
+        PluginManager.validate_plugin_dir(plugin_dir)
+
+        # Load prompt with dev mode
+        prompt = get_orchestrator_prompt(include_dev_mode=True)
+
+        if self.interactive:
+            logger.info(f"Launching Claude Code with Go plugin: {plugin_dir}")
+            logger.info(f"  Binary: {binary}")
+
+        # Build command
+        cmd = (
+            ClaudeCommandBuilder()
+            .with_plugin_dir(str(plugin_dir))
+            .with_system_prompt(prompt)
+            .build()
+        )
+
+        # Write launch marker before handing off to Claude
+        self._write_launch_marker("go")
 
         # Execute
         SubprocessRunner.run_claude_command(cmd)
