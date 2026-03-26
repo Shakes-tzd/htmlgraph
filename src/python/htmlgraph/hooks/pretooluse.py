@@ -69,11 +69,13 @@ NEVER_BLOCK_TOOLS = {
 }
 
 
-def _has_copilot_attempt(db_path: str, agent_id: str, session_id: str) -> bool:
-    """Check agent_events for a copilot CLI invocation by this agent in this session.
+def _has_external_cli_attempt(db_path: str, agent_id: str, session_id: str) -> bool:
+    """Check agent_events for an external CLI delegation attempt by this agent.
 
-    Uses the agent_events table to persist copilot attempt state across hook
-    process boundaries (each hook invocation is a separate OS process).
+    Recognizes copilot, codex, and gemini CLI invocations as valid delegation.
+
+    Uses the agent_events table to persist attempt state across hook process
+    boundaries (each hook invocation is a separate OS process).
 
     Args:
         db_path: Path to the SQLite database.
@@ -81,8 +83,8 @@ def _has_copilot_attempt(db_path: str, agent_id: str, session_id: str) -> bool:
         session_id: The current session ID.
 
     Returns:
-        True if the agent has attempted copilot in this session, or if the
-        check itself fails (fail-open — never block due to a compliance bug).
+        True if the agent has attempted an external CLI in this session, or if
+        the check itself fails (fail-open — never block due to a compliance bug).
     """
     import sqlite3
 
@@ -90,7 +92,12 @@ def _has_copilot_attempt(db_path: str, agent_id: str, session_id: str) -> bool:
         conn = sqlite3.connect(db_path, timeout=2)
         row = conn.execute(
             "SELECT COUNT(*) FROM agent_events WHERE agent_id = ? AND session_id = ? "
-            "AND tool_name = 'Bash' AND input_summary LIKE '%copilot%'",
+            "AND tool_name = 'Bash' AND ("
+            "input_summary LIKE '%copilot%' OR "
+            "input_summary LIKE '%codex exec%' OR "
+            "input_summary LIKE '%gemini -p%' OR "
+            "input_summary LIKE '%gemini --prompt%'"
+            ")",
             (agent_id, session_id),
         ).fetchone()
         conn.close()
@@ -1242,7 +1249,8 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
                     response["hookSpecificOutput"]["tool_use_id"] = tool_use_id
             return response
 
-    # COPILOT COMPLIANCE: Subagents must try copilot before direct git-write operations.
+    # EXTERNAL CLI COMPLIANCE: Subagents must try an external CLI before direct
+    # git-write operations.  Recognises copilot, codex, and gemini as valid CLIs.
     # Only enforces for named subagents (agent_id present and not main/claude-code).
     # Fails open on any error — never block due to a compliance check bug.
     if tool_name == "Bash":
@@ -1260,16 +1268,18 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
 
                 _db_path = str(get_database_path())
                 _session_id = get_current_session_id() or ""
-                if not _has_copilot_attempt(_db_path, _agent_id, _session_id):
+                if not _has_external_cli_attempt(_db_path, _agent_id, _session_id):
                     return {
                         "continue": False,
                         "hookSpecificOutput": {
                             "hookEventName": "PreToolUse",
                             "permissionDecision": "deny",
                             "permissionDecisionReason": (
-                                "Try copilot CLI first before direct git operations. Run:\n"
+                                "Try an external CLI first before direct git operations. Run one of:\n"
                                 "  copilot -p 'YOUR_TASK' --allow-all-tools --no-color --add-dir .\n"
-                                "If copilot is not installed or fails, you may then use git directly."
+                                "  codex exec 'YOUR_TASK' --full-auto --json -m gpt-4.1-mini -C .\n"
+                                "  gemini -p 'YOUR_TASK' --output-format json --yolo\n"
+                                "If none are installed or all fail, you may then use git directly."
                             ),
                         },
                     }

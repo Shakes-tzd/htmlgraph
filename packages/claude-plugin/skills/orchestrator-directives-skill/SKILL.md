@@ -395,6 +395,46 @@ Agent(
 </details>
 
 <details>
+<summary><strong>Code Generation (Codex-Operator Agent)</strong></summary>
+
+**For implementation, refactoring, and structured output tasks:**
+
+```python
+Agent(
+    subagent_type="htmlgraph:codex-operator",
+    description="Implement feature X",
+    prompt="Add OAuth authentication to the login endpoint. Use gpt-4.1-mini.",
+)
+```
+
+**The codex-operator agent:**
+1. Tries OpenAI Codex CLI first (structured JSON output, sandboxed)
+2. Falls back to direct implementation if Codex unavailable
+3. Always uses `-m gpt-4.1-mini` (never expensive gpt-5.4 default)
+
+</details>
+
+<details>
+<summary><strong>Research & Analysis (Gemini-Operator Agent)</strong></summary>
+
+**For codebase exploration, documentation research, and large-context analysis:**
+
+```python
+Agent(
+    subagent_type="htmlgraph:gemini-operator",
+    description="Research auth patterns",
+    prompt="Analyze all authentication patterns in this codebase. Find security gaps.",
+)
+```
+
+**The gemini-operator agent:**
+1. Tries Google Gemini CLI first (2M context window, FREE)
+2. Falls back to direct Read/Grep/Glob exploration if Gemini unavailable
+3. Ideal for tasks requiring full codebase context
+
+</details>
+
+<details>
 <summary><strong>Parallel Delegation (Multiple Independent Tasks)</strong></summary>
 
 **MANDATORY: Always analyze parallelizability when 2+ tasks are identified.**

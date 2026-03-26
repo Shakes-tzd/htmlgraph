@@ -1,3 +1,7 @@
+> **DEPRECATED:** This skill is replaced by the `gemini-operator` agent.
+> Use `Agent(subagent_type="htmlgraph:gemini-operator", prompt="...")` instead.
+> The gemini-operator agent tries Gemini CLI first with 2M context and JSON output. Free tier.
+
 ---
 name: gemini
 description: GeminiSpawner with full event tracking for exploration and large-context research

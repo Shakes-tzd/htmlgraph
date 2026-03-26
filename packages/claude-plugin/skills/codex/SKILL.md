@@ -1,3 +1,7 @@
+> **DEPRECATED:** This skill is replaced by the `codex-operator` agent.
+> Use `Agent(subagent_type="htmlgraph:codex-operator", prompt="...")` instead.
+> The codex-operator agent tries Codex CLI first with structured JSON output and hook-based compliance.
+
 ---
 name: codex
 description: CodexSpawner with full event tracking for code generation and implementation

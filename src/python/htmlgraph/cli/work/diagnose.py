@@ -111,7 +111,10 @@ def _query_session_events(
         SELECT agent_id, COUNT(*)
         FROM agent_events
         WHERE session_id = ? AND tool_name = 'Bash'
-          AND input_summary LIKE '%copilot%'
+          AND (input_summary LIKE '%copilot%'
+               OR input_summary LIKE '%codex exec%'
+               OR input_summary LIKE '%gemini -p%'
+               OR input_summary LIKE '%gemini --prompt%')
         GROUP BY agent_id
         """,
         (session_id,),
@@ -323,7 +326,7 @@ class DiagnoseCommand(BaseCommand):
                 lines.append(f"  [{_fmt_time(op[3])}] {op[1]}: {summary}")
             lines.append("")
 
-        # Copilot Compliance section
+        # External CLI Compliance section
         self._append_copilot_compliance(lines, copilot_calls, git_direct_calls)
 
         # Recommendations
@@ -361,8 +364,8 @@ class DiagnoseCommand(BaseCommand):
         copilot_calls: list[Any],
         git_direct_calls: list[Any],
     ) -> None:
-        """Append the Copilot Compliance section to the report lines."""
-        lines.append("[bold underline]Copilot Compliance[/bold underline]")
+        """Append the External CLI Compliance section to the report lines."""
+        lines.append("[bold underline]External CLI Compliance[/bold underline]")
 
         copilot_by_agent: dict[str, int] = {row[0]: row[1] for row in copilot_calls}
         git_by_agent: dict[str, int] = {row[0]: row[1] for row in git_direct_calls}
@@ -386,15 +389,15 @@ class DiagnoseCommand(BaseCommand):
             elif cp > 0 and gd == 0:
                 icon = "v"
                 color = "green"
-                detail = f"copilot attempted ({cp} calls), no direct git"
+                detail = f"external CLI attempted ({cp} calls), no direct git"
             elif cp > 0 and gd > 0:
                 icon = "v"
                 color = "yellow"
-                detail = f"copilot attempted ({cp} calls), {gd} git fallback"
+                detail = f"external CLI attempted ({cp} calls), {gd} git fallback"
             else:
                 icon = "x"
                 color = "red"
-                detail = f"{gd} direct git calls, 0 copilot attempts"
+                detail = f"{gd} direct git calls, 0 external CLI attempts"
 
             lines.append(f"  [{color}][{icon}][/{color}] {short}: {detail}")
 
