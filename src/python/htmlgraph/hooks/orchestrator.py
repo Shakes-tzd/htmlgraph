@@ -222,6 +222,13 @@ def is_allowed_orchestrator_operation(
 
             if should_allow_git_command(command):
                 return True, "", "git-readonly"
+            else:
+                # Git write operations must be delegated
+                return (
+                    False,
+                    "Git write operations must be delegated. Use Skill('htmlgraph:copilot') or Agent(subagent_type='htmlgraph:sonnet-coder') instead.",
+                    "git-write-violation",
+                )
 
         # Allow SDK inline usage (Python inline with htmlgraph import)
         if "from htmlgraph import" in command or "import htmlgraph" in command:
@@ -523,6 +530,17 @@ def enforce_orchestrator_mode(
     suggestion = create_task_suggestion(tool, params)
 
     if enforcement_level == "strict":
+        # Git-write violations are hard-denied (not advisory)
+        if category == "git-write-violation":
+            return {
+                "continue": False,
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": reason,
+                },
+            }
+
         # STRICT mode - advisory warning with violation count (does not block)
         warning_message = (
             f"🚫 ORCHESTRATOR MODE VIOLATION ({violations}/{circuit_breaker_threshold}): {reason}\n\n"

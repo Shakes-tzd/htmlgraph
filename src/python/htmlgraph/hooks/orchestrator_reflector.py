@@ -81,10 +81,6 @@ def is_python_execution(command: str) -> bool:
     # Normalize command
     cmd = command.strip().lower()
 
-    # Exclude git commands entirely
-    if cmd.startswith("git ") or " git " in cmd:
-        return False
-
     # Exclude simple file operations
     if cmd.startswith(EXCLUDED_COMMAND_PREFIXES):
         return False

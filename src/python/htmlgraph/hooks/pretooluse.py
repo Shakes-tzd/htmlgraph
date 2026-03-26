@@ -1167,6 +1167,27 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
 
         return response
 
+    # RECOVERY ESCAPE HATCH: Always allow 'htmlgraph orchestrator' commands
+    # so users can disable/reset orchestrator mode even when circuit breaker is active
+    if tool_name == "Bash":
+        tool_params = tool_input.get("input", {}) or tool_input.get("tool_input", {})
+        bash_command = tool_params.get("command", "")
+        if "htmlgraph orchestrator" in bash_command:
+            event_tracing_response = await run_event_tracing(tool_input)
+            response = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
+                }
+            }
+            if "hookSpecificOutput" in event_tracing_response:
+                tool_use_id = event_tracing_response["hookSpecificOutput"].get(
+                    "tool_use_id"
+                )
+                if tool_use_id:
+                    response["hookSpecificOutput"]["tool_use_id"] = tool_use_id
+            return response
+
     # Run all five checks in parallel using asyncio.gather
     (
         event_tracing_response,
@@ -1258,13 +1279,38 @@ async def pretooluse_hook(tool_input: dict[str, Any]) -> dict[str, Any]:
                 combined_guidance
             )
 
-    # FINAL SAFETY NET: Strip any "deny" decisions and convert to guidance
-    # This ensures no tool calls are ever blocked, only guided
+    # FINAL SAFETY NET: Strip "deny" decisions in non-strict mode
+    # In strict mode, deny decisions are preserved (targeted deny enforcement)
+    # In guidance/disabled mode, deny is converted to allow with guidance
     if response.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
-        reason = response["hookSpecificOutput"].get("permissionDecisionReason", "")
-        response["hookSpecificOutput"]["permissionDecision"] = "allow"
-        if reason:
-            response["hookSpecificOutput"]["additionalContext"] = f"[Guidance] {reason}"
+        try:
+            from htmlgraph.orchestrator_mode import OrchestratorModeManager
+
+            cwd = Path.cwd()
+            graph_dir = cwd / ".htmlgraph"
+            if not graph_dir.exists():
+                for parent in [cwd.parent, cwd.parent.parent, cwd.parent.parent.parent]:
+                    candidate = parent / ".htmlgraph"
+                    if candidate.exists():
+                        graph_dir = candidate
+                        break
+            mgr = OrchestratorModeManager(graph_dir)
+            orch_mode = mgr.get_enforcement_level() if mgr.is_enabled() else "disabled"
+        except Exception:
+            orch_mode = "disabled"
+
+        if orch_mode != "strict":
+            # Non-strict: convert deny to allow with guidance (original behavior)
+            reason = response["hookSpecificOutput"].get("permissionDecisionReason", "")
+            response["hookSpecificOutput"]["permissionDecision"] = "allow"
+            response["continue"] = True
+            if reason:
+                response["hookSpecificOutput"]["additionalContext"] = (
+                    f"[Guidance] {reason}"
+                )
+        else:
+            # Strict: preserve the deny decision
+            response["continue"] = False
 
     return response
 

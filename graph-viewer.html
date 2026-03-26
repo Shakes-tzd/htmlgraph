@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HtmlGraph — Graph Viewer</title>
+    <style>
+        /* ── Design System ── */
+        :root {
+            --bg-primary:    #151518;
+            --bg-secondary:  #1C1C20;
+            --bg-tertiary:   #252528;
+            --text-primary:  #E0DED8;
+            --text-secondary:#A0A0A0;
+            --text-muted:    #707070;
+            --border:        #333338;
+            --border-strong: #606068;
+            --accent:        #CDFF00;
+            --accent-text:   #0A0A0A;
+
+            /* node colours */
+            --c-feature: #22c55e;
+            --c-bug:     #ef4444;
+            --c-spike:   #3b82f6;
+            --c-track:   #f59e0b;
+            --c-session: #8b5cf6;
+
+            /* status tints */
+            --s-done:        #22c55e;
+            --s-in-progress: #CDFF00;
+            --s-todo:        #707070;
+            --s-blocked:     #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Top Bar ── */
+        #topbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.6rem 1rem;
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border-strong);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        #topbar h1 {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            white-space: nowrap;
+        }
+
+        #search {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-strong);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            width: 200px;
+            outline: none;
+        }
+        #search:focus { border-color: var(--accent); }
+        #search::placeholder { color: var(--text-muted); }
+
+        .filter-group {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--border-strong);
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: none;
+            border-right: 1px solid var(--border-strong);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            padding: 0.3rem 0.6rem;
+            text-transform: uppercase;
+            transition: all 0.1s;
+        }
+        .filter-btn:last-child { border-right: none; }
+        .filter-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+        .filter-btn.active { color: var(--accent-text); background: var(--accent); font-weight: 700; }
+
+        #stats {
+            margin-left: auto;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        #loading-msg {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        /* ── Main layout ── */
+        #main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* ── Canvas ── */
+        #canvas-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        #canvas-wrap.grabbing { cursor: grabbing; }
+
+        #canvas {
+            position: absolute;
+            top: 0; left: 0;
+        }
+
+        /* ── Sidebar ── */
+        #sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+            border-left: 2px solid var(--border-strong);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        #sidebar-content {
+            padding: 1rem;
+            flex: 1;
+        }
+
+        .node-detail-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            font-size: 0.7rem;
+        }
+
+        .detail-label {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            flex-shrink: 0;
+            margin-right: 0.5rem;
+        }
+
+        .detail-value { color: var(--text-secondary); text-align: right; word-break: break-all; }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border: 1px solid;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .badge-feature { color: var(--c-feature); border-color: var(--c-feature); }
+        .badge-bug     { color: var(--c-bug);     border-color: var(--c-bug); }
+        .badge-spike   { color: var(--c-spike);   border-color: var(--c-spike); }
+        .badge-track   { color: var(--c-track);   border-color: var(--c-track); }
+        .badge-session { color: var(--c-session); border-color: var(--c-session); }
+        .badge-done        { color: var(--s-done);        border-color: var(--s-done); }
+        .badge-in-progress { color: var(--s-in-progress); border-color: var(--s-in-progress); }
+        .badge-todo        { color: var(--s-todo);        border-color: var(--s-todo); }
+        .badge-blocked     { color: var(--s-blocked);     border-color: var(--s-blocked); }
+
+        .steps-list {
+            list-style: none;
+            margin-top: 0.75rem;
+        }
+
+        .steps-list li {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.6rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .step-done { color: var(--s-done) !important; }
+
+        .edges-section {
+            margin-top: 1rem;
+        }
+
+        .edges-section h4 {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .edge-link {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--accent);
+            text-decoration: none;
+            padding: 0.2rem 0;
+            cursor: pointer;
+        }
+        .edge-link:hover { text-decoration: underline; }
+
+        #empty-msg {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            line-height: 1.8;
+        }
+
+        /* ── Legend ── */
+        #legend {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* ── Tooltip ── */
+        #tooltip {
+            position: fixed;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-strong);
+            color: var(--text-primary);
+            font-size: 0.7rem;
+            padding: 0.4rem 0.75rem;
+            pointer-events: none;
+            z-index: 9999;
+            max-width: 260px;
+            line-height: 1.6;
+            display: none;
+        }
+        #tooltip.visible { display: block; }
+
+        /* ── Error banner ── */
+        #error-banner {
+            display: none;
+            background: #7f1d1d;
+            border: 1px solid #ef4444;
+            color: #fca5a5;
+            font-size: 0.75rem;
+            padding: 0.5rem 1rem;
+        }
+        #error-banner.visible { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- ── Top Bar ── -->
+<div id="topbar">
+    <h1>HtmlGraph — Graph Viewer</h1>
+
+    <input id="search" type="text" placeholder="Search titles…" autocomplete="off">
+
+    <div class="filter-group" id="type-filters">
+        <button class="filter-btn active" data-filter-type="all">All</button>
+        <button class="filter-btn" data-filter-type="feature">Features</button>
+        <button class="filter-btn" data-filter-type="bug">Bugs</button>
+        <button class="filter-btn" data-filter-type="spike">Spikes</button>
+        <button class="filter-btn" data-filter-type="track">Tracks</button>
+    </div>
+
+    <div class="filter-group" id="status-filters">
+        <button class="filter-btn active" data-filter-status="all">All Status</button>
+        <button class="filter-btn" data-filter-status="in-progress">Active</button>
+        <button class="filter-btn" data-filter-status="todo">Planned</button>
+        <button class="filter-btn" data-filter-status="done">Done</button>
+    </div>
+
+    <span id="stats"></span>
+    <span id="loading-msg">Loading…</span>
+</div>
+
+<div id="error-banner"></div>
+
+<!-- ── Main ── -->
+<div id="main">
+    <div id="canvas-wrap">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="sidebar">
+        <div id="sidebar-header">Node Details</div>
+        <div id="sidebar-content">
+            <p id="empty-msg">Click a node to inspect it.</p>
+        </div>
+        <div id="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Feature</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Bug</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Spike</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Track</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Session</div>
+        </div>
+    </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   HtmlGraph Static Graph Viewer
+   - Fetches .htmlgraph/ work items via fetch()
+   - Parses HTML client-side for metadata
+   - Kahn's algorithm topological sort
+   - Canvas-based force-directed layout
+   ═══════════════════════════════════════════════════════ */
+
+// ── Constants ────────────────────────────────────────────
+const DIRS = [
+    { dir: '.htmlgraph/features/', type: 'feature' },
+    { dir: '.htmlgraph/bugs/',     type: 'bug'     },
+    { dir: '.htmlgraph/spikes/',   type: 'spike'   },
+    { dir: '.htmlgraph/tracks/',   type: 'track'   },
+];
+
+// Sessions are numerous — skip by default (can toggle)
+const INCLUDE_SESSIONS = false;
+
+const NODE_RADIUS = 7;
+const TYPE_COLORS = {
+    feature: '#22c55e',
+    bug:     '#ef4444',
+    spike:   '#3b82f6',
+    track:   '#f59e0b',
+    session: '#8b5cf6',
+};
+const STATUS_STROKE = {
+    'in-progress': '#CDFF00',
+    'done':        '#22c55e',
+    'todo':        '#707070',
+    'blocked':     '#ef4444',
+};
+
+// ── State ─────────────────────────────────────────────────
+let allNodes = [];     // { id, type, status, priority, title, steps, edges, x, y, vx, vy }
+let allEdges = [];     // { source, target, rel }
+let visibleNodes = [];
+let visibleEdges = [];
+let selectedNode = null;
+let hoveredNode  = null;
+
+// Filters
+let filterType   = 'all';
+let filterStatus = 'all';
+let filterText   = '';
+
+// Pan / zoom
+let offsetX = 0, offsetY = 0;
+let scale   = 1;
+let isDragging = false, dragStartX = 0, dragStartY = 0;
+
+// Canvas
+const canvasWrap = document.getElementById('canvas-wrap');
+const canvas     = document.getElementById('canvas');
+const ctx        = canvas.getContext('2d');
+
+// Simulation
+let simRunning = false;
+let animFrame  = null;
+
+// ── Helpers ───────────────────────────────────────────────
+
+function showError(msg) {
+    const el = document.getElementById('error-banner');
+    el.textContent = msg;
+    el.classList.add('visible');
+}
+
+function setLoading(msg) {
+    const el = document.getElementById('loading-msg');
+    el.textContent = msg || '';
+    el.style.display = msg ? 'inline' : 'none';
+}
+
+function parseHTMLString(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc;
+}
+
+// ── File Discovery ────────────────────────────────────────
+
+/**
+ * Attempt to list a directory by fetching it.
+ * Apache/nginx directory listings return HTML with <a href="..."> links.
+ * We extract .html file hrefs.
+ */
+async function listDir(dirPath) {
+    try {
+        const res = await fetch(dirPath);
+        if (!res.ok) return [];
+        const text = await res.text();
+        const doc  = parseHTMLString(text);
+        const links = Array.from(doc.querySelectorAll('a[href]'));
+        return links
+            .map(a => a.getAttribute('href'))
+            .filter(h => h && h.endsWith('.html') && !h.startsWith('?') && !h.startsWith('/') && !h.includes('..'))
+            .map(h => dirPath + (h.startsWith(dirPath) ? h.slice(dirPath.length) : h));
+    } catch (e) {
+        return [];
+    }
+}
+
+// ── HTML Parsing ──────────────────────────────────────────
+
+function parseWorkItem(html, url, defaultType) {
+    const doc     = parseHTMLString(html);
+    const article = doc.querySelector('article[id]');
+    if (!article) return null;
+
+    const id       = article.id;
+    const type     = article.dataset.type     || defaultType;
+    const status   = article.dataset.status   || 'todo';
+    const priority = article.dataset.priority || 'medium';
+    const trackId  = article.dataset.trackId  || null;
+
+    const h1 = doc.querySelector('h1');
+    const title = h1 ? h1.textContent.trim() : id;
+
+    // Edges: data-graph-edges nav > section[data-edge-type] > ul > li > a[data-relationship]
+    const edgeLinks = doc.querySelectorAll('[data-graph-edges] a[data-relationship]');
+    const edges = Array.from(edgeLinks).map(a => ({
+        target:   a.textContent.trim(),
+        rel:      a.dataset.relationship,
+        since:    a.dataset.since || '',
+    }));
+
+    // Also infer track edge
+    if (trackId) {
+        edges.push({ target: trackId, rel: 'belongs-to' });
+    }
+
+    // Steps
+    const stepEls = doc.querySelectorAll('[data-steps] li[data-step-id]');
+    const steps = Array.from(stepEls).map(li => ({
+        id:        li.dataset.stepId,
+        text:      li.textContent.replace(/^[⏳✅]\s*/, '').trim(),
+        completed: li.dataset.completed === 'true',
+    }));
+
+    return { id, type, status, priority, title, edges, steps, url,
+             x: 0, y: 0, vx: 0, vy: 0 };
+}
+
+// ── Load All Work Items ───────────────────────────────────
+
+async function loadAll() {
+    setLoading('Discovering files…');
+    const rawNodes = [];
+    let total = 0;
+
+    for (const { dir, type } of DIRS) {
+        const urls = await listDir(dir);
+        for (const url of urls) {
+            // Skip non-work-item HTML files
+            const filename = url.split('/').pop();
+            if (!filename.match(/^(feat|bug|spk|trk|sess)-/)) continue;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) continue;
+                const text = await res.text();
+                const node = parseWorkItem(text, url, type);
+                if (node) {
+                    rawNodes.push(node);
+                    total++;
+                    if (total % 10 === 0) setLoading(`Loaded ${total} items…`);
+                }
+            } catch (e) {
+                // Skip unreadable files silently
+            }
+        }
+    }
+
+    setLoading(`Building graph (${total} items)…`);
+    buildGraph(rawNodes);
+    setLoading('');
+    updateStats();
+}
+
+// ── Graph Construction ────────────────────────────────────
+
+function buildGraph(rawNodes) {
+    // Index by id
+    const byId = new Map(rawNodes.map(n => [n.id, n]));
+
+    allNodes = rawNodes;
+    allEdges = [];
+
+    // Build edges list from node edge declarations
+    for (const node of rawNodes) {
+        for (const e of node.edges) {
+            const target = e.target;
+            if (byId.has(target)) {
+                allEdges.push({ source: node.id, target, rel: e.rel });
+            }
+        }
+    }
+
+    // Deduplicate edges (same source+target pair)
+    const edgeSet = new Set();
+    allEdges = allEdges.filter(e => {
+        const key = `${e.source}→${e.target}`;
+        if (edgeSet.has(key)) return false;
+        edgeSet.add(key);
+        return true;
+    });
+
+    // Topological sort (Kahn's) for initial layout ordering
+    const topoOrder = kahnSort(allNodes.map(n => n.id), allEdges);
+
+    // Initial positions: spread in topo order
+    layoutTopoGrid(allNodes, topoOrder);
+
+    applyFilters();
+    startSimulation();
+}
+
+// ── Kahn's Topological Sort ───────────────────────────────
+
+function kahnSort(nodeIds, edges) {
+    const inDegree = new Map(nodeIds.map(id => [id, 0]));
+    const adjOut   = new Map(nodeIds.map(id => [id, []]));
+
+    for (const { source, target } of edges) {
+        if (inDegree.has(source) && inDegree.has(target)) {
+            inDegree.set(target, inDegree.get(target) + 1);
+            adjOut.get(source).push(target);
+        }
+    }
+
+    const queue  = nodeIds.filter(id => inDegree.get(id) === 0);
+    const result = [];
+
+    while (queue.length > 0) {
+        const node = queue.shift();
+        result.push(node);
+        for (const nbr of (adjOut.get(node) || [])) {
+            const deg = inDegree.get(nbr) - 1;
+            inDegree.set(nbr, deg);
+            if (deg === 0) queue.push(nbr);
+        }
+    }
+
+    // Append any remaining nodes (cycles)
+    const resultSet = new Set(result);
+    for (const id of nodeIds) {
+        if (!resultSet.has(id)) result.push(id);
+    }
+
+    return result;
+}
+
+// ── Initial Layout (topo grid) ────────────────────────────
+
+function layoutTopoGrid(nodes, order) {
+    const byId  = new Map(nodes.map(n => [n.id, n]));
+    const COLS  = Math.ceil(Math.sqrt(nodes.length * 1.6));
+    const SPACEX = 120;
+    const SPACEY = 80;
+
+    order.forEach((id, i) => {
+        const node = byId.get(id);
+        if (!node) return;
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+        node.x = col * SPACEX + 60 + (Math.random() - 0.5) * 20;
+        node.y = row * SPACEY + 60 + (Math.random() - 0.5) * 20;
+    });
+}
+
+// ── Force-Directed Simulation ─────────────────────────────
+
+const SIM_STEPS     = 150;
+const REPULSION     = 3000;
+const ATTRACTION    = 0.012;
+const CENTERING     = 0.004;
+const DAMPING       = 0.82;
+const EDGE_LEN      = 100;
+
+let simStep = 0;
+
+function tick() {
+    if (visibleNodes.length === 0) return;
+
+    const nodeMap = new Map(visibleNodes.map(n => [n.id, n]));
+    const edgesVis = visibleEdges.filter(e => nodeMap.has(e.source) && nodeMap.has(e.target));
+
+    const cx = visibleNodes.reduce((s, n) => s + n.x, 0) / visibleNodes.length;
+    const cy = visibleNodes.reduce((s, n) => s + n.y, 0) / visibleNodes.length;
+
+    // Repulsion between all pairs (O(n²) — acceptable for ≤500 nodes)
+    for (let i = 0; i < visibleNodes.length; i++) {
+        const a = visibleNodes[i];
+        for (let j = i + 1; j < visibleNodes.length; j++) {
+            const b = visibleNodes[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const dist2 = dx * dx + dy * dy + 1;
+            const force = REPULSION / dist2;
+            const fx = force * dx / Math.sqrt(dist2);
+            const fy = force * dy / Math.sqrt(dist2);
+            a.vx += fx; a.vy += fy;
+            b.vx -= fx; b.vy -= fy;
+        }
+    }
+
+    // Attraction along edges
+    for (const e of edgesVis) {
+        const a = nodeMap.get(e.source);
+        const b = nodeMap.get(e.target);
+        const dx   = b.x - a.x;
+        const dy   = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = ATTRACTION * (dist - EDGE_LEN);
+        const fx = force * dx / dist;
+        const fy = force * dy / dist;
+        a.vx += fx; a.vy += fy;
+        b.vx -= fx; b.vy -= fy;
+    }
+
+    // Centering
+    for (const n of visibleNodes) {
+        n.vx += CENTERING * (cx - n.x) * -1;
+        n.vy += CENTERING * (cy - n.y) * -1;
+    }
+
+    // Integrate
+    for (const n of visibleNodes) {
+        n.vx *= DAMPING;
+        n.vy *= DAMPING;
+        n.x  += n.vx;
+        n.y  += n.vy;
+    }
+
+    simStep++;
+    draw();
+
+    if (simStep < SIM_STEPS || isDragging) {
+        animFrame = requestAnimationFrame(tick);
+    } else {
+        simRunning = false;
+        draw();
+    }
+}
+
+function startSimulation() {
+    simStep    = 0;
+    simRunning = true;
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animFrame = requestAnimationFrame(tick);
+}
+
+// ── Filtering ─────────────────────────────────────────────
+
+function applyFilters() {
+    const textLower = filterText.toLowerCase();
+
+    visibleNodes = allNodes.filter(n => {
+        if (filterType !== 'all' && n.type !== filterType) return false;
+        if (filterStatus !== 'all' && n.status !== filterStatus) return false;
+        if (textLower && !n.title.toLowerCase().includes(textLower) && !n.id.includes(textLower)) return false;
+        return true;
+    });
+
+    const visSet = new Set(visibleNodes.map(n => n.id));
+    visibleEdges = allEdges.filter(e => visSet.has(e.source) && visSet.has(e.target));
+
+    updateStats();
+}
+
+function updateStats() {
+    document.getElementById('stats').textContent =
+        `${visibleNodes.length} / ${allNodes.length} nodes · ${visibleEdges.length} edges`;
+}
+
+// ── Drawing ───────────────────────────────────────────────
+
+function resizeCanvas() {
+    const w = canvasWrap.clientWidth;
+    const h = canvasWrap.clientHeight;
+    canvas.width  = w;
+    canvas.height = h;
+    if (!simRunning) draw();
+}
+
+function worldToScreen(x, y) {
+    return [x * scale + offsetX, y * scale + offsetY];
+}
+
+function screenToWorld(sx, sy) {
+    return [(sx - offsetX) / scale, (sy - offsetY) / scale];
+}
+
+function draw() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    if (visibleNodes.length === 0) {
+        ctx.fillStyle = '#707070';
+        ctx.font = '13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('No nodes match the current filters.', W / 2, H / 2);
+        ctx.textAlign = 'left';
+        return;
+    }
+
+    // Edges
+    const nodeMap = new Map(visibleNodes.map(n => [n.id, n]));
+
+    for (const e of visibleEdges) {
+        const a = nodeMap.get(e.source);
+        const b = nodeMap.get(e.target);
+        if (!a || !b) continue;
+
+        const [ax, ay] = worldToScreen(a.x, a.y);
+        const [bx, by] = worldToScreen(b.x, b.y);
+
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.strokeStyle = e.rel === 'belongs-to' ? '#333338' : '#3a3a40';
+        ctx.lineWidth   = e.rel === 'belongs-to' ? 0.5 : 1;
+        ctx.stroke();
+
+        // Arrowhead
+        const angle = Math.atan2(by - ay, bx - ax);
+        const r     = (NODE_RADIUS + 2) * scale;
+        const tx    = bx - r * Math.cos(angle);
+        const ty    = by - r * Math.sin(angle);
+        const al    = 6 * scale;
+        const aw    = 3 * scale;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(tx - al * Math.cos(angle - 0.4), ty - al * Math.sin(angle - 0.4));
+        ctx.lineTo(tx - al * Math.cos(angle + 0.4), ty - al * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fillStyle = e.rel === 'belongs-to' ? '#333338' : '#3a3a40';
+        ctx.fill();
+    }
+
+    // Nodes
+    const R = NODE_RADIUS * scale;
+
+    for (const n of visibleNodes) {
+        const [sx, sy] = worldToScreen(n.x, n.y);
+
+        const isSelected = selectedNode && selectedNode.id === n.id;
+        const isHovered  = hoveredNode  && hoveredNode.id  === n.id;
+
+        const fill   = TYPE_COLORS[n.type] || '#888';
+        const stroke = STATUS_STROKE[n.status] || '#606068';
+
+        // Glow for selected
+        if (isSelected) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, R + 5 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = fill + '33';
+            ctx.fill();
+        }
+
+        // Node body
+        ctx.beginPath();
+        ctx.arc(sx, sy, R, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? fill : fill + 'cc';
+        ctx.fill();
+
+        // Status ring
+        ctx.beginPath();
+        ctx.arc(sx, sy, R + (isHovered ? 2.5 : 1.5) * scale, 0, Math.PI * 2);
+        ctx.strokeStyle = isHovered ? '#CDFF00' : stroke;
+        ctx.lineWidth   = (isHovered ? 2 : 1) * scale;
+        ctx.stroke();
+
+        // Label (only if scale is large enough)
+        if (scale > 0.7) {
+            const label = n.title.length > 22 ? n.title.slice(0, 22) + '…' : n.title;
+            ctx.font      = `${Math.max(9, 11 * scale)}px monospace`;
+            ctx.fillStyle = '#E0DED8';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, sx, sy + R + 13 * scale);
+            ctx.textAlign = 'left';
+        }
+    }
+}
+
+// ── Hit Testing ───────────────────────────────────────────
+
+function hitTest(sx, sy) {
+    const [wx, wy] = screenToWorld(sx, sy);
+    const R2 = (NODE_RADIUS + 4) * (NODE_RADIUS + 4);
+
+    for (const n of visibleNodes) {
+        const dx = n.x - wx, dy = n.y - wy;
+        if (dx * dx + dy * dy < R2 / (scale * scale)) return n;
+    }
+    return null;
+}
+
+// ── Sidebar ───────────────────────────────────────────────
+
+function selectNode(node) {
+    selectedNode = node;
+
+    const content = document.getElementById('sidebar-content');
+    if (!node) {
+        content.innerHTML = '<p id="empty-msg">Click a node to inspect it.</p>';
+        return;
+    }
+
+    const typeColor = TYPE_COLORS[node.type] || '#888';
+    const edgesOut  = allEdges.filter(e => e.source === node.id);
+    const edgesIn   = allEdges.filter(e => e.target === node.id);
+
+    const stepsHtml = node.steps.length
+        ? `<ul class="steps-list">${node.steps.map(s =>
+              `<li class="${s.completed ? 'step-done' : ''}">${s.completed ? '✓' : '○'} ${s.text}</li>`
+          ).join('')}</ul>`
+        : '';
+
+    const outHtml = edgesOut.length
+        ? `<div class="edges-section"><h4>Links out (${edgesOut.length})</h4>
+            ${edgesOut.map(e => `<span class="edge-link" data-node-id="${e.target}"
+                title="${e.rel}">→ ${e.target}</span>`).join('')}
+           </div>`
+        : '';
+
+    const inHtml = edgesIn.length
+        ? `<div class="edges-section"><h4>Links in (${edgesIn.length})</h4>
+            ${edgesIn.map(e => `<span class="edge-link" data-node-id="${e.source}"
+                title="${e.rel}">← ${e.source}</span>`).join('')}
+           </div>`
+        : '';
+
+    const stepsCount = node.steps.length;
+    const stepsDone  = node.steps.filter(s => s.completed).length;
+    const progressPct = stepsCount ? Math.round(100 * stepsDone / stepsCount) : null;
+
+    content.innerHTML = `
+        <p class="node-detail-title">${node.title}</p>
+        <div class="detail-row">
+            <span class="detail-label">ID</span>
+            <span class="detail-value" style="color:${typeColor}">${node.id}</span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Type</span>
+            <span class="detail-value">
+                <span class="badge badge-${node.type}">${node.type}</span>
+            </span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value">
+                <span class="badge badge-${node.status.replace('_','-')}">${node.status}</span>
+            </span>
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Priority</span>
+            <span class="detail-value">${node.priority}</span>
+        </div>
+        ${progressPct !== null ? `
+        <div class="detail-row">
+            <span class="detail-label">Steps</span>
+            <span class="detail-value">${stepsDone} / ${stepsCount} (${progressPct}%)</span>
+        </div>` : ''}
+        ${stepsHtml}
+        ${outHtml}
+        ${inHtml}
+    `;
+
+    // Edge link click handlers
+    content.querySelectorAll('.edge-link[data-node-id]').forEach(el => {
+        el.addEventListener('click', () => {
+            const target = allNodes.find(n => n.id === el.dataset.nodeId);
+            if (target) {
+                panTo(target);
+                selectNode(target);
+            }
+        });
+    });
+
+    draw();
+}
+
+// ── Pan / Zoom helpers ────────────────────────────────────
+
+function centerOnNodes() {
+    if (visibleNodes.length === 0) return;
+    const W = canvas.width, H = canvas.height;
+    const xs = visibleNodes.map(n => n.x);
+    const ys = visibleNodes.map(n => n.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const cw = maxX - minX + NODE_RADIUS * 4 + 100;
+    const ch = maxY - minY + NODE_RADIUS * 4 + 100;
+    scale   = Math.min(2, Math.min(W / cw, H / ch));
+    offsetX = W / 2 - ((minX + maxX) / 2) * scale;
+    offsetY = H / 2 - ((minY + maxY) / 2) * scale;
+}
+
+function panTo(node) {
+    const W = canvas.width, H = canvas.height;
+    offsetX = W / 2 - node.x * scale;
+    offsetY = H / 2 - node.y * scale;
+    draw();
+}
+
+// ── Events ────────────────────────────────────────────────
+
+// Resize
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    if (!simRunning) draw();
+});
+
+// Mouse: pan
+canvasWrap.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    const hit = hitTest(e.offsetX, e.offsetY);
+    if (hit) {
+        selectNode(hit);
+        draw();
+        return;
+    }
+    isDragging = true;
+    dragStartX = e.offsetX - offsetX;
+    dragStartY = e.offsetY - offsetY;
+    canvasWrap.classList.add('grabbing');
+    if (!simRunning) {
+        animFrame = requestAnimationFrame(tick);
+        simRunning = true;
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isDragging = false;
+    canvasWrap.classList.remove('grabbing');
+});
+
+canvasWrap.addEventListener('mousemove', e => {
+    if (isDragging) {
+        offsetX = e.offsetX - dragStartX;
+        offsetY = e.offsetY - dragStartY;
+        return;
+    }
+
+    const hit = hitTest(e.offsetX, e.offsetY);
+    hoveredNode = hit || null;
+
+    const tip = document.getElementById('tooltip');
+    if (hit) {
+        tip.classList.add('visible');
+        tip.style.left = (e.clientX + 14) + 'px';
+        tip.style.top  = (e.clientY - 10) + 'px';
+        tip.innerHTML  = `<strong>${hit.id}</strong><br>${hit.title}<br>
+            <span style="color:#707070">${hit.type} · ${hit.status}</span>`;
+        canvasWrap.style.cursor = 'pointer';
+    } else {
+        tip.classList.remove('visible');
+        canvasWrap.style.cursor = '';
+    }
+
+    if (!simRunning) draw();
+});
+
+canvasWrap.addEventListener('mouseleave', () => {
+    hoveredNode = null;
+    document.getElementById('tooltip').classList.remove('visible');
+    if (!simRunning) draw();
+});
+
+// Scroll: zoom
+canvasWrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const mx = e.offsetX, my = e.offsetY;
+    offsetX = mx - (mx - offsetX) * factor;
+    offsetY = my - (my - offsetY) * factor;
+    scale  *= factor;
+    scale   = Math.max(0.1, Math.min(scale, 5));
+    if (!simRunning) draw();
+}, { passive: false });
+
+// Touch: pinch zoom + pan
+let lastTouchDist = null;
+let lastTouchX = null, lastTouchY = null;
+
+canvasWrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+    } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+    }
+}, { passive: true });
+
+canvasWrap.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 1 && lastTouchX !== null) {
+        const dx = e.touches[0].clientX - lastTouchX;
+        const dy = e.touches[0].clientY - lastTouchY;
+        offsetX += dx; offsetY += dy;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+        if (!simRunning) draw();
+    } else if (e.touches.length === 2 && lastTouchDist !== null) {
+        const dx   = e.touches[0].clientX - e.touches[1].clientX;
+        const dy   = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const factor = dist / lastTouchDist;
+        scale  *= factor;
+        scale   = Math.max(0.1, Math.min(scale, 5));
+        lastTouchDist = dist;
+        if (!simRunning) draw();
+    }
+}, { passive: false });
+
+canvasWrap.addEventListener('touchend', () => {
+    lastTouchDist = lastTouchX = lastTouchY = null;
+});
+
+// Type filter buttons
+document.getElementById('type-filters').addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('#type-filters .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterType = btn.dataset.filterType;
+    applyFilters();
+    startSimulation();
+});
+
+// Status filter buttons
+document.getElementById('status-filters').addEventListener('click', e => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    document.querySelectorAll('#status-filters .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterStatus = btn.dataset.filterStatus;
+    applyFilters();
+    startSimulation();
+});
+
+// Search
+let searchTimer = null;
+document.getElementById('search').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        filterText = e.target.value.trim();
+        applyFilters();
+        startSimulation();
+    }, 200);
+});
+
+// ── Bootstrap ─────────────────────────────────────────────
+
+resizeCanvas();
+
+loadAll().then(() => {
+    if (allNodes.length === 0) {
+        showError('No work items found. Make sure htmlgraph serve is running and has access to .htmlgraph/');
+        setLoading('');
+        return;
+    }
+    centerOnNodes();
+    startSimulation();
+}).catch(err => {
+    showError(`Failed to load work items: ${err.message}`);
+    setLoading('');
+});
+</script>
+</body>
+</html>
