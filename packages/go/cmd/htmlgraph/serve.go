@@ -25,15 +25,13 @@ func serveCmd() *cobra.Command {
 }
 
 func runServer(port int) error {
-	root, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get working directory: %w", err)
-	}
-
 	htmlgraphDir, err := findHtmlgraphDir()
 	if err != nil {
 		return err
 	}
+
+	// Project root is the parent of .htmlgraph/
+	root := filepath.Dir(htmlgraphDir)
 
 	dbPath := filepath.Join(htmlgraphDir, "htmlgraph.db")
 	database, err := db.Open(dbPath)
