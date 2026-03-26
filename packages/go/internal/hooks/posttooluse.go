@@ -2,16 +2,15 @@ package hooks
 
 import (
 	"database/sql"
-	"os"
 	"time"
 )
 
 // PostToolUse handles the PostToolUse Claude Code hook event.
-// It updates the agent_event row written by PreToolUse with the tool result.
+// It finds the most recent "started" event for this session/tool and marks it completed.
+// Note: env vars don't persist between hook processes, so we query the DB instead.
 func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	eventID := os.Getenv("HTMLGRAPH_CURRENT_EVENT_ID")
-	if eventID == "" {
-		// PreToolUse didn't fire or was skipped — nothing to update.
+	sessionID := EnvSessionID(event.SessionID)
+	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
 	}
 
@@ -24,7 +23,20 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	outputSummary := summariseOutput(event.ToolResult)
 
-	_, err := database.Exec(`
+	// Find the most recent "started" event for this session and tool.
+	var eventID string
+	err := database.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ? AND tool_name = ? AND status = 'started'
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID, event.ToolName,
+	).Scan(&eventID)
+
+	if err != nil {
+		return &HookResult{Continue: true}, nil
+	}
+
+	_, _ = database.Exec(`
 		UPDATE agent_events
 		SET status = ?,
 		    output_summary = ?,
@@ -32,10 +44,6 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		WHERE event_id = ?`,
 		status, outputSummary, now, eventID,
 	)
-	_ = err // Non-fatal: never block Claude on DB errors
-
-	// Clear env var so the next tool gets a fresh slot.
-	os.Unsetenv("HTMLGRAPH_CURRENT_EVENT_ID")
 
 	return &HookResult{Continue: true}, nil
 }

@@ -303,8 +303,9 @@ func sseHandler(database *sql.DB) http.HandlerFunc {
 
 				rows, err := database.Query(`
 					SELECT rowid, event_id, agent_id, event_type, timestamp,
-					       tool_name, COALESCE(output_summary, ''), session_id,
-					       COALESCE(feature_id, '')
+					       tool_name, COALESCE(input_summary, ''),
+					       COALESCE(output_summary, ''), session_id,
+					       COALESCE(feature_id, ''), status
 					FROM agent_events
 					WHERE rowid > ?
 					ORDER BY rowid ASC
@@ -315,20 +316,22 @@ func sseHandler(database *sql.DB) http.HandlerFunc {
 
 				for rows.Next() {
 					var rowid int64
-					var eid, aid, etype, ts, tool, summary, sid, fid string
+					var eid, aid, etype, ts, tool, inputSum, outputSum, sid, fid, status string
 					if err := rows.Scan(&rowid, &eid, &aid, &etype, &ts,
-						&tool, &summary, &sid, &fid); err != nil {
+						&tool, &inputSum, &outputSum, &sid, &fid, &status); err != nil {
 						continue
 					}
 					payload, _ := json.Marshal(map[string]string{
-						"event_id":   eid,
-						"agent_id":   aid,
-						"event_type": etype,
-						"timestamp":  ts,
-						"tool_name":  tool,
-						"summary":    summary,
-						"session_id": sid,
-						"feature_id": fid,
+						"event_id":       eid,
+						"agent_id":       aid,
+						"event_type":     etype,
+						"timestamp":      ts,
+						"tool_name":      tool,
+						"input_summary":  inputSum,
+						"output_summary": outputSum,
+						"session_id":     sid,
+						"feature_id":     fid,
+						"status":         status,
 					})
 					fmt.Fprintf(w, "data: %s\n\n", payload)
 					lastRowID = rowid
