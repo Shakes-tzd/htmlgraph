@@ -68,11 +68,11 @@ func launchClaudeDev(extraArgs []string) error {
 	// resolvePluginDir is defined in serve.go; returns "" on failure.
 	pluginDir := resolvePluginDir()
 	if pluginDir == "" {
-		return fmt.Errorf("could not resolve Go plugin directory\nAre you running from the project root?")
+		return fmt.Errorf("could not find plugin directory. The binary may not be installed at the expected location (packages/go-plugin/hooks/bin/htmlgraph)")
 	}
 	// Verify expected plugin structure.
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
-		return fmt.Errorf("plugin.json not found at %s\nAre you running from the project root?",
+		return fmt.Errorf("plugin.json not found at %s. The binary may not be installed at the expected location (packages/go-plugin/hooks/bin/htmlgraph)",
 			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	}
 	if _, err := os.Stat(filepath.Join(pluginDir, "hooks", "bin", "htmlgraph")); os.IsNotExist(err) {
@@ -280,8 +280,12 @@ func loadSystemPrompt(pluginDir string) string {
 }
 
 // writeLaunchMarker writes .htmlgraph/.launch-mode for hooks to detect the launch mode.
-// projectRoot, if non-empty, anchors the path; otherwise CWD is used.
+// projectRoot must be non-empty; if it is empty the write is skipped to avoid
+// polluting whatever directory the user happens to be in.
 func writeLaunchMarker(mode, projectRoot string) {
+	if projectRoot == "" {
+		return // No project root — skip rather than polluting CWD
+	}
 	marker := map[string]any{
 		"mode":      mode,
 		"pid":       os.Getpid(),
@@ -291,10 +295,7 @@ func writeLaunchMarker(mode, projectRoot string) {
 	if err != nil {
 		return
 	}
-	dir := ".htmlgraph"
-	if projectRoot != "" {
-		dir = filepath.Join(projectRoot, ".htmlgraph")
-	}
-	os.MkdirAll(dir, 0755)                                   //nolint:errcheck
+	dir := filepath.Join(projectRoot, ".htmlgraph")
+	os.MkdirAll(dir, 0755)                                       //nolint:errcheck
 	os.WriteFile(filepath.Join(dir, ".launch-mode"), data, 0644) //nolint:errcheck
 }

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 func yoloCmd() *cobra.Command {
 	var dev, initMode, continueMode bool
-	var permMode string
+	var permMode, trackID, featureID string
 
 	cmd := &cobra.Command{
 		Use:   "yolo",
@@ -27,17 +28,20 @@ YOLO mode removes permission prompts but enforces code quality at every step:
   - Budget limits to keep features focused
   - Worktree-per-feature isolation
 
-Each session is auto-named with a timestamp for easy identification.`,
+Each session is auto-named with a timestamp for easy identification.
+
+Requires --track or --feature to identify the work item for attribution.
+Without either flag, launches in planning mode to help you create one first.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch {
 			case dev:
-				return launchYoloDev(args)
+				return launchYoloDev(trackID, featureID, args)
 			case initMode:
-				return launchYoloInit(args)
+				return launchYoloInit(trackID, featureID, args)
 			case continueMode:
 				return launchYoloContinue(args)
 			default:
-				return launchYoloDefault(permMode, args)
+				return launchYoloDefault(permMode, trackID, featureID, args)
 			}
 		},
 	}
@@ -47,6 +51,8 @@ Each session is auto-named with a timestamp for easy identification.`,
 	cmd.Flags().BoolVar(&continueMode, "continue", false, "Resume last YOLO session")
 	cmd.Flags().StringVar(&permMode, "permission-mode", "bypassPermissions",
 		"Permission mode (bypassPermissions, acceptEdits)")
+	cmd.Flags().StringVar(&trackID, "track", "", "Track ID to work on (e.g., trk-3719d8f3)")
+	cmd.Flags().StringVar(&featureID, "feature", "", "Feature ID to work on (e.g., feat-15c458aa)")
 	return cmd
 }
 
@@ -68,26 +74,112 @@ func resolveYoloPromptFile(pluginDir string) string {
 	return path
 }
 
-func launchYoloDefault(permMode string, extraArgs []string) error {
+// validateWorkItem checks that a track or feature HTML file exists in .htmlgraph/.
+// Returns the validated ID and item type, or an error.
+func validateWorkItem(trackID, featureID, projectRoot string) (id, kind string, err error) {
+	htmlgraphDir := filepath.Join(projectRoot, ".htmlgraph")
+	switch {
+	case trackID != "":
+		htmlFile := filepath.Join(htmlgraphDir, "tracks", trackID+".html")
+		if _, statErr := os.Stat(htmlFile); os.IsNotExist(statErr) {
+			return "", "", fmt.Errorf("track %s not found in .htmlgraph/", trackID)
+		}
+		return trackID, "track", nil
+	case featureID != "":
+		htmlFile := filepath.Join(htmlgraphDir, "features", featureID+".html")
+		if _, statErr := os.Stat(htmlFile); os.IsNotExist(statErr) {
+			return "", "", fmt.Errorf("feature %s not found in .htmlgraph/", featureID)
+		}
+		return featureID, "feature", nil
+	default:
+		return "", "", nil
+	}
+}
+
+// buildWorkItemPromptPrefix returns the work item header to prepend to the yolo prompt.
+func buildWorkItemPromptPrefix(id, kind string) string {
+	return strings.Join([]string{
+		"## Active Work Item",
+		fmt.Sprintf("You are working on: %s", id),
+		"All work in this session must be attributed to this item.",
+		"",
+	}, "\n")
+}
+
+// buildYoloSystemPrompt reads the yolo prompt file and prepends the work item header.
+// If promptFile is empty or unreadable, falls back to the header alone.
+func buildYoloSystemPrompt(promptFile, id, kind string) string {
+	var sb strings.Builder
+	if id != "" {
+		sb.WriteString(buildWorkItemPromptPrefix(id, kind))
+	}
+	if promptFile != "" {
+		if data, err := os.ReadFile(promptFile); err == nil {
+			sb.Write(data)
+		}
+	}
+	return sb.String()
+}
+
+// launchYoloPlanningMode launches Claude in planning mode (no bypass permissions)
+// when no --track or --feature is provided. Prints guidance before launching.
+func launchYoloPlanningMode(pluginDir, projectRoot string, extraArgs []string) error {
+	fmt.Println("No --track or --feature specified.")
+	fmt.Println("Launching in planning mode to help you create a track or feature first.")
+	fmt.Println("Once you have a track/feature, restart with:")
+	fmt.Println("  htmlgraph yolo --track <track-id>")
+	fmt.Println("  htmlgraph yolo --feature <feature-id>")
+	fmt.Println()
+	return launchClaude(LaunchOpts{
+		Mode:            "yolo-planning",
+		SystemPromptDir: pluginDir,
+		ExtraArgs:       extraArgs,
+		ProjectRoot:     projectRoot,
+	})
+}
+
+func launchYoloDefault(permMode, trackID, featureID string, extraArgs []string) error {
 	pluginDir := resolvePluginDir()
 	projectRoot := ""
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 
+	// No work item provided — fall back to planning mode.
+	if trackID == "" && featureID == "" {
+		return launchYoloPlanningMode(pluginDir, projectRoot, extraArgs)
+	}
+
+	// Validate the provided work item exists.
+	id, kind, err := validateWorkItem(trackID, featureID, projectRoot)
+	if err != nil {
+		return err
+	}
+
 	sessionName := yoloSessionName()
-	yoloPrompt := resolveYoloPromptFile(pluginDir)
+	yoloPromptFile := resolveYoloPromptFile(pluginDir)
+	systemPromptContent := buildYoloSystemPrompt(yoloPromptFile, id, kind)
 
 	fmt.Printf("Launching Claude Code in YOLO mode (%s)...\n", permMode)
 	fmt.Printf("  Session: %s\n", sessionName)
-	if yoloPrompt != "" {
-		fmt.Printf("  Guardrails: %s\n", yoloPrompt)
+	fmt.Printf("  Work item: %s\n", id)
+
+	// Write the combined prompt to a temp file so launchClaude can pass it via
+	// --append-system-prompt without needing a new field.
+	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
+	if err != nil {
+		return fmt.Errorf("could not create temp prompt file: %w", err)
 	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(systemPromptContent); err != nil {
+		return fmt.Errorf("could not write temp prompt file: %w", err)
+	}
+	tmpFile.Close()
 
 	return launchClaude(LaunchOpts{
 		Mode:             "yolo",
 		SystemPromptDir:  pluginDir,
-		SystemPromptFile: yoloPrompt,
+		SystemPromptFile: tmpFile.Name(),
 		PermissionMode:   permMode,
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
@@ -95,13 +187,13 @@ func launchYoloDefault(permMode string, extraArgs []string) error {
 	})
 }
 
-func launchYoloDev(extraArgs []string) error {
+func launchYoloDev(trackID, featureID string, extraArgs []string) error {
 	pluginDir := resolvePluginDir()
 	if pluginDir == "" {
-		return fmt.Errorf("could not resolve Go plugin directory\nAre you running from the project root?")
+		return fmt.Errorf("could not find plugin directory. The binary may not be installed at the expected location (packages/go-plugin/hooks/bin/htmlgraph)")
 	}
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
-		return fmt.Errorf("plugin.json not found at %s\nAre you running from the project root?",
+		return fmt.Errorf("plugin.json not found at %s. The binary may not be installed at the expected location (packages/go-plugin/hooks/bin/htmlgraph)",
 			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	}
 	if _, err := os.Stat(filepath.Join(pluginDir, "hooks", "bin", "htmlgraph")); os.IsNotExist(err) {
@@ -112,6 +204,17 @@ func launchYoloDev(extraArgs []string) error {
 	projectRoot := ""
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectRoot = filepath.Dir(htmlgraphDir)
+	}
+
+	// No work item provided — fall back to planning mode.
+	if trackID == "" && featureID == "" {
+		return launchYoloPlanningMode(pluginDir, projectRoot, extraArgs)
+	}
+
+	// Validate the provided work item exists.
+	id, kind, err := validateWorkItem(trackID, featureID, projectRoot)
+	if err != nil {
+		return err
 	}
 
 	fmt.Println("Disabling marketplace htmlgraph plugin...")
@@ -129,16 +232,30 @@ func launchYoloDev(extraArgs []string) error {
 	}()
 
 	sessionName := yoloSessionName()
-	yoloPrompt := resolveYoloPromptFile(pluginDir)
+	yoloPromptFile := resolveYoloPromptFile(pluginDir)
+	systemPromptContent := buildYoloSystemPrompt(yoloPromptFile, id, kind)
 
 	fmt.Printf("Launching Claude Code in YOLO dev mode...\n")
 	fmt.Printf("  Plugin: %s\n", pluginDir)
 	fmt.Printf("  Session: %s\n", sessionName)
+	fmt.Printf("  Work item: %s\n", id)
+
+	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
+	if err != nil {
+		restoreFn()
+		return fmt.Errorf("could not create temp prompt file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(systemPromptContent); err != nil {
+		restoreFn()
+		return fmt.Errorf("could not write temp prompt file: %w", err)
+	}
+	tmpFile.Close()
 
 	launchErr := launchClaude(LaunchOpts{
 		Mode:             "yolo-dev",
 		PluginDir:        pluginDir,
-		SystemPromptFile: yoloPrompt,
+		SystemPromptFile: tmpFile.Name(),
 		PermissionMode:   "bypassPermissions",
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
@@ -148,13 +265,13 @@ func launchYoloDev(extraArgs []string) error {
 	return launchErr
 }
 
-func launchYoloInit(extraArgs []string) error {
+func launchYoloInit(trackID, featureID string, extraArgs []string) error {
 	// Initialize .htmlgraph/ first.
 	if err := runInit(nil, nil); err != nil {
 		return fmt.Errorf("init failed: %w", err)
 	}
 	fmt.Println()
-	return launchYoloDefault("bypassPermissions", extraArgs)
+	return launchYoloDefault("bypassPermissions", trackID, featureID, extraArgs)
 }
 
 func launchYoloContinue(extraArgs []string) error {
