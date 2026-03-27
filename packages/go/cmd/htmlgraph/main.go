@@ -42,6 +42,7 @@ func main() {
 	rootCmd.AddCommand(snapshotCmd())
 	rootCmd.AddCommand(hookCmd())
 	rootCmd.AddCommand(claudeCmd())
+	rootCmd.AddCommand(yoloCmd())
 	rootCmd.AddCommand(initCmd())
 	rootCmd.AddCommand(trackCmd())
 	rootCmd.AddCommand(sessionCmd())

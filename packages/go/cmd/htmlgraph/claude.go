@@ -23,6 +23,13 @@ type LaunchOpts struct {
 	Resume bool
 	// SystemPromptDir is the directory from which to load system-prompt.md.
 	SystemPromptDir string
+	// SystemPromptFile, if set, reads this file and appends it as system prompt.
+	// Takes precedence over SystemPromptDir.
+	SystemPromptFile string
+	// PermissionMode, if set, passes --permission-mode to claude (e.g. "bypassPermissions").
+	PermissionMode string
+	// Name, if set, passes --name to claude for session naming.
+	Name string
 	// ExtraArgs are forwarded to the claude process.
 	ExtraArgs []string
 	// ProjectRoot is the absolute path to the project root (directory containing .htmlgraph/).
@@ -53,6 +60,7 @@ func claudeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dev, "dev", false, "Launch with local Go plugin for development")
 	cmd.Flags().BoolVar(&init_, "init", false, "Launch with marketplace plugin installation")
 	cmd.Flags().BoolVar(&continue_, "continue", false, "Resume last session with marketplace plugin")
+	cmd.AddCommand(yoloCmd())
 	return cmd
 }
 
@@ -171,7 +179,15 @@ func launchClaudeDefault(extraArgs []string) error {
 func launchClaude(opts LaunchOpts) error {
 	writeLaunchMarker(opts.Mode, opts.ProjectRoot)
 
-	systemPrompt := loadSystemPrompt(opts.SystemPromptDir)
+	// SystemPromptFile takes precedence over SystemPromptDir.
+	var systemPrompt string
+	if opts.SystemPromptFile != "" {
+		if data, err := os.ReadFile(opts.SystemPromptFile); err == nil {
+			systemPrompt = string(data)
+		}
+	} else {
+		systemPrompt = loadSystemPrompt(opts.SystemPromptDir)
+	}
 
 	var claudeArgs []string
 	if opts.Resume {
@@ -179,6 +195,12 @@ func launchClaude(opts LaunchOpts) error {
 	}
 	if opts.PluginDir != "" {
 		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
+	}
+	if opts.PermissionMode != "" {
+		claudeArgs = append(claudeArgs, "--permission-mode", opts.PermissionMode)
+	}
+	if opts.Name != "" {
+		claudeArgs = append(claudeArgs, "--name", opts.Name)
 	}
 	if systemPrompt != "" {
 		claudeArgs = append(claudeArgs, "--append-system-prompt", systemPrompt)
