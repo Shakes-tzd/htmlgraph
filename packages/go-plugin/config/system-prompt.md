@@ -67,7 +67,7 @@ When delegating to ANY coder agent, ensure these principles are followed:
 **Quality Gates**
 
 Python: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest`
-Go: `cd packages/go && go build ./... && go vet ./... && go test ./...`
+Go: `(cd packages/go && go build ./... && go vet ./... && go test ./...)`
 
 Never commit with unresolved type errors, lint warnings, or test failures.
 
@@ -122,7 +122,7 @@ Plugin dir: `packages/go-plugin/`
 
 ## Go Quality Gates
 ```bash
-cd packages/go && go build ./... && go vet ./... && go test ./...
+(cd packages/go && go build ./... && go vet ./... && go test ./...)
 ```
 
 ## Python Quality Gates (for Python code)

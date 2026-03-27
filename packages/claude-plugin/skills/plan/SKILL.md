@@ -138,7 +138,7 @@ Each task description must be self-contained (agents have no shared context):
 2. [Specific, testable criterion]
 
 ## Quality Gate
-cd packages/go && go build ./... && go vet ./... && go test ./...
+(cd packages/go && go build ./... && go vet ./... && go test ./...)
 
 ## Commit
 git commit -m "feat(scope): description (feat-XXXXXXXX)"

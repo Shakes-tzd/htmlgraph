@@ -56,7 +56,7 @@ Write failing tests before implementation:
 
 ### Step 5 — Quality Gate (MANDATORY before any commit)
 Python: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest`
-Go: `cd packages/go && go build ./... && go vet ./... && go test ./...`
+Go: `(cd packages/go && go build ./... && go vet ./... && go test ./...)`
 Do NOT commit with failures.
 
 ### Step 6 — UI Validation (if UI changes)

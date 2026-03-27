@@ -98,7 +98,7 @@ the orchestrator will resolve merge conflicts after all agents complete:
 {files owned by other concurrent tasks — for awareness only}
 
 ## Quality Gate (MANDATORY before commit)
-Go:     cd packages/go && go build ./... && go vet ./... && go test ./...
+Go:     (cd packages/go && go build ./... && go vet ./... && go test ./...)
 Python: uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest
 
 ## Commit
@@ -144,7 +144,7 @@ Run full quality gates on the merged result:
 
 ```bash
 # Go
-cd packages/go && go build ./... && go vet ./... && go test ./...
+(cd packages/go && go build ./... && go vet ./... && go test ./...)
 
 # Python (if applicable)
 uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest
@@ -189,7 +189,7 @@ git branch -D worktree-agent-XXXX
 # ... for each branch
 
 # Final quality gate
-cd packages/go && go build ./... && go vet ./... && go test ./...
+(cd packages/go && go build ./... && go vet ./... && go test ./...)
 ```
 
 Or use `/htmlgraph:cleanup` for automated cleanup.
