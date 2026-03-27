@@ -1,6 +1,0 @@
-_build/
-deps/
-.git
-.htmlgraph/
-*.md
-.formatter.exs
