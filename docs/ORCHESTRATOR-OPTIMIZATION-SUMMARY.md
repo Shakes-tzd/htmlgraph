@@ -153,35 +153,27 @@ spawn_codex("Fix bug 3")
    - GitHub workflow example
 
 5. **HtmlGraph Integration** (Complete pattern)
-   ```python
-   from htmlgraph import SDK
-   sdk = SDK(agent="orchestrator")
+   ```bash
+   # Create feature to track the work
+   htmlgraph feature create "Implement OAuth" --priority high
+   htmlgraph feature start feat-<id>
 
-   feature = sdk.features.create("Implement OAuth") \
-       .set_priority("high") \
-       .save()
-
-   task_id, prompt = delegate_with_id(...)
-   result = Task(prompt=prompt, ...)
-
-   spike = sdk.spikes.create(...) \
-       .set_findings(result) \
-       .link_feature(feature.id) \
-       .save()
+   # Delegate task via Task() tool, then record findings
+   htmlgraph spike create "OAuth delegation findings"
    ```
 
 6. **Adoption Path** (4-step learning curve)
    1. Learn decision tree (5 questions)
    2. Memorize spawner selection matrix (5 options)
    3. Apply routing scenarios (6 common cases)
-   4. Track with HtmlGraph SDK (every delegation)
+   4. Track with HtmlGraph CLI (every delegation)
 
 ### 5. HtmlGraph Integration Verification
 
 **Verified against implementation:**
-- ✅ `SDK(agent="...")` - Correct pattern
-- ✅ `sdk.features.create()` - Correct API
-- ✅ `sdk.spikes.create()` - Correct API
+- ✅ `htmlgraph feature create` - Correct CLI command
+- ✅ `htmlgraph feature start` - Correct CLI command
+- ✅ `htmlgraph spike create` - Correct CLI command
 - ✅ `delegate_with_id()` - Correct function
 - ✅ HtmlGraph tracking - Complete
 

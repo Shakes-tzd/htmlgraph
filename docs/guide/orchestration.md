@@ -121,7 +121,7 @@ uv run htmlgraph orchestrator status
 
 | Operation | Threshold | Strict Mode | Guidance Mode | Rationale |
 |-----------|-----------|-------------|---------------|-----------|
-| **SDK operations** | Unlimited | ✅ Allowed | ✅ Allowed | High-level, minimal context |
+| **CLI tracking ops** | Unlimited | ✅ Allowed | ✅ Allowed | High-level, minimal context |
 | **Task tool** | Unlimited | ✅ Allowed | ✅ Allowed | Designed for delegation |
 | **TodoWrite** | Unlimited | ✅ Allowed | ✅ Allowed | Task management |
 | **Read** (≤5) | 5 | ✅ Allowed | ✅ Allowed | Reasonable exploration |
@@ -714,12 +714,12 @@ bash("uv run pytest --co")   # ✅ Allowed
 bash("ls .htmlgraph/")       # ✅ Allowed
 ```
 
-**Q: Why are SDK operations unlimited?**
+**Q: Why are CLI/tracking operations unlimited?**
 
-A: SDK operations are high-level and context-efficient:
-```python
-sdk.features.create("Title")  # Minimal context
-sdk.features.edit("id")       # Minimal context
+A: CLI tracking operations are high-level and context-efficient:
+```bash
+htmlgraph feature create "Title"  # Minimal context
+htmlgraph feature start <id>      # Minimal context
 ```
 
 ### Delegation

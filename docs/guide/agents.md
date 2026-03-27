@@ -68,67 +68,33 @@ codex skill install htmlgraph
 
 When an agent begins working:
 
-```python
-from htmlgraph import SDK
-
-# Initialize with agent name
-sdk = SDK(agent="claude")
-
-# Check status
-status = sdk.status()
-print(f"Session: {status.current_session}")
-print(f"Active features: {len(status.active_features)}")
+```bash
+# Check current status
+htmlgraph status
 ```
 
 ### 2. Create or Select Feature
 
-```python
+```bash
 # Create a new feature
-feature = sdk.features.create(
-    title="Add user profile page",
-    priority="high",
-    steps=["Create component", "Add routing", "Write tests"]
-)
-
-# Or select existing feature
-feature = sdk.features.get("feat-a1b2c3d4")
+htmlgraph feature create "Add user profile page" --priority high
 
 # Start working on it
-sdk.features.start(feature.id)
+htmlgraph feature start feat-a1b2c3d4
 ```
 
 ### 3. Work and Track Progress
 
-```python
-# Complete a step
-feature.steps[0].completed = True
-feature.save()
-
-# Document decisions
-sdk.track_activity(
-    feature_id=feature.id,
-    activity="Chose React Router over Reach Router (better TypeScript support)"
-)
-
-# Update status
-feature.status = "in-progress"
-feature.save()
+```bash
+# Document decisions as spikes
+htmlgraph spike create "Chose React Router over Reach Router (better TypeScript support)"
 ```
 
 ### 4. Complete Feature
 
-```python
-# Mark all steps complete
-for step in feature.steps:
-    step.completed = True
-feature.save()
-
+```bash
 # Mark feature as done
-feature.status = "done"
-feature.save()
-
-# Or via CLI
-# htmlgraph feature complete feat-a1b2c3d4
+htmlgraph feature complete feat-a1b2c3d4
 ```
 
 ## Multi-Agent Collaboration
@@ -137,114 +103,56 @@ Multiple agents can work together on the same graph:
 
 ### Agent Assignment
 
-```python
-from htmlgraph import SDK
+Agents claim features by starting them:
 
-sdk = SDK(agent="claude")
-
-# Claim a feature
-feature = sdk.features.get("feature-001")
-feature.assigned_agent = "claude"
-feature.save()
-
-# Later, another agent can take over
-sdk2 = SDK(agent="gemini")
-feature.assigned_agent = "gemini"
-feature.handoff_notes = "OAuth setup complete. Need JWT implementation next."
-feature.save()
+```bash
+# Agent claims a feature
+htmlgraph feature start feature-001
 ```
 
 ### Handoff Notes
 
-When passing work between agents, add handoff notes:
+When passing work between agents, document the handoff as a spike:
 
-```python
-# Agent 1 completes phase 1
-feature.status = "blocked"
-feature.handoff_notes = """
-Completed:
-- OAuth provider configuration
-- Redirect endpoints created
+```bash
+# Agent 1 documents phase 1 completion
+htmlgraph spike create "OAuth setup complete. OAuth provider configured, redirect endpoints created. Blocked on Database schema (feature-005). Next: JWT signing once DB ready, add token refresh logic."
 
-Blocked on:
-- Database schema (feature-005)
-
-Next steps:
-- Implement JWT signing once DB is ready
-- Add token refresh logic
-"""
-feature.save()
-
-# Agent 2 picks up later
-feature = sdk.features.get("feature-001")
-print(feature.handoff_notes)  # See what Agent 1 did
+# Agent 2 checks status before picking up
+htmlgraph feature show feature-001
+htmlgraph snapshot --summary
 ```
 
-## SDK Integration Patterns
+## CLI Integration Patterns
 
-### Minimal Integration
+### Simple Task
 
-For simple scripts:
-
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="my-script")
-feature = sdk.features.create("Quick task")
+```bash
+htmlgraph feature create "Quick task" --priority medium
+htmlgraph feature start feat-a1b2c3d4
 # Do work...
-feature.status = "done"
-feature.save()
+htmlgraph feature complete feat-a1b2c3d4
 ```
 
-### Full Integration
+### Complex Multi-Step Work
 
-For complex agents:
+```bash
+# Create a track for multi-phase work
+htmlgraph track new "Complex Agent Task" --priority high
+# Note track ID (e.g. trk-a1b2c3d4)
 
-```python
-from htmlgraph import SDK
+# Create features per phase
+htmlgraph feature create "Phase 1: Setup" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 2: Implementation" --priority high --track trk-a1b2c3d4
 
-class MyAgent:
-    def __init__(self, name):
-        self.sdk = SDK(agent=name)
+# Work through each feature
+htmlgraph feature start feat-phase1-id
+# ... do work ...
+htmlgraph feature complete feat-phase1-id
 
-    def run_task(self, task_description):
-        # Create feature
-        feature = self.sdk.features.create(
-            title=task_description,
-            priority=self.assess_priority(task_description)
-        )
-
-        # Start working
-        self.sdk.features.start(feature.id)
-
-        try:
-            # Do the work
-            self.execute(feature)
-
-            # Mark complete
-            feature.status = "done"
-            feature.save()
-
-        except Exception as e:
-            # Record failure
-            self.sdk.track_activity(
-                feature_id=feature.id,
-                activity=f"Failed: {str(e)}"
-            )
-            feature.status = "blocked"
-            feature.save()
-            raise
-
-    def assess_priority(self, description):
-        # Your priority logic
-        return "medium"
-
-    def execute(self, feature):
-        # Your execution logic
-        for i, step in enumerate(feature.steps):
-            self.execute_step(step)
-            feature.steps[i].completed = True
-            feature.save()
+htmlgraph feature start feat-phase2-id
+# ... do work ...
+htmlgraph feature complete feat-phase2-id
 ```
 
 ## Hooks
@@ -270,21 +178,7 @@ claude plugin install htmlgraph
 
 ### Custom Hooks
 
-Create your own hooks:
-
-```python
-# my-hook.py
-from htmlgraph import SDK
-
-def on_tool_use(tool_name, tool_input, tool_output):
-    sdk = SDK(agent="my-agent")
-
-    # Log activity
-    sdk.track_activity(
-        feature_id=sdk.current_feature_id,
-        activity=f"Used {tool_name}: {tool_input}"
-    )
-```
+Hooks are configured in `packages/claude-plugin/hooks/scripts/`. They run automatically via the plugin and use the `htmlgraph` CLI for tracking operations.
 
 ## Best Practices
 
@@ -309,35 +203,23 @@ Use this framework to decide when to create a feature:
 - Easy to revert
 - No tests needed
 
-### 2. Use TrackBuilder for Complex Work
+### 2. Use Tracks for Complex Work
 
-For multi-feature projects:
+For multi-feature projects, create a track first:
 
-```python
-track = sdk.tracks.builder() \
-    .title("Multi-phase project") \
-    .with_spec(overview="...", requirements=[...]) \
-    .with_plan_phases([...]) \
-    .create()
-
-# Create features for each phase
-for phase in track.plan.phases:
-    feature = sdk.features.create(
-        title=phase.name,
-        track_id=track.track_id,
-        steps=[task.description for task in phase.tasks]
-    )
+```bash
+htmlgraph track new "Multi-phase project" --priority high
+# Create features linked to the track
+htmlgraph feature create "Phase 1" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 2" --priority high --track trk-a1b2c3d4
 ```
 
 ### 3. Document Decisions
 
 Always record important decisions:
 
-```python
-sdk.track_activity(
-    feature_id=feature.id,
-    activity="Chose PostgreSQL over MongoDB: better transactions, team familiarity"
-)
+```bash
+htmlgraph spike create "Chose PostgreSQL over MongoDB: better transactions, team familiarity"
 ```
 
 ### 4. One Feature at a Time

@@ -237,38 +237,28 @@ HtmlGraph automatically tracks parent-child session relationships when you deleg
 
 ### Getting Results
 
-```python
-from htmlgraph import SDK
+After `Task()` completes, the subagent's output is available in the task result. Session tracking links all work automatically.
 
-sdk = SDK(agent="orchestrator")
+```bash
+# View session tree for current session
+htmlgraph session tree
 
-# After Task() completes
-task_result = task.result  # Contains subagent's output
-
-# Later, retrieve via session tracking
-session = sdk.sessions.get(current_session_id)
-child_sessions = session.child_session_ids
-
-for child_id in child_sessions:
-    child = sdk.sessions.get(child_id)
-    print(f"Child work: {child.summary}")
+# Find all sessions that worked on a feature
+htmlgraph session find-feature feat-a1b2c3d4
 ```
 
 ### Session Linking
 
 All work on a feature is automatically linked:
 
-```python
+```bash
 # Find all sessions that worked on a feature
-sessions = sdk.get_feature_sessions("feature-auth-001")
+htmlgraph session find-feature feature-auth-001
 
 # Includes:
 # - Initial orchestrator session
 # - All delegated subagent sessions
 # - Later continuation sessions
-
-for session in sessions:
-    print(f"{session.agent}: {session.status}")
 ```
 
 ### Cost Tracking
@@ -358,14 +348,12 @@ Task(prompt="Find all HTTP endpoints in src/api/routes/ and src/handlers/. Use o
 
 See what subagent actually executed:
 
-```python
-child_session = sdk.sessions.get(child_session_id)
+```bash
+# Show a specific session's details
+htmlgraph session show <session-id>
 
-print(f"Prompt: {child_session.delegated_prompt}")
-print(f"Model: {child_session.model}")
-print(f"Tools used: {child_session.tools_used}")
-print(f"Status: {child_session.status}")
-print(f"Error: {child_session.error_message}")
+# View session tree to see parent-child relationships
+htmlgraph session tree
 ```
 
 ## Best Practices
@@ -428,15 +416,12 @@ See examples in `.htmlgraph/spikes/` of real delegation patterns from HtmlGraph 
 
 Use orchestrator analytics to find optimization opportunities:
 
-```python
-from htmlgraph import SDK
+```bash
+# Find bottlenecks before dispatching parallel work
+htmlgraph analytics bottlenecks --top 5
 
-sdk = SDK(agent="orchestrator")
-
-# Analyze your work patterns
-analytics = sdk.dep_analytics.session_patterns()
-if analytics['tool_call_count'] > 20:
-    print("Consider delegating more work")
+# Get smart recommendations for what to work on
+htmlgraph analytics recommend --agent-count 3
 ```
 
 ## Common Delegation Patterns

@@ -97,67 +97,10 @@ For complex features (authentication, security, real-time, integrations), you MU
 - Decision options with pros/cons
 
 **Example:**
-```python
-from htmlgraph import SDK
 
-sdk = SDK(agent="orchestrator")
-
-# STEP 1: External Research (use /htmlgraph:research or WebSearch)
-# /htmlgraph:research "OAuth 2.0 implementation best practices 2025"
-external_research = """
-External Research Findings:
-- Recommended: OAuth 2.0 with PKCE for security
-- Popular libraries: authlib (most maintained), oauthlib (legacy)
-- Best practices: Token rotation, short expiry, secure storage
-- Anti-patterns: Storing tokens in localStorage, no PKCE, long-lived tokens
-- Modern approach: BFF pattern for SPAs, HTTP-only cookies
-
-Sources:
-- [OAuth 2.0 Security Best Practices](https://oauth.net/2/security-best-practices/)
-- [Auth0 Implementation Guide](https://auth0.com/docs/get-started)
-- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/)
-"""
-
-# STEP 2: Codebase Exploration
-# Use Grep/Glob to find existing implementations
-codebase_context = """
-Codebase Findings:
-- Existing auth: sessions stored in Redis
-- Current framework: FastAPI with pydantic
-- Database: PostgreSQL with SQLAlchemy ORM
-- Testing: pytest with fixtures in conftest.py
-
-Constraints:
-- Must maintain backward compatibility
-- Cannot change session schema
-- Tests must pass in CI/CD
-"""
-
-# STEP 3: Synthesis - Combine external + internal
-final_findings = """
-Research-Informed Decision:
-
-Based on external research + codebase analysis:
-
-Options Identified:
-1. OAuth 2.0 with Auth0 (managed service) ✅ RECOMMENDED
-   + Follows 2025 best practices (PKCE, token rotation)
-   + Quick integration, proven security
-   + Maintains backward compatibility (can coexist with Redis sessions)
-   - External dependency, cost ($)
-
-2. Custom OAuth implementation
-   + Full control, no external deps
-   - More complex, security risk (avoid anti-patterns is hard)
-   - Not recommended per OWASP guidelines
-
-3. JWT-only (no OAuth)
-   + Simple, stateless
-   - Less secure for social login
-   - Doesn't support external identity providers
-
-Decision: Option 1 (Auth0) based on research best practices
-"""
+Record your research findings as a spike:
+```bash
+htmlgraph spike create "OAuth research: Use Auth0 (PKCE + token rotation). External sources: OWASP auth cheat sheet, OAuth 2.0 security best practices. Codebase: Redis sessions, FastAPI, PostgreSQL. Decision: Auth0 for managed security + backward compatibility."
 ```
 
 ### Phase 2: Design
@@ -182,7 +125,7 @@ Decision: Option 1 (Auth0) based on research best practices
 
 **Tools:**
 - Plan subagent for complex architecture decisions
-- SDK analytics for dependency analysis
+- `htmlgraph analytics bottlenecks` for dependency analysis
 - Mental models for system design
 
 **Output:**
@@ -192,48 +135,10 @@ Decision: Option 1 (Auth0) based on research best practices
 - Implementation plan with phases
 
 **Example:**
-```python
-# Design phase - make decisions
-design = """
-Architecture Decision: OAuth 2.0 with Auth0
 
-Rationale:
-- Security is critical (managed service wins)
-- Timeline is tight (quick integration needed)
-- Team unfamiliar with OAuth internals (avoid custom)
-
-Component Breakdown:
-1. OAuth Integration Layer
-   - Auth0 SDK wrapper
-   - Callback handler
-   - State verification
-
-2. JWT Token Service
-   - Token generation from OAuth response
-   - Token refresh logic
-   - Validation middleware
-
-3. User Profile Service
-   - Profile creation from OAuth data
-   - Profile update endpoint
-   - Link to existing user system
-
-Implementation Plan:
-Phase 1: OAuth Setup (4 hours)
-  - Configure Auth0 tenant
-  - Implement callback handler
-  - Add state verification
-
-Phase 2: JWT Integration (5 hours)
-  - Create token service
-  - Add refresh endpoint
-  - Implement middleware
-
-Phase 3: User Integration (6 hours)
-  - Create profile endpoints
-  - Link OAuth to existing users
-  - Write integration tests
-"""
+Document the design decision as a spike:
+```bash
+htmlgraph spike create "Auth design: OAuth 2.0 with Auth0. Rationale: security critical, tight timeline, team unfamiliar with OAuth internals. Components: OAuth Integration Layer, JWT Token Service, User Profile Service. 3 phases: OAuth Setup (4h), JWT Integration (5h), User Integration (6h)."
 ```
 
 ### Phase 3: Implement
@@ -260,7 +165,7 @@ Phase 3: User Integration (6 hours)
 - General-purpose subagents for implementation
 - Edit/Write for code changes
 - Bash for testing and validation
-- SDK for tracking progress
+- `htmlgraph` CLI for tracking progress
 
 **Output:**
 - Working implementation
@@ -269,44 +174,24 @@ Phase 3: User Integration (6 hours)
 - Completed features
 
 **Example:**
-```python
-# Implementation phase - execute plan
-# Create features from design phases
-track_id = sdk.tracks.create("OAuth Authentication").id
+```bash
+# Create track for the implementation
+htmlgraph track new "OAuth Authentication" --priority high
+# Note the track ID (e.g. trk-a1b2c3d4)
 
-# Phase 1 feature
-oauth_feature = sdk.features.create("OAuth Setup") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Configure Auth0 tenant",
-        "Implement callback handler",
-        "Add state verification",
-        "Test OAuth flow"
-    ]) \
-    .save()
+# Create features for each phase
+htmlgraph feature create "OAuth Setup" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "JWT Token Service" --priority high --track trk-a1b2c3d4
 
-# Phase 2 feature
-jwt_feature = sdk.features.create("JWT Token Service") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Create token service class",
-        "Add refresh endpoint",
-        "Implement validation middleware",
-        "Test token lifecycle"
-    ]) \
-    .add_edge(Edge(
-        target_id=oauth_feature.id,
-        relationship="depends_on"
-    )) \
-    .save()
+# Start working on the first phase
+htmlgraph feature start feat-oauth-id
+# ... implement ...
+htmlgraph feature complete feat-oauth-id
 
-# Implement using general-purpose agents
-# Mark steps complete as you progress
-with sdk.features.edit(oauth_feature.id) as f:
-    f.status = "in-progress"
-    f.steps[0].completed = True  # After each step
+# Then the second phase
+htmlgraph feature start feat-jwt-id
+# ... implement ...
+htmlgraph feature complete feat-jwt-id
 ```
 
 ### Workflow Summary
@@ -433,74 +318,24 @@ Use EXPLORE agent
 
 ---
 
-## Batch API Operations
+## Batch CLI Operations
 
-HtmlGraph SDK supports batch operations for efficiency. Here are common patterns for multiple SDK calls in one session.
+HtmlGraph CLI supports efficient workflows. Here are common patterns.
 
-### Pattern 1: Batch Feature Creation
+### Pattern 1: Feature Creation
 
-**Before (Sequential - 5 SDK calls):**
-```python
-sdk = SDK(agent="claude")
+```bash
+# Create a feature
+htmlgraph feature create "OAuth Integration" --priority high
 
-# Call 1
-f1 = sdk.features.create("OAuth Integration")
-# Call 2
-f1.set_priority("high")
-# Call 3
-f1.add_step("Configure provider")
-# Call 4
-f1.add_step("Implement callback")
-# Call 5
-f1.save()
+# Start working on it
+htmlgraph feature start feat-a1b2c3d4
+
+# Complete when done
+htmlgraph feature complete feat-a1b2c3d4
 ```
 
-**After (Batched - 1 SDK call):**
-```python
-sdk = SDK(agent="claude")
-
-# Single fluent chain
-feature = sdk.features.create("OAuth Integration") \
-    .set_priority("high") \
-    .add_steps([
-        "Configure provider",
-        "Implement callback",
-        "Test OAuth flow"
-    ]) \
-    .save()
-```
-
-**Savings:** 80% fewer SDK calls (1 vs 5)
-
-### Pattern 2: Batch Feature Updates
-
-**Before (Multiple Edits):**
-```python
-# Edit 1: Update status
-with sdk.features.edit("feat-123") as f:
-    f.status = "in-progress"
-
-# Edit 2: Assign agent
-with sdk.features.edit("feat-123") as f:
-    f.agent_assigned = "claude"
-
-# Edit 3: Complete step
-with sdk.features.edit("feat-123") as f:
-    f.steps[0].completed = True
-```
-
-**After (Single Edit):**
-```python
-# All changes in one edit
-with sdk.features.edit("feat-123") as f:
-    f.status = "in-progress"
-    f.agent_assigned = "claude"
-    f.steps[0].completed = True
-```
-
-**Savings:** 67% fewer SDK calls (1 vs 3)
-
-### Pattern 3: Parallel Dispatch
+### Pattern 2: Parallel Dispatch
 
 **Before (Sequential Task Spawning):**
 ```python
@@ -509,9 +344,6 @@ agent1 = Task(prompt="Work on feature 1", ...)
 # Wait for response
 
 agent2 = Task(prompt="Work on feature 2", ...)
-# Wait for response
-
-agent3 = Task(prompt="Work on feature 3", ...)
 # Wait for response
 ```
 
@@ -529,102 +361,35 @@ tasks = [
         prompt="Work on feature feat-002: JWT Service...",
         description="feat-002: JWT"
     ),
-    Task(
-        subagent_type="general-purpose",
-        prompt="Work on feature feat-003: User Profiles...",
-        description="feat-003: Profiles"
-    ),
 ]
-# All three execute in parallel!
+# All execute in parallel!
 ```
 
-**Savings:** 3x speedup (parallel vs sequential)
+**Savings:** 2-3x speedup (parallel vs sequential)
 
-### Pattern 4: Batch Analytics Queries
+### Pattern 3: Analytics Queries
 
-**Before (Multiple Queries):**
-```python
-# Query 1
-recs = sdk.recommend_next_work(agent_count=3)
+```bash
+# Get recommendations
+htmlgraph analytics recommend --agent-count 3
 
-# Query 2
-bottlenecks = sdk.find_bottlenecks(top_n=3)
+# Find bottlenecks
+htmlgraph analytics bottlenecks --top 3
 
-# Query 3
-parallel = sdk.get_parallel_work(max_agents=5)
-
-# Query 4
-track_progress = sdk.tracks.get_progress("track-123")
+# Get overall project status
+htmlgraph snapshot --summary
 ```
 
-**After (Combined Context):**
-```python
-# Get all analytics in one call
-context = sdk.get_planning_context(
-    include_recommendations=True,
-    include_bottlenecks=True,
-    include_parallel_work=True,
-    max_agents=5,
-    track_id="track-123"
-)
+### Pattern 4: Track Creation
 
-# Returns combined data structure
-recs = context['recommendations']
-bottlenecks = context['bottlenecks']
-parallel = context['parallel_work']
-track_progress = context['track_progress']
+```bash
+# Create track with linked features
+htmlgraph track new "User Authentication" --priority high
+# Note track ID (e.g. trk-a1b2c3d4)
+
+htmlgraph feature create "Phase 1: OAuth" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 2: JWT" --priority high --track trk-a1b2c3d4
 ```
-
-**Savings:** 75% fewer SDK calls (1 vs 4)
-
-### Pattern 5: Batch Track Creation
-
-**Before (Manual Steps):**
-```python
-# Step 1: Create track
-track = sdk.tracks.create("User Authentication")
-
-# Step 2: Add spec
-spec_path = sdk.tracks.create_spec(
-    track.id,
-    requirements=["OAuth", "JWT"],
-    acceptance_criteria=["Tests pass"]
-)
-
-# Step 3: Add plan
-plan_path = sdk.tracks.create_plan(
-    track.id,
-    phases=[("Phase 1", ["Task 1", "Task 2"])]
-)
-
-# Step 4: Create features
-for phase, tasks in phases:
-    feature = sdk.features.create(phase) \
-        .set_track(track.id) \
-        .save()
-```
-
-**After (Integrated Method):**
-```python
-# All-in-one track creation
-track_info = sdk.create_track_from_plan(
-    title="User Authentication",
-    description="OAuth 2.0 + JWT system",
-    requirements=[
-        ("OAuth 2.0 integration", "must-have"),
-        ("JWT token management", "must-have")
-    ],
-    phases=[
-        ("Phase 1: OAuth", ["Configure provider (2h)", "Implement callback (2h)"]),
-        ("Phase 2: JWT", ["Create service (3h)", "Add middleware (2h)"])
-    ],
-    auto_create_features=True
-)
-
-# Returns complete track with spec, plan, and features
-```
-
-**Savings:** Single integrated call vs 10+ manual calls
 
 ---
 
@@ -776,110 +541,40 @@ How the 3-phase optimal workflow integrates with HtmlGraph's spike/track/feature
 ### Complete Example: Research → Design → Implement
 
 **Step 1: Research Phase (Create Spike)**
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
+```bash
 # Get recommendations first
-recs = sdk.recommend_next_work(agent_count=1)
-top_rec = recs[0]  # "User Authentication System"
+htmlgraph analytics recommend --agent-count 1
 
-# Create planning spike for research
-plan = sdk.smart_plan(
-    top_rec['title'],
-    create_spike=True,
-    timebox_hours=4.0
-)
-spike_id = plan['spike_id']
-
-# Use Explore subagent for codebase research
-# (agent completes spike research steps)
-
-# Document findings
-with sdk.spikes.edit(spike_id) as spike:
-    spike.findings = """
-Research Complete:
-- Current: Redis sessions, FastAPI, PostgreSQL
-- Options: Auth0 OAuth, Custom OAuth, JWT-only
-- Recommendation: Auth0 for security + speed
-- Constraints: Backward compatibility required
-    """
+# Document research findings as a spike
+htmlgraph spike create "User Authentication System research: Auth0 OAuth 2.0 recommended. Current stack: Redis sessions, FastAPI, PostgreSQL. Decision: Auth0 for security + speed, backward compatible."
 ```
 
 **Step 2: Design Phase (Create Track)**
-```python
-# Convert spike to track with architecture plan
-track_info = sdk.create_track_from_plan(
-    title="User Authentication System",
-    description="OAuth 2.0 + JWT authentication",
-    spike_id=spike_id,
-    priority="high",
-    requirements=[
-        ("OAuth 2.0 with Auth0", "must-have"),
-        ("JWT token management", "must-have"),
-        ("User profile integration", "must-have"),
-        ("Backward compatibility", "must-have"),
-    ],
-    phases=[
-        ("Phase 1: OAuth Setup", [
-            "Configure Auth0 tenant (2h)",
-            "Implement callback handler (2h)",
-            "Add state verification (1h)"
-        ]),
-        ("Phase 2: JWT Integration", [
-            "Create token service (3h)",
-            "Add refresh endpoint (2h)",
-            "Implement middleware (2h)"
-        ]),
-        ("Phase 3: User Integration", [
-            "Create profile endpoints (3h)",
-            "Link to existing users (2h)",
-            "Write integration tests (3h)"
-        ])
-    ]
-)
+```bash
+# Create a track for the multi-phase implementation
+htmlgraph track new "User Authentication System" --priority high
+# Note the track ID (e.g. trk-a1b2c3d4)
 
-track_id = track_info['track_id']
+# Create features for each phase
+htmlgraph feature create "Phase 1: OAuth Setup" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 2: JWT Integration" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 3: User Integration" --priority high --track trk-a1b2c3d4
 ```
 
-**Step 3: Implement Phase (Create & Execute Features)**
-```python
-# Create features for each phase
-oauth_feat = sdk.features.create("OAuth Setup") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Configure Auth0 tenant",
-        "Implement callback handler",
-        "Add state verification"
-    ]) \
-    .save()
+**Step 3: Implement Phase (Execute Features)**
+```bash
+# Work through features in dependency order
+htmlgraph feature start feat-oauth-id
+# ... implement OAuth ...
+htmlgraph feature complete feat-oauth-id
 
-jwt_feat = sdk.features.create("JWT Integration") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Create token service",
-        "Add refresh endpoint",
-        "Implement middleware"
-    ]) \
-    .add_edge(Edge(target_id=oauth_feat.id, relationship="depends_on")) \
-    .save()
+htmlgraph feature start feat-jwt-id
+# ... implement JWT ...
+htmlgraph feature complete feat-jwt-id
 
-profile_feat = sdk.features.create("User Integration") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Create profile endpoints",
-        "Link to existing users",
-        "Write integration tests"
-    ]) \
-    .add_edge(Edge(target_id=jwt_feat.id, relationship="depends_on")) \
-    .save()
-
-# Execute using general-purpose agents
-# (agents implement features and mark steps complete)
+htmlgraph feature start feat-profile-id
+# ... implement user integration ...
+htmlgraph feature complete feat-profile-id
 ```
 
 ---
@@ -904,13 +599,13 @@ profile_feat = sdk.features.create("User Integration") \
 | Design | **Plan** | General-purpose | "Design OAuth integration" |
 | Implement | **General-purpose** | N/A | "Implement callback handler" |
 
-### Batch Operations Checklist
+### CLI Operations Checklist
 
-- [ ] Use fluent API for feature creation (`.create().set_priority().add_steps().save()`)
-- [ ] Combine multiple edits in single `with sdk.features.edit()` block
+- [ ] Create track first for multi-phase work (`htmlgraph track new`)
+- [ ] Link features to tracks with `--track` flag
 - [ ] Dispatch parallel tasks in single message (list of Task calls)
-- [ ] Use `sdk.get_planning_context()` for combined analytics queries
-- [ ] Use `sdk.create_track_from_plan()` for integrated track creation
+- [ ] Use `htmlgraph analytics recommend` for planning context
+- [ ] Use `htmlgraph analytics bottlenecks` before parallelizing
 
 ---
 
@@ -978,20 +673,13 @@ Use strategic analytics to identify what to work on:
 /htmlgraph:recommend
 ```
 
-**SDK:**
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
+**CLI:**
+```bash
 # Get recommendations
-recs = sdk.recommend_next_work(agent_count=3)
-bottlenecks = sdk.find_bottlenecks(top_n=3)
+htmlgraph analytics recommend --agent-count 3
 
-# Review
-for rec in recs:
-    print(f"{rec['title']} (score: {rec['score']})")
-    print(f"Reasons: {rec['reasons']}")
+# Check bottlenecks
+htmlgraph analytics bottlenecks --top 3
 ```
 
 **Output:**
@@ -1014,171 +702,66 @@ For non-trivial work, start with a research spike:
 /htmlgraph:plan "User authentication system"
 ```
 
-**SDK:**
-```python
-plan = sdk.smart_plan(
-    "User authentication system",
-    create_spike=True,
-    timebox_hours=4.0
-)
-
-print(f"Created spike: {plan['spike_id']}")
-print(f"Context: {plan['project_context']}")
+**CLI:**
+```bash
+htmlgraph spike create "Planning: User authentication system - research needed before implementation"
 ```
 
 **What This Creates:**
-- Spike with ID `spike-YYYYMMDD-HHMMSS`
-- Standard planning steps:
-  1. Research existing solutions
-  2. Define requirements
-  3. Design architecture
-  4. Identify dependencies
-  5. Create implementation plan
-- Auto-started and assigned to you
-- 4-hour timebox
+- Spike to document research findings, constraints, and approach
+- Use it to capture decisions before creating the track
 
 ### Step 2B: Direct Track (For Simple Work)
 
 If you already know the approach, skip spike:
 
-**Slash Command:**
 ```bash
-/htmlgraph:plan "Fix login bug" --no-spike
+htmlgraph track new "Fix login bug" --priority medium
 ```
 
-**SDK:**
-```python
-track_info = sdk.smart_plan(
-    "Fix login bug",
-    create_spike=False
-)
+### Step 3: Document Research Findings
+
+Document what you learned during research:
+
+```bash
+# Record findings in the spike
+htmlgraph spike create "Auth research complete: OAuth 2.0 with Google/GitHub providers, JWT for session management, Redis for token storage. Decision: Use Auth0 for OAuth, custom JWT signing."
 ```
 
-### Step 3: Complete Spike (Research Phase)
+### Step 4: Create Track with Phases
 
-Work through the spike steps:
+Create a track for the implementation:
 
-**SDK:**
-```python
-# Complete steps as you research
-with sdk.spikes.edit("spike-123") as spike:
-    spike.steps[0].completed = True  # Research done
-    spike.steps[1].completed = True  # Requirements defined
-
-# Document findings
-with sdk.spikes.edit("spike-123") as spike:
-    spike.findings = """
-    Findings:
-    - OAuth 2.0 with Google/GitHub providers
-    - JWT for session management
-    - Redis for token storage
-
-    Decision: Use Auth0 for OAuth, custom JWT signing
-    """
+```bash
+htmlgraph track new "User Authentication System" --priority high
+# Note the track ID (e.g. trk-a1b2c3d4)
 ```
-
-### Step 4: Create Track from Spike
-
-Convert spike findings into a track with spec and plan:
-
-**SDK:**
-```python
-track_info = sdk.create_track_from_plan(
-    title="User Authentication System",
-    description="OAuth 2.0 + JWT authentication",
-    spike_id="spike-123",
-    priority="high",
-    requirements=[
-        ("OAuth 2.0 integration with Google/GitHub", "must-have"),
-        ("JWT token generation and validation", "must-have"),
-        ("Token refresh mechanism", "must-have"),
-        ("Password reset flow", "should-have")
-    ],
-    phases=[
-        ("Phase 1: OAuth Setup", [
-            "Configure OAuth providers (2h)",
-            "Implement OAuth callback handler (2h)",
-            "Add state verification (1h)"
-        ]),
-        ("Phase 2: JWT Integration", [
-            "Create JWT signing service (2h)",
-            "Add token refresh endpoint (1.5h)",
-            "Implement middleware (2h)"
-        ]),
-        ("Phase 3: User Management", [
-            "Create user profile endpoint (3h)",
-            "Add password reset flow (4h)",
-            "Write integration tests (3h)"
-        ])
-    ]
-)
-
-print(f"Track created: {track_info['track_id']}")
-print(f"Has spec: {track_info['has_spec']}")
-print(f"Has plan: {track_info['has_plan']}")
-```
-
-**What This Creates:**
-- Track with ID `track-YYYYMMDD-HHMMSS`
-- Spec file with requirements and acceptance criteria
-- Plan file with phases and estimated tasks
-- Reference to planning spike
 
 ### Step 5: Create Features from Track
 
 Break down track phases into features:
 
-**SDK:**
-```python
-track_id = "track-20251222-120000"
-
-# Create features from each phase
-oauth_feature = sdk.features.create("OAuth Integration") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Configure OAuth providers",
-        "Implement OAuth callback handler",
-        "Add state verification"
-    ]) \
-    .save()
-
-jwt_feature = sdk.features.create("JWT Token Management") \
-    .set_track(track_id) \
-    .set_priority("high") \
-    .add_steps([
-        "Create JWT signing service",
-        "Add token refresh endpoint",
-        "Implement middleware"
-    ]) \
-    .save()
-
-# Link dependencies if needed
-with sdk.features.edit(jwt_feature.id) as f:
-    f.add_edge(Edge(
-        target_id=oauth_feature.id,
-        relationship="depends_on"
-    ))
+```bash
+# Create features for each phase
+htmlgraph feature create "Phase 1: OAuth Setup" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 2: JWT Token Management" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 3: User Management" --priority high --track trk-a1b2c3d4
 ```
 
 ### Step 6: Implement Features
 
 Execute the plan:
 
-**SDK:**
-```python
+```bash
 # Start first feature
-with sdk.features.edit(oauth_feature.id) as f:
-    f.status = "in-progress"
-    f.agent_assigned = "claude"
+htmlgraph feature start feat-oauth-id
 
-# Work on it, mark steps complete
-with sdk.features.edit(oauth_feature.id) as f:
-    f.steps[0].completed = True
+# Work on it, complete when done
+htmlgraph feature complete feat-oauth-id
 
-# Complete when done
-with sdk.features.edit(oauth_feature.id) as f:
-    f.status = "done"
+# Continue with next phase
+htmlgraph feature start feat-jwt-id
+htmlgraph feature complete feat-jwt-id
 ```
 
 ## Slash Commands Reference
@@ -1232,59 +815,32 @@ Create a research/planning spike directly.
 
 Here's a complete workflow from recommendation to implementation:
 
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
+```bash
 # 1. Get recommendations
-recs = sdk.recommend_next_work(agent_count=1)
-top = recs[0]
-print(f"Recommendation: {top['title']}")
+htmlgraph analytics recommend --agent-count 1
 
-# 2. Start planning spike
-plan = sdk.smart_plan(
-    top['title'],
-    create_spike=True,
-    timebox_hours=4.0
-)
-spike_id = plan['spike_id']
+# 2. Create planning spike to document research
+htmlgraph spike create "Planning: User Authentication System - research Auth0 OAuth 2.0"
 
-# 3. Complete spike research
-# (agent does research, completes steps)
-with sdk.spikes.edit(spike_id) as spike:
-    spike.findings = "Use OAuth 2.0 + JWT"
-    spike.decision = "Implement with Auth0"
-    for step in spike.steps:
-        step.completed = True
+# 3. After research, document findings
+htmlgraph spike create "Auth research complete: Use OAuth 2.0 + JWT. Decision: Implement with Auth0 for security + speed."
 
-# 4. Create track from spike
-track_info = sdk.create_track_from_plan(
-    title=top['title'],
-    description="Based on spike findings",
-    spike_id=spike_id,
-    requirements=[
-        "OAuth integration",
-        "JWT tokens",
-        "Token refresh"
-    ],
-    phases=[
-        ("Phase 1", ["Task 1 (2h)", "Task 2 (3h)"]),
-        ("Phase 2", ["Task 3 (4h)", "Task 4 (2h)"])
-    ]
-)
+# 4. Create track with the implementation plan
+htmlgraph track new "User Authentication System" --priority high
+# Note track ID: trk-a1b2c3d4
 
-# 5. Create features
-for phase_name, tasks in [("Phase 1", ["Task 1", "Task 2"]), ("Phase 2", ["Task 3", "Task 4"])]:
-    feature = sdk.features.create(phase_name) \
-        .set_track(track_info['track_id']) \
-        .add_steps(tasks) \
-        .save()
+# 5. Create features from each phase
+htmlgraph feature create "Phase 1: OAuth Setup" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "Phase 2: JWT Integration" --priority high --track trk-a1b2c3d4
 
 # 6. Start implementation
-first_feature = sdk.features.where(track=track_info['track_id'], status="todo")[0]
-with sdk.features.edit(first_feature.id) as f:
-    f.status = "in-progress"
+htmlgraph feature start feat-phase1-id
+# ... implement ...
+htmlgraph feature complete feat-phase1-id
+
+htmlgraph feature start feat-phase2-id
+# ... implement ...
+htmlgraph feature complete feat-phase2-id
 ```
 
 ## Best Practices
@@ -1305,7 +861,7 @@ All commands work on:
 
 ## See Also
 
-- [Agent Strategic Planning](./AGENT_STRATEGIC_PLANNING.md) - Analytics API
-- [Track Builder Guide](./TRACK_BUILDER_QUICK_START.md) - Creating tracks
-- [SDK Documentation](./SDK_FOR_AI_AGENTS.md) - Complete SDK reference
-- [Command Definitions](../packages/common/README.md) - DRY command system
+- [Agent Strategic Planning](./AGENT_STRATEGIC_PLANNING.md) - Analytics CLI commands
+- [Track Builder Guide](./track-builder.md) - Creating tracks
+- [Features & Tracks Guide](./features-tracks.md) - Feature management
+- [AGENTS.md](../AGENTS.md) - Complete CLI reference
