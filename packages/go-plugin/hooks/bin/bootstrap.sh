@@ -1,7 +1,7 @@
 #!/bin/sh
-# bootstrap.sh - Lightweight bootstrap for htmlgraph-hooks Go binary.
+# bootstrap.sh - Lightweight bootstrap for htmlgraph Go binary.
 #
-# In the distributed plugin, this script IS named "htmlgraph-hooks".
+# In the distributed plugin, this script IS named "htmlgraph".
 # On first run it downloads the correct platform binary from GitHub Releases,
 # then exec's into it.  Subsequent runs simply exec the cached binary after
 # a fast (~1 ms) version check.
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ~/.claude/plugins/data/{plugin-id}/.  Fall back to a predictable local path
 # when the env var is absent (dev mode / manual invocation).
 BINARY_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.claude/plugins/data/htmlgraph}"
-BINARY="${BINARY_DIR}/htmlgraph-hooks-bin"
+BINARY="${BINARY_DIR}/htmlgraph-bin"
 VERSION_FILE="${BINARY_DIR}/.binary-version"
 
 # ---------------------------------------------------------------------------
@@ -80,13 +80,13 @@ detect_platform() {
 # ---------------------------------------------------------------------------
 download_binary() {
     _version="$1"
-    _url="https://github.com/shakestzd/htmlgraph/releases/download/go/v${_version}/htmlgraph-hooks_${_version}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
+    _url="https://github.com/shakestzd/htmlgraph/releases/download/go/v${_version}/htmlgraph_${_version}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
 
-    log_err "Downloading hooks binary v${_version} for ${PLATFORM_OS}/${PLATFORM_ARCH}..."
+    log_err "Downloading binary v${_version} for ${PLATFORM_OS}/${PLATFORM_ARCH}..."
 
     mkdir -p "${BINARY_DIR}"
     _tmpdir="$(mktemp -d)"
-    _tarball="${_tmpdir}/htmlgraph-hooks.tar.gz"
+    _tarball="${_tmpdir}/htmlgraph.tar.gz"
 
     # Try curl first (available on macOS + most Linux), fall back to wget.
     if command -v curl >/dev/null 2>&1; then
@@ -107,7 +107,7 @@ download_binary() {
         bail
     fi
 
-    # Extract — tar.gz contains the binary named "htmlgraph-hooks"
+    # Extract — tar.gz contains the binary named "htmlgraph"
     if ! tar xzf "${_tarball}" -C "${_tmpdir}" 2>/dev/null; then
         rm -rf "${_tmpdir}"
         log_err "Failed to extract archive."
@@ -115,8 +115,8 @@ download_binary() {
     fi
 
     # Move extracted binary into place
-    if [ -f "${_tmpdir}/htmlgraph-hooks" ]; then
-        mv "${_tmpdir}/htmlgraph-hooks" "${BINARY}"
+    if [ -f "${_tmpdir}/htmlgraph" ]; then
+        mv "${_tmpdir}/htmlgraph" "${BINARY}"
     else
         rm -rf "${_tmpdir}"
         log_err "Binary not found in archive."

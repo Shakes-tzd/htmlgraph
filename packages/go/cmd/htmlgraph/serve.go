@@ -87,7 +87,7 @@ func resolvePluginDir() string {
 	if err != nil {
 		return ""
 	}
-	// Binary at packages/go-plugin/hooks/bin/htmlgraph-hooks → plugin at ../..
+	// Binary at packages/go-plugin/hooks/bin/htmlgraph → plugin at ../..
 	pluginDir := filepath.Join(filepath.Dir(binPath), "..", "..")
 	pluginDir, _ = filepath.Abs(pluginDir)
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); err == nil {

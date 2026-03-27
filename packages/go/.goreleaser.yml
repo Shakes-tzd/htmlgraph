@@ -1,13 +1,13 @@
-project_name: htmlgraph-hooks
+project_name: htmlgraph
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: htmlgraph-hooks
+  - id: htmlgraph
     main: ./cmd/htmlgraph
-    binary: htmlgraph-hooks
+    binary: htmlgraph
     goos:
       - darwin
       - linux
@@ -20,14 +20,14 @@ builds:
       - CGO_ENABLED=0
 
 archives:
-  - id: htmlgraph-hooks
+  - id: htmlgraph
     builds:
-      - htmlgraph-hooks
-    name_template: "htmlgraph-hooks_{{.Version}}_{{.Os}}_{{.Arch}}"
+      - htmlgraph
+    name_template: "htmlgraph_{{.Version}}_{{.Os}}_{{.Arch}}"
     format: tar.gz
 
 checksum:
-  name_template: "htmlgraph-hooks_{{.Version}}_checksums.txt"
+  name_template: "htmlgraph_{{.Version}}_checksums.txt"
   algorithm: sha256
 
 release:

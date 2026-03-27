@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# build.sh - Build the htmlgraph-hooks Go binary for the go-plugin.
+# build.sh - Build the htmlgraph Go binary for the go-plugin.
 #
 # Usage:
-#   ./build.sh          # Dev mode: binary at hooks/bin/htmlgraph-hooks
-#   ./build.sh --dist   # Dist mode: binary at hooks/bin/htmlgraph-hooks-bin,
-#                        #            bootstrap script at hooks/bin/htmlgraph-hooks
+#   ./build.sh          # Dev mode: binary at hooks/bin/htmlgraph
+#   ./build.sh --dist   # Dist mode: binary at hooks/bin/htmlgraph-bin,
+#                        #            bootstrap script at hooks/bin/htmlgraph
 
 set -euo pipefail
 
@@ -26,27 +26,27 @@ VERSION_RAW=$(git describe --tags --always 2>/dev/null || echo "dev")
 VERSION="${VERSION_RAW#v}"
 
 if [ "${DIST_MODE}" = true ]; then
-    echo "Building htmlgraph-hooks (dist mode, version: ${VERSION})..."
+    echo "Building htmlgraph (dist mode, version: ${VERSION})..."
     go build -ldflags "-s -w -X main.version=${VERSION}" \
-        -o "${BIN_DIR}/htmlgraph-hooks-bin" ./cmd/htmlgraph/
-    chmod +x "${BIN_DIR}/htmlgraph-hooks-bin"
+        -o "${BIN_DIR}/htmlgraph-bin" ./cmd/htmlgraph/
+    chmod +x "${BIN_DIR}/htmlgraph-bin"
 
     # Copy bootstrap script as the entry point
-    cp "${BIN_DIR}/bootstrap.sh" "${BIN_DIR}/htmlgraph-hooks"
-    chmod +x "${BIN_DIR}/htmlgraph-hooks"
+    cp "${BIN_DIR}/bootstrap.sh" "${BIN_DIR}/htmlgraph"
+    chmod +x "${BIN_DIR}/htmlgraph"
 
     # Write version file so bootstrap skips download
     echo "${VERSION}" > "${BIN_DIR}/.binary-version"
 
     echo "Dist build complete:"
-    echo "  Entry point: packages/go-plugin/hooks/bin/htmlgraph-hooks (bootstrap)"
-    echo "  Binary:      packages/go-plugin/hooks/bin/htmlgraph-hooks-bin"
+    echo "  Entry point: packages/go-plugin/hooks/bin/htmlgraph (bootstrap)"
+    echo "  Binary:      packages/go-plugin/hooks/bin/htmlgraph-bin"
     echo "  Version:     ${VERSION}"
 else
-    echo "Building htmlgraph-hooks (dev mode, version: ${VERSION})..."
+    echo "Building htmlgraph (dev mode, version: ${VERSION})..."
     go build -ldflags "-s -w -X main.version=${VERSION}" \
-        -o "${BIN_DIR}/htmlgraph-hooks" ./cmd/htmlgraph/
-    chmod +x "${BIN_DIR}/htmlgraph-hooks"
-    echo "Built: packages/go-plugin/hooks/bin/htmlgraph-hooks"
-    ls -la "${BIN_DIR}/htmlgraph-hooks"
+        -o "${BIN_DIR}/htmlgraph" ./cmd/htmlgraph/
+    chmod +x "${BIN_DIR}/htmlgraph"
+    echo "Built: packages/go-plugin/hooks/bin/htmlgraph"
+    ls -la "${BIN_DIR}/htmlgraph"
 fi

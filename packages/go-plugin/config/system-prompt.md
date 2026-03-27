@@ -111,13 +111,13 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 
 **This session uses Go binary hooks for near-zero cold start.**
 
-Hooks binary: `packages/go-plugin/hooks/bin/htmlgraph-hooks`
+Hooks binary: `packages/go-plugin/hooks/bin/htmlgraph`
 Plugin dir: `packages/go-plugin/`
 
 ## Development Workflow
 1. Make changes to Go code in `packages/go/`
 2. Rebuild: `packages/go-plugin/build.sh`
-3. Restart Claude Code: `packages/go-plugin/hooks/bin/htmlgraph-hooks claude --dev`
+3. Restart Claude Code: `packages/go-plugin/hooks/bin/htmlgraph claude --dev`
 4. Changes take effect immediately (no PyPI deploy needed)
 
 ## Go Quality Gates

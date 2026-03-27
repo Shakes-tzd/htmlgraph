@@ -5,20 +5,20 @@
 # Usage (from repo root):
 #   packages/go-plugin/hooks/bin/install-binary.sh
 #
-# This copies the locally-compiled "htmlgraph-hooks" binary to
-# "htmlgraph-hooks-bin" and writes a .binary-version file so that
+# This copies the locally-compiled "htmlgraph" binary to
+# "htmlgraph-bin" and writes a .binary-version file so that
 # the bootstrap script's version check passes immediately.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SRC="${SCRIPT_DIR}/htmlgraph-hooks"
+SRC="${SCRIPT_DIR}/htmlgraph"
 
 # Mirror bootstrap.sh: install into CLAUDE_PLUGIN_DATA so the binary persists
 # across `claude plugin update`.  In dev mode CLAUDE_PLUGIN_DATA is unset, so
 # fall back to the same predictable local path bootstrap.sh uses.
 BINARY_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.claude/plugins/data/htmlgraph}"
-DST="${BINARY_DIR}/htmlgraph-hooks-bin"
+DST="${BINARY_DIR}/htmlgraph-bin"
 
 if [ ! -f "${SRC}" ]; then
     echo "Error: ${SRC} not found. Run build.sh first." >&2

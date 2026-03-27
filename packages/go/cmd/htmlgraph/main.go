@@ -33,8 +33,16 @@ func main() {
 	rootCmd.AddCommand(claudeCmd())
 	rootCmd.AddCommand(initCmd())
 	rootCmd.AddCommand(trackCmd())
+	rootCmd.AddCommand(sessionCmd())
+	rootCmd.AddCommand(wipCmd())
+	rootCmd.AddCommand(analyticsCmd())
+	rootCmd.AddCommand(orchestratorCmd())
+	rootCmd.AddCommand(installHooksCmd())
+	rootCmd.AddCommand(buildCmd())
+	rootCmd.AddCommand(devCmd())
 
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
