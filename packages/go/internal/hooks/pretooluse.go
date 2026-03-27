@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,15 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{
 			Decision: "block",
 			Reason:   ".htmlgraph/ is managed by HtmlGraph SDK. Use SDK methods instead.",
+		}, nil
+	}
+
+	// Guard: block bare `cd` in Bash commands that pollute the working directory.
+	// Subshells `(cd dir && cmd)` are fine — only bare `cd` drifts CWD permanently.
+	if warn := checkBashCwdGuard(event); warn != "" {
+		return &HookResult{
+			Decision: "block",
+			Reason:   warn,
 		}, nil
 	}
 
@@ -69,6 +79,37 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	return result, nil
 }
+
+// checkBashCwdGuard detects Bash commands that would permanently change the
+// working directory. Bare `cd dir && cmd` pollutes CWD for all subsequent
+// tool calls in the session. Subshells `(cd dir && cmd)` are safe.
+//
+// Returns a non-empty reason string to block the command, or "" to allow.
+func checkBashCwdGuard(event *CloudEvent) string {
+	if event.ToolName != "Bash" {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	if cmd == "" {
+		return ""
+	}
+	if !bareCdPattern.MatchString(cmd) {
+		return ""
+	}
+	return "Bare `cd` changes the working directory permanently. " +
+		"Use a subshell instead: `(cd dir && command)` — " +
+		"this returns to the original directory when done."
+}
+
+// bareCdPattern matches a bare `cd` at the start of a command that is NOT
+// wrapped in a subshell. It does NOT match:
+//   - (cd dir && cmd)   — subshell, safe
+//   - cd /absolute/path && pwd  — going to project root is fine... actually still bad
+//
+// It matches:
+//   - cd packages/go && go build
+//   - cd dir && cmd1 && cmd2
+var bareCdPattern = regexp.MustCompile(`^cd\s+[^;)]+&&`)
 
 // isHtmlGraphWrite returns true for file-write tools targeting .htmlgraph/.
 func isHtmlGraphWrite(event *CloudEvent) bool {
