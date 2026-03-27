@@ -54,6 +54,8 @@ func main() {
 	rootCmd.AddCommand(devCmd())
 	rootCmd.AddCommand(reportCmd())
 	rootCmd.AddCommand(findCmd())
+	rootCmd.AddCommand(checkCmd())
+	rootCmd.AddCommand(healthCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
