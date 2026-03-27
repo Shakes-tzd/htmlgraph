@@ -59,6 +59,7 @@ func main() {
 	rootCmd.AddCommand(budgetCmd())
 	rootCmd.AddCommand(specCmd())
 	rootCmd.AddCommand(reviewCmd())
+	rootCmd.AddCommand(complianceCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
