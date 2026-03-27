@@ -1,0 +1,89 @@
+package hooks
+
+import (
+	"database/sql"
+	"os"
+
+	"github.com/shakestzd/htmlgraph/internal/db"
+)
+
+// toolUseContext holds resolved identifiers shared by PreToolUse and PostToolUse.
+type toolUseContext struct {
+	SessionID  string
+	FeatureID  string
+	AgentID    string
+	IsSubagent bool
+}
+
+// resolveToolUseContext resolves session, feature, and agent identifiers from
+// a CloudEvent and database. Returns nil when no active session is found,
+// indicating the caller should skip all DB operations.
+func resolveToolUseContext(event *CloudEvent, database *sql.DB) *toolUseContext {
+	sessionID := EnvSessionID(event.SessionID)
+	if sessionID == "" {
+		return nil
+	}
+
+	featureID := GetActiveFeatureID(database, sessionID)
+	agentID := resolveAgentID(event)
+
+	return &toolUseContext{
+		SessionID:  sessionID,
+		FeatureID:  featureID,
+		AgentID:    agentID,
+		IsSubagent: isSubagentEvent(event),
+	}
+}
+
+// isSubagentEvent returns true when the event originates from a subagent.
+// Claude Code sets a non-empty agent_id (not "claude-code") for subagent hooks.
+func isSubagentEvent(event *CloudEvent) bool {
+	return event.AgentID != "" && event.AgentID != "claude-code"
+}
+
+// resolveAgentID returns the effective agent ID: the CloudEvent agent_id when
+// present (subagent case), falling back to the env-var-based agent identity.
+func resolveAgentID(event *CloudEvent) string {
+	if event.AgentID != "" {
+		return event.AgentID
+	}
+	return agentIDFromEnv()
+}
+
+// resolveEventAgentID returns the agent ID from the CloudEvent, falling back
+// to the env-var-based agent identity. Use this for non-tooluse handlers
+// (Stop, TrackEvent, etc.) that receive a raw CloudEvent.
+func resolveEventAgentID(event *CloudEvent) string {
+	if event.AgentID != "" {
+		return event.AgentID
+	}
+	return agentIDFromEnv()
+}
+
+// resolveEventAgentType returns the agent type from the CloudEvent, falling
+// back to the HTMLGRAPH_AGENT_TYPE env var.
+func resolveEventAgentType(event *CloudEvent) string {
+	if event.AgentType != "" {
+		return event.AgentType
+	}
+	return os.Getenv("HTMLGRAPH_AGENT_TYPE")
+}
+
+// resolveParentEventID finds the parent event using a multi-step fallback that
+// mirrors the Python event_tracker.py logic:
+//  1. Env var HTMLGRAPH_PARENT_EVENT (written by SubagentStart)
+//  2. For subagents: task_delegation row matching our agent_id (Method 0.5)
+//  3. Most recent UserQuery in this session (orchestrator default)
+func resolveParentEventID(database *sql.DB, sessionID, agentID string, isSubagent bool) string {
+	parentEventID := os.Getenv("HTMLGRAPH_PARENT_EVENT")
+
+	if parentEventID == "" && isSubagent {
+		parentEventID, _ = db.FindDelegationByAgent(database, sessionID, agentID)
+	}
+
+	if parentEventID == "" {
+		parentEventID, _ = db.LatestEventByTool(database, sessionID, "UserQuery")
+	}
+
+	return parentEventID
+}

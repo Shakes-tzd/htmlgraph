@@ -22,7 +22,7 @@ func TrackEvent(toolName string, event *CloudEvent, database *sql.DB) (*HookResu
 
 	ev := &models.AgentEvent{
 		EventID:      uuid.New().String(),
-		AgentID:      agentIDFromEnv(),
+		AgentID:      resolveEventAgentID(event),
 		EventType:    models.EventCheckPoint,
 		Timestamp:    time.Now().UTC(),
 		ToolName:     toolName,
@@ -40,18 +40,3 @@ func TrackEvent(toolName string, event *CloudEvent, database *sql.DB) (*HookResu
 	return &HookResult{Continue: true}, nil
 }
 
-// UpdateEventStatus updates the status field of an agent_event by ID.
-func UpdateEventStatus(database *sql.DB, eventID, status string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := database.Exec(`
-		UPDATE agent_events SET status = ?, updated_at = ? WHERE event_id = ?`,
-		status, now, eventID,
-	)
-	return err
-}
-
-// ensure db is used
-var _ = db.InsertEvent
-
-// ensure sql.DB and models are reachable
-var _ *models.AgentEvent

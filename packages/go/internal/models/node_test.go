@@ -159,37 +159,3 @@ func TestAddEdge(t *testing.T) {
 	}
 }
 
-func TestEventRecordRoundTrip(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	rec := models.EventRecord{
-		EventID:   "evt-001",
-		Timestamp: now,
-		SessionID: "sess-001",
-		Agent:     "claude",
-		Tool:      "Bash",
-		Summary:   "ran git status",
-		Success:   true,
-		FeatureID: "feat-abc",
-		FilePaths: []string{"main.go", "go.mod"},
-	}
-
-	data, err := json.Marshal(rec)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-
-	var decoded models.EventRecord
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if decoded.EventID != rec.EventID {
-		t.Errorf("EventID: got %q, want %q", decoded.EventID, rec.EventID)
-	}
-	if decoded.Agent != rec.Agent {
-		t.Errorf("Agent: got %q, want %q", decoded.Agent, rec.Agent)
-	}
-	if len(decoded.FilePaths) != 2 {
-		t.Errorf("FilePaths: got %d, want 2", len(decoded.FilePaths))
-	}
-}

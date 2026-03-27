@@ -14,8 +14,8 @@ import (
 // PreToolUse handles the PreToolUse Claude Code hook event.
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	sessionID := EnvSessionID(event.SessionID)
-	if sessionID == "" {
+	ctx := resolveToolUseContext(event, database)
+	if ctx == nil {
 		return &HookResult{Decision: "allow"}, nil
 	}
 
@@ -28,50 +28,26 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}, nil
 	}
 
-	featureID := GetActiveFeatureID(database, sessionID)
-	parentEventID := os.Getenv("HTMLGRAPH_PARENT_EVENT")
-
-	// Detect if this is a subagent from CloudEvent agent_id field.
-	// Claude Code passes agent_id for subagent hooks (e.g., "a8804c62534299395").
-	// The orchestrator gets "" or "claude-code".
-	isSubagent := event.AgentID != "" && event.AgentID != "claude-code"
-
-	// Multi-method parent resolution (matches Python event_tracker.py):
-	// 1. Env var HTMLGRAPH_PARENT_EVENT (set by SubagentStart)
-	// 2. If subagent: find the task_delegation that matches our agent_id
-	// 3. Most recent UserQuery in this session (for orchestrator tool calls)
-	if parentEventID == "" && isSubagent {
-		// Method 0.5: find the task_delegation whose agent_id matches ours
-		_ = database.QueryRow(
-			`SELECT event_id FROM agent_events WHERE session_id = ? AND event_type IN ('task_delegation', 'delegation') AND agent_id = ? ORDER BY timestamp DESC LIMIT 1`,
-			sessionID, event.AgentID,
-		).Scan(&parentEventID)
-	}
-	if parentEventID == "" {
-		_ = database.QueryRow(
-			`SELECT event_id FROM agent_events WHERE session_id = ? AND tool_name = 'UserQuery' ORDER BY timestamp DESC LIMIT 1`,
-			sessionID,
-		).Scan(&parentEventID)
-	}
-
+	parentEventID := resolveParentEventID(database, ctx.SessionID, event.AgentID, ctx.IsSubagent)
 	inputSummary := summariseInput(event.ToolName, event.ToolInput)
 
-	// Use CloudEvent agent_id if present (subagent), else env var, else default
-	agentID := event.AgentID
-	if agentID == "" {
-		agentID = agentIDFromEnv()
+	// Resolve agent_type from CloudEvent, then env var.
+	agentType := event.AgentType
+	if agentType == "" {
+		agentType = os.Getenv("HTMLGRAPH_AGENT_TYPE")
 	}
 
 	ev := &models.AgentEvent{
 		EventID:       uuid.New().String(),
-		AgentID:       agentID,
+		AgentID:       ctx.AgentID,
 		EventType:     models.EventToolCall,
 		Timestamp:     time.Now().UTC(),
 		ToolName:      event.ToolName,
 		InputSummary:  inputSummary,
-		SessionID:     sessionID,
-		FeatureID:     featureID,
+		SessionID:     ctx.SessionID,
+		FeatureID:     ctx.FeatureID,
 		ParentEventID: parentEventID,
+		SubagentType:  agentType,
 		Status:        "started",
 		Source:        "hook",
 		CreatedAt:     time.Now().UTC(),
@@ -87,8 +63,8 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	result := &HookResult{Decision: "allow"}
 
 	// Orchestrator-only checks: attribution warning + delegation reminder.
-	if !isSubagent {
-		result.AdditionalContext = buildOrchestratorContext(event.ToolName, featureID)
+	if !ctx.IsSubagent {
+		result.AdditionalContext = buildOrchestratorContext(event.ToolName, ctx.FeatureID)
 	}
 
 	return result, nil

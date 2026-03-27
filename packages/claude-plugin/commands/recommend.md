@@ -35,82 +35,46 @@ Recommendations only, skip bottleneck analysis
 
 ## Instructions for Claude
 
-This command uses the SDK's `recommend_next_work()` method.
+This command uses the Go binary to retrieve work recommendations and bottleneck analysis.
 
 ### Implementation:
 
-```python
-from htmlgraph import SDK
+1. Run `packages/go-plugin/hooks/bin/htmlgraph analytics recommend` to get recommended work items
+2. If `--check-bottlenecks` is true (default), also run `packages/go-plugin/hooks/bin/htmlgraph analytics bottlenecks`
+3. Parse the CLI output (table format) and present it nicely in markdown
+4. Include the command output as-is, formatting it for readability
 
-sdk = SDK(agent="claude")
+### Sample CLI Commands:
 
-# Parse arguments
-```python
-from htmlgraph import SDK
+```bash
+# Get recommendations (shows top N items with scores)
+packages/go-plugin/hooks/bin/htmlgraph analytics recommend
 
-sdk = SDK(agent="claude")
+# Get bottlenecks (shows blocking items with impact scores)
+packages/go-plugin/hooks/bin/htmlgraph analytics bottlenecks
 
-# Get recommendations
-recs = sdk.recommend_next_work(agent_count=count)
-
-# Optionally check bottlenecks
-bottlenecks = []
-if check_bottlenecks:
-    bottlenecks = sdk.find_bottlenecks(top_n=3)
-
-# Present bottlenecks first if any
-if bottlenecks:
-    print(f"## ⚠️  Bottlenecks Detected")
-    for bn in bottlenecks:
-        print(f"\n### {bn['title']} ({bn['id']})")
-        print(f"**Impact:** {bn['impact_score']:.2f}")
-        print(f"**Blocks:** {len(bn.get('blocks', []))} items")
-
-print(f"\n## Top {count} Recommendations")
-
-for i, rec in enumerate(recs[:count], 1):
-    print(f"\n### {i}. {rec['title']} ({rec['id']})")
-    print(f"**Score:** {rec['score']:.2f}")
-
-    # Show reasoning
-    if rec.get('reasons'):
-        print(f"\n**Why recommended:**")
-        for reason in rec['reasons']:
-            print(f"- {reason}")
-
-    # Show what this unlocks
-    if rec.get('unlocks'):
-        print(f"\n**Unlocks:** {len(rec['unlocks'])} dependent items")
-        for dep in rec['unlocks'][:3]:
-            print(f"  - {dep['title']}")
-        if len(rec['unlocks']) > 3:
-            print(f"  ... and {len(rec['unlocks']) - 3} more")
-
-    # Show complexity
-    if rec.get('complexity'):
-        print(f"**Complexity:** {rec['complexity']}")
-
-    # Show suggested approach
-    if rec.get('suggested_approach'):
-        print(f"**Approach:** {rec['suggested_approach']}")
-
-print(f"\n---")
-print(f"💡 Use `/htmlgraph:plan [id]` to start planning any of these items.")
-```
+# Optional: Get work summary
+packages/go-plugin/hooks/bin/htmlgraph analytics summary
 ```
 
 ### Output Format:
 
+Present the CLI output in a user-friendly markdown format:
+
+```markdown
 ## Work Recommendations
 
-{bottlenecks_section}
+{CLI output from analytics recommend command}
 
-### Top {count} Recommendations
+{if check-bottlenecks}
+### ⚠️ Bottlenecks Detected
 
-{recommendations}
+{CLI output from analytics bottlenecks command}
+{end if}
 
 ---
-💡 Use `/htmlgraph:plan` to start planning any of these items.
+💡 Use `/htmlgraph:plan [id]` to start planning any of these items.
+```
 
 **PARALLEL ANALYSIS (MANDATORY when 2+ recommendations):**
 Before presenting results, analyze whether recommendations can execute in parallel:

@@ -53,7 +53,6 @@ func runInit(_ *cobra.Command, _ []string) error {
 	fmt.Println("  .htmlgraph/spikes/")
 	fmt.Println("  .htmlgraph/tracks/")
 	fmt.Println("  .htmlgraph/sessions/")
-	fmt.Println("  .htmlgraph/events/")
 	fmt.Println("  .htmlgraph/htmlgraph.db")
 	fmt.Println("  .htmlgraph/refs.json")
 	fmt.Println("  .htmlgraph/styles.css")
@@ -62,7 +61,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-var subdirs = []string{"features", "bugs", "spikes", "tracks", "sessions", "events"}
+var subdirs = []string{"features", "bugs", "spikes", "tracks", "sessions"}
 
 func createSubdirs(graphDir string) error {
 	for _, sub := range subdirs {

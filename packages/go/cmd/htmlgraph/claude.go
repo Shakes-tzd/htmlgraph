@@ -25,6 +25,10 @@ type LaunchOpts struct {
 	SystemPromptDir string
 	// ExtraArgs are forwarded to the claude process.
 	ExtraArgs []string
+	// ProjectRoot is the absolute path to the project root (directory containing .htmlgraph/).
+	// When set, Claude Code is started with this as the working directory, and path-sensitive
+	// helpers (writeLaunchMarker, stubProjectHooks) anchor their paths here instead of CWD.
+	ProjectRoot string
 }
 
 func claudeCmd() *cobra.Command {
@@ -68,13 +72,19 @@ func launchClaudeDev(extraArgs []string) error {
 			filepath.Join(pluginDir, "hooks", "bin", "htmlgraph"))
 	}
 
+	// Resolve project root so paths are anchored correctly regardless of CWD.
+	projectRoot := ""
+	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
+		projectRoot = filepath.Dir(htmlgraphDir)
+	}
+
 	// Disable marketplace plugin to prevent duplicate hooks.
 	fmt.Println("Disabling marketplace htmlgraph plugin...")
 	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
 		exec.Command("claude", "plugin", "disable", scope).Run() //nolint:errcheck
 	}
 
-	restoreFn := stubProjectHooks()
+	restoreFn := stubProjectHooks(projectRoot)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -92,6 +102,7 @@ func launchClaudeDev(extraArgs []string) error {
 		PluginDir:       pluginDir,
 		SystemPromptDir: pluginDir,
 		ExtraArgs:       extraArgs,
+		ProjectRoot:     projectRoot,
 	})
 	restoreFn()
 	return launchErr
@@ -99,6 +110,10 @@ func launchClaudeDev(extraArgs []string) error {
 
 func launchClaudeInit(extraArgs []string) error {
 	pluginDir := resolvePluginDir()
+	projectRoot := ""
+	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
+		projectRoot = filepath.Dir(htmlgraphDir)
+	}
 	fmt.Println("Installing/updating marketplace htmlgraph plugin...")
 	if out, err := exec.Command("claude", "plugin", "install", "htmlgraph@htmlgraph").CombinedOutput(); err != nil {
 		// May already be installed — try update instead.
@@ -111,11 +126,16 @@ func launchClaudeInit(extraArgs []string) error {
 		Mode:            "init",
 		SystemPromptDir: pluginDir,
 		ExtraArgs:       extraArgs,
+		ProjectRoot:     projectRoot,
 	})
 }
 
 func launchClaudeContinue(extraArgs []string) error {
 	pluginDir := resolvePluginDir()
+	projectRoot := ""
+	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
+		projectRoot = filepath.Dir(htmlgraphDir)
+	}
 	fmt.Println("Installing/updating marketplace htmlgraph plugin...")
 	if out, err := exec.Command("claude", "plugin", "install", "htmlgraph@htmlgraph").CombinedOutput(); err != nil {
 		if out2, err2 := exec.Command("claude", "plugin", "update", "htmlgraph").CombinedOutput(); err2 != nil {
@@ -128,22 +148,28 @@ func launchClaudeContinue(extraArgs []string) error {
 		Resume:          true,
 		SystemPromptDir: pluginDir,
 		ExtraArgs:       extraArgs,
+		ProjectRoot:     projectRoot,
 	})
 }
 
 func launchClaudeDefault(extraArgs []string) error {
 	pluginDir := resolvePluginDir()
+	projectRoot := ""
+	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
+		projectRoot = filepath.Dir(htmlgraphDir)
+	}
 	fmt.Println("Launching Claude Code (default mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:            "default",
 		SystemPromptDir: pluginDir,
 		ExtraArgs:       extraArgs,
+		ProjectRoot:     projectRoot,
 	})
 }
 
 // launchClaude is the shared launcher used by all modes.
 func launchClaude(opts LaunchOpts) error {
-	writeLaunchMarker(opts.Mode)
+	writeLaunchMarker(opts.Mode, opts.ProjectRoot)
 
 	systemPrompt := loadSystemPrompt(opts.SystemPromptDir)
 
@@ -169,6 +195,12 @@ func launchClaude(opts LaunchOpts) error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 
+	// Set working directory to project root so Claude starts in the right place,
+	// even if this command is run from a subdirectory like packages/go.
+	if opts.ProjectRoot != "" {
+		c.Dir = opts.ProjectRoot
+	}
+
 	if err := c.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			os.Exit(exitErr.ExitCode())
@@ -180,10 +212,15 @@ func launchClaude(opts LaunchOpts) error {
 
 // stubProjectHooks replaces .claude/hooks/hooks.json with an empty stub
 // to prevent Python hooks from firing alongside Go hooks.
+// projectRoot, if non-empty, anchors the paths; otherwise CWD is used.
 // Returns a restore function that must be called on exit.
-func stubProjectHooks() func() {
+func stubProjectHooks(projectRoot string) func() {
 	projectHooks := ".claude/hooks/hooks.json"
 	backupPath := ".claude/hooks/hooks.json.go-backup"
+	if projectRoot != "" {
+		projectHooks = filepath.Join(projectRoot, ".claude/hooks/hooks.json")
+		backupPath = filepath.Join(projectRoot, ".claude/hooks/hooks.json.go-backup")
+	}
 
 	original, err := os.ReadFile(projectHooks)
 	if err != nil {
@@ -221,7 +258,8 @@ func loadSystemPrompt(pluginDir string) string {
 }
 
 // writeLaunchMarker writes .htmlgraph/.launch-mode for hooks to detect the launch mode.
-func writeLaunchMarker(mode string) {
+// projectRoot, if non-empty, anchors the path; otherwise CWD is used.
+func writeLaunchMarker(mode, projectRoot string) {
 	marker := map[string]any{
 		"mode":      mode,
 		"pid":       os.Getpid(),
@@ -231,6 +269,10 @@ func writeLaunchMarker(mode string) {
 	if err != nil {
 		return
 	}
-	os.MkdirAll(".htmlgraph", 0755)              //nolint:errcheck
-	os.WriteFile(".htmlgraph/.launch-mode", data, 0644) //nolint:errcheck
+	dir := ".htmlgraph"
+	if projectRoot != "" {
+		dir = filepath.Join(projectRoot, ".htmlgraph")
+	}
+	os.MkdirAll(dir, 0755)                                   //nolint:errcheck
+	os.WriteFile(filepath.Join(dir, ".launch-mode"), data, 0644) //nolint:errcheck
 }

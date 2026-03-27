@@ -35,8 +35,7 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 
 	expected := []string{
 		"agent_events", "features", "sessions", "tracks",
-		"agent_collaboration", "graph_edges", "event_log_archive",
-		"live_events", "agent_presence",
+		"agent_collaboration", "graph_edges", "agent_presence",
 	}
 	for _, tbl := range expected {
 		if !tables[tbl] {

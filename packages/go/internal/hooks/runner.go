@@ -34,6 +34,10 @@ type CloudEvent struct {
 	// SubagentStart / SubagentStop
 	AgentID   string `json:"agent_id"`
 	AgentType string `json:"agent_type"`
+
+	// Stop / SubagentStop
+	StopReason           string `json:"stop_reason"`
+	LastAssistantMessage string `json:"last_assistant_message"`
 }
 
 // HookResult is the JSON written to stdout to control Claude Code behaviour.

@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/shakestzd/htmlgraph/internal/db"
 )
 
 // PostToolUse handles the PostToolUse Claude Code hook event.
 // It finds the most recent "started" event for this session/tool and marks it completed.
 // Note: env vars don't persist between hook processes, so we query the DB instead.
 func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	sessionID := EnvSessionID(event.SessionID)
-	if sessionID == "" {
+	ctx := resolveToolUseContext(event, database)
+	if ctx == nil {
 		return &HookResult{Continue: true}, nil
 	}
 
@@ -22,36 +24,33 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		status = "failed"
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
 	outputSummary := summariseOutput(event.ToolResult)
 
-	// Find the most recent "started" event for this session and tool.
-	var eventID string
-	err := database.QueryRow(`
-		SELECT event_id FROM agent_events
-		WHERE session_id = ? AND tool_name = ? AND status = 'started'
-		ORDER BY timestamp DESC
-		LIMIT 1`, sessionID, event.ToolName,
-	).Scan(&eventID)
-
+	// For subagent events, scope the lookup to this specific agent to avoid
+	// completing events belonging to a different concurrent agent.
+	var (
+		eventID string
+		err     error
+	)
+	if ctx.IsSubagent {
+		eventID, err = db.FindStartedEventByAgent(database, ctx.SessionID, event.ToolName, ctx.AgentID)
+		if err != nil {
+			// Fall back to unscoped lookup when no agent-specific event exists.
+			eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
+		}
+	} else {
+		eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
+	}
 	if err != nil {
 		return &HookResult{Continue: true}, nil
 	}
 
-	_, _ = database.Exec(`
-		UPDATE agent_events
-		SET status = ?,
-		    output_summary = ?,
-		    updated_at = ?
-		WHERE event_id = ?`,
-		status, outputSummary, now, eventID,
-	)
+	_ = db.UpdateEventFields(database, eventID, status, outputSummary)
 
 	// Record orchestrator direct-tool usage for analytics.
 	// Subagents are excluded — only direct orchestrator use is interesting here.
-	isSubagent := event.AgentID != "" && event.AgentID != "claude-code"
-	if !isSubagent {
-		recordOrchestratorToolUse(database, sessionID, event.ToolName, success)
+	if !ctx.IsSubagent {
+		recordOrchestratorToolUse(database, ctx.SessionID, event.ToolName, success)
 	}
 
 	result := &HookResult{Continue: true}

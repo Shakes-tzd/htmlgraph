@@ -175,3 +175,171 @@ func MostRecentSession(db *sql.DB) (string, error) {
 	}
 	return id, nil
 }
+
+// ---------------------------------------------------------------------------
+// Consolidated query helpers — replace inline SQL scattered across hooks.
+// ---------------------------------------------------------------------------
+
+// UpsertEvent performs an INSERT OR REPLACE for idempotent event writes.
+// This is useful when a hook may fire multiple times for the same logical event.
+func UpsertEvent(db *sql.DB, e *models.AgentEvent) error {
+	_, err := db.Exec(`
+		INSERT OR REPLACE INTO agent_events (
+			event_id, agent_id, event_type, timestamp, tool_name,
+			input_summary, output_summary, session_id, feature_id,
+			parent_agent_id, parent_event_id, subagent_type,
+			cost_tokens, execution_duration_seconds, status,
+			model, claude_task_id, source, step_id,
+			created_at, updated_at
+		) VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?, ?,?)`,
+		e.EventID, e.AgentID, string(e.EventType),
+		e.Timestamp.UTC().Format(time.RFC3339), nullStr(e.ToolName),
+		nullStr(e.InputSummary), nullStr(e.OutputSummary),
+		e.SessionID, nullStr(e.FeatureID),
+		nullStr(e.ParentAgentID), nullStr(e.ParentEventID),
+		nullStr(e.SubagentType),
+		e.CostTokens, e.ExecDuration, e.Status,
+		nullStr(e.Model), nullStr(e.ClaudeTaskID),
+		e.Source, nullStr(e.StepID),
+		e.CreatedAt.UTC().Format(time.RFC3339),
+		e.UpdatedAt.UTC().Format(time.RFC3339),
+	)
+	if err != nil {
+		return fmt.Errorf("upsert event %s: %w", e.EventID, err)
+	}
+	return nil
+}
+
+// UpdateEventFields performs a partial UPDATE on an event, setting status,
+// output_summary, and updated_at. Any field left empty is still written
+// (callers should pass the desired value or "" to clear).
+func UpdateEventFields(db *sql.DB, eventID, status, outputSummary string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`
+		UPDATE agent_events
+		SET status = ?, output_summary = ?, updated_at = ?
+		WHERE event_id = ?`,
+		status, nullStr(outputSummary), now, eventID,
+	)
+	return err
+}
+
+// UpdateEventStatus sets only the status and updated_at on an event.
+func UpdateEventStatus(db *sql.DB, eventID, status string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`
+		UPDATE agent_events SET status = ?, updated_at = ?
+		WHERE event_id = ?`,
+		status, now, eventID,
+	)
+	return err
+}
+
+// FindStartedEvent returns the event_id of the most recent event in the session
+// that matches the given tool_name and has status='started'.
+// Returns ("", sql.ErrNoRows) when no match is found.
+func FindStartedEvent(db *sql.DB, sessionID, toolName string) (string, error) {
+	var eventID string
+	err := db.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ? AND tool_name = ? AND status = 'started'
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID, toolName,
+	).Scan(&eventID)
+	return eventID, err
+}
+
+// FindStartedEventByAgent returns the event_id of the most recent event in the
+// session that matches the given tool_name and agent_id with status='started'.
+// Used by PostToolUse for subagent events to avoid completing the wrong event
+// when multiple agents are running the same tool concurrently.
+// Returns ("", sql.ErrNoRows) when no match is found.
+func FindStartedEventByAgent(db *sql.DB, sessionID, toolName, agentID string) (string, error) {
+	var eventID string
+	err := db.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ? AND tool_name = ? AND agent_id = ? AND status = 'started'
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID, toolName, agentID,
+	).Scan(&eventID)
+	return eventID, err
+}
+
+// FindStartedDelegation returns the event_id of the most recent task_delegation
+// (or delegation) event with status='started' in the given session.
+// Returns ("", sql.ErrNoRows) when no match is found.
+func FindStartedDelegation(db *sql.DB, sessionID string) (string, error) {
+	var eventID string
+	err := db.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ?
+		  AND event_type IN ('task_delegation', 'delegation')
+		  AND status = 'started'
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID,
+	).Scan(&eventID)
+	return eventID, err
+}
+
+// FindDelegationByAgent returns the event_id of the most recent task_delegation
+// (or delegation) event whose agent_id matches, within the given session.
+// Matches any status. Used for parent resolution where the delegation may
+// already be completed. Returns ("", sql.ErrNoRows) when no match is found.
+func FindDelegationByAgent(db *sql.DB, sessionID, agentID string) (string, error) {
+	var eventID string
+	err := db.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ?
+		  AND event_type IN ('task_delegation', 'delegation')
+		  AND agent_id = ?
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID, agentID,
+	).Scan(&eventID)
+	return eventID, err
+}
+
+// FindStartedDelegationByAgent returns the event_id of the most recent
+// task_delegation (or delegation) with status='started' whose agent_id matches.
+// Used by SubagentStop to complete only the still-running delegation.
+// Returns ("", sql.ErrNoRows) when no match is found.
+func FindStartedDelegationByAgent(db *sql.DB, sessionID, agentID string) (string, error) {
+	var eventID string
+	err := db.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ?
+		  AND event_type IN ('task_delegation', 'delegation')
+		  AND agent_id = ?
+		  AND status = 'started'
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID, agentID,
+	).Scan(&eventID)
+	return eventID, err
+}
+
+// LatestEventByTool returns the event_id of the most recent event for the
+// given session and tool_name (e.g. "UserQuery"), regardless of status.
+// Returns ("", sql.ErrNoRows) when no match is found.
+func LatestEventByTool(db *sql.DB, sessionID, toolName string) (string, error) {
+	var eventID string
+	err := db.QueryRow(`
+		SELECT event_id FROM agent_events
+		WHERE session_id = ? AND tool_name = ?
+		ORDER BY timestamp DESC
+		LIMIT 1`, sessionID, toolName,
+	).Scan(&eventID)
+	return eventID, err
+}
+
+// CountRecentDuplicates returns the number of events in the session that match
+// the given tool_name and input_summary within the last windowSeconds.
+// Used for dedup checks (e.g. UserQuery within 5 seconds).
+func CountRecentDuplicates(db *sql.DB, sessionID, toolName, inputSummary string, windowSeconds int) (int, error) {
+	var count int
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM agent_events
+		 WHERE session_id = ? AND tool_name = ? AND input_summary = ?
+		   AND timestamp > datetime('now', ? || ' seconds')`,
+		sessionID, toolName, inputSummary, fmt.Sprintf("-%d", windowSeconds),
+	).Scan(&count)
+	return count, err
+}

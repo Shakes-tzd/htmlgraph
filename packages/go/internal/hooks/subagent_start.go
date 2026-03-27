@@ -26,12 +26,8 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		agentType = "general-purpose"
 	}
 
-	// Link delegation to the most recent UserQuery in this session
-	var parentEventID string
-	_ = database.QueryRow(
-		`SELECT event_id FROM agent_events WHERE session_id = ? AND tool_name = 'UserQuery' ORDER BY timestamp DESC LIMIT 1`,
-		sessionID,
-	).Scan(&parentEventID)
+	// Link delegation to the most recent UserQuery in this session.
+	parentEventID, _ := db.LatestEventByTool(database, sessionID, "UserQuery")
 
 	ev := &models.AgentEvent{
 		EventID:       eventID,
@@ -56,42 +52,42 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	writeTraceparent(sessionID, eventID)
 
 	// Write env vars so subagent hooks know their parent and identity.
-	writeSubagentEnvVars(eventID, agentType)
+	writeSubagentEnvVars(eventID, event.AgentID, agentType)
 
 	return &HookResult{Continue: true}, nil
 }
 
 // SubagentStop handles the SubagentStop Claude Code hook event.
-// It marks the most recent started task_delegation event as completed.
+// It marks the task_delegation for this specific agent as completed and
+// stores the last assistant message as the output summary.
 func SubagentStop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	// Find the most recent task_delegation with status='started' in this session.
-	var eventID string
-	err := database.QueryRow(`
-		SELECT event_id FROM agent_events
-		WHERE session_id = ?
-		  AND event_type IN ('task_delegation', 'delegation')
-		  AND status = 'started'
-		ORDER BY timestamp DESC
-		LIMIT 1`, sessionID,
-	).Scan(&eventID)
-
-	if err != nil {
-		return &HookResult{Continue: true}, nil
+	outputSummary := event.LastAssistantMessage
+	if len(outputSummary) > 500 {
+		outputSummary = outputSummary[:500] + "…"
 	}
 
-	_, _ = database.Exec(`
-		UPDATE agent_events
-		SET status = 'completed', updated_at = ?
-		WHERE event_id = ?`,
-		now, eventID,
-	)
+	// Prefer agent_id-scoped lookup to avoid matching the wrong delegation
+	// in concurrent multi-agent scenarios.
+	var eventID string
+	if event.AgentID != "" {
+		eventID, _ = db.FindStartedDelegationByAgent(database, sessionID, event.AgentID)
+	}
+
+	// Fallback: most recent started delegation in this session.
+	if eventID == "" {
+		var err error
+		eventID, err = db.FindStartedDelegation(database, sessionID)
+		if err != nil {
+			return &HookResult{Continue: true}, nil
+		}
+	}
+
+	_ = db.UpdateEventFields(database, eventID, "completed", outputSummary)
 
 	return &HookResult{Continue: true}, nil
 }

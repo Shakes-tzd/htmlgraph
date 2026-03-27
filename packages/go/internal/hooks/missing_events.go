@@ -30,7 +30,7 @@ func recordSimpleEvent(
 
 	ev := &models.AgentEvent{
 		EventID:      uuid.New().String(),
-		AgentID:      agentIDFromEnv(),
+		AgentID:      resolveEventAgentID(event),
 		EventType:    eventType,
 		Timestamp:    now,
 		ToolName:     toolName,
@@ -49,9 +49,17 @@ func recordSimpleEvent(
 }
 
 // Stop handles the Stop Claude Code hook event (agent/session stopped).
-// Records a checkpoint event so stop events appear in the activity feed.
+// Records a checkpoint event and captures the last assistant message as output.
 func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	return recordSimpleEvent(models.EventEnd, "Stop", "Agent stopped", "recorded", event, database)
+	summary := "Agent stopped"
+	if event.LastAssistantMessage != "" {
+		msg := event.LastAssistantMessage
+		if len(msg) > 200 {
+			msg = msg[:200] + "…"
+		}
+		summary = fmt.Sprintf("Agent stopped: %s", msg)
+	}
+	return recordSimpleEvent(models.EventEnd, "Stop", summary, "recorded", event, database)
 }
 
 // PreCompact handles the PreCompact Claude Code hook event.
@@ -106,7 +114,7 @@ func PostToolUseFailure(event *CloudEvent, database *sql.DB) (*HookResult, error
 	now := time.Now().UTC()
 	ev := &models.AgentEvent{
 		EventID:      uuid.New().String(),
-		AgentID:      agentIDFromEnv(),
+		AgentID:      resolveEventAgentID(event),
 		EventType:    models.EventError,
 		Timestamp:    now,
 		ToolName:     event.ToolName,

@@ -200,32 +200,7 @@ func CreateAllTables(db *sql.DB) error {
 			metadata JSON
 		)`,
 
-		// 7. event_log_archive
-		`CREATE TABLE IF NOT EXISTS event_log_archive (
-			archive_id TEXT PRIMARY KEY,
-			session_id TEXT NOT NULL,
-			agent_id TEXT NOT NULL,
-			event_date DATE NOT NULL,
-			event_count INTEGER DEFAULT 0,
-			total_tokens INTEGER DEFAULT 0,
-			summary TEXT,
-			archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (session_id) REFERENCES sessions(session_id)
-		)`,
-
-		// 8. live_events
-		`CREATE TABLE IF NOT EXISTS live_events (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			event_type TEXT NOT NULL,
-			event_data TEXT NOT NULL,
-			parent_event_id TEXT,
-			session_id TEXT,
-			spawner_type TEXT,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			broadcast_at TIMESTAMP
-		)`,
-
-		// 9. agent_presence
+		// 7. agent_presence
 		`CREATE TABLE IF NOT EXISTS agent_presence (
 			agent_id TEXT PRIMARY KEY,
 			status TEXT NOT NULL DEFAULT 'offline' CHECK(
@@ -291,9 +266,6 @@ func CreateAllIndexes(db *sql.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_edges_from ON graph_edges(from_node_id)",
 		"CREATE INDEX IF NOT EXISTS idx_edges_to ON graph_edges(to_node_id)",
 		"CREATE INDEX IF NOT EXISTS idx_edges_type ON graph_edges(relationship_type)",
-		// live_events
-		"CREATE INDEX IF NOT EXISTS idx_live_events_pending ON live_events(broadcast_at) WHERE broadcast_at IS NULL",
-		"CREATE INDEX IF NOT EXISTS idx_live_events_created ON live_events(created_at DESC)",
 		// agent_presence
 		"CREATE INDEX IF NOT EXISTS idx_agent_presence_status ON agent_presence(status, last_activity DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_agent_presence_feature ON agent_presence(current_feature_id, last_activity DESC)",
