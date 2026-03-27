@@ -90,8 +90,7 @@ Day 2: Pick up where you left off
 
 5. Results available to orchestrator
    └── Parent can query child:
-       child_session = sdk.sessions.get("sess-child-xyz")
-       print(child_session.result)
+       htmlgraph session show sess-child-xyz
 ```
 
 ### Event Capture
@@ -127,60 +126,20 @@ HtmlGraph captures everything that happens in a session:
 
 ## Viewing Session Hierarchies
 
-### Using the Python SDK
+### Using the CLI
 
-#### Get Parent Session Info
+```bash
+# List all sessions
+htmlgraph session list
 
-```python
-from htmlgraph import SDK
+# Get session details (includes child sessions)
+htmlgraph session show sess-abc123
 
-sdk = SDK(agent="orchestrator")
+# View session hierarchy as a tree
+htmlgraph session tree sess-abc123
 
-# Get current session
-current_session = sdk.sessions.get(session_id)
-
-# View children
-print(f"Child sessions: {current_session.child_session_ids}")
-# → ["sess-child-1", "sess-child-2", "sess-child-3"]
-
-# Iterate over children
-for child_id in current_session.child_session_ids:
-    child = sdk.sessions.get(child_id)
-    print(f"{child.agent}: {child.status} - {child.summary}")
-```
-
-#### Get Feature's All Sessions
-
-```python
-# Find all sessions that worked on a feature
-sessions = sdk.get_feature_sessions("feature-001")
-
-for session in sessions:
-    print(f"Agent: {session.agent}")
-    print(f"Status: {session.status}")
-    print(f"Parent: {session.parent_session_id}")
-    print(f"Duration: {session.total_time_seconds}s")
-    print(f"Tools used: {session.tools_used}")
-    print("---")
-```
-
-#### Navigate the Hierarchy
-
-```python
-# Start from a child session
-child_session = sdk.sessions.get("sess-child-xyz")
-
-# Get parent
-parent = sdk.sessions.get(child_session.parent_session_id)
-print(f"Parent agent: {parent.agent}")
-
-# Get siblings
-siblings = [
-    sdk.sessions.get(sibling_id)
-    for sibling_id in parent.child_session_ids
-    if sibling_id != child_session.id
-]
-print(f"Siblings: {[s.agent for s in siblings]}")
+# Find sessions for a feature
+htmlgraph session find-feature feature-001
 ```
 
 ### Using the Dashboard
@@ -215,19 +174,13 @@ Click on any session to see:
 - Timing breakdown
 - Agent details
 
-### Using the CLI
+### Using the CLI (continued)
 
 ```bash
-# List all sessions
+# All the commands above work with uv run htmlgraph as well
 uv run htmlgraph session list
-
-# Get session details
 uv run htmlgraph session show sess-abc123
-
-# View session hierarchy
-uv run htmlgraph session tree sess-abc123  # Show parent-child tree
-
-# Find sessions for a feature
+uv run htmlgraph session tree sess-abc123
 uv run htmlgraph session find-feature feature-001
 ```
 
@@ -288,35 +241,12 @@ Each session captures different event types:
 
 ### Analyzing Events
 
-```python
-# Get all events from a session
-session = sdk.sessions.get("sess-child-xyz")
+```bash
+# View session details including event counts
+htmlgraph session show sess-child-xyz
 
-# Count tool usage
-tool_counts = {}
-for event in session.events:
-    if event['type'] == 'ToolUse':
-        tool = event['tool']
-        tool_counts[tool] = tool_counts.get(tool, 0) + 1
-
-print(f"Tools used: {tool_counts}")
-# → {"Bash": 3, "Read": 5, "Grep": 4}
-
-# Find long-running tools
-slow_tools = [
-    e for e in session.events
-    if e['type'] == 'ToolUse' and e['duration_ms'] > 1000
-]
-print(f"Slow operations: {len(slow_tools)}")
-
-# Extract all file edits
-edits = [
-    e for e in session.events
-    if e['type'] == 'FileEdit'
-]
-print(f"Files modified: {len(edits)}")
-for edit in edits:
-    print(f"  - {edit['file']}")
+# View full event log in browser
+open .htmlgraph/sessions/sess-child-xyz.html
 ```
 
 ---
@@ -325,104 +255,44 @@ for edit in edits:
 
 ### Scenario 1: "What did the subagent do?"
 
-```python
-# Find the delegated task result
-parent_session = sdk.sessions.get("sess-abc123")
+```bash
+# View session hierarchy starting from parent
+htmlgraph session tree sess-abc123
 
-# Get first child
-child_id = parent_session.child_session_ids[0]
-child = sdk.sessions.get(child_id)
-
-# See what it executed
-print(f"Prompt: {child.delegated_prompt}")
-print(f"Status: {child.status}")
-print(f"Result: {child.result}")
-print(f"Tool calls: {len([e for e in child.events if e['type'] == 'ToolUse'])}")
-
-# If failed, see the error
-if child.status == "failed":
-    print(f"Error: {child.error_message}")
-    print(f"Last event: {child.events[-1]}")
+# Inspect individual child session details
+htmlgraph session show sess-child-xyz
 ```
 
 ### Scenario 2: "Did the orchestrator make the right decision?"
 
-```python
-# Trace the orchestrator's decisions
-orchestrator_session = sdk.sessions.get("sess-orchestrator-id")
+```bash
+# View orchestrator session and all delegated children
+htmlgraph session tree sess-orchestrator-id
 
-# What was delegated?
-for i, child_id in enumerate(orchestrator_session.child_session_ids):
-    child = sdk.sessions.get(child_id)
-    print(f"Task {i+1}: {child.delegated_prompt[:100]}...")
-    print(f"Result: {child.status}")
-
-# Was it cost-effective?
-total_cost = sum(
-    sdk.sessions.get(child_id).estimated_cost
-    for child_id in orchestrator_session.child_session_ids
-)
-print(f"Total estimated cost: ${total_cost:.2f}")
-
-# Did it complete on time?
-print(f"Total time: {orchestrator_session.total_time_seconds}s")
+# Check overall session status
+htmlgraph session show sess-orchestrator-id
 ```
 
 ### Scenario 3: "Why did feature X take so long?"
 
-```python
-# Get all sessions for a feature
-sessions = sdk.get_feature_sessions("feature-001")
+```bash
+# View all sessions linked to a feature
+htmlgraph session find-feature feature-001
 
-# Calculate total time
-total_time = sum(s.total_time_seconds for s in sessions)
-print(f"Total development time: {total_time}s")
-
-# Break down by agent
-time_by_agent = {}
-for session in sessions:
-    agent = session.agent
-    time_by_agent[agent] = time_by_agent.get(agent, 0) + session.total_time_seconds
-
-for agent, time in sorted(time_by_agent.items(), key=lambda x: -x[1]):
-    print(f"{agent}: {time}s ({time/total_time*100:.0f}%)")
-
-# Find bottlenecks
-for session in sessions:
-    slowest_tool = max(
-        [e for e in session.events if e['type'] == 'ToolUse'],
-        key=lambda e: e['duration_ms'],
-        default=None
-    )
-    if slowest_tool and slowest_tool['duration_ms'] > 5000:
-        print(f"Slow operation in {session.agent}: {slowest_tool['tool']} took {slowest_tool['duration_ms']}ms")
+# View session timeline in dashboard
+uv run htmlgraph serve
+# Navigate to Sessions tab, filter by feature
 ```
 
 ### Scenario 4: "Trace a specific issue across sessions"
 
-```python
-# Find all sessions that touched a file
-target_file = "src/auth/login.py"
-sessions = sdk.get_feature_sessions("feature-001")
+```bash
+# Find sessions for the feature then inspect each
+htmlgraph session find-feature feature-001
+htmlgraph session show sess-abc123
 
-file_edits_timeline = []
-for session in sessions:
-    for event in session.events:
-        if event['type'] == 'FileEdit' and event['file'] == target_file:
-            file_edits_timeline.append({
-                'session': session.id,
-                'agent': session.agent,
-                'timestamp': event['timestamp'],
-                'reason': event.get('reason', 'no reason given')
-            })
-
-# Sort by time
-file_edits_timeline.sort(key=lambda x: x['timestamp'])
-
-# Show evolution
-print(f"Evolution of {target_file}:")
-for edit in file_edits_timeline:
-    print(f"  {edit['agent']} ({edit['session'][:8]}...): {edit['reason']}")
+# Open session files in browser for full event logs
+open .htmlgraph/sessions/sess-abc123.html
 ```
 
 ---
@@ -442,14 +312,12 @@ Results: Available immediately after all complete
 ```
 
 **Query pattern:**
-```python
-orchestrator = sdk.sessions.get("sess-orchestrator")
-child_sessions = [
-    sdk.sessions.get(child_id)
-    for child_id in orchestrator.child_session_ids
-]
-# All children have completed
-results = [child.result for child in child_sessions]
+```bash
+# View orchestrator session and all parallel children
+htmlgraph session tree sess-orchestrator
+
+# All children are visible in the hierarchy
+htmlgraph session show sess-orchestrator
 ```
 
 ### Pattern 2: Sequential Handoff
@@ -466,15 +334,10 @@ Task 3 (Implementation - uses Task 2 results)
 ```
 
 **Query pattern:**
-```python
-# Task 1 completes first
-task1_result = task1.result
-
-# Task 2 uses Task 1 results
-task2 = Task(prompt=f"Based on these issues: {task1_result}, prioritize them...")
-
-# Task 3 uses Task 2 results
-task3 = Task(prompt=f"Based on priority: {task2.result}, implement fixes...")
+```bash
+# Each Task() call in sequence — results from task1 are passed in task2's prompt
+# View the chain via session hierarchy
+htmlgraph session tree sess-orchestrator
 ```
 
 ### Pattern 3: Hierarchical Delegation (Nested)
@@ -488,20 +351,12 @@ Orchestrator (Level 0)
 ```
 
 **Query pattern:**
-```python
-# Get top-level orchestrator
-orchestrator = sdk.sessions.get("sess-level0")
+```bash
+# View full multi-level hierarchy
+htmlgraph session tree sess-level0
 
-# Get level 1 subagent
-subagent_l1 = sdk.sessions.get(orchestrator.child_session_ids[0])
-
-# Get level 2 grandchildren
-grandchildren = [
-    sdk.sessions.get(child_id)
-    for child_id in subagent_l1.child_session_ids
-]
-
-# Full lineage: orchestrator → subagent → grandchildren
+# Inspect any level by session ID
+htmlgraph session show sess-level1-child
 ```
 
 ---
@@ -513,9 +368,7 @@ grandchildren = [
 Link sessions to features so you can trace all work:
 
 ```python
-from htmlgraph import Task
-
-# Good: Feature context included in prompt
+# Good: Feature context included in delegation prompt
 Task(
     subagent_type="general-purpose",
     prompt=f"""
@@ -525,98 +378,51 @@ Task(
     ...
     """
 )
+```
 
+```bash
 # Later: Query all work on feature
-sessions = sdk.get_feature_sessions("feature-001")
+htmlgraph session find-feature feature-001
 ```
 
 ### 2. Document Key Decisions
 
 When delegating critical work, document the decision:
 
-```python
-sdk.spikes.create(
-    title="Delegated auth refactoring to parallel subagents"
-).set_findings("""
-Decision: Why we delegated?
-- 3 independent tasks (explore, implement, test)
-- Can run in parallel (faster than sequential)
-- Subagents: Gemini (exploration), Claude (implementation), Test-Runner (validation)
-
-Expected cost: $0.12 vs $0.25 for sequential
-Expected time: 2 min vs 6 min for sequential
-""").save()
+```bash
+htmlgraph spike create "Delegated auth refactoring to parallel subagents"
+# Then open the spike HTML and add findings
 ```
 
 ### 3. Monitor Session Health
 
 Periodically review session patterns:
 
-```python
-# Session duration tracking
-feature_sessions = sdk.get_feature_sessions("feature-001")
+```bash
+# View all sessions for a feature
+htmlgraph session find-feature feature-001
 
-print("Session Performance:")
-for session in feature_sessions:
-    print(f"{session.agent}: {session.total_time_seconds}s ({session.status})")
-
-# Find anomalies
-slow_sessions = [
-    s for s in feature_sessions
-    if s.total_time_seconds > 300  # > 5 minutes
-]
-
-if slow_sessions:
-    print("Slow sessions - consider optimization:")
-    for s in slow_sessions:
-        print(f"  {s.id}: {s.total_time_seconds}s")
+# Check for slow or failed sessions in dashboard
+uv run htmlgraph serve
 ```
 
 ### 4. Use Hierarchy for Cost Attribution
 
-Track which agent spent resources:
+```bash
+# View session hierarchy to understand work distribution
+htmlgraph session tree sess-orchestrator
 
-```python
-feature_sessions = sdk.get_feature_sessions("feature-001")
-
-# Cost by agent
-cost_by_agent = {}
-for session in feature_sessions:
-    agent = session.agent
-    cost = session.estimated_cost
-    cost_by_agent[agent] = cost_by_agent.get(agent, 0) + cost
-
-# Total cost
-total = sum(cost_by_agent.values())
-print(f"Total feature cost: ${total:.2f}")
-for agent, cost in cost_by_agent.items():
-    pct = cost / total * 100
-    print(f"  {agent}: ${cost:.2f} ({pct:.0f}%)")
+# Dashboard shows agent attribution across sessions
+uv run htmlgraph serve
 ```
 
 ### 5. Preserve Context in Handoffs
 
-When handing off between agents, reference the session:
+When handing off between agents, document findings in a spike:
 
-```python
-# Finishing agent documents findings
-current_session = sdk.sessions.get(session_id)
-
-sdk.spikes.create(
-    title=f"Handoff context from {current_session.agent}"
-).set_findings(f"""
-Session ID: {session_id}
-Agent: {current_session.agent}
-Status: {current_session.status}
-
-Key findings:
-{current_session.summary}
-
-For next agent:
-- See event log in session for details
-- All tool outputs captured in session.events
-- Feature context: feature-001
-""").save()
+```bash
+htmlgraph spike create "Handoff context from <agent>"
+# Add findings to the spike file, reference session and feature IDs
 ```
 
 ---
@@ -637,7 +443,7 @@ A: Usually 2-3 levels (orchestrator → subagent → grandchild). Beyond that, c
 
 **Q: Do I need to know session IDs?**
 
-A: No. Use `sdk.get_feature_sessions(feature_id)` to get all sessions for a feature without knowing IDs.
+A: No. Use `htmlgraph session find-feature <feature_id>` to get all sessions for a feature without knowing IDs.
 
 **Q: Can different agents see the same session hierarchy?**
 
@@ -649,7 +455,7 @@ A: Indefinitely. Sessions are stored in the `.htmlgraph/` directory which should
 
 **Q: Can I manually create a session hierarchy?**
 
-A: Usually not needed. Use Task() for automatic creation. For manual needs, see the SDK reference.
+A: Usually not needed. Use Task() for automatic creation. Session relationships are tracked automatically via hooks.
 
 ---
 

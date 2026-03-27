@@ -15,6 +15,14 @@ HtmlGraph provides multiple ways to query your graph data. This cookbook covers 
 
 The simplest way to query - uses familiar CSS selector syntax.
 
+```bash
+# Use CLI to query by status
+htmlgraph find features --status blocked
+htmlgraph find features --status done
+```
+
+Or using the HtmlGraph Python library directly:
+
 ```python
 from htmlgraph import HtmlGraph
 

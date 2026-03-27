@@ -22,17 +22,13 @@ Sessions start automatically when:
 
 - An agent begins working (via hooks)
 - You run `htmlgraph feature start <id>`
-- You initialize the SDK with `SDK(agent="name")`
 
-```python
-from htmlgraph import SDK
+```bash
+# Start working on a feature (creates a session)
+htmlgraph feature start feat-a1b2c3d4
 
-# Session starts automatically
-sdk = SDK(agent="claude")
-
-# View current session
-status = sdk.status()
-print(status.current_session)  # session-abc-123
+# View current session status
+htmlgraph status
 ```
 
 ### 2. Activity Logging
@@ -71,26 +67,6 @@ htmlgraph session show session-abc-123
 htmlgraph status
 ```
 
-### SDK
-
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
-# Get all sessions
-sessions = sdk.sessions.all()
-
-# Get specific session
-session = sdk.sessions.get("session-abc-123")
-
-# View session details
-print(session.id)
-print(session.agent)
-print(session.features_worked_on)
-print(session.event_count)
-```
-
 ### Browser
 
 Open `.htmlgraph/sessions/session-abc-123.html` in any browser to view:
@@ -111,19 +87,13 @@ Activities are attributed to features based on:
 
 ### Example
 
-```python
-from htmlgraph import SDK
+```bash
+# Create and start a feature (attributes all subsequent activity to it)
+htmlgraph feature create "Add login page" --priority high
+htmlgraph feature start feat-a1b2c3d4
 
-sdk = SDK(agent="claude")
-
-# Create and start a feature
-feature = sdk.features.create("Add login page")
-sdk.features.start(feature.id)
-
-# All subsequent activities attributed to this feature
-sdk.track_activity(feature.id, "Implementing OAuth flow")
-
-# Read files, write code, etc. - all tracked automatically
+# Record decisions and notes as spikes
+htmlgraph spike create "Implementing OAuth flow: chose Passport.js for simpler API"
 ```
 
 ## Drift Detection
@@ -198,22 +168,14 @@ Next Steps:
 
 ### Track Custom Activities
 
-```python
-sdk.track_activity(
-    feature_id="feature-001",
-    activity="Decided to use Passport.js instead of Auth0 (simpler API)"
-)
+```bash
+# Record decisions as spikes linked to the current feature
+htmlgraph spike create "Decided to use Passport.js instead of Auth0 (simpler API)"
 ```
 
 ### Set Primary Feature
 
 When multiple features are active:
-
-```python
-sdk.features.set_primary("feature-001")
-```
-
-Or via CLI:
 
 ```bash
 htmlgraph feature primary feature-001
@@ -270,11 +232,8 @@ htmlgraph feature complete feature-001
 
 Record important decisions as you make them:
 
-```python
-sdk.track_activity(
-    feature_id=feature.id,
-    activity="Chose PostgreSQL over MongoDB for better transaction support"
-)
+```bash
+htmlgraph spike create "Chose PostgreSQL over MongoDB for better transaction support"
 ```
 
 ### 3. Complete Sessions

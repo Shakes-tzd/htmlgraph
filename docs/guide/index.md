@@ -51,46 +51,27 @@ Advanced topics:
 
 ### Creating a Simple Feature
 
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-feature = sdk.features.create(
-    title="Add login page",
-    priority="high",
-    steps=["Create component", "Add routing", "Write tests"]
-)
+```bash
+htmlgraph feature create "Add login page" --priority high
 ```
 
 [Learn more →](features-tracks.md#creating-features)
 
 ### Creating a Complex Track
 
-```python
-track = sdk.tracks.builder() \
-    .title("User Authentication") \
-    .with_spec(overview="Full auth system") \
-    .with_plan_phases([
-        ("Phase 1", ["OAuth setup (2h)", "JWT middleware (3h)"])
-    ]) \
-    .create()
+```bash
+htmlgraph track new "User Authentication" --priority high
+# Note the track ID (e.g. trk-a1b2c3d4)
 ```
 
 [Learn more →](track-builder.md)
 
 ### Linking Features to Tracks
 
-```python
-# Create features for the track
-auth_feature = sdk.features.create(
-    title="OAuth Setup",
-    track_id=track.track_id
-)
-
-jwt_feature = sdk.features.create(
-    title="JWT Middleware",
-    track_id=track.track_id
-)
+```bash
+# Create features linked to the track
+htmlgraph feature create "OAuth Setup" --priority high --track trk-a1b2c3d4
+htmlgraph feature create "JWT Middleware" --priority high --track trk-a1b2c3d4
 ```
 
 [Learn more →](features-tracks.md#linking-features-to-tracks)

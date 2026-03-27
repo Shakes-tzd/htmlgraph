@@ -4,18 +4,12 @@ This guide shows AI agents how to use HtmlGraph's strategic planning and depende
 
 ## Quick Start
 
-```python
-from htmlgraph import SDK
-
-# Initialize with your agent ID
-sdk = SDK(agent="claude")
-
+```bash
 # Get smart recommendations
-recs = sdk.recommend_next_work(agent_count=1)
-if recs:
-    best = recs[0]
-    print(f"Work on: {best['title']}")
-    print(f"Why: {', '.join(best['reasons'])}")
+htmlgraph analytics recommend
+
+# Find bottlenecks
+htmlgraph analytics bottlenecks
 ```
 
 ## Available Features
@@ -30,23 +24,9 @@ if recs:
 - When coordinating multiple agents
 
 **Example**:
-```python
-bottlenecks = sdk.find_bottlenecks(top_n=5)
-
-for bn in bottlenecks:
-    print(f"{bn['title']} blocks {bn['blocks_count']} tasks")
-    print(f"Impact score: {bn['impact_score']}")
-    print(f"Priority: {bn['priority']}")
+```bash
+htmlgraph analytics bottlenecks --top 5
 ```
-
-**Returns**: List of dicts with:
-- `id`: Task ID
-- `title`: Task title
-- `status`: Current status
-- `priority`: Priority level
-- `blocks_count`: Number of tasks blocked
-- `impact_score`: Weighted impact metric
-- `blocked_tasks`: List of task IDs being blocked
 
 ### 2. Get Parallel Work ⚡
 
@@ -58,19 +38,9 @@ for bn in bottlenecks:
 - When looking for independent work streams
 
 **Example**:
-```python
-parallel = sdk.get_parallel_work(max_agents=5)
-
-print(f"Can work on {parallel['max_parallelism']} tasks at once")
-print(f"Ready now: {parallel['ready_now']}")
+```bash
+htmlgraph analytics recommend --agent-count 5
 ```
-
-**Returns**: Dict with:
-- `max_parallelism`: Maximum tasks that can run in parallel
-- `ready_now`: List of task IDs ready to start immediately
-- `total_ready`: Count of ready tasks
-- `level_count`: Number of dependency levels
-- `next_level`: Tasks in the next dependency level
 
 ### 3. Recommend Next Work 💡
 
@@ -82,25 +52,9 @@ print(f"Ready now: {parallel['ready_now']}")
 - When coordinating work across agents
 
 **Example**:
-```python
-recs = sdk.recommend_next_work(agent_count=3)
-
-for rec in recs:
-    print(f"{rec['title']} (score: {rec['score']})")
-    print(f"Priority: {rec['priority']}")
-    print(f"Reasons: {rec['reasons']}")
-    print(f"Unlocks: {rec['unlocks_count']} tasks")
+```bash
+htmlgraph analytics recommend --agent-count 3
 ```
-
-**Returns**: List of dicts with:
-- `id`: Task ID
-- `title`: Task title
-- `priority`: Priority level
-- `score`: Recommendation score (higher = better)
-- `reasons`: List of reasons why this task is recommended
-- `estimated_hours`: Estimated effort (if available)
-- `unlocks_count`: Number of tasks this will unblock
-- `unlocks`: List of task IDs that will be unblocked
 
 ### 4. Assess Risks ⚠️
 
@@ -112,29 +66,10 @@ for rec in recs:
 - When dependencies feel complex
 
 **Example**:
-```python
-risks = sdk.assess_risks()
-
-if risks['high_risk_count'] > 0:
-    print(f"Warning: {risks['high_risk_count']} high-risk tasks")
-    for task in risks['high_risk_tasks']:
-        print(f"  {task['title']}: {task['risk_factors']}")
-
-if risks['circular_dependencies']:
-    print("Circular dependencies detected!")
+```bash
+# View snapshot for an overview of project health
+htmlgraph snapshot --summary
 ```
-
-**Returns**: Dict with:
-- `high_risk_count`: Number of high-risk tasks
-- `high_risk_tasks`: List of dicts with:
-  - `id`: Task ID
-  - `title`: Task title
-  - `risk_score`: Risk metric
-  - `risk_factors`: List of risk descriptions
-- `circular_dependencies`: List of dependency cycles
-- `orphaned_count`: Number of orphaned tasks
-- `orphaned_tasks`: List of orphaned task IDs
-- `recommendations`: List of actionable recommendations
 
 ### 5. Analyze Impact 📊
 
@@ -146,104 +81,30 @@ if risks['circular_dependencies']:
 - When communicating value of work
 
 **Example**:
-```python
-impact = sdk.analyze_impact("feature-001")
-
-print(f"Direct dependents: {impact['direct_dependents']}")
-print(f"Total impact: {impact['total_impact']} tasks")
-print(f"Unlocks {impact['completion_impact']:.1f}% of remaining work")
+```bash
+htmlgraph analytics bottlenecks
+# Shows impact scores and blocks_count for each bottleneck
 ```
-
-**Returns**: Dict with:
-- `node_id`: Task ID analyzed
-- `direct_dependents`: Number of tasks directly depending on this
-- `total_impact`: Total downstream tasks affected
-- `completion_impact`: Percentage of total work this unlocks
-- `unlocks_count`: Count of affected tasks
-- `affected_tasks`: List of affected task IDs
 
 ## Decision Flow for AI Agents
 
 Here's a recommended decision flow for AI agents:
 
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
+```bash
 # 1. Check for bottlenecks
-bottlenecks = sdk.find_bottlenecks(top_n=3)
-if bottlenecks:
-    print(f"⚠️  {len(bottlenecks)} bottlenecks found")
-    print("Consider: Focus on unblocking high-impact work")
+htmlgraph analytics bottlenecks --top 3
 
 # 2. Get smart recommendations
-recs = sdk.recommend_next_work(agent_count=1)
-if recs:
-    top = recs[0]
-    print(f"\n💡 RECOMMENDED: {top['title']}")
-    print(f"   Score: {top['score']:.1f}")
-    print(f"   Reasons: {', '.join(top['reasons'][:2])}")
+htmlgraph analytics recommend --agent-count 1
 
-    # 3. Analyze impact of recommended task
-    impact = sdk.analyze_impact(top['id'])
-    print(f"   Impact: Unlocks {impact['unlocks_count']} tasks")
-
-    # Decision: Work on this task
-    print(f"\n✅ DECISION: Starting work on {top['id']}")
+# 3. Start work on the recommended task
+htmlgraph feature start feat-<id>
 
 # 4. Check for parallel work (if coordinating with other agents)
-parallel = sdk.get_parallel_work(max_agents=3)
-if parallel['total_ready'] > 1:
-    print(f"\n⚡ {parallel['total_ready']} tasks can be done in parallel")
-    print(f"   Other agents can work on: {parallel['ready_now'][1:]}")
+htmlgraph analytics recommend --agent-count 3
 
-# 5. Assess risks (periodic health check)
-risks = sdk.assess_risks()
-if risks['high_risk_count'] > 0:
-    print(f"\n⚠️  Health check: {risks['high_risk_count']} high-risk items")
-```
-
-## Integration with AgentInterface
-
-All these methods are also available through `AgentInterface` for lower-level control:
-
-```python
-from htmlgraph.agents import AgentInterface
-
-agent = AgentInterface("features/", agent_id="claude")
-
-# Same methods available
-bottlenecks = agent.find_bottlenecks(top_n=5)
-parallel = agent.get_parallel_work(max_agents=3)
-recs = agent.recommend_next_work(agent_count=1)
-risks = agent.assess_risks()
-impact = agent.analyze_impact("feature-001")
-```
-
-## Advanced: Direct Access to Analytics Engine
-
-For advanced use cases, you can access the underlying analytics engine:
-
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
-# Access the full DependencyAnalytics class
-analytics = sdk.dep_analytics
-
-# All methods return Pydantic models (more detail, less convenience)
-bottlenecks = analytics.find_bottlenecks(top_n=5, min_impact=1.0)
-parallel = analytics.find_parallelizable_work(status="todo")
-recs = analytics.recommend_next_tasks(agent_count=3, lookahead=5)
-risk = analytics.assess_dependency_risk(spof_threshold=2)
-impact = analytics.impact_analysis("feature-001")
-
-# Pydantic models have all fields, not just agent-friendly subset
-for bn in bottlenecks:
-    print(bn.id, bn.title, bn.transitive_blocking, bn.weighted_impact)
-    print(bn.blocked_nodes)  # Full list, not limited to 5
+# 5. Periodic health check
+htmlgraph snapshot --summary
 ```
 
 ## Best Practices

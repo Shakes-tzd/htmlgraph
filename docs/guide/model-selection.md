@@ -82,10 +82,8 @@ Task(
     3. Run tests: pytest tests/auth/test_jwt.py
     4. Verify no regressions
 
-    Report results to HtmlGraph:
-    from htmlgraph import SDK
-    sdk = SDK(agent='fixer')
-    sdk.spikes.create('Auth Fix').set_findings('[RESULTS]').save()
+    Report results by creating a spike:
+    htmlgraph spike create "Auth Fix: [RESULTS]"
     """,
     subagent_type="general-purpose"  # Uses Haiku
 )
@@ -163,10 +161,8 @@ Task(
     - Estimated cost and performance impact
     - Risks and mitigations
 
-    Report findings to HtmlGraph:
-    from htmlgraph import SDK
-    sdk = SDK(agent='architect')
-    sdk.spikes.create('Caching Strategy').set_findings('[DESIGN]').save()
+    Report findings by creating a spike:
+    htmlgraph spike create "Caching Strategy: [DESIGN]"
     """,
     subagent_type="sonnet"  # Request Sonnet explicitly
 )
@@ -246,10 +242,8 @@ Task(
     - Implementation challenges
     - Recommended path forward
 
-    Report findings to HtmlGraph:
-    from htmlgraph import SDK
-    sdk = SDK(agent='researcher')
-    sdk.spikes.create('Collab System Design').set_findings('[RESEARCH]').save()
+    Report findings by creating a spike:
+    htmlgraph spike create "Collab System Design: [RESEARCH]"
     """,
     subagent_type="opus"  # Request Opus explicitly
 )

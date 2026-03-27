@@ -305,16 +305,6 @@ assert len(set(ids)) == 10000  # All unique
 
 ## Integration Points
 
-### SDK (`htmlgraph/sdk.py`)
-
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-feature = sdk.features.create(title="Auth System")
-print(feature.id)  # → "feat-7f3a2b1c" (auto-generated)
-```
-
 ### CLI (`htmlgraph/cli.py`)
 
 ```bash

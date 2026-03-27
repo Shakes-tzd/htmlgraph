@@ -30,31 +30,23 @@ This document defines the optimal workflow for parallel agent execution in HtmlG
 
 ### 1.1 Dependency Analysis
 
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="orchestrator")
-
+```bash
 # Get parallel opportunities
-parallel = sdk.get_parallel_work(max_agents=5)
-# Returns:
-#   max_parallelism: 5
-#   ready_now: ["feat-001", "feat-002", ...]  # Level 0 (no deps)
-#   dependency_levels: [[L0], [L1], [L2]]      # Topological layers
+htmlgraph analytics recommend --agent-count 5
 
 # Check for blockers
-bottlenecks = sdk.find_bottlenecks(top_n=3)
+htmlgraph analytics bottlenecks --top 3
 # Fix blockers first to unlock more parallel work
 ```
 
 ### 1.2 Risk Assessment
 
-```python
-# Identify risky parallelization
-risks = sdk.assess_risks()
-# - Circular dependencies (cannot parallelize)
-# - Single points of failure (critical path)
-# - Shared file conflicts (need coordination)
+```bash
+# Get a project health overview (circular deps, orphaned tasks, etc.)
+htmlgraph snapshot --summary
+
+# Find bottlenecks to identify single points of failure
+htmlgraph analytics bottlenecks
 ```
 
 ### 1.3 Cost-Benefit Decision
@@ -203,17 +195,12 @@ Return: Summary of changes made, files modified, any blockers found.
 
 ### 3.3 Agent Assignment (Capability Routing)
 
-```python
-from htmlgraph.routing import route_task_to_agent
+Use analytics to route tasks to appropriate agents:
 
-# Match tasks to best agents based on capabilities
-for task in ready_tasks:
-    agent, score = route_task_to_agent(task, registry)
-    # Score considers:
-    #   +100 per matching capability
-    #   -50 per missing capability
-    #   -5 per task in WIP
-    #   -100 if at capacity
+```bash
+# Get recommended agent assignments
+htmlgraph analytics recommend --agent-count 5
+# Returns tasks grouped by recommended agent count and priority
 ```
 
 ---
@@ -224,24 +211,12 @@ for task in ready_tasks:
 
 ### 4.1 Health Metrics to Watch
 
-```python
-# After agents complete, analyze transcripts
-from htmlgraph.transcript_analytics import TranscriptAnalytics
+```bash
+# After agents complete, check session health
+htmlgraph session list --recent 10
 
-analytics = TranscriptAnalytics()
-
-for agent_id in spawned_agents:
-    health = analytics.calculate_session_health(agent_id)
-
-    # Alert thresholds:
-    if health.retry_rate > 0.3:
-        log.warn(f"{agent_id}: High retry rate {health.retry_rate:.0%}")
-
-    if health.context_rebuild_count > 5:
-        log.warn(f"{agent_id}: {health.context_rebuild_count} context rebuilds")
-
-    if health.tool_diversity < 0.3:
-        log.warn(f"{agent_id}: Low tool diversity")
+# Check specific session details
+htmlgraph session show <session-id>
 ```
 
 ### 4.2 Anti-Pattern Detection
@@ -348,15 +323,15 @@ if not all(validation.values()):
 
 ### 6.2 Update Dependencies
 
-```python
-# Mark completed work
-for result in results.values():
-    if result["status"] == "success":
-        sdk.features.complete(result["feature_completed"])
+```bash
+# Mark completed features
+htmlgraph feature complete feat-001
+htmlgraph feature complete feat-002
+htmlgraph feature complete feat-003
 
 # Unlock Level 1 tasks (depended on Level 0)
-next_level = sdk.get_parallel_work(max_agents=5)
-# Now Level 1 tasks are in ready_now
+htmlgraph analytics recommend --agent-count 5
+# Now Level 1 tasks are in the ready list
 ```
 
 ### 6.3 Commit Aggregate Changes
@@ -410,26 +385,23 @@ Parallel execution metrics:
 
 ```bash
 # Analyze what can be parallelized
-uv run htmlgraph work parallel --max-agents 5
-
-# Get recommended parallel assignments
-uv run htmlgraph recommend --agent-count 3
+htmlgraph analytics recommend --agent-count 5
 
 # Check bottlenecks first
-uv run htmlgraph analytics bottlenecks --top 5
+htmlgraph analytics bottlenecks --top 5
+
+# Get project health overview
+htmlgraph snapshot --summary
 ```
 
 ### Health Check After Parallel Work
 
 ```bash
-# Analyze all recent agent transcripts
-uv run htmlgraph transcript insights
+# View recent session activity
+htmlgraph session list --recent 10
 
-# Check specific agent
-uv run htmlgraph transcript health {agent-id}
-
-# Get recommendations
-uv run htmlgraph transcript recommendations
+# Check specific session
+htmlgraph session show <session-id>
 ```
 
 ---

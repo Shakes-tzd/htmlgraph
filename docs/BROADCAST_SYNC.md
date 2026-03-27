@@ -33,19 +33,12 @@ The Cross-Session Broadcast system enables real-time synchronization of work ite
 
 ## Usage
 
-### 1. Programmatic Broadcasting (SDK)
+### 1. CLI Broadcasting
 
-```python
-from htmlgraph.broadcast_integration import broadcast_feature_save
-
-# Automatic broadcasting when feature is saved
-sdk = SDK(agent="claude")
-feature = sdk.features.create("User Authentication") \
-    .set_status("in_progress") \
-    .set_track("trk-123") \
-    .save()
-
-# Broadcasts to all active sessions automatically
+```bash
+# Create a feature (broadcasts to all active sessions automatically)
+htmlgraph feature create "User Authentication"
+htmlgraph feature start feat-<id>
 ```
 
 ### 2. REST API Broadcasting
@@ -152,31 +145,19 @@ asyncio.run(subscribe_to_broadcasts())
 | `link_added` | Relationship added | `{linked_feature_id, link_type}` |
 | `comment_added` | Comment posted | `{comment_text, author}` |
 
-## Integration with FeatureBuilder
+## Integration with Features
 
-Broadcasting is automatically integrated with the SDK:
+Broadcasting is automatically integrated when features change:
 
-```python
-from htmlgraph.sdk import SDK
+```bash
+# Create feature (broadcasts: feature_created)
+htmlgraph feature create "User Authentication"
 
-sdk = SDK(agent="claude", session_id="sess-1")
+# Start feature (broadcasts: status_changed)
+htmlgraph feature start feat-<id>
 
-# Create feature (broadcasts to all sessions)
-feature = sdk.features.create("User Authentication") \
-    .set_status("in_progress") \
-    .set_track("trk-123") \
-    .save()
-# → Broadcasts: feature_created
-
-# Update feature (broadcasts to all sessions)
-feature.status = "done"
-feature.save()
-# → Broadcasts: feature_updated + status_changed
-
-# Add relationship (broadcasts to all sessions)
-feature.blocks("feat-456")
-feature.save()
-# → Broadcasts: link_added
+# Complete feature (broadcasts: feature_updated + status_changed)
+htmlgraph feature complete feat-<id>
 ```
 
 ## Performance Characteristics
@@ -199,13 +180,10 @@ feature.save()
 ## Monitoring & Debugging
 
 **Check Active Connections:**
-```python
-from htmlgraph.api.websocket import WebSocketManager
-
-manager = WebSocketManager(db_path)
-metrics = manager.get_global_metrics()
-print(f"Active clients: {metrics['total_connected_clients']}")
-print(f"Active sessions: {metrics['active_sessions']}")
+```bash
+# Open dashboard to view active WebSocket connections
+uv run htmlgraph serve
+# Then open: http://localhost:8000/
 ```
 
 **View Broadcast Events:**
@@ -217,14 +195,9 @@ open http://localhost:8000/static/broadcast-demo.html
 ```
 
 **Debug Logging:**
-```python
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger("htmlgraph.api.broadcast")
-logger.setLevel(logging.DEBUG)
-
-# Now all broadcasts are logged
+```bash
+# Start dashboard with verbose logging
+uv run htmlgraph serve --verbose
 ```
 
 ## Testing
@@ -245,20 +218,14 @@ uv run pytest tests/integration/test_broadcast.py -v
 
 ### Pattern 1: Multi-Agent Coordination
 
-```python
-# Agent 1 (Claude) creates feature
-sdk1 = SDK(agent="claude", session_id="sess-1")
-feature = sdk1.features.create("API Endpoint") \
-    .set_status("in_progress") \
-    .save()
+```bash
+# Agent 1 (Claude) creates and starts feature
+htmlgraph feature create "API Endpoint"
+htmlgraph feature start feat-<id>
 
-# Agent 2 (Copilot) immediately sees it and adds dependency
-sdk2 = SDK(agent="copilot", session_id="sess-2")
-feature2 = sdk2.features.get(feature.id)
-feature2.blocked_by("feat-auth")
-feature2.save()
-
-# Both agents see all updates in real-time
+# Agent 2 (Copilot) immediately sees it via real-time broadcast
+# Agent 2 can view the feature
+htmlgraph feature show feat-<id>
 ```
 
 ### Pattern 2: Status Monitoring

@@ -46,26 +46,16 @@ The SDK automatically:
 
 The SQLite index is enabled by default:
 
-```python
-from htmlgraph import SDK
-
-# Index is used automatically
-sdk = SDK(agent="claude")
-features = sdk.features.all()  # Queries use index
+```bash
+# Index is used automatically by CLI queries
+htmlgraph feature list
 ```
 
 ### Disable
 
-To disable the index:
+To disable the index, use the environment variable:
 
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude", use_index=False)
-# All queries read HTML files directly
-```
-
-Or via environment variable:
+```bash
 
 ```bash
 export HTMLGRAPH_USE_INDEX=false
@@ -81,11 +71,6 @@ If the index becomes out of sync:
 ```bash
 # Rebuild from HTML files
 htmlgraph index rebuild
-
-# Or via SDK
-from htmlgraph import SDK
-sdk = SDK(agent="claude")
-sdk.rebuild_index()
 ```
 
 ### Clear Index
@@ -109,10 +94,10 @@ htmlgraph index stats
 
 | Operation | Without Index | With Index | Speedup |
 |-----------|--------------|------------|---------|
-| `features.all()` (100 nodes) | 250ms | 15ms | 16x |
-| `features.where(status="todo")` | 200ms | 8ms | 25x |
-| `find_bottlenecks()` | 800ms | 45ms | 18x |
-| `recommend_next_work()` | 1.2s | 65ms | 18x |
+| `htmlgraph feature list` (100 nodes) | 250ms | 15ms | 16x |
+| `htmlgraph find features --status todo` | 200ms | 8ms | 25x |
+| `htmlgraph analytics bottlenecks` | 800ms | 45ms | 18x |
+| `htmlgraph analytics recommend` | 1.2s | 65ms | 18x |
 
 *Benchmarks on M1 MacBook Pro with 100 features, 50 sessions*
 
@@ -126,7 +111,7 @@ The SQLite index contains these tables:
 - `sessions` - Session metadata
 - `events` - Event log entries
 
-**Note:** Schema is internal and may change between versions. Always use SDK methods to query.
+**Note:** Schema is internal and may change between versions. Always use CLI commands to query.
 
 ## Troubleshooting
 
@@ -173,7 +158,7 @@ If queries are slow even with indexing:
 1. **Gitignore index**: Already in `.gitignore`, never commit
 2. **Rebuild after git pull**: If HTML changed, rebuild index
 3. **Monitor index size**: Keep under 100MB for best performance
-4. **Use for analytics**: Essential for `find_bottlenecks()`, `recommend_next_work()`
+4. **Use for analytics**: Essential for `htmlgraph analytics bottlenecks`, `htmlgraph analytics recommend`
 
 ## FAQ
 
@@ -191,11 +176,11 @@ No problem. It will be recreated automatically on next use.
 
 ### How often is the index updated?
 
-Automatically on every SDK write operation. No manual intervention needed.
+Automatically on every CLI write operation. No manual intervention needed.
 
 ### Does the index support transactions?
 
-Yes. All SDK operations use SQLite transactions for consistency.
+Yes. All CLI operations use SQLite transactions for consistency.
 
 ## See Also
 

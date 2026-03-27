@@ -287,25 +287,9 @@ You don't need to read everything at once. Start with what you need, dive deeper
 
 When you use a skill to solve a problem, document it in HtmlGraph:
 
-```python
-from htmlgraph import SDK
-
-sdk = SDK(agent="claude")
-
+```bash
 # Create a spike documenting your learnings
-spike = sdk.spikes.create(
-    title="Learned debugging workflow - resolved hook loading issue"
-).set_findings("""
-Used /debugging-workflow skill to systematically diagnose hook loading problem.
-
-Key learnings:
-1. Research first - read Claude Code hook documentation
-2. Check all hook sources (not just .claude/hooks/)
-3. Understand that hooks from multiple sources MERGE
-4. Verify with /hooks command
-
-Issue was resolved by: Removing duplicate hooks from hook sources
-""").save()
+htmlgraph spike create "Learned debugging workflow - resolved hook loading issue: Research first, check all hook sources, hooks MERGE not replace, verify with /hooks. Fixed by removing duplicate hooks."
 ```
 
 ### Orchestrator Directives Integration
@@ -313,8 +297,6 @@ Issue was resolved by: Removing duplicate hooks from hook sources
 When delegating complex tasks, reference the orchestrator skill:
 
 ```python
-from htmlgraph import Task
-
 # Orchestrator coordinates based on skill guidance
 Task(
     subagent_type="general-purpose",
@@ -383,7 +365,7 @@ uv run pytest
 # - When to use debugging agents
 
 # Step 2: Document findings in spike
-sdk.spikes.create("Debug: test failure in X").set_findings(...)
+htmlgraph spike create "Debug: test failure in X - [findings here]"
 
 # Step 3: Don't guess - research and understand root cause
 ```
