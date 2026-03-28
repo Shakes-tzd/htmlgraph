@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
@@ -274,6 +276,14 @@ func statsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 		database.QueryRow(`SELECT COUNT(*) FROM sessions WHERE status='active'`).Scan(&activeSessions)
 		database.QueryRow(`SELECT COUNT(*) FROM agent_events`).Scan(&totalEvents)
 
+		// Read launch mode
+		launchMode := ""
+		if data, err := os.ReadFile(filepath.Join(projectDir, ".launch-mode")); err == nil {
+			if strings.Contains(string(data), `"yolo`) {
+				launchMode = "yolo"
+			}
+		}
+
 		respondJSON(w, map[string]any{
 			"features_total":       total,
 			"features_in_progress": inProgress,
@@ -281,6 +291,7 @@ func statsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 			"features_todo":        todo,
 			"active_sessions":      activeSessions,
 			"total_events":         totalEvents,
+			"launch_mode":          launchMode,
 		})
 	}
 }

@@ -95,6 +95,12 @@ function renderSessions() {
     titleSpan.title = s.first_message || s.session_id;
     head.appendChild(titleSpan);
     head.appendChild(createStatusBadge(s.status));
+    if (stats.launch_mode === 'yolo' && s.status === 'active') {
+      var yoloBadge = document.createElement('span');
+      yoloBadge.className = 'badge-yolo';
+      yoloBadge.textContent = 'YOLO';
+      head.appendChild(yoloBadge);
+    }
     card.appendChild(head);
 
     var metaRow = document.createElement('div');

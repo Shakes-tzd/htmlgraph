@@ -126,6 +126,11 @@
 .card-row .label { color: var(--text-muted); }
 .card.clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .card.clickable:hover { border-color: var(--accent); background: var(--bg-hover); }
+.badge-yolo {
+  background: rgba(250,204,21,0.2); color: #fbbf24;
+  font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 700; letter-spacing: 0.08em;
+}
 
 /* ── CSS bar charts ────────────────────────────────────────── */
 .bar-chart { display: flex; flex-direction: column; gap: 6px; max-width: 600px; }
