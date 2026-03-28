@@ -60,6 +60,9 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 	cmd.Flags().BoolVar(&goOnly, "go-only", false, "Run Go quality gates only")
 	cmd.Flags().BoolVar(&pythonOnly, "python-only", false, "Run Python quality gates only")
 	cmd.Flags().BoolVar(&skipTests, "skip-tests", false, "Skip test execution (run lint/build only)")
+
+	cmd.AddCommand(checkOrphansCmd())
+	cmd.AddCommand(checkIncompleteCmd())
 	return cmd
 }
 

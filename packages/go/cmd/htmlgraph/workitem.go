@@ -32,25 +32,38 @@ func workitemCmd(typeName, dirName string) *cobra.Command {
 	return cmd
 }
 
+type wiCreateOpts struct {
+	trackID     string
+	priority    string
+	description string
+	files       string
+	start       bool
+	noLink      bool
+}
+
 func wiCreateCmd(typeName, dirName string) *cobra.Command {
-	var trackID, priority string
-	var start bool
+	var opts wiCreateOpts
 
 	cmd := &cobra.Command{
 		Use:   "create <title>",
 		Short: "Create a new " + typeName,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runWiCreate(typeName, args[0], trackID, priority, start)
+			return runWiCreate(typeName, args[0], &opts)
 		},
 	}
-	cmd.Flags().StringVar(&trackID, "track", "", "track ID to link to")
-	cmd.Flags().StringVar(&priority, "priority", "medium", "priority (low|medium|high|critical)")
-	cmd.Flags().BoolVar(&start, "start", false, "immediately mark as in-progress")
+	cmd.Flags().StringVar(&opts.trackID, "track", "", "track ID to link to")
+	cmd.Flags().StringVar(&opts.priority, "priority", "medium", "priority (low|medium|high|critical)")
+	cmd.Flags().StringVar(&opts.description, "description", "", "description text")
+	cmd.Flags().BoolVar(&opts.start, "start", false, "immediately mark as in-progress")
+	cmd.Flags().BoolVar(&opts.noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
+	if typeName == "bug" {
+		cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
+	}
 	return cmd
 }
 
-func runWiCreate(typeName, title, trackID, priority string, start bool) error {
+func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	dir, err := findHtmlgraphDir()
 	if err != nil {
 		return err
@@ -61,42 +74,27 @@ func runWiCreate(typeName, title, trackID, priority string, start bool) error {
 	}
 	defer p.Close()
 
-	var node *models.Node
-	switch typeName {
-	case "feature":
-		opts := []workitem.FeatureOption{workitem.FeatWithPriority(priority)}
-		if trackID != "" {
-			opts = append(opts, workitem.FeatWithTrack(trackID))
-		}
-		node, err = p.Features.Create(title, opts...)
-	case "bug":
-		opts := []workitem.BugOption{workitem.BugWithPriority(priority)}
-		node, err = p.Bugs.Create(title, opts...)
-	case "spike":
-		opts := []workitem.SpikeOption{workitem.SpikeWithPriority(priority)}
-		node, err = p.Spikes.Create(title, opts...)
-	case "track":
-		opts := []workitem.TrackOption{workitem.TrackWithPriority(priority)}
-		node, err = p.Tracks.Create(title, opts...)
-	case "plan":
-		opts := []workitem.PlanOption{workitem.PlanWithPriority(priority)}
-		if trackID != "" {
-			opts = append(opts, workitem.PlanWithTrack(trackID))
-		}
-		node, err = p.Plans.Create(title, opts...)
-	case "spec":
-		opts := []workitem.SpecOption{workitem.SpecWithPriority(priority)}
-		if trackID != "" {
-			opts = append(opts, workitem.SpecWithTrack(trackID))
-		}
-		node, err = p.Specs.Create(title, opts...)
-	default:
-		return fmt.Errorf("unknown type: %s", typeName)
-	}
+	node, err := createNode(p, typeName, title, o)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", typeName, err)
 	}
-	if start {
+
+	warnMissingFields(typeName, o)
+
+	if typeName == "bug" && !o.noLink {
+		if featID := detectActiveFeature(p, dir); featID != "" {
+			autoCausedByEdge(p, node.ID, featID)
+			fmt.Printf("  (linked to %s)\n", featID)
+		}
+	}
+
+	if o.trackID != "" && typeName != "track" {
+		if linkErr := autoTrackEdges(p, node.ID, typeName, o.trackID, node.Title); linkErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: auto-link to track failed: %v\n", linkErr)
+		}
+	}
+
+	if o.start {
 		if _, startErr := collectionFor(p, typeName).Start(node.ID); startErr != nil {
 			return fmt.Errorf("start %s: %w", typeName, startErr)
 		}
@@ -105,6 +103,61 @@ func runWiCreate(typeName, title, trackID, priority string, start bool) error {
 		fmt.Printf("Created: %s  %s\n", node.ID, node.Title)
 	}
 	return nil
+}
+
+func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {
+	switch typeName {
+	case "feature":
+		opts := []workitem.FeatureOption{workitem.FeatWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.FeatWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.FeatWithContent(o.description))
+		}
+		return p.Features.Create(title, opts...)
+	case "bug":
+		opts := []workitem.BugOption{workitem.BugWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.BugWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.BugWithContent(o.description))
+		}
+		return p.Bugs.Create(title, opts...)
+	case "spike":
+		opts := []workitem.SpikeOption{workitem.SpikeWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.SpikeWithTrack(o.trackID))
+		}
+		return p.Spikes.Create(title, opts...)
+	case "track":
+		opts := []workitem.TrackOption{workitem.TrackWithPriority(o.priority)}
+		if o.description != "" {
+			opts = append(opts, workitem.TrackWithContent(o.description))
+		}
+		return p.Tracks.Create(title, opts...)
+	case "plan":
+		opts := []workitem.PlanOption{workitem.PlanWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.PlanWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.PlanWithContent(o.description))
+		}
+		return p.Plans.Create(title, opts...)
+	case "spec":
+		opts := []workitem.SpecOption{workitem.SpecWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.SpecWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.SpecWithContent(o.description))
+		}
+		return p.Specs.Create(title, opts...)
+	default:
+		return nil, fmt.Errorf("unknown type: %s", typeName)
+	}
 }
 
 func wiListCmd(typeName, dirName string) *cobra.Command {
@@ -234,15 +287,17 @@ func runWiSetStatus(typeName, id, status string) error {
 		return fmt.Errorf("set %s %s: %w", typeName, status, err)
 	}
 
-	// When starting a work item, update active_feature_id on the DB session row
-	// so the YOLO guard can see the active work item without reading HTML files.
-	if status == "in-progress" && p.DB != nil {
-		projectDir := strings.TrimSuffix(dir, "/.htmlgraph")
+	// When starting a work item, update active_feature_id and create
+	// an implemented_in edge linking the work item to this session.
+	if status == "in-progress" {
 		sessionID := hooks.EnvSessionID("")
 		if sessionID != "" {
-			_ = hooks.UpdateActiveFeature(p.DB, sessionID, id)
+			if p.DB != nil {
+				_ = hooks.UpdateActiveFeature(p.DB, sessionID, id)
+			}
+			// Auto-create implemented_in edge (idempotent — skip if exists).
+			autoImplementedInEdge(col, id, sessionID)
 		}
-		_ = projectDir // used implicitly via EnvSessionID resolution
 	}
 
 	verb := "Started"

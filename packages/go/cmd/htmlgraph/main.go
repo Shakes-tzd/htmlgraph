@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/shakestzd/htmlgraph/internal/paths"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,7 @@ func main() {
 
 	rootCmd.AddCommand(versionCmd())
 	rootCmd.AddCommand(statusCmd())
+	rootCmd.AddCommand(statuslineCmd())
 	rootCmd.AddCommand(serveCmd())
 	rootCmd.AddCommand(workitemCmd("feature", "features"))
 	rootCmd.AddCommand(workitemCmd("spike", "spikes"))
@@ -63,6 +65,7 @@ func main() {
 	rootCmd.AddCommand(tddCmd())
 	rootCmd.AddCommand(ingestCmd())
 	rootCmd.AddCommand(linkCmd())
+	rootCmd.AddCommand(batchCmd())
 	rootCmd.AddCommand(workitemCmd("plan", "plans"))
 
 	if err := rootCmd.Execute(); err != nil {
@@ -108,7 +111,16 @@ func findHtmlgraphDir() (string, error) {
 		// to CWD walk-up rather than hard-failing, preserving usability.
 	}
 
-	// 3. Walk up from the process working directory.
+	// 3. Git worktree detection — resolve linked worktrees to main repo root.
+	//    When running inside a git worktree (e.g. .claude/worktrees/feat-xxx/),
+	//    git rev-parse --git-common-dir returns the main .git directory, whose
+	//    parent is the main repo root. This ensures CLI commands find the main
+	//    repo's .htmlgraph/ rather than a worktree-local copy.
+	if dir := paths.ResolveViaGitCommonDir(""); dir != "" {
+		return filepath.Join(dir, ".htmlgraph"), nil
+	}
+
+	// 4. Walk up from the process working directory.
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get working directory: %w", err)
