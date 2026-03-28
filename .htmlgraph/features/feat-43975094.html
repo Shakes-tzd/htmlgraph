@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>YOLO guard: validate work item has steps before start</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-43975094"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-03-28T21:27:57.443172"
+             data-updated="2026-03-28T21:31:29.185352" data-agent-assigned="claude-code" data-track-id="trk-1b04eec2">
+
+        <header>
+            <h1>YOLO guard: validate work item has steps before start</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="2cfa406d-9d8b-4730-9480-808edfba0371.html" data-relationship="implemented_in" data-since="2026-03-28T21:28:24.681434">session 2cfa406d-9d8b-4730-9480-808edfba0371</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-43975094-0" data-agent="claude-code">✅ In pretooluse.go or yolo_guard.go, when YOLO mode is active and feature start is called, check if the feature has implementation steps</li>
+                <li data-completed="true" data-step-id="step-feat-43975094-1" data-agent="claude-code">✅ If no steps exist, return a warning message suggesting the user add steps first</li>
+                <li data-completed="true" data-step-id="step-feat-43975094-2" data-agent="claude-code">✅ Make this warn-not-block — print warning but allow the start to proceed</li>
+                <li data-completed="true" data-step-id="step-feat-43975094-3" data-agent="claude-code">✅ Write test: feature start without steps in YOLO mode -&gt; warning printed</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

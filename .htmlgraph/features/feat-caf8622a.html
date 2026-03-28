@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Add version check to hook scripts for stale uv cache detection</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-caf8622a"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-21T22:02:53.365837"
+             data-updated="2026-03-22T00:34:16.385109" data-agent-assigned="sonnet-coder" data-track-id="trk-7a04a71f">
+
+        <header>
+            <h1>Add version check to hook scripts for stale uv cache detection</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-6cafaa64.html" data-relationship="implemented-in" data-since="2026-03-21T22:02:58.761941">sess-6cafaa64</a></li>
+                    <li><a href="d076bee5-46c0-4718-a3cc-3f97b9b2645d.html" data-relationship="implemented-in" data-since="2026-03-21T22:03:03.719547">d076bee5-46c0-4718-a3cc-3f97b9b2645d</a></li>
+                    <li><a href="sess-b55e1899.html" data-relationship="implemented-in" data-since="2026-03-21T22:30:14.886618">sess-b55e1899</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-03-22T00:34:16.385117">2026-03-22T00:34:16.385117</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'd076bee5-46c0-4718-a3cc-3f97b9b2645d', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 52, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 7, 'description': 'Multiple edits without testing - run tests between changes'}, {'sequence': ['Read', 'Read', 'Read'], 'count': 1, 'description': 'Excessive reading - take notes or use grep to find specific content'}], 'errors': [], 'error_count': 0, 'efficiency': 0.42500000000000004, 'issues': ['High retry rate: 53%', 'Excessive context rebuilds: 7'], 'recommendations': ['Consider reading more context before acting', 'Cache file contents or take notes'], 'test_runs': [{'command': 'Run full pytest test suite', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}], 'test_summary': '✓ 1 test run', 'summary': '⚠️ Issues: 60 anti-pattern occurrences, low efficiency (43%), ✓ 1 test run'}">{'session_id': 'd076bee5-46c0-4718-a3cc-3f97b9b2645d', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 52, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 7, 'description': 'Multiple edits without testing - run tests between changes'}, {'sequence': ['Read', 'Read', 'Read'], 'count': 1, 'description': 'Excessive reading - take notes or use grep to find specific content'}], 'errors': [], 'error_count': 0, 'efficiency': 0.42500000000000004, 'issues': ['High retry rate: 53%', 'Excessive context rebuilds: 7'], 'recommendations': ['Consider reading more context before acting', 'Cache file contents or take notes'], 'test_runs': [{'command': 'Run full pytest test suite', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}], 'test_summary': '✓ 1 test run', 'summary': '⚠️ Issues: 60 anti-pattern occurrences, low efficiency (43%), ✓ 1 test run'}</dd>
+            </dl>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Implemented by sonnet-coder: Created src/python/htmlgraph/hooks/version_check.py with check_hook_version() using tuple comparison (no packaging dep). Added to all 15 hook scripts in packages/claude-plugin/hooks/scripts/. Warning goes to stderr so it never interferes with hook JSON responses.
+        </section>
+    </article>
+</body>
+</html>

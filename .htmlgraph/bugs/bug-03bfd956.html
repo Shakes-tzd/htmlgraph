@@ -10,45 +10,27 @@
 <body>
     <article id="bug-03bfd956"
              data-type="bug"
-             data-status="todo"
+             data-status="done"
              data-priority="critical"
              data-created="2026-01-09T02:59:56.744631"
-             data-updated="2026-01-09T07:59:57.323889+00:00" data-agent-assigned="orchestrator">
+             data-updated="2026-03-28T17:41:43.377707" data-agent-assigned="claude-code">
 
         <header>
             <h1>Database schema missing subagent_type column in agent_events table</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-critical">Critical Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
             <section data-edge-type="implemented-in">
-                <h3>Implemented-In:</h3>
+                <h3>Implemented-in:</h3>
                 <ul>
                     <li><a href="sess-422f9b54.html" data-relationship="implemented-in" data-since="2026-01-09T02:59:57.323877">sess-422f9b54</a></li>
                 </ul>
             </section>
         </nav>
-        <section data-content>
-            <h3>Description</h3>
-            <p>Root cause of "unknown" agents in Orchestration page.
-
-## Error:
-table agent_events has no column named subagent_type
-
-## Impact:
-- Cannot store delegation target (subagent_type) in events
-- Orchestration page shows "unknown" for all delegations
-- Index creation warnings appear throughout
-
-## Fix needed:
-- Add subagent_type column to agent_events table in schema
-- Run migration or ALTER TABLE
-- Update event insertion code to use the column
-</p>
-        </section>
     </article>
 </body>
 </html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Fix claude --dev starting in wrong directory</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-6af06452"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-28T21:27:57.443562"
+             data-updated="2026-03-28T21:32:09.314705" data-agent-assigned="claude-code" data-track-id="trk-1b04eec2">
+
+        <header>
+            <h1>Fix claude --dev starting in wrong directory</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="2cfa406d-9d8b-4730-9480-808edfba0371.html" data-relationship="implemented_in" data-since="2026-03-28T21:31:57.64784">session 2cfa406d-9d8b-4730-9480-808edfba0371</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-6af06452-0" data-agent="claude-code">✅ Read packages/go/cmd/htmlgraph/claude.go to understand how --dev launches Claude Code</li>
+                <li data-completed="true" data-step-id="step-feat-6af06452-1" data-agent="claude-code">✅ Ensure the launched process CWD is the repo root, not packages/go/</li>
+                <li data-completed="true" data-step-id="step-feat-6af06452-2" data-agent="claude-code">✅ Test: htmlgraph claude --dev from repo root -&gt; Claude Code starts in repo root</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

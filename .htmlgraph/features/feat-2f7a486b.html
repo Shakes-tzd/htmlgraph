@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Targeted Deny Enforcement — Replace Safety Net with Smart Blocking</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-2f7a486b"
+             data-type="feature"
+             data-status="done"
+             data-priority="critical"
+             data-created="2026-03-26T08:25:55.504143"
+             data-updated="2026-03-26T12:31:29.495845+00:00" data-agent-assigned="orchestrator" data-track-id="trk-674685d5">
+
+        <header>
+            <h1>Targeted Deny Enforcement — Replace Safety Net with Smart Blocking</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-1a2e1e1d.html" data-relationship="implemented-in" data-since="2026-03-26T08:26:00.721847">sess-1a2e1e1d</a></li>
+                    <li><a href="sess-6cafaa64.html" data-relationship="implemented-in" data-since="2026-03-26T08:31:29.495823">sess-6cafaa64</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-0">⏳ Remove FINAL SAFETY NET unconditional deny-to-allow rewrite in pretooluse.py</li>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-1">⏳ Add DENY_SAFE_TOOLS set: Edit, Write, Bash git-write commands only</li>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-2">⏳ Keep NEVER_BLOCK_TOOLS as escape hatch including orchestrator recovery commands</li>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-3">⏳ Include specific delegation target in permissionDecisionReason messages</li>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-4">⏳ Fix orchestrator.py git-write fall-through to record violation</li>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-5">⏳ Fix orchestrator_reflector.py to stop excluding git commands</li>
+                <li data-completed="false" data-step-id="step-feat-2f7a486b-6">⏳ Integration tests for deny, allow, and recovery paths</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>
