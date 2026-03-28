@@ -109,19 +109,42 @@ func autoIngestOnce(database *sql.DB) {
 	}
 	var newSessions []string
 	for _, sf := range files {
+		// Check if re-ingest is needed: skip if file hasn't changed since last sync.
+		needsIngest := false
 		count, _ := dbpkg.CountMessages(database, sf.SessionID)
-		if count > 0 {
+		if count == 0 {
+			needsIngest = true
+		} else {
+			// Re-ingest if JSONL file modified after last sync.
+			var syncedAt string
+			database.QueryRow(`SELECT COALESCE(transcript_synced, '') FROM sessions WHERE session_id = ?`,
+				sf.SessionID).Scan(&syncedAt)
+			if syncedAt != "" {
+				if info, err := os.Stat(sf.Path); err == nil {
+					synced, _ := time.Parse(time.RFC3339, syncedAt)
+					if info.ModTime().After(synced) {
+						needsIngest = true
+					}
+				}
+			}
+		}
+		if !needsIngest {
 			continue
 		}
+
 		result, err := ingest.ParseFile(sf.Path)
 		if err != nil || len(result.Messages) == 0 {
 			continue
 		}
-		// Skip headless claude -p sessions (e.g. titler calls) — they have
-		// very few messages and a haiku model.
 		if isHeadlessSession(result) {
 			continue
 		}
+
+		// Clear old messages before re-ingest to avoid duplicates.
+		if count > 0 {
+			_ = dbpkg.DeleteSessionMessages(database, sf.SessionID)
+		}
+
 		ensureSession(database, sf.SessionID, result)
 		msgCount, toolCount := storeParseResult(database, sf.SessionID, result)
 		_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
