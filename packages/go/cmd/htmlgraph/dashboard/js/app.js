@@ -101,9 +101,7 @@ function renderSessions() {
       liveBadge.textContent = 'LIVE';
       head.appendChild(liveBadge);
     }
-    var isYoloSession = (s.title && /yolo/i.test(s.title))
-      || (s.first_message && /yolo/i.test(s.first_message));
-    if (isYoloSession) {
+    if (s.launch_mode === 'yolo') {
       var yoloBadge = document.createElement('span');
       yoloBadge.className = 'badge-yolo';
       yoloBadge.textContent = 'YOLO';

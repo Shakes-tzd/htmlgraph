@@ -157,6 +157,17 @@ func autoIngestOnce(database *sql.DB) {
 
 	// Update session status from JSONL file mtime (source of truth).
 	// "active" if file modified < 5 min ago, "completed" otherwise.
+	// Also tag active sessions with launch_mode from .launch-mode file.
+	launchMode := ""
+	// Find .htmlgraph/.launch-mode relative to CWD
+	if cwd, err := os.Getwd(); err == nil {
+		if data, err := os.ReadFile(filepath.Join(cwd, ".htmlgraph", ".launch-mode")); err == nil {
+			if strings.Contains(string(data), `"yolo`) {
+				launchMode = "yolo"
+			}
+		}
+	}
+
 	for _, sf := range files {
 		info, err := os.Stat(sf.Path)
 		if err != nil {
@@ -165,6 +176,11 @@ func autoIngestOnce(database *sql.DB) {
 		status := "completed"
 		if time.Since(info.ModTime()) < 5*time.Minute {
 			status = "active"
+			// Tag active sessions with the current launch mode
+			if launchMode != "" {
+				database.Exec(`UPDATE sessions SET metadata = json_set(COALESCE(metadata, '{}'), '$.launch_mode', ?) WHERE session_id = ?`,
+					launchMode, sf.SessionID)
+			}
 		}
 		database.Exec(`UPDATE sessions SET status = ? WHERE session_id = ?`, status, sf.SessionID)
 	}

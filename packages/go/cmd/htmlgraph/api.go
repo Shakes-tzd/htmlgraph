@@ -118,7 +118,8 @@ func sessionsHandler(database *sql.DB) http.HandlerFunc {
 			                 WHERE m.session_id = s.session_id AND m.role = 'user'
 			                 ORDER BY m.ordinal LIMIT 1), '') AS first_msg,
 			       COALESCE((SELECT COUNT(*) FROM messages m2
-			                 WHERE m2.session_id = s.session_id), 0) AS msg_count
+			                 WHERE m2.session_id = s.session_id), 0) AS msg_count,
+			       COALESCE(json_extract(s.metadata, '$.launch_mode'), '') AS launch_mode
 			FROM sessions s
 			WHERE s.total_events > 0
 			   OR EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.session_id)
@@ -137,8 +138,9 @@ func sessionsHandler(database *sql.DB) http.HandlerFunc {
 			var totalEvents int
 			var featureID, model, title, firstMsg string
 			var msgCount int
+			var sessionLaunchMode string
 			if err := rows.Scan(&sid, &agent, &status, &created, &completed,
-				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount); err != nil {
+				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount, &sessionLaunchMode); err != nil {
 				continue
 			}
 			sessions = append(sessions, map[string]any{
@@ -153,6 +155,7 @@ func sessionsHandler(database *sql.DB) http.HandlerFunc {
 				"title":         title,
 				"first_message": firstMsg,
 				"message_count": msgCount,
+				"launch_mode":  sessionLaunchMode,
 			})
 		}
 
