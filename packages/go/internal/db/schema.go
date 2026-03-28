@@ -282,7 +282,20 @@ func CreateAllTables(db *sql.DB) error {
 			feature_id TEXT
 		)`,
 
-		// 12. agent_presence
+		// 12. feature_files — file paths touched by each feature
+		`CREATE TABLE IF NOT EXISTS feature_files (
+			id TEXT PRIMARY KEY,
+			feature_id TEXT NOT NULL,
+			file_path TEXT NOT NULL,
+			operation TEXT NOT NULL DEFAULT 'unknown',
+			session_id TEXT,
+			first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+			last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(feature_id, file_path)
+		)`,
+
+		// 13. agent_presence
 		`CREATE TABLE IF NOT EXISTS agent_presence (
 			agent_id TEXT PRIMARY KEY,
 			status TEXT NOT NULL DEFAULT 'offline' CHECK(
@@ -366,6 +379,9 @@ func CreateAllIndexes(db *sql.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(tool_name)",
 		"CREATE INDEX IF NOT EXISTS idx_tool_calls_category ON tool_calls(category)",
 		"CREATE INDEX IF NOT EXISTS idx_tool_calls_feature ON tool_calls(feature_id)",
+		// feature_files
+		"CREATE INDEX IF NOT EXISTS idx_feature_files_feature ON feature_files(feature_id)",
+		"CREATE INDEX IF NOT EXISTS idx_feature_files_path ON feature_files(file_path)",
 		// agent_presence
 		"CREATE INDEX IF NOT EXISTS idx_agent_presence_status ON agent_presence(status, last_activity DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_agent_presence_feature ON agent_presence(current_feature_id, last_activity DESC)",

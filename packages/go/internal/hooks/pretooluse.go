@@ -132,6 +132,22 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Export event ID so posttooluse can link the result.
 	os.Setenv("HTMLGRAPH_CURRENT_EVENT_ID", ev.EventID)
 
+	// Track which files this feature has touched.
+	if ctx.FeatureID != "" {
+		if op := fileToolOperation(event.ToolName); op != "" {
+			if filePath := extractFilePath(event.ToolInput); filePath != "" {
+				ff := &models.FeatureFile{
+					ID:        ctx.FeatureID + "-" + uuid.NewString(),
+					FeatureID: ctx.FeatureID,
+					FilePath:  filePath,
+					Operation: op,
+					SessionID: ctx.SessionID,
+				}
+				_ = db.UpsertFeatureFile(database, ff)
+			}
+		}
+	}
+
 	// Return empty object to allow. We use {} instead of {"decision":"allow"}
 	// because Claude Code v2.1.x shows a spurious "hook error" label for
 	// PreToolUse hooks that return {"decision":"allow"}.
@@ -333,4 +349,22 @@ func isWriteTool(toolName string) bool {
 		return true
 	}
 	return false
+}
+
+// fileToolOperation maps a tool name to its feature_files operation label.
+// Returns "" for tools that don't operate on specific file paths.
+func fileToolOperation(toolName string) string {
+	switch toolName {
+	case "Read":
+		return "read"
+	case "Edit", "MultiEdit":
+		return "edit"
+	case "Write":
+		return "write"
+	case "Glob":
+		return "glob"
+	case "Grep":
+		return "grep"
+	}
+	return ""
 }
