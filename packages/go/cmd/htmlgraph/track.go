@@ -15,15 +15,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func trackCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "track",
-		Short: "Manage tracks (multi-feature initiatives)",
+// trackCmdWithExtras builds the standard workitem commands for tracks,
+// then replaces the generic show with a track-specific one that lists
+// linked features.
+func trackCmdWithExtras() *cobra.Command {
+	cmd := workitemCmd("track", "tracks")
+	// Replace generic show with track-specific show (shows linked features)
+	for i, sub := range cmd.Commands() {
+		if sub.Use == "show <id>" {
+			cmd.RemoveCommand(sub)
+			newCmds := append(cmd.Commands()[:i], cmd.Commands()[i:]...)
+			_ = newCmds // removal already happened
+			break
+		}
 	}
-	cmd.AddCommand(trackNewCmd())
-	cmd.AddCommand(trackListCmd())
 	cmd.AddCommand(trackShowCmd())
-	cmd.AddCommand(trackDeleteCmd())
 	return cmd
 }
 
