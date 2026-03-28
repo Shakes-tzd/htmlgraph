@@ -62,6 +62,9 @@ func main() {
 	rootCmd.AddCommand(complianceCmd())
 	rootCmd.AddCommand(tddCmd())
 	rootCmd.AddCommand(ingestCmd())
+	rootCmd.AddCommand(linkCmd())
+	rootCmd.AddCommand(workitemCmd("plan", "plans"))
+	rootCmd.AddCommand(workitemCmd("spec", "specs"))
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

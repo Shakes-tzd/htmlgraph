@@ -120,7 +120,7 @@ func runFeatureShow(id string) error {
 
 // resolveNodePath searches all subdirectories for a file matching id.
 func resolveNodePath(htmlgraphDir, id string) string {
-	subdirs := []string{"features", "bugs", "spikes", "tracks"}
+	subdirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 	for _, sub := range subdirs {
 		p := filepath.Join(htmlgraphDir, sub, id+".html")
 		if _, err := os.Stat(p); err == nil {

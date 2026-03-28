@@ -86,7 +86,7 @@ func CreateAllTables(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS features (
 			id TEXT PRIMARY KEY,
 			type TEXT NOT NULL CHECK(
-				type IN ('feature','bug','spike','chore','epic','task')
+				type IN ('feature','bug','spike','chore','epic','task','plan','spec')
 			),
 			title TEXT NOT NULL,
 			description TEXT,

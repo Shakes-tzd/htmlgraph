@@ -15,7 +15,7 @@ import (
 func newTestProject(t *testing.T) *workitem.Project {
 	t.Helper()
 	dir := t.TempDir()
-	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "sessions"} {
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "sessions", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)
 		}
@@ -1068,6 +1068,76 @@ func TestEditRoundTrip(t *testing.T) {
 	assertEqual(t, "parsed.Priority", string(parsed.Priority), "high")
 	if !strings.Contains(parsed.Content, "Implementation started") {
 		t.Errorf("parsed.Content missing note: %q", parsed.Content)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Collection AddEdge / RemoveEdge
+// ---------------------------------------------------------------------------
+
+func TestCollectionAddEdge(t *testing.T) {
+	p := newTestProject(t)
+	feat, _ := p.Features.Create("Edge Source")
+	target, _ := p.Features.Create("Edge Target")
+
+	updated, err := p.Features.AddEdge(feat.ID, models.Edge{
+		TargetID:     target.ID,
+		Relationship: models.RelBlocks,
+		Title:        target.Title,
+	})
+	if err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	edges := updated.Edges[string(models.RelBlocks)]
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 edge, got %d", len(edges))
+	}
+	assertEqual(t, "edge target", edges[0].TargetID, target.ID)
+
+	// Re-read from disk to confirm persistence.
+	reread, _ := p.Features.Get(feat.ID)
+	if len(reread.Edges[string(models.RelBlocks)]) != 1 {
+		t.Error("edge not persisted to disk")
+	}
+}
+
+func TestCollectionRemoveEdge(t *testing.T) {
+	p := newTestProject(t)
+	feat, _ := p.Features.Create("Edge Source")
+
+	// Add two edges, remove one.
+	_, _ = p.Features.AddEdge(feat.ID, models.Edge{
+		TargetID: "feat-a", Relationship: models.RelBlocks,
+	})
+	_, _ = p.Features.AddEdge(feat.ID, models.Edge{
+		TargetID: "feat-b", Relationship: models.RelBlocks,
+	})
+
+	updated, removed, err := p.Features.RemoveEdge(feat.ID, "feat-a", models.RelBlocks)
+	if err != nil {
+		t.Fatalf("RemoveEdge: %v", err)
+	}
+	if !removed {
+		t.Error("expected removed=true")
+	}
+	if len(updated.Edges[string(models.RelBlocks)]) != 1 {
+		t.Error("expected 1 remaining edge")
+	}
+
+	// Verify disk.
+	reread, _ := p.Features.Get(feat.ID)
+	if len(reread.Edges[string(models.RelBlocks)]) != 1 {
+		t.Error("removal not persisted")
+	}
+
+	// Remove non-existent.
+	_, removed, err = p.Features.RemoveEdge(feat.ID, "feat-zzz", models.RelBlocks)
+	if err != nil {
+		t.Fatalf("RemoveEdge nonexistent: %v", err)
+	}
+	if removed {
+		t.Error("expected removed=false for non-existent edge")
 	}
 }
 

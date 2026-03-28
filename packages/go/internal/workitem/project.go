@@ -39,6 +39,8 @@ type Project struct {
 	Spikes   *SpikeCollection
 	Tracks   *TrackCollection
 	Sessions *SessionCollection
+	Plans    *PlanCollection
+	Specs    *SpecCollection
 }
 
 // Open creates a new Project instance, opens the SQLite database, and
@@ -73,6 +75,8 @@ func Open(projectDir, agent string) (*Project, error) {
 	p.Spikes = NewSpikeCollection(base)
 	p.Tracks = NewTrackCollection(base)
 	p.Sessions = NewSessionCollection(base)
+	p.Plans = NewPlanCollection(base)
+	p.Specs = NewSpecCollection(base)
 
 	return p, nil
 }

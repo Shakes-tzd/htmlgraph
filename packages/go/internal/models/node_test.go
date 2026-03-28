@@ -159,3 +159,49 @@ func TestAddEdge(t *testing.T) {
 	}
 }
 
+func TestRemoveEdge(t *testing.T) {
+	n := &models.Node{ID: "f-1", Title: "t"}
+	n.AddEdge(models.Edge{TargetID: "feat-2", Relationship: models.RelBlocks})
+	n.AddEdge(models.Edge{TargetID: "feat-3", Relationship: models.RelBlocks})
+	n.AddEdge(models.Edge{TargetID: "feat-4", Relationship: models.RelRelatesTo})
+
+	// Remove one edge from a group of two.
+	removed := n.RemoveEdge("feat-2", models.RelBlocks)
+	if !removed {
+		t.Fatal("RemoveEdge should return true for existing edge")
+	}
+	if edges := n.Edges[string(models.RelBlocks)]; len(edges) != 1 {
+		t.Fatalf("expected 1 blocks edge after removal, got %d", len(edges))
+	}
+	if n.Edges[string(models.RelBlocks)][0].TargetID != "feat-3" {
+		t.Error("wrong edge remained after removal")
+	}
+
+	// relates_to should be untouched.
+	if edges := n.Edges[string(models.RelRelatesTo)]; len(edges) != 1 {
+		t.Fatalf("relates_to edges should be untouched, got %d", len(edges))
+	}
+
+	// Remove last edge in a relationship group — key should be cleaned up.
+	removed = n.RemoveEdge("feat-3", models.RelBlocks)
+	if !removed {
+		t.Fatal("RemoveEdge should return true for existing edge")
+	}
+	if _, exists := n.Edges[string(models.RelBlocks)]; exists {
+		t.Error("empty edge group should be removed from map")
+	}
+
+	// Remove non-existent edge.
+	removed = n.RemoveEdge("feat-999", models.RelBlocks)
+	if removed {
+		t.Error("RemoveEdge should return false for non-existent edge")
+	}
+
+	// Remove from nil edges map.
+	n2 := &models.Node{ID: "f-2", Title: "t2"}
+	removed = n2.RemoveEdge("feat-1", models.RelBlocks)
+	if removed {
+		t.Error("RemoveEdge on nil edges should return false")
+	}
+}
+

@@ -150,6 +150,30 @@ func (n *Node) AddEdge(e Edge) {
 	n.UpdatedAt = time.Now().UTC()
 }
 
+// RemoveEdge removes the first edge matching targetID and relType.
+// Returns true if an edge was removed, false if not found.
+func (n *Node) RemoveEdge(targetID string, relType RelationshipType) bool {
+	if n.Edges == nil {
+		return false
+	}
+	rel := string(relType)
+	edges, ok := n.Edges[rel]
+	if !ok {
+		return false
+	}
+	for i, e := range edges {
+		if e.TargetID == targetID {
+			n.Edges[rel] = append(edges[:i], edges[i+1:]...)
+			if len(n.Edges[rel]) == 0 {
+				delete(n.Edges, rel)
+			}
+			n.UpdatedAt = time.Now().UTC()
+			return true
+		}
+	}
+	return false
+}
+
 // MarshalJSON produces JSON compatible with the Python serialization.
 func (n *Node) MarshalJSON() ([]byte, error) {
 	type Alias Node

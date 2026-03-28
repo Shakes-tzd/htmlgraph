@@ -74,6 +74,18 @@ func runWiCreate(typeName, title, trackID, priority string) error {
 	case "track":
 		opts := []workitem.TrackOption{workitem.TrackWithPriority(priority)}
 		node, err = p.Tracks.Create(title, opts...)
+	case "plan":
+		opts := []workitem.PlanOption{workitem.PlanWithPriority(priority)}
+		if trackID != "" {
+			opts = append(opts, workitem.PlanWithTrack(trackID))
+		}
+		node, err = p.Plans.Create(title, opts...)
+	case "spec":
+		opts := []workitem.SpecOption{workitem.SpecWithPriority(priority)}
+		if trackID != "" {
+			opts = append(opts, workitem.SpecWithTrack(trackID))
+		}
+		node, err = p.Specs.Create(title, opts...)
 	default:
 		return fmt.Errorf("unknown type: %s", typeName)
 	}
@@ -227,6 +239,10 @@ func collectionFor(p *workitem.Project, typeName string) *workitem.Collection {
 		return p.Spikes.Collection
 	case "track":
 		return p.Tracks.Collection
+	case "plan":
+		return p.Plans.Collection
+	case "spec":
+		return p.Specs.Collection
 	default:
 		return p.Features.Collection
 	}

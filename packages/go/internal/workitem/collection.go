@@ -182,6 +182,38 @@ func (c *Collection) Complete(id string) (*models.Node, error) {
 	return node, nil
 }
 
+// --- Edge operations ---------------------------------------------------------
+
+// AddEdge reads a node, appends an edge, and writes it back to disk.
+func (c *Collection) AddEdge(id string, e models.Edge) (*models.Node, error) {
+	node, err := c.Get(id)
+	if err != nil {
+		return nil, fmt.Errorf("add edge %s: %w", id, err)
+	}
+	node.AddEdge(e)
+	if _, err := c.writeNode(node); err != nil {
+		return nil, fmt.Errorf("add edge %s: %w", id, err)
+	}
+	return node, nil
+}
+
+// RemoveEdge reads a node, removes the matching edge, and writes it back.
+// Returns the updated node and whether an edge was actually removed.
+func (c *Collection) RemoveEdge(id, targetID string, relType models.RelationshipType) (*models.Node, bool, error) {
+	node, err := c.Get(id)
+	if err != nil {
+		return nil, false, fmt.Errorf("remove edge %s: %w", id, err)
+	}
+	removed := node.RemoveEdge(targetID, relType)
+	if !removed {
+		return node, false, nil
+	}
+	if _, err := c.writeNode(node); err != nil {
+		return nil, false, fmt.Errorf("remove edge %s: %w", id, err)
+	}
+	return node, true, nil
+}
+
 // --- Claim / release operations ----------------------------------------------
 
 // Claim marks a work item as claimed by the current agent.
