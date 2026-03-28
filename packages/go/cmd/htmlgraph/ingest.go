@@ -2,12 +2,15 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/ingest"
+	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/shakestzd/htmlgraph/internal/paths"
 	"github.com/spf13/cobra"
 )
@@ -175,6 +178,9 @@ func storeParseResult(database *sql.DB, sessionID string, result *ingest.ParseRe
 		msgCount++
 	}
 
+	// Look up the active feature for this session once; used for file tracking.
+	featureID := sessionActiveFeature(database, sessionID)
+
 	for _, tc := range result.ToolCalls {
 		tc.SessionID = sessionID
 		if mid, ok := msgIDs[tc.MessageOrdinal]; ok {
@@ -185,6 +191,22 @@ func storeParseResult(database *sql.DB, sessionID string, result *ingest.ParseRe
 			continue
 		}
 		toolCount++
+
+		// Record file-path touches in feature_files when feature is known.
+		if featureID != "" {
+			if op := ingestFileOp(tc.ToolName); op != "" {
+				if fp := extractIngestFilePath(tc.InputJSON); fp != "" {
+					ff := &models.FeatureFile{
+						ID:        featureID + "-" + uuid.NewString(),
+						FeatureID: featureID,
+						FilePath:  fp,
+						Operation: op,
+						SessionID: sessionID,
+					}
+					_ = dbpkg.UpsertFeatureFile(database, ff)
+				}
+			}
+		}
 	}
 
 	// Update session model if we detected one.
@@ -223,4 +245,53 @@ func nullStrVal(s string) interface{} {
 		return nil
 	}
 	return s
+}
+
+// sessionActiveFeature returns the active_feature_id for a session, or "".
+func sessionActiveFeature(database *sql.DB, sessionID string) string {
+	var featureID string
+	database.QueryRow(
+		`SELECT COALESCE(active_feature_id, '') FROM sessions WHERE session_id = ?`,
+		sessionID,
+	).Scan(&featureID)
+	return featureID
+}
+
+// ingestFileOp maps tool names to feature_files operation labels for ingest.
+// Returns "" for tools that don't operate on a specific file path.
+func ingestFileOp(toolName string) string {
+	switch toolName {
+	case "Read":
+		return "read"
+	case "Edit", "MultiEdit":
+		return "edit"
+	case "Write":
+		return "write"
+	case "Glob":
+		return "glob"
+	case "Grep":
+		return "grep"
+	}
+	return ""
+}
+
+// extractIngestFilePath parses the input_json of a tool_call and returns the
+// file path using the same key priority as the hook's extractFilePath helper.
+func extractIngestFilePath(inputJSON string) string {
+	if inputJSON == "" {
+		return ""
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(inputJSON), &m); err != nil {
+		return ""
+	}
+	for _, key := range []string{"file_path", "path", "file"} {
+		if raw, ok := m[key]; ok {
+			var s string
+			if err := json.Unmarshal(raw, &s); err == nil && s != "" {
+				return s
+			}
+		}
+	}
+	return ""
 }
