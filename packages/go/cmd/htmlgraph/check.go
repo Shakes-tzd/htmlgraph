@@ -63,6 +63,7 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 
 	cmd.AddCommand(checkOrphansCmd())
 	cmd.AddCommand(checkIncompleteCmd())
+	cmd.AddCommand(checkCrossProjectCmd())
 	return cmd
 }
 

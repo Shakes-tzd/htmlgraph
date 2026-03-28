@@ -39,6 +39,12 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}, nil
 	}
 
+	// Guard: warn or block when CWD has drifted to a different project than the
+	// one this session was started in.
+	if result := checkProjectDivergence(event, database, ctx.SessionID); result != nil {
+		return result, nil
+	}
+
 	// YOLO mode enforcement: check launch mode and apply guards.
 	projectDir := ResolveProjectDir(event.CWD)
 	yolo := isYoloMode(filepath.Join(projectDir, ".htmlgraph"))
@@ -259,4 +265,63 @@ func agentIDFromEnv() string {
 		return v
 	}
 	return "claude-code"
+}
+
+// checkProjectDivergence compares the CWD of the current event against the
+// project_dir stored in the session row. When they resolve to different
+// .htmlgraph/ roots:
+//   - Write tools are blocked with a clear error message.
+//   - Read-only tools are silently allowed, but a warning is written to debug.log.
+//
+// Returns nil to allow the event to proceed.
+func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID string) *HookResult {
+	if sessionID == "" || event.CWD == "" {
+		return nil
+	}
+
+	sess, err := db.GetSession(database, sessionID)
+	if err != nil || sess == nil || sess.ProjectDir == "" {
+		// No stored project_dir — nothing to compare against.
+		return nil
+	}
+
+	eventProjectDir := ResolveProjectDir(event.CWD)
+	sessionProjectDir := sess.ProjectDir
+
+	if eventProjectDir == sessionProjectDir {
+		return nil
+	}
+
+	// Normalise both paths to eliminate symlink / trailing-slash differences.
+	cleanEvent := filepath.Clean(eventProjectDir)
+	cleanSession := filepath.Clean(sessionProjectDir)
+	if cleanEvent == cleanSession {
+		return nil
+	}
+
+	if isWriteTool(event.ToolName) {
+		return &HookResult{
+			Decision: "block",
+			Reason: fmt.Sprintf(
+				"CWD has changed to a different project (%s). "+
+					"Start a new session in that project.",
+				eventProjectDir,
+			),
+		}
+	}
+
+	// Read-only tool: allow but log the drift.
+	debugLog(sessionProjectDir, "[htmlgraph] CWD divergence (read-only %s): session=%s event_cwd=%s",
+		event.ToolName, sessionProjectDir, event.CWD)
+	return nil
+}
+
+// isWriteTool returns true for tools that can modify the filesystem or execute
+// arbitrary code. These are blocked when the CWD drifts to a different project.
+func isWriteTool(toolName string) bool {
+	switch toolName {
+	case "Write", "Edit", "MultiEdit", "Bash", "NotebookEdit", "Agent":
+		return true
+	}
+	return false
 }

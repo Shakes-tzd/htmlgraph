@@ -5,14 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/shakestzd/htmlgraph/internal/paths"
 )
 
 // SessionFile represents a discovered Claude Code JSONL session file.
 type SessionFile struct {
-	Path      string
-	SessionID string // UUID extracted from filename
-	Project   string // decoded project name
-	Size      int64
+	Path         string
+	SessionID    string // UUID extracted from filename
+	Project      string // decoded project name
+	GitRemoteURL string // git remote origin URL of the project dir (may be empty)
+	Size         int64
 }
 
 // DiscoverSessions scans ~/.claude/projects/ for JSONL session files.
@@ -45,6 +48,10 @@ func DiscoverSessions(projectFilter string) ([]SessionFile, error) {
 			continue
 		}
 
+		// Resolve the actual filesystem path so we can query the git remote.
+		projectPath := decodeProjectPath(entry.Name())
+		remoteURL := paths.GetGitRemoteURL(projectPath)
+
 		projDir := filepath.Join(projectsDir, entry.Name())
 		jsonlFiles, _ := filepath.Glob(filepath.Join(projDir, "*.jsonl"))
 		for _, f := range jsonlFiles {
@@ -56,10 +63,11 @@ func DiscoverSessions(projectFilter string) ([]SessionFile, error) {
 				size = info.Size()
 			}
 			files = append(files, SessionFile{
-				Path:      f,
-				SessionID: sessionID,
-				Project:   projectName,
-				Size:      size,
+				Path:         f,
+				SessionID:    sessionID,
+				Project:      projectName,
+				GitRemoteURL: remoteURL,
+				Size:         size,
 			})
 		}
 	}
@@ -118,4 +126,40 @@ func decodeProjectName(encoded string) string {
 		}
 	}
 	return encoded
+}
+
+// decodeProjectPath reconstructs the full filesystem path from Claude Code's
+// dash-encoded project directory name.
+// Claude encodes paths by replacing "/" with "-", so the leading "-" represents
+// the root separator.
+// e.g. "-Users-shakes-DevProjects-htmlgraph" → "/Users/shakes/DevProjects/htmlgraph"
+func decodeProjectPath(encoded string) string {
+	if encoded == "" {
+		return ""
+	}
+	// Strip a leading dash (represents the root "/") then replace remaining dashes.
+	// We replace "-" with "/" which reconstructs the path from the encoding.
+	// Claude encodes absolute paths starting with "/" as "-..." so:
+	// "-Users-shakes-DevProjects-htmlgraph" → "/Users/shakes/DevProjects/htmlgraph"
+	if strings.HasPrefix(encoded, "-") {
+		return "/" + strings.ReplaceAll(encoded[1:], "-", "/")
+	}
+	return strings.ReplaceAll(encoded, "-", "/")
+}
+
+// FilterByGitRemote returns only those SessionFiles whose GitRemoteURL matches
+// targetRemote.  If targetRemote is empty the original slice is returned
+// unchanged (no filtering).  Sessions with an empty GitRemoteURL are excluded
+// when targetRemote is non-empty.
+func FilterByGitRemote(files []SessionFile, targetRemote string) []SessionFile {
+	if targetRemote == "" {
+		return files
+	}
+	out := files[:0:0] // reuse underlying array type but start fresh
+	for _, sf := range files {
+		if sf.GitRemoteURL == targetRemote {
+			out = append(out, sf)
+		}
+	}
+	return out
 }
