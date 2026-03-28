@@ -103,10 +103,10 @@ func autoIngestLoop(database *sql.DB) {
 
 // autoIngestOnce discovers session files and ingests any that are new.
 func autoIngestOnce(database *sql.DB) {
-	// Filter to current project only — CWD basename matches the project dir
+	// Filter to current project only — use full CWD path for exact match
 	projectFilter := ""
 	if cwd, err := os.Getwd(); err == nil {
-		projectFilter = filepath.Base(cwd)
+		projectFilter = cwd
 	}
 	files, err := ingest.DiscoverSessions(projectFilter)
 	if err != nil {
