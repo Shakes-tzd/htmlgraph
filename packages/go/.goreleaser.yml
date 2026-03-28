@@ -37,7 +37,9 @@ release:
     owner: shakestzd
     name: htmlgraph
   name_template: "Go v{{.Version}}"
-  tag_name: "go/v{{.Version}}"
+
+git:
+  tag_sort: -version:refname
 
 snapshot:
-  version_template: "{{incpatch .Version}}-next"
+  name_template: "{{incpatch .Version}}-next"
