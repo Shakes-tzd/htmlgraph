@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>user-prompt hook leaks task-notification XML into UserQuery events</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-6b1ee99e"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-03-28T15:46:12.350274"
+             data-updated="2026-03-28T15:57:22.748999" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>user-prompt hook leaks task-notification XML into UserQuery events</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-6b1ee99e-0">⏳ The user-prompt hook XML sanitiser strips &lt;system-reminder&gt; blocks but does not filter &lt;task-notification&gt; blocks. This causes Claude Code internal task notifications to be stored as UserQuery events and displayed as raw XML in the Activity Feed.</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

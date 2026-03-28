@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Auto implemented-in edge when work item is started in a session</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-78d85237"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-03-28T18:27:57.773581"
+             data-updated="2026-03-28T19:42:55.150895" data-agent-assigned="claude-code" data-track-id="trk-fbe18084">
+
+        <header>
+            <h1>Auto implemented-in edge when work item is started in a session</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-8404594f.html" data-relationship="blocked_by" data-since="2026-03-28T18:28:10.180088">Dual-write edges to graph_edges SQLite table</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-78d85237-0" data-agent="claude-code">✅ In Go hook session_start.go or attribution.go, when a work item is started (feature start / bug start), call AddEdge(workItemID, sessionID, &#39;implemented_in&#39;)</li>
+                <li data-completed="true" data-step-id="step-feat-78d85237-1" data-agent="claude-code">✅ Detect session ID from CLAUDE_SESSION_ID env var or CloudEvent session_id field</li>
+                <li data-completed="true" data-step-id="step-feat-78d85237-2" data-agent="claude-code">✅ Handle the case where feature start is called from CLI (not a hook) — the session ID may not be available, skip edge creation silently</li>
+                <li data-completed="true" data-step-id="step-feat-78d85237-3" data-agent="claude-code">✅ Make edge creation idempotent — if implemented_in edge already exists for this work item &#43; session pair, skip (don&#39;t create duplicates)</li>
+                <li data-completed="true" data-step-id="step-feat-78d85237-4" data-agent="claude-code">✅ Write test verifying: feature start in a session → implemented_in edge exists in HTML and SQLite</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

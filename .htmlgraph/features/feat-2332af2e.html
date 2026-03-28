@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Auto caused_by edge on bug create linking to active feature</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-2332af2e"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-28T18:27:59.011053"
+             data-updated="2026-03-28T19:44:56.748585" data-agent-assigned="claude-code" data-track-id="trk-fbe18084">
+
+        <header>
+            <h1>Auto caused_by edge on bug create linking to active feature</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-78d85237.html" data-relationship="blocked_by" data-since="2026-03-28T18:28:10.227308">Auto implemented-in edge when work item is started in a session</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-2332af2e-0" data-agent="claude-code">✅ In workitem.go runWiCreate, when typeName is &#39;bug&#39;, detect the active feature from the session context (check .htmlgraph/.active-session or CLAUDE_SESSION_ID → session row → active_feature_id)</li>
+                <li data-completed="true" data-step-id="step-feat-2332af2e-1" data-agent="claude-code">✅ If an active feature is found, auto-create AddEdge(newBugID, activeFeatureID, &#39;caused_by&#39;) edge</li>
+                <li data-completed="true" data-step-id="step-feat-2332af2e-2" data-agent="claude-code">✅ Print the auto-link in output: &#39;Created: bug-xxx Title (linked to feat-yyy)&#39; so the user sees the relationship was established</li>
+                <li data-completed="true" data-step-id="step-feat-2332af2e-3" data-agent="claude-code">✅ Add --no-link flag to skip auto-linking for cases where the bug is unrelated to the active feature</li>
+                <li data-completed="true" data-step-id="step-feat-2332af2e-4" data-agent="claude-code">✅ Write test: bug create while a feature is active → caused_by edge exists</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

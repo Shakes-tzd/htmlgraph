@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Worktree sessions not tracked — CLAUDE_ENV_FILE unset prevents session ID propagation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-c45eef1a"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-28T15:53:19.852513"
+             data-updated="2026-03-28T18:40:34.072851" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Worktree sessions not tracked — CLAUDE_ENV_FILE unset prevents session ID propagation</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-c45eef1a-0" data-agent="claude-code">✅ Root cause: CLAUDE_ENV_FILE is unset in worktree sessions, so SessionStart.writeEnvVars() silently no-ops. Without HTMLGRAPH_SESSION_ID propagated, subsequent hooks cannot match the session row, and events silently fail to insert (FK constraint). This also breaks YOLO guards that check for recent test runs/diff reviews.</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>
