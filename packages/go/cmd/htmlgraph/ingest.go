@@ -8,6 +8,7 @@ import (
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/ingest"
+	"github.com/shakestzd/htmlgraph/internal/paths"
 	"github.com/spf13/cobra"
 )
 
@@ -57,15 +58,22 @@ func runIngest(sessionID, project string, all, force bool) error {
 		return ingestBySessionID(database, sessionID, force)
 	}
 
-	// Auto-detect project from CWD if not specified and not --all.
+	// Resolve the git remote URL for the current project to use as a filter.
+	// When --all is set or --project is explicitly provided, skip the remote filter.
+	var gitRemote string
 	if project == "" && !all {
-		cwd, _ := os.Getwd()
-		project = filepath.Base(cwd)
+		gitRemote = paths.GetGitRemoteURL(filepath.Dir(htmlgraphDir))
 	}
 
 	files, err := ingest.DiscoverSessions(project)
 	if err != nil {
 		return fmt.Errorf("discover sessions: %w", err)
+	}
+
+	// Apply git remote filter when we have a resolved remote and no explicit
+	// project name or --all flag was provided.
+	if gitRemote != "" {
+		files = ingest.FilterByGitRemote(files, gitRemote)
 	}
 
 	if len(files) == 0 {
@@ -74,7 +82,10 @@ func runIngest(sessionID, project string, all, force bool) error {
 	}
 
 	fmt.Printf("Found %d session files", len(files))
-	if project != "" {
+	switch {
+	case gitRemote != "":
+		fmt.Printf(" (git remote filter: %q)", gitRemote)
+	case project != "":
 		fmt.Printf(" (project filter: %q)", project)
 	}
 	fmt.Println()
