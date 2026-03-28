@@ -61,6 +61,7 @@ func main() {
 	rootCmd.AddCommand(reviewCmd())
 	rootCmd.AddCommand(complianceCmd())
 	rootCmd.AddCommand(tddCmd())
+	rootCmd.AddCommand(ingestCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

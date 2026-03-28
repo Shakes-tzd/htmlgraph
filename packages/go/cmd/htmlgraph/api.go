@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/htmlparse"
 )
 
@@ -433,6 +434,78 @@ func buildTimelineSummary(eventType, toolName, inputSum, subagentType string) st
 			return inputSum
 		}
 		return eventType
+	}
+}
+
+// transcriptHandler returns messages and tool calls for a session.
+// Requires ?session=SESSION_ID. Supports ?limit=N (default 500).
+func transcriptHandler(database *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessionID := r.URL.Query().Get("session")
+		if sessionID == "" {
+			http.Error(w, "session parameter required", http.StatusBadRequest)
+			return
+		}
+
+		limit := 500
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 2000 {
+				limit = n
+			}
+		}
+
+		messages, err := dbpkg.ListMessages(database, sessionID, limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		toolCalls, err := dbpkg.ListToolCalls(database, sessionID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Group tool calls by message ID for easy frontend consumption.
+		toolsByMsg := map[int][]map[string]any{}
+		for _, tc := range toolCalls {
+			toolsByMsg[tc.MessageID] = append(toolsByMsg[tc.MessageID], map[string]any{
+				"tool_name":   tc.ToolName,
+				"category":    tc.Category,
+				"tool_use_id": tc.ToolUseID,
+				"input_json":  tc.InputJSON,
+			})
+		}
+
+		result := make([]map[string]any, 0, len(messages))
+		for _, m := range messages {
+			entry := map[string]any{
+				"id":               m.ID,
+				"ordinal":          m.Ordinal,
+				"role":             m.Role,
+				"content":          m.Content,
+				"timestamp":        m.Timestamp.Format(time.RFC3339),
+				"has_thinking":     m.HasThinking,
+				"has_tool_use":     m.HasToolUse,
+				"content_length":   m.ContentLength,
+				"model":            m.Model,
+				"input_tokens":     m.InputTokens,
+				"output_tokens":    m.OutputTokens,
+				"cache_read_tokens": m.CacheReadTokens,
+				"stop_reason":      m.StopReason,
+			}
+			if tools, ok := toolsByMsg[m.ID]; ok {
+				entry["tool_calls"] = tools
+			}
+			result = append(result, entry)
+		}
+
+		respondJSON(w, map[string]any{
+			"session_id":   sessionID,
+			"message_count": len(messages),
+			"tool_count":   len(toolCalls),
+			"messages":     result,
+		})
 	}
 }
 

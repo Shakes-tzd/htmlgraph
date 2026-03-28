@@ -237,7 +237,41 @@ func CreateAllTables(db *sql.DB) error {
 			status TEXT DEFAULT 'active'
 		)`,
 
-		// 10. agent_presence
+		// 10. messages (transcript data from Claude Code JSONL)
+		`CREATE TABLE IF NOT EXISTS messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_id TEXT NOT NULL,
+			ordinal INTEGER NOT NULL,
+			role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+			content TEXT NOT NULL DEFAULT '',
+			timestamp DATETIME,
+			has_thinking INTEGER DEFAULT 0,
+			has_tool_use INTEGER DEFAULT 0,
+			content_length INTEGER DEFAULT 0,
+			model TEXT,
+			input_tokens INTEGER DEFAULT 0,
+			output_tokens INTEGER DEFAULT 0,
+			cache_read_tokens INTEGER DEFAULT 0,
+			stop_reason TEXT,
+			uuid TEXT,
+			parent_uuid TEXT,
+			UNIQUE(session_id, ordinal)
+		)`,
+
+		// 11. tool_calls (extracted from assistant messages)
+		`CREATE TABLE IF NOT EXISTS tool_calls (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
+			session_id TEXT NOT NULL,
+			tool_name TEXT NOT NULL,
+			category TEXT NOT NULL DEFAULT 'Other',
+			tool_use_id TEXT,
+			input_json TEXT,
+			result_content_length INTEGER DEFAULT 0,
+			subagent_session_id TEXT
+		)`,
+
+		// 12. agent_presence
 		`CREATE TABLE IF NOT EXISTS agent_presence (
 			agent_id TEXT PRIMARY KEY,
 			status TEXT NOT NULL DEFAULT 'offline' CHECK(
@@ -311,6 +345,15 @@ func CreateAllIndexes(db *sql.DB) error {
 		// agent_lineage_trace
 		"CREATE INDEX IF NOT EXISTS idx_lineage_root ON agent_lineage_trace(root_session_id)",
 		"CREATE INDEX IF NOT EXISTS idx_lineage_session ON agent_lineage_trace(session_id)",
+		// messages
+		"CREATE INDEX IF NOT EXISTS idx_messages_session_ord ON messages(session_id, ordinal)",
+		"CREATE INDEX IF NOT EXISTS idx_messages_session_role ON messages(session_id, role)",
+		"CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp DESC)",
+		// tool_calls
+		"CREATE INDEX IF NOT EXISTS idx_tool_calls_session ON tool_calls(session_id)",
+		"CREATE INDEX IF NOT EXISTS idx_tool_calls_message ON tool_calls(message_id)",
+		"CREATE INDEX IF NOT EXISTS idx_tool_calls_name ON tool_calls(tool_name)",
+		"CREATE INDEX IF NOT EXISTS idx_tool_calls_category ON tool_calls(category)",
 		// agent_presence
 		"CREATE INDEX IF NOT EXISTS idx_agent_presence_status ON agent_presence(status, last_activity DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_agent_presence_feature ON agent_presence(current_feature_id, last_activity DESC)",
