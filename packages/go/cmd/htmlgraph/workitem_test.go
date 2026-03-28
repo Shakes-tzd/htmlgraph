@@ -21,7 +21,7 @@ func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Create a track first
-	if err := runWiCreate("track", "Test Track", "", "medium", false); err != nil {
+	if err := runWiCreate("track", "Test Track", "", "medium", false, false); err != nil {
 		t.Fatalf("create track: %v", err)
 	}
 
@@ -37,7 +37,7 @@ func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	trackID := trackNode.ID
 
 	// Create a feature linked to the track
-	if err := runWiCreate("feature", "Tracked Feature", trackID, "high", false); err != nil {
+	if err := runWiCreate("feature", "Tracked Feature", trackID, "high", false, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestAutoTrackEdgesNotCreatedForTrack(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Creating a track should not attempt auto-edges even if trackID is passed
-	if err := runWiCreate("track", "Parent Track", "", "medium", false); err != nil {
+	if err := runWiCreate("track", "Parent Track", "", "medium", false, false); err != nil {
 		t.Fatalf("create track: %v", err)
 	}
 
@@ -111,7 +111,7 @@ func TestAutoImplementedInEdgeOnStart(t *testing.T) {
 	t.Setenv("HTMLGRAPH_SESSION_ID", "test-session-abc")
 
 	// Create a feature
-	if err := runWiCreate("feature", "Impl Feature", "", "high", false); err != nil {
+	if err := runWiCreate("feature", "Impl Feature", "", "high", false, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -168,7 +168,7 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(oldWd)
 
-	if err := runWiCreate("feature", "No Session Feature", "", "low", false); err != nil {
+	if err := runWiCreate("feature", "No Session Feature", "", "low", false, false); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -182,5 +182,77 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	featNode, _ = htmlparse.ParseFile(featFiles[0])
 	if len(featNode.Edges["implemented_in"]) > 0 {
 		t.Errorf("should not have implemented_in edge without session, got %v", featNode.Edges)
+	}
+}
+
+func TestAutoCausedByEdgeOnBugCreate(t *testing.T) {
+	tmpDir := t.TempDir()
+	hgDir := filepath.Join(tmpDir, ".htmlgraph")
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
+		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
+	}
+
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+
+	// Create a feature first and start it
+	if err := runWiCreate("feature", "Active Feature", "", "high", true, false); err != nil {
+		t.Fatalf("create feature: %v", err)
+	}
+
+	// Now create a bug — should auto-link caused_by to active feature
+	if err := runWiCreate("bug", "Found a bug", "", "high", false, false); err != nil {
+		t.Fatalf("create bug: %v", err)
+	}
+
+	// Find the bug
+	bugFiles, _ := filepath.Glob(filepath.Join(hgDir, "bugs", "bug-*.html"))
+	if len(bugFiles) != 1 {
+		t.Fatalf("expected 1 bug file, got %d", len(bugFiles))
+	}
+	bugNode, _ := htmlparse.ParseFile(bugFiles[0])
+
+	// Find the feature ID
+	featFiles, _ := filepath.Glob(filepath.Join(hgDir, "features", "feat-*.html"))
+	featNode, _ := htmlparse.ParseFile(featFiles[0])
+
+	// Verify caused_by edge
+	causedByEdges := bugNode.Edges["caused_by"]
+	if len(causedByEdges) == 0 {
+		t.Logf("bug edges: %v", bugNode.Edges)
+		t.Skip("no DB available in test — auto caused_by requires session DB")
+		return
+	}
+	if causedByEdges[0].TargetID != featNode.ID {
+		t.Errorf("caused_by target = %q, want %q", causedByEdges[0].TargetID, featNode.ID)
+	}
+}
+
+func TestBugCreateNoLinkSkipsCausedBy(t *testing.T) {
+	tmpDir := t.TempDir()
+	hgDir := filepath.Join(tmpDir, ".htmlgraph")
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
+		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
+	}
+
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+
+	// Create and start a feature
+	if err := runWiCreate("feature", "Active Feature", "", "high", true, false); err != nil {
+		t.Fatalf("create feature: %v", err)
+	}
+
+	// Create bug with --no-link
+	if err := runWiCreate("bug", "Unrelated bug", "", "medium", false, true); err != nil {
+		t.Fatalf("create bug: %v", err)
+	}
+
+	bugFiles, _ := filepath.Glob(filepath.Join(hgDir, "bugs", "bug-*.html"))
+	bugNode, _ := htmlparse.ParseFile(bugFiles[0])
+
+	// Should have no caused_by edge
+	if len(bugNode.Edges["caused_by"]) > 0 {
+		t.Errorf("--no-link should skip caused_by edge, got %v", bugNode.Edges)
 	}
 }

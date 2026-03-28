@@ -35,23 +35,24 @@ func workitemCmd(typeName, dirName string) *cobra.Command {
 
 func wiCreateCmd(typeName, dirName string) *cobra.Command {
 	var trackID, priority string
-	var start bool
+	var start, noLink bool
 
 	cmd := &cobra.Command{
 		Use:   "create <title>",
 		Short: "Create a new " + typeName,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runWiCreate(typeName, args[0], trackID, priority, start)
+			return runWiCreate(typeName, args[0], trackID, priority, start, noLink)
 		},
 	}
 	cmd.Flags().StringVar(&trackID, "track", "", "track ID to link to")
 	cmd.Flags().StringVar(&priority, "priority", "medium", "priority (low|medium|high|critical)")
 	cmd.Flags().BoolVar(&start, "start", false, "immediately mark as in-progress")
+	cmd.Flags().BoolVar(&noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
 	return cmd
 }
 
-func runWiCreate(typeName, title, trackID, priority string, start bool) error {
+func runWiCreate(typeName, title, trackID, priority string, start, noLink bool) error {
 	dir, err := findHtmlgraphDir()
 	if err != nil {
 		return err
@@ -96,6 +97,14 @@ func runWiCreate(typeName, title, trackID, priority string, start bool) error {
 	}
 	if err != nil {
 		return fmt.Errorf("create %s: %w", typeName, err)
+	}
+
+	// Auto-create caused_by edge: bug → active feature (when available).
+	if typeName == "bug" && !noLink {
+		if featID := detectActiveFeature(p, dir); featID != "" {
+			autoCausedByEdge(p, node.ID, featID)
+			fmt.Printf("  (linked to %s)\n", featID)
+		}
 	}
 
 	// Auto-create bidirectional part_of/contains edges when --track is used.
@@ -398,6 +407,29 @@ func printNodeDetail(n *models.Node) {
 			fmt.Printf("  %s\n", line)
 		}
 	}
+}
+
+// detectActiveFeature returns the active feature ID from the session DB, or "".
+func detectActiveFeature(p *workitem.Project, htmlgraphDir string) string {
+	if p.DB == nil {
+		return ""
+	}
+	sessionID := hooks.EnvSessionID("")
+	if sessionID == "" {
+		return ""
+	}
+	return hooks.GetActiveFeatureID(p.DB, sessionID)
+}
+
+// autoCausedByEdge creates a caused_by edge from a bug to the active feature.
+func autoCausedByEdge(p *workitem.Project, bugID, featureID string) {
+	edge := models.Edge{
+		TargetID:     featureID,
+		Relationship: models.RelCausedBy,
+		Title:        featureID,
+		Since:        time.Now().UTC(),
+	}
+	_, _ = p.Bugs.AddEdge(bugID, edge)
 }
 
 // autoImplementedInEdge creates an implemented_in edge from a work item to
