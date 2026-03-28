@@ -26,7 +26,7 @@ func TestNodeJSONRoundTrip(t *testing.T) {
 			{StepID: "step-2", Description: "Second step", Completed: false, DependsOn: []string{"step-1"}},
 		},
 		Edges: map[string][]models.Edge{
-			"implemented-in": {
+			"implemented_in": {
 				{TargetID: "sess-001", Relationship: models.RelImplementedIn, Title: "sess-001", Since: now},
 			},
 		},
@@ -70,8 +70,8 @@ func TestNodeJSONRoundTrip(t *testing.T) {
 	if len(decoded.Steps[1].DependsOn) != 1 || decoded.Steps[1].DependsOn[0] != "step-1" {
 		t.Errorf("Step 1 DependsOn: got %v", decoded.Steps[1].DependsOn)
 	}
-	if edges, ok := decoded.Edges["implemented-in"]; !ok || len(edges) != 1 {
-		t.Error("Expected 1 implemented-in edge")
+	if edges, ok := decoded.Edges["implemented_in"]; !ok || len(edges) != 1 {
+		t.Error("Expected 1 implemented_in edge")
 	}
 	if decoded.Content != original.Content {
 		t.Errorf("Content: got %q, want %q", decoded.Content, original.Content)
