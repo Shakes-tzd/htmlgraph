@@ -94,7 +94,13 @@ function renderSessions() {
     titleSpan.textContent = sessionDisplayTitle(s);
     titleSpan.title = s.first_message || s.session_id;
     head.appendChild(titleSpan);
-    head.appendChild(createStatusBadge(s.status));
+    // Only show badge for live sessions or YOLO sessions
+    if (s.status === 'active') {
+      var liveBadge = document.createElement('span');
+      liveBadge.className = 'badge-live';
+      liveBadge.textContent = 'LIVE';
+      head.appendChild(liveBadge);
+    }
     var isYoloSession = (s.title && /yolo/i.test(s.title))
       || (s.first_message && /yolo/i.test(s.first_message));
     if (isYoloSession) {

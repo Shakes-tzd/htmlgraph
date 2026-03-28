@@ -126,6 +126,18 @@
 .card-row .label { color: var(--text-muted); }
 .card.clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .card.clickable:hover { border-color: var(--accent); background: var(--bg-hover); }
+/* Live session badge */
+.badge-live {
+  background: var(--status-done); color: #000;
+  font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 700; letter-spacing: 0.08em;
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .badge-yolo {
   background: rgba(250,204,21,0.2); color: #fbbf24;
   font-size: 9px; padding: 1px 5px; border-radius: 3px;

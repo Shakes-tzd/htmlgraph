@@ -155,6 +155,20 @@ func autoIngestOnce(database *sql.DB) {
 		}
 	}
 
+	// Update session status from JSONL file mtime (source of truth).
+	// "active" if file modified < 5 min ago, "completed" otherwise.
+	for _, sf := range files {
+		info, err := os.Stat(sf.Path)
+		if err != nil {
+			continue
+		}
+		status := "completed"
+		if time.Since(info.ModTime()) < 5*time.Minute {
+			status = "active"
+		}
+		database.Exec(`UPDATE sessions SET status = ? WHERE session_id = ?`, status, sf.SessionID)
+	}
+
 	// Generate titles for newly ingested sessions (runs sequentially to
 	// avoid hammering claude CLI).
 	for _, sid := range newSessions {
