@@ -19,6 +19,7 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 
+	projectDir := ResolveProjectDir(event.CWD)
 	featureID := GetActiveFeatureID(database, sessionID)
 	eventID := uuid.New().String()
 	agentType := event.AgentType
@@ -52,7 +53,7 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	writeTraceparent(sessionID, eventID)
 
 	// Write env vars so subagent hooks know their parent and identity.
-	writeSubagentEnvVars(eventID, event.AgentID, agentType)
+	writeSubagentEnvVars(eventID, event.AgentID, agentType, projectDir)
 
 	return &HookResult{Continue: true}, nil
 }

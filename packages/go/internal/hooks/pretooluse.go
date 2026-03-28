@@ -43,7 +43,8 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	projectDir := ResolveProjectDir(event.CWD)
 	yolo := isYoloMode(filepath.Join(projectDir, ".htmlgraph"))
 
-	if warn := checkYoloWorkItemGuard(event.ToolName, ctx.FeatureID, yolo); warn != "" {
+	hasWorkItem := ctx.FeatureID != "" || hasAnyInProgressWorkItem(database)
+	if warn := checkYoloWorkItemGuard(event.ToolName, ctx.FeatureID, yolo, hasWorkItem); warn != "" {
 		return &HookResult{
 			Decision: "block",
 			Reason:   warn,
@@ -51,7 +52,13 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	if yolo {
-		if warn := checkYoloWorktreeGuard(event.ToolName, currentBranchIn(event.CWD), yolo); warn != "" {
+		// Resolve branch from the target file's worktree, not the session CWD.
+		// This prevents false blocks when editing files in a linked worktree that
+		// is on a yolo-* branch while the main repo CWD is still on main.
+		targetFile := extractFilePath(event.ToolInput)
+		cwdBranch := currentBranchIn(event.CWD)
+		branch := branchForFilePath(targetFile, cwdBranch)
+		if warn := checkYoloWorktreeGuard(event.ToolName, branch, yolo); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloResearchGuard(event.ToolName, yolo, hasRecentResearch(database, ctx.SessionID)); warn != "" {

@@ -183,11 +183,23 @@ func containsSlash(s string) bool {
 	return false
 }
 
-// EnvSessionID returns the current session ID, preferring the env var set by
-// session-start over whatever Claude Code placed in the CloudEvent.
+// EnvSessionID returns the current session ID using a three-step fallback:
+//  1. HTMLGRAPH_SESSION_ID env var (set by writeEnvVars via CLAUDE_ENV_FILE)
+//  2. .htmlgraph/.active-session file (fallback for worktree subagents where
+//     CLAUDE_ENV_FILE is not propagated by Claude Code)
+//  3. Normalised session_id from the CloudEvent itself
 func EnvSessionID(eventSessionID string) string {
 	if v := os.Getenv("HTMLGRAPH_SESSION_ID"); v != "" {
 		return v
+	}
+	// Fallback: read from project-scoped .active-session written by session-start.
+	// Resolve project dir from cwd to find the right .active-session file.
+	cwd, _ := os.Getwd()
+	projectDir := ResolveProjectDir(cwd)
+	if projectDir != "" {
+		if as := readActiveSession(projectDir); as != nil && as.SessionID != "" {
+			return as.SessionID
+		}
 	}
 	return NormaliseSessionID(eventSessionID)
 }

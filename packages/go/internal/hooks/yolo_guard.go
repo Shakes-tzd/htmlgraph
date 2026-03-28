@@ -21,9 +21,15 @@ func isYoloMode(htmlgraphDir string) bool {
 	return strings.Contains(string(data), `"yolo`)
 }
 
-// checkYoloWorkItemGuard blocks Write/Edit tools when no active feature
+// checkYoloWorkItemGuard blocks Write/Edit tools when no active work item
 // exists in YOLO mode. Returns a non-empty reason to block, or "" to allow.
-func checkYoloWorkItemGuard(toolName, featureID string, yolo bool) string {
+//
+// featureID is the session's active_feature_id column (set at session-start).
+// hasInProgressItem is true when a feature or bug with status="in-progress"
+// exists in the DB — this covers items started mid-session via
+// `htmlgraph feature start` / `htmlgraph bug start` which update the features
+// table but do NOT update sessions.active_feature_id.
+func checkYoloWorkItemGuard(toolName, featureID string, yolo, hasInProgressItem bool) string {
 	if !yolo {
 		return ""
 	}
@@ -32,11 +38,22 @@ func checkYoloWorkItemGuard(toolName, featureID string, yolo bool) string {
 	default:
 		return ""
 	}
-	if featureID != "" {
+	if featureID != "" || hasInProgressItem {
 		return ""
 	}
 	return "YOLO mode requires an active work item before writing code. " +
 		"Create or start a feature first: htmlgraph feature create \"title\""
+}
+
+// hasAnyInProgressWorkItem returns true when any feature or bug with
+// status="in-progress" exists in the features table. Used as a fallback when
+// sessions.active_feature_id is empty (e.g. item started mid-session via CLI).
+func hasAnyInProgressWorkItem(database *sql.DB) bool {
+	var count int
+	database.QueryRow(
+		`SELECT COUNT(*) FROM features WHERE status = 'in-progress' LIMIT 1`,
+	).Scan(&count)
+	return count > 0
 }
 
 // gitCommitPattern matches git commit commands in Bash.
@@ -206,13 +223,29 @@ func hasRecentDiffReview(database *sql.DB, sessionID string) bool {
 	return count > 0
 }
 
-// currentBranch returns the current git branch name.
+// currentBranchIn returns the git branch for the given directory.
 func currentBranchIn(dir string) string {
 	out, err := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD").Output()
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// branchForFilePath returns the git branch for the worktree that owns filePath.
+// When the file lives in a linked worktree (e.g. .claude/worktrees/yolo-feat-xxx),
+// this returns that worktree's branch rather than the main repo's branch.
+// Falls back to cwdBranch when filePath is empty or not under git control.
+func branchForFilePath(filePath, cwdBranch string) string {
+	if filePath == "" {
+		return cwdBranch
+	}
+	dir := filepath.Dir(filePath)
+	branch := currentBranchIn(dir)
+	if branch == "" {
+		return cwdBranch
+	}
+	return branch
 }
 
 // testPattern matches common test runner commands in Bash input summaries.

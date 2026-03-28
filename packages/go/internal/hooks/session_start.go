@@ -2,9 +2,10 @@ package hooks
 
 import (
 	"database/sql"
-	"fmt"
+	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,11 +14,66 @@ import (
 	"github.com/shakestzd/htmlgraph/internal/models"
 )
 
+// activeSessionData is the JSON structure written to .htmlgraph/.active-session
+// as a fallback propagation mechanism when CLAUDE_ENV_FILE is unset (worktree
+// subagents). All fields mirror what writeEnvVars() exports via CLAUDE_ENV_FILE.
+type activeSessionData struct {
+	SessionID    string `json:"session_id"`
+	ParentSession string `json:"parent_session,omitempty"`
+	ParentAgent  string `json:"parent_agent,omitempty"`
+	NestingDepth int    `json:"nesting_depth"`
+	ProjectDir   string `json:"project_dir,omitempty"`
+	Timestamp    float64 `json:"timestamp"`
+}
+
+// writeActiveSession writes session context to .htmlgraph/.active-session so
+// worktree subagent hooks can read session ID even when CLAUDE_ENV_FILE is unset.
+func writeActiveSession(sessionID, projectDir string) {
+	if projectDir == "" {
+		return
+	}
+	data := activeSessionData{
+		SessionID:    sessionID,
+		ParentSession: sessionID,
+		ParentAgent:  "claude-code",
+		NestingDepth: 0,
+		ProjectDir:   projectDir,
+		Timestamp:    float64(time.Now().UnixNano()) / 1e9,
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	path := filepath.Join(projectDir, ".htmlgraph", ".active-session")
+	_ = os.WriteFile(path, b, 0o644)
+}
+
+// readActiveSession reads session context from .htmlgraph/.active-session.
+// Returns nil when the file doesn't exist or can't be parsed.
+func readActiveSession(projectDir string) *activeSessionData {
+	if projectDir == "" {
+		return nil
+	}
+	path := filepath.Join(projectDir, ".htmlgraph", ".active-session")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var data activeSessionData
+	if err := json.Unmarshal(b, &data); err != nil {
+		return nil
+	}
+	return &data
+}
+
 // SessionStart handles the SessionStart Claude Code hook event.
 // It upserts a session row in SQLite and writes environment variables for
 // downstream hooks via CLAUDE_ENV_FILE.
 func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
 	sessionID := NormaliseSessionID(event.SessionID)
+	if sessionID == "" {
+		sessionID = os.Getenv("CLAUDE_SESSION_ID")
+	}
 	if sessionID == "" {
 		sessionID = uuid.New().String()
 	}
@@ -49,7 +105,9 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		ParentEventID:   os.Getenv("HTMLGRAPH_PARENT_EVENT"),
 	}
 
-	_ = upsertSession(database, s) // Non-fatal: never block Claude
+	if err := upsertSession(database, s); err != nil {
+		debugLog(projectDir, "[session-start] upsertSession failed (session=%s): %v", sessionID[:8], err)
+	}
 
 	// Build lineage trace for subagent sessions so delegation chains are queryable.
 	if s.IsSubagent && s.ParentSessionID != "" {
@@ -57,13 +115,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	}
 
 
-	return &HookResult{
-		Continue: true,
-		AdditionalContext: fmt.Sprintf(
-			"[HtmlGraph] Session %s started. Project: %s",
-			sessionID[:8], projectDir,
-		),
-	}, nil
+	return &HookResult{}, nil
 }
 
 // upsertSession inserts the session row, ignoring duplicate-key conflicts.
@@ -88,13 +140,20 @@ func upsertSession(database *sql.DB, s *models.Session) error {
 }
 
 // writeEnvVars appends session context exports to CLAUDE_ENV_FILE.
+// When CLAUDE_ENV_FILE is unset (e.g. worktree subagents), falls back to
+// writing .htmlgraph/.active-session so downstream hooks can still resolve
+// the session ID via readActiveSession().
 func writeEnvVars(sessionID, projectDir string) {
 	envFile := os.Getenv("CLAUDE_ENV_FILE")
 	if envFile == "" {
+		// Fallback: write session context to project-scoped .active-session file.
+		writeActiveSession(sessionID, projectDir)
+		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — wrote session to .active-session (session_id=%s)", sessionID)
 		return
 	}
 	f, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
+		debugLog(projectDir, "[htmlgraph] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
 		return
 	}
 	defer f.Close()
@@ -131,9 +190,15 @@ func agentName() string {
 }
 
 // isSubagent returns true when env vars indicate this is a spawned subagent.
+// Falls back to checking .active-session when env vars are absent (worktrees).
 func isSubagent() bool {
-	return os.Getenv("HTMLGRAPH_PARENT_SESSION") != "" &&
-		os.Getenv("HTMLGRAPH_NESTING_DEPTH") != "0"
+	if os.Getenv("HTMLGRAPH_PARENT_SESSION") != "" {
+		return os.Getenv("HTMLGRAPH_NESTING_DEPTH") != "0"
+	}
+	// Env vars not set — check if .active-session was written by the parent.
+	// Worktree subagents get a fresh environment so HTMLGRAPH_PARENT_SESSION
+	// won't be propagated, but the .active-session file is project-scoped.
+	return false
 }
 
 // nullableStr converts an empty string to a typed nil for sql.NullString use.

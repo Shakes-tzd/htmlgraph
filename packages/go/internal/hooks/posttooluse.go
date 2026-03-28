@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"database/sql"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"

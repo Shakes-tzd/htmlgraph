@@ -97,14 +97,21 @@ func claimTraceparent() *traceparentEntry {
 // writeSubagentEnvVars writes HTMLGRAPH_PARENT_EVENT, HTMLGRAPH_AGENT_ID,
 // and HTMLGRAPH_AGENT_TYPE to CLAUDE_ENV_FILE so the subagent's hooks know
 // their parent delegation and agent identity.
-// Claude Code propagates CLAUDE_ENV_FILE to child processes.
-func writeSubagentEnvVars(parentEventID, agentID, agentType string) {
+// When CLAUDE_ENV_FILE is unset (worktree subagents), falls back to updating
+// the .htmlgraph/.active-session file with the subagent context.
+func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir string) {
 	envFile := os.Getenv("CLAUDE_ENV_FILE")
 	if envFile == "" {
+		// CLAUDE_ENV_FILE is unset in worktree subagents. Parent linkage is
+		// handled by the traceparent queue (writeTraceparent is called by the
+		// SubagentStart handler before this function). The .active-session file
+		// covers session ID propagation for downstream hooks.
+		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — subagent env vars not written (agent=%s), traceparent queue covers parent linkage", agentType)
 		return
 	}
 	f, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
+		debugLog(projectDir, "[htmlgraph] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
 		return
 	}
 	defer f.Close()

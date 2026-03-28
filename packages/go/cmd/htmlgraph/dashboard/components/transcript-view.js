@@ -8,7 +8,12 @@ function openTranscript(sessionId, scrollHint) {
   document.getElementById('transcript-messages').textContent = 'Loading...';
   document.getElementById('transcript-stats').textContent = '';
 
-  fetch('/api/transcript?session=' + encodeURIComponent(sessionId) + '&limit=500')
+  // Trigger on-demand ingest so the transcript is up-to-date, then fetch.
+  fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/ingest', { method: 'POST' })
+    .catch(function() {}) // fire-and-forget; failures are non-fatal
+    .then(function() {
+      return fetch('/api/transcript?session=' + encodeURIComponent(sessionId) + '&limit=500');
+    })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();

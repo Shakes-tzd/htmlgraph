@@ -40,6 +40,8 @@ func Open(dbPath string) (*sql.DB, error) {
 	// Idempotent migrations for columns added after initial schema.
 	db.Exec(`ALTER TABLE sessions ADD COLUMN title TEXT`)
 	db.Exec(`ALTER TABLE sessions ADD COLUMN active_feature_id TEXT`)
+	db.Exec(`ALTER TABLE sessions ADD COLUMN updated_at DATETIME`)
+	db.Exec(`ALTER TABLE agent_events ADD COLUMN subagent_type TEXT`)
 
 	return db, nil
 }
@@ -146,6 +148,7 @@ func CreateAllTables(db *sql.DB) error {
 			predicted_cost REAL DEFAULT 0.0,
 			model TEXT,
 			active_feature_id TEXT,
+			updated_at DATETIME,
 			FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE,
 			FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
 			FOREIGN KEY (continued_from) REFERENCES sessions(session_id) ON DELETE SET NULL ON UPDATE CASCADE

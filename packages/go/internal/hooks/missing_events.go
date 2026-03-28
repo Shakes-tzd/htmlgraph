@@ -115,12 +115,33 @@ func WorktreeCreate(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 // WorktreeRemove handles the WorktreeRemove Claude Code hook event.
 // Records when a git worktree is removed after work is complete.
+// Also injects additionalContext to redirect the agent back to the project root
+// so it can run final checks even though its CWD no longer exists.
 func WorktreeRemove(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	summary := "Worktree removed"
 	if event.WorktreePath != "" {
 		summary = fmt.Sprintf("Worktree removed: %s", event.WorktreePath)
 	}
-	return recordSimpleEvent(models.EventCheckPoint, "WorktreeRemove", summary, "recorded", event, database)
+
+	result, err := recordSimpleEvent(models.EventCheckPoint, "WorktreeRemove", summary, "recorded", event, database)
+	if err != nil || result == nil {
+		return result, err
+	}
+
+	// Inject guidance so the agent can complete post-worktree steps.
+	// The worktree directory no longer exists — any Bash command using the
+	// old CWD will fail. Tell the agent to switch to the project root.
+	projectRoot := ResolveProjectDir(event.CWD)
+	if projectRoot != "" {
+		result.AdditionalContext = fmt.Sprintf(
+			"WORKTREE REMOVED: Your working directory (%s) no longer exists. "+
+				"All subsequent Bash commands must use absolute paths or cd to the project root first. "+
+				"Project root: %s — use this for any remaining steps (marking feature done, final checks, etc.).",
+			event.WorktreePath, projectRoot,
+		)
+	}
+
+	return result, nil
 }
 
 // PostToolUseFailure handles the PostToolUseFailure Claude Code hook event.
