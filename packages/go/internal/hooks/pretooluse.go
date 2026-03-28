@@ -50,18 +50,24 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	if yolo {
+		if warn := checkYoloWorktreeGuard(event.ToolName, currentBranch(), yolo); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
+		}
+		if warn := checkYoloResearchGuard(event.ToolName, yolo, hasRecentResearch(database, ctx.SessionID)); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
+		}
+		if warn := checkYoloCodeHealthGuard(event, yolo); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
+		}
 		testRan := hasRecentTestRun(database, ctx.SessionID)
 		if warn := checkYoloCommitGuard(event, yolo, testRan); warn != "" {
-			return &HookResult{
-				Decision: "block",
-				Reason:   warn,
-			}, nil
+			return &HookResult{Decision: "block", Reason: warn}, nil
+		}
+		if warn := checkYoloDiffReviewGuard(event, yolo, hasRecentDiffReview(database, ctx.SessionID)); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloBudgetGuard(event, yolo); warn != "" {
-			return &HookResult{
-				Decision: "block",
-				Reason:   warn,
-			}, nil
+			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 	}
 

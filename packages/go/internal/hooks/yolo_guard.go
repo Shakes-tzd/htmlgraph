@@ -97,6 +97,124 @@ func checkYoloBudgetGuard(event *CloudEvent, yolo bool) string {
 	return ""
 }
 
+// checkYoloWorktreeGuard blocks Write/Edit on main/master branch in YOLO mode.
+func checkYoloWorktreeGuard(toolName, branch string, yolo bool) string {
+	if !yolo {
+		return ""
+	}
+	switch toolName {
+	case "Write", "Edit", "MultiEdit":
+	default:
+		return ""
+	}
+	if branch == "main" || branch == "master" {
+		return "YOLO mode requires a feature branch or worktree. " +
+			"Create one: git worktree add -b feat-xxx .claude/worktrees/xxx main"
+	}
+	return ""
+}
+
+// checkYoloResearchGuard blocks Write/Edit when no Read/Grep/Glob has
+// occurred in the session (research-first principle).
+func checkYoloResearchGuard(toolName string, yolo, hasResearch bool) string {
+	if !yolo {
+		return ""
+	}
+	switch toolName {
+	case "Write", "Edit", "MultiEdit":
+	default:
+		return ""
+	}
+	if hasResearch {
+		return ""
+	}
+	return "YOLO mode requires research before writing code. " +
+		"Read existing code first: use Read, Grep, or Glob tools."
+}
+
+// checkYoloDiffReviewGuard blocks git commit when no git diff has been
+// reviewed in this session.
+func checkYoloDiffReviewGuard(event *CloudEvent, yolo, diffRan bool) string {
+	if !yolo || event.ToolName != "Bash" {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	if !gitCommitPattern.MatchString(cmd) {
+		return ""
+	}
+	if diffRan {
+		return ""
+	}
+	return "YOLO mode requires a diff review before committing. " +
+		"Run: git diff --stat"
+}
+
+// checkYoloCodeHealthGuard blocks writes that would create oversized
+// Go/Python files (>500 lines) in YOLO mode.
+func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
+	if !yolo {
+		return ""
+	}
+	switch event.ToolName {
+	case "Write", "Edit", "MultiEdit":
+	default:
+		return ""
+	}
+	path, _ := event.ToolInput["file_path"].(string)
+	if path == "" {
+		path, _ = event.ToolInput["path"].(string)
+	}
+	if !strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, ".py") {
+		return ""
+	}
+	// Check existing file size — if it's already >500 lines, warn
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "" // new file, allow
+	}
+	lines := strings.Count(string(data), "\n")
+	if lines > 500 {
+		return fmt.Sprintf(
+			"YOLO code health: %s has %d lines (limit 500). "+
+				"Refactor into smaller modules.", filepath.Base(path), lines)
+	}
+	return ""
+}
+
+// hasRecentResearch checks if Read/Grep/Glob was used in this session.
+func hasRecentResearch(database *sql.DB, sessionID string) bool {
+	var count int
+	database.QueryRow(`
+		SELECT COUNT(*) FROM agent_events
+		WHERE session_id = ? AND tool_name IN ('Read', 'Grep', 'Glob', 'Agent')
+		LIMIT 1`,
+		sessionID,
+	).Scan(&count)
+	return count > 0
+}
+
+// hasRecentDiffReview checks if git diff was run in this session.
+func hasRecentDiffReview(database *sql.DB, sessionID string) bool {
+	var count int
+	database.QueryRow(`
+		SELECT COUNT(*) FROM agent_events
+		WHERE session_id = ? AND tool_name = 'Bash'
+		  AND (input_summary LIKE '%git diff%'
+		    OR input_summary LIKE '%git show%')`,
+		sessionID,
+	).Scan(&count)
+	return count > 0
+}
+
+// currentBranch returns the current git branch name.
+func currentBranch() string {
+	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // testPattern matches common test runner commands in Bash input summaries.
 var testPattern = regexp.MustCompile(`\bgo test\b|\bpytest\b|\buv run pytest\b|\buv run ruff\b`)
 
