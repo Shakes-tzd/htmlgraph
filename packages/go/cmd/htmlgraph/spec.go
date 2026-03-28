@@ -26,9 +26,16 @@ type specTemplate struct {
 func specCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "spec",
-		Short: "Manage feature specifications",
-		Long:  "Generate and display structured spec templates for features.",
+		Short: "Manage specs and feature specifications",
+		Long:  "Create spec work items and generate structured spec templates for features.",
 	}
+	// Spec work item CRUD
+	cmd.AddCommand(wiCreateCmd("spec", "specs"))
+	cmd.AddCommand(wiListCmd("spec", "specs"))
+	cmd.AddCommand(wiStartCmd("spec"))
+	cmd.AddCommand(wiCompleteCmd("spec"))
+	cmd.AddCommand(wiDeleteCmd("spec"))
+	// Spec template generation (feature-specific)
 	cmd.AddCommand(specGenerateCmd())
 	cmd.AddCommand(specShowCmd())
 	return cmd
