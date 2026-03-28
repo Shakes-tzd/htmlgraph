@@ -314,3 +314,50 @@ func TestBranchForFilePath(t *testing.T) {
 		t.Errorf("expected %q for main repo file, got %q", "main", got)
 	}
 }
+
+func TestCheckYoloStepsGuard(t *testing.T) {
+	// Set up a temp .htmlgraph dir with a feature that has no steps
+	tmpDir := t.TempDir()
+	hgDir := filepath.Join(tmpDir, ".htmlgraph")
+	os.MkdirAll(filepath.Join(hgDir, "features"), 0o755)
+
+	// Feature without steps
+	noSteps := `<article data-id="feat-nosteps" data-type="feature" data-status="todo">
+<h1>No Steps Feature</h1></article>`
+	os.WriteFile(filepath.Join(hgDir, "features", "feat-nosteps.html"), []byte(noSteps), 0o644)
+
+	// Feature with steps
+	withSteps := `<article data-id="feat-steps" data-type="feature" data-status="todo">
+<h1>Steps Feature</h1>
+<li data-step-id="step-1">Do thing</li>
+<li data-step-id="step-2">Do other</li></article>`
+	os.WriteFile(filepath.Join(hgDir, "features", "feat-steps.html"), []byte(withSteps), 0o644)
+
+	tests := []struct {
+		name   string
+		cmd    string
+		yolo   bool
+		warned bool
+	}{
+		{"start without steps warns", "htmlgraph feature start feat-nosteps", true, true},
+		{"start with steps allows", "htmlgraph feature start feat-steps", true, false},
+		{"start outside yolo allows", "htmlgraph feature start feat-nosteps", false, false},
+		{"non-start allows", "htmlgraph feature show feat-nosteps", true, false},
+		{"non-bash allows", "htmlgraph feature start feat-nosteps", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event := &CloudEvent{
+				ToolName:  "Bash",
+				ToolInput: map[string]any{"command": tt.cmd},
+			}
+			result := checkYoloStepsGuard(event, tt.yolo, hgDir)
+			if tt.warned && result == "" {
+				t.Errorf("expected warning for cmd=%q", tt.cmd)
+			}
+			if !tt.warned && result != "" {
+				t.Errorf("expected no warning for cmd=%q, got: %s", tt.cmd, result)
+			}
+		})
+	}
+}

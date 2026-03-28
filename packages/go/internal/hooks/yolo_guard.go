@@ -56,6 +56,45 @@ func hasAnyInProgressWorkItem(database *sql.DB) bool {
 	return count > 0
 }
 
+// featureStartPattern matches htmlgraph feature/bug start commands.
+var featureStartPattern = regexp.MustCompile(`\bhtmlgraph\s+(feature|bug)\s+start\s+([\w-]+)`)
+
+// checkYoloStepsGuard warns when starting a work item that has no
+// implementation steps. Returns a non-empty reason to warn, or "" to allow.
+func checkYoloStepsGuard(event *CloudEvent, yolo bool, htmlgraphDir string) string {
+	if !yolo || event.ToolName != "Bash" {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	m := featureStartPattern.FindStringSubmatch(cmd)
+	if m == nil {
+		return ""
+	}
+	itemID := m[2]
+	stepsCount := countStepsForItem(htmlgraphDir, itemID)
+	if stepsCount > 0 {
+		return ""
+	}
+	return fmt.Sprintf(
+		"Warning: %s has no implementation steps. "+
+			"Add steps first: htmlgraph feature add-step %s \"description\"",
+		itemID, itemID)
+}
+
+// countStepsForItem reads an HTML work item file and counts its steps.
+func countStepsForItem(htmlgraphDir, itemID string) int {
+	subdirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
+	for _, sub := range subdirs {
+		path := filepath.Join(htmlgraphDir, sub, itemID+".html")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		return strings.Count(string(data), "data-step-id=")
+	}
+	return 0
+}
+
 // gitCommitPattern matches git commit commands in Bash.
 var gitCommitPattern = regexp.MustCompile(`\bgit\s+commit\b`)
 

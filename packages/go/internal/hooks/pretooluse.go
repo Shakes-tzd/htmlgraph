@@ -52,9 +52,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	if yolo {
+		hgDir := filepath.Join(projectDir, ".htmlgraph")
+
+		// Warn (not block) when starting a work item without steps.
+		if warn := checkYoloStepsGuard(event, yolo, hgDir); warn != "" {
+			debugLog(projectDir, "[htmlgraph] YOLO steps warning: %s", warn)
+		}
+
 		// Resolve branch from the target file's worktree, not the session CWD.
-		// This prevents false blocks when editing files in a linked worktree that
-		// is on a yolo-* branch while the main repo CWD is still on main.
 		targetFile := extractFilePath(event.ToolInput)
 		cwdBranch := currentBranchIn(event.CWD)
 		branch := branchForFilePath(targetFile, cwdBranch)
