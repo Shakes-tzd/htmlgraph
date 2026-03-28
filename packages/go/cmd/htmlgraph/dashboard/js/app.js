@@ -118,8 +118,7 @@ function renderSessions() {
     card.appendChild(metaRow);
 
     var rows = [
-      ['Messages', s.message_count ? String(s.message_count) : '--'],
-      ['Events', String(s.total_events || 0)]
+      ['Messages', s.message_count ? String(s.message_count) : '--']
     ];
     rows.forEach(function(pair) {
       var row = document.createElement('div');
