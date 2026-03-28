@@ -5,18 +5,51 @@
 // same .htmlgraph/ files and SQLite databases.
 package models
 
+import "strings"
+
 // RelationshipType enumerates typed relationships between graph nodes.
 type RelationshipType string
 
 const (
-	RelBlocks      RelationshipType = "blocks"
-	RelBlockedBy   RelationshipType = "blocked_by"
-	RelRelatesTo   RelationshipType = "relates_to"
-	RelImplements  RelationshipType = "implements"
-	RelCausedBy    RelationshipType = "caused_by"
-	RelSpawnedFrom RelationshipType = "spawned_from"
-	RelImplementedIn RelationshipType = "implemented-in"
+	RelBlocks        RelationshipType = "blocks"
+	RelBlockedBy     RelationshipType = "blocked_by"
+	RelRelatesTo     RelationshipType = "relates_to"
+	RelImplements    RelationshipType = "implements"
+	RelCausedBy      RelationshipType = "caused_by"
+	RelSpawnedFrom   RelationshipType = "spawned_from"
+	RelImplementedIn RelationshipType = "implemented_in"
+	RelPartOf        RelationshipType = "part_of"
+	RelContains      RelationshipType = "contains"
 )
+
+// ValidRelationshipTypes lists all known relationship types.
+var ValidRelationshipTypes = []RelationshipType{
+	RelBlocks,
+	RelBlockedBy,
+	RelRelatesTo,
+	RelImplements,
+	RelCausedBy,
+	RelSpawnedFrom,
+	RelImplementedIn,
+	RelPartOf,
+	RelContains,
+}
+
+// NormalizeRelationship converts a raw relationship string to its canonical
+// underscore form, replacing hyphens with underscores and lowercasing.
+func NormalizeRelationship(s string) RelationshipType {
+	return RelationshipType(strings.ToLower(strings.ReplaceAll(s, "-", "_")))
+}
+
+// IsValidRelationship reports whether r is a known RelationshipType.
+func IsValidRelationship(r RelationshipType) bool {
+	for _, v := range ValidRelationshipTypes {
+		if r == v {
+			return true
+		}
+	}
+	return false
+}
 
 // WorkType classifies work/activity type for events and sessions.
 type WorkType string

@@ -18,7 +18,7 @@ func linkCmd() *cobra.Command {
 		Long: `Add, remove, and list edges (relationships) between work items.
 
 Relationship types: blocks, blocked_by, relates_to, implements,
-                    caused_by, spawned_from, implemented-in
+                    caused_by, spawned_from, implemented_in, part_of, contains
 
 Examples:
   htmlgraph link add feat-abc feat-def --rel blocks
@@ -43,7 +43,7 @@ func linkAddCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&rel, "rel", "relates_to",
-		"relationship type (blocks, blocked_by, relates_to, implements, caused_by, spawned_from)")
+		"relationship type (blocks, blocked_by, relates_to, implements, caused_by, spawned_from, implemented_in, part_of, contains)")
 	return cmd
 }
 
@@ -76,9 +76,14 @@ func runLinkAdd(fromID, toID, rel string) error {
 		return fmt.Errorf("cannot determine collection for %q", fromID)
 	}
 
+	normalizedRel := models.NormalizeRelationship(rel)
+	if !models.IsValidRelationship(normalizedRel) {
+		return fmt.Errorf("unknown relationship type %q; valid types: blocks, blocked_by, relates_to, implements, caused_by, spawned_from, implemented_in, part_of, contains", rel)
+	}
+
 	edge := models.Edge{
 		TargetID:     toID,
-		Relationship: models.RelationshipType(rel),
+		Relationship: normalizedRel,
 		Title:        title,
 		Since:        time.Now().UTC(),
 	}

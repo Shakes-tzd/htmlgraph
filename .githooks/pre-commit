@@ -29,7 +29,9 @@ if git diff --cached --name-only | grep -q '\.go$' || [ -d "$GO_PKG" ]; then
         fi
 
         echo "  -> go test..."
-        if ! (cd "$GO_PKG" && go test ./...) ; then
+        # Unset GIT_DIR/GIT_INDEX_FILE so tests that create real git repos
+        # (e.g. TestBranchForFilePath) are not polluted by the pre-commit env.
+        if ! (cd "$GO_PKG" && env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE go test ./...) ; then
             echo "FAIL: go test failed. Fix failing tests before committing."
             exit 1
         fi
