@@ -187,6 +187,10 @@
 .depth-2 { border-left-color: rgba(100,116,139,0.15); }
 .depth-3 { border-left-color: rgba(100,116,139,0.10); }
 
+/* Clickable event rows */
+.clickable-row[data-session] { cursor: pointer; }
+.clickable-row[data-session]:hover { background: rgba(205,255,0,0.06) !important; }
+
 /* Expand icon */
 .expand-icon {
   cursor: pointer;
@@ -291,21 +295,6 @@
   white-space: nowrap;
   flex: 1;
   min-width: 0;
-}
-
-/* Session drill-down link */
-.session-link {
-  cursor: pointer;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
-}
-.session-link:hover {
-  color: var(--accent);
-  background: var(--accent-dim);
 }
 
 @keyframes treeSlideIn {

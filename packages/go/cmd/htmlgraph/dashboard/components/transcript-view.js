@@ -1,6 +1,6 @@
 /* ── Transcript detail view ─────────────────────────────────── */
 
-function openTranscript(sessionId, scrollToToolUseId) {
+function openTranscript(sessionId, scrollToToolUseId, scrollToTimestamp) {
   document.getElementById('sessions-list-view').style.display = 'none';
   var detail = document.getElementById('transcript-detail');
   detail.className = 'transcript-detail active';
@@ -12,7 +12,7 @@ function openTranscript(sessionId, scrollToToolUseId) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
-    .then(function(data) { renderTranscript(data, scrollToToolUseId); })
+    .then(function(data) { renderTranscript(data, scrollToToolUseId, scrollToTimestamp); })
     .catch(function(err) {
       document.getElementById('transcript-messages').textContent = 'Failed to load transcript: ' + err.message;
     });
@@ -25,9 +25,9 @@ function closeTranscript() {
 
 document.getElementById('transcript-back').addEventListener('click', closeTranscript);
 
-function renderTranscript(data, scrollToToolUseId) {
+function renderTranscript(data, scrollToToolUseId, scrollToTimestamp) {
   renderTranscriptStats(data);
-  renderTranscriptMessages(data.messages || [], scrollToToolUseId);
+  renderTranscriptMessages(data.messages || [], scrollToToolUseId, scrollToTimestamp);
 }
 
 function renderTranscriptStats(data) {
@@ -84,7 +84,7 @@ function renderTranscriptStats(data) {
   container.appendChild(frag);
 }
 
-function renderTranscriptMessages(messages, scrollToToolUseId) {
+function renderTranscriptMessages(messages, scrollToToolUseId, scrollToTimestamp) {
   var container = document.getElementById('transcript-messages');
   container.textContent = '';
 
@@ -94,6 +94,8 @@ function renderTranscriptMessages(messages, scrollToToolUseId) {
   }
 
   var scrollTarget = null;
+  var closestTimeDiff = Infinity;
+  var targetTs = scrollToTimestamp ? new Date(scrollToTimestamp).getTime() : 0;
   var frag = document.createDocumentFragment();
   messages.forEach(function(m) {
     var bubble = document.createElement('div');
@@ -198,6 +200,16 @@ function renderTranscriptMessages(messages, scrollToToolUseId) {
       });
 
       bubble.appendChild(toolsDiv);
+    }
+
+    // Timestamp fallback: find closest message when no tool_use_id match
+    if (!scrollTarget && targetTs && m.timestamp) {
+      var msgTs = new Date(m.timestamp).getTime();
+      var diff = Math.abs(msgTs - targetTs);
+      if (diff < closestTimeDiff) {
+        closestTimeDiff = diff;
+        scrollTarget = bubble;
+      }
     }
 
     frag.appendChild(bubble);

@@ -124,18 +124,16 @@ class HgEventTree extends HTMLElement {
     var statsHtml = '<span class="turn-stats">' + (s.tool_count || 0) + ' tools' + (s.error_count ? ', ' + s.error_count + ' errors' : '') + '</span>';
     var featureBdg = this.featureBadge(uq.feature_id);
 
-    var sessionLink = uq.session_id
-      ? '<span class="session-link" data-session="' + esc(uq.session_id) + '" data-tool-use-id="" title="View transcript">\u25B8</span>'
-      : '';
-
     var html = '<div class="turn-group">'
-      + '<div class="event-row depth-0 user-query-row" data-event-id="' + esc(uq.event_id) + '">'
+      + '<div class="event-row depth-0 user-query-row clickable-row"'
+      + ' data-event-id="' + esc(uq.event_id) + '"'
+      + (uq.session_id ? ' data-session="' + esc(uq.session_id) + '"' : '')
+      + ' data-tool-use-id="" data-timestamp="' + esc(uq.timestamp || '') + '">'
       + expandIcon
       + '<span class="event-time">' + formatTime(uq.timestamp) + '</span>'
       + '<span class="event-summary">' + esc(uq.input_summary || '') + '</span>'
       + featureBdg
       + statsHtml
-      + sessionLink
       + '</div>';
 
     if (isExp && turn.children) {
@@ -168,8 +166,11 @@ class HgEventTree extends HTMLElement {
     var padLeft = (depth + 1) * 1.25;
     var bgAlpha = 0.05 + depth * 0.08;
 
-    var html = '<div class="event-row depth-' + depth + ' ' + borderClass + '"'
+    var html = '<div class="event-row depth-' + depth + ' ' + borderClass + ' clickable-row"'
       + ' data-event-id="' + esc(evt.event_id) + '"'
+      + (evt.session_id ? ' data-session="' + esc(evt.session_id) + '"' : '')
+      + ' data-tool-use-id="' + esc(evt.tool_use_id || '') + '"'
+      + ' data-timestamp="' + esc(evt.timestamp || '') + '"'
       + ' style="padding-left: ' + padLeft + 'rem; background: rgba(0,0,0,' + bgAlpha + ')">'
       + expandIcon
       + '<span class="event-time">' + formatTime(evt.timestamp) + '</span>'
@@ -179,7 +180,6 @@ class HgEventTree extends HTMLElement {
       + '<span class="event-summary">' + esc(evt.input_summary || evt.output_summary || '') + '</span>'
       + this.featureBadge(evt.feature_id)
       + statusBdg
-      + (evt.session_id ? '<span class="session-link" data-session="' + esc(evt.session_id) + '" data-tool-use-id="' + esc(evt.tool_use_id || '') + '" title="View in transcript">\u25B8</span>' : '')
       + '</div>';
 
     if (isExp && evt.children) {
@@ -191,15 +191,22 @@ class HgEventTree extends HTMLElement {
 
 customElements.define('hg-event-tree', HgEventTree);
 
-// Delegate click events for expand/collapse toggles
+// Delegate click events
 document.addEventListener('click', function(e) {
-  // Session drill-down link
-  var sessionLink = e.target.closest('[data-session]');
-  if (sessionLink) {
-    e.stopPropagation();
-    var sid = sessionLink.dataset.session;
-    var toolUseId = sessionLink.dataset.toolUseId || '';
-    // Switch to sessions view and open transcript
+  // Expand/collapse toggle takes priority
+  var toggle = e.target.closest('[data-toggle]');
+  if (toggle) {
+    var tree = document.querySelector('hg-event-tree');
+    if (tree) tree.toggle(toggle.dataset.toggle);
+    return;
+  }
+
+  // Clickable event row → drill down to transcript
+  var row = e.target.closest('.clickable-row[data-session]');
+  if (row) {
+    var sid = row.dataset.session;
+    var toolUseId = row.dataset.toolUseId || '';
+    var timestamp = row.dataset.timestamp || '';
     currentView = 'sessions';
     document.querySelectorAll('.nav-btn').forEach(function(b) {
       b.classList.toggle('active', b.dataset.view === 'sessions');
@@ -207,12 +214,7 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.view').forEach(function(v) {
       v.classList.toggle('active', v.id === 'v-sessions');
     });
-    openTranscript(sid, toolUseId);
+    openTranscript(sid, toolUseId, timestamp);
     return;
   }
-
-  var toggle = e.target.closest('[data-toggle]');
-  if (!toggle) return;
-  var tree = document.querySelector('hg-event-tree');
-  if (tree) tree.toggle(toggle.dataset.toggle);
 });
