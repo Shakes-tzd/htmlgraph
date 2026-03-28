@@ -123,16 +123,16 @@ uv run pytest
 
 ```bash
 # Check orchestrator status
-uv run htmlgraph orchestrator status
+htmlgraph orchestrator status
 
 # List active features
-uv run htmlgraph status
+htmlgraph status
 
 # View specific feature
-uv run htmlgraph feature show <id>
+htmlgraph feature show <id>
 
 # Check session state
-uv run htmlgraph session list --active
+htmlgraph session list --active
 ```
 
 ## Integration with Orchestrator Mode

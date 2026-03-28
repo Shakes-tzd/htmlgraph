@@ -132,7 +132,7 @@ Dev mode enables local plugin development by loading the plugin directly from th
 ### Starting Dev Mode
 
 ```bash
-uv run htmlgraph claude --dev
+htmlgraph claude --dev
 ```
 
 This launches Claude Code with:
@@ -190,7 +190,7 @@ packages/claude-plugin/              <- PLUGIN ROOT (passed to --plugin-dir)
 
 ### Verifying Dev Mode Components
 
-After running `uv run htmlgraph claude --dev`, you should see:
+After running `htmlgraph claude --dev`, you should see:
 
 - **Slash commands** visible in `/help`:
   `/htmlgraph:deploy`, `/htmlgraph:init`, `/htmlgraph:plan`, `/htmlgraph:research`, `/htmlgraph:status`, etc.
@@ -300,8 +300,8 @@ See `.claude/rules/debugging.md` for the full research-first debugging methodolo
 **Keep documentation synchronized across platforms.**
 
 ```bash
-uv run htmlgraph sync-docs           # Sync all files
-uv run htmlgraph sync-docs --check   # Check sync status
+htmlgraph sync-docs           # Sync all files
+htmlgraph sync-docs --check   # Check sync status
 ```
 
 ---

@@ -249,7 +249,7 @@ Track major releases and their features:
 
 ## Memory File Synchronization
 
-**CRITICAL: Use `uv run htmlgraph sync-docs` to maintain documentation consistency.**
+**CRITICAL: Use `htmlgraph sync-docs` to maintain documentation consistency.**
 
 HtmlGraph uses a centralized documentation pattern:
 - **AGENTS.md** - Single source of truth (SDK, API, CLI, workflows)
@@ -259,14 +259,14 @@ HtmlGraph uses a centralized documentation pattern:
 **Quick Usage:**
 ```bash
 # Check if files are synchronized
-uv run htmlgraph sync-docs --check
+htmlgraph sync-docs --check
 
 # Generate platform-specific file
-uv run htmlgraph sync-docs --generate gemini
-uv run htmlgraph sync-docs --generate claude
+htmlgraph sync-docs --generate gemini
+htmlgraph sync-docs --generate claude
 
 # Synchronize all files (default)
-uv run htmlgraph sync-docs
+htmlgraph sync-docs
 ```
 
 **Why This Matters:**
