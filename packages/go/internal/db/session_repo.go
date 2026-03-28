@@ -13,12 +13,13 @@ func InsertSession(db *sql.DB, s *models.Session) error {
 	_, err := db.Exec(`
 		INSERT INTO sessions (session_id, agent_assigned, parent_session_id,
 			parent_event_id, created_at, status, start_commit,
-			is_subagent, model, active_feature_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			is_subagent, model, active_feature_id, project_dir)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.SessionID, s.AgentAssigned, nullStr(s.ParentSessionID),
 		nullStr(s.ParentEventID), s.CreatedAt.UTC().Format(time.RFC3339),
 		s.Status, nullStr(s.StartCommit),
 		s.IsSubagent, nullStr(s.Model), nullStr(s.ActiveFeatureID),
+		nullStr(s.ProjectDir),
 	)
 	if err != nil {
 		return fmt.Errorf("insert session %s: %w", s.SessionID, err)
@@ -32,18 +33,18 @@ func GetSession(db *sql.DB, sessionID string) (*models.Session, error) {
 		SELECT session_id, agent_assigned, parent_session_id,
 			parent_event_id, created_at, completed_at,
 			total_events, total_tokens_used, context_drift,
-			status, is_subagent, model, active_feature_id
+			status, is_subagent, model, active_feature_id, project_dir
 		FROM sessions WHERE session_id = ?`, sessionID)
 
 	s := &models.Session{}
-	var parentSess, parentEvt, completedAt, model, activeFeat sql.NullString
+	var parentSess, parentEvt, completedAt, model, activeFeat, projectDir sql.NullString
 	var createdStr string
 
 	err := row.Scan(
 		&s.SessionID, &s.AgentAssigned, &parentSess,
 		&parentEvt, &createdStr, &completedAt,
 		&s.TotalEvents, &s.TotalTokensUsed, &s.ContextDrift,
-		&s.Status, &s.IsSubagent, &model, &activeFeat,
+		&s.Status, &s.IsSubagent, &model, &activeFeat, &projectDir,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get session %s: %w", sessionID, err)
@@ -53,6 +54,7 @@ func GetSession(db *sql.DB, sessionID string) (*models.Session, error) {
 	s.ParentEventID = parentEvt.String
 	s.Model = model.String
 	s.ActiveFeatureID = activeFeat.String
+	s.ProjectDir = projectDir.String
 	s.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 
 	if completedAt.Valid {

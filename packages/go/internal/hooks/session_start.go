@@ -103,6 +103,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		Model:           os.Getenv("CLAUDE_MODEL"),
 		ParentSessionID: os.Getenv("HTMLGRAPH_PARENT_SESSION"),
 		ParentEventID:   os.Getenv("HTMLGRAPH_PARENT_EVENT"),
+		ProjectDir:      projectDir,
 	}
 
 	if err := upsertSession(database, s); err != nil {
@@ -123,8 +124,9 @@ func upsertSession(database *sql.DB, s *models.Session) error {
 	_, err := database.Exec(`
 		INSERT OR IGNORE INTO sessions
 			(session_id, agent_assigned, parent_session_id, parent_event_id,
-			 created_at, status, start_commit, is_subagent, model, active_feature_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 created_at, status, start_commit, is_subagent, model, active_feature_id,
+			 project_dir)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.SessionID,
 		s.AgentAssigned,
 		nullableStr(s.ParentSessionID),
@@ -135,6 +137,7 @@ func upsertSession(database *sql.DB, s *models.Session) error {
 		s.IsSubagent,
 		nullableStr(s.Model),
 		nullableStr(s.ActiveFeatureID),
+		nullableStr(s.ProjectDir),
 	)
 	return err
 }

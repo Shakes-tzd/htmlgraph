@@ -42,6 +42,7 @@ func Open(dbPath string) (*sql.DB, error) {
 	db.Exec(`ALTER TABLE sessions ADD COLUMN active_feature_id TEXT`)
 	db.Exec(`ALTER TABLE sessions ADD COLUMN updated_at DATETIME`)
 	db.Exec(`ALTER TABLE agent_events ADD COLUMN subagent_type TEXT`)
+	db.Exec(`ALTER TABLE sessions ADD COLUMN project_dir TEXT`)
 
 	return db, nil
 }
