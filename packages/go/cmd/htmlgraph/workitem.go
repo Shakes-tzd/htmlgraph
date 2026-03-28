@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/graph"
 	"github.com/shakestzd/htmlgraph/internal/hooks"
@@ -33,26 +32,38 @@ func workitemCmd(typeName, dirName string) *cobra.Command {
 	return cmd
 }
 
+type wiCreateOpts struct {
+	trackID     string
+	priority    string
+	description string
+	files       string
+	start       bool
+	noLink      bool
+}
+
 func wiCreateCmd(typeName, dirName string) *cobra.Command {
-	var trackID, priority string
-	var start, noLink bool
+	var opts wiCreateOpts
 
 	cmd := &cobra.Command{
 		Use:   "create <title>",
 		Short: "Create a new " + typeName,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runWiCreate(typeName, args[0], trackID, priority, start, noLink)
+			return runWiCreate(typeName, args[0], &opts)
 		},
 	}
-	cmd.Flags().StringVar(&trackID, "track", "", "track ID to link to")
-	cmd.Flags().StringVar(&priority, "priority", "medium", "priority (low|medium|high|critical)")
-	cmd.Flags().BoolVar(&start, "start", false, "immediately mark as in-progress")
-	cmd.Flags().BoolVar(&noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
+	cmd.Flags().StringVar(&opts.trackID, "track", "", "track ID to link to")
+	cmd.Flags().StringVar(&opts.priority, "priority", "medium", "priority (low|medium|high|critical)")
+	cmd.Flags().StringVar(&opts.description, "description", "", "description text")
+	cmd.Flags().BoolVar(&opts.start, "start", false, "immediately mark as in-progress")
+	cmd.Flags().BoolVar(&opts.noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
+	if typeName == "bug" {
+		cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
+	}
 	return cmd
 }
 
-func runWiCreate(typeName, title, trackID, priority string, start, noLink bool) error {
+func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	dir, err := findHtmlgraphDir()
 	if err != nil {
 		return err
@@ -63,63 +74,27 @@ func runWiCreate(typeName, title, trackID, priority string, start, noLink bool) 
 	}
 	defer p.Close()
 
-	var node *models.Node
-	switch typeName {
-	case "feature":
-		opts := []workitem.FeatureOption{workitem.FeatWithPriority(priority)}
-		if trackID != "" {
-			opts = append(opts, workitem.FeatWithTrack(trackID))
-		}
-		node, err = p.Features.Create(title, opts...)
-	case "bug":
-		opts := []workitem.BugOption{workitem.BugWithPriority(priority)}
-		node, err = p.Bugs.Create(title, opts...)
-	case "spike":
-		opts := []workitem.SpikeOption{workitem.SpikeWithPriority(priority)}
-		node, err = p.Spikes.Create(title, opts...)
-	case "track":
-		opts := []workitem.TrackOption{workitem.TrackWithPriority(priority)}
-		node, err = p.Tracks.Create(title, opts...)
-	case "plan":
-		opts := []workitem.PlanOption{workitem.PlanWithPriority(priority)}
-		if trackID != "" {
-			opts = append(opts, workitem.PlanWithTrack(trackID))
-		}
-		node, err = p.Plans.Create(title, opts...)
-	case "spec":
-		opts := []workitem.SpecOption{workitem.SpecWithPriority(priority)}
-		if trackID != "" {
-			opts = append(opts, workitem.SpecWithTrack(trackID))
-		}
-		node, err = p.Specs.Create(title, opts...)
-	default:
-		return fmt.Errorf("unknown type: %s", typeName)
-	}
+	node, err := createNode(p, typeName, title, o)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", typeName, err)
 	}
 
-	// Warn about missing track (spikes and tracks are exempt).
-	if trackID == "" && typeName != "track" && typeName != "spike" {
-		fmt.Fprintf(os.Stderr, "Warning: no track specified. Use --track to link this %s to an initiative.\n", typeName)
-	}
+	warnMissingFields(typeName, o)
 
-	// Auto-create caused_by edge: bug → active feature (when available).
-	if typeName == "bug" && !noLink {
+	if typeName == "bug" && !o.noLink {
 		if featID := detectActiveFeature(p, dir); featID != "" {
 			autoCausedByEdge(p, node.ID, featID)
 			fmt.Printf("  (linked to %s)\n", featID)
 		}
 	}
 
-	// Auto-create bidirectional part_of/contains edges when --track is used.
-	if trackID != "" && typeName != "track" {
-		if linkErr := autoTrackEdges(p, node.ID, typeName, trackID, node.Title); linkErr != nil {
+	if o.trackID != "" && typeName != "track" {
+		if linkErr := autoTrackEdges(p, node.ID, typeName, o.trackID, node.Title); linkErr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: auto-link to track failed: %v\n", linkErr)
 		}
 	}
 
-	if start {
+	if o.start {
 		if _, startErr := collectionFor(p, typeName).Start(node.ID); startErr != nil {
 			return fmt.Errorf("start %s: %w", typeName, startErr)
 		}
@@ -128,6 +103,61 @@ func runWiCreate(typeName, title, trackID, priority string, start, noLink bool) 
 		fmt.Printf("Created: %s  %s\n", node.ID, node.Title)
 	}
 	return nil
+}
+
+func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {
+	switch typeName {
+	case "feature":
+		opts := []workitem.FeatureOption{workitem.FeatWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.FeatWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.FeatWithContent(o.description))
+		}
+		return p.Features.Create(title, opts...)
+	case "bug":
+		opts := []workitem.BugOption{workitem.BugWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.BugWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.BugWithContent(o.description))
+		}
+		return p.Bugs.Create(title, opts...)
+	case "spike":
+		opts := []workitem.SpikeOption{workitem.SpikeWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.SpikeWithTrack(o.trackID))
+		}
+		return p.Spikes.Create(title, opts...)
+	case "track":
+		opts := []workitem.TrackOption{workitem.TrackWithPriority(o.priority)}
+		if o.description != "" {
+			opts = append(opts, workitem.TrackWithContent(o.description))
+		}
+		return p.Tracks.Create(title, opts...)
+	case "plan":
+		opts := []workitem.PlanOption{workitem.PlanWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.PlanWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.PlanWithContent(o.description))
+		}
+		return p.Plans.Create(title, opts...)
+	case "spec":
+		opts := []workitem.SpecOption{workitem.SpecWithPriority(o.priority)}
+		if o.trackID != "" {
+			opts = append(opts, workitem.SpecWithTrack(o.trackID))
+		}
+		if o.description != "" {
+			opts = append(opts, workitem.SpecWithContent(o.description))
+		}
+		return p.Specs.Create(title, opts...)
+	default:
+		return nil, fmt.Errorf("unknown type: %s", typeName)
+	}
 }
 
 func wiListCmd(typeName, dirName string) *cobra.Command {
@@ -412,80 +442,4 @@ func printNodeDetail(n *models.Node) {
 			fmt.Printf("  %s\n", line)
 		}
 	}
-}
-
-// detectActiveFeature returns the active feature ID from the session DB, or "".
-func detectActiveFeature(p *workitem.Project, htmlgraphDir string) string {
-	if p.DB == nil {
-		return ""
-	}
-	sessionID := hooks.EnvSessionID("")
-	if sessionID == "" {
-		return ""
-	}
-	return hooks.GetActiveFeatureID(p.DB, sessionID)
-}
-
-// autoCausedByEdge creates a caused_by edge from a bug to the active feature.
-func autoCausedByEdge(p *workitem.Project, bugID, featureID string) {
-	edge := models.Edge{
-		TargetID:     featureID,
-		Relationship: models.RelCausedBy,
-		Title:        featureID,
-		Since:        time.Now().UTC(),
-	}
-	_, _ = p.Bugs.AddEdge(bugID, edge)
-}
-
-// autoImplementedInEdge creates an implemented_in edge from a work item to
-// a session. Idempotent: skips if edge already exists. Non-fatal on error.
-func autoImplementedInEdge(col *workitem.Collection, itemID, sessionID string) {
-	node, err := col.Get(itemID)
-	if err != nil {
-		return
-	}
-	// Check for existing implemented_in edge to this session.
-	for _, e := range node.Edges[string(models.RelImplementedIn)] {
-		if e.TargetID == sessionID {
-			return // already linked
-		}
-	}
-	edge := models.Edge{
-		TargetID:     sessionID,
-		Relationship: models.RelImplementedIn,
-		Title:        "session " + sessionID,
-		Since:        time.Now().UTC(),
-	}
-	_, _ = col.AddEdge(itemID, edge)
-}
-
-// autoTrackEdges creates bidirectional part_of/contains edges between a work
-// item and its track. Errors are non-fatal (warn-not-block).
-func autoTrackEdges(p *workitem.Project, itemID, typeName, trackID, itemTitle string) error {
-	now := time.Now().UTC()
-
-	// item → track (part_of)
-	col := collectionFor(p, typeName)
-	partOf := models.Edge{
-		TargetID:     trackID,
-		Relationship: models.RelPartOf,
-		Title:        trackID,
-		Since:        now,
-	}
-	if _, err := col.AddEdge(itemID, partOf); err != nil {
-		return fmt.Errorf("part_of: %w", err)
-	}
-
-	// track → item (contains)
-	contains := models.Edge{
-		TargetID:     itemID,
-		Relationship: models.RelContains,
-		Title:        itemTitle,
-		Since:        now,
-	}
-	if _, err := p.Tracks.AddEdge(trackID, contains); err != nil {
-		return fmt.Errorf("contains: %w", err)
-	}
-
-	return nil
 }

@@ -62,6 +62,7 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 	cmd.Flags().BoolVar(&skipTests, "skip-tests", false, "Skip test execution (run lint/build only)")
 
 	cmd.AddCommand(checkOrphansCmd())
+	cmd.AddCommand(checkIncompleteCmd())
 	return cmd
 }
 

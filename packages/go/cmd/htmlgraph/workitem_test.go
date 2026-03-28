@@ -8,6 +8,16 @@ import (
 	"github.com/shakestzd/htmlgraph/internal/htmlparse"
 )
 
+// testCreate is a test helper that wraps runWiCreate with the opts struct.
+func testCreate(typeName, title, trackID, priority string, start, noLink bool) error {
+	return runWiCreate(typeName, title, &wiCreateOpts{
+		trackID:  trackID,
+		priority: priority,
+		start:    start,
+		noLink:   noLink,
+	})
+}
+
 func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
@@ -21,7 +31,7 @@ func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Create a track first
-	if err := runWiCreate("track", "Test Track", "", "medium", false, false); err != nil {
+	if err := testCreate("track", "Test Track", "", "medium", false, false); err != nil {
 		t.Fatalf("create track: %v", err)
 	}
 
@@ -37,7 +47,7 @@ func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	trackID := trackNode.ID
 
 	// Create a feature linked to the track
-	if err := runWiCreate("feature", "Tracked Feature", trackID, "high", false, false); err != nil {
+	if err := testCreate("feature", "Tracked Feature", trackID, "high", false, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -83,7 +93,7 @@ func TestAutoTrackEdgesNotCreatedForTrack(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Creating a track should not attempt auto-edges even if trackID is passed
-	if err := runWiCreate("track", "Parent Track", "", "medium", false, false); err != nil {
+	if err := testCreate("track", "Parent Track", "", "medium", false, false); err != nil {
 		t.Fatalf("create track: %v", err)
 	}
 
@@ -111,7 +121,7 @@ func TestAutoImplementedInEdgeOnStart(t *testing.T) {
 	t.Setenv("HTMLGRAPH_SESSION_ID", "test-session-abc")
 
 	// Create a feature
-	if err := runWiCreate("feature", "Impl Feature", "", "high", false, false); err != nil {
+	if err := testCreate("feature", "Impl Feature", "", "high", false, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -168,7 +178,7 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	os.Chdir(tmpDir)
 	defer os.Chdir(oldWd)
 
-	if err := runWiCreate("feature", "No Session Feature", "", "low", false, false); err != nil {
+	if err := testCreate("feature", "No Session Feature", "", "low", false, false); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -196,12 +206,12 @@ func TestAutoCausedByEdgeOnBugCreate(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Create a feature first and start it
-	if err := runWiCreate("feature", "Active Feature", "", "high", true, false); err != nil {
+	if err := testCreate("feature", "Active Feature", "", "high", true, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
 	// Now create a bug — should auto-link caused_by to active feature
-	if err := runWiCreate("bug", "Found a bug", "", "high", false, false); err != nil {
+	if err := testCreate("bug", "Found a bug", "", "high", false, false); err != nil {
 		t.Fatalf("create bug: %v", err)
 	}
 
@@ -239,12 +249,12 @@ func TestBugCreateNoLinkSkipsCausedBy(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Create and start a feature
-	if err := runWiCreate("feature", "Active Feature", "", "high", true, false); err != nil {
+	if err := testCreate("feature", "Active Feature", "", "high", true, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
 	// Create bug with --no-link
-	if err := runWiCreate("bug", "Unrelated bug", "", "medium", false, true); err != nil {
+	if err := testCreate("bug", "Unrelated bug", "", "medium", false, true); err != nil {
 		t.Fatalf("create bug: %v", err)
 	}
 

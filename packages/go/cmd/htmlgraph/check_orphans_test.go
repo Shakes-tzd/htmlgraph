@@ -19,7 +19,7 @@ func TestCheckOrphansFindsUnlinkedItems(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Create a track
-	if err := runWiCreate("track", "My Track", "", "medium", false, false); err != nil {
+	if err := testCreate("track", "My Track", "", "medium", false, false); err != nil {
 		t.Fatal(err)
 	}
 	trackFiles, _ := filepath.Glob(filepath.Join(hgDir, "tracks", "trk-*.html"))
@@ -27,17 +27,17 @@ func TestCheckOrphansFindsUnlinkedItems(t *testing.T) {
 	trackID := trackNode.ID
 
 	// Create a linked feature (has track)
-	if err := runWiCreate("feature", "Linked Feature", trackID, "high", false, false); err != nil {
+	if err := testCreate("feature", "Linked Feature", trackID, "high", false, false); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create an orphan feature (no track)
-	if err := runWiCreate("feature", "Orphan Feature", "", "low", false, false); err != nil {
+	if err := testCreate("feature", "Orphan Feature", "", "low", false, false); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create a spike (should be exempt)
-	if err := runWiCreate("spike", "Research Spike", "", "low", false, false); err != nil {
+	if err := testCreate("spike", "Research Spike", "", "low", false, false); err != nil {
 		t.Fatal(err)
 	}
 
