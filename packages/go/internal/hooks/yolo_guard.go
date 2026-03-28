@@ -2,9 +2,12 @@ package hooks
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -57,6 +60,41 @@ func checkYoloCommitGuard(event *CloudEvent, yolo, testRan bool) string {
 	}
 	return "YOLO mode requires tests to pass before committing. " +
 		"Run: go test ./... or uv run pytest"
+}
+
+// checkYoloBudgetGuard blocks git commit when the staged diff exceeds
+// YOLO hard limits (20 files or 600 lines added).
+func checkYoloBudgetGuard(event *CloudEvent, yolo bool) string {
+	if !yolo || event.ToolName != "Bash" {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	if !gitCommitPattern.MatchString(cmd) {
+		return ""
+	}
+	out, err := exec.Command("git", "diff", "--cached", "--numstat").Output()
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var fileCount, totalAdded int
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		fileCount++
+		parts := strings.Fields(line)
+		if len(parts) >= 1 && parts[0] != "-" {
+			n, _ := strconv.Atoi(parts[0])
+			totalAdded += n
+		}
+	}
+	if fileCount > 20 || totalAdded > 600 {
+		return fmt.Sprintf(
+			"YOLO budget HARD LIMIT: %d files, %d lines (max 20/600). "+
+				"Split into sub-features.", fileCount, totalAdded)
+	}
+	return ""
 }
 
 // testPattern matches common test runner commands in Bash input summaries.

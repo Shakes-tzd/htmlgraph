@@ -57,6 +57,12 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 				Reason:   warn,
 			}, nil
 		}
+		if warn := checkYoloBudgetGuard(event, yolo); warn != "" {
+			return &HookResult{
+				Decision: "block",
+				Reason:   warn,
+			}, nil
+		}
 	}
 
 	parentEventID := resolveParentEventID(database, ctx.SessionID, event.AgentID, ctx.IsSubagent)

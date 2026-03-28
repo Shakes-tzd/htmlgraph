@@ -94,3 +94,33 @@ func TestCheckYoloCommitGuard(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckYoloBudgetGuard(t *testing.T) {
+	tests := []struct {
+		name    string
+		tool    string
+		cmd     string
+		yolo    bool
+		blocked bool
+	}{
+		{"non-commit allows", "Bash", "git add file.go", true, false},
+		{"non-yolo allows", "Bash", "git commit -m 'foo'", false, false},
+		{"non-bash allows", "Read", "git commit", true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			event := &CloudEvent{
+				ToolName:  tt.tool,
+				ToolInput: map[string]any{"command": tt.cmd},
+			}
+			result := checkYoloBudgetGuard(event, tt.yolo)
+			if tt.blocked && result == "" {
+				t.Errorf("expected block")
+			}
+			if !tt.blocked && result != "" {
+				t.Errorf("expected allow, got: %s", result)
+			}
+		})
+	}
+}
