@@ -690,3 +690,15 @@
   flex-shrink: 0;
 }
 .work-detail-related-item .rel-title { color: var(--text-secondary); flex: 1; }
+.work-detail-content {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
