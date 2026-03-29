@@ -99,11 +99,11 @@ func Empty() error {
 
 // ResolveProjectDir finds the project directory containing .htmlgraph/.
 // Delegates to paths.ResolveProjectDir with the CloudEvent CWD and a
-// walk-up limit of 10 levels (matching the previous hook behaviour).
+// walk-up limit of defaultProjectDirWalkLevels (matching the previous hook behaviour).
 func ResolveProjectDir(cwd string) string {
 	dir, _ := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		EventCWD:   cwd,
-		WalkLevels: 10,
+		WalkLevels: defaultProjectDirWalkLevels,
 	})
 	return dir
 }

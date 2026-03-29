@@ -25,13 +25,7 @@ var funcPrefixes = map[string]string{
 }
 
 // lineCountLimits defines (warning, fail) thresholds for module size.
-const (
-	moduleWarnLines  = 300
-	moduleLimitLines = 500
-	funcWarnLines    = 30
-	funcLimitLines   = 50
-	dupBlockSize     = 5 // minimum lines per duplicate block
-)
+// See constants.go for constant definitions.
 
 // CheckFileQuality reads the file that was just written and returns advisory
 // warnings if it violates size/complexity limits. Returns empty string when
