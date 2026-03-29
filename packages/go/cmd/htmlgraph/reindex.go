@@ -34,66 +34,21 @@ func runReindex(_ *cobra.Command, _ []string) error {
 	}
 	defer database.Close()
 
-	dirs := []string{"features", "bugs", "tracks", "spikes"}
 	var total, upserted, errCount int
 	validIDs := make(map[string]bool)
 
-	for _, dir := range dirs {
-		pattern := filepath.Join(htmlgraphDir, dir, "*.html")
-		files, _ := filepath.Glob(pattern)
+	// Pass 1: upsert tracks first so features.track_id FK is satisfied.
+	trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, validIDs)
+	total += trackTotal
+	upserted += trackUpserted
+	errCount += trackErrs
 
-		for _, f := range files {
-			total++
-			node, parseErr := htmlparse.ParseFile(f)
-			if parseErr != nil {
-				errCount++
-				continue
-			}
-
-			stepsTotal := len(node.Steps)
-			stepsCompleted := 0
-			for _, s := range node.Steps {
-				if s.Completed {
-					stepsCompleted++
-				}
-			}
-
-			desc := node.Content
-			if len([]rune(desc)) > 500 {
-				desc = string([]rune(desc)[:499]) + "…"
-			}
-
-			createdAt := node.CreatedAt
-			if createdAt.IsZero() {
-				createdAt = time.Now()
-			}
-			updatedAt := node.UpdatedAt
-			if updatedAt.IsZero() {
-				updatedAt = createdAt
-			}
-
-			feat := &dbpkg.Feature{
-				ID:             node.ID,
-				Type:           mapNodeType(node.Type),
-				Title:          node.Title,
-				Description:    desc,
-				Status:         normalizeStatus(string(node.Status)),
-				Priority:       string(node.Priority),
-				AssignedTo:     node.AgentAssigned,
-				TrackID:        node.TrackID,
-				CreatedAt:      createdAt,
-				UpdatedAt:      updatedAt,
-				StepsTotal:     stepsTotal,
-				StepsCompleted: stepsCompleted,
-			}
-
-			if upsertErr := dbpkg.UpsertFeature(database, feat); upsertErr != nil {
-				errCount++
-				continue
-			}
-			validIDs[node.ID] = true
-			upserted++
-		}
+	// Pass 2: upsert features, bugs, and spikes (track_id FK now safe).
+	for _, dir := range []string{"features", "bugs", "spikes"} {
+		t, u, e := reindexFeatureDir(database, htmlgraphDir, dir, validIDs)
+		total += t
+		upserted += u
+		errCount += e
 	}
 
 	purged, edgesPurged := purgeStaleEntries(database, validIDs)
@@ -104,6 +59,120 @@ func runReindex(_ *cobra.Command, _ []string) error {
 		fmt.Printf("Purged: %d stale features, %d stale edges\n", purged, edgesPurged)
 	}
 	return nil
+}
+
+// reindexTracks globs both flat (tracks/*.html) and nested (tracks/*/index.html)
+// track files and upserts each into the tracks table.
+// Returns (total, upserted, errors).
+func reindexTracks(database *sql.DB, htmlgraphDir string, validIDs map[string]bool) (int, int, int) {
+	patterns := []string{
+		filepath.Join(htmlgraphDir, "tracks", "*.html"),
+		filepath.Join(htmlgraphDir, "tracks", "*", "index.html"),
+	}
+
+	seen := make(map[string]bool)
+	var total, upserted, errCount int
+
+	for _, pattern := range patterns {
+		files, _ := filepath.Glob(pattern)
+		for _, f := range files {
+			if seen[f] {
+				continue
+			}
+			seen[f] = true
+			total++
+
+			node, parseErr := htmlparse.ParseFile(f)
+			if parseErr != nil {
+				errCount++
+				continue
+			}
+
+			createdAt, updatedAt := normalizeTimes(node.CreatedAt, node.UpdatedAt)
+			track := &dbpkg.Track{
+				ID:        node.ID,
+				Type:      "track",
+				Title:     node.Title,
+				Priority:  string(node.Priority),
+				Status:    normalizeStatus(string(node.Status)),
+				CreatedAt: createdAt,
+				UpdatedAt: updatedAt,
+			}
+
+			if upsertErr := dbpkg.UpsertTrack(database, track); upsertErr != nil {
+				errCount++
+				continue
+			}
+			validIDs[node.ID] = true
+			upserted++
+		}
+	}
+	return total, upserted, errCount
+}
+
+// reindexFeatureDir upserts all HTML files in a single directory into the features table.
+// Returns (total, upserted, errors).
+func reindexFeatureDir(database *sql.DB, htmlgraphDir, dir string, validIDs map[string]bool) (int, int, int) {
+	pattern := filepath.Join(htmlgraphDir, dir, "*.html")
+	files, _ := filepath.Glob(pattern)
+
+	var total, upserted, errCount int
+	for _, f := range files {
+		total++
+		node, parseErr := htmlparse.ParseFile(f)
+		if parseErr != nil {
+			errCount++
+			continue
+		}
+
+		createdAt, updatedAt := normalizeTimes(node.CreatedAt, node.UpdatedAt)
+		desc := node.Content
+		if len([]rune(desc)) > 500 {
+			desc = string([]rune(desc)[:499]) + "…"
+		}
+
+		stepsTotal := len(node.Steps)
+		stepsCompleted := 0
+		for _, s := range node.Steps {
+			if s.Completed {
+				stepsCompleted++
+			}
+		}
+
+		feat := &dbpkg.Feature{
+			ID:             node.ID,
+			Type:           mapNodeType(node.Type),
+			Title:          node.Title,
+			Description:    desc,
+			Status:         normalizeStatus(string(node.Status)),
+			Priority:       string(node.Priority),
+			AssignedTo:     node.AgentAssigned,
+			TrackID:        node.TrackID,
+			CreatedAt:      createdAt,
+			UpdatedAt:      updatedAt,
+			StepsTotal:     stepsTotal,
+			StepsCompleted: stepsCompleted,
+		}
+
+		if upsertErr := dbpkg.UpsertFeature(database, feat); upsertErr != nil {
+			errCount++
+			continue
+		}
+		validIDs[node.ID] = true
+		upserted++
+	}
+	return total, upserted, errCount
+}
+
+// normalizeTimes returns sensible defaults for zero-value timestamps.
+func normalizeTimes(createdAt, updatedAt time.Time) (time.Time, time.Time) {
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
+	if updatedAt.IsZero() {
+		updatedAt = createdAt
+	}
+	return createdAt, updatedAt
 }
 
 // purgeStaleEntries removes features and graph_edges whose IDs are no longer
