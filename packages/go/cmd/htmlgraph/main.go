@@ -68,6 +68,7 @@ func main() {
 	rootCmd.AddCommand(batchCmd())
 	rootCmd.AddCommand(workitemCmd("plan", "plans"))
 	rootCmd.AddCommand(backfillCmd())
+	rootCmd.AddCommand(reindexCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

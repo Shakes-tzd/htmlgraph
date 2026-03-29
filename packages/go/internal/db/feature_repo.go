@@ -73,6 +73,36 @@ func GetFeature(db *sql.DB, id string) (*Feature, error) {
 	return f, nil
 }
 
+// UpsertFeature inserts or updates a feature row.
+// On conflict by id, all mutable fields are updated.
+func UpsertFeature(database *sql.DB, f *Feature) error {
+	_, err := database.Exec(`
+		INSERT INTO features (id, type, title, description, status, priority,
+			assigned_to, track_id, created_at, updated_at,
+			steps_total, steps_completed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			title = excluded.title,
+			status = excluded.status,
+			priority = excluded.priority,
+			assigned_to = excluded.assigned_to,
+			track_id = excluded.track_id,
+			updated_at = excluded.updated_at,
+			steps_total = excluded.steps_total,
+			steps_completed = excluded.steps_completed`,
+		f.ID, f.Type, f.Title, nullStr(f.Description),
+		f.Status, f.Priority,
+		nullStr(f.AssignedTo), nullStr(f.TrackID),
+		f.CreatedAt.UTC().Format(time.RFC3339),
+		f.UpdatedAt.UTC().Format(time.RFC3339),
+		f.StepsTotal, f.StepsCompleted,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert feature %s: %w", f.ID, err)
+	}
+	return nil
+}
+
 // UpdateFeatureStatus updates a feature's status (and updated_at).
 func UpdateFeatureStatus(db *sql.DB, id, status string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
