@@ -43,6 +43,7 @@
   color: var(--text-secondary);
 }
 .stat-pill .val {
+  font-family: var(--font-mono);
   color: var(--text-primary);
   font-weight: 600;
   min-width: 20px;
