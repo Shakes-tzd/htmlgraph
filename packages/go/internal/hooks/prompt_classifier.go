@@ -22,7 +22,7 @@ type PromptIntent struct {
 	Confidence float64
 }
 
-// ---------- keyword lists (mirrors Python prompt_analyzer.py) ----------
+// ---------- keyword lists ----------
 
 // explorationKeywords signal search / read / review activity.
 var explorationKeywords = []string{
@@ -91,29 +91,29 @@ func ClassifyPrompt(prompt string) PromptIntent {
 	// Primary intent classification.
 	if countKeywordHits(lower, implementationKeywords) > 0 {
 		intent.IsImplementation = true
-		intent.Confidence = max64(intent.Confidence, 0.8)
+		intent.Confidence = max(intent.Confidence, 0.8)
 	}
 	if countKeywordHits(lower, investigationKeywords) > 0 {
 		intent.IsInvestigation = true
-		intent.Confidence = max64(intent.Confidence, 0.7)
+		intent.Confidence = max(intent.Confidence, 0.7)
 	}
 	if countKeywordHits(lower, bugKeywords) > 0 {
 		intent.IsBugReport = true
-		intent.Confidence = max64(intent.Confidence, 0.75)
+		intent.Confidence = max(intent.Confidence, 0.75)
 	}
 
 	// CIGS delegation flags.
 	if n := countKeywordHits(lower, explorationKeywords); n > 0 {
 		intent.InvolvesExploration = true
-		intent.Confidence = max64(intent.Confidence, min64(1.0, float64(n)*0.3))
+		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*0.3))
 	}
 	if n := countKeywordHits(lower, codeChangeKeywords); n > 0 {
 		intent.InvolvesCodeChanges = true
-		intent.Confidence = max64(intent.Confidence, min64(1.0, float64(n)*0.35))
+		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*0.35))
 	}
 	if n := countKeywordHits(lower, gitKeywords); n > 0 {
 		intent.InvolvesGit = true
-		intent.Confidence = max64(intent.Confidence, min64(1.0, float64(n)*0.4))
+		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*0.4))
 	}
 
 	return intent
@@ -153,8 +153,7 @@ func GenerateGuidance(intent PromptIntent, activeFeatureID, activeWorkType, attr
 }
 
 // intentDirective returns orchestrator workflow directives based on the prompt
-// intent and the currently active work item type. Mirrors the Python
-// generate_guidance() function's branching logic.
+// intent and the currently active work item type.
 func intentDirective(intent PromptIntent, activeFeatureID, activeWorkType string) string {
 	// Continuation with active work — no extra directive needed.
 	if intent.IsContinuation && activeFeatureID != "" {
@@ -217,7 +216,7 @@ func intentDirective(intent PromptIntent, activeFeatureID, activeWorkType string
 }
 
 // cigsImperatives returns delegation imperative lines for exploration,
-// code changes, or git operations. Mirrors generate_cigs_guidance() in Python.
+// code changes, or git operations.
 func cigsImperatives(intent PromptIntent) string {
 	var lines []string
 
@@ -266,18 +265,4 @@ func matchesContinuation(lower string) bool {
 		}
 	}
 	return false
-}
-
-func max64(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min64(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
 }
