@@ -367,6 +367,7 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 	}
 
 	// Check if any UI files were modified in this session.
+	// Exclude .htmlgraph/ work item HTML files — those are data, not UI.
 	var uiFileCount int
 	database.QueryRow(`
 		SELECT COUNT(*) FROM agent_events
@@ -375,6 +376,7 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 		    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
 		    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
 		    OR input_summary LIKE '%.svelte%')
+		  AND input_summary NOT LIKE '%.htmlgraph/%'
 		  AND status = 'completed'`,
 		sessionID,
 	).Scan(&uiFileCount)
