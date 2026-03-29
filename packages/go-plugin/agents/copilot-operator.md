@@ -1,10 +1,7 @@
 ---
 name: copilot-operator
 description: "Execute git and code operations via GitHub Copilot CLI with automatic fallback. Use for commits, pushes, PRs, and code generation tasks."
-tools:
-  - Bash
-  - Read
-  - Grep
+tools: Bash, Read, Grep
 model: haiku
 color: cyan
 ---

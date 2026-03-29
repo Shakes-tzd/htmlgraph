@@ -1,10 +1,7 @@
 ---
 name: codex-operator
 description: "Execute code generation and sandboxed tasks via OpenAI Codex CLI with automatic fallback. Use for implementation, refactoring, and structured output tasks."
-tools:
-  - Bash
-  - Read
-  - Grep
+tools: Bash, Read, Grep
 model: haiku
 color: green
 ---
