@@ -64,13 +64,14 @@ func statuslineFromSession(dir, sessionID string) error {
 		col := collectionFor(p, typeName)
 		node, err := col.Get(featureID)
 		if err == nil && node != nil {
+			if node.Status == "done" || node.Status == "completed" {
+				return nil // Feature was completed — don't show it
+			}
 			fmt.Printf("%s %s\n", iconFor(typeName), truncate(node.Title, 30))
 			return nil
 		}
 	}
 
-	// ID exists in DB but no matching HTML — show ID alone.
-	fmt.Printf("%s %s\n", iconFor(inferType(featureID)), featureID)
 	return nil
 }
 
