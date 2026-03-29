@@ -7,7 +7,7 @@ description: Code hygiene, quality gates, and pre-commit workflows. Use for lint
 
 Use this skill for code hygiene, quality gates, and pre-commit workflows.
 
-**Trigger keywords:** code quality, lint, mypy, ruff, pytest, pre-commit, type checking, clean code, fix errors
+**Trigger keywords:** code quality, lint, go vet, type checking, go test, pre-commit, build, fix errors
 
 ---
 
@@ -15,10 +15,9 @@ Use this skill for code hygiene, quality gates, and pre-commit workflows.
 
 ```bash
 # Before EVERY commit:
-uv run ruff check --fix     # Lint + autofix
-uv run ruff format          # Format code
-uv run mypy src/            # Type checking
-uv run pytest               # Run tests
+(cd packages/go && go build ./...)           # Type checking + compile
+(cd packages/go && go vet ./...)             # Linting
+(cd packages/go && go test ./...)            # Run tests
 
 # Only commit when ALL checks pass
 git commit -m "..."
@@ -28,9 +27,9 @@ git commit -m "..."
 
 **Before implementing anything new:**
 
-- Search PyPI/stdlib for existing libraries before writing custom implementations
-- Check `pyproject.toml` for what is already available as a dependency
-- Check `src/python/htmlgraph/utils/` for shared utilities before duplicating logic
+- Search Go ecosystem (pkg.go.dev, etc.) for existing libraries before writing custom implementations
+- Check `go.mod` for what is already available as a dependency
+- Check `packages/go/internal/` for shared utilities before duplicating logic
 - Prefer well-maintained packages over one-off custom code
 
 ## Philosophy
@@ -45,90 +44,92 @@ git commit -m "..."
 ## Quality Gates
 
 The deployment script (`deploy-all.sh`) blocks on:
-- Mypy type errors
-- Ruff lint errors
+- Go build errors (type checking + compilation)
+- Go vet warnings (linting)
 - Test failures
 
 This is intentional - maintain quality gates.
 
 ## Tools Reference
 
-### Ruff (Linting + Formatting)
+### Go Build (Type Checking + Compilation)
 
 ```bash
-# Check for issues
-uv run ruff check
+# Build all packages
+(cd packages/go && go build ./...)
 
-# Check and auto-fix
-uv run ruff check --fix
+# Build specific package
+(cd packages/go && go build ./cmd/htmlgraph)
 
-# Format code
-uv run ruff format
-
-# Check specific files
-uv run ruff check src/htmlgraph/models.py
+# Verbose output
+(cd packages/go && go build -v ./...)
 ```
 
-### Mypy (Type Checking)
+### Go Vet (Linting)
 
 ```bash
-# Check all source
-uv run mypy src/
+# Check all packages
+(cd packages/go && go vet ./...)
 
-# Check specific module
-uv run mypy src/htmlgraph/sdk.py
+# Check specific package
+(cd packages/go && go vet ./cmd/htmlgraph)
 
-# Ignore missing imports
-uv run mypy src/ --ignore-missing-imports
+# Verbose output
+(cd packages/go && go vet -v ./...)
 ```
 
-### Pytest (Testing)
+### Go Test (Testing)
 
 ```bash
 # Run all tests
-uv run pytest
+(cd packages/go && go test ./...)
 
 # Verbose output
-uv run pytest -v
-
-# Run specific test file
-uv run pytest tests/test_sdk.py
+(cd packages/go && go test -v ./...)
 
 # Run specific test
-uv run pytest tests/test_sdk.py::test_feature_create
+(cd packages/go && go test -run TestName ./...)
+
+# Run with coverage
+(cd packages/go && go test -cover ./...)
 ```
 
 ## Common Fix Patterns
 
-### Type Errors
+### Type Errors (Build Errors)
 
-```python
-# Before (type error)
-def get_user(id):
-    return db.query(id)
+```go
+// Before (type error)
+func GetUser(id interface{}) *User {
+    return db.Query(id)
+}
 
-# After (typed)
-def get_user(id: str) -> User | None:
-    return db.query(id)
+// After (typed)
+func GetUser(id string) *User {
+    return db.Query(id)
+}
 ```
 
-### Lint Errors
+### Lint Errors (Vet Warnings)
 
-```python
-# Before (unused import)
-import os
-import sys
-x = 1
+```go
+// Before (unused import)
+import (
+    "os"
+    "sys"
+)
+var x = 1
 
-# After (clean)
-x = 1
+// After (clean)
+var x = 1
 ```
 
 ### Format Issues
 
 ```bash
-# Auto-fix all formatting
-uv run ruff format
+# Go automatically formats with gofmt
+# Most editors auto-format on save
+(cd packages/go && gofmt -w .)
 ```
 
 ## Integration with HtmlGraph
@@ -137,7 +138,7 @@ Track quality improvements:
 
 ```bash
 # Create a spike to document fixes
-htmlgraph spike create "Fix mypy errors in models.py"
+htmlgraph spike create "Fix go vet errors in models.go"
 # Then add findings via htmlgraph spike edit <id>
 ```
 
