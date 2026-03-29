@@ -249,17 +249,35 @@ func hasRecentResearch(database *sql.DB, sessionID string) bool {
 	return count > 0
 }
 
-// hasRecentDiffReview checks if git diff was run in this session.
+// hasRecentDiffReview checks if git diff was run in this session or its
+// parent session. Worktree subagents inherit diff reviews from the outer
+// orchestrator session that spawned them.
 func hasRecentDiffReview(database *sql.DB, sessionID string) bool {
-	var count int
-	database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ? AND tool_name = 'Bash'
-		  AND (input_summary LIKE '%git diff%'
-		    OR input_summary LIKE '%git show%')`,
+	// Build list of session IDs to check: current + parent (if any).
+	sessionIDs := []string{sessionID}
+	var parentID string
+	database.QueryRow(
+		`SELECT COALESCE(parent_session_id, '') FROM sessions WHERE session_id = ?`,
 		sessionID,
-	).Scan(&count)
-	return count > 0
+	).Scan(&parentID)
+	if parentID != "" {
+		sessionIDs = append(sessionIDs, parentID)
+	}
+
+	for _, sid := range sessionIDs {
+		var count int
+		database.QueryRow(`
+			SELECT COUNT(*) FROM agent_events
+			WHERE session_id = ? AND tool_name = 'Bash'
+			  AND (input_summary LIKE '%git diff%'
+			    OR input_summary LIKE '%git show%')`,
+			sid,
+		).Scan(&count)
+		if count > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // currentBranchIn returns the git branch for the given directory.
