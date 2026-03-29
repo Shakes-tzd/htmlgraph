@@ -184,22 +184,33 @@ func parseSteps(doc *goquery.Document) []models.Step {
 }
 
 func parseContent(doc *goquery.Document) string {
+	// Try section[data-content] first.
 	sec := doc.Find("section[data-content]").First()
-	if sec.Length() == 0 {
-		return ""
+	if sec.Length() > 0 {
+		var parts []string
+		sec.Children().Each(func(_ int, child *goquery.Selection) {
+			if goquery.NodeName(child) == "h3" {
+				return
+			}
+			text := strings.TrimSpace(child.Text())
+			if text != "" {
+				parts = append(parts, text)
+			}
+		})
+		if result := strings.Join(parts, "\n"); result != "" {
+			return result
+		}
 	}
 
-	var parts []string
-	sec.Children().Each(func(_ int, child *goquery.Selection) {
-		if goquery.NodeName(child) == "h3" {
-			return
+	// Fall back to section[data-findings] .findings-content (spike files).
+	findingsEl := doc.Find("section[data-findings] .findings-content").First()
+	if findingsEl.Length() > 0 {
+		if text := strings.TrimSpace(findingsEl.Text()); text != "" {
+			return text
 		}
-		text := strings.TrimSpace(child.Text())
-		if text != "" {
-			parts = append(parts, text)
-		}
-	})
-	return strings.Join(parts, "\n")
+	}
+
+	return ""
 }
 
 // attrOr returns the named attribute value, or fallback if absent/empty.

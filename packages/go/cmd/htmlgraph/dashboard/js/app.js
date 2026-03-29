@@ -576,6 +576,21 @@ function renderWorkDetail(container, node) {
   }
   if (badges.childNodes.length > 0) container.appendChild(badges);
 
+  // Content / findings
+  if (node.content) {
+    var contentSection = document.createElement('div');
+    contentSection.className = 'work-detail-section';
+    var contentTitle = document.createElement('div');
+    contentTitle.className = 'work-detail-section-title';
+    contentTitle.textContent = 'Findings';
+    contentSection.appendChild(contentTitle);
+    var contentBody = document.createElement('div');
+    contentBody.className = 'work-detail-content';
+    contentBody.textContent = node.content;
+    contentSection.appendChild(contentBody);
+    container.appendChild(contentSection);
+  }
+
   // Track info
   if (node.track_id) {
     var trackSection = document.createElement('div');
@@ -663,7 +678,7 @@ function renderWorkDetail(container, node) {
     container.appendChild(edgesSection);
   }
 
-  // Related features (async)
+  // Related features (async) — section only shown when results exist
   var relatedSection = document.createElement('div');
   relatedSection.className = 'work-detail-section';
   var relatedLabel = document.createElement('div');
@@ -672,20 +687,15 @@ function renderWorkDetail(container, node) {
   relatedSection.appendChild(relatedLabel);
   var relatedContainer = document.createElement('div');
   relatedContainer.className = 'work-detail-related';
-  relatedContainer.textContent = 'Loading...';
   relatedSection.appendChild(relatedContainer);
-  container.appendChild(relatedSection);
 
   fetch('/api/features/related?feature_id=' + encodeURIComponent(node.id))
     .then(function(r) { return r.ok ? r.json() : []; })
     .then(function(related) {
-      relatedContainer.textContent = '';
       if (!related || related.length === 0) {
-        relatedContainer.textContent = 'None';
-        relatedContainer.style.color = 'var(--text-muted)';
-        relatedContainer.style.fontSize = '12px';
         return;
       }
+      container.appendChild(relatedSection);
       related.forEach(function(rel) {
         var relEl = document.createElement('div');
         relEl.className = 'work-detail-related-item';
@@ -702,7 +712,7 @@ function renderWorkDetail(container, node) {
         relatedContainer.appendChild(relEl);
       });
     })
-    .catch(function() { relatedContainer.textContent = 'None'; });
+    .catch(function() { /* no related section on error */ });
 }
 
 /* ── Init ──────────────────────────────────────────────────── */
