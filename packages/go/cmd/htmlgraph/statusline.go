@@ -64,13 +64,13 @@ func statuslineFromSession(dir, sessionID string) error {
 		col := collectionFor(p, typeName)
 		node, err := col.Get(featureID)
 		if err == nil && node != nil {
-			fmt.Printf("%s: %s\n", node.ID, truncate(node.Title, 25))
+			fmt.Printf("%s %s\n", iconFor(typeName), truncate(node.Title, 30))
 			return nil
 		}
 	}
 
 	// ID exists in DB but no matching HTML — show ID alone.
-	fmt.Println(featureID)
+	fmt.Printf("%s %s\n", iconFor(inferType(featureID)), featureID)
 	return nil
 }
 
@@ -89,11 +89,44 @@ func statuslineFromHTML(dir string) error {
 		}
 		for _, n := range nodes {
 			if n.Status == "in-progress" {
-				fmt.Printf("%s: %s\n", n.ID, truncate(n.Title, 25))
+				fmt.Printf("%s %s\n", iconFor(typeName), truncate(n.Title, 30))
 				return nil
 			}
 		}
 	}
 
 	return nil
+}
+
+func iconFor(typeName string) string {
+	switch typeName {
+	case "bug":
+		return "\uf188" //  bug
+	case "feature":
+		return "\uf0eb" //  lightbulb
+	case "spike":
+		return "\uf0e7" //  bolt
+	case "track":
+		return "\uf018" //  road
+	default:
+		return "\uf111" //  circle
+	}
+}
+
+func inferType(id string) string {
+	if len(id) < 4 {
+		return "feature"
+	}
+	switch id[:4] {
+	case "bug-":
+		return "bug"
+	case "feat":
+		return "feature"
+	case "spk-", "spik":
+		return "spike"
+	case "trk-":
+		return "track"
+	default:
+		return "feature"
+	}
 }
