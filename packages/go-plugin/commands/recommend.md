@@ -1,91 +1,46 @@
 # /htmlgraph:recommend
 
-Get smart recommendations on what to work on next
+Get smart recommendations on what to work on next, including project health, bottleneck analysis, and parallel opportunities.
 
 ## Usage
 
 ```
-/htmlgraph:recommend [--count N] [--check-bottlenecks]
+/htmlgraph:recommend [--top N]
 ```
 
 ## Parameters
 
-- `--count` (optional) (default: 3): Number of recommendations to show
-- `--check-bottlenecks` (optional) (default: True): Also show bottlenecks
-
+- `--top` (optional, default: 5): Number of recommendations to show
 
 ## Examples
 
 ```bash
 /htmlgraph:recommend
 ```
-Get top 3 recommendations with bottleneck check
+Get top 5 recommendations with full analysis
 
 ```bash
-/htmlgraph:recommend --count 5
+/htmlgraph:recommend --top 10
 ```
-Get top 5 recommendations
+Get top 10 recommendations
 
-```bash
-/htmlgraph:recommend --no-check-bottlenecks
-```
-Recommendations only, skip bottleneck analysis
+## Output
 
-
+The command displays:
+- **Project Health** — Counts of features, bugs, spikes, tracks by status
+- **WIP Status** — Current in-progress work against your limit
+- **Bottlenecks** — Stale or overloaded items blocking progress
+- **Recommended Work** — Top N items scored by priority and impact
+- **Parallel Opportunities** — Features grouped by track that can run in parallel
 
 ## Instructions for Claude
 
-This command uses the Go binary to retrieve work recommendations and bottleneck analysis.
+This skill invokes the `/htmlgraph:recommend` command via the CLI, which provides all analytics in one unified output.
 
-### Implementation:
+**Key workflow:**
+1. Run `htmlgraph recommend [--top N]` where N is user's choice or default 5
+2. Present the output with light markdown formatting
+3. Analyze the **recommended items** for parallel execution opportunities
+4. Propose next action: either parallel launch or sequential plan
 
-1. Run `packages/go-plugin/hooks/bin/htmlgraph analytics summary` to get recommended work items
-2. If `--check-bottlenecks` is true (default), also run `packages/go-plugin/hooks/bin/htmlgraph analytics summary`
-3. Parse the CLI output (table format) and present it nicely in markdown
-4. Include the command output as-is, formatting it for readability
-
-### Sample CLI Commands:
-
-```bash
-# Get recommendations (shows top N items with scores)
-packages/go-plugin/hooks/bin/htmlgraph analytics summary
-
-# Get bottlenecks (shows blocking items with impact scores)
-packages/go-plugin/hooks/bin/htmlgraph analytics summary
-
-# Optional: Get work summary
-packages/go-plugin/hooks/bin/htmlgraph analytics summary
-```
-
-### Output Format:
-
-Present the CLI output in a user-friendly markdown format:
-
-```markdown
-## Work Recommendations
-
-{CLI output from analytics recommend command}
-
-{if check-bottlenecks}
-### ⚠️ Bottlenecks Detected
-
-{CLI output from analytics bottlenecks command}
-{end if}
-
----
-💡 Use `/htmlgraph:plan [id]` to start planning any of these items.
-```
-
-**PARALLEL ANALYSIS (MANDATORY when 2+ recommendations):**
-Before presenting results, analyze whether recommendations can execute in parallel:
-1. Check dependency graph between recommended items
-2. Check file/module overlap (would they touch the same files?)
-3. If independent → present a parallel execution plan as the DEFAULT action
-4. Format: table showing Feature | Agent | Scope | Parallelizable?
-
-**DELEGATION** (per-task model selection):
-- Simple fixes (1-2 files) → `Agent(subagent_type="htmlgraph:haiku-coder", isolation="worktree")`
-- Features (3-8 files) → `Agent(subagent_type="htmlgraph:sonnet-coder", isolation="worktree")`
-- Architecture (10+ files) → `Agent(subagent_type="htmlgraph:opus-coder", isolation="worktree")`
-
-**When parallelizable**, propose: "These N items have no dependencies or file overlap. Launch in parallel?"
+**See the skill:** `/htmlgraph:recommend` (in Claude Code plugin menu)
