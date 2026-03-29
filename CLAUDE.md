@@ -91,9 +91,9 @@ packages/go-plugin/build.sh
 
 ### Why This Matters
 
-The binary on your PATH is a symlink chain:
+The binary on your PATH is set up via a symlink:
 ```
-.venv/bin/htmlgraph → packages/go-plugin/hooks/bin/htmlgraph
+~/.local/bin/htmlgraph → packages/go-plugin/hooks/bin/htmlgraph
 ```
 
 `htmlgraph build` outputs to `packages/go-plugin/hooks/bin/htmlgraph` — the symlink target. Running `go build` directly puts the binary in `packages/go/htmlgraph` which is NOT on your PATH. You'll keep running the stale binary.
@@ -112,7 +112,7 @@ The bootstrap is a POSIX shell script (~170 lines) that requires only `curl`/`ta
 
 **Binary locations:**
 ```
-Developer:  .venv/bin/htmlgraph → packages/go-plugin/hooks/bin/htmlgraph (built locally)
+Developer:  ~/.local/bin/htmlgraph → packages/go-plugin/hooks/bin/htmlgraph (built locally via setup-cli)
 Plugin user: hooks/bin/htmlgraph (bootstrap script) → ~/.claude/plugins/data/htmlgraph/htmlgraph-bin (downloaded)
 ```
 

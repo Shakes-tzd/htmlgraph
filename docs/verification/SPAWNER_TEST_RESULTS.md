@@ -204,7 +204,6 @@ Multiple historical failures: All recent Gemini subprocess events show "failed" 
 
 ### Python Environment
 - Python 3.10.7
-- Virtual environment: `.venv/`
 - Project: HtmlGraph (v0.9.4)
 
 ### Database
