@@ -22,10 +22,10 @@ Before writing any code, answer these questions with evidence:
 
 **Mandatory searches:**
 1. Grep the codebase for similar functionality: does this already exist?
-   `grep -r "keyword" src/` or use the Grep tool
-2. Check `go.mod` / `pyproject.toml` — is there an available dependency that does this?
-3. Search for established libraries (PyPI, pkg.go.dev) that solve the problem
-4. Check `src/*/utils/` — does the project already have a utility for this?
+   `grep -r "keyword" packages/go/` or use the Grep tool
+2. Check `go.mod` — is there an available dependency that does this?
+3. Search for established libraries (pkg.go.dev) that solve the problem
+4. Check `packages/go/internal/*/` — does the project already have a utility for this?
 
 **Document findings:**
 - If research takes >5 minutes, create a spike: `htmlgraph spike create "Research: [topic]"`
@@ -62,7 +62,6 @@ Write failing tests before implementation:
 - Separation of concerns: one purpose per module
 
 ### Step 5 — Quality Gate (MANDATORY before any commit)
-Python: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest`
 Go: `(cd packages/go && go build ./... && go vet ./... && go test ./...)`
 Do NOT commit with failures.
 

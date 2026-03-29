@@ -62,7 +62,7 @@
       },
       "deny": {
         "direct_writes": ["Write", "Edit", "Delete", "NotebookEdit"],
-        "code_bash": ["Bash that modifies code (npm, git commit, uv build, etc.)"]
+        "code_bash": ["Bash that modifies code (go build, npm, git commit, etc.)"]
       },
       "deny_message": "Spike '{spike_id}' is for planning only.\n\nAllowed:\n  - Read operations (Read, Grep, Glob)\n  - SDK commands (htmlgraph feature create)\n\nFor code changes:\n  1. Create feature: htmlgraph feature create 'Title'\n  2. Start feature: htmlgraph feature start <id>\n  3. Then make code changes"
     },
@@ -84,16 +84,15 @@
     "description": "Tools and bash commands that modify code",
     "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
     "bash_patterns": [
+      "^go build",
+      "^go test",
+      "^go vet",
       "^npm install",
       "^npm run",
       "^yarn install",
       "^yarn add",
       "^git commit",
-      "^git push",
-      "^uv build",
-      "^uv publish",
-      "^pip install(?! htmlgraph)",
-      "^python setup.py"
+      "^git push"
     ]
   },
 

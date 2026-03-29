@@ -49,8 +49,8 @@ If using `Task(subagent_type="general-purpose")` instead of named agents:
 When delegating to ANY coder agent, ensure these principles are followed:
 
 **Research First**
-- Search for existing libraries (PyPI/npm/hex/Go modules) before implementing from scratch
-- Check project dependencies (`pyproject.toml`, `go.mod`) before adding new ones
+- Search for existing libraries (npm/hex/Go modules) before implementing from scratch
+- Check project dependencies (`go.mod`, `package.json`) before adding new ones
 - Prefer well-maintained packages over custom implementations
 
 **Code Design**
@@ -66,7 +66,6 @@ When delegating to ANY coder agent, ensure these principles are followed:
 
 **Quality Gates**
 
-Python: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest`
 Go: `(cd packages/go && go build ./... && go vet ./... && go test ./...)`
 
 Never commit with unresolved type errors, lint warnings, or test failures.
@@ -75,10 +74,9 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 
 1. Delegate first — only execute directly for simple Bash commands
 2. Read before Write/Edit — always check existing content first
-3. Use `uv run` for all Python execution
-4. For Go: use `go build`, `go test`, `go vet`
-5. Research first, implement second
-6. Fix all errors before committing
+3. For Go: use `go build`, `go test`, `go vet`
+4. Research first, implement second
+5. Fix all errors before committing
 
 ## Orchestration Rules
 
@@ -147,14 +145,9 @@ Plugin dir: `packages/go-plugin/`
 1. Make changes to Go code in `packages/go/`
 2. Rebuild: `packages/go-plugin/build.sh`
 3. Restart Claude Code: `packages/go-plugin/hooks/bin/htmlgraph claude --dev`
-4. Changes take effect immediately (no PyPI deploy needed)
+4. Changes take effect immediately (no re-release needed)
 
 ## Go Quality Gates
 ```bash
 (cd packages/go && go build ./... && go vet ./... && go test ./...)
-```
-
-## Python Quality Gates (for Python code)
-```bash
-uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest
 ```
