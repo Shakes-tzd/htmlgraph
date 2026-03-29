@@ -75,7 +75,7 @@ func runReindex(_ *cobra.Command, _ []string) error {
 				Type:           mapNodeType(node.Type),
 				Title:          node.Title,
 				Description:    desc,
-				Status:         string(node.Status),
+				Status:         normalizeStatus(string(node.Status)),
 				Priority:       string(node.Priority),
 				AssignedTo:     node.AgentAssigned,
 				TrackID:        node.TrackID,
@@ -96,6 +96,25 @@ func runReindex(_ *cobra.Command, _ []string) error {
 	fmt.Printf("Reindexed: %d upserted, %d errors (of %d HTML files)\n",
 		upserted, errCount, total)
 	return nil
+}
+
+// normalizeStatus maps HTML statuses to the features table CHECK constraint values.
+// features table allows: todo, in-progress, blocked, done, active, ended, stale
+func normalizeStatus(status string) string {
+	switch status {
+	case "todo", "in-progress", "blocked", "done", "active", "ended", "stale":
+		return status
+	case "completed":
+		return "done"
+	case "in_progress":
+		return "in-progress"
+	case "archived", "cancelled":
+		return "ended"
+	case "pending", "identified":
+		return "todo"
+	default:
+		return "todo"
+	}
 }
 
 // mapNodeType converts HTML node types to the features table CHECK constraint values.
