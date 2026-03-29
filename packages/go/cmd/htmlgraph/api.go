@@ -379,6 +379,28 @@ func statsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 	}
 }
 
+// featureDetailHandler returns a single work item parsed from its HTML file.
+// Requires ?id=ITEM_ID (e.g. feat-xxx, bug-xxx, spk-xxx, trk-xxx).
+func featureDetailHandler(projectDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id parameter required", http.StatusBadRequest)
+			return
+		}
+		for _, subdir := range []string{"features", "bugs", "spikes", "tracks"} {
+			path := filepath.Join(projectDir, subdir, id+".html")
+			node, err := htmlparse.ParseFile(path)
+			if err != nil || node == nil {
+				continue
+			}
+			respondJSON(w, node)
+			return
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	}
+}
+
 // relatedFeaturesHandler returns features that share files with a given feature.
 // Requires ?feature_id=FEATURE_ID. Returns a JSON array of RelatedFeature objects.
 func relatedFeaturesHandler(database *sql.DB) http.HandlerFunc {

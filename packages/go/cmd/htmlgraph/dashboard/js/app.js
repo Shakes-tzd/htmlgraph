@@ -215,6 +215,9 @@ function sortItems(items) {
 function buildKanbanCard(f) {
   var card = document.createElement('div');
   card.className = 'kanban-card';
+  card.dataset.itemId = f.id;
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', function() { openWorkDetail(f.id); });
 
   var titleEl = document.createElement('div');
   titleEl.className = 'kanban-card-title';
@@ -487,6 +490,221 @@ function renderHoursChart() {
   renderBarChart('chart-hours', entries);
 }
 
+/* ── Work item detail panel ────────────────────────────────── */
+function closeWorkDetail() {
+  var detail = document.getElementById('work-detail');
+  var board = document.getElementById('kanban-board');
+  var empty = document.getElementById('work-empty');
+  var viewTitle = document.querySelector('#v-work .view-title');
+  detail.classList.remove('active');
+  board.style.display = '';
+  if (features.length === 0) empty.style.display = '';
+  if (viewTitle) viewTitle.style.display = '';
+}
+
+function openWorkDetail(id) {
+  var detail = document.getElementById('work-detail');
+  var board = document.getElementById('kanban-board');
+  var empty = document.getElementById('work-empty');
+  var content = document.getElementById('work-detail-content');
+  var viewTitle = document.querySelector('#v-work .view-title');
+
+  // Hide board, show detail panel
+  board.style.display = 'none';
+  empty.style.display = 'none';
+  if (viewTitle) viewTitle.style.display = 'none';
+  detail.classList.add('active');
+  content.textContent = '';
+
+  // Loading indicator
+  var loading = document.createElement('div');
+  loading.className = 'empty';
+  loading.textContent = 'Loading...';
+  content.appendChild(loading);
+
+  fetch('/api/features/detail?id=' + encodeURIComponent(id))
+    .then(function(r) {
+      if (!r.ok) throw new Error('Not found');
+      return r.json();
+    })
+    .then(function(node) {
+      content.textContent = '';
+      renderWorkDetail(content, node);
+    })
+    .catch(function() {
+      content.textContent = '';
+      var err = document.createElement('div');
+      err.className = 'empty';
+      err.textContent = 'Could not load item: ' + id;
+      content.appendChild(err);
+    });
+}
+
+function renderWorkDetail(container, node) {
+  // Type badge + title
+  var typeKey = itemTypeKey(node.id);
+  var typeBadge = document.createElement('span');
+  typeBadge.className = 'badge badge-' + (typeKey === 'feat' ? 'ip' : typeKey === 'bug' ? 'error' : 'todo');
+  typeBadge.style.marginBottom = '8px';
+  typeBadge.style.display = 'inline-block';
+  typeBadge.textContent = typeKey.toUpperCase();
+  container.appendChild(typeBadge);
+
+  var titleEl = document.createElement('h2');
+  titleEl.className = 'work-detail-title';
+  titleEl.textContent = node.title || node.id;
+  container.appendChild(titleEl);
+
+  var idEl = document.createElement('div');
+  idEl.className = 'work-detail-id';
+  idEl.textContent = node.id;
+  container.appendChild(idEl);
+
+  // Status + priority badges
+  var badges = document.createElement('div');
+  badges.className = 'work-detail-badges';
+  if (node.status) {
+    var statusBadge = document.createElement('span');
+    var statusClass = node.status === 'in-progress' ? 'ip' : node.status === 'done' ? 'done' : 'todo';
+    statusBadge.className = 'badge badge-' + statusClass;
+    statusBadge.textContent = node.status;
+    badges.appendChild(statusBadge);
+  }
+  if (node.priority) {
+    var priBadge = createPriorityBadge(node.priority);
+    badges.appendChild(priBadge);
+  }
+  if (badges.childNodes.length > 0) container.appendChild(badges);
+
+  // Track info
+  if (node.track_id) {
+    var trackSection = document.createElement('div');
+    trackSection.className = 'work-detail-section';
+    var trackLabel = document.createElement('div');
+    trackLabel.className = 'work-detail-section-title';
+    trackLabel.textContent = 'Track';
+    trackSection.appendChild(trackLabel);
+    var trackLink = document.createElement('div');
+    trackLink.className = 'work-detail-track-link';
+    trackLink.textContent = node.track_id;
+    trackLink.addEventListener('click', function() { openWorkDetail(node.track_id); });
+    trackSection.appendChild(trackLink);
+    container.appendChild(trackSection);
+  }
+
+  // Steps
+  if (node.steps && node.steps.length > 0) {
+    var stepsSection = document.createElement('div');
+    stepsSection.className = 'work-detail-section';
+    var stepsLabel = document.createElement('div');
+    stepsLabel.className = 'work-detail-section-title';
+    stepsLabel.textContent = 'Steps (' + node.steps.filter(function(s) { return s.completed; }).length + '/' + node.steps.length + ')';
+    stepsSection.appendChild(stepsLabel);
+    var stepsList = document.createElement('ul');
+    stepsList.className = 'work-detail-steps';
+    node.steps.forEach(function(step) {
+      var li = document.createElement('li');
+      var icon = document.createElement('span');
+      if (step.completed) {
+        icon.className = 'step-done';
+        icon.textContent = '\u2713';
+      } else {
+        icon.className = 'step-pending';
+        icon.textContent = '\u25CB';
+      }
+      li.appendChild(icon);
+      var text = document.createElement('span');
+      text.textContent = step.description || step.step_id || '';
+      if (step.completed) text.style.textDecoration = 'line-through';
+      li.appendChild(text);
+      stepsList.appendChild(li);
+    });
+    stepsSection.appendChild(stepsList);
+    container.appendChild(stepsSection);
+  }
+
+  // Edges
+  if (node.edges && Object.keys(node.edges).length > 0) {
+    var edgesSection = document.createElement('div');
+    edgesSection.className = 'work-detail-section';
+    var edgesLabel = document.createElement('div');
+    edgesLabel.className = 'work-detail-section-title';
+    edgesLabel.textContent = 'Relationships';
+    edgesSection.appendChild(edgesLabel);
+    var edgesContainer = document.createElement('div');
+    edgesContainer.className = 'work-detail-edges';
+    Object.keys(node.edges).forEach(function(relType) {
+      var edgeList = node.edges[relType];
+      if (!Array.isArray(edgeList)) return;
+      edgeList.forEach(function(edge) {
+        var edgeEl = document.createElement('div');
+        edgeEl.className = 'work-detail-edge';
+        var typeSpan = document.createElement('span');
+        typeSpan.className = 'edge-type';
+        typeSpan.textContent = relType.replace(/_/g, ' ');
+        edgeEl.appendChild(typeSpan);
+        var targetSpan = document.createElement('span');
+        targetSpan.className = 'edge-target';
+        targetSpan.textContent = (edge.target_id || '').slice(0, 16);
+        edgeEl.appendChild(targetSpan);
+        if (edge.title) {
+          var titleSpan = document.createElement('span');
+          titleSpan.className = 'edge-title';
+          titleSpan.textContent = edge.title;
+          edgeEl.appendChild(titleSpan);
+        }
+        edgeEl.addEventListener('click', function() {
+          if (edge.target_id) openWorkDetail(edge.target_id);
+        });
+        edgesContainer.appendChild(edgeEl);
+      });
+    });
+    edgesSection.appendChild(edgesContainer);
+    container.appendChild(edgesSection);
+  }
+
+  // Related features (async)
+  var relatedSection = document.createElement('div');
+  relatedSection.className = 'work-detail-section';
+  var relatedLabel = document.createElement('div');
+  relatedLabel.className = 'work-detail-section-title';
+  relatedLabel.textContent = 'Related (Shared Files)';
+  relatedSection.appendChild(relatedLabel);
+  var relatedContainer = document.createElement('div');
+  relatedContainer.className = 'work-detail-related';
+  relatedContainer.textContent = 'Loading...';
+  relatedSection.appendChild(relatedContainer);
+  container.appendChild(relatedSection);
+
+  fetch('/api/features/related?feature_id=' + encodeURIComponent(node.id))
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(related) {
+      relatedContainer.textContent = '';
+      if (!related || related.length === 0) {
+        relatedContainer.textContent = 'None';
+        relatedContainer.style.color = 'var(--text-muted)';
+        relatedContainer.style.fontSize = '12px';
+        return;
+      }
+      related.forEach(function(rel) {
+        var relEl = document.createElement('div');
+        relEl.className = 'work-detail-related-item';
+        var idSpan = document.createElement('span');
+        idSpan.className = 'rel-id';
+        idSpan.textContent = (rel.feature_id || rel.id || '').slice(0, 16);
+        relEl.appendChild(idSpan);
+        var titleSpan = document.createElement('span');
+        titleSpan.className = 'rel-title';
+        titleSpan.textContent = rel.title || rel.feature_id || '';
+        relEl.appendChild(titleSpan);
+        var fid = rel.feature_id || rel.id;
+        if (fid) relEl.addEventListener('click', function() { openWorkDetail(fid); });
+        relatedContainer.appendChild(relEl);
+      });
+    })
+    .catch(function() { relatedContainer.textContent = 'None'; });
+}
+
 /* ── Init ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function() {
   var toggleBtn = document.getElementById('track-group-toggle');
@@ -499,6 +717,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  var backBtn = document.getElementById('work-detail-back');
+  if (backBtn) {
+    backBtn.addEventListener('click', closeWorkDetail);
+  }
 });
 
 Promise.all([fetchStats(), fetchEvents()]);
