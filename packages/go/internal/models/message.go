@@ -6,6 +6,7 @@ import "time"
 type Message struct {
 	ID              int       `json:"id"`
 	SessionID       string    `json:"session_id"`
+	AgentID         string    `json:"agent_id,omitempty"` // set for subagent transcripts
 	Ordinal         int       `json:"ordinal"`
 	Role            string    `json:"role"` // "user" or "assistant"
 	Content         string    `json:"content"`
