@@ -33,7 +33,7 @@ func runReindex(_ *cobra.Command, _ []string) error {
 	}
 	defer database.Close()
 
-	dirs := []string{"features", "tracks", "spikes"}
+	dirs := []string{"features", "bugs", "tracks", "spikes"}
 	var total, upserted, errCount int
 
 	for _, dir := range dirs {
