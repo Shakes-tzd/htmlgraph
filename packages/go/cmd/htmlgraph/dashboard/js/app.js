@@ -17,9 +17,7 @@ document.querySelector('.nav').addEventListener('click', function(e) {
   document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b === btn); });
   document.querySelectorAll('.view').forEach(function(v) { v.classList.toggle('active', v.id === 'v-' + view); });
   if (view === 'sessions' && sessions.length === 0) fetchSessions();
-  if (view === 'features' && features.length === 0) fetchFeatures();
-  if (view === 'agents') renderAgents();
-  if (view === 'metrics') renderMetrics();
+  if (view === 'work' && features.length === 0) fetchFeatures();
 });
 
 /* ── Data fetching ─────────────────────────────────────────── */
@@ -138,11 +136,11 @@ function renderSessions() {
   grid.appendChild(frag);
 }
 
-/* ── Rendering: Features ───────────────────────────────────── */
+/* ── Rendering: Work ───────────────────────────────────────── */
 function renderFeatures() {
-  var body = document.getElementById('features-body');
-  var empty = document.getElementById('features-empty');
-  document.getElementById('features-count').textContent = features.length;
+  var body = document.getElementById('work-body');
+  var empty = document.getElementById('work-empty');
+  document.getElementById('work-count').textContent = features.length;
   body.textContent = '';
   if (features.length === 0) { empty.style.display = ''; return; }
   empty.style.display = 'none';
