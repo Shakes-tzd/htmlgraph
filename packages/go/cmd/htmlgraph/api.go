@@ -125,6 +125,10 @@ func sessionsHandler(database *sql.DB) http.HandlerFunc {
 			   OR s.status = 'active')
 			  AND s.is_subagent = FALSE
 			  AND COALESCE(s.title, '') NOT LIKE '[htmlgraph-titler]%'
+			  AND COALESCE((SELECT SUBSTR(m4.content, 1, 30)
+			       FROM messages m4
+			       WHERE m4.session_id = s.session_id AND m4.role = 'user'
+			       ORDER BY m4.ordinal LIMIT 1), '') NOT LIKE '[htmlgraph-titler]%'
 			  AND (SELECT COUNT(*) FROM messages m3
 			       WHERE m3.session_id = s.session_id) >= 5
 			ORDER BY s.created_at DESC
