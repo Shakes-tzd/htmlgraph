@@ -6,6 +6,10 @@
 # then exec's into it.  Subsequent runs simply exec the cached binary after
 # a fast (~1 ms) version check.
 #
+# Install location: ~/.local/bin/htmlgraph — shared by plugin bootstrap,
+# curl install script, Homebrew, and setup-cli.  Metadata (version tracking)
+# lives at ~/.local/share/htmlgraph/.
+#
 # Design constraints:
 #   - POSIX sh (no bash-isms)
 #   - No dependencies beyond curl/tar (standard on macOS + Linux)
@@ -16,13 +20,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Store the binary in CLAUDE_PLUGIN_DATA so it survives `claude plugin update`.
-# CLAUDE_PLUGIN_ROOT is wiped on every update; CLAUDE_PLUGIN_DATA persists at
-# ~/.claude/plugins/data/{plugin-id}/.  Fall back to a predictable local path
-# when the env var is absent (dev mode / manual invocation).
-BINARY_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.claude/plugins/data/htmlgraph}"
-BINARY="${BINARY_DIR}/htmlgraph-bin"
-VERSION_FILE="${BINARY_DIR}/.binary-version"
+# Install the binary to ~/.local/bin so it's on PATH for both plugin and
+# standalone users.  Metadata (version file) lives in ~/.local/share/htmlgraph.
+INSTALL_DIR="${HOME}/.local/bin"
+BINARY="${INSTALL_DIR}/htmlgraph"
+META_DIR="${HOME}/.local/share/htmlgraph"
+VERSION_FILE="${META_DIR}/.binary-version"
 
 # ---------------------------------------------------------------------------
 # Resolve expected version from plugin.json
@@ -84,7 +87,8 @@ download_binary() {
 
     log_err "Downloading binary v${_version} for ${PLATFORM_OS}/${PLATFORM_ARCH}..."
 
-    mkdir -p "${BINARY_DIR}"
+    mkdir -p "${INSTALL_DIR}"
+    mkdir -p "${META_DIR}"
     _tmpdir="$(mktemp -d)"
     _tarball="${_tmpdir}/htmlgraph.tar.gz"
 
@@ -127,7 +131,7 @@ download_binary() {
     echo "${_version}" > "${VERSION_FILE}"
 
     rm -rf "${_tmpdir}"
-    log_err "Installed hooks binary v${_version}."
+    log_err "Installed htmlgraph v${_version} to ${BINARY}."
 }
 
 # ---------------------------------------------------------------------------
