@@ -291,27 +291,35 @@ func branchForFilePath(filePath, cwdBranch string) string {
 var testPattern = regexp.MustCompile(`\bgo test\b|\bpytest\b|\buv run pytest\b|\buv run ruff\b`)
 
 // hasRecentTestRun checks if a test command was executed in this session
-// by scanning recent agent_events for Bash commands matching test patterns.
+// or its parent session by scanning recent agent_events for Bash commands
+// matching test patterns. Worktree subagents inherit test runs from the
+// outer orchestrator session that spawned them.
 func hasRecentTestRun(database *sql.DB, sessionID string) bool {
-	var count int
-	database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ? AND tool_name = 'Bash'
-		  AND status = 'completed'
-		  AND input_summary REGEXP ?`,
-		sessionID, `(go test|pytest|uv run ruff)`,
-	).Scan(&count)
-	if count > 0 {
-		return true
-	}
-	// Fallback: LIKE-based check for SQLite without REGEXP
-	database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ? AND tool_name = 'Bash'
-		  AND (input_summary LIKE '%go test%'
-		    OR input_summary LIKE '%pytest%'
-		    OR input_summary LIKE '%uv run ruff%')`,
+	// Build list of session IDs to check: current + parent (if any).
+	sessionIDs := []string{sessionID}
+	var parentID string
+	database.QueryRow(
+		`SELECT COALESCE(parent_session_id, '') FROM sessions WHERE session_id = ?`,
 		sessionID,
-	).Scan(&count)
-	return count > 0
+	).Scan(&parentID)
+	if parentID != "" {
+		sessionIDs = append(sessionIDs, parentID)
+	}
+
+	for _, sid := range sessionIDs {
+		var count int
+		database.QueryRow(`
+			SELECT COUNT(*) FROM agent_events
+			WHERE session_id = ? AND tool_name = 'Bash'
+			  AND (input_summary LIKE '%go test%'
+			    OR input_summary LIKE '%go build%'
+			    OR input_summary LIKE '%pytest%'
+			    OR input_summary LIKE '%uv run ruff%')`,
+			sid,
+		).Scan(&count)
+		if count > 0 {
+			return true
+		}
+	}
+	return false
 }
