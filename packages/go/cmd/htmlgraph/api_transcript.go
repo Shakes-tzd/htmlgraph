@@ -190,14 +190,19 @@ func lookupSubagentAgentID(database *sql.DB, messageID int) string {
 		return ""
 	}
 
+	// Normalize T-separator: SQLite datetime() outputs 'YYYY-MM-DD HH:MM:SS'
+	// but stored timestamps use ISO 8601 'YYYY-MM-DDTHH:MM:SSZ'. REPLACE
+	// ensures both sides use the same format for BETWEEN comparison.
+	normTs := strings.Replace(strings.TrimSuffix(msgTs, "Z"), "T", " ", 1)
+
 	var inputSummary string
 	database.QueryRow(`
 		SELECT input_summary FROM agent_events
 		WHERE tool_name = 'Task'
 		  AND input_summary LIKE 'Subagent started:%'
-		  AND timestamp BETWEEN datetime(?, '-120 seconds') AND datetime(?, '+120 seconds')
-		ORDER BY ABS(julianday(timestamp) - julianday(?))
-		LIMIT 1`, msgTs, msgTs, msgTs).Scan(&inputSummary) //nolint:errcheck
+		  AND REPLACE(REPLACE(timestamp,'T',' '),'Z','') BETWEEN datetime(?, '-120 seconds') AND datetime(?, '+120 seconds')
+		ORDER BY ABS(julianday(REPLACE(REPLACE(timestamp,'T',' '),'Z','')) - julianday(?))
+		LIMIT 1`, normTs, normTs, normTs).Scan(&inputSummary) //nolint:errcheck
 
 	// Extract agent_id from "Subagent started: type=xxx id=YYY"
 	if idx := strings.Index(inputSummary, " id="); idx >= 0 {
