@@ -57,8 +57,8 @@ func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	summary := "Agent stopped"
 	if event.LastAssistantMessage != "" {
 		msg := event.LastAssistantMessage
-		if len(msg) > 200 {
-			msg = msg[:200] + "…"
+		if len(msg) > debugMsgMaxLen {
+			msg = msg[:debugMsgMaxLen] + "…"
 		}
 		summary = fmt.Sprintf("Agent stopped: %s", msg)
 	}

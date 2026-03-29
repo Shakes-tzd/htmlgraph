@@ -84,36 +84,36 @@ func ClassifyPrompt(prompt string) PromptIntent {
 	// Short prompts that are pure continuation signals.
 	if matchesContinuation(lower) {
 		intent.IsContinuation = true
-		intent.Confidence = 0.9
+		intent.Confidence = continuationConfidence
 		return intent
 	}
 
 	// Primary intent classification.
 	if countKeywordHits(lower, implementationKeywords) > 0 {
 		intent.IsImplementation = true
-		intent.Confidence = max(intent.Confidence, 0.8)
+		intent.Confidence = max(intent.Confidence, implementationConfidence)
 	}
 	if countKeywordHits(lower, investigationKeywords) > 0 {
 		intent.IsInvestigation = true
-		intent.Confidence = max(intent.Confidence, 0.7)
+		intent.Confidence = max(intent.Confidence, investigationConfidence)
 	}
 	if countKeywordHits(lower, bugKeywords) > 0 {
 		intent.IsBugReport = true
-		intent.Confidence = max(intent.Confidence, 0.75)
+		intent.Confidence = max(intent.Confidence, bugReportConfidence)
 	}
 
 	// CIGS delegation flags.
 	if n := countKeywordHits(lower, explorationKeywords); n > 0 {
 		intent.InvolvesExploration = true
-		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*0.3))
+		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*explorationConfidenceMultiplier))
 	}
 	if n := countKeywordHits(lower, codeChangeKeywords); n > 0 {
 		intent.InvolvesCodeChanges = true
-		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*0.35))
+		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*codeChangeConfidenceMultiplier))
 	}
 	if n := countKeywordHits(lower, gitKeywords); n > 0 {
 		intent.InvolvesGit = true
-		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*0.4))
+		intent.Confidence = max(intent.Confidence, min(1.0, float64(n)*gitConfidenceMultiplier))
 	}
 
 	return intent

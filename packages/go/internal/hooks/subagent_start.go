@@ -70,8 +70,8 @@ func SubagentStop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	outputSummary := event.LastAssistantMessage
-	if len(outputSummary) > 500 {
-		outputSummary = outputSummary[:500] + "…"
+	if len(outputSummary) > outputSummaryMaxLen {
+		outputSummary = outputSummary[:outputSummaryMaxLen] + "…"
 	}
 
 	// Prefer agent_id-scoped lookup to avoid matching the wrong delegation

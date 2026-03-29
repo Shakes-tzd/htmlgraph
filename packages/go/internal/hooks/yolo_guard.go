@@ -163,10 +163,10 @@ func checkYoloBudgetGuard(event *CloudEvent, yolo bool) string {
 			totalAdded += n
 		}
 	}
-	if fileCount > 20 || totalAdded > 600 {
+	if fileCount > yoloBudgetMaxFiles || totalAdded > yoloBudgetMaxLines {
 		return fmt.Sprintf(
-			"YOLO budget HARD LIMIT: %d files, %d lines (max 20/600). "+
-				"Split into sub-features.", fileCount, totalAdded)
+			"YOLO budget HARD LIMIT: %d files, %d lines (max %d/%d). "+
+				"Split into sub-features.", fileCount, totalAdded, yoloBudgetMaxFiles, yoloBudgetMaxLines)
 	}
 	return ""
 }
@@ -224,7 +224,7 @@ func checkYoloDiffReviewGuard(event *CloudEvent, yolo, diffRan bool) string {
 }
 
 // checkYoloCodeHealthGuard blocks writes that would create oversized
-// Go/Python files (>500 lines) in YOLO mode.
+// Go/Python files (>yoloCodeHealthMaxLines) in YOLO mode.
 func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
 	if !yolo {
 		return ""
@@ -241,16 +241,16 @@ func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
 	if !strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, ".py") {
 		return ""
 	}
-	// Check existing file size — if it's already >500 lines, warn
+	// Check existing file size — if it's already >yoloCodeHealthMaxLines, warn
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "" // new file, allow
 	}
 	lines := strings.Count(string(data), "\n")
-	if lines > 500 {
+	if lines > yoloCodeHealthMaxLines {
 		return fmt.Sprintf(
-			"YOLO code health: %s has %d lines (limit 500). "+
-				"Refactor into smaller modules.", filepath.Base(path), lines)
+			"YOLO code health: %s has %d lines (limit %d). "+
+				"Refactor into smaller modules.", filepath.Base(path), lines, yoloCodeHealthMaxLines)
 	}
 	return ""
 }

@@ -26,8 +26,8 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	if promptSummary == "" {
 		return &HookResult{Continue: true}, nil
 	}
-	if len(promptSummary) > 300 {
-		promptSummary = promptSummary[:300] + "…"
+	if len(promptSummary) > promptSummaryMaxLen {
+		promptSummary = promptSummary[:promptSummaryMaxLen] + "…"
 	}
 
 	// Dedup: skip if identical UserQuery was recorded in last 5 seconds.
@@ -82,8 +82,8 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 // updateLastQuery refreshes last_user_query_at and last_user_query on the session.
 func updateLastQuery(database *sql.DB, sessionID, prompt string) {
 	summary := prompt
-	if len(summary) > 200 {
-		summary = summary[:200] + "…"
+	if len(summary) > sessionQueryMaxLen {
+		summary = summary[:sessionQueryMaxLen] + "…"
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, _ = database.Exec(`
@@ -142,7 +142,8 @@ func listOpenWorkItems(database *sql.DB) []workItemRow {
 			CASE status WHEN 'in-progress' THEN 0 ELSE 1 END,
 			CASE type WHEN 'feature' THEN 0 WHEN 'bug' THEN 1 ELSE 2 END,
 			created_at DESC
-		LIMIT 10`,
+		LIMIT ?`,
+		maxOpenWorkItemsDisplay,
 	)
 	if err != nil {
 		return nil
