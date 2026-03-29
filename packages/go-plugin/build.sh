@@ -35,18 +35,31 @@ if [ "${DIST_MODE}" = true ]; then
     cp "${BIN_DIR}/bootstrap.sh" "${BIN_DIR}/htmlgraph"
     chmod +x "${BIN_DIR}/htmlgraph"
 
-    # Write version file so bootstrap skips download
-    echo "${VERSION}" > "${BIN_DIR}/.binary-version"
+    # Install to ~/.local/bin so bootstrap skips download
+    INSTALL_DIR="${HOME}/.local/bin"
+    META_DIR="${HOME}/.local/share/htmlgraph"
+    mkdir -p "${INSTALL_DIR}" "${META_DIR}"
+    cp "${BIN_DIR}/htmlgraph-bin" "${INSTALL_DIR}/htmlgraph"
+    chmod +x "${INSTALL_DIR}/htmlgraph"
+    echo "${VERSION}" > "${META_DIR}/.binary-version"
 
     echo "Dist build complete:"
     echo "  Entry point: packages/go-plugin/hooks/bin/htmlgraph (bootstrap)"
     echo "  Binary:      packages/go-plugin/hooks/bin/htmlgraph-bin"
-    echo "  Version:     ${VERSION}"
+    echo "  Installed:   ${INSTALL_DIR}/htmlgraph (v${VERSION})"
 else
     echo "Building htmlgraph (dev mode, version: ${VERSION})..."
     go build -ldflags "-s -w -X main.version=${VERSION}" \
         -o "${BIN_DIR}/htmlgraph" ./cmd/htmlgraph/
     chmod +x "${BIN_DIR}/htmlgraph"
     echo "Built: packages/go-plugin/hooks/bin/htmlgraph"
-    ls -la "${BIN_DIR}/htmlgraph"
+
+    # Also install to ~/.local/bin so the binary is on PATH
+    INSTALL_DIR="${HOME}/.local/bin"
+    META_DIR="${HOME}/.local/share/htmlgraph"
+    mkdir -p "${INSTALL_DIR}" "${META_DIR}"
+    cp "${BIN_DIR}/htmlgraph" "${INSTALL_DIR}/htmlgraph"
+    chmod +x "${INSTALL_DIR}/htmlgraph"
+    echo "${VERSION}" > "${META_DIR}/.binary-version"
+    echo "Installed: ${INSTALL_DIR}/htmlgraph (v${VERSION})"
 fi
