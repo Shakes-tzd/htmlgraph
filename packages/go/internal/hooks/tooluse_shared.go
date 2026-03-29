@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/db"
 )
@@ -53,6 +54,8 @@ type toolUseContext struct {
 // Returns nil when no active session is found, indicating the caller should
 // skip all DB operations.
 func resolveToolUseContext(event *CloudEvent, database *sql.DB) *toolUseContext {
+	start := time.Now()
+
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return nil
@@ -71,6 +74,12 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB) *toolUseContext 
 	hgDir := filepath.Join(projectDir, ".htmlgraph")
 	yolo := isYoloMode(hgDir)
 	parentEventID := resolveParentEventID(database, sessionID, agentID, isSubagent)
+
+	LogTimed(projectDir, "pretooluse", map[string]string{
+		"phase":   "resolve-context",
+		"session": sessionID[:minSessionLen(sessionID)],
+		"tool":    event.ToolName,
+	}, start, "context resolved")
 
 	return &toolUseContext{
 		SessionID:     sessionID,

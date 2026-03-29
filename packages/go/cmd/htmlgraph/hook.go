@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/shakestzd/htmlgraph/internal/db"
@@ -150,7 +152,10 @@ func hookTrackEventCmd(fallback *hooks.HookResult) *cobra.Command {
 // runHook is the common wrapper: read stdin, call the handler, write stdout.
 // On any error it logs to debug.log and falls back to writing an empty JSON
 // object so Claude is never blocked by a hook failure.
+// Timing is recorded via LogTimed so slow hooks are visible in debug.log.
 func runHook(handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
+	start := time.Now()
+
 	event, err := hooks.ReadInput()
 	if err != nil {
 		hooks.LogError("runHook", "", fmt.Sprintf("read input: %v", err))
@@ -167,5 +172,18 @@ func runHook(handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
 		hooks.LogError("runHook", event.SessionID, "handler returned nil result")
 		return hooks.Allow()
 	}
+
+	// Log timing for every hook invocation — helps identify slow handlers.
+	// Use the cobra subcommand name (os.Args[2]) as the event label when available.
+	projectDir := hooks.ResolveProjectDir(event.CWD)
+	hookName := ""
+	if len(os.Args) >= 3 {
+		hookName = os.Args[2]
+	}
+	hooks.LogTimed(projectDir, "runHook", map[string]string{
+		"hook":    hookName,
+		"session": event.SessionID[:hooks.MinSessionLen(event.SessionID)],
+	}, start, "completed")
+
 	return hooks.WriteResult(result)
 }

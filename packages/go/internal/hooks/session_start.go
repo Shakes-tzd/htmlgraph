@@ -73,6 +73,8 @@ func readActiveSession(projectDir string) *activeSessionData {
 // It upserts a session row in SQLite and writes environment variables for
 // downstream hooks via CLAUDE_ENV_FILE.
 func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
+	handlerStart := time.Now()
+
 	sessionID := NormaliseSessionID(event.SessionID)
 	if sessionID == "" {
 		sessionID = os.Getenv("CLAUDE_SESSION_ID")
@@ -82,6 +84,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	}
 
 	now := time.Now().UTC()
+	shortID := sessionID[:minSessionLen(sessionID)]
 
 	// Launch headCommit in a goroutine — I/O-bound, no data dependency with writeEnvVars.
 	commitCh := make(chan string, 1)
@@ -117,9 +120,18 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	}
 
 	// Batch all writes into a single transaction: session upsert + lineage inserts.
+	txStart := time.Now()
 	if err := runSessionTransaction(database, s, inp); err != nil {
-		debugLog(projectDir, "[session-start] transaction failed (session=%s): %v", sessionID[:8], err)
+		debugLog(projectDir, "[session-start] transaction failed (session=%s): %v", shortID, err)
 	}
+	LogTimed(projectDir, "session-start", map[string]string{
+		"phase":   "db-tx",
+		"session": shortID,
+	}, txStart, "transaction complete")
+
+	LogTimed(projectDir, "session-start", map[string]string{
+		"session": shortID,
+	}, handlerStart, "handler complete")
 
 	return &HookResult{}, nil
 }
