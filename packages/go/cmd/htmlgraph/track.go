@@ -48,17 +48,20 @@ func loadFeatureCounts(htmlgraphDir string) map[string]int {
 
 // trackShowCmd shows a single track by ID.
 func trackShowCmd() *cobra.Command {
-	return &cobra.Command{
+	var deep bool
+	cmd := &cobra.Command{
 		Use:   "show <id>",
 		Short: "Show track details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runTrackShow(args[0])
+			return runTrackShow(args[0], deep)
 		},
 	}
+	cmd.Flags().BoolVar(&deep, "deep", false, "Show all linked items with steps and edges")
+	return cmd
 }
 
-func runTrackShow(id string) error {
+func runTrackShow(id string, deep bool) error {
 	dir, err := findHtmlgraphDir()
 	if err != nil {
 		return err
@@ -74,7 +77,11 @@ func runTrackShow(id string) error {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
 
-	printTrackDetail(node, dir)
+	if deep {
+		printTrackDeep(node, dir)
+	} else {
+		printTrackDetail(node, dir)
+	}
 	return nil
 }
 
@@ -145,5 +152,104 @@ func loadLinkedFeatures(htmlgraphDir, trackID string) []*models.Node {
 		return linked[i].ID < linked[j].ID
 	})
 	return linked
+}
+
+// loadLinkedByType returns nodes of a given subdir whose TrackID matches trackID.
+func loadLinkedByType(htmlgraphDir, subdir, trackID string) []*models.Node {
+	nodes, err := graph.LoadDir(filepath.Join(htmlgraphDir, subdir))
+	if err != nil {
+		return nil
+	}
+	var linked []*models.Node
+	for _, n := range nodes {
+		if n.TrackID == trackID {
+			linked = append(linked, n)
+		}
+	}
+	sort.Slice(linked, func(i, j int) bool {
+		return linked[i].ID < linked[j].ID
+	})
+	return linked
+}
+
+// printItemSteps prints indented step checklist for an item.
+func printItemSteps(n *models.Node) {
+	done := 0
+	for _, s := range n.Steps {
+		if s.Completed {
+			done++
+		}
+	}
+	fmt.Printf("    Steps: %d/%d complete\n", done, len(n.Steps))
+	for _, s := range n.Steps {
+		tick := "[ ]"
+		if s.Completed {
+			tick = "[x]"
+		}
+		fmt.Printf("      %s %s\n", tick, truncate(s.Description, 60))
+	}
+}
+
+// printItemEdges prints indented edges for an item, skipping part_of.
+func printItemEdges(n *models.Node) {
+	if len(n.Edges) == 0 {
+		return
+	}
+	fmt.Println("    Edges:")
+	for rel, edges := range n.Edges {
+		if rel == "part_of" {
+			continue
+		}
+		for _, e := range edges {
+			fmt.Printf("      %s -> %s\n", rel, e.TargetID)
+		}
+	}
+}
+
+// printDeepItem prints a single linked item with steps and edges.
+func printDeepItem(n *models.Node) {
+	marker := "  "
+	if n.Status == models.StatusInProgress {
+		marker = "* "
+	} else if n.Status == models.StatusDone {
+		marker = "✓ "
+	}
+	fmt.Printf("  %s%-20s  %-11s  %s\n", marker, n.ID, n.Status, truncate(n.Title, 38))
+	if len(n.Steps) > 0 {
+		printItemSteps(n)
+	}
+	printItemEdges(n)
+}
+
+// printDeepGroup prints a group of linked items by type label.
+func printDeepGroup(label string, items []*models.Node) {
+	fmt.Printf("\n%s (%d):\n", label, len(items))
+	if len(items) == 0 {
+		fmt.Println("  (none)")
+		return
+	}
+	for _, n := range items {
+		printDeepItem(n)
+	}
+}
+
+// printTrackDeep prints a track with all linked items (features, bugs, spikes).
+func printTrackDeep(n *models.Node, htmlgraphDir string) {
+	sep := strings.Repeat("─", 60)
+	fmt.Println(sep)
+	fmt.Printf("  %s\n", n.Title)
+	fmt.Println(sep)
+	fmt.Printf("  ID        %s\n", n.ID)
+	fmt.Printf("  Status    %s\n", n.Status)
+	fmt.Printf("  Priority  %s\n", n.Priority)
+	if !n.CreatedAt.IsZero() {
+		fmt.Printf("  Created   %s\n", n.CreatedAt.Format("2006-01-02"))
+	}
+	features := loadLinkedByType(htmlgraphDir, "features", n.ID)
+	bugs := loadLinkedByType(htmlgraphDir, "bugs", n.ID)
+	spikes := loadLinkedByType(htmlgraphDir, "spikes", n.ID)
+	printDeepGroup("Features", features)
+	printDeepGroup("Bugs", bugs)
+	printDeepGroup("Spikes", spikes)
 }
 
