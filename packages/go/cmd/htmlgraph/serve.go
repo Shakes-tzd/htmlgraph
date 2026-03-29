@@ -155,7 +155,7 @@ func autoIngestOnce(database *sql.DB) {
 		}
 
 		ensureSession(database, sf.SessionID, result)
-		msgCount, toolCount := storeParseResult(database, sf.SessionID, result)
+		msgCount, toolCount := storeParseResult(database, sf.SessionID, "", result)
 		_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
 		if msgCount > 0 {
 			log.Printf("auto-ingest: %s — %d msgs, %d tools\n",

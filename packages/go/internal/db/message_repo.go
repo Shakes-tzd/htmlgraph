@@ -12,12 +12,12 @@ import (
 func InsertMessage(db *sql.DB, m *models.Message) (int64, error) {
 	res, err := db.Exec(`
 		INSERT OR IGNORE INTO messages
-			(session_id, ordinal, role, content, timestamp,
+			(session_id, agent_id, ordinal, role, content, timestamp,
 			 has_thinking, has_tool_use, content_length,
 			 model, input_tokens, output_tokens, cache_read_tokens,
 			 stop_reason, uuid, parent_uuid)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		m.SessionID, m.Ordinal, m.Role, m.Content,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		m.SessionID, nullStr(m.AgentID), m.Ordinal, m.Role, m.Content,
 		m.Timestamp.UTC().Format(time.RFC3339Nano),
 		boolToInt(m.HasThinking), boolToInt(m.HasToolUse), m.ContentLength,
 		nullStr(m.Model), m.InputTokens, m.OutputTokens, m.CacheReadTokens,

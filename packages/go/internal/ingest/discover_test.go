@@ -1,8 +1,74 @@
 package ingest
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestDiscoverSubagents(t *testing.T) {
+	t.Run("returns nil when no subagents dir", func(t *testing.T) {
+		dir := t.TempDir()
+		got, err := DiscoverSubagents(dir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("got %d files, want 0", len(got))
+		}
+	})
+
+	t.Run("discovers agent JSONL files", func(t *testing.T) {
+		dir := t.TempDir()
+		subDir := filepath.Join(dir, "subagents")
+		if err := os.MkdirAll(subDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		// Create two agent files and one non-matching file.
+		for _, name := range []string{"agent-abc123.jsonl", "agent-def456.jsonl", "other.jsonl"} {
+			if err := os.WriteFile(filepath.Join(subDir, name), []byte("{}"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		got, err := DiscoverSubagents(dir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("got %d files, want 2", len(got))
+		}
+		ids := map[string]bool{}
+		for _, sf := range got {
+			ids[sf.SessionID] = true
+			if sf.Size == 0 {
+				t.Errorf("file %s has zero size", sf.Path)
+			}
+		}
+		if !ids["abc123"] {
+			t.Error("expected agent ID abc123")
+		}
+		if !ids["def456"] {
+			t.Error("expected agent ID def456")
+		}
+	})
+
+	t.Run("empty subagents dir returns no files", func(t *testing.T) {
+		dir := t.TempDir()
+		subDir := filepath.Join(dir, "subagents")
+		if err := os.MkdirAll(subDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		got, err := DiscoverSubagents(dir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("got %d files, want 0", len(got))
+		}
+	})
+}
 
 func TestDecodeProjectPath(t *testing.T) {
 	tests := []struct {

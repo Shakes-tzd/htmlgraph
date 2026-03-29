@@ -45,6 +45,7 @@ func Open(dbPath string) (*sql.DB, error) {
 	db.Exec(`ALTER TABLE sessions ADD COLUMN git_remote_url TEXT`)
 	db.Exec(`ALTER TABLE sessions ADD COLUMN project_dir TEXT`)
 	db.Exec(`ALTER TABLE tool_calls ADD COLUMN feature_id TEXT`)
+	db.Exec(`ALTER TABLE messages ADD COLUMN agent_id TEXT`)
 
 	return db, nil
 }

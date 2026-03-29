@@ -94,6 +94,7 @@ func runIngest(sessionID, project string, all, force bool) error {
 	fmt.Println()
 
 	var ingested, skipped, errCount int
+	var subIngested, subSkipped int
 	for _, sf := range files {
 		if !force {
 			count, _ := dbpkg.CountMessages(database, sf.SessionID)
@@ -117,9 +118,18 @@ func runIngest(sessionID, project string, all, force bool) error {
 		fmt.Printf("  %-14s %3d msgs  %3d tools  (%s)\n",
 			truncate(sf.SessionID, 14), n, toolN, sf.Project)
 		ingested++
+
+		si, ss, se := ingestSubagents(database, sf, force)
+		subIngested += si
+		subSkipped += ss
+		errCount += se
 	}
 
-	fmt.Printf("\nDone: %d ingested, %d skipped, %d errors\n", ingested, skipped, errCount)
+	fmt.Printf("\nDone: %d ingested, %d skipped, %d errors", ingested, skipped, errCount)
+	if subIngested > 0 || subSkipped > 0 {
+		fmt.Printf("  (subagents: %d ingested, %d skipped)", subIngested, subSkipped)
+	}
+	fmt.Println()
 	return nil
 }
 
@@ -142,6 +152,12 @@ func ingestBySessionID(database *sql.DB, sessionID string, force bool) error {
 }
 
 func ingestFile(database *sql.DB, sf ingest.SessionFile, force bool) (int, int, error) {
+	return ingestFileWithAgent(database, sf, "", force)
+}
+
+// ingestFileWithAgent ingests a single JSONL file, tagging messages with agentID
+// when non-empty (used for subagent transcripts).
+func ingestFileWithAgent(database *sql.DB, sf ingest.SessionFile, agentID string, force bool) (int, int, error) {
 	result, err := ingest.ParseFile(sf.Path)
 	if err != nil {
 		return 0, 0, err
@@ -155,13 +171,47 @@ func ingestFile(database *sql.DB, sf ingest.SessionFile, force bool) (int, int, 
 	}
 
 	ensureSession(database, sf.SessionID, result)
-	msgCount, toolCount := storeParseResult(database, sf.SessionID, result)
+	msgCount, toolCount := storeParseResult(database, sf.SessionID, agentID, result)
 	_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
 
 	return msgCount, toolCount, nil
 }
 
-func storeParseResult(database *sql.DB, sessionID string, result *ingest.ParseResult) (int, int) {
+// ingestSubagents discovers and ingests subagent JSONL files for a parent session.
+// Returns counts of ingested, skipped, and errored subagent files.
+func ingestSubagents(database *sql.DB, parent ingest.SessionFile, force bool) (ingested, skipped, errCount int) {
+	sessionDir := filepath.Dir(parent.Path)
+	subFiles, err := ingest.DiscoverSubagents(sessionDir)
+	if err != nil || len(subFiles) == 0 {
+		return 0, 0, 0
+	}
+
+	for _, sf := range subFiles {
+		if !force {
+			count, _ := dbpkg.CountMessages(database, sf.SessionID)
+			if count > 0 {
+				skipped++
+				continue
+			}
+		}
+		n, toolN, err := ingestFileWithAgent(database, sf, sf.SessionID, force)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  skip subagent %s: %v\n", truncate(sf.SessionID, 12), err)
+			errCount++
+			continue
+		}
+		if n == 0 {
+			skipped++
+			continue
+		}
+		fmt.Printf("  subagent %-8s %3d msgs  %3d tools\n",
+			truncate(sf.SessionID, 8), n, toolN)
+		ingested++
+	}
+	return ingested, skipped, errCount
+}
+
+func storeParseResult(database *sql.DB, sessionID, agentID string, result *ingest.ParseResult) (int, int) {
 	var msgCount, toolCount int
 
 	// Map ordinal → message DB ID for linking tool calls.
@@ -169,6 +219,7 @@ func storeParseResult(database *sql.DB, sessionID string, result *ingest.ParseRe
 
 	for _, m := range result.Messages {
 		m.SessionID = sessionID
+		m.AgentID = agentID
 		id, err := dbpkg.InsertMessage(database, &m)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "    warn: msg ord %d: %v\n", m.Ordinal, err)
