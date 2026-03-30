@@ -70,6 +70,12 @@ func NewSpikeCollection(base *Base) *SpikeCollection {
 
 // Create builds a new spike, writes the HTML file, and optionally inserts
 // a row into SQLite.
+//
+// POLICY: Spikes must only be created via CLI commands or orchestrator actions.
+// Hook handlers MUST NOT create spikes — use session events (agent_events table)
+// instead. Hooks do not import this package; that package-boundary constraint is
+// verified by TestHooksPackageDoesNotImportWorkitem in the hooks package.
+// See feat-84052b5e for rationale.
 func (sc *SpikeCollection) Create(title string, opts ...SpikeOption) (*models.Node, error) {
 	if title == "" {
 		return nil, fmt.Errorf("spike title must not be empty")
