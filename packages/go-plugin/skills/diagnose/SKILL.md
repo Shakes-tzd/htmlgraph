@@ -1,31 +1,111 @@
 ---
 name: diagnose
-description: Diagnose orchestrator delegation enforcement gaps in the current session. Use when asked "why didn't you delegate?" or to audit delegation compliance.
+description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a HtmlGraph bug ID, error message, unexpected behavior, or delegation audit."
 user_invocable: true
 ---
 
-# Diagnose Skill
+# /htmlgraph:diagnose
+
+General-purpose diagnostic skill for investigating bugs, errors, and unexpected behavior.
+
+## Usage
+
+```
+/htmlgraph:diagnose <bug-id>              # Investigate a specific bug
+/htmlgraph:diagnose <error or symptom>    # Investigate an error or behavior
+/htmlgraph:diagnose --delegation          # Audit delegation compliance (legacy mode)
+```
 
 ## When to Activate
 
-Trigger keywords:
-- "why didn't you delegate"
-- "delegation audit", "diagnose"
-- "delegation score", "enforcement gaps"
-- "did you delegate", "should have delegated"
+Trigger on:
+- "diagnose", "debug", "investigate", "root cause", "why is this broken"
+- A bug ID like `bug-5126e3cf`
+- An error message or symptom description
+- "why isn't X working", "what's wrong with", "figure out why"
+- "delegation audit", "delegation score" (routes to delegation mode)
 
 ## Instructions for Claude
 
-Run the following analysis and present the results as a delegation diagnostic report.
+### Route by Input
 
-### Step 1: Collect Data
+**If given a bug ID** (matches `bug-*`):
+1. Fetch bug details: `htmlgraph bug show <bug-id>`
+2. Dispatch the debugger agent with the bug context
+3. Present findings and suggested fix
 
+**If given an error message or symptom**:
+1. Create a bug to track: `htmlgraph bug create "<summary>"`
+2. Dispatch the debugger agent with the error context
+3. Present findings and suggested fix
+
+**If `--delegation` flag**:
+1. Run the delegation audit (see Delegation Mode below)
+
+**If no arguments**:
+1. Check project health: `htmlgraph recommend --top 3`
+2. Identify bottlenecks, stale items, or anomalies
+3. Suggest what to investigate
+
+### Bug Investigation (Primary Mode)
+
+Dispatch the debugger agent with a structured prompt:
+
+```python
+Agent(
+    subagent_type="htmlgraph:debugger",
+    description="Diagnose: <bug summary>",
+    prompt="""
+## Bug: <bug-id> — <title>
+
+### Symptom
+<description from bug or user>
+
+### Investigation Steps
+1. Search codebase for relevant code paths
+2. Read the source files involved
+3. Identify the root cause with file paths and line numbers
+4. Check if the issue affects other cases beyond the reported one
+5. Query SQLite or run CLI commands to verify current state
+6. Propose a fix (describe what to change, don't implement)
+
+### Report Format
+- **Root cause**: What's wrong and where (file:line)
+- **Blast radius**: Does this affect other cases?
+- **Suggested fix**: What code change resolves it
+- **Verification**: How to confirm the fix works
+"""
+)
+```
+
+After the agent reports back, present findings to the user in this format:
+
+```markdown
+## Diagnosis: <bug-id>
+
+**Root cause:** <one-line summary>
+**Location:** `<file>:<line>`
+**Blast radius:** <scope of impact>
+
+### Details
+<agent's detailed findings>
+
+### Suggested Fix
+<what to change>
+
+### Next Steps
+- [ ] Implement fix
+- [ ] Run tests: `(cd packages/go && go test ./...)`
+- [ ] Verify: <specific verification command>
+```
+
+### Delegation Audit Mode (--delegation)
+
+When `--delegation` is specified, audit the current session's delegation compliance:
+
+1. **Collect data**:
 ```bash
-# Get current session events via CLI
 htmlgraph status
-htmlgraph session list
-
-# For detailed event analysis, query SQLite directly
 sqlite3 .htmlgraph/htmlgraph.db "
 SELECT tool_name, COUNT(*) as count
 FROM agent_events
@@ -34,112 +114,22 @@ GROUP BY tool_name ORDER BY count DESC;
 "
 ```
 
-For a programmatic approach (when reading from DB directly):
+2. **Compute score**: `delegations / (delegations + direct_impl + git_writes) * 100`
+   - Delegations = Task + Agent calls
+   - Direct impl = Edit + Write calls
+   - Git writes = Bash calls containing git commit/push/merge
 
-```python
-import sqlite3
+3. **Present report**:
+```markdown
+## Delegation Diagnostic
 
-db_path = ".htmlgraph/htmlgraph.db"
-conn = sqlite3.connect(db_path)
-
-# Get current session ID (most recent session)
-row = conn.execute(
-    "SELECT session_id FROM agent_events ORDER BY timestamp DESC LIMIT 1"
-).fetchone()
-session_id = row[0] if row else None
-
-direct_ops = []
-git_writes = []
-delegations = []
-direct_impl = []
-
-if session_id:
-    direct_ops = conn.execute("""
-        SELECT event_id, tool_name, input_summary, timestamp
-        FROM agent_events
-        WHERE session_id = ? AND tool_name = 'Bash'
-          AND input_summary NOT LIKE '%ruff%'
-          AND input_summary NOT LIKE '%pytest%'
-          AND input_summary NOT LIKE '%mypy%'
-          AND input_summary NOT LIKE '%git status%'
-          AND input_summary NOT LIKE '%git log%'
-          AND input_summary NOT LIKE '%git diff%'
-          AND input_summary NOT LIKE '%git show%'
-          AND input_summary NOT LIKE '%ls %'
-        ORDER BY timestamp
-    """, (session_id,)).fetchall()
-
-    git_writes = [
-        op for op in direct_ops
-        if any(kw in (op[2] or '') for kw in [
-            'git commit', 'git push', 'git tag', 'git merge',
-            'git rebase', 'git reset', 'git branch -d'
-        ])
-    ]
-
-    delegations = conn.execute("""
-        SELECT event_id, tool_name, input_summary, timestamp
-        FROM agent_events
-        WHERE session_id = ? AND tool_name IN ('Task', 'Agent')
-        ORDER BY timestamp
-    """, (session_id,)).fetchall()
-
-    direct_impl = conn.execute("""
-        SELECT event_id, tool_name, input_summary, timestamp
-        FROM agent_events
-        WHERE session_id = ? AND tool_name IN ('Edit', 'Write')
-        ORDER BY timestamp
-    """, (session_id,)).fetchall()
-
-conn.close()
-```
-
-### Step 2: Compute Score
-
-```python
-# Delegation score: ratio of Task/Agent calls to (Task/Agent + Edit/Write + git writes)
-implementation_actions = len(delegations) + len(direct_impl) + len(git_writes)
-delegation_score = (
-    int(len(delegations) / implementation_actions * 100)
-    if implementation_actions > 0 else 100
-)
-```
-
-### Step 3: Format Report
-
-Present the report in this format:
-
-```
-## Delegation Diagnostic Report
-
-### Orchestrator State
-- Mode: enabled/disabled
-- Enforcement: strict/guidance
-- Violations: N/3
-- Circuit breaker: triggered/normal
-
-### Delegation Score: X% (N/M actions delegated)
+### Score: X% (N/M actions delegated)
 
 ### Gaps Found
-
-#### Git Write Operations (should delegate to copilot skill)
-| Time | Command | Should Use |
-|------|---------|------------|
-| 12:34 | git commit -m "..." | /htmlgraph:copilot |
-| 12:35 | git push | /htmlgraph:copilot |
-
-#### Direct Implementation (should delegate to coder agent)
-| Time | Tool | File | Should Use |
-|------|------|------|------------|
-| 12:30 | Edit | src/foo.py | Agent("htmlgraph:sonnet-coder") |
+| Time | Tool | Action | Should Use |
+|------|------|--------|------------|
+| ... | ... | ... | ... |
 
 ### Recommendations
-1. [Based on gaps found, give specific actionable recommendations]
-2. Enable strict mode: `htmlgraph orchestrator`
-3. Use /htmlgraph:copilot skill for git ops
-4. Delegate Edit/Write to coder agents via Task()
+1. ...
 ```
-
-If no session data is found, report: "No events found in current session. Ensure hooks are running."
-
-If delegation score >= 80%, report success with no gaps to fix.
