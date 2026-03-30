@@ -512,7 +512,6 @@ feature.save()
 │   ├── 2026-01-04.jsonl
 │   └── ...
 ├── agents.json                    # Agent registry
-├── active-auto-spikes.json        # Auto-spike tracking
 ├── drift-queue.json               # Pending drift classifications
 ├── parent-activity.json           # Active parent session tracking
 ├── index.sqlite                   # Cached SQLite index (git-ignored)
