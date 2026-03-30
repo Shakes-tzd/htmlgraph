@@ -47,7 +47,6 @@
 
 **What It Does:**
 - Creates or resumes HtmlGraph session for agent
-- Manages conversation-level auto-spikes (closes old, creates new)
 - Checks for HtmlGraph version updates (PyPI comparison)
 - Activates orchestrator mode (default enabled)
 - Generates comprehensive session context
@@ -182,9 +181,9 @@
 
 **2. PostToolUseFailure**
 - **Why:** Captures error context that PostToolUse misses
-- **Impact:** Better debugging, auto-spike creation for recurring errors
+- **Impact:** Better debugging, captures error context for recurring failures
 - **Effort:** Low
-- **Expected Outcome:** Automatic debug spike creation for recurring failures
+- **Expected Outcome:** Error context surfaced in session event stream
 
 ### 🟡 MEDIUM PRIORITY (Consider Adding)
 
@@ -203,5 +202,5 @@
 ## EXPECTED IMPACT
 
 - **+95% orchestration reliability** (SubagentStart/Stop)
-- **+50% faster debugging** (PostToolUseFailure auto-spikes)
+- **+50% faster debugging** (PostToolUseFailure error context)
 - **+20% work preservation** (PreCompact safety net)

@@ -77,7 +77,6 @@ CODEX.md
 # HtmlGraph runtime logs (contain sensitive paths/prompts)
 .htmlgraph/hook-debug.jsonl
 .htmlgraph/errors.jsonl
-.htmlgraph/active-auto-spikes.json
 .htmlgraph/.error-spikes.json
 .htmlgraph/logs/
 
