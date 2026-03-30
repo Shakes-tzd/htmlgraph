@@ -83,7 +83,8 @@ detect_platform() {
 # ---------------------------------------------------------------------------
 download_binary() {
     _version="$1"
-    _url="https://github.com/shakestzd/htmlgraph/releases/download/go/v${_version}/htmlgraph_${_version}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
+    _archive="htmlgraph-${PLATFORM_OS}-${PLATFORM_ARCH}.tar.gz"
+    _url="https://github.com/shakestzd/htmlgraph/releases/download/v${_version}/${_archive}"
 
     log_err "Downloading binary v${_version} for ${PLATFORM_OS}/${PLATFORM_ARCH}..."
 
@@ -111,15 +112,18 @@ download_binary() {
         bail
     fi
 
-    # Extract — tar.gz contains the binary named "htmlgraph"
+    # Extract — archive contains binary named "htmlgraph-${os}-${arch}"
     if ! tar xzf "${_tarball}" -C "${_tmpdir}" 2>/dev/null; then
         rm -rf "${_tmpdir}"
         log_err "Failed to extract archive."
         bail
     fi
 
-    # Move extracted binary into place
-    if [ -f "${_tmpdir}/htmlgraph" ]; then
+    # Move extracted binary into place (archive names it htmlgraph-${os}-${arch})
+    _extracted="${_tmpdir}/htmlgraph-${PLATFORM_OS}-${PLATFORM_ARCH}"
+    if [ -f "${_extracted}" ]; then
+        mv "${_extracted}" "${BINARY}"
+    elif [ -f "${_tmpdir}/htmlgraph" ]; then
         mv "${_tmpdir}/htmlgraph" "${BINARY}"
     else
         rm -rf "${_tmpdir}"
