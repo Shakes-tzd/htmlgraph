@@ -15,12 +15,12 @@ import (
 
 // recommendOutput is the JSON-serialisable form of the full recommend output.
 type recommendOutput struct {
-	GeneratedAt   string                      `json:"generated_at"`
-	Health        map[string]typeCounts       `json:"health"`
-	WIP           wipSummary                  `json:"wip"`
-	Bottlenecks   []workitem.Bottleneck       `json:"bottlenecks"`
-	Recommended   []workitem.Recommendation   `json:"recommended"`
-	Parallel      []parallelSetSummary        `json:"parallel_opportunities"`
+	GeneratedAt string                    `json:"generated_at"`
+	Health      map[string]typeCounts     `json:"health"`
+	WIP         wipSummary                `json:"wip"`
+	Bottlenecks []workitem.Bottleneck     `json:"bottlenecks"`
+	Recommended []workitem.Recommendation `json:"recommended"`
+	Parallel    []parallelSetSummary      `json:"parallel_opportunities"`
 }
 
 type typeCounts struct {
