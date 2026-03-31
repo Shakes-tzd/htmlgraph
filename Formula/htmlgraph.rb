@@ -12,7 +12,7 @@
 class Htmlgraph < Formula
   desc "Local-first observability for AI-assisted development"
   homepage "https://github.com/shakestzd/htmlgraph"
-  version "0.38.0"
+  version "0.39.0"
   license "MIT"
 
   on_macos do
