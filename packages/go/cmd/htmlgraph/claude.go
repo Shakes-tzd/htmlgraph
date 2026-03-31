@@ -403,7 +403,7 @@ func launchClaudeInit(extraArgs []string) error {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 	cleanupStaleDev(projectRoot)
-	ensureHtmlgraphPlugin()
+	ensurePluginOnLaunch()
 	fmt.Println("Launching Claude Code with marketplace plugin (init mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:            "init",
@@ -419,6 +419,7 @@ func launchClaudeContinue(extraArgs []string) error {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 	cleanupStaleDev(projectRoot)
+	ensurePluginOnLaunch()
 	fmt.Println("Resuming last Claude Code session (continue mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:        "continue",
@@ -435,6 +436,7 @@ func launchClaudeDefault(extraArgs []string) error {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 	cleanupStaleDev(projectRoot)
+	ensurePluginOnLaunch()
 	fmt.Println("Launching Claude Code (default mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:            "default",

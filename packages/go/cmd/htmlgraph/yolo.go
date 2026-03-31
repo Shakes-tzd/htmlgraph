@@ -298,6 +298,8 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, ext
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 
+	ensurePluginOnLaunch()
+
 	// No work item provided — fall back to planning mode.
 	if trackID == "" && featureID == "" {
 		return launchYoloPlanningMode(pluginDir, projectRoot, extraArgs)
@@ -501,6 +503,7 @@ func launchYoloContinue(extraArgs []string) error {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 
+	ensurePluginOnLaunch()
 	fmt.Println("Resuming last YOLO session...")
 
 	return launchClaude(LaunchOpts{
