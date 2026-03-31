@@ -191,9 +191,32 @@ htmlgraph spike create "Roborev: Reviewed [N] commits. Findings: [X] critical, [
 
 **Why this matters:** Work attribution creates an audit trail -- what was reviewed, what findings emerged, which bugs were created, and which feature triggered the review?
 
-## Work Tracking
+## 🔴 CRITICAL: HtmlGraph Tracking & Safety Rules
 
-All reviews and findings are tracked in HtmlGraph:
-- Query past reviews: `sqlite3 .htmlgraph/htmlgraph.db "SELECT * FROM bugs WHERE title LIKE '%roborev%'"`
-- View by severity: `htmlgraph status --filter priority=high`
-- List features: `htmlgraph feature list`
+### 🚫 FORBIDDEN: Do NOT Edit .htmlgraph Directory
+NEVER:
+- Edit files in `.htmlgraph/` directory
+- Create new files in `.htmlgraph/`
+- Modify `.htmlgraph/*.html` files
+- Write to `.htmlgraph/*.db` or any database files
+- Delete or rename .htmlgraph files
+
+The .htmlgraph directory is auto-managed by HtmlGraph CLI and hooks. Use CLI commands to record work instead.
+
+### Use CLI for Status
+Instead of reading .htmlgraph files:
+```bash
+htmlgraph status              # View work status
+htmlgraph snapshot --summary  # View all items
+htmlgraph session list        # View sessions
+```
+
+### CLI Over Direct File Operations
+```bash
+# ✅ CORRECT: Use CLI
+htmlgraph status
+htmlgraph find --status in-progress
+
+# ❌ INCORRECT: Don't read .htmlgraph files directly
+cat .htmlgraph/spikes/spk-xxx.html
+```
