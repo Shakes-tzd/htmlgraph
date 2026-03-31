@@ -20,6 +20,11 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 
+	// Backfill: ensure this session has a row in SQLite. The SessionStart hook
+	// may not have fired (session started before plugin loaded, or hook failed).
+	// This is idempotent — INSERT OR IGNORE won't overwrite existing rows.
+	ensureSessionExists(database, sessionID, event)
+
 	featureID := cachedGetActiveFeatureID(database, sessionID)
 
 	promptSummary := sanitizePrompt(event.Prompt)
@@ -77,6 +82,25 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		result.Continue = true
 	}
 	return result, nil
+}
+
+// ensureSessionExists creates a minimal session row if one doesn't exist.
+// This backfills sessions that started before the plugin was loaded or when
+// the SessionStart hook failed. The INSERT OR IGNORE is idempotent.
+func ensureSessionExists(database *sql.DB, sessionID string, event *CloudEvent) {
+	if sessionID == "" || database == nil {
+		return
+	}
+	var exists int
+	database.QueryRow("SELECT 1 FROM sessions WHERE session_id = ?", sessionID).Scan(&exists) //nolint:errcheck
+	if exists == 1 {
+		return
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, _ = database.Exec(`
+		INSERT OR IGNORE INTO sessions (session_id, agent_assigned, status, created_at, project_dir)
+		VALUES (?, 'claude-code', 'active', ?, ?)`,
+		sessionID, now, ResolveProjectDir(event.CWD))
 }
 
 // updateLastQuery refreshes last_user_query_at and last_user_query on the session.

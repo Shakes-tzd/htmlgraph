@@ -50,6 +50,9 @@ func statuslineFromSession(dir, sessionID string) error {
 
 	featureID := hooks.GetActiveFeatureID(database, sessionID)
 	if featureID == "" {
+		// No active feature for this session — show nothing.
+		// A global fallback would leak another terminal's active feature
+		// into this status line, which is misleading in multi-session setups.
 		return nil
 	}
 
