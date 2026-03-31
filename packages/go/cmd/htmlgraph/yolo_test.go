@@ -18,10 +18,7 @@ func TestCreateTrackWorktree_CreatesNewBranch(t *testing.T) {
 	}
 
 	// Create initial commit so we have something to branch from
-	commitMsg := "initial commit"
-	cmd := exec.Command("git", "commit", "--allow-empty", "-m", commitMsg)
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
+	if err := gitCommitInDir(tmpDir, "initial commit"); err != nil {
 		t.Fatalf("failed to create initial commit: %v", err)
 	}
 
@@ -66,9 +63,7 @@ func TestCreateTrackWorktree_ReusesExisting(t *testing.T) {
 	}
 
 	// Create initial commit
-	cmd := exec.Command("git", "commit", "--allow-empty", "-m", "initial")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
+	if err := gitCommitInDir(tmpDir, "initial"); err != nil {
 		t.Fatalf("failed to create initial commit: %v", err)
 	}
 
@@ -168,6 +163,18 @@ func TestResolveTrackForFeature_ReturnsEmptyWhenFileNotFound(t *testing.T) {
 	if resolvedTrackID != "" {
 		t.Errorf("track ID: got %q, want empty", resolvedTrackID)
 	}
+}
+
+// gitCommitInDir runs git commit in a temp directory, configuring
+// user.name/user.email so the command works in CI environments.
+func gitCommitInDir(dir, msg string) error {
+	cmd := exec.Command("git",
+		"-c", "user.name=test",
+		"-c", "user.email=test@test.com",
+		"commit", "--allow-empty", "-m", msg,
+	)
+	cmd.Dir = dir
+	return cmd.Run()
 }
 
 // Helper: contains checks if a string is contained in another.
