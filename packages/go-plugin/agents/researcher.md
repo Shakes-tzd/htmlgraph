@@ -72,19 +72,13 @@ Check what has been tried before, what worked, and what failed:
 
 ```bash
 # Search for past work on a topic
-sqlite3 .htmlgraph/htmlgraph.db "
-SELECT session_id, tool_name, input_summary, timestamp
-FROM agent_events
-WHERE input_summary LIKE '%<topic>%'
-ORDER BY timestamp DESC LIMIT 20;
-"
+htmlgraph find "<topic>"
 
-# Check past spikes (research investigations)
-ls .htmlgraph/spikes/ | head -20
-grep -l '<topic>' .htmlgraph/spikes/*.html
+# View all work items
+htmlgraph snapshot --summary
 
-# Check related features
-grep -l '<topic>' .htmlgraph/features/*.html
+# Check related features and spikes
+htmlgraph status
 ```
 
 This provides context on previous debugging sessions and solutions that worked.

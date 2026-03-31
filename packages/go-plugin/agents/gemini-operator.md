@@ -1,7 +1,7 @@
 ---
 name: gemini-operator
 description: "Execute research, analysis, and large-context tasks via Google Gemini CLI with automatic fallback. Use for codebase exploration, documentation research, and multi-file analysis. Free tier."
-tools: Bash, Read, Grep, Glob
+tools: Bash, Read, Grep, Glob, WebSearch, WebFetch
 model: haiku
 color: yellow
 ---
