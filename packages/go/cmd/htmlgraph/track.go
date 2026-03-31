@@ -31,6 +31,7 @@ func trackCmdWithExtras() *cobra.Command {
 	}
 	cmd.AddCommand(trackShowCmd())
 	cmd.AddCommand(trackStatusCmd())
+	cmd.AddCommand(trackPRCmd())
 	return cmd
 }
 
