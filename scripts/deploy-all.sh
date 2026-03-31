@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PLUGIN_JSON="$PROJECT_ROOT/packages/go-plugin/.claude-plugin/plugin.json"
+PLUGIN_JSON="$PROJECT_ROOT/plugin/.claude-plugin/plugin.json"
 GO_DIR="$PROJECT_ROOT/packages/go"
 
 # Colors
