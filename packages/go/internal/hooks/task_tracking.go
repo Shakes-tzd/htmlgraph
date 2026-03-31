@@ -2,10 +2,30 @@ package hooks
 
 import (
 	"database/sql"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
+
+// selfBinary returns the path to the htmlgraph binary for self-invocation.
+// Resolution order:
+//  1. CLAUDE_PLUGIN_ROOT env var (always correct in hook context)
+//  2. os.Executable() (correct when called from the binary itself)
+//  3. "htmlgraph" on PATH (fallback)
+func selfBinary() string {
+	if root := os.Getenv("CLAUDE_PLUGIN_ROOT"); root != "" {
+		candidate := filepath.Join(root, "hooks", "bin", "htmlgraph")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		return exe
+	}
+	return "htmlgraph"
+}
 
 // addTaskStep shells out to the htmlgraph CLI to add a step to the active
 // feature. This avoids importing the workitem package (architectural constraint:
@@ -18,7 +38,7 @@ func addTaskStep(database *sql.DB, sessionID, featureID, taskID, subject string)
 	typeName := inferTypeName(featureID)
 
 	// htmlgraph <type> add-step <id> "<description>"
-	cmd := exec.Command("htmlgraph", typeName, "add-step", featureID, stepDesc)
+	cmd := exec.Command(selfBinary(), typeName, "add-step", featureID, stepDesc)
 	_ = cmd.Run()
 }
 
