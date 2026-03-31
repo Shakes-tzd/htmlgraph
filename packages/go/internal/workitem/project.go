@@ -8,6 +8,7 @@ package workitem
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
@@ -20,8 +21,13 @@ type Base struct {
 	// ProjectDir is the path to the .htmlgraph/ directory.
 	ProjectDir string
 
-	// Agent is the identifier of the agent using this package.
+	// Agent is the identifier of the agent using this package (e.g. "claude-code").
 	Agent string
+
+	// AgentID is the unique agent identity for per-agent claim attribution.
+	// Empty string means orchestrator (main session). Subagents have a
+	// non-empty ID set via HTMLGRAPH_AGENT_ID.
+	AgentID string
 
 	// DB is the optional SQLite database (read index).
 	DB *sql.DB
@@ -65,6 +71,7 @@ func Open(projectDir, agent string) (*Project, error) {
 	base := &Base{
 		ProjectDir: projectDir,
 		Agent:      agent,
+		AgentID:    os.Getenv("HTMLGRAPH_AGENT_ID"), // "" for orchestrator
 		DB:         database,
 	}
 

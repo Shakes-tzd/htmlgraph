@@ -11,10 +11,11 @@ import (
 // testCreate is a test helper that wraps runWiCreate with the opts struct.
 func testCreate(typeName, title, trackID, priority string, start, noLink bool) error {
 	return runWiCreate(typeName, title, &wiCreateOpts{
-		trackID:  trackID,
-		priority: priority,
-		start:    start,
-		noLink:   noLink,
+		trackID:     trackID,
+		priority:    priority,
+		description: "test description",
+		start:       start,
+		noLink:      noLink,
 	})
 }
 
@@ -168,15 +169,15 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Use a sentinel value that won't match any real session, then clear it.
-	// EnvSessionID checks HTMLGRAPH_SESSION_ID first; "none" forces it to
-	// return "none" (which is fine — the edge target will be "none").
-	// Instead, we set it empty and chdir to tmpDir so readActiveSession
-	// finds no .active-session file.
+	// Isolate from any real session running in the developer's environment.
+	// HTMLGRAPH_SESSION_ID must be cleared so EnvSessionID returns "".
+	// HTMLGRAPH_PROJECT_DIR is set to tmpDir so ResolveProjectDir returns
+	// tmpDir (not the real project via the hint file), preventing
+	// readActiveSession from picking up the developer's .active-session.
 	t.Setenv("HTMLGRAPH_SESSION_ID", "")
-	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", tmpDir)
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
 
 	if err := testCreate("feature", "No Session Feature", "", "low", false, false); err != nil {
 		t.Fatalf("create: %v", err)

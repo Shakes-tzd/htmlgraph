@@ -113,6 +113,18 @@ func UpdateFeatureStatus(db *sql.DB, id, status string) error {
 	return err
 }
 
+// UpdateFeatureSteps updates the steps_total and steps_completed counters
+// for a feature in the SQLite read index. HTML is canonical; this is best-effort.
+func UpdateFeatureSteps(db *sql.DB, featureID string, total, completed int) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`
+		UPDATE features SET steps_total = ?, steps_completed = ?, updated_at = ?
+		WHERE id = ?`,
+		total, completed, now, featureID,
+	)
+	return err
+}
+
 // ListFeaturesByStatus returns features matching the given status,
 // ordered by priority DESC, created_at DESC.
 func ListFeaturesByStatus(db *sql.DB, status string, limit int) ([]Feature, error) {

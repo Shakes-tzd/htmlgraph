@@ -38,6 +38,8 @@ const (
 	// --- Query Limits ---
 	// Maximum number of open work items to display in attribution guidance
 	maxOpenWorkItemsDisplay = 10
+	// Maximum characters for active feature description in CIGS injection
+	activeDescMaxLen = 200
 
 	// --- Session ID Formatting ---
 	// Length of session ID preview in debug logs (first N chars)

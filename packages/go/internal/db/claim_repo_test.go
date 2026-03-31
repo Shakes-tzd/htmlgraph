@@ -456,6 +456,199 @@ func TestListActiveClaimsBySession(t *testing.T) {
 	}
 }
 
+func TestClaimItemWithAgentID(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	c := makeClaim("claim-agent1", "feat-test", "sess-test")
+	c.ClaimedByAgentID = "subagent-opus-abc"
+	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem with agent ID: %v", err)
+	}
+
+	got, err := db.GetActiveClaim(database, "feat-test")
+	if err != nil {
+		t.Fatalf("GetActiveClaim: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected active claim, got nil")
+	}
+	if got.ClaimedByAgentID != "subagent-opus-abc" {
+		t.Errorf("claimed_by_agent_id: got %q, want %q", got.ClaimedByAgentID, "subagent-opus-abc")
+	}
+
+	// GetClaim should also return the agent ID.
+	gotByID, err := db.GetClaim(database, "claim-agent1")
+	if err != nil {
+		t.Fatalf("GetClaim: %v", err)
+	}
+	if gotByID.ClaimedByAgentID != "subagent-opus-abc" {
+		t.Errorf("GetClaim claimed_by_agent_id: got %q, want %q", gotByID.ClaimedByAgentID, "subagent-opus-abc")
+	}
+}
+
+func TestHasActiveClaimByAgent(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	// No claims yet — should return false for any agent.
+	if db.HasActiveClaimByAgent(database, "subagent-x") {
+		t.Error("expected false before any claims")
+	}
+	if db.HasActiveClaimByAgent(database, "") {
+		t.Error("expected false for orchestrator before any claims")
+	}
+
+	// Create a claim with a specific agent ID.
+	c := makeClaim("claim-hac1", "feat-test", "sess-test")
+	c.ClaimedByAgentID = "subagent-x"
+	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem: %v", err)
+	}
+
+	// The specific agent should match.
+	if !db.HasActiveClaimByAgent(database, "subagent-x") {
+		t.Error("expected true for subagent-x after claiming")
+	}
+	// A different agent should not match.
+	if db.HasActiveClaimByAgent(database, "subagent-y") {
+		t.Error("expected false for subagent-y")
+	}
+	// The orchestrator (empty string) should not match.
+	if db.HasActiveClaimByAgent(database, "") {
+		t.Error("expected false for orchestrator when claim is by subagent-x")
+	}
+}
+
+func TestHasActiveClaimByAgentOrchestrator(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	// Create a claim with empty agent ID (orchestrator).
+	c := makeClaim("claim-haco1", "feat-test", "sess-test")
+	c.ClaimedByAgentID = ""
+	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem: %v", err)
+	}
+
+	// Orchestrator should match.
+	if !db.HasActiveClaimByAgent(database, "") {
+		t.Error("expected true for orchestrator claim")
+	}
+	// Subagent should not match.
+	if db.HasActiveClaimByAgent(database, "subagent-z") {
+		t.Error("expected false for subagent-z when claim is by orchestrator")
+	}
+}
+
+func TestClaimItemMultiAgent(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	// Orchestrator claims the work item (claimed_by_agent_id = "").
+	c1 := makeClaim("claim-ma1", "feat-test", "sess-test")
+	c1.ClaimedByAgentID = ""
+	if err := db.ClaimItem(database, c1, 30*time.Minute); err != nil {
+		t.Fatalf("orchestrator ClaimItem: %v", err)
+	}
+
+	// A subagent claims the SAME work item — should succeed because different agent.
+	c2 := makeClaim("claim-ma2", "feat-test", "sess-test")
+	c2.ClaimedByAgentID = "subagent-opus"
+	if err := db.ClaimItem(database, c2, 30*time.Minute); err != nil {
+		t.Fatalf("subagent ClaimItem: %v", err)
+	}
+
+	// Both agents should have active claims.
+	if !db.HasActiveClaimByAgent(database, "") {
+		t.Error("orchestrator should have active claim")
+	}
+	if !db.HasActiveClaimByAgent(database, "subagent-opus") {
+		t.Error("subagent-opus should have active claim")
+	}
+
+	// A second subagent with the same ID should be blocked.
+	c3 := makeClaim("claim-ma3", "feat-test", "sess-test")
+	c3.ClaimedByAgentID = "subagent-opus"
+	err := db.ClaimItem(database, c3, 30*time.Minute)
+	if err == nil {
+		t.Fatal("expected conflict for duplicate subagent claim")
+	}
+}
+
+func TestHasActiveClaimByAgentReleasedClaim(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	c := makeClaim("claim-hacr1", "feat-test", "sess-test")
+	c.ClaimedByAgentID = "subagent-released"
+	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem: %v", err)
+	}
+
+	// Release the claim.
+	if err := db.ReleaseClaim(database, "claim-hacr1", "sess-test", models.ClaimCompleted); err != nil {
+		t.Fatalf("ReleaseClaim: %v", err)
+	}
+
+	// Released claim should not count as active.
+	if db.HasActiveClaimByAgent(database, "subagent-released") {
+		t.Error("expected false after releasing claim")
+	}
+}
+
+func TestUpdateClaimAgentID(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	// Create a claim with empty claimed_by_agent_id.
+	c := makeClaim("claim-ucai1", "feat-test", "sess-test")
+	c.ClaimedByAgentID = ""
+	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem: %v", err)
+	}
+
+	// Tag the claim with an agent ID.
+	if err := db.UpdateClaimAgentID(database, "feat-test", "test-agent-123"); err != nil {
+		t.Fatalf("UpdateClaimAgentID: %v", err)
+	}
+
+	// Verify the claim now has the agent ID set.
+	got, err := db.GetClaim(database, "claim-ucai1")
+	if err != nil {
+		t.Fatalf("GetClaim: %v", err)
+	}
+	if got.ClaimedByAgentID != "test-agent-123" {
+		t.Errorf("claimed_by_agent_id: got %q, want %q", got.ClaimedByAgentID, "test-agent-123")
+	}
+}
+
+func TestUpdateClaimAgentIDNoOverwrite(t *testing.T) {
+	database := setupClaimDB(t)
+	defer database.Close()
+
+	// Create a claim that already has a non-empty claimed_by_agent_id.
+	c := makeClaim("claim-ucai2", "feat-test", "sess-test")
+	c.ClaimedByAgentID = "original-agent"
+	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem: %v", err)
+	}
+
+	// Attempt to tag with a different agent ID — should not overwrite.
+	if err := db.UpdateClaimAgentID(database, "feat-test", "new-agent"); err != nil {
+		t.Fatalf("UpdateClaimAgentID: %v", err)
+	}
+
+	// Verify the original agent ID is preserved.
+	got, err := db.GetClaim(database, "claim-ucai2")
+	if err != nil {
+		t.Fatalf("GetClaim: %v", err)
+	}
+	if got.ClaimedByAgentID != "original-agent" {
+		t.Errorf("claimed_by_agent_id: got %q, want %q (should not have been overwritten)", got.ClaimedByAgentID, "original-agent")
+	}
+}
+
 func TestListClaims(t *testing.T) {
 	database := setupClaimDB(t)
 	defer database.Close()

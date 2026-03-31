@@ -15,6 +15,8 @@ htmlgraph feature start <new-id>
 ```
 The CIGS guidance (injected per-turn) lists open work items — pick from those.
 
+**When delegating to subagents, always include the work item ID in the prompt** (e.g., "Feature: feat-123"). The subagent must run `htmlgraph feature start <id>` to claim the work before writing code.
+
 ## Delegation Enforcement
 
 Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate to HtmlGraph subagents:

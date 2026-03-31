@@ -87,20 +87,17 @@ func autoTrackEdges(p *workitem.Project, itemID, typeName, trackID, itemTitle st
 }
 
 // warnMissingFields prints warnings for missing recommended fields per type.
-func warnMissingFields(typeName string, o *wiCreateOpts) {
+// Returns an error if required fields are missing for features and bugs.
+func warnMissingFields(typeName string, o *wiCreateOpts) error {
 	// Track: warn about no --track (spikes and tracks exempt).
 	if o.trackID == "" && typeName != "track" && typeName != "spike" {
 		fmt.Fprintf(os.Stderr, "Warning: no track specified. Use --track to link this %s to an initiative.\n", typeName)
 	}
 
 	switch typeName {
-	case "bug":
+	case "bug", "feature":
 		if o.description == "" {
-			fmt.Fprintf(os.Stderr, "Warning: bug created without --description.\n")
-		}
-	case "feature":
-		if o.description == "" {
-			fmt.Fprintf(os.Stderr, "Warning: feature created without --description.\n")
+			return fmt.Errorf("%s requires --description. Research context should be captured at creation time so future sessions don't need to re-research", typeName)
 		}
 	case "spec":
 		if o.description == "" {
@@ -108,4 +105,5 @@ func warnMissingFields(typeName string, o *wiCreateOpts) {
 		}
 	// spike: no requirements. track/plan: steps are usually added later.
 	}
+	return nil
 }

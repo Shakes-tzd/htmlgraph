@@ -35,10 +35,15 @@ func TestHookLifecycle(t *testing.T) {
 	sessionID := "lifecycle-test-session-001"
 
 	// Isolate from the developer's real environment.
+	// HTMLGRAPH_PROJECT_DIR must point to the test projectDir so that
+	// ResolveProjectDir returns projectDir (not the real project via the hint
+	// file), preventing checkProjectDivergence from blocking the test event.
 	t.Setenv("CLAUDE_SESSION_ID", "")
 	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
 	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
 	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
 	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
 	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")

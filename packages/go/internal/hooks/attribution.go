@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shakestzd/htmlgraph/internal/paths"
 )
 
 // traceparentEntry is the JSON structure written to the temp queue so
@@ -97,16 +98,19 @@ func claimTraceparent() *traceparentEntry {
 // writeSubagentEnvVars writes HTMLGRAPH_PARENT_EVENT, HTMLGRAPH_AGENT_ID,
 // and HTMLGRAPH_AGENT_TYPE to CLAUDE_ENV_FILE so the subagent's hooks know
 // their parent delegation and agent identity.
-// When CLAUDE_ENV_FILE is unset (worktree subagents), falls back to updating
-// the .htmlgraph/.active-session file with the subagent context.
+// When CLAUDE_ENV_FILE is unset (worktree subagents), falls back to a
+// temp-file hint so the subagent's hook processes can still resolve the
+// project directory via paths.ReadProjectDirHint.
 func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir string) {
 	envFile := os.Getenv("CLAUDE_ENV_FILE")
 	if envFile == "" {
 		// CLAUDE_ENV_FILE is unset in worktree subagents. Parent linkage is
 		// handled by the traceparent queue (writeTraceparent is called by the
-		// SubagentStart handler before this function). The .active-session file
-		// covers session ID propagation for downstream hooks.
-		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — subagent env vars not written (agent=%s), traceparent queue covers parent linkage", agentType)
+		// SubagentStart handler before this function). Write the project dir
+		// to a well-known temp file so downstream hook processes can still
+		// resolve .htmlgraph/ when their EventCWD is a temp directory.
+		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — writing project dir hint to temp file (agent=%s)", agentType)
+		writeProjectDirHint(projectDir)
 		return
 	}
 	f, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY, 0o644)
@@ -120,7 +124,22 @@ func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir string) 
 		"export HTMLGRAPH_PARENT_EVENT=%s\nexport HTMLGRAPH_AGENT_ID=%s\nexport HTMLGRAPH_AGENT_TYPE=%s\n",
 		parentEventID, agentID, agentType,
 	)
+	// Also propagate the project directory so subagent hook invocations can
+	// resolve .htmlgraph/ even when their EventCWD is a temp dir.
+	if projectDir != "" {
+		lines += "export HTMLGRAPH_PROJECT_DIR=" + projectDir + "\n"
+	}
 	f.WriteString(lines)
+}
+
+// writeProjectDirHint persists projectDir to the temp hint file so that
+// future hook processes (running in subagent temp dirs) can read it via
+// paths.ReadProjectDirHint when HTMLGRAPH_PROJECT_DIR is not in their env.
+func writeProjectDirHint(projectDir string) {
+	if projectDir == "" {
+		return
+	}
+	_ = os.WriteFile(paths.ProjectDirHintPath(), []byte(projectDir), 0o644)
 }
 
 // ApplyTraceparent reads a traceparent from the queue and exports env vars

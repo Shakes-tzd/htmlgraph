@@ -33,11 +33,15 @@ type ProjectDirOptions struct {
 //
 //  1. opts.ExplicitDir (--project-dir flag) — hard error if set but invalid
 //  2. CLAUDE_PROJECT_DIR env var — fall through on miss (not an error)
-//  3. ResolveViaGitCommonDir() — worktree → main repo root
-//  4. opts.EventCWD — direct .htmlgraph check
-//  5. os.Getwd() — direct .htmlgraph check
-//  6. Walk-up from opts.EventCWD (limited by WalkLevels when > 0)
-//  7. Walk-up from os.Getwd() (unlimited)
+//  3. HTMLGRAPH_PROJECT_DIR env var — written by SubagentStart for subagents
+//     whose EventCWD is a temp dir (e.g. /private/tmp/claude-501/...)
+//  4. Project dir hint file — written by SubagentStart when CLAUDE_ENV_FILE
+//     is unset (worktree subagents); read via ReadProjectDirHint()
+//  5. ResolveViaGitCommonDir() — worktree → main repo root
+//  6. opts.EventCWD — direct .htmlgraph check
+//  7. os.Getwd() — direct .htmlgraph check
+//  8. Walk-up from opts.EventCWD (limited by WalkLevels when > 0)
+//  9. Walk-up from os.Getwd() (unlimited)
 //
 // Returns the project root directory (not the .htmlgraph subdirectory).
 // The only hard-error case is when ExplicitDir is set but no .htmlgraph
@@ -58,7 +62,25 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 		}
 	}
 
-	// 3. Git worktree detection — resolve linked worktrees to main repo root.
+	// 3. HTMLGRAPH_PROJECT_DIR env var — written by SubagentStart so that
+	// subagent hook invocations can find the real project when EventCWD is a
+	// temp directory (e.g. /private/tmp/claude-501/...).
+	if d := os.Getenv("HTMLGRAPH_PROJECT_DIR"); d != "" {
+		if _, err := os.Stat(filepath.Join(d, ".htmlgraph")); err == nil {
+			return d, nil
+		}
+	}
+
+	// 4. Project dir hint file — written by SubagentStart when CLAUDE_ENV_FILE
+	// is unset (worktree subagents). Falls through if the hint is stale or
+	// the directory no longer has a .htmlgraph/ dir.
+	if d := ReadProjectDirHint(); d != "" {
+		if _, err := os.Stat(filepath.Join(d, ".htmlgraph")); err == nil {
+			return d, nil
+		}
+	}
+
+	// 5. Git worktree detection — resolve linked worktrees to main repo root.
 	startDir := opts.EventCWD
 	if startDir == "" {
 		startDir, _ = os.Getwd()
@@ -67,28 +89,28 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 		return dir, nil
 	}
 
-	// 4. EventCWD direct check.
+	// 6. EventCWD direct check.
 	if opts.EventCWD != "" {
 		if _, err := os.Stat(filepath.Join(opts.EventCWD, ".htmlgraph")); err == nil {
 			return opts.EventCWD, nil
 		}
 	}
 
-	// 5. Process CWD direct check.
+	// 7. Process CWD direct check.
 	if wd, err := os.Getwd(); err == nil {
 		if _, err := os.Stat(filepath.Join(wd, ".htmlgraph")); err == nil {
 			return wd, nil
 		}
 	}
 
-	// 6. Walk-up from EventCWD (limited when WalkLevels > 0).
+	// 8. Walk-up from EventCWD (limited when WalkLevels > 0).
 	if opts.EventCWD != "" {
 		if found := walkUpForHtmlgraph(opts.EventCWD, opts.WalkLevels); found != "" {
 			return found, nil
 		}
 	}
 
-	// 7. Walk-up from process CWD (unlimited).
+	// 9. Walk-up from process CWD (unlimited).
 	if wd, err := os.Getwd(); err == nil {
 		if found := walkUpForHtmlgraph(wd, 0); found != "" {
 			return found, nil
@@ -190,4 +212,25 @@ func GetGitRemoteURL(dir string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// ProjectDirHintPath returns the path to the temp file used as a fallback
+// for HTMLGRAPH_PROJECT_DIR when CLAUDE_ENV_FILE is unset (worktree subagents).
+// The file is written by SubagentStart via hooks.writeProjectDirHint and read
+// by ResolveProjectDir as step 4 in its resolution chain.
+func ProjectDirHintPath() string {
+	return filepath.Join(os.TempDir(), "htmlgraph-project-dir.hint")
+}
+
+// ReadProjectDirHint reads the project directory from the temp hint file.
+// Returns "" when the file does not exist or cannot be read.
+// The hint is written by SubagentStart when CLAUDE_ENV_FILE is unset so that
+// subagent hook processes can still locate .htmlgraph/ when their EventCWD
+// is a temp directory (e.g. /private/tmp/claude-501/...).
+func ReadProjectDirHint() string {
+	b, err := os.ReadFile(ProjectDirHintPath())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }

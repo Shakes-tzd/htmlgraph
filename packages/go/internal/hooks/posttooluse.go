@@ -71,6 +71,19 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
+	// Tag claims with agent ID when a subagent runs "htmlgraph feature start <id>".
+	// The CLI doesn't know the agent_id, but the PostToolUse hook sees both.
+	if ctx.IsSubagent && event.ToolName == "Bash" {
+		if cmd, ok := event.ToolInput["command"].(string); ok {
+			if m := featureStartRe.FindStringSubmatch(cmd); len(m) > 1 {
+				workItemID := m[1]
+				if err := db.UpdateClaimAgentID(database, workItemID, event.AgentID); err == nil {
+					debugLog(ctx.ProjectDir, "[posttooluse] tagged claim for %s with agent %s", workItemID, event.AgentID)
+				}
+			}
+		}
+	}
+
 	result := &HookResult{Continue: true}
 
 	// Quality gate: warn when Write/Edit/MultiEdit produces an oversized file.
@@ -121,6 +134,9 @@ func checkYoloFeatureCompleteAdvisory(event *CloudEvent, ctx *toolUseContext, da
 	}
 	return fmt.Sprintf("Mark the feature complete: htmlgraph feature complete %s", featureID)
 }
+
+// featureStartRe matches "htmlgraph (feature|bug|spike) start <id>" in a Bash command.
+var featureStartRe = regexp.MustCompile(`htmlgraph\s+(?:feature|bug|spike)\s+start\s+(\S+)`)
 
 // gitCommitOutputRe matches the commit line from git commit output, e.g.:
 // "[main abc1234] commit message here"

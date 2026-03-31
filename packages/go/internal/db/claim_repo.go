@@ -48,24 +48,31 @@ func ClaimItem(db *sql.DB, claim *models.Claim, leaseDuration time.Duration) err
 	ensureSessionRow(db, claim.OwnerSessionID, claim.OwnerAgent)
 
 	activeList := activeStatusList()
+	// Allow multiple agents to claim the same work item by scoping the
+	// conflict check to (work_item_id, claimed_by_agent_id). This enables
+	// per-agent attribution: the orchestrator and each subagent can
+	// independently claim the same feature.
 	query := fmt.Sprintf(`
 		INSERT INTO claims (
 			claim_id, work_item_id, track_id, owner_session_id, owner_agent,
+			claimed_by_agent_id,
 			status, intended_output, write_scope,
 			leased_at, lease_expires_at, last_heartbeat_at,
 			dependencies, progress_notes, blocker_reason,
 			created_at, updated_at
 		)
-		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		WHERE NOT EXISTS (
 			SELECT 1 FROM claims
 			WHERE work_item_id = ?
+			  AND claimed_by_agent_id = ?
 			  AND status IN (%s)
 		)`, activeList)
 
 	result, err := db.Exec(query,
 		claim.ClaimID, claim.WorkItemID, nullStr(claim.TrackID),
 		claim.OwnerSessionID, claim.OwnerAgent,
+		claim.ClaimedByAgentID,
 		string(claim.Status), nullStr(claim.IntendedOutput),
 		nullJSON(claim.WriteScope),
 		now.Format(time.RFC3339), claim.LeaseExpiresAt.Format(time.RFC3339),
@@ -73,7 +80,7 @@ func ClaimItem(db *sql.DB, claim *models.Claim, leaseDuration time.Duration) err
 		nullJSON(claim.Dependencies), nullStr(claim.ProgressNotes),
 		nullStr(claim.BlockerReason),
 		now.Format(time.RFC3339), now.Format(time.RFC3339),
-		claim.WorkItemID,
+		claim.WorkItemID, claim.ClaimedByAgentID,
 	)
 	if err != nil {
 		return fmt.Errorf("insert claim %s: %w", claim.ClaimID, err)
@@ -236,6 +243,7 @@ func GetActiveClaim(db *sql.DB, workItemID string) (*models.Claim, error) {
 	activeList := activeStatusList()
 	query := fmt.Sprintf(`
 		SELECT claim_id, work_item_id, track_id, owner_session_id, owner_agent,
+		       claimed_by_agent_id,
 		       status, intended_output, write_scope,
 		       leased_at, lease_expires_at, last_heartbeat_at,
 		       dependencies, progress_notes, blocker_reason,
@@ -255,10 +263,27 @@ func GetActiveClaim(db *sql.DB, workItemID string) (*models.Claim, error) {
 	return c, nil
 }
 
+// HasActiveClaimByAgent returns true if the given agentID has any active claim
+// (status IN active statuses). For the orchestrator (agentID=""), returns true
+// if any claim has claimed_by_agent_id="" with active status.
+func HasActiveClaimByAgent(db *sql.DB, agentID string) bool {
+	activeList := activeStatusList()
+	query := fmt.Sprintf(`
+		SELECT 1 FROM claims
+		WHERE claimed_by_agent_id = ?
+		  AND status IN (%s)
+		LIMIT 1`, activeList)
+
+	var one int
+	err := db.QueryRow(query, agentID).Scan(&one)
+	return err == nil
+}
+
 // GetClaim returns a claim by ID.
 func GetClaim(db *sql.DB, claimID string) (*models.Claim, error) {
 	row := db.QueryRow(`
 		SELECT claim_id, work_item_id, track_id, owner_session_id, owner_agent,
+		       claimed_by_agent_id,
 		       status, intended_output, write_scope,
 		       leased_at, lease_expires_at, last_heartbeat_at,
 		       dependencies, progress_notes, blocker_reason,
@@ -277,6 +302,7 @@ func ListActiveClaimsBySession(db *sql.DB, sessionID string) ([]models.Claim, er
 	activeList := activeStatusList()
 	query := fmt.Sprintf(`
 		SELECT claim_id, work_item_id, track_id, owner_session_id, owner_agent,
+		       claimed_by_agent_id,
 		       status, intended_output, write_scope,
 		       leased_at, lease_expires_at, last_heartbeat_at,
 		       dependencies, progress_notes, blocker_reason,
@@ -309,6 +335,7 @@ func ListClaims(db *sql.DB, sessionID, statusFilter string, limit int) ([]models
 
 	query := `
 		SELECT claim_id, work_item_id, track_id, owner_session_id, owner_agent,
+		       claimed_by_agent_id,
 		       status, intended_output, write_scope,
 		       leased_at, lease_expires_at, last_heartbeat_at,
 		       dependencies, progress_notes, blocker_reason,
@@ -324,6 +351,7 @@ func ListClaims(db *sql.DB, sessionID, statusFilter string, limit int) ([]models
 }
 
 // scanClaim scans a single claim row from a *sql.Row.
+// The SELECT must include claimed_by_agent_id between owner_agent and status.
 func scanClaim(row *sql.Row) (*models.Claim, error) {
 	c := &models.Claim{}
 	var (
@@ -334,6 +362,7 @@ func scanClaim(row *sql.Row) (*models.Claim, error) {
 	)
 	err := row.Scan(
 		&c.ClaimID, &c.WorkItemID, &trackID, &c.OwnerSessionID, &c.OwnerAgent,
+		&c.ClaimedByAgentID,
 		&c.Status, &intendedOutput, &writeScope,
 		&leasedStr, &expiresStr, &heartbeatStr,
 		&dependencies, &progressNotes, &blockerReason,
@@ -361,6 +390,7 @@ func scanClaim(row *sql.Row) (*models.Claim, error) {
 }
 
 // scanClaimRow scans a claim from a *sql.Rows (multi-row cursor).
+// The SELECT must include claimed_by_agent_id between owner_agent and status.
 func scanClaimRow(rows *sql.Rows) (models.Claim, error) {
 	c := models.Claim{}
 	var (
@@ -371,6 +401,7 @@ func scanClaimRow(rows *sql.Rows) (models.Claim, error) {
 	)
 	err := rows.Scan(
 		&c.ClaimID, &c.WorkItemID, &trackID, &c.OwnerSessionID, &c.OwnerAgent,
+		&c.ClaimedByAgentID,
 		&c.Status, &intendedOutput, &writeScope,
 		&leasedStr, &expiresStr, &heartbeatStr,
 		&dependencies, &progressNotes, &blockerReason,
@@ -424,26 +455,57 @@ func nullJSON(raw json.RawMessage) sql.NullString {
 	return sql.NullString{String: string(raw), Valid: true}
 }
 
+// UpdateClaimAgentID sets claimed_by_agent_id on the most recent active claim
+// for the given work item. This is called by PostToolUse when a subagent runs
+// "htmlgraph feature start <id>" — the hook knows the agent_id from the
+// CloudEvent but the CLI doesn't have it in its environment.
+func UpdateClaimAgentID(database *sql.DB, workItemID, agentID string) error {
+	_, err := database.Exec(
+		`UPDATE claims SET claimed_by_agent_id = ?, updated_at = ?
+		 WHERE claim_id = (
+		     SELECT claim_id FROM claims
+		     WHERE work_item_id = ? AND status IN ('proposed','claimed','in_progress')
+		     AND (claimed_by_agent_id = '' OR claimed_by_agent_id IS NULL)
+		     ORDER BY created_at DESC LIMIT 1
+		 )`,
+		agentID, time.Now().UTC().Format(time.RFC3339), workItemID,
+	)
+	return err
+}
+
 // ensureFeatureRow creates a placeholder feature row if it doesn't exist.
 // This handles the case where a feature is created via HTML but not yet indexed
 // into the database, or when tests create features without database indexing.
 // Best-effort: errors are logged but not returned, since HTML is canonical.
 func ensureFeatureRow(db *sql.DB, featureID string) {
+	if featureID == "" {
+		return
+	}
+	itemType := "feature"
+	switch {
+	case strings.HasPrefix(featureID, "bug-"):
+		itemType = "bug"
+	case strings.HasPrefix(featureID, "spk-"):
+		itemType = "spike"
+	}
 	now := time.Now().UTC()
 	_, _ = db.Exec(`
 		INSERT OR IGNORE INTO features (id, type, title, status, priority, created_at, updated_at)
-		VALUES (?, 'feature', '', 'todo', 'medium', ?, ?)`,
-		featureID, now.Format(time.RFC3339), now.Format(time.RFC3339))
+		VALUES (?, ?, ?, 'in-progress', 'medium', ?, ?)`,
+		featureID, itemType, featureID, now.Format(time.RFC3339), now.Format(time.RFC3339))
 }
 
 // ensureSessionRow creates a placeholder session row if it doesn't exist.
 // This handles the case where a session is referenced before it's been created,
 // or when tests create claims without proper session setup.
-// Best-effort: errors are logged but not returned.
+// Best-effort: errors are ignored since the session row is not authoritative.
 func ensureSessionRow(db *sql.DB, sessionID, agent string) {
+	if agent == "" {
+		agent = "claude-code"
+	}
 	now := time.Now().UTC()
 	_, _ = db.Exec(`
-		INSERT OR IGNORE INTO sessions (session_id, agent, created_at, ended_at)
-		VALUES (?, ?, ?, ?)`,
-		sessionID, agent, now.Format(time.RFC3339), nil)
+		INSERT OR IGNORE INTO sessions (session_id, agent_assigned, status, created_at)
+		VALUES (?, ?, 'active', ?)`,
+		sessionID, agent, now.Format(time.RFC3339))
 }

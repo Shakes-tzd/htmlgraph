@@ -47,6 +47,9 @@ func Open(dbPath string) (*sql.DB, error) {
 	db.Exec(`ALTER TABLE tool_calls ADD COLUMN feature_id TEXT`)
 	db.Exec(`ALTER TABLE messages ADD COLUMN agent_id TEXT`)
 
+	// Per-agent work attribution: each subagent records its identity on claims.
+	db.Exec(`ALTER TABLE claims ADD COLUMN claimed_by_agent_id TEXT DEFAULT ""`)
+
 	// Drop deprecated tables replaced by claims system.
 	db.Exec(`DROP TABLE IF EXISTS agent_collaboration`)
 	db.Exec(`DROP TABLE IF EXISTS agent_presence`)

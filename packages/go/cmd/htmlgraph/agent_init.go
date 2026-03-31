@@ -1,3 +1,5 @@
+// parallel agent A was here
+// agent_init provides shared context to subagents via CLI pull.
 package main
 
 import (
@@ -219,3 +221,4 @@ Before committing ANY changes, run the project's test suite and linter.
 - **YAGNI** — Only implement what's needed now
 `
 }
+

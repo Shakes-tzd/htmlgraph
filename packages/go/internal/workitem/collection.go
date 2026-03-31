@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shakestzd/htmlgraph/internal/graph"
 	"github.com/shakestzd/htmlgraph/internal/htmlparse"
 	"github.com/shakestzd/htmlgraph/internal/models"
@@ -168,6 +169,7 @@ func (c *Collection) Start(id string) (*models.Node, error) {
 }
 
 // Complete marks a node as done and auto-completes all steps.
+// Also releases any active SQLite claim with completed status.
 func (c *Collection) Complete(id string) (*models.Node, error) {
 	node, err := c.Get(id)
 	if err != nil {
@@ -187,6 +189,9 @@ func (c *Collection) Complete(id string) (*models.Node, error) {
 	}
 	if c.base.DB != nil {
 		_ = dbpkg.UpdateFeatureStatus(c.base.DB, id, "done")
+		if activeClaim, err := dbpkg.GetActiveClaim(c.base.DB, id); err == nil && activeClaim != nil {
+			_ = dbpkg.ReleaseClaim(c.base.DB, activeClaim.ClaimID, activeClaim.OwnerSessionID, models.ClaimCompleted)
+		}
 	}
 	return node, nil
 }
@@ -291,7 +296,7 @@ func (c *Collection) Claim(id, sessionID string) error {
 }
 
 // Release clears the claim on a work item, removing agent assignment
-// and claim metadata.
+// and claim metadata. Also releases the SQLite claim if DB is available.
 func (c *Collection) Release(id string) error {
 	node, err := c.Get(id)
 	if err != nil {
@@ -306,30 +311,52 @@ func (c *Collection) Release(id string) error {
 	if _, err := c.writeNode(node); err != nil {
 		return fmt.Errorf("release %s/%s: %w", c.collectionName, id, err)
 	}
+
+	// Release SQLite claim if DB is available.
+	if c.base.DB != nil {
+		if activeClaim, err := dbpkg.GetActiveClaim(c.base.DB, id); err == nil && activeClaim != nil {
+			_ = dbpkg.ReleaseClaim(c.base.DB, activeClaim.ClaimID, activeClaim.OwnerSessionID, models.ClaimAbandoned)
+		}
+	}
 	return nil
 }
 
 // AtomicClaim claims a work item only if it is not already claimed
 // by another agent. Returns an error if already claimed.
+// When a DB connection is available, claiming is atomic at the SQLite level
+// (no race condition). Falls back to HTML-only check when DB is nil.
 func (c *Collection) AtomicClaim(id, sessionID string) error {
 	node, err := c.Get(id)
 	if err != nil {
 		return fmt.Errorf("atomic claim %s/%s: %w", c.collectionName, id, err)
 	}
 
-	if node.ClaimedBySession != "" && node.ClaimedBySession != sessionID {
-		return fmt.Errorf(
-			"atomic claim %s/%s: already claimed by session %s",
-			c.collectionName, id, node.ClaimedBySession,
-		)
-	}
-	if node.AgentAssigned != "" && node.AgentAssigned != c.base.Agent {
-		return fmt.Errorf(
-			"atomic claim %s/%s: already claimed by agent %s",
-			c.collectionName, id, node.AgentAssigned,
-		)
+	// SQLite-first: use atomic claim if DB is available.
+	if c.base.DB != nil {
+		claim := &models.Claim{
+			ClaimID:          "clm-" + uuid.NewString()[:8],
+			WorkItemID:       id,
+			OwnerSessionID:   sessionID,
+			OwnerAgent:       c.base.Agent,
+			ClaimedByAgentID: c.base.AgentID,
+			Status:           models.ClaimInProgress,
+		}
+		if err := dbpkg.ClaimItem(c.base.DB, claim, 30*time.Minute); err != nil {
+			return fmt.Errorf("atomic claim %s/%s: %w", c.collectionName, id, err)
+		}
+	} else {
+		// Fallback: HTML-only check (legacy path, race-prone).
+		if node.ClaimedBySession != "" && node.ClaimedBySession != sessionID {
+			return fmt.Errorf("atomic claim %s/%s: already claimed by session %s",
+				c.collectionName, id, node.ClaimedBySession)
+		}
+		if node.AgentAssigned != "" && node.AgentAssigned != c.base.Agent {
+			return fmt.Errorf("atomic claim %s/%s: already claimed by agent %s",
+				c.collectionName, id, node.AgentAssigned)
+		}
 	}
 
+	// Update HTML metadata (non-authoritative, for display).
 	now := time.Now().UTC()
 	node.AgentAssigned = c.base.Agent
 	node.ClaimedAt = fmtTime(now)
@@ -340,6 +367,87 @@ func (c *Collection) AtomicClaim(id, sessionID string) error {
 		return fmt.Errorf("atomic claim %s/%s: %w", c.collectionName, id, err)
 	}
 	return nil
+}
+
+// AddTaskStep appends a step to the node identified by id, using taskID as the
+// step ID so CompleteTaskStep can find and mark it done later.
+// Also updates SQLite step counters (best-effort, HTML is canonical).
+func (c *Collection) AddTaskStep(id, taskID, subject string) error {
+	node, err := c.Get(id)
+	if err != nil {
+		return fmt.Errorf("add task step %s: %w", id, err)
+	}
+
+	stepDesc := subject
+	if stepDesc == "" {
+		stepDesc = "Task " + taskID
+	}
+
+	node.Steps = append(node.Steps, models.Step{
+		StepID:      "task-" + taskID,
+		Description: stepDesc,
+		Completed:   false,
+		Agent:       c.base.Agent,
+		Timestamp:   time.Now().UTC(),
+	})
+	node.UpdatedAt = time.Now().UTC()
+
+	if _, err := c.writeNode(node); err != nil {
+		return fmt.Errorf("add task step %s: write: %w", id, err)
+	}
+
+	if c.base.DB != nil {
+		total, completed := countSteps(node.Steps)
+		_ = dbpkg.UpdateFeatureSteps(c.base.DB, id, total, completed)
+	}
+	return nil
+}
+
+// CompleteTaskStep marks the step matching taskID as completed on the node.
+// No-op if the step is already complete or not found.
+// Also updates SQLite step counters (best-effort, HTML is canonical).
+func (c *Collection) CompleteTaskStep(id, taskID string) error {
+	node, err := c.Get(id)
+	if err != nil {
+		return fmt.Errorf("complete task step %s: %w", id, err)
+	}
+
+	stepID := "task-" + taskID
+	modified := false
+	for i := range node.Steps {
+		if node.Steps[i].StepID == stepID && !node.Steps[i].Completed {
+			node.Steps[i].Completed = true
+			node.Steps[i].Agent = c.base.Agent
+			node.Steps[i].Timestamp = time.Now().UTC()
+			modified = true
+			break
+		}
+	}
+	if !modified {
+		return nil
+	}
+
+	node.UpdatedAt = time.Now().UTC()
+	if _, err := c.writeNode(node); err != nil {
+		return fmt.Errorf("complete task step %s: write: %w", id, err)
+	}
+
+	if c.base.DB != nil {
+		total, completed := countSteps(node.Steps)
+		_ = dbpkg.UpdateFeatureSteps(c.base.DB, id, total, completed)
+	}
+	return nil
+}
+
+// countSteps returns the total and completed step counts for a step slice.
+func countSteps(steps []models.Step) (total, completed int) {
+	total = len(steps)
+	for _, s := range steps {
+		if s.Completed {
+			completed++
+		}
+	}
+	return total, completed
 }
 
 // Unclaim removes the claim metadata without changing the node's status.

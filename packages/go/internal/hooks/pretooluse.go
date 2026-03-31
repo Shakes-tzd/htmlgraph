@@ -17,6 +17,7 @@ import (
 // PreToolUse handles the PreToolUse Claude Code hook event.
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	os.WriteFile("/tmp/htmlgraph-pretooluse-fired.log", []byte(fmt.Sprintf("fired at %s tool=%s agent=%s cwd=%s projdir=%s\n", time.Now().Format(time.RFC3339), event.ToolName, event.AgentID, event.CWD, os.Getenv("CLAUDE_PROJECT_DIR"))), 0644)
 	ctx := resolveToolUseContext(event, database)
 	if ctx == nil {
 		return &HookResult{}, nil
@@ -45,8 +46,26 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return result, nil
 	}
 
-	// YOLO mode enforcement: check launch mode and apply guards.
+	// Guard: block Write/Edit/MultiEdit from subagents when THIS AGENT has no
+	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
+	// the claims table; the orchestrator falls back to session-scoped FeatureID.
+	hasAgentClaim := false
+	if ctx.IsSubagent {
+		hasAgentClaim = db.HasActiveClaimByAgent(database, event.AgentID)
+	} else {
+		hasAgentClaim = ctx.FeatureID != ""
+	}
+	debugLog(ctx.ProjectDir, "[pretooluse-subagent-debug] agentID=%s agentType=%s isSubagent=%v featureID=%s hasAgentClaim=%v toolName=%s", event.AgentID, event.AgentType, ctx.IsSubagent, ctx.FeatureID, hasAgentClaim, event.ToolName)
+	if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim); warn != "" {
+		return &HookResult{Decision: "block", Reason: warn}, nil
+	}
+
+	// hasWorkItem uses a global fallback for the YOLO guard, which needs to detect
+	// items started mid-session via `htmlgraph feature start` (those update the
+	// features table but not sessions.active_feature_id).
 	hasWorkItem := ctx.FeatureID != "" || hasAnyInProgressWorkItem(database)
+
+	// YOLO mode enforcement: check launch mode and apply guards.
 	if warn := checkYoloWorkItemGuard(event.ToolName, ctx.FeatureID, ctx.IsYoloMode, hasWorkItem); warn != "" {
 		return &HookResult{
 			Decision: "block",
@@ -119,6 +138,13 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	// Ignore insert errors (FK violations are expected before session-start runs).
 	_ = db.InsertEvent(database, ev)
+
+	// Heartbeat active claims to renew leases.
+	if ctx.FeatureID != "" {
+		_ = db.HeartbeatClaimByWorkItem(database, ctx.FeatureID, ctx.SessionID, 30*time.Minute)
+	}
+	// Piggyback stale claim cleanup on existing hook calls.
+	_, _ = db.ReapExpiredClaims(database)
 
 	// Export event ID so posttooluse can link the result.
 	os.Setenv("HTMLGRAPH_CURRENT_EVENT_ID", ev.EventID)
@@ -330,6 +356,32 @@ func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID strin
 	debugLog(sessionProjectDir, "[htmlgraph] CWD divergence (read-only %s): session=%s event_cwd=%s",
 		event.ToolName, sessionProjectDir, event.CWD)
 	return nil
+}
+
+// checkSubagentWorkItemGuard blocks Write/Edit/MultiEdit from subagents when
+// no active work item is registered for THIS session. Returns a non-empty
+// reason to block, or "" to allow.
+//
+// hasWorkItem must be derived from ctx.FeatureID (session-scoped), not from a
+// global DB scan — a global check always passes on projects that have any
+// in-progress item, defeating the guard entirely.
+//
+// Subagents ignore prompt-based instructions to register work items before
+// writing code. Enforcing at the hook layer is the reliable alternative.
+func checkSubagentWorkItemGuard(toolName string, isSubagent, hasWorkItem bool) string {
+	if !isSubagent {
+		return ""
+	}
+	switch toolName {
+	case "Write", "Edit", "MultiEdit":
+	default:
+		return ""
+	}
+	if hasWorkItem {
+		return ""
+	}
+	return "No active work item. Run: htmlgraph feature start <id> or " +
+		"htmlgraph feature create \"description\" before writing code."
 }
 
 // isWriteTool returns true for tools that can modify the filesystem or execute

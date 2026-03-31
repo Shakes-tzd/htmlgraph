@@ -13,6 +13,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// devModeBackup records the state we swapped out during dev mode so we can
+// restore it after the session (or after a crash on next startup).
+type devModeBackup struct {
+	InstallPath    string `json:"installPath"`
+	BackupPath     string `json:"backupPath"`
+	WasEnabled     bool   `json:"wasEnabled"`
+	PluginKey      string `json:"pluginKey"`
+	HadInstallPath bool   `json:"hadInstallPath"`
+}
+
 // LaunchOpts controls how Claude Code is launched.
 type LaunchOpts struct {
 	// Mode is written to the launch marker (e.g. "go", "init", "continue", "default").
@@ -34,7 +44,7 @@ type LaunchOpts struct {
 	ExtraArgs []string
 	// ProjectRoot is the absolute path to the project root (directory containing .htmlgraph/).
 	// When set, Claude Code is started with this as the working directory, and path-sensitive
-	// helpers (writeLaunchMarker, stubProjectHooks) anchor their paths here instead of CWD.
+	// helpers (writeLaunchMarker, etc.) anchor their paths here instead of CWD.
 	ProjectRoot string
 }
 
@@ -86,8 +96,43 @@ func launchClaudeDev(extraArgs []string) error {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
 
+	// Clean up any leftover dev-mode state from a previous crash.
+	cleanupStaleDev(projectRoot)
+
+	// Set up marketplace symlink so plugin hooks fire natively.
+	restoreFn, err := setupDevModeSymlink(pluginDir, projectRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not set up plugin symlink (%v); falling back to --plugin-dir\n", err)
+		// Fallback: use --plugin-dir (hooks won't fire, but at least agents/skills work).
+		return launchClaudeDevFallback(pluginDir, projectRoot, extraArgs)
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		restoreFn()
+		os.Exit(0)
+	}()
+
+	fmt.Printf("Launching Claude Code with Go plugin (marketplace symlink mode)\n")
+	fmt.Printf("  Plugin source: %s\n", pluginDir)
+	fmt.Printf("  Hooks: firing natively via installed plugin\n")
+
+	launchErr := launchClaude(LaunchOpts{
+		Mode:            "go",
+		SystemPromptDir: pluginDir,
+		ExtraArgs:       extraArgs,
+		ProjectRoot:     projectRoot,
+	})
+	restoreFn()
+	return launchErr
+}
+
+// launchClaudeDevFallback uses the legacy --plugin-dir approach when symlink setup fails.
+func launchClaudeDevFallback(pluginDir, projectRoot string, extraArgs []string) error {
 	// Disable marketplace plugin to prevent duplicate hooks.
-	fmt.Println("Disabling marketplace htmlgraph plugin...")
+	fmt.Println("Disabling marketplace htmlgraph plugin (fallback mode)...")
 	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
 		exec.Command("claude", "plugin", "disable", scope).Run() //nolint:errcheck
 	}
@@ -101,9 +146,7 @@ func launchClaudeDev(extraArgs []string) error {
 		os.Exit(0)
 	}()
 
-	fmt.Printf("Launching Claude Code with Go plugin\n")
-	fmt.Printf("  Plugin: %s\n", pluginDir)
-	fmt.Printf("  Hooks: Go binary (near-zero cold start)\n")
+	fmt.Printf("  Hooks: WARNING — plugin hooks will NOT fire in --plugin-dir mode\n")
 
 	launchErr := launchClaude(LaunchOpts{
 		Mode:            "go",
@@ -116,12 +159,250 @@ func launchClaudeDev(extraArgs []string) error {
 	return launchErr
 }
 
+// installedPluginsJSON is the path to the Claude Code installed plugins registry.
+func installedPluginsJSONPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude", "plugins", "installed_plugins.json")
+}
+
+// claudeSettingsJSONPath is the path to the Claude Code user settings file.
+func claudeSettingsJSONPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude", "settings.json")
+}
+
+// devModeBackupPath returns the path to the dev-mode backup state file.
+func devModeBackupPath(projectRoot string) string {
+	base := ".htmlgraph"
+	if projectRoot != "" {
+		base = filepath.Join(projectRoot, ".htmlgraph")
+	}
+	return filepath.Join(base, ".dev-mode-backup")
+}
+
+// setupDevModeSymlink replaces the installed htmlgraph plugin directory with a
+// symlink pointing to the local plugin source, enables the plugin in settings,
+// and returns a cleanup function that restores the original state.
+func setupDevModeSymlink(pluginDir, projectRoot string) (func(), error) {
+	const pluginKey = "htmlgraph@htmlgraph"
+
+	// Read installed_plugins.json to find the current installPath.
+	pluginsFile := installedPluginsJSONPath()
+	pluginsData, err := os.ReadFile(pluginsFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading installed_plugins.json: %w", err)
+	}
+
+	// The file has a top-level "plugins" key.
+	var outer struct {
+		Version int                        `json:"version"`
+		Plugins map[string]json.RawMessage `json:"plugins"`
+	}
+	if err := json.Unmarshal(pluginsData, &outer); err != nil {
+		return nil, fmt.Errorf("parsing installed_plugins.json structure: %w", err)
+	}
+
+	type pluginEntry struct {
+		Scope       string `json:"scope"`
+		InstallPath string `json:"installPath"`
+		Version     string `json:"version"`
+	}
+
+	var installPath string
+	hadInstallPath := false
+
+	if raw, ok := outer.Plugins[pluginKey]; ok {
+		var entries []pluginEntry
+		if err := json.Unmarshal(raw, &entries); err == nil && len(entries) > 0 {
+			installPath = entries[0].InstallPath
+			hadInstallPath = installPath != ""
+		}
+	}
+
+	if !hadInstallPath {
+		return nil, fmt.Errorf("htmlgraph plugin not installed (no entry for %q in installed_plugins.json); install with: claude plugin install htmlgraph@htmlgraph", pluginKey)
+	}
+
+	// Determine backup path for the real install directory.
+	backupPath := installPath + ".dev-bak"
+
+	// Save backup state to disk so we can recover from a crash.
+	backup := devModeBackup{
+		InstallPath:    installPath,
+		BackupPath:     backupPath,
+		PluginKey:      pluginKey,
+		HadInstallPath: hadInstallPath,
+	}
+
+	// Read current enabled state from settings so we can restore it.
+	wasEnabled := false
+	if settingsData, err := os.ReadFile(claudeSettingsJSONPath()); err == nil {
+		var settings map[string]json.RawMessage
+		if json.Unmarshal(settingsData, &settings) == nil {
+			if epRaw, ok := settings["enabledPlugins"]; ok {
+				var ep map[string]bool
+				if json.Unmarshal(epRaw, &ep) == nil {
+					wasEnabled = ep[pluginKey]
+				}
+			}
+		}
+	}
+	backup.WasEnabled = wasEnabled
+
+	// Write backup state file.
+	backupStateFile := devModeBackupPath(projectRoot)
+	if data, err := json.MarshalIndent(backup, "", "  "); err == nil {
+		os.WriteFile(backupStateFile, data, 0644) //nolint:errcheck
+	}
+
+	// Perform the swap: back up real directory, then symlink source in its place.
+	if err := swapToSymlink(installPath, backupPath, pluginDir); err != nil {
+		os.Remove(backupStateFile) //nolint:errcheck
+		return nil, err
+	}
+
+	// Enable the plugin in settings.json.
+	if err := setPluginEnabled(pluginKey, true); err != nil {
+		// Non-fatal: warn and continue — user may have it enabled already.
+		fmt.Fprintf(os.Stderr, "warning: could not enable plugin in settings.json: %v\n", err)
+	}
+
+	fmt.Printf("  Symlinked: %s -> %s\n", installPath, pluginDir)
+
+	restoreFn := func() {
+		restoreFromSymlink(installPath, backupPath, pluginKey, wasEnabled, backupStateFile)
+	}
+	return restoreFn, nil
+}
+
+// swapToSymlink backs up installPath (if it exists and is not already a symlink)
+// then creates a symlink at installPath pointing to pluginDir.
+func swapToSymlink(installPath, backupPath, pluginDir string) error {
+	info, statErr := os.Lstat(installPath)
+
+	if statErr == nil {
+		// Path exists.
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Already a symlink (leftover from previous crash) — remove it.
+			if err := os.Remove(installPath); err != nil {
+				return fmt.Errorf("removing stale symlink at %s: %w", installPath, err)
+			}
+		} else {
+			// Real directory — back it up.
+			if err := os.Rename(installPath, backupPath); err != nil {
+				return fmt.Errorf("backing up %s to %s: %w", installPath, backupPath, err)
+			}
+		}
+	} else if !os.IsNotExist(statErr) {
+		return fmt.Errorf("stat %s: %w", installPath, statErr)
+	} else {
+		// installPath doesn't exist — ensure parent directory exists.
+		if err := os.MkdirAll(filepath.Dir(installPath), 0755); err != nil {
+			return fmt.Errorf("creating parent directory for %s: %w", installPath, err)
+		}
+	}
+
+	if err := os.Symlink(pluginDir, installPath); err != nil {
+		// Attempt to restore backup before returning the error.
+		if _, backupExists := os.Stat(backupPath); backupExists == nil {
+			os.Rename(backupPath, installPath) //nolint:errcheck
+		}
+		return fmt.Errorf("creating symlink %s -> %s: %w", installPath, pluginDir, err)
+	}
+	return nil
+}
+
+// restoreFromSymlink removes the dev-mode symlink and restores the backup.
+func restoreFromSymlink(installPath, backupPath, pluginKey string, wasEnabled bool, backupStateFile string) {
+	// Remove the symlink.
+	if err := os.Remove(installPath); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "warning: could not remove dev symlink %s: %v\n", installPath, err)
+	}
+
+	// Restore backup if it exists.
+	if _, err := os.Stat(backupPath); err == nil {
+		if err := os.Rename(backupPath, installPath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not restore %s from %s: %v\n", installPath, backupPath, err)
+		}
+	}
+
+	// Restore enabled state in settings.json.
+	if err := setPluginEnabled(pluginKey, wasEnabled); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not restore plugin enabled state: %v\n", err)
+	}
+
+	// Remove the backup state file.
+	os.Remove(backupStateFile) //nolint:errcheck
+
+	fmt.Println("Dev mode cleanup complete.")
+}
+
+// setPluginEnabled sets enabledPlugins[key] = enabled in ~/.claude/settings.json.
+func setPluginEnabled(key string, enabled bool) error {
+	settingsPath := claudeSettingsJSONPath()
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		return fmt.Errorf("reading settings.json: %w", err)
+	}
+
+	var settings map[string]json.RawMessage
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return fmt.Errorf("parsing settings.json: %w", err)
+	}
+
+	var ep map[string]bool
+	if epRaw, ok := settings["enabledPlugins"]; ok {
+		if err := json.Unmarshal(epRaw, &ep); err != nil {
+			ep = make(map[string]bool)
+		}
+	} else {
+		ep = make(map[string]bool)
+	}
+
+	ep[key] = enabled
+
+	epBytes, err := json.Marshal(ep)
+	if err != nil {
+		return fmt.Errorf("marshalling enabledPlugins: %w", err)
+	}
+	settings["enabledPlugins"] = json.RawMessage(epBytes)
+
+	out, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling settings.json: %w", err)
+	}
+	if err := os.WriteFile(settingsPath, out, 0644); err != nil {
+		return fmt.Errorf("writing settings.json: %w", err)
+	}
+	return nil
+}
+
+// cleanupStaleDev checks for a leftover .dev-mode-backup file from a previous
+// crash and restores the original plugin state if one is found.
+func cleanupStaleDev(projectRoot string) {
+	backupStateFile := devModeBackupPath(projectRoot)
+	data, err := os.ReadFile(backupStateFile)
+	if err != nil {
+		return // No stale backup — nothing to do.
+	}
+
+	var backup devModeBackup
+	if err := json.Unmarshal(data, &backup); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not parse stale dev-mode backup state: %v\n", err)
+		return
+	}
+
+	fmt.Println("Found stale dev-mode state from previous crash — restoring...")
+	restoreFromSymlink(backup.InstallPath, backup.BackupPath, backup.PluginKey, backup.WasEnabled, backupStateFile)
+}
+
 func launchClaudeInit(extraArgs []string) error {
 	pluginDir := resolvePluginDir()
 	projectRoot := ""
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
+	cleanupStaleDev(projectRoot)
 	ensureHtmlgraphPlugin()
 	fmt.Println("Launching Claude Code with marketplace plugin (init mode)...")
 	return launchClaude(LaunchOpts{
@@ -137,6 +418,7 @@ func launchClaudeContinue(extraArgs []string) error {
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
+	cleanupStaleDev(projectRoot)
 	fmt.Println("Resuming last Claude Code session (continue mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:        "continue",
@@ -152,6 +434,7 @@ func launchClaudeDefault(extraArgs []string) error {
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectRoot = filepath.Dir(htmlgraphDir)
 	}
+	cleanupStaleDev(projectRoot)
 	fmt.Println("Launching Claude Code (default mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:            "default",

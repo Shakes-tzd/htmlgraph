@@ -100,6 +100,18 @@ func (e *EditBuilder) SetTrack(trackID string) *EditBuilder {
 	return e
 }
 
+// SetProperty sets a key-value pair in the node's Properties map.
+func (e *EditBuilder) SetProperty(key string, value any) *EditBuilder {
+	if e.err != nil {
+		return e
+	}
+	if e.node.Properties == nil {
+		e.node.Properties = make(map[string]any)
+	}
+	e.node.Properties[key] = value
+	return e
+}
+
 // AddStep appends an implementation step to the node.
 func (e *EditBuilder) AddStep(description string) *EditBuilder {
 	if e.err != nil {

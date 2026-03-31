@@ -6,7 +6,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/graph"
 	"github.com/shakestzd/htmlgraph/internal/hooks"
 	"github.com/shakestzd/htmlgraph/internal/htmlparse"
@@ -37,6 +40,7 @@ type wiCreateOpts struct {
 	priority    string
 	description string
 	files       string
+	steps       string // comma-separated implementation steps
 	start       bool
 	noLink      bool
 }
@@ -57,9 +61,8 @@ func wiCreateCmd(typeName, dirName string) *cobra.Command {
 	cmd.Flags().StringVar(&opts.description, "description", "", "description text")
 	cmd.Flags().BoolVar(&opts.start, "start", false, "immediately mark as in-progress")
 	cmd.Flags().BoolVar(&opts.noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
-	if typeName == "bug" {
-		cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
-	}
+	cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
+	cmd.Flags().StringVar(&opts.steps, "steps", "", "comma-separated implementation steps")
 	return cmd
 }
 
@@ -79,7 +82,28 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		return fmt.Errorf("create %s: %w", typeName, err)
 	}
 
-	warnMissingFields(typeName, o)
+	if err := warnMissingFields(typeName, o); err != nil {
+		return err
+	}
+
+	// Post-creation: record steps, session provenance, and affected files.
+	sessionID := hooks.EnvSessionID("")
+	if o.steps != "" || sessionID != "" || (o.files != "" && typeName != "bug") {
+		col := collectionFor(p, typeName)
+		edit := col.Edit(node.ID)
+		for _, step := range splitSteps(o.steps) {
+			edit = edit.AddStep(step)
+		}
+		if sessionID != "" {
+			edit = edit.SetProperty("created_in_session", sessionID)
+		}
+		if o.files != "" && typeName != "bug" {
+			edit = edit.SetProperty("affected_files", o.files)
+		}
+		if saveErr := edit.Save(); saveErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", saveErr)
+		}
+	}
 
 	if typeName == "bug" && !o.noLink {
 		if featID := detectActiveFeature(p, dir); featID != "" {
@@ -295,13 +319,27 @@ func runWiSetStatus(typeName, id, status string) error {
 		return fmt.Errorf("set %s %s: %w", typeName, status, err)
 	}
 
-	// When starting a work item, update active_feature_id and create
-	// an implemented_in edge linking the work item to this session.
+	// When starting a work item, update active_feature_id, create a claim
+	// with per-agent attribution, and create an implemented_in edge.
 	if status == "in-progress" {
 		sessionID := hooks.EnvSessionID("")
+		agentID := os.Getenv("HTMLGRAPH_AGENT_ID") // "" for orchestrator
 		if sessionID != "" {
 			if p.DB != nil {
 				_ = hooks.UpdateActiveFeature(p.DB, sessionID, id)
+				// Create a claim with per-agent attribution so the
+				// PreToolUse guard can verify this specific agent
+				// has claimed work (not just the session).
+				claim := &models.Claim{
+					ClaimID:          "clm-" + uuid.NewString()[:8],
+					WorkItemID:       id,
+					OwnerSessionID:   sessionID,
+					OwnerAgent:       agentForClaim(),
+					ClaimedByAgentID: agentID,
+					Status:           models.ClaimInProgress,
+				}
+				// Best-effort: ignore conflict if claim already exists.
+				_ = dbpkg.ClaimItem(p.DB, claim, 30*time.Minute)
 			}
 			// Auto-create implemented_in edge (idempotent — skip if exists).
 			autoImplementedInEdge(col, id, sessionID)
@@ -396,6 +434,26 @@ func runWiAddStep(typeName, id, description string) error {
 	}
 	fmt.Printf("Added step to %s: %s\n", id, description)
 	return nil
+}
+
+// splitSteps splits a comma-separated steps string into trimmed non-empty parts.
+func splitSteps(s string) []string {
+	var steps []string
+	for _, part := range strings.Split(s, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			steps = append(steps, trimmed)
+		}
+	}
+	return steps
+}
+
+// agentForClaim returns the agent string for claim ownership.
+// Uses HTMLGRAPH_AGENT_TYPE if set (subagent), otherwise "claude-code".
+func agentForClaim() string {
+	if v := os.Getenv("HTMLGRAPH_AGENT_TYPE"); v != "" {
+		return v
+	}
+	return "claude-code"
 }
 
 // resolveID resolves a partial or full work item ID to its canonical form.

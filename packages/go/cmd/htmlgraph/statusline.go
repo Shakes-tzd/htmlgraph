@@ -1,3 +1,4 @@
+// parallel agent B was here
 package main
 
 import (
@@ -81,7 +82,7 @@ func statuslineFromSession(dir, sessionID string) error {
 	}
 
 	// Check if feature belongs to a track.
-	trackLine := resolveTrackContext(database, featureID)
+	trackLine := resolveTrackContext(database, dir, featureID)
 
 	if trackLine != "" {
 		fmt.Printf("%s → %s %s\n", trackLine, iconFor(featureType), truncate(featureTitle, 25))
@@ -94,7 +95,9 @@ func statuslineFromSession(dir, sessionID string) error {
 // resolveTrackContext returns a formatted track summary if the feature belongs to a track.
 // Format: "track_icon Track Title [done/total]"
 // Returns empty string if no track.
-func resolveTrackContext(database *sql.DB, featureID string) string {
+// dir is the .htmlgraph directory; it is used to read HTML files for accurate counts
+// since the SQLite features table may be stale (not all features are indexed).
+func resolveTrackContext(database *sql.DB, dir, featureID string) string {
 	// Check track_id in SQLite first (fast path).
 	var trackID sql.NullString
 	database.QueryRow("SELECT track_id FROM features WHERE id = ?", featureID).Scan(&trackID) //nolint:errcheck
@@ -112,28 +115,22 @@ func resolveTrackContext(database *sql.DB, featureID string) string {
 		return ""
 	}
 
-	// Get track title.
+	// Get track title from SQLite (tracks table is reliably populated).
 	var trackTitle sql.NullString
 	database.QueryRow("SELECT title FROM tracks WHERE id = ?", trackID.String).Scan(&trackTitle) //nolint:errcheck
 
-	// Count done/total features via track_id column.
-	var total, done int
-	database.QueryRow(`
-		SELECT COUNT(*), COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0)
-		FROM features WHERE track_id = ?`, trackID.String).Scan(&total, &done) //nolint:errcheck
-
-	// Also count features linked only via contains edges (not in track_id column).
-	var edgeTotal, edgeDone int
-	database.QueryRow(`
-		SELECT COUNT(*), COALESCE(SUM(CASE WHEN f.status = 'done' THEN 1 ELSE 0 END), 0)
-		FROM graph_edges ge
-		JOIN features f ON ge.to_node_id = f.id
-		WHERE ge.from_node_id = ? AND ge.relationship_type = 'contains'
-		AND (f.track_id IS NULL OR f.track_id != ?)`,
-		trackID.String, trackID.String).Scan(&edgeTotal, &edgeDone) //nolint:errcheck
-
-	total += edgeTotal
-	done += edgeDone
+	// Count done/total by reading HTML files directly — same source that
+	// `htmlgraph track show` uses. SQLite features rows are often incomplete
+	// (features indexed in graph_edges but absent from the features table),
+	// which caused [0/0] to appear in the status line.
+	features := loadLinkedByType(dir, "features", trackID.String)
+	total := len(features)
+	done := 0
+	for _, f := range features {
+		if f.Status == "done" || f.Status == "completed" {
+			done++
+		}
+	}
 
 	title := trackID.String
 	if trackTitle.Valid && trackTitle.String != "" {

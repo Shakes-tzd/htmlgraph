@@ -39,6 +39,12 @@ func TestCheckProjectDivergence_SameProject(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(projectDir, ".htmlgraph"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
+
+	// Isolate from the developer's real environment: the hint file and env vars
+	// must not redirect ResolveProjectDir to the real htmlgraph project dir.
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+
 	sessionID := "sess-same-project"
 	database := makeSessionDB(t, sessionID, projectDir)
 
@@ -185,6 +191,40 @@ func TestIsWriteTool(t *testing.T) {
 		if isWriteTool(name) {
 			t.Errorf("expected %s to NOT be a write tool", name)
 		}
+	}
+}
+
+func TestCheckSubagentWorkItemGuard(t *testing.T) {
+	tests := []struct {
+		name        string
+		tool        string
+		isSubagent  bool
+		hasWorkItem bool
+		blocked     bool
+	}{
+		{"subagent Write no work item blocks", "Write", true, false, true},
+		{"subagent Edit no work item blocks", "Edit", true, false, true},
+		{"subagent MultiEdit no work item blocks", "MultiEdit", true, false, true},
+		{"subagent Write with work item allows", "Write", true, true, false},
+		{"subagent Edit with work item allows", "Edit", true, true, false},
+		{"subagent Bash no work item allows (not a write-only guard)", "Bash", true, false, false},
+		{"subagent Read no work item allows", "Read", true, false, false},
+		{"non-subagent Write no work item allows", "Write", false, false, false},
+		{"non-subagent Edit no work item allows", "Edit", false, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkSubagentWorkItemGuard(tt.tool, tt.isSubagent, tt.hasWorkItem)
+			if tt.blocked && result == "" {
+				t.Errorf("expected block for tool=%s isSubagent=%v hasWorkItem=%v, got allow",
+					tt.tool, tt.isSubagent, tt.hasWorkItem)
+			}
+			if !tt.blocked && result != "" {
+				t.Errorf("expected allow for tool=%s isSubagent=%v hasWorkItem=%v, got block: %s",
+					tt.tool, tt.isSubagent, tt.hasWorkItem, result)
+			}
+		})
 	}
 }
 

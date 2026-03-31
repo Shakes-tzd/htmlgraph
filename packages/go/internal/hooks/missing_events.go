@@ -84,26 +84,112 @@ func TeammateIdle(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	return recordSimpleEvent(models.EventTeammateIdle, "TeammateIdle", "Teammate agent went idle", "recorded", event, database)
 }
 
-// TaskCompleted handles the TaskCompleted Claude Code hook event.
-// Records a task_completed event when a delegated task finishes.
-func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	return recordSimpleEvent(models.EventTaskCompleted, "TaskCompleted", "Delegated task completed", "completed", event, database)
+// TaskCreated handles the TaskCreated Claude Code hook event.
+// Mirrors Claude Code tasks into HtmlGraph as steps on the active feature,
+// making HtmlGraph the durable task tracking surface that survives session
+// termination and is visible to other sessions.
+func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	sessionID := EnvSessionID(event.SessionID)
+	if sessionID == "" {
+		return &HookResult{Continue: true}, nil
+	}
+
+	featureID := cachedGetActiveFeatureID(database, sessionID)
+	subject, _ := event.TaskData["subject"].(string)
+	description, _ := event.TaskData["description"].(string)
+	taskID := event.TaskID
+
+	summary := "Task created"
+	if subject != "" {
+		summary = fmt.Sprintf("Task created: %s", subject)
+	} else if taskID != "" {
+		summary = fmt.Sprintf("Task created: task_id=%s", taskID)
+	}
+
+	now := time.Now().UTC()
+	ev := &models.AgentEvent{
+		EventID:      uuid.New().String(),
+		AgentID:      resolveEventAgentID(event),
+		EventType:    models.EventCheckPoint,
+		Timestamp:    now,
+		ToolName:     "TaskCreate",
+		InputSummary: summary,
+		OutputSummary: description,
+		SessionID:    sessionID,
+		FeatureID:    featureID,
+		Status:       "recorded",
+		Source:       "hook",
+		ClaudeTaskID: taskID,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	if err := db.InsertEvent(database, ev); err != nil {
+		projectDir := ResolveProjectDir(event.CWD)
+		debugLog(projectDir, "[error] handler=TaskCreated session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
+	}
+
+	// Mirror as a step on the active feature so the task survives session end.
+	if featureID != "" && taskID != "" {
+		addTaskStep(database, sessionID, featureID, taskID, subject)
+	}
+
+	// If task metadata includes files, create a claim with write scope.
+	if featureID != "" && taskID != "" {
+		createTaskClaim(database, event, sessionID, featureID, taskID, subject)
+	}
+
+	return &HookResult{Continue: true}, nil
 }
 
-// TaskCreated handles the TaskCreated Claude Code hook event.
-// Records when a new task is created via TaskCreate, capturing the task
-// subject and ID for HtmlGraph task tracking.
-func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	summary := "Task created"
-	if event.TaskID != "" {
-		subject, _ := event.TaskData["subject"].(string)
-		if subject != "" {
-			summary = fmt.Sprintf("Task created: %s (task_id=%s)", subject, event.TaskID)
-		} else {
-			summary = fmt.Sprintf("Task created: task_id=%s", event.TaskID)
-		}
+// TaskCompleted handles the TaskCompleted Claude Code hook event.
+// Marks the corresponding HtmlGraph step as completed and records a
+// task_completed agent_event for the timeline.
+func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	sessionID := EnvSessionID(event.SessionID)
+	if sessionID == "" {
+		return &HookResult{Continue: true}, nil
 	}
-	return recordSimpleEvent(models.EventCheckPoint, "TaskCreated", summary, "recorded", event, database)
+
+	featureID := cachedGetActiveFeatureID(database, sessionID)
+	taskID := event.TaskID
+	subject, _ := event.TaskData["subject"].(string)
+
+	summary := "Task completed"
+	if subject != "" {
+		summary = fmt.Sprintf("Task completed: %s", subject)
+	} else if taskID != "" {
+		summary = fmt.Sprintf("Task completed: task_id=%s", taskID)
+	}
+
+	now := time.Now().UTC()
+	ev := &models.AgentEvent{
+		EventID:      uuid.New().String(),
+		AgentID:      resolveEventAgentID(event),
+		EventType:    models.EventTaskCompleted,
+		Timestamp:    now,
+		ToolName:     "TaskComplete",
+		InputSummary: summary,
+		SessionID:    sessionID,
+		FeatureID:    featureID,
+		Status:       "completed",
+		Source:       "hook",
+		ClaudeTaskID: taskID,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	if err := db.InsertEvent(database, ev); err != nil {
+		projectDir := ResolveProjectDir(event.CWD)
+		debugLog(projectDir, "[error] handler=TaskCompleted session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
+	}
+
+	// Mark the step as completed on the feature HTML.
+	if featureID != "" && taskID != "" {
+		completeTaskStep(database, sessionID, featureID, taskID)
+	}
+
+	return &HookResult{Continue: true}, nil
 }
 
 // InstructionsLoaded handles the InstructionsLoaded Claude Code hook event.
