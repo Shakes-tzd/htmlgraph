@@ -1,133 +1,76 @@
 # Deployment & Release Rules
 
-**CRITICAL: Use `./scripts/deploy-all.sh` for all deployment operations.**
+**CRITICAL: Use `./scripts/deploy-all.sh` or `/htmlgraph:deploy` for all deployment operations.**
+
+## Two Independent Install Paths
+
+HtmlGraph has **two components** that must stay in sync after every release:
+
+| Component | Location | Mechanism |
+|-----------|----------|-----------|
+| **CLI binary** | `~/.local/bin/htmlgraph` (copy) | `plugin/build.sh` |
+| **Plugin** | `~/.claude/plugins/cache/htmlgraph/htmlgraph/<ver>/` | `claude plugin install htmlgraph@htmlgraph` |
+
+The deploy script updates both automatically. **Never update one without the other.**
+
+### Why Reinstall (Not Update)
+
+`claude plugin update` preserves the old `gitCommitSha` in `installed_plugins.json`. Claude Code uses that SHA to resolve the plugin subdirectory within the marketplace clone. If the project structure ever changes (e.g., `packages/go-plugin/` → `plugin/`), the stale SHA points to a nonexistent path and **breaks hooks in ALL projects on the machine**. The deploy script does `uninstall + install` to get a clean SHA.
+
+### Why Copy (Not Symlink) for CLI
+
+`build.sh` copies the binary to `~/.local/bin/htmlgraph`. A symlink would make every project use the live dev binary — dangerous if the dev tree has a broken build mid-refactor. The copy provides isolation between "htmlgraph the thing I'm building" and "htmlgraph the thing I rely on."
 
 ## Using the Deployment Script
 
-**IMPORTANT PRE-DEPLOYMENT CHECKLIST:**
-1. **MUST be in project root directory** - Script will fail if run from subdirectories
-2. ~~**Commit all changes first**~~ - **AUTOMATED!** Script auto-commits version changes in Step 0
-3. ~~**Verify version numbers**~~ - **AUTOMATED!** Script auto-updates all version numbers in Step 0
-4. **Run tests** - `go test ./...` must pass before deployment
-
-**Streamlined Workflow:**
 ```bash
-# 1. Run tests
-go build ./... && go vet ./... && go test ./...
-
-# 2. Deploy (one command, fully automated!)
+# Recommended: one command, fully automated
 ./scripts/deploy-all.sh 1.0.0 --no-confirm
 
-# The script handles:
-# Version updates in all files (Step 0)
-# Auto-commit of version changes
-# Git push with tags
-# Go binary build for all platforms
-# GitHub Release with binaries
-# Plugin updates
-# No interactive prompts with --no-confirm
+# Or via slash command:
+/htmlgraph:deploy 1.0.0
 ```
 
-**Quick Usage:**
-```bash
-# Full release (non-interactive, recommended)
-./scripts/deploy-all.sh 1.0.0 --no-confirm
-
-# Full release (with confirmations)
-./scripts/deploy-all.sh 1.0.0
-
-# Documentation changes only (commit + push)
-./scripts/deploy-all.sh --docs-only
-
-# Build binary only (test builds)
-./scripts/deploy-all.sh --build-only
-
-# Preview what would happen (dry-run)
-./scripts/deploy-all.sh --dry-run
-
-# Show all options
-./scripts/deploy-all.sh --help
-```
-
-**Available Flags:**
-- `--no-confirm` - Skip all confirmation prompts (non-interactive mode)
-- `--docs-only` - Only commit and push to git (skip build/publish)
-- `--build-only` - Only build binary (skip git/publish)
-- `--skip-plugins` - Skip plugin update steps
-- `--dry-run` - Show what would happen without executing
+**Pre-requisite:** `go test ./...` must pass.
 
 **What the Script Does:**
-- **Pre-flight: Code Quality** - Run `go build`, `go vet`, `go test`
-- **Pre-flight: Plugin Sync** - Verify plugin/ and .claude are synced
-0. **Update & Commit Versions** - Auto-update version numbers in all files and commit
-1. **Git Push** - Push commits and tags to origin/main
-2. **Build Binary** - Cross-compile Go binary for darwin/linux (amd64/arm64)
-3. **Create GitHub Release** - Upload binaries to GitHub Releases
-4. **Update Claude Plugin** - Run `claude plugin update htmlgraph`
-5. **Update Gemini Extension** - Update version in gemini-extension.json
+1. **Quality gates** — `go build`, `go vet`, `go test`
+2. **Version bump** — Updates `plugin/.claude-plugin/plugin.json`
+3. **Git push** — Commits version change, tags, pushes to origin/main
+4. **GitHub Release** — Tag triggers GoReleaser via GitHub Actions
+5. **Marketplace pull** — `git pull` on `~/.claude/plugins/marketplaces/htmlgraph/`
+6. **Plugin reinstall** — `claude plugin uninstall` + `install` (clean `gitCommitSha`)
+7. **CLI rebuild** — `plugin/build.sh` copies binary to `~/.local/bin/`
 
-**See:** `scripts/README.md` for complete documentation
+**Available Flags:**
+- `--no-confirm` — Skip confirmation prompts (recommended for AI)
+- `--docs-only` — Only commit and push (skip tag/release)
+- `--build-only` — Only run quality gates
+- `--dry-run` — Show what would happen without executing
 
 ## Version Numbering
 
-HtmlGraph follows [Semantic Versioning](https://semver.org/):
-- **MAJOR.MINOR.PATCH** (e.g., 1.0.0)
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
+Semantic Versioning: **MAJOR.MINOR.PATCH**
+- Patch (X.Y.Z+1): Bug fixes
+- Minor (X.Y+1.0): New features (backward compatible)
+- Major (X+1.0.0): Breaking changes
 
-**Version Files to Update:**
-1. `plugin/.claude-plugin/plugin.json` - Plugin version
-2. `packages/gemini-extension/gemini-extension.json` - Gemini extension version
+**Version file:** `plugin/.claude-plugin/plugin.json`
 
-## Publishing Checklist
+## Post-Deployment Verification
 
-**Pre-Release:**
-- [ ] All tests pass: `go test ./...`
-- [ ] Documentation updated
-- [ ] Version bumped in all files
-- [ ] Changes committed to git
-- [ ] Create git tag: `git tag v1.0.0`
-
-## Post-Release
-
-**Update Claude Plugin:**
 ```bash
-# Users update with:
-claude plugin update htmlgraph
+# CI pipelines
+gh run list --workflow=ci.yml --limit 1
+gh run list --workflow=release-go.yml --limit 1
 
-# Or fresh install:
-claude plugin install htmlgraph
-```
-
-**Verify Installation:**
-```bash
-# Check binary version
-htmlgraph --version
-
-# Check plugin version
+# Installed versions match
 grep '"version"' plugin/.claude-plugin/plugin.json
+cat ~/.local/share/htmlgraph/.binary-version
 ```
 
 ## Rollback
 
-If a release has issues:
-
-1. **Patch Release:** Bump to next patch version (e.g., 1.0.0 -> 1.0.1)
-2. **Delete GitHub Release:** `gh release delete v1.0.0` (if caught quickly)
-3. **Publish Fix:** Release corrected version
-
-## Memory File Synchronization
-
-**CRITICAL: Use `htmlgraph sync-docs` to maintain documentation consistency.**
-
-HtmlGraph uses a centralized documentation pattern:
-- **AGENTS.md** - Single source of truth (SDK, API, CLI, workflows)
-- **CLAUDE.md** - Platform-specific notes + references AGENTS.md
-- **GEMINI.md** - Platform-specific notes + references AGENTS.md
-
-**Quick Usage:**
-```bash
-htmlgraph sync-docs --check   # Check sync status
-htmlgraph sync-docs           # Synchronize all files
-```
+1. Bump to next patch version with the fix
+2. Or delete the release: `gh release delete v1.0.0` (if caught quickly)
+3. Re-deploy the corrected version

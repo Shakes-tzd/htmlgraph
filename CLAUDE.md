@@ -53,7 +53,9 @@ go test ./...                                    # Run tests
 ./scripts/deploy-all.sh X.Y.Z --no-confirm      # Deploy
 ```
 
-See `.claude/rules/deployment.md` for full deployment workflow and options.
+Or use `/htmlgraph:deploy X.Y.Z` which encapsulates the full pipeline.
+
+**CRITICAL:** CLI binary (`~/.local/bin/htmlgraph`) and plugin (`~/.claude/plugins/cache/`) are independent installs. The deploy script updates both. Never update one without the other. See `.claude/rules/deployment.md` for details.
 
 ---
 
@@ -124,9 +126,10 @@ The bootstrap is a POSIX shell script (~170 lines) that requires only `curl`/`ta
 **Binary locations:**
 ```
 CLI install:  /usr/local/bin/htmlgraph (brew) or ~/.local/bin/htmlgraph (go install / shell script)
-Developer:    ~/.local/bin/htmlgraph → plugin/hooks/bin/htmlgraph (built locally via setup-cli)
+Developer:    ~/.local/bin/htmlgraph (copy from plugin/hooks/bin/htmlgraph via build.sh)
 Plugin-only:  hooks/bin/htmlgraph (bootstrap script) → ~/.claude/plugins/data/htmlgraph/htmlgraph-bin (downloaded)
 ```
+Note: Developer binary is a **copy**, not a symlink. This isolates other projects from dev-tree instability. See `.claude/rules/deployment.md`.
 
 ---
 
