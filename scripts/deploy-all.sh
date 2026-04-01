@@ -230,12 +230,30 @@ else
         warn "Marketplace clone not found at $MARKETPLACE_DIR — skipping pull"
     fi
 
-    # 2. Update the installed plugin (agents, skills, hooks config, bootstrap).
+    # 2. Reinstall the plugin (uninstall + install).
+    #    A simple `claude plugin update` bumps the version but keeps the old
+    #    gitCommitSha, which Claude Code uses to resolve the plugin subdirectory
+    #    within the marketplace clone.  After a project restructure (e.g.
+    #    packages/go-plugin → plugin/) the stale SHA points to a path that no
+    #    longer exists, breaking hooks in ALL projects on this machine.
+    #    Reinstalling gives a clean gitCommitSha and installPath.
     if command -v claude >/dev/null 2>&1; then
-        claude plugin update htmlgraph@htmlgraph 2>&1 | tail -1
-        ok "Plugin updated"
+        claude plugin uninstall htmlgraph@htmlgraph 2>/dev/null
+        claude plugin install htmlgraph@htmlgraph 2>&1 | tail -1
+        # Re-enable in settings (uninstall clears the enabled flag).
+        python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/settings.json')
+try:
+    d = json.load(open(f))
+    d.setdefault('enabledPlugins', {})['htmlgraph@htmlgraph'] = True
+    json.dump(d, open(f, 'w'), indent=2)
+except Exception:
+    pass
+" 2>/dev/null
+        ok "Plugin reinstalled"
     else
-        warn "claude CLI not found — skipping plugin update"
+        warn "claude CLI not found — skipping plugin reinstall"
     fi
 
     # 3. Rebuild CLI binary so ~/.local/bin/htmlgraph matches the release.
