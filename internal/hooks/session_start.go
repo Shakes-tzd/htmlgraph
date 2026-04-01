@@ -297,7 +297,11 @@ func writeEnvVars(sessionID, projectDir string) {
 		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — using .active-session only (session_id=%s)", sessionID)
 		return
 	}
-	f, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err := os.MkdirAll(filepath.Dir(envFile), 0o755); err != nil {
+		debugLog(projectDir, "[htmlgraph] failed to create CLAUDE_ENV_FILE dir %s: %v", filepath.Dir(envFile), err)
+		return
+	}
+	f, err := os.OpenFile(envFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		debugLog(projectDir, "[htmlgraph] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
 		return

@@ -54,7 +54,10 @@ else
     chmod +x "${BIN_DIR}/htmlgraph"
     echo "Built: plugin/hooks/bin/htmlgraph"
 
-    # Install to ~/.local/bin so the binary is on PATH
+    # Install to ~/.local/bin so the binary is on PATH.
+    # Always copy (not symlink) so other projects on this machine get a
+    # stable, intentionally-built binary rather than a live pointer into
+    # the dev tree.
     INSTALL_DIR="${HOME}/.local/bin"
     META_DIR="${HOME}/.local/share/htmlgraph"
     mkdir -p "${INSTALL_DIR}" "${META_DIR}"

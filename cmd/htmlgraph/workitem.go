@@ -122,6 +122,11 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		if _, startErr := collectionFor(p, typeName).Start(node.ID); startErr != nil {
 			return fmt.Errorf("start %s: %w", typeName, startErr)
 		}
+		// Update session's active_feature_id so the status line reflects
+		// the newly-started work item (mirrors runWiSetStatus logic).
+		if sessionID != "" && p.DB != nil {
+			_ = hooks.UpdateActiveFeature(p.DB, sessionID, node.ID)
+		}
 		fmt.Printf("Created and started: %s  %s\n", node.ID, node.Title)
 	} else {
 		fmt.Printf("Created: %s  %s\n", node.ID, node.Title)
