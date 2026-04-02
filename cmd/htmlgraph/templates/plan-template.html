@@ -330,7 +330,7 @@ textarea::placeholder{color:var(--text-muted)}
       }
       // Check if all questions are answered
       var allRows=document.querySelectorAll('[data-recap-for]');
-      var allAnswered=Array.prototype.every.call(allRows,function(r){
+      var allAnswered=allRows.length>0&&Array.prototype.every.call(allRows,function(r){
         var b=r.querySelector('.badge');
         return b&&b.className.indexOf('badge-approved')>=0;
       });
@@ -358,7 +358,7 @@ textarea::placeholder{color:var(--text-muted)}
   });
   // Check if all questions start answered
   var allRows=document.querySelectorAll('[data-recap-for]');
-  var allAnswered=Array.prototype.every.call(allRows,function(r){
+  var allAnswered=allRows.length>0&&Array.prototype.every.call(allRows,function(r){
     var b=r.querySelector('.badge');
     return b&&b.className.indexOf('badge-approved')>=0;
   });
