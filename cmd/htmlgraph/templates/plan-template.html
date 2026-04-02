@@ -70,6 +70,7 @@ a{color:var(--accent);text-decoration:none}
 /* Zone 1: Dependency graph */
 .dep-graph{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px}
 .dep-graph h2{margin-bottom:16px}
+.dep-graph svg{width:100%;max-height:500px;display:block}
 #dep-graph-svg .node rect{rx:6;ry:6}
 #dep-graph-svg .edgePath path{stroke-dasharray:4 3;fill:none}
 #dep-graph-svg .edgePath marker path{fill:#707070}
@@ -132,7 +133,7 @@ textarea::placeholder{color:var(--text-muted)}
   <a href="/#plans" class="nav-link active">Plans</a>
 </nav>
 <div class="plan-content">
-<article data-plan-id="plan-webhook-support" data-feature-id="feat-xxx" data-status="draft">
+<article id="plan-webhook-support" data-feature-id="feat-xxx" data-status="draft">
 
 <!-- Plan Header -->
 <header class="plan-header">
@@ -140,7 +141,7 @@ textarea::placeholder{color:var(--text-muted)}
   <p style="color:var(--text-dim)">HTTP POST notifications for HtmlGraph events with retry and config management.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">4 slices &middot; 6 files &middot; Created 2026-04-01</span>
+    <span style="font-size:.75rem;color:var(--text-muted)"><!--PLAN_META--></span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -151,12 +152,9 @@ textarea::placeholder{color:var(--text-muted)}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="webhook add" data-files="2" data-status="pending" data-deps=""></div>
-    <div data-node="2" data-name="webhook list" data-files="2" data-status="pending" data-deps="1"></div>
-    <div data-node="3" data-name="webhook dispatch" data-files="2" data-status="pending" data-deps="1"></div>
-    <div data-node="4" data-name="webhook remove" data-files="2" data-status="pending" data-deps="1"></div>
+    <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" width="100%" height="280"></svg>
+  <svg id="dep-graph-svg" width="100%"></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -246,38 +244,7 @@ func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
 <details class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>C. Vertical Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    <div class="slice-card" data-slice="1" data-slice-name="webhook-add" data-status="pending" data-files="2">
-      <div class="slice-header"><span class="slice-num">#1</span><span class="slice-name">webhook add</span><span class="badge badge-pending" data-badge-for="slice-1">Pending</span></div>
-      <div class="slice-meta"><span>Files: <code>cmd/webhook.go</code>, <code>internal/webhook/config.go</code></span></div>
-      <h4>Test Strategy</h4>
-      <ul><li>Unit: <code>Register()</code> writes valid JSON config</li><li>Unit: duplicate URL returns error</li><li>Integration: CLI <code>htmlgraph webhook add</code> end-to-end</li></ul>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: none (foundation slice)</p>
-      <div class="approval-row"><label><input type="checkbox" data-section="slice-1" data-action="approve"> Approve slice</label><textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea></div>
-    </div>
-    <div class="slice-card" data-slice="2" data-slice-name="webhook-list" data-status="pending" data-files="2">
-      <div class="slice-header"><span class="slice-num">#2</span><span class="slice-name">webhook list</span><span class="badge badge-pending" data-badge-for="slice-2">Pending</span></div>
-      <div class="slice-meta"><span>Files: <code>cmd/webhook.go</code>, <code>internal/webhook/list.go</code></span></div>
-      <h4>Test Strategy</h4>
-      <ul><li>Unit: <code>LoadConfig()</code> reads and parses correctly</li><li>Unit: empty config returns empty list</li><li>Integration: CLI <code>htmlgraph webhook list</code> output format</li></ul>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: Slice #1 (config must exist)</p>
-      <div class="approval-row"><label><input type="checkbox" data-section="slice-2" data-action="approve"> Approve slice</label><textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea></div>
-    </div>
-    <div class="slice-card" data-slice="3" data-slice-name="webhook-dispatch" data-status="pending" data-files="2">
-      <div class="slice-header"><span class="slice-num">#3</span><span class="slice-name">webhook dispatch</span><span class="badge badge-pending" data-badge-for="slice-3">Pending</span></div>
-      <div class="slice-meta"><span>Files: <code>internal/webhook/dispatch.go</code>, <code>internal/events/bus.go</code></span></div>
-      <h4>Test Strategy</h4>
-      <ul><li>Unit: <code>Dispatch()</code> sends HTTP POST with correct headers</li><li>Unit: retry logic respects max attempts</li><li>Unit: HMAC signature computed correctly</li><li>Integration: event bus triggers webhook delivery</li></ul>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: Slice #1 (reads config for endpoints)</p>
-      <div class="approval-row"><label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label><textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea></div>
-    </div>
-    <div class="slice-card" data-slice="4" data-slice-name="webhook-remove" data-status="pending" data-files="2">
-      <div class="slice-header"><span class="slice-num">#4</span><span class="slice-name">webhook remove</span><span class="badge badge-pending" data-badge-for="slice-4">Pending</span></div>
-      <div class="slice-meta"><span>Files: <code>cmd/webhook.go</code>, <code>internal/webhook/config.go</code></span></div>
-      <h4>Test Strategy</h4>
-      <ul><li>Unit: <code>Unregister()</code> removes correct entry</li><li>Unit: removing non-existent URL returns error</li><li>Integration: CLI <code>htmlgraph webhook remove</code> end-to-end</li></ul>
-      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: Slice #1 (config must exist to remove from)</p>
-      <div class="approval-row"><label><input type="checkbox" data-section="slice-4" data-action="approve"> Approve slice</label><textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea></div>
-    </div>
+    <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
@@ -301,8 +268,8 @@ func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">6</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">6</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections"><!--PLAN_TOTAL_SECTIONS--></strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount"><!--PLAN_TOTAL_SECTIONS--></strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -362,9 +329,9 @@ func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
 
 (function(){
   'use strict';
-  var article=document.querySelector('article[data-plan-id]');
-  var planId=article?article.dataset.planId:null;
-  var SECTIONS=['design','outline','slice-1','slice-2','slice-3','slice-4'];
+  var article=document.querySelector('article[id]');
+  var planId=article?article.id:null;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/['design','outline','slice-1','slice-2','slice-3','slice-4']/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
@@ -629,16 +596,20 @@ func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
     inner.selectAll('g.edgePath marker path')
       .style('fill','#707070');
 
-    // Center the graph in the SVG
+    // Use viewBox so the SVG scales to show all nodes without clipping,
+    // regardless of how many nodes are in a single rank.
     var svgEl=document.getElementById('dep-graph-svg');
     var graphWidth=g.graph().width;
-    var svgWidth=svgEl.clientWidth||svgEl.getBoundingClientRect().width||700;
-    var xOffset=Math.max(0,(svgWidth-graphWidth)/2);
-    inner.attr('transform','translate('+xOffset+',20)');
-
-    // Adjust SVG height to fit content
     var graphHeight=g.graph().height;
-    svgEl.setAttribute('height',Math.max(200,graphHeight+48));
+    var pad=24;
+    var vbWidth=graphWidth+pad*2;
+    var vbHeight=graphHeight+pad*2;
+    inner.attr('transform','translate('+pad+','+pad+')');
+    svgEl.setAttribute('viewBox','0 0 '+vbWidth+' '+vbHeight);
+    svgEl.setAttribute('preserveAspectRatio','xMidYMid meet');
+    // Remove any fixed height so viewBox drives the intrinsic size;
+    // CSS max-height on the element caps overly tall chains.
+    svgEl.removeAttribute('height');
   }
 
   if(document.readyState==='loading'){
