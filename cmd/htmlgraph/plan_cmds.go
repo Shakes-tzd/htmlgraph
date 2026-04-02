@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shakestzd/htmlgraph/internal/htmlparse"
 	"github.com/spf13/cobra"
 )
 
@@ -74,12 +76,18 @@ func runPlanGenerate(sourceID string) error {
 		return fmt.Errorf("read plan template: %w", err)
 	}
 
+	graphNodes, sliceCards, sectionsJSON, totalSections := buildPlanSections(nodePath)
+
 	content := applyPlanTemplateVars(string(tmplData), planTemplateVars{
-		PlanID:      planID,
-		FeatureID:   resolved,
-		Title:       info.title,
-		Description: info.description,
-		Date:        time.Now().UTC().Format("2006-01-02"),
+		PlanID:        planID,
+		FeatureID:     resolved,
+		Title:         info.title,
+		Description:   info.description,
+		Date:          time.Now().UTC().Format("2006-01-02"),
+		GraphNodes:    graphNodes,
+		SliceCards:    sliceCards,
+		SectionsJSON:  sectionsJSON,
+		TotalSections: totalSections,
 	})
 
 	if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
@@ -251,18 +259,24 @@ func extractPlanNodeInfo(html string) planNodeInfo {
 }
 
 type planTemplateVars struct {
-	PlanID      string
-	FeatureID   string
-	Title       string
-	Description string
-	Date        string
+	PlanID        string
+	FeatureID     string
+	Title         string
+	Description   string
+	Date          string
+	GraphNodes    string // HTML for <!--PLAN_GRAPH_NODES-->
+	SliceCards    string // HTML for <!--PLAN_SLICE_CARDS-->
+	SectionsJSON  string // JS array literal for /*PLAN_SECTIONS_JSON*/
+	TotalSections string // integer string for <!--PLAN_TOTAL_SECTIONS-->
 }
 
-// applyPlanTemplateVars replaces sample placeholder values in the template HTML
+// applyPlanTemplateVars replaces placeholder values in the template HTML
 // with real values from the source work item.
 func applyPlanTemplateVars(tmpl string, v planTemplateVars) string {
 	tmpl = strings.ReplaceAll(tmpl, "plan-webhook-support", v.PlanID)
 	tmpl = strings.ReplaceAll(tmpl, "feat-xxx", v.FeatureID)
+	// Ensure article uses id= (htmlparse expects it), fixing any stale data-plan-id= from cache.
+	tmpl = strings.Replace(tmpl, `data-plan-id="`+v.PlanID+`"`, `id="`+v.PlanID+`"`, 1)
 	tmpl = strings.ReplaceAll(tmpl, "Plan: Webhook Support", "Plan: "+v.Title)
 	tmpl = strings.ReplaceAll(tmpl, "Webhook Support", v.Title)
 
@@ -272,7 +286,113 @@ func applyPlanTemplateVars(tmpl string, v planTemplateVars) string {
 	}
 
 	tmpl = strings.ReplaceAll(tmpl, "2026-04-01", v.Date)
+
+	if v.GraphNodes != "" {
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_GRAPH_NODES-->", v.GraphNodes)
+	}
+	if v.SliceCards != "" {
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_SLICE_CARDS-->", v.SliceCards)
+	}
+	if v.TotalSections != "" {
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_TOTAL_SECTIONS-->", v.TotalSections)
+	}
+	if v.SectionsJSON != "" {
+		// Replace the default array between the JS markers.
+		const start = "/*PLAN_SECTIONS_JSON*/"
+		const end = "/*END_PLAN_SECTIONS_JSON*/"
+		if si := strings.Index(tmpl, start); si >= 0 {
+			if ei := strings.Index(tmpl[si:], end); ei >= 0 {
+				tmpl = tmpl[:si+len(start)] + v.SectionsJSON + tmpl[si+ei:]
+			}
+		}
+	}
+
 	return tmpl
+}
+
+// planFeature holds the data needed to render one slice card and graph node.
+type planFeature struct {
+	num   int
+	id    string
+	title string
+}
+
+// buildPlanSections parses the source node for "contains" edges and generates
+// graph node HTML, slice card HTML, sections JSON, and total section count.
+// Falls back to empty strings (leaving template placeholders intact) on any error.
+func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, totalSections string) {
+	node, err := htmlparse.ParseFile(nodePath)
+	if err != nil {
+		return
+	}
+
+	containsEdges := node.Edges["contains"]
+	if len(containsEdges) == 0 {
+		return
+	}
+
+	features := make([]planFeature, 0, len(containsEdges))
+	for i, edge := range containsEdges {
+		title := strings.TrimSpace(edge.Title)
+		if title == "" {
+			title = edge.TargetID
+		}
+		// Truncate overly long edge titles for display.
+		if len(title) > 60 {
+			title = title[:57] + "..."
+		}
+		features = append(features, planFeature{num: i + 1, id: edge.TargetID, title: title})
+	}
+
+	// Build graph nodes HTML.
+	var gnBuf strings.Builder
+	for _, f := range features {
+		gnBuf.WriteString(fmt.Sprintf(
+			`    <div data-node="%d" data-name="%s" data-files="0" data-status="pending" data-deps=""></div>`+"\n",
+			f.num, html.EscapeString(f.title),
+		))
+	}
+	graphNodes = gnBuf.String()
+
+	// Build slice cards HTML.
+	var scBuf strings.Builder
+	for _, f := range features {
+		n := f.num
+		scBuf.WriteString(fmt.Sprintf(
+			`    <div class="slice-card" data-slice="%d" data-slice-name="%s" data-status="pending" data-files="0">`+"\n",
+			n, html.EscapeString(f.id),
+		))
+		scBuf.WriteString(fmt.Sprintf(
+			`      <div class="slice-header"><span class="slice-num">#%d</span><span class="slice-name">%s</span><span class="badge badge-pending" data-badge-for="slice-%d">Pending</span></div>`+"\n",
+			n, html.EscapeString(f.title), n,
+		))
+		scBuf.WriteString(fmt.Sprintf(
+			`      <div class="slice-meta"><span>%s</span></div>`+"\n",
+			html.EscapeString(f.id),
+		))
+		scBuf.WriteString("      <h4>Test Strategy</h4>\n")
+		scBuf.WriteString("      <ul><li>Add test strategy here</li></ul>\n")
+		scBuf.WriteString(`      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: none</p>` + "\n")
+		scBuf.WriteString(fmt.Sprintf(
+			`      <div class="approval-row"><label><input type="checkbox" data-section="slice-%d" data-action="approve"> Approve slice</label><textarea data-section="slice-%d" data-comment-for="slice-%d" placeholder="Comments on slice %d..."></textarea></div>`+"\n",
+			n, n, n, n,
+		))
+		scBuf.WriteString("    </div>\n")
+	}
+	sliceCards = scBuf.String()
+
+	// Build sections JSON array: ["design","outline","slice-1","slice-2",...]
+	sections := []string{"design", "outline"}
+	for _, f := range features {
+		sections = append(sections, fmt.Sprintf("slice-%d", f.num))
+	}
+	sectionStrs := make([]string, len(sections))
+	for i, s := range sections {
+		sectionStrs[i] = `"` + s + `"`
+	}
+	sectionsJSON = "[" + strings.Join(sectionStrs, ",") + "]"
+	totalSections = fmt.Sprintf("%d", len(sections))
+	return
 }
 
 // derivePlanID builds a kebab-case plan file ID from the work item title.
