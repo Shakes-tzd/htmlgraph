@@ -70,7 +70,8 @@ a{color:var(--accent);text-decoration:none}
 /* Zone 1: Dependency graph */
 .dep-graph{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:24px}
 .dep-graph h2{margin-bottom:16px}
-.dep-graph svg{width:100%;max-height:500px;display:block}
+.dep-graph{overflow-x:auto}
+.dep-graph svg{display:block;height:auto}
 #dep-graph-svg .node rect{rx:6;ry:6}
 #dep-graph-svg .edgePath path{stroke-dasharray:4 3;fill:none}
 #dep-graph-svg .edgePath marker path{fill:#707070}
@@ -163,40 +164,10 @@ textarea::placeholder{color:var(--text-muted)}
 <details class="section-card" open data-phase="design" data-status="pending">
   <summary><span>A. Design Discussion</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <div class="sub-section">
-      <h4>Current State</h4>
-      <p>Events flow through <code>internal/events/</code>. The <code>EventBus</code> dispatches listeners in-process only &mdash; no external notification capability exists.</p>
-    </div>
-    <div class="sub-section">
-      <h4>Desired End State</h4>
-      <p>HTTP POST to registered webhook endpoints with configurable retry. Configuration stored in <code>.htmlgraph/webhooks.json</code>. CLI commands for add/list/remove.</p>
-    </div>
-    <div class="sub-section">
-      <h4>Relevant Patterns</h4>
-      <ul style="list-style:disc;padding-left:18px">
-        <li>Hook handler pattern &mdash; <code>internal/hooks/</code></li>
-        <li>Config file pattern &mdash; <code>internal/config/</code></li>
-        <li>Event bus &mdash; <code>internal/events/bus.go</code></li>
-      </ul>
-    </div>
+    <!--PLAN_DESIGN_CONTENT-->
     <div class="sub-section">
       <h4>Open Questions</h4>
-      <div class="question-block" data-question="delivery-mode" data-status="pending">
-        <p>Delivery mode?</p>
-        <label><input type="radio" name="q-delivery" value="async" checked data-question="delivery-mode"> Async (fire-and-forget with retry queue)</label>
-        <label><input type="radio" name="q-delivery" value="sync" data-question="delivery-mode"> Sync (block until delivered or timeout)</label>
-      </div>
-      <div class="question-block" data-question="auth-method" data-status="pending">
-        <p>Endpoint authentication?</p>
-        <label><input type="radio" name="q-auth" value="hmac" checked data-question="auth-method"> HMAC signature header (like GitHub webhooks)</label>
-        <label><input type="radio" name="q-auth" value="bearer" data-question="auth-method"> Bearer token</label>
-        <label><input type="radio" name="q-auth" value="none" data-question="auth-method"> None (rely on endpoint security)</label>
-      </div>
-      <div class="question-block" data-question="config-format" data-status="pending">
-        <p>Config storage format?</p>
-        <label><input type="radio" name="q-config" value="json" checked data-question="config-format"> JSON (<code>.htmlgraph/webhooks.json</code>)</label>
-        <label><input type="radio" name="q-config" value="html" data-question="config-format"> HTML (consistent with other .htmlgraph files)</label>
-      </div>
+      <!--PLAN_QUESTIONS-->
     </div>
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
@@ -209,30 +180,7 @@ textarea::placeholder{color:var(--text-muted)}
 <details class="section-card" data-phase="outline" data-status="pending">
   <summary><span>B. Structure Outline</span><span class="badge badge-pending" data-badge-for="outline">Pending</span></summary>
   <div class="section-body">
-    <h4>Type Definitions &amp; Function Signatures</h4>
-    <pre><code class="language-go">// internal/webhook/config.go
-
-type WebhookConfig struct {
-    URL     string   `json:"url"`
-    Events  []string `json:"events"`
-    Secret  string   `json:"secret"`
-    Retries int      `json:"retries"`
-}
-
-func Register(cfg WebhookConfig) error
-func Unregister(url string) error
-func LoadConfig(path string) ([]WebhookConfig, error)
-func SaveConfig(path string, cfgs []WebhookConfig) error</code></pre>
-    <pre><code class="language-go">// internal/webhook/dispatch.go
-
-type DeliveryResult struct {
-    URL        string
-    StatusCode int
-    Error      error
-    Attempts   int
-}
-
-func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
+    <!--PLAN_OUTLINE_CONTENT-->
     <div class="approval-row">
       <label><input type="checkbox" data-section="outline" data-action="approve"> Approve API contract</label>
       <textarea data-section="outline" data-comment-for="outline" placeholder="Comments on function signatures and types..."></textarea>
@@ -255,9 +203,7 @@ func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
     <table class="q-table">
       <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
       <tbody id="questionsRecap">
-        <tr data-recap-for="delivery-mode"><td>Delivery mode</td><td class="recap-answer">Async</td><td><span class="badge badge-pending">Pending</span></td></tr>
-        <tr data-recap-for="auth-method"><td>Endpoint auth</td><td class="recap-answer">HMAC</td><td><span class="badge badge-pending">Pending</span></td></tr>
-        <tr data-recap-for="config-format"><td>Config format</td><td class="recap-answer">JSON</td><td><span class="badge badge-pending">Pending</span></td></tr>
+        <!--PLAN_QUESTIONS_RECAP-->
       </tbody>
     </table>
   </div>
@@ -596,20 +542,17 @@ func Dispatch(ctx context.Context, event Event) []DeliveryResult</code></pre>
     inner.selectAll('g.edgePath marker path')
       .style('fill','#707070');
 
-    // Use viewBox so the SVG scales to show all nodes without clipping,
-    // regardless of how many nodes are in a single rank.
+    // Size the SVG to the graph's native dimensions so nodes stay
+    // full-size and readable.  The container has overflow-x:auto,
+    // so wide graphs get a horizontal scrollbar instead of shrinking.
     var svgEl=document.getElementById('dep-graph-svg');
     var graphWidth=g.graph().width;
     var graphHeight=g.graph().height;
     var pad=24;
-    var vbWidth=graphWidth+pad*2;
-    var vbHeight=graphHeight+pad*2;
     inner.attr('transform','translate('+pad+','+pad+')');
-    svgEl.setAttribute('viewBox','0 0 '+vbWidth+' '+vbHeight);
-    svgEl.setAttribute('preserveAspectRatio','xMidYMid meet');
-    // Remove any fixed height so viewBox drives the intrinsic size;
-    // CSS max-height on the element caps overly tall chains.
-    svgEl.removeAttribute('height');
+    svgEl.setAttribute('width',graphWidth+pad*2);
+    svgEl.setAttribute('height',graphHeight+pad*2);
+    svgEl.removeAttribute('viewBox');
   }
 
   if(document.readyState==='loading'){

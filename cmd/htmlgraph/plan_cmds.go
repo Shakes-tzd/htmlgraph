@@ -29,6 +29,7 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planOpenCmd())
 	cmd.AddCommand(planWaitCmd())
 	cmd.AddCommand(planReadFeedbackCmd())
+	cmd.AddCommand(planAddQuestionCmd())
 	return cmd
 }
 
@@ -331,25 +332,51 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 		return
 	}
 
+	// Build feature list and an ID→node-number index for dependency resolution.
+	idToNum := make(map[string]int, len(containsEdges))
 	features := make([]planFeature, 0, len(containsEdges))
 	for i, edge := range containsEdges {
 		title := strings.TrimSpace(edge.Title)
 		if title == "" {
 			title = edge.TargetID
 		}
-		// Truncate overly long edge titles for display.
 		if len(title) > 60 {
 			title = title[:57] + "..."
 		}
-		features = append(features, planFeature{num: i + 1, id: edge.TargetID, title: title})
+		num := i + 1
+		idToNum[edge.TargetID] = num
+		features = append(features, planFeature{num: num, id: edge.TargetID, title: title})
+	}
+
+	// Read each child feature's blocked_by edges to build dependency strings.
+	htmlgraphDir := filepath.Dir(filepath.Dir(nodePath)) // nodePath is .htmlgraph/tracks/trk-xxx.html
+	featureDeps := make(map[int]string, len(features))
+	for _, f := range features {
+		childPath := resolveNodePath(htmlgraphDir, f.id)
+		if childPath == "" {
+			continue
+		}
+		childNode, err := htmlparse.ParseFile(childPath)
+		if err != nil {
+			continue
+		}
+		var depNums []string
+		for _, blockedEdge := range childNode.Edges["blocked_by"] {
+			if num, ok := idToNum[blockedEdge.TargetID]; ok {
+				depNums = append(depNums, fmt.Sprintf("%d", num))
+			}
+		}
+		if len(depNums) > 0 {
+			featureDeps[f.num] = strings.Join(depNums, ",")
+		}
 	}
 
 	// Build graph nodes HTML.
 	var gnBuf strings.Builder
 	for _, f := range features {
 		gnBuf.WriteString(fmt.Sprintf(
-			`    <div data-node="%d" data-name="%s" data-files="0" data-status="pending" data-deps=""></div>`+"\n",
-			f.num, html.EscapeString(f.title),
+			`    <div data-node="%d" data-name="%s" data-files="0" data-status="pending" data-deps="%s"></div>`+"\n",
+			f.num, html.EscapeString(f.title), featureDeps[f.num],
 		))
 	}
 	graphNodes = gnBuf.String()
@@ -417,6 +444,127 @@ func derivePlanID(title string) string {
 		result = strings.TrimRight(result[:40], "-")
 	}
 	return "plan-" + result
+}
+
+// ---- plan add-question ------------------------------------------------------
+
+func planAddQuestionCmd() *cobra.Command {
+	var desc, options string
+	cmd := &cobra.Command{
+		Use:   `add-question <plan-id> <question> --options "opt1:explanation1,opt2:explanation2"`,
+		Short: "Add a design question to a plan",
+		Long: `Add an interactive question to a plan's design section.
+
+Each option has a short label and an explanation separated by ":".
+The first option is selected by default.
+
+Example:
+  htmlgraph plan add-question plan-my-feature "Error message length?" \
+    --options "one-line:Keep hints to a single sentence after the error,two-line:Allow a second line with more context and examples" \
+    --description "Longer messages give agents more guidance but consume more context tokens."`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runPlanAddQuestion(args[0], args[1], desc, options)
+		},
+	}
+	cmd.Flags().StringVar(&desc, "description", "", "explanation of why this question matters")
+	cmd.Flags().StringVar(&options, "options", "", `comma-separated "value:explanation" pairs`)
+	_ = cmd.MarkFlagRequired("options")
+	return cmd
+}
+
+// planQuestionOption is one radio choice with a label and explanation.
+type planQuestionOption struct {
+	Value       string
+	Explanation string
+}
+
+func parsePlanOptions(raw string) []planQuestionOption {
+	var opts []planQuestionOption
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		val, expl, _ := strings.Cut(part, ":")
+		opts = append(opts, planQuestionOption{Value: strings.TrimSpace(val), Explanation: strings.TrimSpace(expl)})
+	}
+	return opts
+}
+
+func runPlanAddQuestion(planID, question, description, optionsRaw string) error {
+	htmlgraphDir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+
+	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	if _, err := os.Stat(planPath); err != nil {
+		return fmt.Errorf("plan %q not found at %s", planID, planPath)
+	}
+
+	opts := parsePlanOptions(optionsRaw)
+	if len(opts) == 0 {
+		return fmt.Errorf("at least one option required (format: value:explanation)")
+	}
+
+	// Build a kebab-case question ID from the question text.
+	qID := derivePlanID(question)
+	qID = strings.TrimPrefix(qID, "plan-")
+	radioName := "q-" + qID
+
+	// Build question block HTML.
+	var qHTML strings.Builder
+	qHTML.WriteString(fmt.Sprintf(`      <div class="question-block" data-question="%s" data-status="pending">`+"\n", html.EscapeString(qID)))
+	qHTML.WriteString(fmt.Sprintf("        <p><strong>%s</strong></p>\n", html.EscapeString(question)))
+	if description != "" {
+		qHTML.WriteString(fmt.Sprintf(`        <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:8px">%s</p>`+"\n", html.EscapeString(description)))
+	}
+	for i, opt := range opts {
+		checked := ""
+		if i == 0 {
+			checked = " checked"
+		}
+		label := html.EscapeString(opt.Value)
+		if opt.Explanation != "" {
+			label += fmt.Sprintf(` <span style="color:var(--text-muted);font-size:.85rem">&mdash; %s</span>`, html.EscapeString(opt.Explanation))
+		}
+		qHTML.WriteString(fmt.Sprintf(`        <label><input type="radio" name="%s" value="%s"%s data-question="%s"> %s</label>`+"\n",
+			html.EscapeString(radioName), html.EscapeString(opt.Value), checked, html.EscapeString(qID), label))
+	}
+	qHTML.WriteString("      </div>\n")
+
+	// Build recap row HTML.
+	recapHTML := fmt.Sprintf(
+		`        <tr data-recap-for="%s"><td>%s</td><td class="recap-answer">%s</td><td><span class="badge badge-pending">Pending</span></td></tr>`,
+		html.EscapeString(qID), html.EscapeString(question), html.EscapeString(opts[0].Value))
+
+	// Read the plan file and inject.
+	data, err := os.ReadFile(planPath)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+
+	// Insert question block — append before the PLAN_QUESTIONS marker or at end of questions section.
+	if strings.Contains(content, "<!--PLAN_QUESTIONS-->") {
+		content = strings.Replace(content, "<!--PLAN_QUESTIONS-->", qHTML.String()+"      <!--PLAN_QUESTIONS-->", 1)
+	} else {
+		// Fallback: insert before the design approval row.
+		content = strings.Replace(content, `<div class="approval-row">`, qHTML.String()+`      <div class="approval-row">`, 1)
+	}
+
+	// Insert recap row.
+	if strings.Contains(content, "<!--PLAN_QUESTIONS_RECAP-->") {
+		content = strings.Replace(content, "<!--PLAN_QUESTIONS_RECAP-->", recapHTML+"\n        <!--PLAN_QUESTIONS_RECAP-->", 1)
+	}
+
+	if err := os.WriteFile(planPath, []byte(content), 0o644); err != nil {
+		return err
+	}
+
+	fmt.Printf("Added question: %s (%d options)\n", question, len(opts))
+	return nil
 }
 
 // ---- browser / server helpers -----------------------------------------------
