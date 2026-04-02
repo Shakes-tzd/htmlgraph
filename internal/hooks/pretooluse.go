@@ -17,7 +17,6 @@ import (
 // PreToolUse handles the PreToolUse Claude Code hook event.
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	os.WriteFile("/tmp/htmlgraph-pretooluse-fired.log", []byte(fmt.Sprintf("fired at %s tool=%s agent=%s cwd=%s projdir=%s\n", time.Now().Format(time.RFC3339), event.ToolName, event.AgentID, event.CWD, os.Getenv("CLAUDE_PROJECT_DIR"))), 0644)
 	ctx := resolveToolUseContext(event, database)
 	if ctx == nil {
 		return &HookResult{}, nil
@@ -55,7 +54,6 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	} else {
 		hasAgentClaim = ctx.FeatureID != ""
 	}
-	debugLog(ctx.ProjectDir, "[pretooluse-subagent-debug] agentID=%s agentType=%s isSubagent=%v featureID=%s hasAgentClaim=%v toolName=%s", event.AgentID, event.AgentType, ctx.IsSubagent, ctx.FeatureID, hasAgentClaim, event.ToolName)
 	if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim); warn != "" {
 		return &HookResult{Decision: "block", Reason: warn}, nil
 	}

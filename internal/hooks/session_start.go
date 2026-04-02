@@ -100,11 +100,11 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 
 	s := &models.Session{
 		SessionID:       sessionID,
-		AgentAssigned:   agentName(),
+		AgentAssigned:   resolveEventAgentID(event),
 		Status:          "active",
 		CreatedAt:       now,
 		StartCommit:     startCommit,
-		IsSubagent:      isSubagent(),
+		IsSubagent:      isSubagentEvent(event) || isSubagent(),
 		Model:           os.Getenv("CLAUDE_MODEL"),
 		ParentSessionID: os.Getenv("HTMLGRAPH_PARENT_SESSION"),
 		ParentEventID:   os.Getenv("HTMLGRAPH_PARENT_EVENT"),
@@ -112,7 +112,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		ProjectDir:      projectDir,
 	}
 
-	// Prefer model from CloudEvent over env var (more reliable).
+	// Prefer CloudEvent fields over env vars (more reliable).
 	if event.Model != "" {
 		s.Model = event.Model
 	}
@@ -121,7 +121,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	var inp *lineageInputs
 	if s.IsSubagent && s.ParentSessionID != "" {
 		featureID := GetActiveFeatureID(database, s.SessionID)
-		inp = resolveParentLineage(database, s.ParentSessionID, featureID)
+		inp = resolveParentLineage(event, database, s.ParentSessionID, featureID)
 	}
 
 	// Batch all writes into a single transaction: session upsert + lineage inserts.
@@ -163,10 +163,10 @@ type lineageInputs struct {
 
 // resolveParentLineage reads the parent's lineage record and builds the inputs
 // for the child trace. Pure reads — must be called before the transaction.
-func resolveParentLineage(database *sql.DB, parentSessionID, featureID string) *lineageInputs {
+func resolveParentLineage(event *CloudEvent, database *sql.DB, parentSessionID, featureID string) *lineageInputs {
 	parent, _ := db.GetLineageBySession(database, parentSessionID)
 	inp := &lineageInputs{
-		myAgent:         agentName(),
+		myAgent:         resolveEventAgentID(event),
 		featureID:       featureID,
 		parentSessionID: parentSessionID,
 	}
@@ -329,14 +329,6 @@ func headCommit(dir string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
-}
-
-// agentName returns the agent identifier for this session.
-func agentName() string {
-	if v := os.Getenv("HTMLGRAPH_AGENT"); v != "" {
-		return v
-	}
-	return "claude-code"
 }
 
 // isSubagent returns true when env vars indicate this is a spawned subagent.
