@@ -54,8 +54,6 @@ Research must answer:
 
 ## Step 2: Generate the Interactive Plan HTML
 
-Using research findings, generate the interactive plan file.
-
 ### Slice Design Rules
 
 - Each slice is independently deployable (not "DB layer" or "API layer")
@@ -74,26 +72,52 @@ Using research findings, generate the interactive plan file.
 - Both tasks add a registration line to `main.go`
 - Both tasks add an entry to a config file
 
-### Create Feature IDs for Each Slice
+### 2a. Create Feature IDs for Each Slice
 
 ```bash
 htmlgraph feature create "<slice-title>" --track <track-id>
 # Repeat for each slice. Note the returned feature IDs.
 ```
 
-### Write the Plan File
+### 2b. Generate the Plan HTML (CLI — MANDATORY)
 
-Output path: `.htmlgraph/plans/plan-<kebab-title>.html`
+**Use the CLI command to scaffold the plan. Never write plan HTML manually.**
 
-Use the template from `internal/templates/plan-template.html`. Every interactive element needs `data-*` attributes so `htmlgraph plan read-feedback` can parse structured output.
+```bash
+htmlgraph plan generate <track-id>
+```
 
-Key sections to include:
-- **Summary** — one paragraph describing what will be built and why
-- **Open Questions** — design decisions with pre-selected sensible defaults (human overrides only where they disagree)
-- **Slices** — one card per slice, with: title, feature ID, goal, files, test strategy, dependencies
-- **Finalize button** — triggers plan state transition to `finalized`
+This reads the track's `contains` edges, builds slice cards with dependency graphs, and writes the fully-formed HTML to `.htmlgraph/plans/plan-<kebab-id>.html`.
 
-Pre-selecting defaults is important: the human should only need to act where they have a strong opinion.
+### 2c. Populate Plan Content
+
+After generating, fill in the plan sections using CLI commands:
+
+**Add design questions** (pre-select sensible defaults — human overrides only where they disagree):
+
+```bash
+htmlgraph plan add-question <plan-id> "Error message length?" \
+  --options "one-line:Keep hints to a single sentence,two-line:Allow a second line with more context" \
+  --description "Longer messages give agents more guidance but consume more context tokens."
+```
+
+**Set section content** (Summary, Outline, etc.):
+
+```bash
+htmlgraph plan set-section <plan-id> PLAN_DESIGN_CONTENT '<p>Summary of what will be built and why.</p>'
+htmlgraph plan set-section <plan-id> PLAN_OUTLINE_CONTENT '<h4>Key Changes</h4><pre><code>func NewHelper() error</code></pre>'
+```
+
+**Set slice details** (test strategy, dependencies, affected files):
+
+```bash
+htmlgraph plan set-slice <plan-id> 1 \
+  --tests "Unit: ErrNotFound returns correct format. Integration: resolveID failure includes hint." \
+  --deps "none (foundation slice)" \
+  --files "internal/workitem/errors.go, internal/workitem/resolve.go"
+```
+
+Repeat `set-slice` for each slice number.
 
 ---
 
