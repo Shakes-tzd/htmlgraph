@@ -502,7 +502,7 @@ textarea::placeholder{color:var(--text-muted)}
       var files=el.dataset.files;
       var status=el.dataset.status||'pending';
       g.setNode(id,{
-        label: name+'\n'+files+' files',
+        label: files ? name+'\n'+files+' files' : name,
         rx: 6,
         ry: 6,
         paddingX: 36,

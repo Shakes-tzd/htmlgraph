@@ -248,7 +248,7 @@ func extractPlanNodeInfo(html string) planNodeInfo {
 		}
 	}
 
-	if s := strings.Index(html, `data-content`); s >= 0 {
+	if s := strings.Index(html, `data-section="description"`); s >= 0 {
 		rest := html[s:]
 		if p := strings.Index(rest, "<p>"); p >= 0 {
 			rest2 := rest[p+3:]
@@ -286,9 +286,17 @@ func applyPlanTemplateVars(tmpl string, v planTemplateVars) string {
 	const sampleDesc = "HTTP POST notifications for HtmlGraph events with retry and config management."
 	if v.Description != "" {
 		tmpl = strings.ReplaceAll(tmpl, sampleDesc, v.Description)
+	} else {
+		tmpl = strings.ReplaceAll(tmpl, sampleDesc, "")
 	}
 
 	tmpl = strings.ReplaceAll(tmpl, "2026-04-01", v.Date)
+
+	if v.SectionsJSON != "" {
+		sliceCount := strings.Count(v.SectionsJSON, `"slice-`)
+		meta := fmt.Sprintf("%d slices &middot; Created %s", sliceCount, v.Date)
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_META-->", meta)
+	}
 
 	if v.GraphNodes != "" {
 		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_GRAPH_NODES-->", v.GraphNodes)
@@ -377,7 +385,7 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 	var gnBuf strings.Builder
 	for _, f := range features {
 		gnBuf.WriteString(fmt.Sprintf(
-			`    <div data-node="%d" data-name="%s" data-files="0" data-status="pending" data-deps="%s"></div>`+"\n",
+			`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s"></div>`+"\n",
 			f.num, html.EscapeString(f.title), featureDeps[f.num],
 		))
 	}
@@ -443,7 +451,11 @@ func derivePlanID(title string) string {
 	}
 	result := strings.Trim(b.String(), "-")
 	if len(result) > 40 {
-		result = strings.TrimRight(result[:40], "-")
+		truncated := result[:40]
+		if lastHyphen := strings.LastIndex(truncated, "-"); lastHyphen > 10 {
+			truncated = truncated[:lastHyphen]
+		}
+		result = truncated
 	}
 	return "plan-" + result
 }
