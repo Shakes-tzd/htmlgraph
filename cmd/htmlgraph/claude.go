@@ -398,7 +398,10 @@ func cleanupStaleDev(projectRoot string) {
 
 func launchClaudeInit(extraArgs []string) error {
 	pluginDir := resolvePluginDir()
-	projectRoot, _ := resolveProjectRoot()
+	// --init always uses CWD — never walk up to a parent with .htmlgraph/.
+	// The user explicitly wants to work in THIS directory, which may not
+	// have .htmlgraph/ yet. Walk-up would anchor to the wrong project.
+	projectRoot, _ := os.Getwd()
 	cleanupStaleDev(projectRoot)
 	ensurePluginOnLaunch()
 	fmt.Println("Launching Claude Code with marketplace plugin (init mode)...")
