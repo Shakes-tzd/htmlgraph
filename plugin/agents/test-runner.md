@@ -62,52 +62,11 @@ Activate this agent when:
 ### 4. Pre-Commit Testing
 **Before committing**:
 - [ ] All tests pass
-- [ ] No vet errors
+- [ ] No lint/vet errors
 - [ ] Build succeeds
 - [ ] Documentation updated
 
-## Test Commands
-
-### Go Testing
-```bash
-# Build and vet
-go build ./...
-go vet ./...
-
-# Run all tests
-go test ./...
-
-# Run specific package tests
-go test ./internal/hooks/...
-
-# Run with verbose output
-go test -v ./...
-
-# Run specific test
-go test -run TestHookMerging ./...
-
-# Run with race detector
-go test -race ./...
-
-# Stop on first failure
-go test -failfast ./...
-```
-
-### Integration Testing
-```bash
-# Test hook execution
-echo "Test" | claude
-
-# Test CLI commands
-htmlgraph status
-htmlgraph feature list
-
-# Test orchestrator
-htmlgraph orchestrator status
-
-# Test with debug mode
-claude --debug <command>
-```
+> For the exact commands to run, consult the **code-quality-skill** (loaded above). It detects your project type and provides the correct BUILD → LINT → TEST sequence.
 
 ## Test Quality Checklist
 
@@ -132,91 +91,44 @@ claude --debug <command>
 
 ## Common Test Scenarios
 
-### Scenario 1: Testing Hook Behavior
+**Unit test — Go hook deduplication:**
 ```go
 func TestHookNotDuplicated(t *testing.T) {
-    // Verify hooks from multiple sources don't duplicate
-    // Setup: Create hook configs
+    // Setup: Create hook configs from multiple sources
     // Execute: Load hooks
     // Assert: Only one instance per unique command
     // Cleanup: Remove test configs
 }
 ```
 
-### Scenario 2: Testing Feature Creation
+**CLI integration test:**
 ```bash
-# Verify feature creation works end-to-end
-htmlgraph feature create "Test Feature"
-htmlgraph feature list  # Confirm it appears
+htmlgraph feature create "Test Feature" && htmlgraph feature list
+htmlgraph feature show invalid-id   # must return non-zero exit
 ```
 
-### Scenario 3: Testing Error Handling
-```bash
-# Verify CLI returns error for invalid ID
-htmlgraph feature show invalid-id  # Should return error
-```
+## Continuous Testing Workflow (TDD)
 
-## Continuous Testing Workflow
-
-### During Development
-1. **Write test** for new functionality
-2. **Run test** - it should fail (red)
-3. **Write minimal code** to make it pass
-4. **Run test** - it should pass (green)
-5. **Refactor** if needed
-6. **Run all tests** - ensure no regressions
-
-### Before Committing
-```bash
-# Run the full quality gate (all checks must pass)
-go build ./... && go vet ./... && go test ./...
-
-# If all pass, commit is safe
-git add <files>
-git commit -m "feat: description"
-```
-
-### Pre-Deployment
-```bash
-# Full quality gate (from deploy-all.sh)
-go build ./... && go vet ./... && go test ./...
-
-# Only deploy if all checks pass
-```
-
-## Integration with Other Agents
-
-Testing fits into the workflow:
-1. **Researcher** - Find testing best practices
-2. **Debugger** - Identify what needs testing
-3. **Test-runner** - Validate the implementation
-4. **Orchestrator** - Ensure quality gates are enforced
+1. Write failing test (red)
+2. Write minimal code to pass (green)
+3. Refactor — run all tests to catch regressions
+4. Repeat
 
 ## Anti-Patterns to Avoid
 
-- ❌ Skipping tests because "it's simple"
-- ❌ Only testing happy paths
-- ❌ Not running tests before committing
-- ❌ Marking features complete with failing tests
-- ❌ Writing tests after implementation (TDD backwards)
-- ❌ Not updating tests when code changes
-
-## Code Hygiene Rules
-
-**Fix ALL errors before committing:**
-- ✅ ALL go vet warnings
-- ✅ ALL build errors
-- ✅ ALL test failures
-- ✅ Even pre-existing errors from previous sessions
-
-**Philosophy**: "Clean as you go - leave code better than you found it"
+- Skipping tests because "it's simple"
+- Only testing happy paths
+- Not running tests before committing
+- Marking features complete with failing tests
+- Writing tests after implementation (TDD backwards)
+- Not updating tests when code changes
 
 ## Success Metrics
 
 This agent succeeds when:
-- ✅ All tests pass before marking work complete
-- ✅ No build errors, no vet warnings
-- ✅ Critical paths have test coverage
-- ✅ Deployments never fail due to test failures
-- ✅ Code quality improves over time
-- ✅ Technical debt decreases, not increases
+- All tests pass before marking work complete
+- No build errors, no lint warnings
+- Critical paths have test coverage
+- Deployments never fail due to test failures
+- Code quality improves over time
+- Technical debt decreases, not increases
