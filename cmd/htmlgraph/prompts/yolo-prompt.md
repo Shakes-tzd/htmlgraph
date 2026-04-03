@@ -11,11 +11,14 @@ Permission prompts are disabled. You must self-enforce quality at every step.
 3. Isolate: Use a git worktree for each feature — never edit main directly
 
 **CLI Quick Reference** (run `htmlgraph help --compact` to reprint):
-- Work items: `feature|bug|spike|track|plan` + `create|show|start|complete|list|add-step`
-- Lookup: `find <query>` · `wip` · `status` · `snapshot --summary`
+- Work items require type prefix: `htmlgraph feature show <id>`, `htmlgraph bug show <id>`, `htmlgraph track show <id>`
+- NEVER use `htmlgraph show <id>` — there is no top-level show command
+- Subcommands: `create|show|start|complete|list|add-step|update|move|delete`
+- Lookup: `find <query>` · `wip show` · `status` · `snapshot --summary`
 - Edges: `link add <from> <to> --rel <type>`
 - Quality: `check` · `health` · `spec|tdd|review|compliance <id>`
 - Data: `reindex` · `ingest` · `batch apply`
+- NEVER use bare `cd` in Bash — always use subshells: `(cd dir && command)`
 
 ### Step 1 — Research
 Before writing any code, answer these questions with evidence:
@@ -28,7 +31,6 @@ Before writing any code, answer these questions with evidence:
 4. Check shared utility directories (`internal/`, `lib/`, `src/utils/`) — does the project already have a utility for this?
 
 **Document findings:**
-- If research takes >5 minutes, create a spike: `htmlgraph spike create "Research: [topic]"`
 - Record: what libraries exist, what patterns are already used, what the decision was
 - If building from scratch: explicitly document WHY (no library exists / too heavy / already have stdlib)
 
