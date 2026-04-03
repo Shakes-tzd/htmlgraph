@@ -48,6 +48,10 @@ type LaunchOpts struct {
 	// When set, Claude Code is started with this as the working directory, and path-sensitive
 	// helpers (writeLaunchMarker, etc.) anchor their paths here instead of CWD.
 	ProjectRoot string
+	// HtmlgraphRoot, if set, is the main repo root containing the canonical .htmlgraph/.
+	// Used when ProjectRoot is a worktree — all work item tracking resolves to this path
+	// instead of the worktree copy. Injected as HTMLGRAPH_PROJECT_DIR env var.
+	HtmlgraphRoot string
 }
 
 func claudeCmd() *cobra.Command {
@@ -343,7 +347,12 @@ func ensureHtmlgraphPlugin() error {
 
 // launchClaude is the shared launcher used by all modes.
 func launchClaude(opts LaunchOpts) error {
-	writeLaunchMarker(opts.Mode, opts.ProjectRoot)
+	// Write launch marker to the main project root, not the worktree.
+	markerRoot := opts.ProjectRoot
+	if opts.HtmlgraphRoot != "" {
+		markerRoot = opts.HtmlgraphRoot
+	}
+	writeLaunchMarker(opts.Mode, markerRoot)
 
 	// SystemPromptFile takes precedence over InjectSystemPrompt.
 	var systemPrompt string
@@ -385,6 +394,13 @@ func launchClaude(opts LaunchOpts) error {
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
+
+	// When running in a worktree, inject HTMLGRAPH_PROJECT_DIR so all
+	// htmlgraph CLI commands and hooks resolve to the main .htmlgraph/,
+	// not the worktree copy.
+	if opts.HtmlgraphRoot != "" && opts.HtmlgraphRoot != opts.ProjectRoot {
+		c.Env = append(os.Environ(), "HTMLGRAPH_PROJECT_DIR="+opts.HtmlgraphRoot)
+	}
 
 	// Set working directory to project root so Claude starts in the right place,
 	// even if this command is run from a subdirectory like packages/go.

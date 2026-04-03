@@ -353,6 +353,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, ext
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
+		HtmlgraphRoot:    projectRoot,
 	})
 }
 
@@ -469,6 +470,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
+		HtmlgraphRoot:    projectRoot,
 	})
 	reenableFn()
 	return launchErr
