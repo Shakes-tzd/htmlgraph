@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/htmlparse"
 )
 
 func TestStatuslineCmd(t *testing.T) {
@@ -134,4 +135,75 @@ type testWorkItem struct {
 	Type   string
 	Status string
 	Title  string
+}
+
+// --- WriteStatuslineCache tests ---
+
+func TestWriteStatuslineCache_WritesFile(t *testing.T) {
+	cacheDir := t.TempDir()
+	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+
+	// Set up a minimal .htmlgraph with a feature.
+	tmpDir := t.TempDir()
+	hgDir := filepath.Join(tmpDir, ".htmlgraph")
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
+		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
+	}
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+
+	trackID := testSetupTrack(t, hgDir)
+	if err := testCreate("feature", "Cache Test Feature", trackID, "medium", false, false); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	featFiles, _ := filepath.Glob(filepath.Join(hgDir, "features", "feat-*.html"))
+	featNode, _ := htmlparse.ParseFile(featFiles[0])
+
+	WriteStatuslineCache(hgDir, featNode.ID)
+
+	data, err := os.ReadFile(filepath.Join(cacheDir, ".htmlgraph-statusline-cache"))
+	if err != nil {
+		t.Fatalf("read cache: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("cache file should not be empty after write")
+	}
+}
+
+func TestWriteStatuslineCache_ClearsOnComplete(t *testing.T) {
+	cacheDir := t.TempDir()
+	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+
+	cachePath := filepath.Join(cacheDir, ".htmlgraph-statusline-cache")
+	os.WriteFile(cachePath, []byte("old data"), 0o644)
+
+	// Clear cache (empty featureID = complete)
+	WriteStatuslineCache("", "")
+
+	data, _ := os.ReadFile(cachePath)
+	if len(data) != 0 {
+		t.Errorf("cache should be empty after clear, got %q", data)
+	}
+}
+
+func TestReadStatuslineCache_ReadsFile(t *testing.T) {
+	cacheDir := t.TempDir()
+	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+
+	os.WriteFile(filepath.Join(cacheDir, ".htmlgraph-statusline-cache"),
+		[]byte("test content"), 0o644)
+
+	got := ReadStatuslineCache()
+	if got != "test content" {
+		t.Errorf("expected 'test content', got %q", got)
+	}
+}
+
+func TestReadStatuslineCache_EmptyOnMissing(t *testing.T) {
+	t.Setenv("HTMLGRAPH_CACHE_DIR", t.TempDir())
+
+	got := ReadStatuslineCache()
+	if got != "" {
+		t.Errorf("expected empty for missing cache, got %q", got)
+	}
 }

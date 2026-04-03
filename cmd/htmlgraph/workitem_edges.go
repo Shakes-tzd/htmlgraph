@@ -3,11 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/hooks"
 	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
+	"github.com/shakestzd/htmlgraph/internal/workowners"
 )
 
 // detectActiveFeature returns the active feature ID from the session DB, or "".
@@ -86,12 +90,22 @@ func autoTrackEdges(p *workitem.Project, itemID, typeName, trackID, itemTitle st
 	return nil
 }
 
-// warnMissingFields prints warnings for missing recommended fields per type.
-// Returns an error if required fields are missing for features and bugs.
+// warnMissingFields validates required and recommended fields per work item type.
+// Features and bugs REQUIRE --track and --description. Spikes, tracks, plans,
+// and specs are exempt from the track requirement.
 func warnMissingFields(typeName string, o *wiCreateOpts) error {
-	// Track: warn about no --track (spikes and tracks exempt).
-	if o.trackID == "" && typeName != "track" && typeName != "spike" {
-		fmt.Fprintf(os.Stderr, "Warning: no track specified. Use --track <trk-id> to link this %s to an initiative.\nRun 'htmlgraph track list' to see existing tracks.\n", typeName)
+	// Features and bugs require a track to link to an initiative.
+	if o.trackID == "" && (typeName == "feature" || typeName == "bug") {
+		msg := fmt.Sprintf("%s requires --track <trk-id> to link to an initiative.\nRun 'htmlgraph track list' to see existing tracks.\nTo create a new track: htmlgraph track create \"Track Title\"", typeName)
+
+		// For bugs with --files, try to suggest the track via file ownership.
+		if typeName == "bug" && o.files != "" {
+			if suggestion := suggestTrackFromFiles(o.files); suggestion != "" {
+				msg += "\n\nSuggested: " + suggestion
+			}
+		}
+
+		return fmt.Errorf("%s", msg)
 	}
 
 	switch typeName {
@@ -103,7 +117,66 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 		if o.description == "" {
 			fmt.Fprintf(os.Stderr, "Warning: spec created without --description.\n")
 		}
-	// spike: no requirements. track/plan: steps are usually added later.
 	}
 	return nil
+}
+
+// suggestTrackFromFiles resolves file ownership for the first affected file.
+// Checks WORKOWNERS static map first, then falls back to DB heuristic.
+// Returns a suggestion string like "--track trk-abc (owns cmd/foo.go)".
+func suggestTrackFromFiles(files string) string {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return ""
+	}
+
+	// Check WORKOWNERS static map first.
+	wf, _ := workowners.Parse(filepath.Join(dir, "WORKOWNERS"))
+	for _, f := range strings.Split(files, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if ownerID := wf.Resolve(f); ownerID != "" {
+			if strings.HasPrefix(ownerID, "trk-") {
+				return fmt.Sprintf("--track %s (WORKOWNERS: %s)", ownerID, f)
+			}
+			// Owner is a feature — resolve its track from DB if possible.
+			if database := openTrackDB(dir); database != nil {
+				var trackID string
+				database.QueryRow("SELECT COALESCE(track_id, '') FROM features WHERE id = ?",
+					ownerID).Scan(&trackID) //nolint:errcheck
+				database.Close()
+				if trackID != "" {
+					return fmt.Sprintf("--track %s (WORKOWNERS: %s via %s)", trackID, f, ownerID)
+				}
+			}
+			return fmt.Sprintf("feature %s owns %s (WORKOWNERS) — find its track with: htmlgraph feature show %s",
+				ownerID, f, ownerID)
+		}
+	}
+
+	// Fall back to DB heuristic.
+	database := openTrackDB(dir)
+	if database == nil {
+		return ""
+	}
+	defer database.Close()
+
+	for _, f := range strings.Split(files, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		owner := dbpkg.ResolveFileOwner(database, f)
+		if owner == nil {
+			continue
+		}
+		if owner.TrackID != "" {
+			return fmt.Sprintf("--track %s (%s owns %s)", owner.TrackID, owner.Title, f)
+		}
+		return fmt.Sprintf("feature %s (%s) owns %s — find its track with: htmlgraph feature show %s",
+			owner.FeatureID, owner.Title, f, owner.FeatureID)
+	}
+	return ""
 }

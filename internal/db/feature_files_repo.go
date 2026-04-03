@@ -138,6 +138,40 @@ func FindRelatedFeatures(db *sql.DB, featureID string) ([]RelatedFeature, error)
 	return related, nil
 }
 
+// FileOwner identifies a feature/track that owns a file path.
+type FileOwner struct {
+	FeatureID string
+	TrackID   string
+	Title     string
+	TouchCount int
+}
+
+// ResolveFileOwner returns the most likely owning feature for a file path,
+// based on the most frequent feature_id in feature_files for that path.
+// Returns nil if no feature has touched this file.
+func ResolveFileOwner(db *sql.DB, filePath string) *FileOwner {
+	var featureID string
+	var count int
+	err := db.QueryRow(`
+		SELECT feature_id, COUNT(*) as cnt
+		FROM feature_files
+		WHERE file_path = ?
+		GROUP BY feature_id
+		ORDER BY cnt DESC, last_seen DESC
+		LIMIT 1`, filePath).Scan(&featureID, &count)
+	if err != nil || featureID == "" {
+		return nil
+	}
+
+	owner := &FileOwner{FeatureID: featureID, TouchCount: count}
+
+	// Resolve title and track from features table.
+	db.QueryRow(`SELECT COALESCE(title, ''), COALESCE(track_id, '') FROM features WHERE id = ?`,
+		featureID).Scan(&owner.Title, &owner.TrackID) //nolint:errcheck
+
+	return owner
+}
+
 // scanFeatureFiles reads rows into a slice of FeatureFile.
 func scanFeatureFiles(rows *sql.Rows) ([]models.FeatureFile, error) {
 	var out []models.FeatureFile

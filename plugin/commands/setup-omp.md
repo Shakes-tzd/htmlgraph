@@ -59,6 +59,11 @@ SESS_ID=$(echo "$INPUT" | python3 -c "import sys, json; print(json.load(sys.stdi
 # Get active work item for THIS session via fast Go binary
 ACTIVE_WORK=$(htmlgraph statusline --session "$SESS_ID" 2>/dev/null)
 
+# Fallback: read file cache if statusline returned empty (subagent support)
+if [ -z "$ACTIVE_WORK" ] && [ -f "$HOME/.htmlgraph-statusline-cache" ]; then
+    ACTIVE_WORK=$(cat "$HOME/.htmlgraph-statusline-cache" 2>/dev/null)
+fi
+
 # Export for Oh My Posh template to use
 export HTMLGRAPH_ACTIVE="$ACTIVE_WORK"
 

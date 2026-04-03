@@ -31,12 +31,7 @@ func TestCheckOrphansFindsUnlinkedItems(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create an orphan feature (no track)
-	if err := testCreate("feature", "Orphan Feature", "", "low", false, false); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a spike (should be exempt)
+	// Create a spike (should be exempt — no track required)
 	if err := testCreate("spike", "Research Spike", "", "low", false, false); err != nil {
 		t.Fatal(err)
 	}

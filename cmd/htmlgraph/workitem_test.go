@@ -19,6 +19,20 @@ func testCreate(typeName, title, trackID, priority string, start, noLink bool) e
 	})
 }
 
+// testSetupTrack creates a track and returns its ID. Fatals on failure.
+func testSetupTrack(t *testing.T, hgDir string) string {
+	t.Helper()
+	if err := testCreate("track", "Test Track", "", "medium", false, false); err != nil {
+		t.Fatalf("setup track: %v", err)
+	}
+	files, _ := filepath.Glob(filepath.Join(hgDir, "tracks", "trk-*.html"))
+	if len(files) == 0 {
+		t.Fatal("no track file created")
+	}
+	node, _ := htmlparse.ParseFile(files[len(files)-1])
+	return node.ID
+}
+
 func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
@@ -121,8 +135,10 @@ func TestAutoImplementedInEdgeOnStart(t *testing.T) {
 	// Set a fake session ID (EnvSessionID reads HTMLGRAPH_SESSION_ID first)
 	t.Setenv("HTMLGRAPH_SESSION_ID", "test-session-abc")
 
+	trackID := testSetupTrack(t, hgDir)
+
 	// Create a feature
-	if err := testCreate("feature", "Impl Feature", "", "high", false, false); err != nil {
+	if err := testCreate("feature", "Impl Feature", trackID, "high", false, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -170,16 +186,14 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Isolate from any real session running in the developer's environment.
-	// HTMLGRAPH_SESSION_ID must be cleared so EnvSessionID returns "".
-	// HTMLGRAPH_PROJECT_DIR is set to tmpDir so ResolveProjectDir returns
-	// tmpDir (not the real project via the hint file), preventing
-	// readActiveSession from picking up the developer's .active-session.
 	t.Setenv("HTMLGRAPH_SESSION_ID", "")
 	t.Setenv("CLAUDE_SESSION_ID", "")
 	t.Setenv("HTMLGRAPH_PROJECT_DIR", tmpDir)
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 
-	if err := testCreate("feature", "No Session Feature", "", "low", false, false); err != nil {
+	trackID := testSetupTrack(t, hgDir)
+
+	if err := testCreate("feature", "No Session Feature", trackID, "low", false, false); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
@@ -206,13 +220,15 @@ func TestAutoCausedByEdgeOnBugCreate(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
+	trackID := testSetupTrack(t, hgDir)
+
 	// Create a feature first and start it
-	if err := testCreate("feature", "Active Feature", "", "high", true, false); err != nil {
+	if err := testCreate("feature", "Active Feature", trackID, "high", true, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
 	// Now create a bug — should auto-link caused_by to active feature
-	if err := testCreate("bug", "Found a bug", "", "high", false, false); err != nil {
+	if err := testCreate("bug", "Found a bug", trackID, "high", false, false); err != nil {
 		t.Fatalf("create bug: %v", err)
 	}
 
@@ -249,13 +265,15 @@ func TestBugCreateNoLinkSkipsCausedBy(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
+	trackID := testSetupTrack(t, hgDir)
+
 	// Create and start a feature
-	if err := testCreate("feature", "Active Feature", "", "high", true, false); err != nil {
+	if err := testCreate("feature", "Active Feature", trackID, "high", true, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
 	// Create bug with --no-link
-	if err := testCreate("bug", "Unrelated bug", "", "medium", false, true); err != nil {
+	if err := testCreate("bug", "Unrelated bug", trackID, "medium", false, true); err != nil {
 		t.Fatalf("create bug: %v", err)
 	}
 
@@ -278,9 +296,11 @@ func TestFeatureCreateRequiresDescription(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Try to create a feature without --description
+	trackID := testSetupTrack(t, hgDir)
+
+	// Try to create a feature without --description (but with --track)
 	opts := &wiCreateOpts{
-		trackID:     "",
+		trackID:     trackID,
 		priority:    "high",
 		description: "", // no description
 		start:       false,
@@ -315,9 +335,11 @@ func TestBugCreateRequiresDescription(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Try to create a bug without --description
+	trackID := testSetupTrack(t, hgDir)
+
+	// Try to create a bug without --description (but with --track)
 	opts := &wiCreateOpts{
-		trackID:     "",
+		trackID:     trackID,
 		priority:    "high",
 		description: "", // no description
 		start:       false,
@@ -375,4 +397,67 @@ func stringContains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// --- warnMissingFields tests ---------------------------------------------------
+
+func TestWarnMissingFields_FeatureRequiresTrack(t *testing.T) {
+	opts := &wiCreateOpts{description: "some description"}
+	err := warnMissingFields("feature", opts)
+	if err == nil {
+		t.Fatal("expected error for feature without --track, got nil")
+	}
+	if !stringContains(err.Error(), "htmlgraph track list") {
+		t.Errorf("error should mention 'htmlgraph track list', got: %q", err.Error())
+	}
+}
+
+func TestWarnMissingFields_BugRequiresTrack(t *testing.T) {
+	opts := &wiCreateOpts{description: "some description"}
+	err := warnMissingFields("bug", opts)
+	if err == nil {
+		t.Fatal("expected error for bug without --track, got nil")
+	}
+	if !stringContains(err.Error(), "htmlgraph track list") {
+		t.Errorf("error should mention 'htmlgraph track list', got: %q", err.Error())
+	}
+}
+
+func TestWarnMissingFields_SpikeNoTrackOK(t *testing.T) {
+	opts := &wiCreateOpts{description: "investigation notes"}
+	err := warnMissingFields("spike", opts)
+	if err != nil {
+		t.Errorf("spike without --track should not error, got: %v", err)
+	}
+}
+
+func TestWarnMissingFields_TrackNoTrackOK(t *testing.T) {
+	opts := &wiCreateOpts{}
+	err := warnMissingFields("track", opts)
+	if err != nil {
+		t.Errorf("track type should not error about missing track, got: %v", err)
+	}
+}
+
+func TestWarnMissingFields_FeatureWithTrackOK(t *testing.T) {
+	opts := &wiCreateOpts{trackID: "trk-abc12345", description: "some description"}
+	err := warnMissingFields("feature", opts)
+	if err != nil {
+		t.Errorf("feature with --track should not error, got: %v", err)
+	}
+}
+
+func TestWarnMissingFields_ErrorMessageGuidance(t *testing.T) {
+	opts := &wiCreateOpts{description: "some description"}
+	err := warnMissingFields("feature", opts)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	msg := err.Error()
+	if !stringContains(msg, "htmlgraph track list") {
+		t.Errorf("error message should contain 'htmlgraph track list': %q", msg)
+	}
+	if !stringContains(msg, "--track") {
+		t.Errorf("error message should mention '--track': %q", msg)
+	}
 }

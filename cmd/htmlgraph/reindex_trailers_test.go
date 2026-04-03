@@ -1,0 +1,154 @@
+package main
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+)
+
+func TestParseTrailers_RefsFeature(t *testing.T) {
+	msg := "fix: resolve null pointer\n\nRefs: feat-abc123"
+	ids := parseTrailers(msg)
+	if len(ids) != 1 || ids[0] != "feat-abc123" {
+		t.Errorf("expected [feat-abc123], got %v", ids)
+	}
+}
+
+func TestParseTrailers_FixesBug(t *testing.T) {
+	msg := "fix: handle edge case\n\nFixes: bug-def456"
+	ids := parseTrailers(msg)
+	if len(ids) != 1 || ids[0] != "bug-def456" {
+		t.Errorf("expected [bug-def456], got %v", ids)
+	}
+}
+
+func TestParseTrailers_MultipleTrailers(t *testing.T) {
+	msg := "feat: big change\n\nRefs: feat-abc\nFixes: bug-xyz"
+	ids := parseTrailers(msg)
+	if len(ids) != 2 {
+		t.Fatalf("expected 2 IDs, got %v", ids)
+	}
+	found := map[string]bool{}
+	for _, id := range ids {
+		found[id] = true
+	}
+	if !found["feat-abc"] || !found["bug-xyz"] {
+		t.Errorf("expected feat-abc and bug-xyz, got %v", ids)
+	}
+}
+
+func TestParseTrailers_CommaSeparated(t *testing.T) {
+	msg := "Refs: feat-a, feat-b, feat-c"
+	ids := parseTrailers(msg)
+	if len(ids) != 3 {
+		t.Errorf("expected 3 IDs, got %v", ids)
+	}
+}
+
+func TestParseTrailers_NoTrailers(t *testing.T) {
+	msg := "fix: simple fix without trailers"
+	ids := parseTrailers(msg)
+	if len(ids) != 0 {
+		t.Errorf("expected 0 IDs, got %v", ids)
+	}
+}
+
+func TestParseTrailers_InvalidIDSkipped(t *testing.T) {
+	msg := "Refs: not-a-valid-id"
+	ids := parseTrailers(msg)
+	if len(ids) != 0 {
+		t.Errorf("expected 0 IDs for invalid prefix, got %v", ids)
+	}
+}
+
+func TestParseTrailers_Deduplication(t *testing.T) {
+	msg := "Refs: feat-abc\nRefs: feat-abc"
+	ids := parseTrailers(msg)
+	if len(ids) != 1 {
+		t.Errorf("expected 1 deduplicated ID, got %v", ids)
+	}
+}
+
+func TestReindexCommitTrailers_IngestsFromGit(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a git repo with a commit that has a trailer.
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+
+	run("init", "-b", "main")
+	run("config", "user.email", "test@test.com")
+	run("config", "user.name", "Test")
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "file.go"), []byte("package x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "file.go")
+	run("commit", "-m", "fix: something\n\nRefs: feat-test-001")
+
+	database, err := dbpkg.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	count, err := reindexCommitTrailers(database, tmpDir)
+	if err != nil {
+		t.Fatalf("reindexCommitTrailers: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 ingested trailer, got %d", count)
+	}
+
+	// Verify the row exists.
+	var featureID string
+	database.QueryRow("SELECT feature_id FROM git_commits WHERE session_id = ?",
+		trailerSessionID).Scan(&featureID)
+	if featureID != "feat-test-001" {
+		t.Errorf("expected feature_id=feat-test-001, got %q", featureID)
+	}
+}
+
+func TestReindexCommitTrailers_Idempotent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	run := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmpDir
+		cmd.Run()
+	}
+
+	run("init", "-b", "main")
+	run("config", "user.email", "test@test.com")
+	run("config", "user.name", "Test")
+	os.WriteFile(filepath.Join(tmpDir, "file.go"), []byte("package x"), 0o644)
+	run("add", "file.go")
+	run("commit", "-m", "fix: thing\n\nRefs: feat-idem")
+
+	database, err := dbpkg.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	count1, _ := reindexCommitTrailers(database, tmpDir)
+	count2, _ := reindexCommitTrailers(database, tmpDir)
+
+	if count1 != 1 {
+		t.Errorf("first run: expected 1, got %d", count1)
+	}
+	if count2 != 0 {
+		t.Errorf("second run: expected 0 (idempotent), got %d", count2)
+	}
+}
