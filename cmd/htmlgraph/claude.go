@@ -31,10 +31,11 @@ type LaunchOpts struct {
 	PluginDir string
 	// Resume adds --resume to claude args (for --continue mode).
 	Resume bool
-	// SystemPromptDir is the directory from which to load system-prompt.md.
-	SystemPromptDir string
+	// InjectSystemPrompt, when true, appends the embedded system prompt via
+	// --append-system-prompt. Ignored when SystemPromptFile is set.
+	InjectSystemPrompt bool
 	// SystemPromptFile, if set, reads this file and appends it as system prompt.
-	// Takes precedence over SystemPromptDir.
+	// Takes precedence over InjectSystemPrompt.
 	SystemPromptFile string
 	// PermissionMode, if set, passes --permission-mode to claude (e.g. "bypassPermissions").
 	PermissionMode string
@@ -138,11 +139,11 @@ func launchClaudeDev(extraArgs []string) error {
 	fmt.Printf("  Plugin source: %s\n", pluginDir)
 
 	launchErr := launchClaude(LaunchOpts{
-		Mode:            "go",
-		PluginDir:       pluginDir,
-		SystemPromptDir: pluginDir,
-		ExtraArgs:       extraArgs,
-		ProjectRoot:     projectRoot,
+		Mode:               "go",
+		PluginDir:          pluginDir,
+		InjectSystemPrompt: true,
+		ExtraArgs:          extraArgs,
+		ProjectRoot:        projectRoot,
 	})
 	reinstallFn()
 	return launchErr
@@ -255,7 +256,6 @@ func cleanupStaleDev(projectRoot string) {
 }
 
 func launchClaudeInit(extraArgs []string) error {
-	pluginDir := resolvePluginDir()
 	// --init always uses CWD — never walk up to a parent with .htmlgraph/.
 	// The user explicitly wants to work in THIS directory, which may not
 	// have .htmlgraph/ yet. Walk-up would anchor to the wrong project.
@@ -264,10 +264,10 @@ func launchClaudeInit(extraArgs []string) error {
 	ensurePluginOnLaunch()
 	fmt.Println("Launching Claude Code with marketplace plugin (init mode)...")
 	return launchClaude(LaunchOpts{
-		Mode:            "init",
-		SystemPromptDir: pluginDir,
-		ExtraArgs:       extraArgs,
-		ProjectRoot:     projectRoot,
+		Mode:               "init",
+		InjectSystemPrompt: true,
+		ExtraArgs:          extraArgs,
+		ProjectRoot:        projectRoot,
 	})
 }
 
@@ -285,16 +285,15 @@ func launchClaudeContinue(extraArgs []string) error {
 }
 
 func launchClaudeDefault(extraArgs []string) error {
-	pluginDir := resolvePluginDir()
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
 	ensurePluginOnLaunch()
 	fmt.Println("Launching Claude Code (default mode)...")
 	return launchClaude(LaunchOpts{
-		Mode:            "default",
-		SystemPromptDir: pluginDir,
-		ExtraArgs:       extraArgs,
-		ProjectRoot:     projectRoot,
+		Mode:               "default",
+		InjectSystemPrompt: true,
+		ExtraArgs:          extraArgs,
+		ProjectRoot:        projectRoot,
 	})
 }
 
@@ -322,14 +321,14 @@ func ensureHtmlgraphPlugin() {
 func launchClaude(opts LaunchOpts) error {
 	writeLaunchMarker(opts.Mode, opts.ProjectRoot)
 
-	// SystemPromptFile takes precedence over SystemPromptDir.
+	// SystemPromptFile takes precedence over InjectSystemPrompt.
 	var systemPrompt string
 	if opts.SystemPromptFile != "" {
 		if data, err := os.ReadFile(opts.SystemPromptFile); err == nil {
 			systemPrompt = string(data)
 		}
-	} else {
-		systemPrompt = loadSystemPrompt(opts.SystemPromptDir)
+	} else if opts.InjectSystemPrompt {
+		systemPrompt = systemPromptContent
 	}
 
 	var claudeArgs []string
@@ -373,18 +372,6 @@ func launchClaude(opts LaunchOpts) error {
 		return err
 	}
 	return nil
-}
-
-// loadSystemPrompt reads the system prompt from the plugin config directory.
-func loadSystemPrompt(pluginDir string) string {
-	if pluginDir == "" {
-		return ""
-	}
-	data, err := os.ReadFile(filepath.Join(pluginDir, "config", "system-prompt.md"))
-	if err != nil {
-		return ""
-	}
-	return string(data)
 }
 
 // writeLaunchMarker writes .htmlgraph/.launch-mode for hooks to detect the launch mode.

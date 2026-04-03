@@ -62,12 +62,16 @@ Write failing tests before implementation:
 - Separation of concerns: one purpose per module
 
 ### Step 5 — Quality Gate (MANDATORY before any commit)
-Run the quality gates for this project. For this project:
-- Go: `go build ./... && go vet ./... && go test ./...`
-- JS/TS: `npm run build && npm run lint && npm test`
-- Python: `uv run ruff check . && uv run pytest`
 
-Check CLAUDE.md for the specific quality gate commands for this codebase.
+Detect the project type from manifest files in the repository root:
+
+| File | Commands |
+|------|----------|
+| `go.mod` | `go build ./... && go vet ./... && go test ./...` |
+| `package.json` | `npm run build && npm run lint && npm test` |
+| `pyproject.toml` / `requirements.txt` | `uv run ruff check . && uv run pytest` |
+| `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
+
 Do NOT commit with failures.
 
 ### Step 6 — UI Validation (if UI changes)

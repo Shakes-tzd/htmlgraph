@@ -82,12 +82,15 @@ When delegating to ANY coder agent, ensure these principles are followed:
 
 **Quality Gates**
 
-Quality gates are project-specific. Common patterns:
-- Go: `go build ./... && go vet ./... && go test ./...`
-- JS/TS: `npm run build && npm run lint && npm test`
-- Python: `uv run ruff check . && uv run pytest`
+Detect the project type from manifest files in the repository root:
 
-Check CLAUDE.md or project config for the specific quality gate commands.
+| File | Commands |
+|------|----------|
+| `go.mod` | `go build ./... && go vet ./... && go test ./...` |
+| `package.json` | `npm run build && npm run lint && npm test` |
+| `pyproject.toml` / `requirements.txt` | `uv run ruff check . && uv run pytest` |
+| `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
+
 Never commit with unresolved type errors, lint warnings, or test failures.
 
 ## Key Rules
@@ -150,4 +153,3 @@ htmlgraph help --compact   # reprint this list at any time
 | `ingest` | Ingest JSONL transcripts |
 | `reindex` | Sync HTML to SQLite |
 | `yolo --feature <id>` | Autonomous dev mode |
-

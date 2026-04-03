@@ -64,19 +64,6 @@ func yoloSessionName() string {
 	return fmt.Sprintf("yolo-%s", time.Now().UTC().Format("20060102-150405"))
 }
 
-// resolveYoloPromptFile returns the path to yolo-prompt.md inside the plugin config dir.
-// Returns empty string if not found (prompt injection is best-effort).
-func resolveYoloPromptFile(pluginDir string) string {
-	if pluginDir == "" {
-		return ""
-	}
-	path := filepath.Join(pluginDir, "config", "yolo-prompt.md")
-	if _, err := os.Stat(path); err != nil {
-		return ""
-	}
-	return path
-}
-
 // validateWorkItem checks that a track or feature HTML file exists in .htmlgraph/.
 // Returns the validated ID and item type, or an error.
 func validateWorkItem(trackID, featureID, projectRoot string) (id, kind string, err error) {
@@ -260,24 +247,19 @@ func buildWorkItemPromptPrefix(id, kind string) string {
 	}, "\n")
 }
 
-// buildYoloSystemPrompt reads the yolo prompt file and prepends the work item header.
-// If promptFile is empty or unreadable, falls back to the header alone.
-func buildYoloSystemPrompt(promptFile, id, kind string) string {
+// buildYoloSystemPrompt prepends the work item header to the embedded yolo prompt.
+func buildYoloSystemPrompt(id, kind string) string {
 	var sb strings.Builder
 	if id != "" {
 		sb.WriteString(buildWorkItemPromptPrefix(id, kind))
 	}
-	if promptFile != "" {
-		if data, err := os.ReadFile(promptFile); err == nil {
-			sb.Write(data)
-		}
-	}
+	sb.WriteString(yoloPromptContent)
 	return sb.String()
 }
 
 // launchYoloPlanningMode launches Claude in planning mode (no bypass permissions)
 // when no --track or --feature is provided. Prints guidance before launching.
-func launchYoloPlanningMode(pluginDir, projectRoot string, extraArgs []string) error {
+func launchYoloPlanningMode(projectRoot string, extraArgs []string) error {
 	fmt.Println("No --track or --feature specified.")
 	fmt.Println("Launching in planning mode to help you create a track or feature first.")
 	fmt.Println("Once you have a track/feature, restart with:")
@@ -285,15 +267,14 @@ func launchYoloPlanningMode(pluginDir, projectRoot string, extraArgs []string) e
 	fmt.Println("  htmlgraph yolo --feature <feature-id>")
 	fmt.Println()
 	return launchClaude(LaunchOpts{
-		Mode:            "yolo-planning",
-		SystemPromptDir: pluginDir,
-		ExtraArgs:       extraArgs,
-		ProjectRoot:     projectRoot,
+		Mode:               "yolo-planning",
+		InjectSystemPrompt: true,
+		ExtraArgs:          extraArgs,
+		ProjectRoot:        projectRoot,
 	})
 }
 
 func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, extraArgs []string) error {
-	pluginDir := resolvePluginDir()
 	projectRoot := ""
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectRoot = filepath.Dir(htmlgraphDir)
@@ -303,7 +284,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, ext
 
 	// No work item provided — fall back to planning mode.
 	if trackID == "" && featureID == "" {
-		return launchYoloPlanningMode(pluginDir, projectRoot, extraArgs)
+		return launchYoloPlanningMode(projectRoot, extraArgs)
 	}
 
 	// Validate the provided work item exists.
@@ -347,8 +328,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, ext
 	}
 
 	sessionName := yoloSessionName()
-	yoloPromptFile := resolveYoloPromptFile(pluginDir)
-	systemPromptContent := buildYoloSystemPrompt(yoloPromptFile, id, kind)
+	yoloPrompt := buildYoloSystemPrompt(id, kind)
 
 	fmt.Printf("Launching Claude Code in YOLO mode (%s)...\n", permMode)
 	fmt.Printf("  Session: %s\n", sessionName)
@@ -361,14 +341,13 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, ext
 		return fmt.Errorf("could not create temp prompt file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(systemPromptContent); err != nil {
+	if _, err := tmpFile.WriteString(yoloPrompt); err != nil {
 		return fmt.Errorf("could not write temp prompt file: %w", err)
 	}
 	tmpFile.Close()
 
 	return launchClaude(LaunchOpts{
 		Mode:             "yolo",
-		PluginDir:        pluginDir,
 		SystemPromptFile: tmpFile.Name(),
 		PermissionMode:   permMode,
 		Name:             sessionName,
@@ -398,7 +377,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 
 	// No work item provided — fall back to planning mode.
 	if trackID == "" && featureID == "" {
-		return launchYoloPlanningMode(pluginDir, projectRoot, extraArgs)
+		return launchYoloPlanningMode(projectRoot, extraArgs)
 	}
 
 	// Validate the provided work item exists.
@@ -463,8 +442,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 	}()
 
 	sessionName := yoloSessionName()
-	yoloPromptFile := resolveYoloPromptFile(pluginDir)
-	systemPromptContent := buildYoloSystemPrompt(yoloPromptFile, id, kind)
+	yoloPrompt := buildYoloSystemPrompt(id, kind)
 
 	fmt.Printf("Launching Claude Code in YOLO dev mode...\n")
 	fmt.Printf("  Plugin: %s\n", pluginDir)
@@ -477,7 +455,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		return fmt.Errorf("could not create temp prompt file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(systemPromptContent); err != nil {
+	if _, err := tmpFile.WriteString(yoloPrompt); err != nil {
 		reenableFn()
 		return fmt.Errorf("could not write temp prompt file: %w", err)
 	}
