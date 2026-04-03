@@ -129,3 +129,4 @@ _build/
 archive/
 packages/go-plugin/hooks/bin/
 htmlgraph
+hooks/bin/
