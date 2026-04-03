@@ -13,7 +13,7 @@ Use this skill for code hygiene, quality gates, and pre-commit workflows.
 
 Quality gate runs should be attributed. Before fixing errors:
 1. Ensure a feature or bug is active: `htmlgraph status`
-2. If fixing a bug: `htmlgraph bug create "Fix: description"` then `htmlgraph bug start <id>`
+2. If fixing a bug: `htmlgraph bug create "Fix: description" --track <trk-id>` then `htmlgraph bug start <id>`
 3. Run `htmlgraph help` for available commands
 
 ---

@@ -29,7 +29,7 @@ Trigger on:
 
 All diagnostic work must be attributed:
 - Bug investigation: `htmlgraph bug start <bug-id>` before investigating
-- New errors: `htmlgraph bug create "Error: description"` then start it
+- New errors: `htmlgraph bug create "Error: description" --track <trk-id>` then start it
 - Run `htmlgraph help` for available commands
 
 ## Instructions for Claude
@@ -43,7 +43,7 @@ All diagnostic work must be attributed:
 4. Present findings and suggested fix
 
 **If given an error message or symptom**:
-1. Create and start a bug: `htmlgraph bug create "<summary>"` then `htmlgraph bug start <id>`
+1. Create and start a bug: `htmlgraph bug create "<summary>" --track <trk-id>` then `htmlgraph bug start <id>`
 2. Dispatch the debugger agent with the error context
 3. Present findings and suggested fix
 

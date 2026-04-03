@@ -85,7 +85,7 @@ func checkYoloWorkItemGuard(toolName, featureID string, yolo bool, sessionID str
 		return ""
 	}
 	return "YOLO mode requires an active work item before writing code. " +
-		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\""
+		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
 }
 
 // sessionHasLinkedFeature returns true when the given session has a feature

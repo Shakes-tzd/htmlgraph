@@ -37,14 +37,18 @@ Prompt the user for a feature title
    - If title argument provided → proceed to step 2
    - If no title → ask the user: "What feature would you like to add?"
 
-2. **Create the feature using CLI:**
+2. **Get track ID:**
+   - Run `htmlgraph track list` to show available tracks
+   - Ask the user: "Which track should this feature belong to? (provide trk-id)"
+
+3. **Create the feature using CLI:**
    ```bash
-   htmlgraph feature create "{title}"
+   htmlgraph feature create "{title}" --track {trk-id}
    ```
 
-3. **Present confirmation** using the output template below with the feature ID, title, and status from CLI output.
+4. **Present confirmation** using the output template below with the feature ID, title, and status from CLI output.
 
-4. **Suggest next steps:**
+5. **Suggest next steps:**
    - Show command to start working: `/htmlgraph:feature-start {feature_id}`
    - Optionally suggest `/htmlgraph:plan` to plan the feature
 

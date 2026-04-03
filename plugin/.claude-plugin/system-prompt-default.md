@@ -22,9 +22,9 @@ Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate those to subagent
 
 ## HtmlGraph CLI
 ```bash
-htmlgraph feature create "Feature name"   # Track features
-htmlgraph status                          # Check project status
-htmlgraph snapshot --summary              # Full overview
+htmlgraph feature create "Feature name" --track <trk-id>   # Track features
+htmlgraph status                                            # Check project status
+htmlgraph snapshot --summary                               # Full overview
 ```
 
 ## Module Size Standards (Enforced)

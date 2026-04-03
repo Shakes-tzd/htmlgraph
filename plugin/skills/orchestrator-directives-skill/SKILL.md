@@ -193,8 +193,8 @@ Only these can be executed directly by orchestrator:
    - Example: `TodoWrite(todos=[...])`
 
 **HtmlGraph CLI operations** (create features and bugs):
-- `htmlgraph feature create "title"`
-- `htmlgraph bug create "title"`
+- `htmlgraph feature create "title" --track <trk-id>`
+- `htmlgraph bug create "title" --track <trk-id>`
 
 Everything else MUST be delegated.
 
@@ -774,8 +774,8 @@ The PreToolUse hook enforces attribution before code changes. Behavior by scenar
 **When denied:** Create a work item first, then retry.
 
 ```bash
-htmlgraph feature create "Title"   # creates + returns feat-id
-htmlgraph feature start <feat-id>  # sets attribution for this session
+htmlgraph feature create "Title" --track <trk-id>   # creates + returns feat-id
+htmlgraph feature start <feat-id>                   # sets attribution for this session
 ```
 
 **Decision rule for code changes:**

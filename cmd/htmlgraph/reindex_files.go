@@ -84,7 +84,7 @@ func reindexFeatureFiles(database *sql.DB, projectDir string) (int, error) {
 func sanitizePathID(filePath string) string {
 	r := strings.NewReplacer("/", "-", ".", "-", " ", "-")
 	s := r.Replace(filePath)
-	if len(s) > 32 {
+	if len(s) >= 32 {
 		h := sha256.Sum256([]byte(filePath))
 		s = s[:24] + fmt.Sprintf("%x", h[:4]) // 24 chars + 8 hex = 32 total
 	}

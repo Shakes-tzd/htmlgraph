@@ -90,7 +90,7 @@ This command follows a research-first debugging methodology: capture the error, 
 4. **Document error details in HtmlGraph:**
    Use `htmlgraph bug create` to track the error investigation and findings:
    ```bash
-   htmlgraph bug create "Error Analysis: {error_category} - {brief_description}"
+   htmlgraph bug create "Error Analysis: {error_category} - {brief_description}" --track <trk-id>
    ```
 
 5. **Provide systematic investigation prompts:**

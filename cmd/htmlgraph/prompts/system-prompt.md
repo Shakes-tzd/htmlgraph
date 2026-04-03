@@ -18,7 +18,7 @@ htmlgraph feature start feat-xxx  # or: htmlgraph bug start bug-xxx / htmlgraph 
 ```
 If no item matches, create one:
 ```bash
-htmlgraph feature create "title"
+htmlgraph feature create "title" --track <trk-id> --description "what you're implementing"
 htmlgraph feature start <new-id>
 ```
 The CIGS guidance (injected per-turn) lists open work items — pick from those.

@@ -52,7 +52,7 @@ htmlgraph feature start feat-XXXX  # or: htmlgraph bug start bug-XXXX
 
 If no work item exists for this task, create one first:
 ` + "```bash" + `
-htmlgraph feature create "Short description of what you're implementing"
+htmlgraph feature create "Short description of what you're implementing" --track <trk-id> --description "optional detail"
 ` + "```" + `
 `
 }

@@ -25,7 +25,7 @@ Before anything else:
 
 1. Check: `htmlgraph status` — is there an active feature/track for this work?
 2. If yes: `htmlgraph feature start <id>`
-3. If no: `htmlgraph feature create "<title>"` then `htmlgraph feature start <id>`
+3. If no: `htmlgraph feature create "<title>" --track <trk-id>` then `htmlgraph feature start <id>`
 
 Plans without attribution produce untracked work.
 

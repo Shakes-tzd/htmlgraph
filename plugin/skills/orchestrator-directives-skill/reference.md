@@ -173,7 +173,7 @@ Always use the CLI to track orchestration activities:
 
 ```bash
 # Track what you delegate
-htmlgraph feature create "Implement authentication"
+htmlgraph feature create "Implement authentication" --track <trk-id>
 htmlgraph feature start <feat-id>
 ```
 
@@ -265,7 +265,7 @@ Agent(
 
 ```bash
 # 1. Create feature (orchestrator does this directly)
-htmlgraph feature create "Add user authentication"
+htmlgraph feature create "Add user authentication" --track <trk-id>
 htmlgraph feature start <feat-id>
 ```
 
@@ -299,7 +299,7 @@ htmlgraph feature complete <feat-id>
 
 ```bash
 # 1. Create bug
-htmlgraph bug create "Session timeout not working"
+htmlgraph bug create "Session timeout not working" --track <trk-id>
 ```
 
 ```bash
@@ -332,7 +332,7 @@ htmlgraph bug complete <bug-id>
 
 ```bash
 # Create feature
-htmlgraph feature create "Refactor API layer"
+htmlgraph feature create "Refactor API layer" --track <trk-id>
 ```
 
 ```bash
@@ -448,7 +448,7 @@ Task(prompt="Implement new feature")
 
 ```bash
 # ✅ CORRECT - Track with HtmlGraph CLI
-htmlgraph feature create "Implement new feature"
+htmlgraph feature create "Implement new feature" --track <trk-id>
 htmlgraph feature start <feat-id>
 ```
 

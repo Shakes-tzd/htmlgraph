@@ -296,6 +296,21 @@ func TestSanitizePathID(t *testing.T) {
 	if len(got) != 32 {
 		t.Errorf("sanitizePathID(long) length = %d, want 32", len(got))
 	}
+
+	// Path that sanitizes to exactly 32 chars should get hash suffix.
+	// Create a path that after sanitization is exactly 32 chars.
+	exactly32 := "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/pq"
+	sanitized := sanitizePathID(exactly32)
+	if len(sanitized) != 32 {
+		t.Errorf("sanitizePathID(32-char path) length = %d, want 32", len(sanitized))
+	}
+	// Verify hash suffix was appended (last 8 chars should be hex).
+	for _, ch := range sanitized[24:] {
+		if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f')) {
+			t.Errorf("sanitizePathID(32-char path) hash suffix not hex: got %q", sanitized[24:])
+			break
+		}
+	}
 }
 
 // TestSanitizePathID_NoCollision verifies that two paths sharing the same first

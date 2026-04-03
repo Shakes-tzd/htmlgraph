@@ -362,7 +362,7 @@ func checkSubagentWorkItemGuard(toolName string, isSubagent, hasWorkItem bool) s
 		return ""
 	}
 	return "No active work item. Run: htmlgraph feature start <id> or " +
-		"htmlgraph feature create \"description\" before writing code."
+		"htmlgraph feature create \"description\" --track <trk-id> before writing code."
 }
 
 // isWriteTool returns true for tools that can modify the filesystem or execute

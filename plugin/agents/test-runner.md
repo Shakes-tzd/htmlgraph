@@ -103,7 +103,7 @@ func TestHookNotDuplicated(t *testing.T) {
 
 **CLI integration test:**
 ```bash
-htmlgraph feature create "Test Feature" && htmlgraph feature list
+htmlgraph feature create "Test Feature" --track <trk-id> && htmlgraph feature list
 htmlgraph feature show invalid-id   # must return non-zero exit
 ```
 
