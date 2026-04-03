@@ -73,6 +73,15 @@ func (e *EditBuilder) AddNote(note string) *EditBuilder {
 	return e
 }
 
+// SetTitle updates the node's title.
+func (e *EditBuilder) SetTitle(title string) *EditBuilder {
+	if e.err != nil {
+		return e
+	}
+	e.node.Title = title
+	return e
+}
+
 // SetPriority updates the node's priority.
 func (e *EditBuilder) SetPriority(priority string) *EditBuilder {
 	if e.err != nil {
