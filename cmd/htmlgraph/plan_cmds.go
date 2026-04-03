@@ -82,16 +82,22 @@ func runPlanGenerate(sourceID string) error {
 
 	graphNodes, sliceCards, sectionsJSON, totalSections := buildPlanSections(nodePath, htmlgraphDir)
 
+	// Generate design discussion from the track description and feature summary.
+	designContent := buildDesignContent(info, nodePath, htmlgraphDir)
+	outlineContent := buildOutlineContent(nodePath, htmlgraphDir)
+
 	content := applyPlanTemplateVars(string(tmplData), planTemplateVars{
-		PlanID:        planID,
-		FeatureID:     resolved,
-		Title:         info.title,
-		Description:   info.description,
-		Date:          time.Now().UTC().Format("2006-01-02"),
-		GraphNodes:    graphNodes,
-		SliceCards:    sliceCards,
-		SectionsJSON:  sectionsJSON,
-		TotalSections: totalSections,
+		PlanID:         planID,
+		FeatureID:      resolved,
+		Title:          info.title,
+		Description:    info.description,
+		Date:           time.Now().UTC().Format("2006-01-02"),
+		GraphNodes:     graphNodes,
+		SliceCards:     sliceCards,
+		SectionsJSON:   sectionsJSON,
+		TotalSections:  totalSections,
+		DesignContent:  designContent,
+		OutlineContent: outlineContent,
 	})
 
 	if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
@@ -280,15 +286,17 @@ func extractPlanNodeInfo(html string) planNodeInfo {
 }
 
 type planTemplateVars struct {
-	PlanID        string
-	FeatureID     string
-	Title         string
-	Description   string
-	Date          string
-	GraphNodes    string // HTML for <!--PLAN_GRAPH_NODES-->
-	SliceCards    string // HTML for <!--PLAN_SLICE_CARDS-->
-	SectionsJSON  string // JS array literal for /*PLAN_SECTIONS_JSON*/
-	TotalSections string // integer string for <!--PLAN_TOTAL_SECTIONS-->
+	PlanID         string
+	FeatureID      string
+	Title          string
+	Description    string
+	Date           string
+	GraphNodes     string // HTML for <!--PLAN_GRAPH_NODES-->
+	SliceCards     string // HTML for <!--PLAN_SLICE_CARDS-->
+	SectionsJSON   string // JS array literal for /*PLAN_SECTIONS_JSON*/
+	TotalSections  string // integer string for <!--PLAN_TOTAL_SECTIONS-->
+	DesignContent  string // HTML for <!--PLAN_DESIGN_CONTENT-->
+	OutlineContent string // HTML for <!--PLAN_OUTLINE_CONTENT-->
 }
 
 // applyPlanTemplateVars replaces placeholder values in the template HTML
@@ -309,6 +317,13 @@ func applyPlanTemplateVars(tmpl string, v planTemplateVars) string {
 	}
 
 	tmpl = strings.ReplaceAll(tmpl, "2026-04-01", v.Date)
+
+	if v.DesignContent != "" {
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_DESIGN_CONTENT-->", v.DesignContent)
+	}
+	if v.OutlineContent != "" {
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_OUTLINE_CONTENT-->", v.OutlineContent)
+	}
 
 	// Always populate PLAN_META regardless of whether slices exist.
 	sliceCount := strings.Count(v.SectionsJSON, `"slice-`)
@@ -425,9 +440,13 @@ func buildPlanSections(nodePath, htmlgraphDir string) (graphNodes, sliceCards, s
 	// Build graph nodes HTML.
 	var gnBuf strings.Builder
 	for _, f := range features {
+		filesAttr := ""
+		if fc := featureFiles[f.num]; fc > 0 {
+			filesAttr = fmt.Sprintf(` data-files="%d"`, fc)
+		}
 		gnBuf.WriteString(fmt.Sprintf(
-			`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s" data-files="%d"></div>`+"\n",
-			f.num, html.EscapeString(f.title), featureDeps[f.num], featureFiles[f.num],
+			`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s"%s></div>`+"\n",
+			f.num, html.EscapeString(f.title), featureDeps[f.num], filesAttr,
 		))
 	}
 	graphNodes = gnBuf.String()
@@ -437,9 +456,13 @@ func buildPlanSections(nodePath, htmlgraphDir string) (graphNodes, sliceCards, s
 	for _, f := range features {
 		n := f.num
 		files := featureFiles[n]
+		filesAttr := ""
+		if files > 0 {
+			filesAttr = fmt.Sprintf(` data-files="%d"`, files)
+		}
 		scBuf.WriteString(fmt.Sprintf(
-			`    <div class="slice-card" data-slice="%d" data-slice-name="%s" data-status="pending" data-files="%d">`+"\n",
-			n, html.EscapeString(f.id), files,
+			`    <div class="slice-card" data-slice="%d" data-slice-name="%s" data-status="pending"%s>`+"\n",
+			n, html.EscapeString(f.id), filesAttr,
 		))
 		scBuf.WriteString(fmt.Sprintf(
 			`      <div class="slice-header"><span class="slice-num">#%d</span><span class="slice-name">%s</span><span class="badge badge-pending" data-badge-for="slice-%d">Pending</span></div>`+"\n",
@@ -487,6 +510,117 @@ func buildPlanSections(nodePath, htmlgraphDir string) (graphNodes, sliceCards, s
 	sectionsJSON = "[" + strings.Join(sectionStrs, ",") + "]"
 	totalSections = fmt.Sprintf("%d", len(sections))
 	return
+}
+
+// buildDesignContent generates the Design Discussion section from the source
+// work item's description and a summary of contained features.
+func buildDesignContent(info planNodeInfo, nodePath, htmlgraphDir string) string {
+	var b strings.Builder
+	if info.description != "" {
+		b.WriteString(fmt.Sprintf("    <p>%s</p>\n", html.EscapeString(info.description)))
+	}
+
+	node, err := htmlparse.ParseFile(nodePath)
+	if err != nil || len(node.Edges["contains"]) == 0 {
+		return b.String()
+	}
+
+	b.WriteString("    <h4>Scope</h4>\n    <ul>\n")
+	for _, edge := range node.Edges["contains"] {
+		title := edge.Title
+		if title == "" {
+			title = edge.TargetID
+		}
+		// Load child description if available.
+		desc := ""
+		if childPath := resolveNodePath(htmlgraphDir, edge.TargetID); childPath != "" {
+			if child, err := htmlparse.ParseFile(childPath); err == nil && child.Content != "" {
+				desc = strings.ReplaceAll(child.Content, "<p>", "")
+				desc = strings.ReplaceAll(desc, "</p>", "")
+				desc = strings.TrimSpace(desc)
+				if len(desc) > 120 {
+					desc = desc[:117] + "..."
+				}
+			}
+		}
+		if desc != "" {
+			b.WriteString(fmt.Sprintf("      <li><strong>%s</strong> &mdash; %s</li>\n",
+				html.EscapeString(title), html.EscapeString(desc)))
+		} else {
+			b.WriteString(fmt.Sprintf("      <li>%s</li>\n", html.EscapeString(title)))
+		}
+	}
+	b.WriteString("    </ul>\n")
+	return b.String()
+}
+
+// buildOutlineContent generates the Structure Outline section showing
+// the dependency chain and execution order.
+func buildOutlineContent(nodePath, htmlgraphDir string) string {
+	node, err := htmlparse.ParseFile(nodePath)
+	if err != nil || len(node.Edges["contains"]) == 0 {
+		return ""
+	}
+
+	// Build ID → title map and find dependencies.
+	type item struct {
+		id, title string
+		deps      []string
+	}
+	var items []item
+	for _, edge := range node.Edges["contains"] {
+		title := edge.Title
+		if title == "" {
+			title = edge.TargetID
+		}
+		it := item{id: edge.TargetID, title: title}
+		if childPath := resolveNodePath(htmlgraphDir, edge.TargetID); childPath != "" {
+			if child, err := htmlparse.ParseFile(childPath); err == nil {
+				for _, dep := range child.Edges["blocked_by"] {
+					it.deps = append(it.deps, dep.TargetID)
+				}
+			}
+		}
+		items = append(items, it)
+	}
+
+	// Separate into independent (no deps) and dependent.
+	var independent, dependent []item
+	for _, it := range items {
+		if len(it.deps) == 0 {
+			independent = append(independent, it)
+		} else {
+			dependent = append(dependent, it)
+		}
+	}
+
+	var b strings.Builder
+	if len(independent) > 0 {
+		b.WriteString("    <h4>Independent (can run in parallel)</h4>\n    <ul>\n")
+		for _, it := range independent {
+			b.WriteString(fmt.Sprintf("      <li>%s</li>\n", html.EscapeString(it.title)))
+		}
+		b.WriteString("    </ul>\n")
+	}
+	if len(dependent) > 0 {
+		idToTitle := make(map[string]string, len(items))
+		for _, it := range items {
+			idToTitle[it.id] = it.title
+		}
+		b.WriteString("    <h4>Sequential (has dependencies)</h4>\n    <ul>\n")
+		for _, it := range dependent {
+			var depNames []string
+			for _, d := range it.deps {
+				if name, ok := idToTitle[d]; ok {
+					depNames = append(depNames, name)
+				}
+			}
+			b.WriteString(fmt.Sprintf("      <li>%s &larr; depends on: %s</li>\n",
+				html.EscapeString(it.title), html.EscapeString(strings.Join(depNames, ", "))))
+		}
+		b.WriteString("    </ul>\n")
+	}
+	return b.String()
 }
 
 // derivePlanID builds a kebab-case plan file ID from the work item title.
