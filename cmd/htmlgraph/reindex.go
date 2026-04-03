@@ -9,7 +9,6 @@ import (
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/htmlparse"
-	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/spf13/cobra"
 )
 
@@ -43,13 +42,9 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 	}
 	defer database.Close()
 
-	// Determine project dir (parent of .htmlgraph/).
 	projectDir := filepath.Dir(htmlgraphDir)
-
-	// Resolve current HEAD commit (empty string if git unavailable).
 	currentCommit := gitHeadCommit(projectDir)
 
-	// Decide incremental vs full.
 	lastCommit, _ := dbpkg.GetMetadata(database, metaKeyLastIndexedCommit)
 	useIncremental := !fullFlag && lastCommit != "" && currentCommit != ""
 
@@ -57,7 +52,6 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 	validIDs := make(map[string]bool)
 
 	if useIncremental {
-		// Check that lastCommit still exists in git history.
 		if !gitCommitExists(projectDir, lastCommit) {
 			useIncremental = false
 		}
@@ -68,7 +62,6 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 		fmt.Printf("Reindexed (incremental): %d upserted, %d errors (of %d changed HTML files)\n",
 			upserted, errCount, total)
 	} else {
-		// Full reindex — original behaviour.
 		trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, projectDir, validIDs)
 		total += trackTotal
 		upserted += trackUpserted
@@ -89,8 +82,15 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Rebuild feature_files from git_commits -- captures all files touched by each
-	// feature including manual commits and historical work.
+	// Parse git commit trailers (Refs:/Fixes:) to backfill feature attribution.
+	trailerCount, trailerErr := reindexCommitTrailers(database, projectDir)
+	if trailerErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: commit trailer ingestion: %v\n", trailerErr)
+	} else if trailerCount > 0 {
+		fmt.Printf("  commit trailers: %d feature links from Refs/Fixes trailers\n", trailerCount)
+	}
+
+	// Rebuild feature_files from git_commits.
 	fileCount, ffErr := reindexFeatureFiles(database, projectDir)
 	if ffErr != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "warning: feature_files rebuild: %v\n", ffErr)
@@ -98,7 +98,6 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 		fmt.Printf("  feature_files: %d file associations rebuilt\n", fileCount)
 	}
 
-	// Persist current HEAD so the next run can diff from here.
 	if currentCommit != "" && errCount == 0 {
 		_ = dbpkg.SetMetadata(database, metaKeyLastIndexedCommit, currentCommit)
 	}
@@ -107,7 +106,6 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 }
 
 // runIncrementalReindex parses only files changed between lastCommit and HEAD.
-// Deleted files are removed from the DB. Returns (total, upserted, errors).
 func runIncrementalReindex(
 	database *sql.DB,
 	htmlgraphDir, projectDir, lastCommit string,
@@ -115,7 +113,6 @@ func runIncrementalReindex(
 ) (int, int, int) {
 	added, deleted := gitChangedFiles(projectDir, lastCommit, htmlgraphDir)
 
-	// Remove deleted files from the DB.
 	for _, path := range deleted {
 		id := idFromHTMLPath(path)
 		if id != "" {
@@ -158,7 +155,7 @@ func runIncrementalReindex(
 		} else {
 			desc := node.Content
 			if len([]rune(desc)) > 500 {
-				desc = string([]rune(desc)[:499]) + "…"
+				desc = string([]rune(desc)[:499]) + "\u2026"
 			}
 			stepsTotal := len(node.Steps)
 			stepsCompleted := 0
@@ -192,7 +189,6 @@ func runIncrementalReindex(
 	return total, upserted, errCount
 }
 
-// gitHeadCommit returns the current HEAD commit hash, or "" on any error.
 func gitHeadCommit(projectDir string) string {
 	out, err := exec.Command("git", "-C", projectDir, "rev-parse", "HEAD").Output()
 	if err != nil {
@@ -201,17 +197,12 @@ func gitHeadCommit(projectDir string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// gitCommitExists returns true if the given commit hash is reachable in the repo.
 func gitCommitExists(projectDir, commit string) bool {
 	err := exec.Command("git", "-C", projectDir, "cat-file", "-e", commit+"^{commit}").Run()
 	return err == nil
 }
 
-// gitChangedFiles returns (added/modified, deleted) HTML file paths in htmlgraphDir
-// that changed between fromCommit and HEAD.
-// Falls back to (nil, nil) on any git error.
 func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []string, deleted []string) {
-	// Use a path relative to projectDir so git filters correctly.
 	relHg, err := filepath.Rel(projectDir, htmlgraphDir)
 	if err != nil {
 		return nil, nil
@@ -229,13 +220,11 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 		if line == "" {
 			continue
 		}
-		// Format: "M\tpath" or "A\tpath" or "D\tpath" or "R100\told\tnew"
 		parts := strings.SplitN(line, "\t", 3)
 		if len(parts) < 2 {
 			continue
 		}
 		status := parts[0]
-		// Renames: status starts with R; treat destination as added, source as deleted.
 		if strings.HasPrefix(status, "R") && len(parts) == 3 {
 			oldPath := filepath.Join(projectDir, parts[1])
 			newPath := filepath.Join(projectDir, parts[2])
@@ -259,7 +248,6 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 		}
 	}
 
-	// Also include untracked HTML files in .htmlgraph/ (new files not yet committed).
 	untrackedOut, err := exec.Command(
 		"git", "-C", projectDir,
 		"ls-files", "--others", "--exclude-standard", "--", relHg,
@@ -279,16 +267,11 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 	return added, deleted
 }
 
-// idFromHTMLPath extracts a work-item ID from an HTML file path.
-// Expects the filename (without extension) to be the ID (e.g. "feat-abc123.html" -> "feat-abc123").
 func idFromHTMLPath(path string) string {
 	base := filepath.Base(path)
 	return strings.TrimSuffix(base, ".html")
 }
 
-// reindexTracks globs both flat (tracks/*.html) and nested (tracks/*/index.html)
-// track files and upserts each into the tracks table.
-// Returns (total, upserted, errors).
 func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs map[string]bool) (int, int, int) {
 	patterns := []string{
 		filepath.Join(htmlgraphDir, "tracks", "*.html"),
@@ -336,8 +319,6 @@ func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs m
 	return total, upserted, errCount
 }
 
-// reindexFeatureDir upserts all HTML files in a single directory into the features table.
-// Returns (total, upserted, errors).
 func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, validIDs map[string]bool) (int, int, int) {
 	pattern := filepath.Join(htmlgraphDir, dir, "*.html")
 	files, _ := filepath.Glob(pattern)
@@ -355,7 +336,7 @@ func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, v
 		createdAt, updatedAt = applyGitTimestamps(projectDir, f, createdAt, updatedAt)
 		desc := node.Content
 		if len([]rune(desc)) > 500 {
-			desc = string([]rune(desc)[:499]) + "…"
+			desc = string([]rune(desc)[:499]) + "\u2026"
 		}
 
 		stepsTotal := len(node.Steps)
@@ -391,87 +372,6 @@ func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, v
 	return total, upserted, errCount
 }
 
-
-// reindexFeatureFiles rebuilds the feature_files table from git_commits.
-// For each feature with linked commits, runs git diff-tree to get the files
-// touched by each commit and upserts them into feature_files.
-// This captures ALL files touched by a feature -- including manual commits,
-// other agents, and historical work -- without relying on the hook hot path.
-// Returns the total number of file associations upserted.
-func reindexFeatureFiles(database *sql.DB, projectDir string) (int, error) {
-	rows, err := database.Query(`
-		SELECT DISTINCT feature_id, commit_hash
-		FROM git_commits
-		WHERE feature_id IS NOT NULL AND feature_id != ''
-	`)
-	if err != nil {
-		return 0, fmt.Errorf("query git_commits: %w", err)
-	}
-	defer rows.Close()
-
-	type commitRef struct {
-		featureID  string
-		commitHash string
-	}
-	var refs []commitRef
-	for rows.Next() {
-		var r commitRef
-		if scanErr := rows.Scan(&r.featureID, &r.commitHash); scanErr != nil {
-			continue
-		}
-		refs = append(refs, r)
-	}
-	if rowErr := rows.Err(); rowErr != nil {
-		return 0, fmt.Errorf("scan git_commits: %w", rowErr)
-	}
-
-	total := 0
-	for _, ref := range refs {
-		out, cmdErr := exec.Command(
-			"git", "-C", projectDir,
-			"diff-tree", "--root", "--no-commit-id", "-r", "--name-only", ref.commitHash,
-		).Output()
-		if cmdErr != nil {
-			// Commit may not exist locally (rebased away) -- skip silently.
-			continue
-		}
-
-		hashPrefix := ref.commitHash
-		if len(hashPrefix) > 8 {
-			hashPrefix = hashPrefix[:8]
-		}
-		for _, filePath := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			if filePath == "" {
-				continue
-			}
-			ff := &models.FeatureFile{
-				ID:        ref.featureID + "-" + hashPrefix + "-" + sanitizePathID(filePath),
-				FeatureID: ref.featureID,
-				FilePath:  filePath,
-				Operation: "commit",
-			}
-			if upsertErr := dbpkg.UpsertFeatureFile(database, ff); upsertErr == nil {
-				total++
-			}
-		}
-	}
-	return total, nil
-}
-
-// sanitizePathID converts a file path to a short token safe for use in a
-// composite primary key (replaces separators and dots, truncates to 32 chars).
-func sanitizePathID(filePath string) string {
-	r := strings.NewReplacer("/", "-", ".", "-", " ", "-")
-	s := r.Replace(filePath)
-	if len(s) > 32 {
-		s = s[:32]
-	}
-	return s
-}
-
-// collectSessionIDs adds all session IDs from the sessions table to validIDs.
-// Sessions are not backed by HTML files; without this, edges pointing to sessions
-// (e.g. implemented_in) would be incorrectly purged as stale by purgeStaleEntries.
 func collectSessionIDs(database *sql.DB, validIDs map[string]bool) {
 	rows, err := database.Query("SELECT session_id FROM sessions")
 	if err != nil {
@@ -486,11 +386,6 @@ func collectSessionIDs(database *sql.DB, validIDs map[string]bool) {
 	}
 }
 
-// reindexEdges re-populates graph_edges from all HTML files whose edges are
-// already in validIDs. This ensures that edges written by `link add` survive
-// repeated reindex runs even when the SQLite graph_edges row was missing.
-// Only edges whose both endpoints are in validIDs are upserted (stale edges
-// are left to purgeStaleEntries).
 func reindexEdges(database *sql.DB, htmlgraphDir string, validIDs map[string]bool) {
 	dirs := []struct {
 		subdir   string
@@ -528,8 +423,6 @@ func reindexEdges(database *sql.DB, htmlgraphDir string, validIDs map[string]boo
 	}
 }
 
-// inferNodeTypeFromID derives a node type string from an ID prefix.
-// Mirrors workitem.inferNodeType without the workitem package import.
 func inferNodeTypeFromID(id string) string {
 	switch {
 	case len(id) > 5 && id[:5] == "feat-":

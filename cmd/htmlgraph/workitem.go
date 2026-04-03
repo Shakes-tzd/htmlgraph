@@ -39,160 +39,6 @@ func workitemCmd(typeName, dirName string) *cobra.Command {
 	return cmd
 }
 
-type wiCreateOpts struct {
-	trackID     string
-	priority    string
-	description string
-	files       string
-	steps       string // comma-separated implementation steps
-	start       bool
-	noLink      bool
-}
-
-func wiCreateCmd(typeName, dirName string) *cobra.Command {
-	var opts wiCreateOpts
-
-	cmd := &cobra.Command{
-		Use:   "create <title>",
-		Short: "Create a new " + typeName,
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runWiCreate(typeName, args[0], &opts)
-		},
-	}
-	cmd.Flags().StringVar(&opts.trackID, "track", "", "track ID to link to")
-	cmd.Flags().StringVar(&opts.priority, "priority", "medium", "priority (low|medium|high|critical)")
-	cmd.Flags().StringVar(&opts.description, "description", "", "description text")
-	cmd.Flags().BoolVar(&opts.start, "start", false, "immediately mark as in-progress")
-	cmd.Flags().BoolVar(&opts.noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
-	cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
-	cmd.Flags().StringVar(&opts.steps, "steps", "", "comma-separated implementation steps")
-	return cmd
-}
-
-func runWiCreate(typeName, title string, o *wiCreateOpts) error {
-	dir, err := findHtmlgraphDir()
-	if err != nil {
-		return err
-	}
-	p, err := workitem.Open(dir, "claude-code")
-	if err != nil {
-		return fmt.Errorf("open project: %w", err)
-	}
-	defer p.Close()
-
-	node, err := createNode(p, typeName, title, o)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", typeName, err)
-	}
-
-	if err := warnMissingFields(typeName, o); err != nil {
-		return err
-	}
-
-	// Post-creation: record steps, session provenance, and affected files.
-	sessionID := hooks.EnvSessionID("")
-	if o.steps != "" || sessionID != "" || (o.files != "" && typeName != "bug") {
-		col := collectionFor(p, typeName)
-		edit := col.Edit(node.ID)
-		for _, step := range splitSteps(o.steps) {
-			edit = edit.AddStep(step)
-		}
-		if sessionID != "" {
-			edit = edit.SetProperty("created_in_session", sessionID)
-		}
-		if o.files != "" && typeName != "bug" {
-			edit = edit.SetProperty("affected_files", o.files)
-		}
-		if saveErr := edit.Save(); saveErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", saveErr)
-		}
-	}
-
-	if typeName == "bug" && !o.noLink {
-		if featID := detectActiveFeature(p, dir); featID != "" {
-			autoCausedByEdge(p, node.ID, featID)
-			fmt.Printf("  (linked to %s)\n", featID)
-		}
-	}
-
-	if o.trackID != "" && typeName != "track" {
-		if linkErr := autoTrackEdges(p, node.ID, typeName, o.trackID, node.Title); linkErr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: auto-link to track failed: %v\n", linkErr)
-		}
-	}
-
-	if o.start {
-		if _, startErr := collectionFor(p, typeName).Start(node.ID); startErr != nil {
-			return fmt.Errorf("start %s: %w", typeName, startErr)
-		}
-		// Update session's active_feature_id so the status line reflects
-		// the newly-started work item (mirrors runWiSetStatus logic).
-		if sessionID != "" && p.DB != nil {
-			_ = hooks.UpdateActiveFeature(p.DB, sessionID, node.ID)
-		}
-		fmt.Printf("Created and started: %s  %s\n", node.ID, node.Title)
-	} else {
-		fmt.Printf("Created: %s  %s\n", node.ID, node.Title)
-	}
-	return nil
-}
-
-func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {
-	switch typeName {
-	case "feature":
-		opts := []workitem.FeatureOption{workitem.FeatWithPriority(o.priority)}
-		if o.trackID != "" {
-			opts = append(opts, workitem.FeatWithTrack(o.trackID))
-		}
-		if o.description != "" {
-			opts = append(opts, workitem.FeatWithContent(o.description))
-		}
-		return p.Features.Create(title, opts...)
-	case "bug":
-		opts := []workitem.BugOption{workitem.BugWithPriority(o.priority)}
-		if o.trackID != "" {
-			opts = append(opts, workitem.BugWithTrack(o.trackID))
-		}
-		if o.description != "" {
-			opts = append(opts, workitem.BugWithContent(o.description))
-		}
-		return p.Bugs.Create(title, opts...)
-	case "spike":
-		opts := []workitem.SpikeOption{workitem.SpikeWithPriority(o.priority)}
-		if o.trackID != "" {
-			opts = append(opts, workitem.SpikeWithTrack(o.trackID))
-		}
-		return p.Spikes.Create(title, opts...)
-	case "track":
-		opts := []workitem.TrackOption{workitem.TrackWithPriority(o.priority)}
-		if o.description != "" {
-			opts = append(opts, workitem.TrackWithContent(o.description))
-		}
-		return p.Tracks.Create(title, opts...)
-	case "plan":
-		opts := []workitem.PlanOption{workitem.PlanWithPriority(o.priority)}
-		if o.trackID != "" {
-			opts = append(opts, workitem.PlanWithTrack(o.trackID))
-		}
-		if o.description != "" {
-			opts = append(opts, workitem.PlanWithContent(o.description))
-		}
-		return p.Plans.Create(title, opts...)
-	case "spec":
-		opts := []workitem.SpecOption{workitem.SpecWithPriority(o.priority)}
-		if o.trackID != "" {
-			opts = append(opts, workitem.SpecWithTrack(o.trackID))
-		}
-		if o.description != "" {
-			opts = append(opts, workitem.SpecWithContent(o.description))
-		}
-		return p.Specs.Create(title, opts...)
-	default:
-		return nil, fmt.Errorf("unknown type %q\nValid types: feature, bug, spike, track, plan, spec", typeName)
-	}
-}
-
 func wiListCmd(typeName, dirName string) *cobra.Command {
 	var statusFilter string
 	cmd := &cobra.Command{
@@ -333,13 +179,10 @@ func runWiSetStatus(typeName, id, status string) error {
 	// with per-agent attribution, and create an implemented_in edge.
 	if status == "in-progress" {
 		sessionID := hooks.EnvSessionID("")
-		agentID := os.Getenv("HTMLGRAPH_AGENT_ID") // "" for orchestrator
+		agentID := os.Getenv("HTMLGRAPH_AGENT_ID")
 		if sessionID != "" {
 			if p.DB != nil {
 				_ = hooks.UpdateActiveFeature(p.DB, sessionID, id)
-				// Create a claim with per-agent attribution so the
-				// PreToolUse guard can verify this specific agent
-				// has claimed work (not just the session).
 				claim := &models.Claim{
 					ClaimID:          "clm-" + uuid.NewString()[:8],
 					WorkItemID:       id,
@@ -348,12 +191,17 @@ func runWiSetStatus(typeName, id, status string) error {
 					ClaimedByAgentID: agentID,
 					Status:           models.ClaimInProgress,
 				}
-				// Best-effort: ignore conflict if claim already exists.
 				_ = dbpkg.ClaimItem(p.DB, claim, 30*time.Minute)
 			}
-			// Auto-create implemented_in edge (idempotent — skip if exists).
 			autoImplementedInEdge(col, id, sessionID)
 		}
+	}
+
+	// Update status line cache for subagent visibility.
+	if status == "in-progress" {
+		WriteStatuslineCache(dir, id)
+	} else {
+		WriteStatuslineCache(dir, "")
 	}
 
 	verb := "Started"
@@ -459,7 +307,6 @@ func splitSteps(s string) []string {
 }
 
 // agentForClaim returns the agent string for claim ownership.
-// Uses HTMLGRAPH_AGENT_TYPE if set (subagent), otherwise "claude-code".
 func agentForClaim() string {
 	if v := os.Getenv("HTMLGRAPH_AGENT_TYPE"); v != "" {
 		return v
@@ -468,12 +315,11 @@ func agentForClaim() string {
 }
 
 // resolveID resolves a partial or full work item ID to its canonical form.
-// It delegates to workitem.ResolvePartialID which handles exact and prefix matches.
 func resolveID(htmlgraphDir, id string) (string, error) {
 	return workitem.ResolvePartialID(htmlgraphDir, id)
 }
 
-// resolveNodePath searches all subdirectories for a file matching id (exact match).
+// resolveNodePath searches all subdirectories for a file matching id.
 func resolveNodePath(htmlgraphDir, id string) string {
 	dirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 	for _, sub := range dirs {
@@ -535,159 +381,7 @@ func printNodeDetail(n *models.Node) {
 	}
 }
 
-// --- update and move commands ------------------------------------------------
-
-type wiUpdateOpts struct {
-	trackID  string
-	title    string
-	priority string
-}
-
-func wiUpdateCmd(typeName string) *cobra.Command {
-	var opts wiUpdateOpts
-	cmd := &cobra.Command{
-		Use:   "update <id>",
-		Short: "Update " + typeName + " metadata (title, priority, track)",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runWiUpdate(typeName, args[0], &opts)
-		},
-	}
-	cmd.Flags().StringVar(&opts.title, "title", "", "new title")
-	cmd.Flags().StringVar(&opts.priority, "priority", "", "new priority (low|medium|high|critical)")
-	if typeName != "track" {
-		cmd.Flags().StringVar(&opts.trackID, "track", "", "reassign to track")
-	}
-	return cmd
-}
-
-func runWiUpdate(typeName, id string, o *wiUpdateOpts) error {
-	if o.title == "" && o.priority == "" && o.trackID == "" {
-		return fmt.Errorf("at least one of --title, --priority, or --track is required")
-	}
-	dir, err := findHtmlgraphDir()
-	if err != nil {
-		return err
-	}
-	id, err = resolveID(dir, id)
-	if err != nil {
-		return err
-	}
-	p, err := workitem.Open(dir, "claude-code")
-	if err != nil {
-		return fmt.Errorf("open project: %w", err)
-	}
-	defer p.Close()
-
-	col := collectionFor(p, typeName)
-	edit := col.Edit(id)
-	if o.title != "" {
-		edit = edit.SetTitle(o.title)
-	}
-	if o.priority != "" {
-		edit = edit.SetPriority(o.priority)
-	}
-	if o.trackID != "" {
-		// Validate target track exists.
-		if _, err := p.Tracks.Get(o.trackID); err != nil {
-			return fmt.Errorf("track %s not found\nRun 'htmlgraph track list' to see available tracks", o.trackID)
-		}
-		edit = edit.SetTrack(o.trackID)
-	}
-	if err := edit.Save(); err != nil {
-		return fmt.Errorf("update %s: %w", id, err)
-	}
-
-	// If track changed, update edges.
-	if o.trackID != "" {
-		if err := moveTrackEdges(p, id, typeName, o.trackID); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: edge update failed: %v\n", err)
-		}
-	}
-
-	fmt.Printf("Updated: %s\n", id)
-	return nil
-}
-
-func wiMoveCmd(typeName string) *cobra.Command {
-	return &cobra.Command{
-		Use:   "move <id> <target-track-id>",
-		Short: "Move " + typeName + " to a different track",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runWiMove(typeName, args[0], args[1])
-		},
-	}
-}
-
-func runWiMove(typeName, id, targetTrackID string) error {
-	dir, err := findHtmlgraphDir()
-	if err != nil {
-		return err
-	}
-	id, err = resolveID(dir, id)
-	if err != nil {
-		return err
-	}
-	p, err := workitem.Open(dir, "claude-code")
-	if err != nil {
-		return fmt.Errorf("open project: %w", err)
-	}
-	defer p.Close()
-
-	col := collectionFor(p, typeName)
-	node, err := col.Get(id)
-	if err != nil {
-		return fmt.Errorf("%s not found: %w", id, err)
-	}
-
-	// Validate target track exists.
-	track, err := p.Tracks.Get(targetTrackID)
-	if err != nil {
-		return fmt.Errorf("track %s not found\nRun 'htmlgraph track list' to see available tracks", targetTrackID)
-	}
-
-	if node.TrackID == targetTrackID {
-		fmt.Printf("Already in track %s\n", targetTrackID)
-		return nil
-	}
-
-	// Update track ID on the item.
-	if err := col.Edit(id).SetTrack(targetTrackID).Save(); err != nil {
-		return fmt.Errorf("update track: %w", err)
-	}
-
-	// Update edges.
-	if err := moveTrackEdges(p, id, typeName, targetTrackID); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: edge update failed: %v\n", err)
-	}
-
-	fmt.Printf("Moved: %s → %s (%s)\n", id, targetTrackID, track.Title)
-	return nil
-}
-
-// moveTrackEdges removes old track edges and creates new ones.
-func moveTrackEdges(p *workitem.Project, itemID, typeName, newTrackID string) error {
-	col := collectionFor(p, typeName)
-	node, err := col.Get(itemID)
-	if err != nil {
-		return err
-	}
-
-	// Remove old part_of edges to any track.
-	for _, e := range node.Edges[string(models.RelPartOf)] {
-		if strings.HasPrefix(e.TargetID, "trk-") {
-			col.RemoveEdge(itemID, e.TargetID, models.RelPartOf)
-			p.Tracks.RemoveEdge(e.TargetID, itemID, models.RelContains)
-		}
-	}
-
-	// Create new edges.
-	return autoTrackEdges(p, itemID, typeName, newTrackID, node.Title)
-}
-
 // kindFromPrefix determines the work item kind from an ID prefix.
-// Examples: "feat-" -> "feature", "bug-" -> "bug", "trk-" -> "track", "spk-" -> "spike"
 func kindFromPrefix(id string) string {
 	if strings.HasPrefix(id, "feat-") {
 		return "feature"
@@ -707,5 +401,5 @@ func kindFromPrefix(id string) string {
 	if strings.HasPrefix(id, "spc-") {
 		return "spec"
 	}
-	return "work item" // fallback
+	return "work item"
 }

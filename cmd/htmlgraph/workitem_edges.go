@@ -86,12 +86,13 @@ func autoTrackEdges(p *workitem.Project, itemID, typeName, trackID, itemTitle st
 	return nil
 }
 
-// warnMissingFields prints warnings for missing recommended fields per type.
-// Returns an error if required fields are missing for features and bugs.
+// warnMissingFields validates required and recommended fields per work item type.
+// Features and bugs REQUIRE --track and --description. Spikes, tracks, plans,
+// and specs are exempt from the track requirement.
 func warnMissingFields(typeName string, o *wiCreateOpts) error {
-	// Track: warn about no --track (spikes and tracks exempt).
-	if o.trackID == "" && typeName != "track" && typeName != "spike" {
-		fmt.Fprintf(os.Stderr, "Warning: no track specified. Use --track <trk-id> to link this %s to an initiative.\nRun 'htmlgraph track list' to see existing tracks.\n", typeName)
+	// Features and bugs require a track to link to an initiative.
+	if o.trackID == "" && (typeName == "feature" || typeName == "bug") {
+		return fmt.Errorf("%s requires --track <trk-id> to link to an initiative.\nRun 'htmlgraph track list' to see existing tracks.\nTo create a new track: htmlgraph track create \"Track Title\"", typeName)
 	}
 
 	switch typeName {

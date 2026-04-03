@@ -1,10 +1,11 @@
-// parallel agent B was here
 package main
 
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/hooks"
@@ -198,4 +199,86 @@ func inferType(id string) string {
 	default:
 		return "feature"
 	}
+}
+
+// WriteStatuslineCache writes the active work item summary to
+// ~/.htmlgraph-statusline-cache. This provides a fast, DB-free fallback
+// for subagents and status line scripts that cannot query SQLite directly.
+// Pass empty featureID to clear the cache (on complete).
+func WriteStatuslineCache(htmlgraphDir, featureID string) {
+	cacheDir := os.Getenv("HTMLGRAPH_CACHE_DIR")
+	if cacheDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return
+		}
+		cacheDir = home
+	}
+	cachePath := filepath.Join(cacheDir, ".htmlgraph-statusline-cache")
+
+	if featureID == "" {
+		_ = os.WriteFile(cachePath, []byte(""), 0o644)
+		return
+	}
+
+	// Build the status line: resolve feature title and track context.
+	line := buildCacheLine(htmlgraphDir, featureID)
+	_ = os.WriteFile(cachePath, []byte(line), 0o644)
+}
+
+// buildCacheLine produces the display string for a work item, including
+// its track context if available. Format: "Track [done/total] -> Feature"
+func buildCacheLine(htmlgraphDir, featureID string) string {
+	p, err := workitem.Open(htmlgraphDir, "claude-code")
+	if err != nil {
+		return featureID
+	}
+	defer p.Close()
+
+	var featureType, featureTitle string
+	for _, typeName := range []string{"bug", "feature", "spike"} {
+		col := collectionFor(p, typeName)
+		node, nodeErr := col.Get(featureID)
+		if nodeErr == nil && node != nil {
+			featureType = typeName
+			featureTitle = node.Title
+			break
+		}
+	}
+	if featureTitle == "" {
+		return featureID
+	}
+
+	// Attempt track context via DB.
+	dbPath := filepath.Join(htmlgraphDir, "htmlgraph.db")
+	database, err := dbpkg.Open(dbPath)
+	if err != nil {
+		return fmt.Sprintf("%s %s", iconFor(featureType), truncate(featureTitle, 30))
+	}
+	defer database.Close()
+
+	trackLine := resolveTrackContext(database, htmlgraphDir, featureID)
+	if trackLine != "" {
+		return fmt.Sprintf("%s -> %s %s",
+			trackLine, iconFor(featureType), truncate(featureTitle, 25))
+	}
+	return fmt.Sprintf("%s %s", iconFor(featureType), truncate(featureTitle, 30))
+}
+
+// ReadStatuslineCache reads the cached status line from disk.
+// Returns empty string if the cache file doesn't exist or is empty.
+func ReadStatuslineCache() string {
+	cacheDir := os.Getenv("HTMLGRAPH_CACHE_DIR")
+	if cacheDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		cacheDir = home
+	}
+	data, err := os.ReadFile(filepath.Join(cacheDir, ".htmlgraph-statusline-cache"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }

@@ -9,7 +9,7 @@ import (
 func TestWipResetWithoutForceError(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
-	for _, sub := range []string{"features", "bugs", "spikes"} {
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -18,8 +18,9 @@ func TestWipResetWithoutForceError(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Create a feature and mark it as in-progress
-	if err := testCreate("feature", "In-progress Feature", "", "high", true, false); err != nil {
+	trackID := testSetupTrack(t, hgDir)
+
+	if err := testCreate("feature", "In-progress Feature", trackID, "high", true, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -42,7 +43,7 @@ func TestWipResetWithoutForceError(t *testing.T) {
 func TestWipResetWithoutForceErrorMultipleItems(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
-	for _, sub := range []string{"features", "bugs", "spikes"} {
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -51,14 +52,15 @@ func TestWipResetWithoutForceErrorMultipleItems(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Create multiple in-progress items
-	if err := testCreate("feature", "Feature 1", "", "high", true, false); err != nil {
+	trackID := testSetupTrack(t, hgDir)
+
+	if err := testCreate("feature", "Feature 1", trackID, "high", true, false); err != nil {
 		t.Fatalf("create feature 1: %v", err)
 	}
-	if err := testCreate("feature", "Feature 2", "", "high", true, false); err != nil {
+	if err := testCreate("feature", "Feature 2", trackID, "high", true, false); err != nil {
 		t.Fatalf("create feature 2: %v", err)
 	}
-	if err := testCreate("bug", "Bug 1", "", "high", true, false); err != nil {
+	if err := testCreate("bug", "Bug 1", trackID, "high", true, false); err != nil {
 		t.Fatalf("create bug 1: %v", err)
 	}
 
@@ -81,7 +83,7 @@ func TestWipResetWithoutForceErrorMultipleItems(t *testing.T) {
 func TestWipResetWithForceSucceeds(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
-	for _, sub := range []string{"features", "bugs", "spikes"} {
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -90,8 +92,9 @@ func TestWipResetWithForceSucceeds(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Create a feature and mark it as in-progress
-	if err := testCreate("feature", "In-progress Feature", "", "high", true, false); err != nil {
+	trackID := testSetupTrack(t, hgDir)
+
+	if err := testCreate("feature", "In-progress Feature", trackID, "high", true, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 

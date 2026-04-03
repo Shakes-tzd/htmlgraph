@@ -20,8 +20,10 @@ func TestLinkErrorMessageInvalidPrefix(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
+	trackID := testSetupTrack(t, hgDir)
+
 	// Create a valid feature to use as target
-	if err := testCreate("feature", "Target Feature", "", "medium", false, false); err != nil {
+	if err := testCreate("feature", "Target Feature", trackID, "medium", false, false); err != nil {
 		t.Fatalf("create feature: %v", err)
 	}
 
@@ -61,11 +63,13 @@ func TestLinkErrorMessageNoEdge(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
+	trackID := testSetupTrack(t, hgDir)
+
 	// Create two features
-	if err := testCreate("feature", "Feature 1", "", "medium", false, false); err != nil {
+	if err := testCreate("feature", "Feature 1", trackID, "medium", false, false); err != nil {
 		t.Fatalf("create feature 1: %v", err)
 	}
-	if err := testCreate("feature", "Feature 2", "", "medium", false, false); err != nil {
+	if err := testCreate("feature", "Feature 2", trackID, "medium", false, false); err != nil {
 		t.Fatalf("create feature 2: %v", err)
 	}
 
