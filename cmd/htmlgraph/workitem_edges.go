@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/hooks"
 	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
@@ -92,7 +94,16 @@ func autoTrackEdges(p *workitem.Project, itemID, typeName, trackID, itemTitle st
 func warnMissingFields(typeName string, o *wiCreateOpts) error {
 	// Features and bugs require a track to link to an initiative.
 	if o.trackID == "" && (typeName == "feature" || typeName == "bug") {
-		return fmt.Errorf("%s requires --track <trk-id> to link to an initiative.\nRun 'htmlgraph track list' to see existing tracks.\nTo create a new track: htmlgraph track create \"Track Title\"", typeName)
+		msg := fmt.Sprintf("%s requires --track <trk-id> to link to an initiative.\nRun 'htmlgraph track list' to see existing tracks.\nTo create a new track: htmlgraph track create \"Track Title\"", typeName)
+
+		// For bugs with --files, try to suggest the track via file ownership.
+		if typeName == "bug" && o.files != "" {
+			if suggestion := suggestTrackFromFiles(o.files); suggestion != "" {
+				msg += "\n\nSuggested: " + suggestion
+			}
+		}
+
+		return fmt.Errorf("%s", msg)
 	}
 
 	switch typeName {
@@ -104,7 +115,37 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 		if o.description == "" {
 			fmt.Fprintf(os.Stderr, "Warning: spec created without --description.\n")
 		}
-	// spike: no requirements. track/plan: steps are usually added later.
 	}
 	return nil
+}
+
+// suggestTrackFromFiles resolves file ownership for the first affected file
+// and returns a suggestion string like "--track trk-abc (Feature Title owns cmd/foo.go)".
+func suggestTrackFromFiles(files string) string {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return ""
+	}
+	database := openTrackDB(dir)
+	if database == nil {
+		return ""
+	}
+	defer database.Close()
+
+	for _, f := range strings.Split(files, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		owner := dbpkg.ResolveFileOwner(database, f)
+		if owner == nil {
+			continue
+		}
+		if owner.TrackID != "" {
+			return fmt.Sprintf("--track %s (%s owns %s)", owner.TrackID, owner.Title, f)
+		}
+		return fmt.Sprintf("feature %s (%s) owns %s — find its track with: htmlgraph feature show %s",
+			owner.FeatureID, owner.Title, f, owner.FeatureID)
+	}
+	return ""
 }
