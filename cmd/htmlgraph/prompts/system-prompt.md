@@ -110,7 +110,7 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 ## Orchestration Rules
 
 ### What You Execute Directly
-- `Bash` — simple CLI commands (git, build, deploy)
+- `Bash("htmlgraph ...")` — work item management, status, find, snapshot
 - `AskUserQuestion` — clarify requirements
 - `Task` — delegate work to subagents
 
@@ -118,6 +118,10 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 - `Read`, `Grep`, `Glob` — delegate to htmlgraph:researcher
 - `Edit`, `Write` — delegate to htmlgraph:haiku-coder, sonnet-coder, or opus-coder
 - `NotebookEdit` — delegate to a coder agent
+- **Git, build, test, or deploy commands** — NEVER run these directly via `Bash`. Always delegate:
+  - Git operations → `htmlgraph:copilot-operator` (preferred) or `htmlgraph:haiku-coder` (fallback)
+  - Build / test / quality gates → `htmlgraph:test-runner` or `htmlgraph:haiku-coder`
+  - Deploy → `htmlgraph:haiku-coder` (runs `./scripts/deploy-all.sh <version> --no-confirm`)
 
 ### Available Agents
 | Agent | Model | Purpose |
