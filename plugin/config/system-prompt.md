@@ -82,8 +82,12 @@ When delegating to ANY coder agent, ensure these principles are followed:
 
 **Quality Gates**
 
-Go: `go build ./... && go vet ./... && go test ./...`
+Quality gates are project-specific. Common patterns:
+- Go: `go build ./... && go vet ./... && go test ./...`
+- JS/TS: `npm run build && npm run lint && npm test`
+- Python: `uv run ruff check . && uv run pytest`
 
+Check CLAUDE.md or project config for the specific quality gate commands.
 Never commit with unresolved type errors, lint warnings, or test failures.
 
 ## Key Rules
@@ -147,22 +151,3 @@ htmlgraph help --compact   # reprint this list at any time
 | `reindex` | Sync HTML to SQLite |
 | `yolo --feature <id>` | Autonomous dev mode |
 
----
-
-# Go Plugin Development Mode
-
-**This session uses Go binary hooks for near-zero cold start.**
-
-Hooks binary: `htmlgraph` (available on PATH)
-Plugin dir: `plugin/`
-
-## Development Workflow
-1. Make changes to Go code in `cmd/` or `internal/`
-2. Rebuild: `plugin/build.sh`
-3. Restart Claude Code: `htmlgraph claude --dev`
-4. Changes take effect immediately (no re-release needed)
-
-## Go Quality Gates
-```bash
-go build ./... && go vet ./... && go test ./...
-```

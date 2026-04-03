@@ -22,10 +22,10 @@ Before writing any code, answer these questions with evidence:
 
 **Mandatory searches:**
 1. Grep the codebase for similar functionality: does this already exist?
-   `grep -r "keyword" packages/go/` or use the Grep tool
-2. Check `go.mod` — is there an available dependency that does this?
-3. Search for established libraries (pkg.go.dev) that solve the problem
-4. Check `packages/go/internal/*/` — does the project already have a utility for this?
+   `grep -r "keyword" cmd/ internal/` or use the Grep tool
+2. Check the project manifest (`go.mod`, `package.json`, `pyproject.toml`) — is there an available dependency that does this?
+3. Search for established libraries (pkg.go.dev, npmjs.com, pypi.org) that solve the problem
+4. Check shared utility directories (`internal/`, `lib/`, `src/utils/`) — does the project already have a utility for this?
 
 **Document findings:**
 - If research takes >5 minutes, create a spike: `htmlgraph spike create "Research: [topic]"`
@@ -62,7 +62,12 @@ Write failing tests before implementation:
 - Separation of concerns: one purpose per module
 
 ### Step 5 — Quality Gate (MANDATORY before any commit)
-Go: `(cd packages/go && go build ./... && go vet ./... && go test ./...)`
+Run the quality gates for this project. For this project:
+- Go: `go build ./... && go vet ./... && go test ./...`
+- JS/TS: `npm run build && npm run lint && npm test`
+- Python: `uv run ruff check . && uv run pytest`
+
+Check CLAUDE.md for the specific quality gate commands for this codebase.
 Do NOT commit with failures.
 
 ### Step 6 — UI Validation (if UI changes)
