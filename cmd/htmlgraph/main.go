@@ -53,6 +53,7 @@ func main() {
 	rootCmd.AddCommand(installHooksCmd())
 	rootCmd.AddCommand(buildCmd())
 	rootCmd.AddCommand(setupCLICmd())
+	rootCmd.AddCommand(setupCmd())
 	rootCmd.AddCommand(devCmd())
 	rootCmd.AddCommand(reportCmd())
 	rootCmd.AddCommand(findCmd())
