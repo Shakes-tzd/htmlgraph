@@ -42,24 +42,24 @@ Delegation: 2 tool calls
   Task(delegate git workflow) → Read result
 ```
 
-**Delegation pattern:**
+**Delegation pattern (Bash-first):**
+```bash
+# Priority 1: Try copilot CLI directly
+copilot -p "Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh. Commit with message: 'docs: enforce strict git delegation in orchestrator directives'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+```
+
 ```python
-Task(
+# Priority 2: haiku-coder fallback (if copilot unavailable)
+Agent(
+    subagent_type="htmlgraph:haiku-coder",
+    description="Commit: docs: enforce strict git delegation",
     prompt="""
-    Commit and push changes:
-    Files: CLAUDE.md, SKILL.md, git-commit-push.sh
-    Message: "docs: enforce strict git delegation in orchestrator directives"
-
-    Steps:
-    1. git add [files]
-    2. git commit -m "message"
-    3. git push origin main
-    4. Handle any errors (pre-commit hooks, conflicts, etc)
-
-    🔴 CRITICAL - Report Results to HtmlGraph:
-    [include SDK save pattern here]
+    Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh
+    Commit with message: "docs: enforce strict git delegation in orchestrator directives"
+    Do NOT push.
+    Handle any errors (pre-commit hooks, conflicts, etc).
     """,
-    subagent_type="general-purpose"
 )
 ```
 
@@ -177,17 +177,16 @@ htmlgraph feature create "Implement authentication"
 htmlgraph feature start <feat-id>
 ```
 
-```python
-# Spawn subagents with tracked context
-Task(
-    subagent_type="htmlgraph:gemini-operator",
-    prompt="Find all auth-related code in src/: What library is used? Where is validation?"
-)
-
-Task(
-    subagent_type="htmlgraph:codex-operator",
-    prompt="Implement OAuth flow based on research findings"
-)
+```bash
+# Try CLI tools directly first
+gemini -p "Find all auth-related code in src/: What library is used? Where is validation?" \
+  --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
+```bash
+codex exec "Implement OAuth flow based on research findings" \
+  --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
 ```
 
 **See:** `packages/go-plugin/skills/orchestrator-directives-skill/SKILL.md` for complete orchestrator patterns
@@ -198,25 +197,20 @@ Task(
 
 **Solution:** Dispatch all tasks in a single message — Claude Code runs them in parallel automatically.
 
-```python
-# Spawn 3 parallel tasks in a single message
-Task(
-    subagent_type="htmlgraph:codex-operator",
-    description="Implement auth",
-    prompt="Add JWT auth to API endpoints..."
-)
-Task(
-    subagent_type="htmlgraph:sonnet-coder",
-    description="Write tests",
-    prompt="Write unit + integration tests for auth endpoints..."
-)
-Task(
-    subagent_type="htmlgraph:gemini-operator",
-    description="Update docs",
-    prompt="Update API documentation for auth endpoints..."
-)
-# All three run in parallel; each reports results independently
+```bash
+# Dispatch 3 parallel Bash calls in a single message (CLI-first pattern)
+codex exec "Add JWT auth to API endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
 ```
+```bash
+codex exec "Write unit + integration tests for auth endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
+```bash
+gemini -p "Update API documentation for auth endpoints..." --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
+# All three run in parallel; each reports results independently
 
 **Benefits:**
 - True parallelism (all dispatched in one message)
@@ -227,11 +221,19 @@ Task(
 
 ### Orchestrator Pattern (REQUIRED)
 
-When operating as orchestrator, delegate ALL git operations:
+When operating as orchestrator, try the CLI directly first, then delegate to haiku-coder as fallback:
+
+```bash
+# ✅ CORRECT - Priority 1: Try copilot CLI directly
+copilot -p "Stage files: [list files]. Commit with message: 'chore: update session tracking'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+```
 
 ```python
-# ✅ CORRECT - Delegate git workflow to subagent
-Task(
+# ✅ CORRECT - Priority 2: haiku-coder fallback (if copilot unavailable)
+Agent(
+    subagent_type="htmlgraph:haiku-coder",
+    description="Commit: chore: update session tracking",
     prompt="""
     Commit and push changes to git:
 
@@ -239,33 +241,23 @@ Task(
     Commit message: "chore: update session tracking"
 
     Steps:
-    1. Run ./scripts/git-commit-push.sh "chore: update session tracking" --no-confirm
-    2. If that script doesn't exist, use manual git workflow:
-       - git add [files]
-       - git commit -m "message"
-       - git push origin main
+    1. git add [files]
+    2. git commit -m "message"
     3. Handle any errors (pre-commit hooks, conflicts, push failures)
     4. Retry with fixes if needed
 
     Report final status: success or failure with details.
-
-    🔴 CRITICAL - Track in HtmlGraph:
-    After successful commit, update the active feature/spike with completion status.
     """,
-    subagent_type="general-purpose"
 )
-
-# Then read subagent result and continue orchestration
 ```
 
-**Why delegate?** Git operations cascade unpredictably:
-- Pre-commit hooks may fail → need code fix → retry commit
-- Push may fail due to conflicts → need pull → merge → retry push
-- Tests may fail in hooks → need debugging → fix → retry
+**Why Bash-first?** Skips the agent overhead when the CLI works — fast, transparent, cost-efficient.
+**Why fallback to coder agent?** When CLI isn't installed, the coder agent handles all retries in its own context.
 
 **Context cost:**
-- Direct execution: 5-10+ tool calls (with failures and retries)
-- Delegation: 2 tool calls (Task + result review)
+- Bash-copilot (success): 1 tool call
+- haiku-coder fallback: 2 tool calls (Agent + result review)
+- Direct git without delegation: 5-10+ tool calls (with failures and retries)
 
 ## Detailed Delegation Examples
 
@@ -277,27 +269,25 @@ htmlgraph feature create "Add user authentication"
 htmlgraph feature start <feat-id>
 ```
 
-```python
-# 2. Delegate research (sequential: research blocks implementation)
-Task(
-    subagent_type="htmlgraph:gemini-operator",
-    description="Research auth patterns",
-    prompt="Research existing auth patterns: What library is used? Where is validation? What OAuth providers are supported? Document findings."
-)
+```bash
+# 2. Research (try gemini CLI first)
+gemini -p "Research existing auth patterns: What library is used? Where is validation? What OAuth providers are supported?" \
+  --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
 
-# 3. Implement + test in parallel (after research completes)
-Task(
-    subagent_type="htmlgraph:codex-operator",
-    description="Implement OAuth",
-    prompt="Implement OAuth flow: Add JWT auth to API endpoints, create middleware for token validation, support Google and GitHub OAuth"
-)
+```bash
+# 3. Implement (try codex CLI first, after research completes)
+codex exec "Implement OAuth flow: Add JWT auth to API endpoints, create middleware for token validation, support Google and GitHub OAuth" \
+  --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+```
 
-# 4. Commit
-Task(
-    subagent_type="htmlgraph:copilot-operator",
-    description="Commit auth feature",
-    prompt="Commit and push with message: 'feat: add user authentication with OAuth support'. Handle any errors."
-)
+```bash
+# 4. Commit (try copilot CLI first)
+copilot -p "Commit with message: 'feat: add user authentication with OAuth support'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
 ```
 
 ```bash
@@ -312,26 +302,25 @@ htmlgraph feature complete <feat-id>
 htmlgraph bug create "Session timeout not working"
 ```
 
-```python
-# 2. Investigate + fix (sequential: need root cause before fix)
-Task(
-    subagent_type="htmlgraph:gemini-operator",
-    description="Investigate session timeout",
-    prompt="Debug session timeout: expected 30min, observed ~5min. Find config, check middleware, review logs, identify root cause."
-)
+```bash
+# 2. Investigate (try gemini CLI first)
+gemini -p "Debug session timeout: expected 30min, observed ~5min. Find config, check middleware, review logs, identify root cause." \
+  --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
 
-Task(
-    subagent_type="htmlgraph:codex-operator",
-    description="Fix session timeout",
-    prompt="Fix session timeout to 30 minutes. Add regression test. Verify fix works."
-)
+```bash
+# Fix (try codex CLI first, after investigation)
+codex exec "Fix session timeout to 30 minutes. Add regression test. Verify fix works." \
+  --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+```
 
-# 3. Commit
-Task(
-    subagent_type="htmlgraph:copilot-operator",
-    description="Commit bug fix",
-    prompt="Commit with message: 'fix: correct session timeout to 30 minutes'"
-)
+```bash
+# 3. Commit (try copilot CLI first)
+copilot -p "Commit with message: 'fix: correct session timeout to 30 minutes'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
 ```
 
 ```bash
@@ -346,18 +335,25 @@ htmlgraph bug complete <bug-id>
 htmlgraph feature create "Refactor API layer"
 ```
 
-```python
-# Dispatch 3 parallel tasks in a single message
-Task(subagent_type="htmlgraph:gemini-operator", description="Update API docs", prompt="Update API documentation to reflect new endpoints")
-Task(subagent_type="htmlgraph:sonnet-coder", description="Update API tests", prompt="Update test suite for refactored API endpoints")
-Task(subagent_type="htmlgraph:gemini-operator", description="Create migration guide", prompt="Create migration guide for API changes")
+```bash
+# Dispatch 3 parallel Bash calls in a single message
+gemini -p "Update API documentation to reflect new endpoints" --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
+```bash
+codex exec "Update test suite for refactored API endpoints" --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+```
+```bash
+gemini -p "Create migration guide for API changes" --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
 
-# After all complete — commit everything
-Task(
-    subagent_type="htmlgraph:copilot-operator",
-    description="Commit API refactor",
-    prompt="Commit all API refactoring changes with message: 'refactor: update API layer with improved endpoints'"
-)
+```bash
+# After all complete — commit everything (try copilot CLI first)
+copilot -p "Commit all API refactoring changes with message: 'refactor: update API layer with improved endpoints'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
 ```
 
 ```bash

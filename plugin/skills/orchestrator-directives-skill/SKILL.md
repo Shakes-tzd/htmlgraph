@@ -46,13 +46,13 @@ Task(
 Ask these questions IN ORDER:
 
 1. **Can Gemini do this?** → Exploration, research, batch ops, file analysis
-   - YES = MUST use `gemini` spawner (FREE - 2M tokens/min)
+   - YES = MUST try `Bash("gemini ...")` first (FREE - 2M tokens/min), fallback to haiku-coder
 
 2. **Is this code work?** → Implementation, fixes, tests, refactoring
-   - YES = MUST use `codex` spawner (70% cheaper than Claude)
+   - YES = MUST try `Bash("codex ...")` first (70% cheaper than Claude), fallback to sonnet-coder
 
 3. **Is this git/GitHub?** → Commits, PRs, issues, branches
-   - YES = MUST use `copilot` spawner (60% cheaper, GitHub-native)
+   - YES = MUST try `Bash("copilot ...")` first (60% cheaper, GitHub-native), fallback to haiku-coder
 
 4. **Does this need deep reasoning?** → Architecture, complex planning
    - YES = Use Claude Opus (expensive, but strategically needed)
@@ -75,18 +75,18 @@ Ask these questions IN ORDER:
 
 ```
 WRONG (wastes Claude quota):
-- Code implementation → Task(haiku)               # USE Codex spawner
-- Git commits → Task(haiku)                       # USE Copilot spawner
-- File search → Task(haiku)                       # USE Gemini spawner (FREE!)
-- Research → Task(haiku)                          # USE Gemini spawner (FREE!)
+- Code implementation → Task(haiku)               # USE Bash("codex ..."), fallback sonnet-coder
+- Git commits → Task(haiku)                       # USE Bash("copilot ..."), fallback haiku-coder
+- File search → Task(haiku)                       # USE Bash("gemini ...") (FREE!)
+- Research → Task(haiku)                          # USE Bash("gemini ...") (FREE!)
 
 CORRECT (cost-optimized):
-- Code implementation → Codex spawner             # Cheap, sandboxed
-- Git commits → Copilot spawner                   # Cheap, GitHub-native
-- File search → Gemini spawner                    # FREE!
-- Research → Gemini spawner                       # FREE!
+- Code implementation → Bash("codex ...")         # Cheap, sandboxed; fallback sonnet-coder
+- Git commits → Bash("copilot ...")               # Cheap, GitHub-native; fallback haiku-coder
+- File search → Bash("gemini ...")                # FREE!; fallback haiku-coder
+- Research → Bash("gemini ...")                   # FREE!; fallback haiku-coder
 - Strategic decisions → Claude Opus               # Expensive, but needed
-- Haiku → FALLBACK ONLY                           # When spawners fail
+- Coder agents → FALLBACK ONLY                    # When CLI tools fail or aren't installed
 ```
 
 </details>
@@ -239,31 +239,27 @@ Everything else MUST be delegated.
 
 6. **All else fails** → Task() with Haiku (fallback)
 
-**Spawner Subagent Types:**
-- `gemini` - FREE, 2M tokens/min, exploration & research
-- `codex` - Cheap code specialist, implementation & testing
-- `copilot` - Cheap git specialist, GitHub integration
-- `haiku` - Generic Claude Haiku (use as fallback or when spawners fail)
+**Delegation Pattern:**
+- `Bash("gemini ...")` - FREE, 2M tokens/min, exploration & research → fallback: haiku-coder
+- `Bash("codex ...")` - Cheap code specialist, implementation & testing → fallback: sonnet-coder
+- `Bash("copilot ...")` - Cheap git specialist, GitHub integration → fallback: haiku-coder
+- Coder agents (`haiku-coder`, `sonnet-coder`) - Fallback only when CLI tools fail
 
 </details>
 
 <details>
 <summary><strong>Spawner Details & Configuration</strong></summary>
 
-### Gemini Spawner (FREE - Exploration)
-```python
-Task(
-    subagent_type="gemini",
-    description="Analyze authentication patterns",
-    prompt="""
-    Analyze codebase for:
-    - All authentication patterns
-    - OAuth implementations
-    - Session management
-    - JWT usage
-    """
-)
+### Gemini CLI (FREE - Exploration)
+```bash
+gemini -p "Analyze codebase for:
+- All authentication patterns
+- OAuth implementations
+- Session management
+- JWT usage" --output-format json --yolo --include-directories . 2>&1
 ```
+
+**If gemini fails/unavailable → fallback to haiku-coder**
 
 **Best for:**
 - File searching (FREE!)
@@ -271,20 +267,15 @@ Task(
 - Documentation research (FREE!)
 - Understanding unfamiliar systems (FREE!)
 
-### Codex Spawner (Cheap - Code)
-```python
-Task(
-    subagent_type="codex",
-    description="Implement OAuth middleware",
-    prompt="""
-    Implement OAuth authentication:
-    - Sandbox mode: workspace-write
-    - Add JWT token generation
-    - Include error handling
-    - Write unit tests
-    """
-)
+### Codex CLI (Cheap - Code)
+```bash
+codex exec "Implement OAuth authentication:
+- Add JWT token generation
+- Include error handling
+- Write unit tests" --full-auto --json -m gpt-4.1-mini -C . 2>&1
 ```
+
+**If codex fails/unavailable → fallback to sonnet-coder**
 
 **Best for:**
 - Code generation
@@ -293,19 +284,15 @@ Task(
 - Refactoring
 - Sandboxed execution
 
-### Copilot Spawner (Cheap - Git)
-```python
-Task(
-    subagent_type="copilot",
-    description="Commit and create PR",
-    prompt="""
-    Commit changes and create PR:
-    - Message: "feat: add OAuth authentication"
-    - Files: src/auth/*.py, tests/test_auth.py
-    - Create PR with description
-    """
-)
+### Copilot CLI (Cheap - Git)
+```bash
+copilot -p "Commit changes:
+- Message: 'feat: add OAuth authentication'
+- Files: src/auth/*.py, tests/test_auth.py
+- Do NOT push" --allow-all-tools --no-color --add-dir . 2>&1
 ```
+
+**If copilot fails/unavailable → fallback to haiku-coder**
 
 **Best for:**
 - Git commits (60% cheaper than Task)
@@ -342,95 +329,97 @@ Task(
 <details>
 <summary><strong>Basic Delegation Pattern</strong></summary>
 
-**Simple exploration:**
-```python
-Task(
-    subagent_type="gemini",
-    description="Find all auth patterns",
-    prompt="Search codebase for authentication patterns and summarize findings"
-)
+**Simple exploration (try CLI first):**
+```bash
+gemini -p "Search codebase for authentication patterns and summarize findings" \
+  --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
 ```
 
-**Code implementation:**
-```python
-Task(
-    subagent_type="codex",
-    description="Implement OAuth endpoint",
-    prompt="Implement OAuth authentication endpoint with JWT support"
-)
+**Code implementation (try CLI first):**
+```bash
+codex exec "Implement OAuth authentication endpoint with JWT support" \
+  --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
 ```
 
-**Git operations:**
-```python
-Task(
-    subagent_type="copilot",
-    description="Commit changes",
-    prompt="Commit changes with message: 'feat: add OAuth authentication'"
-)
+**Git operations (try CLI first):**
+```bash
+copilot -p "Commit changes with message: 'feat: add OAuth authentication'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
 ```
 
 </details>
 
 <details>
-<summary><strong>Git/Code Operations (Copilot-Operator Agent)</strong></summary>
+<summary><strong>Git/Code Operations (Bash-first, haiku-coder fallback)</strong></summary>
 
-**MANDATORY: All git write operations must be delegated to the copilot-operator agent.**
+**Try the Copilot CLI directly via Bash first, then delegate to haiku-coder if unavailable.**
+
+```bash
+# Priority 1: Bash-copilot (preferred)
+copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+```
 
 ```python
-# For commits, pushes, PRs, and code generation
+# Priority 2: haiku-coder fallback (if copilot fails or not installed)
 Agent(
-    subagent_type="htmlgraph:copilot-operator",
+    subagent_type="htmlgraph:haiku-coder",
     description="Commit and push changes",
-    prompt="Commit all staged files with message: 'feat: add X'. Then push to origin main.",
+    prompt="Stage files: <list>. Commit with message: 'feat: add X'. Do NOT push.",
 )
 ```
 
-**The copilot-operator agent:**
-1. Tries GitHub Copilot CLI first (cost-optimized, external AI)
-2. Falls back to direct git/gh if copilot unavailable
-3. Hook enforcement verifies copilot was attempted before allowing git-write
-
-**Never run git commit/push directly from the orchestrator.** The PreToolUse hook will deny it in strict mode.
+**Pattern:** orchestrator tries the CLI directly, falls back to a coder agent.
 
 </details>
 
 <details>
-<summary><strong>Code Generation (Codex-Operator Agent)</strong></summary>
+<summary><strong>Code Generation (Bash-first, sonnet-coder fallback)</strong></summary>
 
 **For implementation, refactoring, and structured output tasks:**
 
+```bash
+# Priority 1: Bash-codex (preferred)
+codex exec "TASK_DESCRIPTION" --full-auto --json -m gpt-4.1-mini -C . 2>&1
+```
+
 ```python
+# Priority 2: sonnet-coder fallback (if codex fails or not installed)
 Agent(
-    subagent_type="htmlgraph:codex-operator",
+    subagent_type="htmlgraph:sonnet-coder",
     description="Implement feature X",
-    prompt="Add OAuth authentication to the login endpoint. Use gpt-4.1-mini.",
+    prompt="Add OAuth authentication to the login endpoint.",
 )
 ```
 
-**The codex-operator agent:**
-1. Tries OpenAI Codex CLI first (structured JSON output, sandboxed)
-2. Falls back to direct implementation if Codex unavailable
-3. Always uses `-m gpt-4.1-mini` (never expensive gpt-5.4 default)
+**Pattern:** orchestrator tries the CLI directly, falls back to a coder agent.
+Always use `-m gpt-4.1-mini` for codex (never expensive gpt-5.4 default).
 
 </details>
 
 <details>
-<summary><strong>Research & Analysis (Gemini-Operator Agent)</strong></summary>
+<summary><strong>Research & Analysis (Bash-first, haiku-coder fallback)</strong></summary>
 
 **For codebase exploration, documentation research, and large-context analysis:**
 
+```bash
+# Priority 1: Bash-gemini (preferred — FREE, 2M context)
+gemini -p "TASK_DESCRIPTION" --output-format json --yolo --include-directories . 2>&1
+```
+
 ```python
+# Priority 2: haiku-coder fallback (if gemini fails or not installed)
 Agent(
-    subagent_type="htmlgraph:gemini-operator",
+    subagent_type="htmlgraph:haiku-coder",
     description="Research auth patterns",
     prompt="Analyze all authentication patterns in this codebase. Find security gaps.",
 )
 ```
 
-**The gemini-operator agent:**
-1. Tries Google Gemini CLI first (2M context window, FREE)
-2. Falls back to direct Read/Grep/Glob exploration if Gemini unavailable
-3. Ideal for tasks requiring full codebase context
+**Pattern:** orchestrator tries the CLI directly, falls back to a coder agent.
 
 </details>
 
@@ -547,23 +536,19 @@ htmlgraph spike show <id>
 
 **Pattern: Read findings after Task completes**
 
-```python
-# 1. Delegate exploration
-Task(
-    subagent_type="htmlgraph:gemini-operator",
-    description="Analyze auth patterns",
-    prompt="Find all authentication patterns..."
-)
+```bash
+# 1. Delegate exploration (try gemini CLI first)
+gemini -p "Find all authentication patterns..." --output-format json --yolo --include-directories . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+```
 
+```bash
 # 2. The subagent creates a spike with findings
 # Read findings via: htmlgraph spike list (then spike show <id>)
 
-# 3. Use findings in next delegation
-Task(
-    subagent_type="htmlgraph:codex-operator",
-    description="Implement based on findings",
-    prompt="Implement authentication based on auth pattern research findings..."
-)
+# 3. Use findings in next delegation (try codex CLI first)
+codex exec "Implement authentication based on auth pattern research findings..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
+# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
 ```
 
 </details>
@@ -754,14 +739,14 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 
 | Operation | MUST Use | Cost | Fallback |
 |-----------|----------|------|----------|
-| Search files | Gemini spawner | FREE | Haiku |
-| Pattern analysis | Gemini spawner | FREE | Haiku |
-| Documentation research | Gemini spawner | FREE | Haiku |
-| Code generation | Codex spawner | $ (70% off) | Sonnet |
-| Bug fixes | Codex spawner | $ (70% off) | Haiku |
-| Write tests | Codex spawner | $ (70% off) | Haiku |
-| Git commits | Copilot spawner | $ (60% off) | Haiku |
-| Create PRs | Copilot spawner | $ (60% off) | Haiku |
+| Search files | `Bash("gemini ...")` | FREE | haiku-coder |
+| Pattern analysis | `Bash("gemini ...")` | FREE | haiku-coder |
+| Documentation research | `Bash("gemini ...")` | FREE | haiku-coder |
+| Code generation | `Bash("codex ...")` | $ (70% off) | sonnet-coder |
+| Bug fixes | `Bash("codex ...")` | $ (70% off) | haiku-coder |
+| Write tests | `Bash("codex ...")` | $ (70% off) | haiku-coder |
+| Git commits | `Bash("copilot ...")` | $ (60% off) | haiku-coder |
+| Create PRs | `Bash("copilot ...")` | $ (60% off) | haiku-coder |
 | Architecture | Claude Opus | $$$$ | Sonnet |
 | Strategic decisions | Claude Opus | $$$$ | Task() |
 
@@ -817,9 +802,9 @@ htmlgraph feature start <feat-id>  # sets attribution for this session
 ## Quick Summary
 
 **Cost-First Orchestration:**
-1. Gemini (FREE) → exploration, research, analysis
-2. Codex (70% off) → code implementation, fixes, tests
-3. Copilot (60% off) → git operations, PRs
+1. `Bash("gemini ...")` (FREE) → exploration, research, analysis → fallback: haiku-coder
+2. `Bash("codex ...")` (70% off) → code implementation, fixes, tests → fallback: sonnet-coder
+3. `Bash("copilot ...")` (60% off) → git operations, PRs → fallback: haiku-coder
 4. Claude Opus → deep reasoning, strategy only
 
 **Orchestrator Rule:**

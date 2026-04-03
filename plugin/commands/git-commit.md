@@ -1,6 +1,6 @@
 # /htmlgraph:git-commit
 
-Commit changes using the copilot-operator delegation pattern.
+Commit changes using Bash-copilot first, haiku-coder as fallback.
 
 ## Usage
 
@@ -37,44 +37,34 @@ Select source files to stage. Exclude `.htmlgraph/` directory unless explicitly 
 
 If no message was provided, draft one from the diff using conventional commit format.
 
-### Priority 1: Delegate to copilot-operator agent (preferred)
-
-```text
-Agent(
-    subagent_type="htmlgraph:copilot-operator",
-    description="Commit: <message>",
-    prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push."
-)
-```
-
-The copilot-operator agent tries Copilot CLI first, falls back to direct git, and hook
-enforcement verifies compliance. Use this path whenever the agent is available.
-
-If `--push` was passed, add: "Then push to origin."
-
-### Priority 2: Bash-copilot pattern (fallback if agent unavailable)
-
-If the copilot-operator agent is not loaded (e.g., mid-session before restart), try copilot
-directly in a single Bash call:
+### Priority 1: Bash-copilot (preferred)
 
 ```bash
 copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
 ```
 
-If copilot is not installed, times out, or errors — fall back to direct git:
+If `--push` was passed, add: "Then push to origin." to the prompt.
+
+### Priority 2: Delegate to haiku-coder (fallback)
+
+If copilot is not installed, times out, or errors:
+
+```text
+Agent(
+    subagent_type="htmlgraph:haiku-coder",
+    description="Commit: <message>",
+    prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push."
+)
+```
+
+### Priority 3: Direct git (last resort)
+
+Only if both above have failed or are unavailable:
 
 ```bash
 git add <files> && git commit -m "<message>"
 ```
-
-### Priority 3: Direct git (last resort only)
-
-```bash
-git add <files> && git commit -m "<message>"
-```
-
-Only reach this if both copilot-operator agent and Bash-copilot have failed or are unavailable.
 
 ## Commit Message Format
 
@@ -99,7 +89,7 @@ This project uses `.githooks/` with pre-commit checks (go build, go vet, go test
 Report which path was used and the result:
 
 ```
-Committed via: copilot-operator agent | bash-copilot | direct git
+Committed via: bash-copilot | haiku-coder | direct git
 Commit: <hash>
 Files changed: <count>
 Message: <message>

@@ -42,19 +42,21 @@ Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate to HtmlGraph suba
 | Feature implementation | `htmlgraph:sonnet-coder` | 3-8 files, moderate complexity (DEFAULT) |
 | Complex architecture | `htmlgraph:opus-coder` | 10+ files, design decisions, ambiguous requirements |
 | Testing / quality | `htmlgraph:test-runner` | Running tests, quality gates, validation |
-| External AI (code gen) | `htmlgraph:codex-operator` | Delegate to OpenAI Codex CLI |
-| External AI (research) | `htmlgraph:gemini-operator` | Delegate to Google Gemini CLI |
-| External AI (git/PRs) | `htmlgraph:copilot-operator` | Delegate to GitHub Copilot CLI |
+| External AI (code gen) | `Bash("codex exec ...")` | Try Codex CLI first, haiku-coder fallback |
+| External AI (research) | `Bash("gemini ...")` | Try Gemini CLI first, haiku-coder fallback |
+| External AI (git/PRs) | `Bash("copilot ...")` | Try Copilot CLI first, haiku-coder fallback |
 | Simple CLI commands | `Bash("command")` | Git operations, build commands, quick checks |
 | Clarify requirements | `AskUserQuestion()` | When requirements are unclear |
 
-### Operator Agent Philosophy
+## External CLI Delegation
 
-Operators are **thin wrappers**, not autonomous workers. They invoke an external CLI, capture the result, and return immediately. **maxTurns: 5.**
+Try external CLIs directly via Bash before spawning agents:
 
-- If the external tool succeeds → return the output to the orchestrator
-- If the external tool fails → return the error immediately, do NOT retry or attempt the task directly
-- The orchestrator decides what to do next (reassign to a coder, try a different operator, or ask the user)
+1. `Bash("copilot ...")` / `Bash("codex exec ...")` / `Bash("gemini ...")` — try first
+2. If CLI not found or fails → delegate to `htmlgraph:haiku-coder` (or `sonnet-coder` for code gen)
+3. Never spawn operator agents — they don't exist
+
+The orchestrator owns the fallback decision based on the Bash result.
 
 ## Model Selection (for generic Task delegation)
 
@@ -119,7 +121,7 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 - `Edit`, `Write` — delegate to htmlgraph:haiku-coder, sonnet-coder, or opus-coder
 - `NotebookEdit` — delegate to a coder agent
 - **Git, build, test, or deploy commands** — NEVER run these directly via `Bash`. Always delegate:
-  - Git operations → `htmlgraph:copilot-operator` (preferred) or `htmlgraph:haiku-coder` (fallback)
+  - Git operations → `Bash("copilot ...")` (preferred) or `htmlgraph:haiku-coder` (fallback)
   - Build / test / quality gates → `htmlgraph:test-runner` or `htmlgraph:haiku-coder`
   - Deploy → `htmlgraph:haiku-coder` (runs `./scripts/deploy-all.sh <version> --no-confirm`)
 
@@ -131,9 +133,6 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 | htmlgraph:sonnet-coder | sonnet | Features, 3-8 files (DEFAULT) |
 | htmlgraph:opus-coder | opus | Architecture, 10+ files |
 | htmlgraph:test-runner | haiku | Testing, quality gates |
-| htmlgraph:codex-operator | haiku | External: OpenAI Codex CLI (fire-and-report) |
-| htmlgraph:gemini-operator | haiku | External: Google Gemini CLI (fire-and-report) |
-| htmlgraph:copilot-operator | haiku | External: GitHub Copilot CLI (fire-and-report) |
 
 ---
 

@@ -3,9 +3,9 @@
 ## Core Rule
 Delegate work to subagents. Your job is to decide WHAT to do, not to do it yourself.
 
-- **Research/exploration** → `Agent(subagent_type="htmlgraph:gemini-operator", prompt="...")`
-- **Code implementation** → `Agent(subagent_type="htmlgraph:codex-operator", prompt="...")`
-- **Git/code operations** → `Agent(subagent_type="htmlgraph:copilot-operator", prompt="...")`
+- **Research/exploration** → Bash("gemini ...") first, then htmlgraph:haiku-coder fallback
+- **Code implementation** → Bash("codex exec ...") first, then htmlgraph:sonnet-coder fallback
+- **Git/code operations** → Bash("copilot ...") first, then htmlgraph:haiku-coder fallback
 - **Simple CLI operations** → `Bash("command here")`
 - **Clarify requirements** → `AskUserQuestion()`
 - **Everything else** → Delegate via `Task()`

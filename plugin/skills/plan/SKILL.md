@@ -264,21 +264,19 @@ Default to sonnet unless the task is trivially simple (haiku) or requires deep r
 
 ## Plan Review (Optional Multi-AI Critique)
 
-Before human finalization, dispatch gemini-operator (design critic) and codex-operator (feasibility checker) in parallel to enrich the plan with structured critique. Skip for plans with fewer than 3 slices or pure cleanup tasks.
+Before human finalization, dispatch design critique and feasibility checks in parallel to enrich the plan with structured critique. Skip for plans with fewer than 3 slices or pure cleanup tasks.
 
 ```
-Agent(description="Design critique: <plan-id>", subagent_type="htmlgraph:gemini-operator",
-      prompt="Read .htmlgraph/plans/{plan-id}.html. For each slice assess scope, file coverage,
-              dependencies, test strategy, and risks. Write findings via:
-              htmlgraph plan set-section {plan-id} PLAN_DESIGN_CONTENT '<p>...</p>'
-              htmlgraph plan set-slice {plan-id} {N} --files '...' --deps '...' --tests '...'
-              htmlgraph plan add-question {plan-id} 'Concern?' --options 'a:...,b:...'")
+# Design critique via Gemini CLI (falls back to htmlgraph:haiku-coder if unavailable)
+Bash("gemini -p 'Read .htmlgraph/plans/{plan-id}.html. For each slice assess scope, file coverage,
+      dependencies, test strategy, and risks.' --yolo --output-format json")
+# Write findings via: htmlgraph plan set-section {plan-id} PLAN_DESIGN_CONTENT '<p>...</p>'
 
-Agent(description="Feasibility check: <plan-id>", subagent_type="htmlgraph:codex-operator",
-      prompt="Read .htmlgraph/plans/{plan-id}.html. For each function signature: check package
-              exists, types exist, no naming conflicts. Scaffold stubs and run go build ./...
-              Report compilation errors via plan set-section PLAN_OUTLINE_CONTENT.
-              Add feasibility questions via plan add-question. Clean up stubs after validation.")
+# Feasibility check via Codex CLI (falls back to htmlgraph:sonnet-coder if unavailable)
+Bash("codex exec 'Read .htmlgraph/plans/{plan-id}.html. For each function signature: check package
+      exists, types exist, no naming conflicts. Scaffold stubs and run go build ./...' --full-auto --json")
+# Report compilation errors via: htmlgraph plan set-section {plan-id} PLAN_OUTLINE_CONTENT
+# Add questions via: htmlgraph plan add-question {plan-id} '...' --options '...'
 ```
 
 After both reviewers complete, open the enriched plan:
