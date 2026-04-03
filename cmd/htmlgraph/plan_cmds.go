@@ -374,9 +374,11 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 		features = append(features, planFeature{num: num, id: edge.TargetID, title: title})
 	}
 
-	// Read each child feature's blocked_by edges to build dependency strings.
+	// Read each child feature's blocked_by edges and description.
 	htmlgraphDir := filepath.Dir(filepath.Dir(nodePath)) // nodePath is .htmlgraph/tracks/trk-xxx.html
 	featureDeps := make(map[int]string, len(features))
+	featureDescs := make(map[int]string, len(features))
+	featureFiles := make(map[int]int, len(features))
 	for _, f := range features {
 		childPath := resolveNodePath(htmlgraphDir, f.id)
 		if childPath == "" {
@@ -386,6 +388,19 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 		if err != nil {
 			continue
 		}
+		if childNode.Content != "" {
+			desc := childNode.Content
+			// Strip HTML tags for plain text display.
+			desc = strings.ReplaceAll(desc, "<p>", "")
+			desc = strings.ReplaceAll(desc, "</p>", "")
+			desc = strings.TrimSpace(desc)
+			if len(desc) > 200 {
+				desc = desc[:197] + "..."
+			}
+			featureDescs[f.num] = desc
+		}
+		// Count files from implemented_in edges as a rough file count.
+		featureFiles[f.num] = len(childNode.Edges["implemented_in"])
 		var depNums []string
 		for _, blockedEdge := range childNode.Edges["blocked_by"] {
 			if num, ok := idToNum[blockedEdge.TargetID]; ok {
@@ -401,8 +416,8 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 	var gnBuf strings.Builder
 	for _, f := range features {
 		gnBuf.WriteString(fmt.Sprintf(
-			`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s"></div>`+"\n",
-			f.num, html.EscapeString(f.title), featureDeps[f.num],
+			`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s" data-files="%d"></div>`+"\n",
+			f.num, html.EscapeString(f.title), featureDeps[f.num], featureFiles[f.num],
 		))
 	}
 	graphNodes = gnBuf.String()
@@ -411,9 +426,10 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 	var scBuf strings.Builder
 	for _, f := range features {
 		n := f.num
+		files := featureFiles[n]
 		scBuf.WriteString(fmt.Sprintf(
-			`    <div class="slice-card" data-slice="%d" data-slice-name="%s" data-status="pending" data-files="0">`+"\n",
-			n, html.EscapeString(f.id),
+			`    <div class="slice-card" data-slice="%d" data-slice-name="%s" data-status="pending" data-files="%d">`+"\n",
+			n, html.EscapeString(f.id), files,
 		))
 		scBuf.WriteString(fmt.Sprintf(
 			`      <div class="slice-header"><span class="slice-num">#%d</span><span class="slice-name">%s</span><span class="badge badge-pending" data-badge-for="slice-%d">Pending</span></div>`+"\n",
@@ -423,9 +439,24 @@ func buildPlanSections(nodePath string) (graphNodes, sliceCards, sectionsJSON, t
 			`      <div class="slice-meta"><span>%s</span></div>`+"\n",
 			html.EscapeString(f.id),
 		))
+		// Show description if available.
+		if desc := featureDescs[n]; desc != "" {
+			scBuf.WriteString(fmt.Sprintf(
+				`      <p style="font-size:.9rem;margin:8px 0">%s</p>`+"\n",
+				html.EscapeString(desc),
+			))
+		}
 		scBuf.WriteString("      <h4>Test Strategy</h4>\n")
 		scBuf.WriteString("      <ul><li>Add test strategy here</li></ul>\n")
-		scBuf.WriteString(`      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: none</p>` + "\n")
+		// Show real dependency labels.
+		depStr := "none"
+		if d := featureDeps[n]; d != "" {
+			depStr = "slices " + d
+		}
+		scBuf.WriteString(fmt.Sprintf(
+			`      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: %s</p>`+"\n",
+			depStr,
+		))
 		scBuf.WriteString(fmt.Sprintf(
 			`      <div class="approval-row"><label><input type="checkbox" data-section="slice-%d" data-action="approve"> Approve slice</label><textarea data-section="slice-%d" data-comment-for="slice-%d" placeholder="Comments on slice %d..."></textarea></div>`+"\n",
 			n, n, n, n,
