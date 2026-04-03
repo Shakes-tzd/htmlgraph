@@ -43,8 +43,12 @@ Or `/htmlgraph:deploy X.Y.Z`. CLI binary and plugin are independent installs —
 ## Dev Mode
 
 ```bash
-htmlgraph claude --dev   # loads plugin from source, injects orchestrator prompt
+htmlgraph claude --dev   # loads plugin from source via --plugin-dir
 ```
+
+Dev mode uninstalls the marketplace plugin, clears cache, and launches with `claude --plugin-dir plugin/`. This ensures agents, skills, tools, and hooks all load from your local source — not stale marketplace copies. The marketplace plugin is reinstalled on exit.
+
+**Why full removal is required:** Disabling a marketplace plugin only affects hooks. Agent definitions and skill content continue loading from `~/.claude/plugins/marketplaces/`, silently shadowing dev source changes.
 
 ---
 

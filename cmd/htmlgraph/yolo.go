@@ -441,17 +441,24 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		}
 	}
 
+	// Disable marketplace plugin to prevent duplicate hooks/agents/skills.
 	fmt.Println("Disabling marketplace htmlgraph plugin...")
 	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
 		exec.Command("claude", "plugin", "disable", scope).Run() //nolint:errcheck
 	}
 
-	restoreFn := stubProjectHooks(projectRoot)
+	// Re-enable marketplace plugin on exit.
+	reenableFn := func() {
+		fmt.Println("Re-enabling marketplace htmlgraph plugin...")
+		for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
+			exec.Command("claude", "plugin", "enable", scope).Run() //nolint:errcheck
+		}
+	}
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		restoreFn()
+		reenableFn()
 		os.Exit(0)
 	}()
 
@@ -466,12 +473,12 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 
 	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
 	if err != nil {
-		restoreFn()
+		reenableFn()
 		return fmt.Errorf("could not create temp prompt file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
 	if _, err := tmpFile.WriteString(systemPromptContent); err != nil {
-		restoreFn()
+		reenableFn()
 		return fmt.Errorf("could not write temp prompt file: %w", err)
 	}
 	tmpFile.Close()
@@ -485,7 +492,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
 	})
-	restoreFn()
+	reenableFn()
 	return launchErr
 }
 
