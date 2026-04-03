@@ -11,6 +11,14 @@ Use this skill to execute development tasks in parallel using dependency-driven 
 
 ---
 
+## Environment
+
+When running in a worktree, `HTMLGRAPH_PROJECT_DIR` is set automatically. All `htmlgraph` CLI commands resolve to the main project's `.htmlgraph/` — no need to `cd` to main. Just run commands directly: `htmlgraph track show <id>`.
+
+**NEVER use bare `cd` in Bash** — the hook will block it. Use subshells if you must change directories: `(cd dir && command)`.
+
+---
+
 ## Work Item Attribution (MANDATORY)
 
 Before dispatching any agents, verify attribution is set:
