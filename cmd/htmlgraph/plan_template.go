@@ -97,10 +97,10 @@ func applyPlanTemplateVars(tmpl string, v planTemplateVars) string {
 	tmpl = strings.ReplaceAll(tmpl, "2026-04-01", v.Date)
 
 	if v.DesignContent != "" {
-		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_DESIGN_CONTENT-->", v.DesignContent)
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_DESIGN_CONTENT-->", v.DesignContent+"\n    <!--PLAN_DESIGN_CONTENT-->")
 	}
 	if v.OutlineContent != "" {
-		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_OUTLINE_CONTENT-->", v.OutlineContent)
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_OUTLINE_CONTENT-->", v.OutlineContent+"\n    <!--PLAN_OUTLINE_CONTENT-->")
 	}
 
 	// Always populate PLAN_META regardless of whether slices exist.
@@ -109,10 +109,10 @@ func applyPlanTemplateVars(tmpl string, v planTemplateVars) string {
 	tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_META-->", meta)
 
 	if v.GraphNodes != "" {
-		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_GRAPH_NODES-->", v.GraphNodes)
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_GRAPH_NODES-->", v.GraphNodes+"    <!--PLAN_GRAPH_NODES-->")
 	}
 	if v.SliceCards != "" {
-		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_SLICE_CARDS-->", v.SliceCards)
+		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_SLICE_CARDS-->", v.SliceCards+"    <!--PLAN_SLICE_CARDS-->")
 	}
 	if v.TotalSections != "" {
 		tmpl = strings.ReplaceAll(tmpl, "<!--PLAN_TOTAL_SECTIONS-->", v.TotalSections)

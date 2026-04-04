@@ -208,16 +208,25 @@ func (pc *PlanCollection) Get(id string) (*models.Node, error) {
 
 // parseCRISPISteps reads slice titles from a CRISPI plan HTML file and
 // returns them as Step values. Returns nil if the file is not a CRISPI file
-// or has no slice cards.
+// or has no slice cards. Supports both the current format
+// (<span class="slice-name">) and the legacy format (<strong class="slice-title">).
 func parseCRISPISteps(path, nodeID string) []models.Step {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
 	content := string(data)
-	// CRISPI slice cards have: <strong class="slice-title">TITLE</strong>
-	const openTag = `<strong class="slice-title">`
-	const closeTag = `</strong>`
+
+	// Try current format first, fall back to legacy.
+	steps := extractSliceTitles(content, nodeID, `<span class="slice-name">`, `</span>`)
+	if len(steps) == 0 {
+		steps = extractSliceTitles(content, nodeID, `<strong class="slice-title">`, `</strong>`)
+	}
+	return steps
+}
+
+// extractSliceTitles scans content for slice titles delimited by openTag/closeTag.
+func extractSliceTitles(content, nodeID, openTag, closeTag string) []models.Step {
 	var steps []models.Step
 	i := 0
 	for {

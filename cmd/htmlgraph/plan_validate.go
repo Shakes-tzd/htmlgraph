@@ -308,19 +308,16 @@ func extractSectionsJSON(content string) (jsonStr string, totalSections int) {
 }
 
 // findBrokenPlaceholders returns any HTML comment placeholders that were
-// not replaced during template generation (e.g. <!--PLAN_GRAPH_NODES-->).
+// not replaced during template generation. Injection-point markers
+// (PLAN_GRAPH_NODES, PLAN_SLICE_CARDS, etc.) are intentionally preserved
+// for idempotent add-slice / set-section calls and are NOT flagged.
 func findBrokenPlaceholders(content string) []string {
 	var found []string
-	knownPlaceholders := []string{
-		"<!--PLAN_GRAPH_NODES-->",
-		"<!--PLAN_SLICE_CARDS-->",
-		"<!--PLAN_DESIGN_CONTENT-->",
-		"<!--PLAN_OUTLINE_CONTENT-->",
-		"<!--PLAN_QUESTIONS-->",
-		"<!--PLAN_QUESTIONS_RECAP-->",
+	// Only flag placeholders that should be fully replaced (not preserved).
+	for _, ph := range []string{
 		"<!--PLAN_TOTAL_SECTIONS-->",
-	}
-	for _, ph := range knownPlaceholders {
+		"<!--PLAN_META-->",
+	} {
 		if strings.Contains(content, ph) {
 			found = append(found, ph)
 		}

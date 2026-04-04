@@ -32,7 +32,7 @@ func TestPlanFirstLifecycle(t *testing.T) {
 
 	// Step 2: Add slices.
 	for _, title := range []string{"Error handling layer", "Token validation", "Migration script"} {
-		if err := addSliceToPlan(dir, planID, title); err != nil {
+		if err := addSliceToPlan(dir, planID, title, sliceFlags{}); err != nil {
 			t.Fatalf("addSliceToPlan(%s): %v", title, err)
 		}
 	}

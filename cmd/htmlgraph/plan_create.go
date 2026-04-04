@@ -152,7 +152,7 @@ func buildSectionsFromSteps(steps []models.Step) (graphNodes, sliceCards, sectio
 			num, html.EscapeString(title),
 		))
 
-		scBuf.WriteString(buildSliceCardHTML(num, title))
+		scBuf.WriteString(buildSliceCardHTML(num, title, sliceFlags{}))
 
 		sections = append(sections, fmt.Sprintf(`"slice-%d"`, num))
 	}
@@ -166,30 +166,48 @@ func buildSectionsFromSteps(steps []models.Step) (graphNodes, sliceCards, sectio
 
 // ---- plan add-slice ---------------------------------------------------------
 
+// sliceFlags holds optional metadata for a new slice card.
+type sliceFlags struct {
+	description string
+	effort      string
+	risk        string
+	deps        string
+	files       string
+}
+
 // planAddSliceCmd adds a new vertical slice (as a step) to an existing plan.
 func planAddSliceCmd() *cobra.Command {
-	return &cobra.Command{
+	var sf sliceFlags
+	cmd := &cobra.Command{
 		Use:   "add-slice <plan-id> <title>",
 		Short: "Add a vertical slice to a plan",
 		Long: `Add a new slice as a step to an existing plan.
 
 Example:
-  htmlgraph plan add-slice plan-a1b2c3d4 "Implement error handling"`,
+  htmlgraph plan add-slice plan-a1b2c3d4 "Implement error handling" \
+    --description "Add structured error types with context hints" \
+    --effort S --risk Low --deps 1,2 --files "internal/errors.go"`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			htmlgraphDir, err := findHtmlgraphDir()
 			if err != nil {
 				return err
 			}
-			return addSliceToPlan(htmlgraphDir, args[0], args[1])
+			return addSliceToPlan(htmlgraphDir, args[0], args[1], sf)
 		},
 	}
+	cmd.Flags().StringVar(&sf.description, "description", "", "what this slice does and why")
+	cmd.Flags().StringVar(&sf.effort, "effort", "", "effort estimate: S, M, or L")
+	cmd.Flags().StringVar(&sf.risk, "risk", "Low", "risk level: Low, Med, or High")
+	cmd.Flags().StringVar(&sf.deps, "deps", "", "dependency slice numbers (e.g. 1,2)")
+	cmd.Flags().StringVar(&sf.files, "files", "", "affected files (comma-separated)")
+	return cmd
 }
 
 // addSliceToPlan injects a new slice directly into the existing CRISPI HTML.
 // It counts existing data-slice elements to determine the next slice number,
 // then calls injectSliceIntoCRISPI for the actual HTML mutation.
-func addSliceToPlan(htmlgraphDir, planID, sliceTitle string) error {
+func addSliceToPlan(htmlgraphDir, planID, sliceTitle string, sf sliceFlags) error {
 	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
 	data, err := os.ReadFile(planPath)
 	if err != nil {
@@ -199,7 +217,7 @@ func addSliceToPlan(htmlgraphDir, planID, sliceTitle string) error {
 	// Count existing slices to determine the next slice number.
 	sliceNum := countOccurrences(string(data), `data-slice="`) + 1
 
-	if err := injectSliceIntoCRISPI(htmlgraphDir, planID, sliceNum, sliceTitle); err != nil {
+	if err := injectSliceIntoCRISPI(htmlgraphDir, planID, sliceNum, sliceTitle, sf); err != nil {
 		return fmt.Errorf("inject slice into CRISPI %s: %w", planID, err)
 	}
 
@@ -209,7 +227,7 @@ func addSliceToPlan(htmlgraphDir, planID, sliceTitle string) error {
 
 // injectSliceIntoCRISPI adds a graph node, slice card, and updates the
 // SECTIONS_JSON and PLAN_TOTAL_SECTIONS in a CRISPI plan HTML file.
-func injectSliceIntoCRISPI(htmlgraphDir, planID string, sliceNum int, sliceTitle string) error {
+func injectSliceIntoCRISPI(htmlgraphDir, planID string, sliceNum int, sliceTitle string, sf sliceFlags) error {
 	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
 	data, err := os.ReadFile(planPath)
 	if err != nil {
@@ -222,15 +240,15 @@ func injectSliceIntoCRISPI(htmlgraphDir, planID string, sliceNum int, sliceTitle
 		return nil
 	}
 
-	// 1. Add graph node inside #graph-data.
+	// 1. Add graph node inside #graph-data with deps.
 	graphNode := fmt.Sprintf(
-		`    <div data-node="%d" data-name="%s" data-status="pending" data-deps=""></div>`+"\n",
-		sliceNum, html.EscapeString(sliceTitle),
+		`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s"></div>`+"\n",
+		sliceNum, html.EscapeString(sliceTitle), html.EscapeString(sf.deps),
 	)
 	content = injectBeforeMarker(content, "<!--PLAN_GRAPH_NODES-->", graphNode)
 
 	// 2. Add slice card inside slices section.
-	sliceCard := buildSliceCardHTML(sliceNum, sliceTitle)
+	sliceCard := buildSliceCardHTML(sliceNum, sliceTitle, sf)
 	content = injectBeforeMarker(content, "<!--PLAN_SLICE_CARDS-->", sliceCard)
 
 	// 3. Update PLAN_SECTIONS_JSON to include the new slice.
@@ -242,29 +260,76 @@ func injectSliceIntoCRISPI(htmlgraphDir, planID string, sliceNum int, sliceTitle
 	return os.WriteFile(planPath, []byte(content), 0o644)
 }
 
-// buildSliceCardHTML produces the compact slice card HTML for injection.
-func buildSliceCardHTML(num int, title string) string {
+// buildSliceCardHTML produces a rich slice card matching the benchmark format:
+// header with number/title/badges, meta with files, description, test strategy
+// placeholder, dependency text, and approval row.
+func buildSliceCardHTML(num int, title string, sf sliceFlags) string {
 	var b strings.Builder
+
+	// Opening div with data attributes.
 	b.WriteString(fmt.Sprintf(
-		`    <div class="slice-card" data-slice="%d">`+"\n", num))
+		`    <div class="slice-card" data-slice="%d" data-status="pending">`+"\n", num))
+
+	// Header: #N, title, effort badge, risk badge, pending badge.
+	b.WriteString(`      <div class="slice-header">`)
+	b.WriteString(fmt.Sprintf(`<span class="slice-num">#%d</span>`, num))
+	b.WriteString(fmt.Sprintf(`<span class="slice-name">%s</span>`, html.EscapeString(title)))
+	if sf.effort != "" {
+		b.WriteString(fmt.Sprintf(` <span class="badge badge-pending">%s</span>`, html.EscapeString(strings.ToUpper(sf.effort))))
+	}
+	if sf.risk != "" {
+		riskClass := "pending"
+		switch strings.ToLower(sf.risk) {
+		case "high":
+			riskClass = "blocked"
+		case "med", "medium":
+			riskClass = "revision"
+		}
+		b.WriteString(fmt.Sprintf(` <span class="badge badge-%s">%s Risk</span>`, riskClass, html.EscapeString(sf.risk)))
+	}
+	b.WriteString(fmt.Sprintf(`<span class="badge badge-pending" data-badge-for="slice-%d">Pending</span>`, num))
+	b.WriteString("</div>\n")
+
+	// Meta: files list.
+	b.WriteString(`      <div class="slice-meta"><span>`)
+	if sf.files != "" {
+		b.WriteString("Files: ")
+		for i, f := range strings.Split(sf.files, ",") {
+			f = strings.TrimSpace(f)
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString("<code>" + html.EscapeString(f) + "</code>")
+		}
+	}
+	b.WriteString("</span></div>\n")
+
+	// Description.
+	if sf.description != "" {
+		b.WriteString(fmt.Sprintf(
+			`      <p style="font-size:.9rem;margin:8px 0">%s</p>`+"\n",
+			html.EscapeString(sf.description)))
+	}
+
+	// Test strategy placeholder.
+	b.WriteString("      <h4>Test Strategy</h4>\n")
+	b.WriteString("      <ul><li>Add test strategy here</li></ul>\n")
+
+	// Dependencies.
+	depStr := "none"
+	if sf.deps != "" {
+		depStr = "slices " + html.EscapeString(sf.deps)
+	}
 	b.WriteString(fmt.Sprintf(
-		`      <div class="slice-header">`+"\n"))
+		`      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: %s</p>`+"\n",
+		depStr))
+
+	// Approval row.
 	b.WriteString(fmt.Sprintf(
-		`        <span class="slice-number">#%d</span>`+"\n", num))
-	b.WriteString(fmt.Sprintf(
-		`        <strong class="slice-title">%s</strong>`+"\n", html.EscapeString(title)))
-	b.WriteString(`      </div>` + "\n")
-	b.WriteString(`      <div class="slice-body">` + "\n")
-	b.WriteString(`        <p></p>` + "\n")
-	b.WriteString(`      </div>` + "\n")
-	b.WriteString(fmt.Sprintf(
-		`      <div class="slice-footer">`+"\n"))
-	b.WriteString(fmt.Sprintf(
-		`        <label><input type="checkbox" data-section="slice-%d" data-action="approve"> Approve</label>`+"\n", num))
-	b.WriteString(fmt.Sprintf(
-		`        <textarea data-section="slice-%d" placeholder="Comments..." rows="1"></textarea>`+"\n", num))
-	b.WriteString(`      </div>` + "\n")
-	b.WriteString(`    </div>` + "\n")
+		`      <div class="approval-row"><label><input type="checkbox" data-section="slice-%d" data-action="approve"> Approve slice</label><textarea data-section="slice-%d" data-comment-for="slice-%d" placeholder="Comments on slice %d..."></textarea></div>`+"\n",
+		num, num, num, num))
+
+	b.WriteString("    </div>\n")
 	return b.String()
 }
 

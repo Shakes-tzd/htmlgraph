@@ -14,7 +14,7 @@ func TestCritique_ComplexityGateLow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := addSliceToPlan(dir, planID, "Single slice"); err != nil {
+	if err := addSliceToPlan(dir, planID, "Single slice", sliceFlags{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +39,7 @@ func TestCritique_ComplexityGateMedium(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"S1", "S2", "S3", "S4"} {
-		if err := addSliceToPlan(dir, planID, s); err != nil {
+		if err := addSliceToPlan(dir, planID, s, sliceFlags{}); err != nil {
 			t.Fatal(err)
 		}
 	}

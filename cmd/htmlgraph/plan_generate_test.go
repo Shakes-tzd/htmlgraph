@@ -142,7 +142,7 @@ func TestPlanGeneratePlanPrefixRescaffolds(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 	// Add a slice so we can verify it appears after re-scaffold.
-	if err := addSliceToPlan(dir, planID, "Slice Alpha"); err != nil {
+	if err := addSliceToPlan(dir, planID, "Slice Alpha", sliceFlags{}); err != nil {
 		t.Fatalf("add slice: %v", err)
 	}
 

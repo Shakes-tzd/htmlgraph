@@ -70,7 +70,7 @@ func TestRunPlanAddSlice(t *testing.T) {
 	}
 
 	// Add a slice.
-	if err := addSliceToPlan(dir, planID, "Implement error handling"); err != nil {
+	if err := addSliceToPlan(dir, planID, "Implement error handling", sliceFlags{}); err != nil {
 		t.Fatalf("addSliceToPlan: %v", err)
 	}
 
@@ -98,7 +98,7 @@ func TestRunPlanAddSlice(t *testing.T) {
 	}
 
 	// Add a second slice.
-	if err := addSliceToPlan(dir, planID, "Add tests"); err != nil {
+	if err := addSliceToPlan(dir, planID, "Add tests", sliceFlags{}); err != nil {
 		t.Fatalf("addSliceToPlan second: %v", err)
 	}
 

@@ -16,7 +16,7 @@ func TestValidatePlan_ValidPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := addSliceToPlan(dir, planID, "Slice One"); err != nil {
+	if err := addSliceToPlan(dir, planID, "Slice One", sliceFlags{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -158,16 +158,16 @@ func TestValidatePlanHTML_MissingCDNScripts(t *testing.T) {
 }
 
 // TestValidatePlanHTML_BrokenPlaceholders verifies that unreplaced template placeholders
-// produce warnings.
+// produce warnings. Only non-injection-point placeholders are flagged.
 func TestValidatePlanHTML_BrokenPlaceholders(t *testing.T) {
 	html := buildMinimalCRISPIHTML(1)
-	// Inject an unreplaced placeholder.
-	html = strings.Replace(html, `<div id="graph-data"`, `<!--PLAN_GRAPH_NODES--><div id="graph-data"`, 1)
+	// Inject an unreplaced non-injection-point placeholder.
+	html = strings.Replace(html, `<div id="graph-data"`, `<!--PLAN_TOTAL_SECTIONS--><div id="graph-data"`, 1)
 
 	path := writeTempHTML(t, html)
 	_, warnings, _ := validatePlanHTML(path)
 
-	if !containsSubstr(warnings, "PLAN_GRAPH_NODES") {
+	if !containsSubstr(warnings, "PLAN_TOTAL_SECTIONS") {
 		t.Errorf("expected warning about broken placeholder, got: %v", warnings)
 	}
 }
