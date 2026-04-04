@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>add-slice does not populate data-deps — dependency graph has no edges</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-4465c688"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-04-04T14:48:45.411362"
+             data-updated="2026-04-04T14:48:45.412548" data-agent-assigned="claude-code" data-track-id="trk-f8fd5c66">
+
+        <header>
+            <h1>add-slice does not populate data-deps — dependency graph has no edges</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-717bd042.html" data-relationship="caused_by" data-since="2026-04-04T14:48:45.412095">feat-717bd042</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-f8fd5c66.html" data-relationship="part_of" data-since="2026-04-04T14:48:45.412448">trk-f8fd5c66</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>plan add-slice creates graph nodes but does not set data-deps attributes. The dagre-d3 graph renders nodes without any connecting edges. add-slice should accept a --deps flag (e.g., --deps 1,2) and set data-deps on the span element. The graph IIFE reads data-deps to draw edges.</p>
+        </section>
+    </article>
+</body>
+</html>
