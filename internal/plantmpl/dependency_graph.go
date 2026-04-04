@@ -1,7 +1,7 @@
 package plantmpl
 
 import (
-	"fmt"
+	"html/template"
 	"io"
 )
 
@@ -20,8 +20,11 @@ type GraphNode struct {
 	Files  int
 }
 
-// Render writes the dependency graph zone placeholder.
+var depGraphTmpl = template.Must(
+	template.ParseFS(templateFS, "templates/dependency_graph.gohtml"),
+)
+
+// Render writes the dependency graph zone HTML to w.
 func (g *DependencyGraph) Render(w io.Writer) error {
-	_, err := fmt.Fprint(w, "<!-- dependency-graph zone placeholder -->")
-	return err
+	return depGraphTmpl.Execute(w, g)
 }
