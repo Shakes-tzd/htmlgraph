@@ -20,17 +20,36 @@ import (
 var planTemplateFS embed.FS
 
 // planCmdWithExtras builds the standard workitem commands for plans,
-// then adds CRISPI-specific subcommands: generate, open, wait, read-feedback.
+// then replaces the generic create with the CRISPI-aware version and
+// adds plan-specific subcommands.
 func planCmdWithExtras() *cobra.Command {
 	cmd := workitemCmd("plan", "plans")
+	// Replace the generic create with CRISPI plan create.
+	removeSubcommand(cmd, "create")
+	cmd.AddCommand(planCreateFromTopicCmd())
 	cmd.AddCommand(planGenerateCmd())
 	cmd.AddCommand(planOpenCmd())
 	cmd.AddCommand(planWaitCmd())
 	cmd.AddCommand(planReadFeedbackCmd())
 	cmd.AddCommand(planAddQuestionCmd())
+	cmd.AddCommand(planAddSliceCmd())
 	cmd.AddCommand(planSetSectionCmd())
 	cmd.AddCommand(planSetSliceCmd())
 	return cmd
+}
+
+// removeSubcommand removes a subcommand by name from a cobra command.
+func removeSubcommand(parent *cobra.Command, name string) {
+	parent.RemoveCommand(findSubcommand(parent, name))
+}
+
+func findSubcommand(parent *cobra.Command, name string) *cobra.Command {
+	for _, c := range parent.Commands() {
+		if c.Name() == name {
+			return c
+		}
+	}
+	return nil
 }
 
 // planGenerateCmd scaffolds a plan HTML file from a feature or track ID.
