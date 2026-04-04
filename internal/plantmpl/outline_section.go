@@ -1,9 +1,12 @@
 package plantmpl
 
 import (
-	"fmt"
 	"html/template"
 	"io"
+)
+
+var outlineTmpl = template.Must(
+	template.ParseFS(templateFS, "templates/outline_section.gohtml"),
 )
 
 // OutlineSection renders the plan outline zone containing
@@ -12,8 +15,7 @@ type OutlineSection struct {
 	Content template.HTML
 }
 
-// Render writes the outline section zone placeholder.
+// Render writes the outline section HTML.
 func (o *OutlineSection) Render(w io.Writer) error {
-	_, err := fmt.Fprint(w, "<!-- outline-section zone placeholder -->")
-	return err
+	return outlineTmpl.Execute(w, o)
 }

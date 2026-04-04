@@ -1,9 +1,12 @@
 package plantmpl
 
 import (
-	"fmt"
 	"html/template"
 	"io"
+)
+
+var designTmpl = template.Must(
+	template.ParseFS(templateFS, "templates/design_section.gohtml"),
 )
 
 // DesignSection renders the design rationale zone containing
@@ -12,8 +15,7 @@ type DesignSection struct {
 	Content template.HTML
 }
 
-// Render writes the design section zone placeholder.
+// Render writes the design section HTML.
 func (d *DesignSection) Render(w io.Writer) error {
-	_, err := fmt.Fprint(w, "<!-- design-section zone placeholder -->")
-	return err
+	return designTmpl.Execute(w, d)
 }
