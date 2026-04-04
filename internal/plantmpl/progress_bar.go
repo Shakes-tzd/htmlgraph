@@ -1,8 +1,12 @@
 package plantmpl
 
 import (
-	"fmt"
+	"html/template"
 	"io"
+)
+
+var progressBarTmpl = template.Must(
+	template.ParseFS(templateFS, "templates/progress_bar.gohtml"),
 )
 
 // ProgressBar renders the plan progress indicator showing
@@ -13,8 +17,15 @@ type ProgressBar struct {
 	Pending  int
 }
 
-// Render writes the progress bar zone placeholder.
+// Render writes the progress bar zone HTML.
 func (pb *ProgressBar) Render(w io.Writer) error {
-	_, err := fmt.Fprint(w, "<!-- progress-bar zone placeholder -->")
-	return err
+	return progressBarTmpl.Execute(w, pb)
+}
+
+// Percent returns the approval percentage (0-100).
+func (pb *ProgressBar) Percent() int {
+	if pb.Total == 0 {
+		return 0
+	}
+	return pb.Approved * 100 / pb.Total
 }

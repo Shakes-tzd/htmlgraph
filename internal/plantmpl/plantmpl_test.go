@@ -194,8 +194,8 @@ func TestDesignSectionRender(t *testing.T) {
 	if err := d.Render(&buf); err != nil {
 		t.Fatalf("DesignSection.Render: %v", err)
 	}
-	if !strings.Contains(buf.String(), "design-section") {
-		t.Error("expected design-section placeholder")
+	if !strings.Contains(buf.String(), `id="design"`) {
+		t.Error("expected design section output")
 	}
 }
 
@@ -206,8 +206,8 @@ func TestOutlineSectionRender(t *testing.T) {
 	if err := o.Render(&buf); err != nil {
 		t.Fatalf("OutlineSection.Render: %v", err)
 	}
-	if !strings.Contains(buf.String(), "outline-section") {
-		t.Error("expected outline-section placeholder")
+	if !strings.Contains(buf.String(), `id="outline"`) {
+		t.Error("expected outline section output")
 	}
 }
 
@@ -238,8 +238,8 @@ func TestQuestionsSectionRender(t *testing.T) {
 	if err := q.Render(&buf); err != nil {
 		t.Fatalf("QuestionsSection.Render: %v", err)
 	}
-	if !strings.Contains(buf.String(), "questions-section") {
-		t.Error("expected questions-section placeholder")
+	if !strings.Contains(buf.String(), `id="questions"`) {
+		t.Error("expected questions section output")
 	}
 }
 
@@ -250,8 +250,8 @@ func TestCritiqueZoneRender(t *testing.T) {
 	if err := c.Render(&buf); err != nil {
 		t.Fatalf("CritiqueZone.Render: %v", err)
 	}
-	if !strings.Contains(buf.String(), "critique-zone") {
-		t.Error("expected critique-zone placeholder")
+	if !strings.Contains(buf.String(), `id="critique"`) {
+		t.Error("expected critique zone output")
 	}
 }
 
