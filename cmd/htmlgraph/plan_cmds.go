@@ -36,6 +36,8 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planAddSliceCmd())
 	cmd.AddCommand(planSetSectionCmd())
 	cmd.AddCommand(planSetSliceCmd())
+	cmd.AddCommand(planValidateCmd())
+	cmd.AddCommand(planFinalizeCmd())
 	return cmd
 }
 
