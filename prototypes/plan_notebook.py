@@ -1,3 +1,13 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "marimo>=0.22.4",
+#     "pyyaml>=6.0",
+#     "anywidget>=0.9",
+#     "traitlets>=5.0",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.22.4"

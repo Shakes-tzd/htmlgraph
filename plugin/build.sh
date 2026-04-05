@@ -21,6 +21,15 @@ for arg in "$@"; do
 done
 
 cd "${GO_DIR}"
+
+# Copy notebook files for embedding (source of truth: prototypes/)
+echo "  Copying notebook files for embedding..."
+mkdir -p internal/notebook/files
+cp prototypes/plan_notebook.py internal/notebook/files/
+cp prototypes/plan_ui.py internal/notebook/files/
+cp prototypes/critique_renderer.py internal/notebook/files/
+cp prototypes/dagre_widget.py internal/notebook/files/
+
 VERSION_RAW=$(git describe --tags --always 2>/dev/null || echo "dev")
 # Strip leading 'v' for consistent version strings (goreleaser, plugin.json)
 VERSION="${VERSION_RAW#v}"

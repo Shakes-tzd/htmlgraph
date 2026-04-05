@@ -130,3 +130,6 @@ archive/
 packages/go-plugin/hooks/bin/
 htmlgraph
 hooks/bin/
+
+# Notebook files copied at build time from prototypes/ (do not commit)
+internal/notebook/files/

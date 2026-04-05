@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/notebook"
 	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/spf13/cobra"
 )
@@ -225,37 +226,45 @@ func runPlanReview(planID string, port int, wait bool) error {
 		return fmt.Errorf("plan YAML not found: %s", planPath)
 	}
 
-	// Find the notebook template. Check common locations.
-	notebookPath := findNotebookTemplate(htmlgraphDir)
-	if notebookPath == "" {
-		return fmt.Errorf("marimo notebook template not found. Expected at prototypes/plan_notebook.py or plugin/templates/plan_notebook.py")
-	}
-
-	// Check marimo is installed.
-	marimoPath, err := exec.LookPath("marimo")
+	// Require absolute path for the env var.
+	absYAMLPath, err := filepath.Abs(planPath)
 	if err != nil {
-		return fmt.Errorf("marimo not found in PATH. Install with: uv tool install marimo --with anywidget --with traitlets --with pyyaml")
+		return fmt.Errorf("resolve plan path: %w", err)
 	}
 
-	fmt.Printf("Plan:     %s\n", planPath)
-	fmt.Printf("Notebook: %s\n", notebookPath)
+	// Check uv is on PATH.
+	if _, err := exec.LookPath("uv"); err != nil {
+		fmt.Fprintln(os.Stderr, "htmlgraph plan review requires uv. Install it:")
+		fmt.Fprintln(os.Stderr, "  curl -LsSf https://astral.sh/uv/install.sh | sh")
+		return fmt.Errorf("uv not found in PATH")
+	}
+
+	// Write embedded notebook files to a temp dir.
+	tmpDir, err := os.MkdirTemp("", "htmlgraph-notebook-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := notebook.WriteToDir(tmpDir); err != nil {
+		return fmt.Errorf("extract notebook files: %w", err)
+	}
+
+	fmt.Printf("Plan:     %s\n", absYAMLPath)
 	fmt.Printf("URL:      http://localhost:%d\n", port)
 	fmt.Println()
 
-	// Launch marimo. Run from the notebook's directory so imports resolve.
-	notebookDir := filepath.Dir(notebookPath)
+	// Launch via uvx marimo edit --sandbox.
 	args := []string{
-		"edit", filepath.Base(notebookPath),
-		"--port", fmt.Sprintf("%d", port),
+		"marimo", "edit", "--sandbox",
 		"--headless", "--no-token",
+		"--port", fmt.Sprintf("%d", port),
+		filepath.Join(tmpDir, "plan_notebook.py"),
 	}
 
-	// Set PLAN_YAML_PATH env var so the notebook knows which plan to load.
-	env := append(os.Environ(), "PLAN_YAML_PATH="+planPath)
-
-	marimoCmd := exec.Command(marimoPath, args...)
-	marimoCmd.Dir = notebookDir
-	marimoCmd.Env = env
+	marimoCmd := exec.Command("uvx", args...)
+	marimoCmd.Dir = tmpDir
+	marimoCmd.Env = append(os.Environ(), "PLAN_YAML_PATH="+absYAMLPath)
 	marimoCmd.Stdout = os.Stdout
 	marimoCmd.Stderr = os.Stderr
 
@@ -273,36 +282,6 @@ func runPlanReview(planID string, port int, wait bool) error {
 	fmt.Println("Marimo running. Waiting for plan finalization...")
 	fmt.Println("Open http://localhost:" + fmt.Sprintf("%d", port) + " to review.")
 	return marimoCmd.Run()
-}
-
-func findNotebookTemplate(htmlgraphDir string) string {
-	// 1. Environment variable override
-	if p := os.Getenv("PLAN_NOTEBOOK_PATH"); p != "" {
-		if _, err := os.Stat(p); err == nil {
-			abs, _ := filepath.Abs(p)
-			return abs
-		}
-	}
-
-	// 2. Relative to project
-	candidates := []string{
-		filepath.Join(filepath.Dir(htmlgraphDir), "prototypes", "plan_notebook.py"),
-		filepath.Join(htmlgraphDir, "..", "prototypes", "plan_notebook.py"),
-		filepath.Join(htmlgraphDir, "..", "plugin", "templates", "plan_notebook.py"),
-	}
-
-	// 3. User install location
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, ".local", "share", "htmlgraph", "plan_notebook.py"))
-	}
-
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			abs, _ := filepath.Abs(p)
-			return abs
-		}
-	}
-	return ""
 }
 
 // planSetDesignYAMLCmd sets the structured design subsections on a YAML plan.
