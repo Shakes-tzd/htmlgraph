@@ -176,8 +176,8 @@ Before proceeding, validate the YAML:
 6. No duplicate slice numbers or question IDs
 
 ```bash
-# Validate YAML structure (TODO: add CLI command)
-# For now, the agent should self-check the YAML before proceeding
+htmlgraph plan validate-yaml <plan-id>
+
 ```
 
 ---
