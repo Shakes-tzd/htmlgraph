@@ -48,6 +48,7 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planValidateYAMLCmd())
 	cmd.AddCommand(planSetDesignYAMLCmd())
 	cmd.AddCommand(planReadFeedbackYAMLCmd())
+	cmd.AddCommand(planFinalizeYAMLCmd())
 	cmd.AddCommand(planReviewCmd())
 	return cmd
 }
