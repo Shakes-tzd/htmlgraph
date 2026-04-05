@@ -69,44 +69,44 @@ type QuestionOption struct {
 
 // PlanCritique holds the multi-reviewer critique section.
 type PlanCritique struct {
-	ReviewedAt  string               `yaml:"reviewed_at"`
-	Reviewers   []string             `yaml:"reviewers"`
-	Assumptions []CritiqueAssumption `yaml:"assumptions"`
-	Critics     []CriticSection      `yaml:"critics"`
-	Risks       []CritiqueRisk       `yaml:"risks"`
-	Synthesis   string               `yaml:"synthesis"`
+	ReviewedAt  string               `yaml:"reviewed_at" json:"reviewed_at"`
+	Reviewers   []string             `yaml:"reviewers" json:"reviewers"`
+	Assumptions []CritiqueAssumption `yaml:"assumptions" json:"assumptions"`
+	Critics     []CriticSection      `yaml:"critics" json:"critics"`
+	Risks       []CritiqueRisk       `yaml:"risks" json:"risks"`
+	Synthesis   string               `yaml:"synthesis" json:"synthesis"`
 }
 
 // CritiqueAssumption is a single assumption with verification status.
 type CritiqueAssumption struct {
-	ID       string `yaml:"id"`
-	Status   string `yaml:"status"` // verified|plausible|unverified|questionable|falsified
-	Text     string `yaml:"text"`
-	Evidence string `yaml:"evidence"`
+	ID       string `yaml:"id" json:"id"`
+	Status   string `yaml:"status" json:"status"` // verified|plausible|unverified|questionable|falsified
+	Text     string `yaml:"text" json:"text"`
+	Evidence string `yaml:"evidence" json:"evidence"`
 }
 
 // CriticSection groups critic feedback under a titled reviewer.
 type CriticSection struct {
-	Title    string             `yaml:"title"`
-	Sections []CriticSubsection `yaml:"sections"`
+	Title    string             `yaml:"title" json:"title"`
+	Sections []CriticSubsection `yaml:"sections" json:"sections"`
 }
 
 // CriticSubsection is a heading with a list of critic items.
 type CriticSubsection struct {
-	Heading string       `yaml:"heading"`
-	Items   []CriticItem `yaml:"items"`
+	Heading string       `yaml:"heading" json:"heading"`
+	Items   []CriticItem `yaml:"items" json:"items"`
 }
 
 // CriticItem is a single badged feedback entry.
 type CriticItem struct {
-	Badge string `yaml:"badge"`
-	Kind  string `yaml:"kind"` // success|warn|danger|info
-	Text  string `yaml:"text"`
+	Badge string `yaml:"badge" json:"badge"`
+	Kind  string `yaml:"kind" json:"kind"` // success|warn|danger|info
+	Text  string `yaml:"text" json:"text"`
 }
 
 // CritiqueRisk records a risk with severity and mitigation strategy.
 type CritiqueRisk struct {
-	Risk       string `yaml:"risk"`
-	Severity   string `yaml:"severity"` // High|Medium|Low
-	Mitigation string `yaml:"mitigation"`
+	Risk       string `yaml:"risk" json:"risk"`
+	Severity   string `yaml:"severity" json:"severity"` // High|Medium|Low
+	Mitigation string `yaml:"mitigation" json:"mitigation"`
 }
