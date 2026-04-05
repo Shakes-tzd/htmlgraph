@@ -175,8 +175,8 @@ func TestSliceCardRenderRiskLow(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, "Low Risk") {
-		t.Error("Low risk badge missing 'Low Risk' text")
+	if !strings.Contains(html, ">Low<") {
+		t.Error("Low risk badge missing 'Low' text")
 	}
 	// Low → badge-pending
 	if !strings.Contains(html, "badge-pending") {
@@ -193,8 +193,8 @@ func TestSliceCardRenderRiskMed(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, "Med Risk") {
-		t.Error("Med risk badge missing 'Med Risk' text")
+	if !strings.Contains(html, ">Med<") {
+		t.Error("Med risk badge missing 'Med' text")
 	}
 	if !strings.Contains(html, "badge-revision") {
 		t.Error("Med risk should use badge-revision class")
@@ -210,8 +210,8 @@ func TestSliceCardRenderRiskHigh(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, "High Risk") {
-		t.Error("High risk badge missing 'High Risk' text")
+	if !strings.Contains(html, ">High<") {
+		t.Error("High risk badge missing 'High' text")
 	}
 	if !strings.Contains(html, "badge-blocked") {
 		t.Error("High risk should use badge-blocked class")

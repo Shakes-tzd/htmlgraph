@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/plantmpl"
 	"github.com/shakestzd/htmlgraph/internal/htmlparse"
 )
 
@@ -293,43 +292,87 @@ func buildPlanSections(nodePath, htmlgraphDir string) (graphNodes, sliceCards, s
 
 // buildDesignContent generates the Design Discussion section from the source
 // work item's description and a summary of contained features.
+// The <!--PLAN_DESIGN_CONTENT--> marker appears first so that manually-set
+// content (via plan set-section) renders above the auto-generated scope.
+// The feature list is wrapped in a collapsible <details> grouped by status.
 func buildDesignContent(info planNodeInfo, nodePath, htmlgraphDir string) string {
 	var b strings.Builder
 	if info.description != "" {
 		b.WriteString(fmt.Sprintf("    <p>%s</p>\n", html.EscapeString(info.description)))
 	}
 
+	// Marker goes first — manual content injected here appears above the scope.
+	b.WriteString("    <!--PLAN_DESIGN_CONTENT-->\n")
+
 	node, err := htmlparse.ParseFile(nodePath)
 	if err != nil || len(node.Edges["contains"]) == 0 {
 		return b.String()
 	}
 
-	b.WriteString("    <h4>Scope</h4>\n    <ul>\n")
+	// Classify features by status.
+	type scopeItem struct {
+		title, desc, status string
+	}
+	var done, todo []scopeItem
 	for _, edge := range node.Edges["contains"] {
-		title := edge.Title
+		title := strings.TrimSpace(edge.Title)
 		if title == "" {
 			title = edge.TargetID
 		}
-		// Load child description if available.
-		desc := ""
+		// Skip plan features (meta-noise).
+		if strings.HasPrefix(title, "Plan:") || strings.HasPrefix(edge.TargetID, "plan-") {
+			continue
+		}
+
+		item := scopeItem{title: title, status: "todo"}
 		if childPath := resolveNodePath(htmlgraphDir, edge.TargetID); childPath != "" {
-			if child, err := htmlparse.ParseFile(childPath); err == nil && child.Content != "" {
-				desc = strings.ReplaceAll(child.Content, "<p>", "")
-				desc = strings.ReplaceAll(desc, "</p>", "")
-				desc = strings.TrimSpace(desc)
-				if len(desc) > 120 {
-					desc = desc[:117] + "..."
+			if child, err := htmlparse.ParseFile(childPath); err == nil {
+				item.status = string(child.Status)
+				if child.Content != "" {
+					desc := strings.ReplaceAll(child.Content, "<p>", "")
+					desc = strings.ReplaceAll(desc, "</p>", "")
+					desc = strings.TrimSpace(desc)
+					if len(desc) > 120 {
+						desc = desc[:117] + "..."
+					}
+					item.desc = desc
 				}
 			}
 		}
-		if desc != "" {
-			b.WriteString(fmt.Sprintf("      <li><strong>%s</strong> &mdash; %s</li>\n",
-				html.EscapeString(title), html.EscapeString(desc)))
+		if item.status == "done" {
+			done = append(done, item)
 		} else {
-			b.WriteString(fmt.Sprintf("      <li>%s</li>\n", html.EscapeString(title)))
+			todo = append(todo, item)
 		}
 	}
-	b.WriteString("    </ul>\n")
+
+	total := len(done) + len(todo)
+	b.WriteString(fmt.Sprintf(
+		"    <details style=\"margin-top:12px\"><summary style=\"cursor:pointer;font-size:.85rem;color:var(--text-dim)\">"+
+			"Track Features (%d total, %d done, %d remaining)</summary>\n",
+		total, len(done), len(todo)))
+
+	if len(todo) > 0 {
+		b.WriteString("    <h4 style=\"margin-top:8px\">Remaining</h4>\n    <ul>\n")
+		for _, it := range todo {
+			if it.desc != "" {
+				b.WriteString(fmt.Sprintf("      <li><strong>%s</strong> &mdash; %s</li>\n",
+					html.EscapeString(it.title), html.EscapeString(it.desc)))
+			} else {
+				b.WriteString(fmt.Sprintf("      <li>%s</li>\n", html.EscapeString(it.title)))
+			}
+		}
+		b.WriteString("    </ul>\n")
+	}
+	if len(done) > 0 {
+		b.WriteString("    <h4 style=\"margin-top:8px\">Completed</h4>\n    <ul style=\"color:var(--text-muted)\">\n")
+		for _, it := range done {
+			b.WriteString(fmt.Sprintf("      <li>&#10003; %s</li>\n", html.EscapeString(it.title)))
+		}
+		b.WriteString("    </ul>\n")
+	}
+
+	b.WriteString("    </details>\n")
 	return b.String()
 }
 
@@ -402,96 +445,4 @@ func buildOutlineContent(nodePath, htmlgraphDir string) string {
 	return b.String()
 }
 
-// buildTypedPlanSections builds typed plantmpl.SliceCard and DependencyGraph
-// from a work item's "contains" edges, replacing the string-based buildPlanSections.
-func buildTypedPlanSections(nodePath, htmlgraphDir string) ([]plantmpl.SliceCard, *plantmpl.DependencyGraph) {
-	node, err := htmlparse.ParseFile(nodePath)
-	if err != nil {
-		return nil, nil
-	}
-
-	containsEdges := node.Edges["contains"]
-	if len(containsEdges) == 0 {
-		return nil, nil
-	}
-
-	idToNum := make(map[string]int, len(containsEdges))
-	type featureInfo struct {
-		num   int
-		id    string
-		title string
-	}
-	features := make([]featureInfo, 0, len(containsEdges))
-	for i, edge := range containsEdges {
-		title := strings.TrimSpace(edge.Title)
-		if title == "" {
-			title = edge.TargetID
-		}
-		if len(title) > 60 {
-			title = title[:57] + "..."
-		}
-		num := i + 1
-		idToNum[edge.TargetID] = num
-		features = append(features, featureInfo{num: num, id: edge.TargetID, title: title})
-	}
-
-	database, dbErr := dbpkg.Open(filepath.Join(htmlgraphDir, "htmlgraph.db"))
-	if dbErr == nil {
-		defer database.Close()
-	}
-
-	var slices []plantmpl.SliceCard
-	var nodes []plantmpl.GraphNode
-
-	for _, f := range features {
-		var deps []string
-		var desc string
-		var files int
-
-		childPath := resolveNodePath(htmlgraphDir, f.id)
-		if childPath != "" {
-			if childNode, err := htmlparse.ParseFile(childPath); err == nil {
-				if childNode.Content != "" {
-					desc = strings.ReplaceAll(childNode.Content, "<p>", "")
-					desc = strings.ReplaceAll(desc, "</p>", "")
-					desc = strings.TrimSpace(desc)
-					if len(desc) > 200 {
-						desc = desc[:197] + "..."
-					}
-				}
-				for _, be := range childNode.Edges["blocked_by"] {
-					if num, ok := idToNum[be.TargetID]; ok {
-						deps = append(deps, fmt.Sprintf("%d", num))
-					}
-				}
-			}
-		}
-		if database != nil {
-			if count, err := dbpkg.CountFilesByFeature(database, f.id); err == nil {
-				files = count
-			}
-		}
-
-		depStr := strings.Join(deps, ",")
-
-		slices = append(slices, plantmpl.SliceCard{
-			Num:         f.num,
-			ID:          f.id,
-			Title:       f.title,
-			Description: desc,
-			Deps:        depStr,
-			Status:      "pending",
-		})
-		nodes = append(nodes, plantmpl.GraphNode{
-			Num:    f.num,
-			Name:   f.title,
-			Status: "pending",
-			Deps:   depStr,
-			Files:  files,
-		})
-	}
-
-	graph := &plantmpl.DependencyGraph{Nodes: nodes}
-	return slices, graph
-}
 

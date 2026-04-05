@@ -15,12 +15,22 @@ type SliceCard struct {
 	Num         int
 	ID          string // feature ID like "feat-abc123"
 	Title       string
-	Description string
-	Effort      string // "S", "M", "L"
-	Risk        string // "Low", "Med", "High"
-	Deps        string // comma-separated slice numbers
-	Files       string // comma-separated file paths
+	Description string   // Legacy: flat description text (used when What is empty)
+	What        string   // Structured: what to implement
+	Why         string   // Structured: rationale / motivation
+	DoneWhen    []string // Structured: acceptance criteria bullets
+	Tests       string   // Test strategy text
+	Effort      string   // "S", "M", "L"
+	Risk        string   // "Low", "Med", "High"
+	Deps        string   // comma-separated slice numbers
+	Files       string   // comma-separated file paths
 	Status      string
+}
+
+// HasStructuredContent returns true when the slice has What/Why fields
+// (benchmark format) rather than just a flat description.
+func (sc *SliceCard) HasStructuredContent() bool {
+	return sc.What != "" || sc.Why != ""
 }
 
 // Render writes the slice card HTML.
