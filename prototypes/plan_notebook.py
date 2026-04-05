@@ -193,7 +193,7 @@ def _(STATUS_COLORS, editor, mo, plan, plan_id, plan_yaml_input, stat_card):
             ),
             mo.accordion(
                 {
-                    f"**ID:** `{plan_id}` | **SOURCE:** `{plan_yaml_input.value}`": editor,
+                    f"**ID:** `{plan_id}` | **SOURCE:** `{plan_path}`": editor,
                 }
             ),
         ]
