@@ -128,16 +128,22 @@ def _(Path, htmlgraph_dir, mo, plan_yaml_input, sqlite3, yaml):
 # --- Persistence helper: write one feedback row to SQLite ---
 def persist_feedback(plan_id, section, action, value, question_id=""):
     """Write a single feedback entry to plan_feedback table."""
+    import os as _os
     import sqlite3 as _sql
     from pathlib import Path as _P
 
-    _cwd = _P.cwd()
-    _candidates = [
-        _cwd / ".htmlgraph",
-        _cwd.parent / ".htmlgraph",
-        _cwd.parent.parent / ".htmlgraph",
-    ]
-    _hg = next((p for p in _candidates if p.exists()), None)
+    # Check env var first (set by htmlgraph plan review for embedded temp dir).
+    _env_hg = _os.environ.get("HTMLGRAPH_DIR", "")
+    if _env_hg and _P(_env_hg).exists():
+        _hg = _P(_env_hg)
+    else:
+        _cwd = _P.cwd()
+        _candidates = [
+            _cwd / ".htmlgraph",
+            _cwd.parent / ".htmlgraph",
+            _cwd.parent.parent / ".htmlgraph",
+        ]
+        _hg = next((p for p in _candidates if p.exists()), None)
     if not _hg:
         return
     _db = _hg / "htmlgraph.db"
