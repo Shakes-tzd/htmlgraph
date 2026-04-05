@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -428,21 +426,6 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		exec.Command("claude", "plugin", "disable", scope).Run() //nolint:errcheck
 	}
 
-	// Re-enable marketplace plugin on exit.
-	reenableFn := func() {
-		fmt.Println("Re-enabling marketplace htmlgraph plugin...")
-		for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
-			exec.Command("claude", "plugin", "enable", scope).Run() //nolint:errcheck
-		}
-	}
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		reenableFn()
-		os.Exit(0)
-	}()
-
 	sessionName := yoloSessionName()
 	yoloPrompt := buildYoloSystemPrompt(id, kind)
 
@@ -453,17 +436,15 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 
 	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
 	if err != nil {
-		reenableFn()
 		return fmt.Errorf("could not create temp prompt file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
 	if _, err := tmpFile.WriteString(yoloPrompt); err != nil {
-		reenableFn()
 		return fmt.Errorf("could not write temp prompt file: %w", err)
 	}
 	tmpFile.Close()
 
-	launchErr := launchClaude(LaunchOpts{
+	return launchClaude(LaunchOpts{
 		Mode:             "yolo-dev",
 		PluginDir:        pluginDir,
 		SystemPromptFile: tmpFile.Name(),
@@ -473,8 +454,6 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		ProjectRoot:      workDir,
 		HtmlgraphRoot:    projectRoot,
 	})
-	reenableFn()
-	return launchErr
 }
 
 func launchYoloInit(trackID, featureID string, extraArgs []string) error {
