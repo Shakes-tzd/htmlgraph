@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -182,4 +183,108 @@ func runValidateYAML(planID string) error {
 	}
 	fmt.Printf("Plan valid: %d slices, %d questions\n", len(plan.Slices), len(plan.Questions))
 	return nil
+}
+
+// planReviewCmd launches a marimo notebook for interactive plan review.
+func planReviewCmd() *cobra.Command {
+	var port int
+	var wait bool
+
+	cmd := &cobra.Command{
+		Use:   "review <plan-id>",
+		Short: "Open a YAML plan in the marimo review notebook",
+		Long: `Launch marimo to interactively review a YAML plan.
+
+The notebook reads plan content from the YAML file and persists
+human approvals to the SQLite plan_feedback table on every click.
+
+Example:
+  htmlgraph plan review plan-a1b2c3d4
+  htmlgraph plan review plan-a1b2c3d4 --port 3001
+  htmlgraph plan review plan-a1b2c3d4 --wait`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runPlanReview(args[0], port, wait)
+		},
+	}
+	cmd.Flags().IntVar(&port, "port", 3001, "marimo server port")
+	cmd.Flags().BoolVar(&wait, "wait", false, "block until plan is finalized")
+	return cmd
+}
+
+func runPlanReview(planID string, port int, wait bool) error {
+	htmlgraphDir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+
+	// Verify plan YAML exists.
+	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	if _, err := os.Stat(planPath); err != nil {
+		return fmt.Errorf("plan YAML not found: %s", planPath)
+	}
+
+	// Find the notebook template. Check common locations.
+	notebookPath := findNotebookTemplate(htmlgraphDir)
+	if notebookPath == "" {
+		return fmt.Errorf("marimo notebook template not found. Expected at prototypes/plan_notebook.py or plugin/templates/plan_notebook.py")
+	}
+
+	// Check marimo is installed.
+	marimoPath, err := exec.LookPath("marimo")
+	if err != nil {
+		return fmt.Errorf("marimo not found in PATH. Install with: uv tool install marimo --with anywidget --with traitlets --with pyyaml")
+	}
+
+	fmt.Printf("Plan:     %s\n", planPath)
+	fmt.Printf("Notebook: %s\n", notebookPath)
+	fmt.Printf("URL:      http://localhost:%d\n", port)
+	fmt.Println()
+
+	// Launch marimo. Run from the notebook's directory so imports resolve.
+	notebookDir := filepath.Dir(notebookPath)
+	args := []string{
+		"edit", filepath.Base(notebookPath),
+		"--port", fmt.Sprintf("%d", port),
+		"--headless", "--no-token",
+	}
+
+	// Set PLAN_YAML_PATH env var so the notebook knows which plan to load.
+	env := append(os.Environ(), "PLAN_YAML_PATH="+planPath)
+
+	marimoCmd := exec.Command(marimoPath, args...)
+	marimoCmd.Dir = notebookDir
+	marimoCmd.Env = env
+	marimoCmd.Stdout = os.Stdout
+	marimoCmd.Stderr = os.Stderr
+
+	if !wait {
+		// Start in background, print URL, return.
+		if err := marimoCmd.Start(); err != nil {
+			return fmt.Errorf("start marimo: %w", err)
+		}
+		fmt.Printf("Marimo running (PID %d). Open http://localhost:%d to review.\n", marimoCmd.Process.Pid, port)
+		fmt.Println("Run 'htmlgraph plan review " + planID + " --wait' to block until finalized.")
+		return nil
+	}
+
+	// Foreground mode: run marimo and block.
+	fmt.Println("Marimo running. Waiting for plan finalization...")
+	fmt.Println("Open http://localhost:" + fmt.Sprintf("%d", port) + " to review.")
+	return marimoCmd.Run()
+}
+
+func findNotebookTemplate(htmlgraphDir string) string {
+	candidates := []string{
+		filepath.Join(filepath.Dir(htmlgraphDir), "prototypes", "plan_notebook.py"),
+		filepath.Join(htmlgraphDir, "..", "prototypes", "plan_notebook.py"),
+		filepath.Join(htmlgraphDir, "..", "plugin", "templates", "plan_notebook.py"),
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			abs, _ := filepath.Abs(p)
+			return abs
+		}
+	}
+	return ""
 }
