@@ -363,21 +363,24 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
             ))
 
         def _chat_model(messages, config):
-            """Streaming model: yield text deltas from Claude headless backend."""
+            """Streaming model: yield text deltas, persist after each exchange."""
             _user_msg = messages[-1].content if messages else ""
+            _full = ""
             for chunk in _backend.send(_user_msg):
+                _full += chunk
                 yield chunk
-
-        def _on_message(messages):
-            """Persist all messages to SQLite after each exchange."""
-            _backend.save_messages(messages)
+            # Save all messages (including this response) after streaming completes.
+            _all = [{"role": getattr(m, "role", "user"),
+                     "content": str(getattr(m, "content", ""))}
+                    for m in messages]
+            _all.append({"role": "assistant", "content": _full})
+            _backend.save_messages(_all)
 
         if not _available and _has_fallback:
             _items.append(mo.callout(mo.md(
                 "Using **Anthropic API** fallback (claude CLI not found)."), kind="info"))
         _items.append(mo.ui.chat(
             _chat_model,
-            on_message=_on_message,
             prompts=["What are the main risks?", "Summarize the design decisions"],
         ))
 

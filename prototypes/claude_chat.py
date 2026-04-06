@@ -337,7 +337,18 @@ class ClaudeChatBackend:
             conn.close()
 
     def load_messages(self) -> list[dict]:
-        """Load saved chat messages from SQLite. Returns list of {role, content}."""
+        """Load chat history from Claude session JSONL transcript.
+
+        Falls back to SQLite-persisted messages if session file not found.
+        Returns list of {role, content} dicts.
+        """
+        # Primary: read from Claude CLI session transcript.
+        if self.session_id:
+            msgs = self._load_from_session_jsonl()
+            if msgs:
+                return msgs
+
+        # Fallback: SQLite-persisted messages.
         if not self.plan_id:
             return []
         conn = self._db_conn()
@@ -358,3 +369,38 @@ class ClaudeChatBackend:
         finally:
             conn.close()
         return []
+
+    def _load_from_session_jsonl(self) -> list[dict]:
+        """Parse Claude CLI session JSONL for user/assistant message pairs."""
+        import json as _json
+        from pathlib import Path as _P
+
+        # Session files live under ~/.claude/projects/<project-key>/<session_id>.jsonl
+        claude_dir = _P.home() / ".claude"
+        matches = list(claude_dir.glob(f"projects/*/{self.session_id}.jsonl"))
+        if not matches:
+            return []
+        try:
+            messages = []
+            for line in matches[0].read_text().splitlines():
+                if not line.strip():
+                    continue
+                event = _json.loads(line)
+                etype = event.get("type", "")
+                if etype == "user":
+                    content = event.get("message", {}).get("content", "")
+                    if isinstance(content, str) and content:
+                        messages.append({"role": "user", "content": content})
+                elif etype == "assistant":
+                    blocks = event.get("message", {}).get("content", [])
+                    text_parts = [
+                        b.get("text", "")
+                        for b in blocks
+                        if isinstance(b, dict) and b.get("type") == "text"
+                    ]
+                    text = "".join(text_parts)
+                    if text:
+                        messages.append({"role": "assistant", "content": text})
+            return messages
+        except Exception:
+            return []
