@@ -27,10 +27,9 @@ def _():
     from plan_persistence import persist_feedback, finalize_plan
     from critique_renderer import render_critique
     from dagre_widget import DependencyGraphWidget
-    from chat_widget import ChatWidget
     from claude_chat import ClaudeChatBackend
     return (
-        ChatWidget, ClaudeChatBackend, DependencyGraphWidget, Path,
+        ClaudeChatBackend, DependencyGraphWidget, Path,
         STATUS_COLORS, effort_badge, finalize_plan, mo, persist_feedback,
         render_critique, render_feedback_summary, risk_badge, sqlite3,
         stat_card, status_badge, yaml,
@@ -335,9 +334,8 @@ def _(finalize_btn, finalize_plan, mo, plan, plan_path, question_inputs, slice_a
 
 
 @app.cell
-def _(ChatWidget, ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
+def _(ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
     # --- F. Plan Discussion (marimo sidebar chat) ---
-    import threading as _threading
     _available, _avail_msg = ClaudeChatBackend.is_available()
     _has_fallback = ClaudeChatBackend.has_api_fallback()
 
@@ -349,36 +347,20 @@ def _(ChatWidget, ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text)
     else:
         _db = str(htmlgraph_dir / "htmlgraph.db") if htmlgraph_dir else None
         _backend = ClaudeChatBackend(plan_context=plan_yaml_text, db_path=_db, plan_id=plan_id)
-        _chat = ChatWidget()
 
-        def _on_msg(change):
-            _t = change["new"]
-            if not _t:
-                return
-            _chat.messages = list(_chat.messages) + [{"role": "user", "content": _t}]
-            _chat.is_streaming = True
-            _chat.response_stream = ""
-            def _stream():
-                _full = ""
-                try:
-                    for _c in _backend.send(_t):
-                        _full += _c
-                        _chat.response_stream = _full
-                except Exception as _e:
-                    _full = f"Error: {_e}"
-                    _chat.response_stream = _full
-                finally:
-                    _chat.messages = list(_chat.messages) + [
-                        {"role": "assistant", "content": _full}]
-                    _chat.response_stream = ""
-                    _chat.is_streaming = False
-            _threading.Thread(target=_stream, daemon=True).start()
+        def _chat_model(messages, config):
+            """Streaming model: yield text deltas from Claude headless backend."""
+            _user_msg = messages[-1].content if messages else ""
+            for chunk in _backend.send(_user_msg):
+                yield chunk
 
-        _chat.observe(_on_msg, names=["pending_message"])
         if not _available and _has_fallback:
             _items.append(mo.callout(mo.md(
                 "Using **Anthropic API** fallback (claude CLI not found)."), kind="info"))
-        _items.append(mo.ui.anywidget(_chat))
+        _items.append(mo.ui.chat(
+            _chat_model,
+            prompts=["What are the main risks?", "Summarize the design decisions"],
+        ))
 
     mo.sidebar(_items, width="360px")
 
