@@ -336,12 +336,14 @@ def _(finalize_btn, finalize_plan, mo, plan, plan_path, question_inputs, slice_a
 
 @app.cell
 def _(ChatWidget, ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
-    # --- F. Plan Discussion (floating sidebar chat) ---
+    # --- F. Plan Discussion (marimo sidebar chat) ---
     import threading as _threading
     _available, _avail_msg = ClaudeChatBackend.is_available()
     _has_fallback = ClaudeChatBackend.has_api_fallback()
+
+    _items = []
     if not _available and not _has_fallback:
-        mo.output.replace(mo.callout(mo.md(
+        _items.append(mo.callout(mo.md(
             "**AI Chat unavailable.** Install [Claude Code](https://claude.ai/download) "
             "and ensure `claude` is on PATH, or set `ANTHROPIC_API_KEY`."), kind="warn"))
     else:
@@ -373,14 +375,12 @@ def _(ChatWidget, ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text)
             _threading.Thread(target=_stream, daemon=True).start()
 
         _chat.observe(_on_msg, names=["pending_message"])
-        _w = mo.ui.anywidget(_chat)
         if not _available and _has_fallback:
-            mo.output.replace(mo.vstack([
-                mo.callout(mo.md("Using **Anthropic API** fallback (claude CLI not found)."),
-                           kind="info"), _w]))
-        else:
-            mo.output.replace(_w)
-    return
+            _items.append(mo.callout(mo.md(
+                "Using **Anthropic API** fallback (claude CLI not found)."), kind="info"))
+        _items.append(mo.ui.anywidget(_chat))
+
+    mo.sidebar(_items, width="360px")
 
 
 if __name__ == "__main__":
