@@ -136,6 +136,7 @@ def _(STATUS_COLORS, editor, mo, plan, plan_id, plan_yaml_input, stat_card):
             stat_card("Status", _status, _sb, _sf, _sc),
             stat_card("Slices", len(_slices), "#f0f4ff", "#1e3a5f", "#93c5fd"),
             stat_card("Created", _meta.get("created_at", ""), "#f0f4ff", "#1e3a5f", "#93c5fd"),
+            stat_card("Version", f"v{_meta.get('version', 1)}", "#f5f3ff", "#4c1d95", "#a78bfa"),
         ], justify="space-between", gap=0.75),
         mo.accordion({f"**ID:** `{plan_id}` | **SOURCE:** `{plan_path}`": editor}),
     ])
