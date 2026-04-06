@@ -24,15 +24,17 @@ def _():
         stat_card, status_badge, priority_badge, effort_badge,
         risk_badge, render_feedback_summary, STATUS_COLORS,
     )
-    from plan_persistence import persist_feedback, finalize_plan
+    from plan_persistence import persist_feedback, finalize_plan, persist_amendment, get_amendments, update_amendment_status
+    from amendment_parser import parse_amendments
     from critique_renderer import render_critique
     from dagre_widget import DependencyGraphWidget
     from claude_chat import ClaudeChatBackend
     return (
         ClaudeChatBackend, DependencyGraphWidget, Path,
-        STATUS_COLORS, effort_badge, finalize_plan, mo, persist_feedback,
+        STATUS_COLORS, effort_badge, finalize_plan, get_amendments, mo,
+        parse_amendments, persist_amendment, persist_feedback,
         render_critique, render_feedback_summary, risk_badge, sqlite3,
-        stat_card, status_badge, yaml,
+        stat_card, status_badge, update_amendment_status, yaml,
     )
 
 
@@ -334,7 +336,57 @@ def _(finalize_btn, finalize_plan, mo, plan, plan_path, question_inputs, slice_a
 
 
 @app.cell
-def _(ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
+def _(get_amendments, mo, plan_id, update_amendment_status):
+    # --- E2. Amendments from Chat ---
+    _amendments = get_amendments(plan_id)
+    if not _amendments:
+        mo.output.replace(mo.md(""))
+    else:
+        _pending = [a for a in _amendments if a["action"] == "proposed"]
+        _accepted = [a for a in _amendments if a["action"] == "accepted"]
+        _rejected = [a for a in _amendments if a["action"] == "rejected"]
+
+        _status = (
+            f"**{len(_pending)}** pending | "
+            f"**{len(_accepted)}** accepted | "
+            f"**{len(_rejected)}** rejected"
+        )
+
+        amendment_decisions = mo.ui.dictionary({
+            a["id"]: mo.ui.dropdown(
+                options={"Pending": "proposed", "Accept": "accepted", "Reject": "rejected"},
+                value=a["action"],
+                label=f"Slice {a['value'].get('slice_num', '?')}: "
+                      f"{a['value'].get('operation', '?')} {a['value'].get('field', '?')} "
+                      f"— {a['value'].get('content', '')[:60]}",
+            )
+            for a in _amendments
+        })
+
+        mo.vstack([
+            mo.md(f"## Amendments\n\n{_status}"),
+            amendment_decisions,
+        ])
+    return
+
+
+@app.cell
+def _(get_amendments, plan_id, update_amendment_status):
+    # --- Persist amendment decisions ---
+    _amendments = get_amendments(plan_id)
+    _by_id = {a["id"]: a for a in _amendments}
+    _mod = __import__("sys").modules.get(__name__)
+    _decisions = getattr(_mod, "amendment_decisions", None) if _mod else None
+    if _decisions is not None:
+        for _aid, _new_action in _decisions.value.items():
+            _current = _by_id.get(_aid, {}).get("action")
+            if _current and _new_action != _current:
+                update_amendment_status(plan_id, _aid, _new_action)
+    return
+
+
+@app.cell
+def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment, plan_id, plan_yaml_text):
     # --- F. Plan Discussion (marimo sidebar chat) ---
     _available, _avail_msg = ClaudeChatBackend.is_available()
     _has_fallback = ClaudeChatBackend.has_api_fallback()
@@ -371,7 +423,7 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
             }))
 
         def _chat_model(messages, config):
-            """Streaming model: yield text deltas, persist after each exchange."""
+            """Streaming model: yield text deltas, persist + extract amendments."""
             _user_msg = messages[-1].content if messages else ""
             _full = ""
             for chunk in _backend.send(_user_msg):
@@ -383,6 +435,13 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
                     for m in messages]
             _all.append({"role": "assistant", "content": _full})
             _backend.save_messages(_all)
+            # Extract and persist any AMEND directives from the response.
+            try:
+                for _a in parse_amendments(_full):
+                    _aid = f"amend-{hash((_a['slice_num'], _a['field'], _a['content'])) & 0xFFFFFF:06x}"
+                    persist_amendment(plan_id, _a, _aid)
+            except Exception:
+                pass  # Don't break chat on parse errors
 
         if not _available and _has_fallback:
             _items.append(mo.callout(mo.md(
