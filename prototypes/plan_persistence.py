@@ -179,7 +179,7 @@ def finalize_plan(
         f"**Decisions:**\n{decision_lines}\n\n"
         f"Saved to `{plan_path}` with status: **finalized**"
         f"{export_result}\n\n"
-        f"> **Next steps:**\n"
-        f"> 1. `htmlgraph plan finalize-yaml {plan_id}` — create track and features from approved slices\n"
+        f"> **Next steps:**\n>\n"
+        f"> 1. `htmlgraph plan finalize-yaml {plan_id}` — create track and features from approved slices\n>\n"
         f"> 2. `/htmlgraph:execute` — dispatch agents to implement features"
     )
