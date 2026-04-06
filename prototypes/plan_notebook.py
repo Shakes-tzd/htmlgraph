@@ -352,10 +352,11 @@ def _(get_amendments, mo, plan_id, update_amendment_status):
             f"**{len(_rejected)}** rejected"
         )
 
+        _action_to_label = {"proposed": "Pending", "accepted": "Accept", "rejected": "Reject"}
         amendment_decisions = mo.ui.dictionary({
             a["id"]: mo.ui.dropdown(
                 options={"Pending": "proposed", "Accept": "accepted", "Reject": "rejected"},
-                value=a["action"],
+                value=_action_to_label.get(a["action"], "Pending"),
                 label=f"Slice {a['value'].get('slice_num', '?')}: "
                       f"{a['value'].get('operation', '?')} {a['value'].get('field', '?')} "
                       f"— {a['value'].get('content', '')[:60]}",
