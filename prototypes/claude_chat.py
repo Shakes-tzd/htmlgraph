@@ -304,3 +304,57 @@ class ClaudeChatBackend:
             pass
         finally:
             conn.close()
+
+    # ------------------------------------------------------------------
+    # Chat message history persistence
+    # ------------------------------------------------------------------
+
+    def save_messages(self, messages: list) -> None:
+        """Persist chat messages to SQLite for history display on reload."""
+        if not self.plan_id:
+            return
+        conn = self._db_conn()
+        if conn is None:
+            return
+        try:
+            import json as _json
+
+            serialized = _json.dumps([
+                {"role": getattr(m, "role", m.get("role", "user")),
+                 "content": getattr(m, "content", m.get("content", ""))}
+                for m in messages
+            ])
+            conn.execute(
+                """INSERT OR REPLACE INTO plan_feedback
+                       (plan_id, section, action, value, question_id, updated_at)
+                   VALUES (?, 'chat', 'messages', ?, '', datetime('now'))""",
+                (self.plan_id, serialized),
+            )
+            conn.commit()
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+    def load_messages(self) -> list[dict]:
+        """Load saved chat messages from SQLite. Returns list of {role, content}."""
+        if not self.plan_id:
+            return []
+        conn = self._db_conn()
+        if conn is None:
+            return []
+        try:
+            import json as _json
+
+            row = conn.execute(
+                "SELECT value FROM plan_feedback "
+                "WHERE plan_id = ? AND section = 'chat' AND action = 'messages'",
+                (self.plan_id,),
+            ).fetchone()
+            if row:
+                return _json.loads(row[0])
+        except Exception:
+            pass
+        finally:
+            conn.close()
+        return []

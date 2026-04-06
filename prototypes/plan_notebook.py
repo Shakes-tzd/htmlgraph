@@ -348,17 +348,36 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, plan_id, plan_yaml_text):
         _db = str(htmlgraph_dir / "htmlgraph.db") if htmlgraph_dir else None
         _backend = ClaudeChatBackend(plan_context=plan_yaml_text, db_path=_db, plan_id=plan_id)
 
+        # Render prior chat history from SQLite (read-only, above active chat).
+        _history = _backend.load_messages()
+        if _history:
+            _bubbles = []
+            for _m in _history:
+                _role, _text = _m.get("role", "user"), _m.get("content", "")
+                if _role == "user":
+                    _bubbles.append(mo.md(f"> **You:** {_text}"))
+                else:
+                    _bubbles.append(mo.md(f"> **Assistant:** {_text}"))
+            _items.append(mo.accordion(
+                {"Prior conversation": mo.vstack(_bubbles)}, lazy=True,
+            ))
+
         def _chat_model(messages, config):
             """Streaming model: yield text deltas from Claude headless backend."""
             _user_msg = messages[-1].content if messages else ""
             for chunk in _backend.send(_user_msg):
                 yield chunk
 
+        def _on_message(messages):
+            """Persist all messages to SQLite after each exchange."""
+            _backend.save_messages(messages)
+
         if not _available and _has_fallback:
             _items.append(mo.callout(mo.md(
                 "Using **Anthropic API** fallback (claude CLI not found)."), kind="info"))
         _items.append(mo.ui.chat(
             _chat_model,
+            on_message=_on_message,
             prompts=["What are the main risks?", "Summarize the design decisions"],
         ))
 
