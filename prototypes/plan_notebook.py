@@ -387,7 +387,44 @@ def _(get_amendments, plan_id, update_amendment_status):
 
 @app.cell
 def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment, plan_id, plan_yaml_text):
-    # --- F. Plan Discussion (marimo sidebar chat) ---
+    # --- F. Plan Discussion (sidebar chat or static transcript) ---
+    _is_export = mo.app_meta().mode == "script"
+
+    def _render_history_bubbles(history):
+        """Render chat messages as styled bubbles."""
+        _bubbles = []
+        for _m in history:
+            _role = _m.get("role", "user")
+            _text = _m.get("content", "")
+            _preview = _text[:500] + ("\n\n..." if len(_text) > 500 else "")
+            if _role == "user":
+                _esc = _preview.replace("<", "&lt;").replace(">", "&gt;")
+                _bubbles.append(mo.Html(
+                    f'<div style="margin:6px 0;padding:8px 12px;background:#3b82f6;'
+                    f'color:#fff;border-radius:12px 12px 4px 12px;font-size:13px;'
+                    f'line-height:1.4;margin-left:20%">{_esc}</div>'
+                ))
+            else:
+                _bubbles.append(mo.callout(mo.md(_preview), kind="neutral"))
+        return _bubbles
+
+    _db = str(htmlgraph_dir / "htmlgraph.db") if htmlgraph_dir else None
+    _project_dir = str(htmlgraph_dir.parent) if htmlgraph_dir else None
+    _backend = ClaudeChatBackend(plan_context=plan_yaml_text, db_path=_db, plan_id=plan_id, project_dir=_project_dir)
+    _history = _backend.load_messages()
+
+    if _is_export:
+        # Static HTML export: render chat history as a read-only transcript.
+        if _history:
+            _bubbles = _render_history_bubbles(_history)
+            mo.sidebar([
+                mo.md(f"## Plan Discussion\n\n*{len(_history)} messages*"),
+                *_bubbles,
+            ], width="360px")
+        # No sidebar at all if no chat history in export.
+        return
+
+    # Interactive mode: full chat widget.
     _available, _avail_msg = ClaudeChatBackend.is_available()
     _has_fallback = ClaudeChatBackend.has_api_fallback()
 
@@ -397,30 +434,11 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment,
             "**AI Chat unavailable.** Install [Claude Code](https://claude.ai/download) "
             "and ensure `claude` is on PATH, or set `ANTHROPIC_API_KEY`."), kind="warn"))
     else:
-        _db = str(htmlgraph_dir / "htmlgraph.db") if htmlgraph_dir else None
-        _project_dir = str(htmlgraph_dir.parent) if htmlgraph_dir else None
-        _backend = ClaudeChatBackend(plan_context=plan_yaml_text, db_path=_db, plan_id=plan_id, project_dir=_project_dir)
-
-        # Render prior chat history from session transcript (read-only).
-        _history = _backend.load_messages()
         if _history:
-            _bubbles = []
-            for _m in _history:
-                _role = _m.get("role", "user")
-                _text = _m.get("content", "")
-                _preview = _text[:500] + ("\n\n..." if len(_text) > 500 else "")
-                if _role == "user":
-                    _esc = _preview.replace("<", "&lt;").replace(">", "&gt;")
-                    _bubbles.append(mo.Html(
-                        f'<div style="margin:6px 0;padding:8px 12px;background:#3b82f6;'
-                        f'color:#fff;border-radius:12px 12px 4px 12px;font-size:13px;'
-                        f'line-height:1.4;margin-left:20%">{_esc}</div>'
-                    ))
-                else:
-                    _bubbles.append(mo.callout(mo.md(_preview), kind="neutral"))
             _count = len(_history)
             _items.append(mo.accordion({
-                f"Prior conversation ({_count} messages)": mo.vstack(_bubbles),
+                f"Prior conversation ({_count} messages)": mo.vstack(
+                    _render_history_bubbles(_history)),
             }))
 
         def _chat_model(messages, config):
@@ -430,19 +448,17 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment,
             for chunk in _backend.send(_user_msg):
                 _full += chunk
                 yield chunk
-            # Save all messages (including this response) after streaming completes.
             _all = [{"role": getattr(m, "role", "user"),
                      "content": str(getattr(m, "content", ""))}
                     for m in messages]
             _all.append({"role": "assistant", "content": _full})
             _backend.save_messages(_all)
-            # Extract and persist any AMEND directives from the response.
             try:
                 for _a in parse_amendments(_full):
                     _aid = f"amend-{hash((_a['slice_num'], _a['field'], _a['content'])) & 0xFFFFFF:06x}"
                     persist_amendment(plan_id, _a, _aid)
             except Exception:
-                pass  # Don't break chat on parse errors
+                pass
 
         if not _available and _has_fallback:
             _items.append(mo.callout(mo.md(
