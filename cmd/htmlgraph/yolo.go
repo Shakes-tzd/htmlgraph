@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -110,6 +111,9 @@ func createFeatureWorktree(featureID, projectRoot string) (string, func(), error
 
 	fmt.Printf("  Worktree: %s (branch: %s)\n", worktreePath, branchName)
 
+	// Reindex the worktree SQLite so it reflects current HTML state.
+	reindexWorktree(worktreePath)
+
 	cleanup := func() {
 		removeCmd := exec.Command("git", "-C", projectRoot, "worktree", "remove", "--force", worktreePath)
 		removeCmd.Run() //nolint:errcheck
@@ -143,11 +147,33 @@ func createTrackWorktree(trackID, projectRoot string) (string, func(), error) {
 
 	fmt.Printf("  Worktree: %s (branch: %s)\n", worktreePath, branchName)
 
+	// Reindex the worktree SQLite so it reflects current HTML state.
+	reindexWorktree(worktreePath)
+
 	cleanup := func() {
 		removeCmd := exec.Command("git", "-C", projectRoot, "worktree", "remove", "--force", worktreePath)
 		removeCmd.Run() //nolint:errcheck
 	}
 	return worktreePath, cleanup, nil
+}
+
+// reindexWorktree runs `htmlgraph reindex` in the given worktree directory so
+// the worktree's SQLite cache is current before Claude launches. Best-effort:
+// failures are printed but do not abort worktree setup.
+func reindexWorktree(worktreeDir string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Printf("  Warning: could not determine executable path for reindex: %v\n", err)
+		return
+	}
+	reindexCmd := exec.CommandContext(ctx, exe, "reindex")
+	reindexCmd.Dir = worktreeDir
+	if err := reindexCmd.Run(); err != nil {
+		fmt.Printf("  Warning: reindex in worktree failed: %v\n", err)
+	}
 }
 
 // createAgentWorktree creates a git worktree branching from the track branch

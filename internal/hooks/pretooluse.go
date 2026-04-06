@@ -121,8 +121,10 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloBashResearchGuard(event, ctx.IsYoloMode, hasResearch); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
+		// Warn (not block) about code health — files already oversized should be
+		// allowed to be edited so they can be refactored smaller.
 		if warn := checkYoloCodeHealthGuard(event, ctx.IsYoloMode); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
+			debugLog(ctx.ProjectDir, "[htmlgraph] YOLO code health warning: %s", warn)
 		}
 		testRan := hasRecentTestRun(database, ctx.SessionID)
 		if warn := checkYoloCommitGuard(event, ctx.IsYoloMode, testRan); warn != "" {
@@ -282,9 +284,9 @@ var bashHtmlGraphWritePattern = regexp.MustCompile(
 		`|` +
 		`\bsed\s+-i.*\.htmlgraph/` +
 		`|` +
-		`>\s*\S*\.htmlgraph/` +
+		`>[^&\s]\S*\.htmlgraph/` +
 		`|` +
-		`>>\s*\S*\.htmlgraph/` +
+		`>>[^&\s]\S*\.htmlgraph/` +
 		`|` +
 		`\btee\s+\S*\.htmlgraph/` +
 		`|` +
@@ -318,6 +320,8 @@ func isBashFileWrite(event *CloudEvent) bool {
 
 // bashFileWritePattern matches Bash commands that write/modify files.
 // Intentionally conservative — matches known destructive patterns only.
+// The redirect branches use [^&\s] to avoid matching fd-to-fd redirects like
+// 2>&1 or >>&2 (which start with > but target a file descriptor, not a file).
 var bashFileWritePattern = regexp.MustCompile(
 	`(?:` +
 		`\bsed\s+-i` +
@@ -326,9 +330,9 @@ var bashFileWritePattern = regexp.MustCompile(
 		`|` +
 		`\bawk\s+-i` +
 		`|` +
-		`>\s*\S+` +
+		`>[^&\s]\S*` +
 		`|` +
-		`>>\s*\S+` +
+		`>>[^&\s]\S*` +
 		`|` +
 		`\brm\s` +
 		`|` +

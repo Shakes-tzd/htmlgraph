@@ -117,8 +117,13 @@ func checkYoloSubagentGrace(yolo, isSubagent bool, sessionCreatedAt time.Time, p
 // checkYoloBashWorkItemGuard extends the work-item guard to Bash file-write
 // commands (sed -i, rm, redirects, etc.). Separated from the main guard to
 // avoid changing the existing function signature used by tests.
+// htmlgraph CLI commands are always exempt — they are the approved write path.
 func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, yolo bool, sessionID string, database *sql.DB) string {
 	if !yolo {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	if bashHtmlGraphCLI.MatchString(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -284,8 +289,13 @@ func checkYoloWorktreeGuard(toolName, branch string, yolo bool) string {
 
 // checkYoloBashWorktreeGuard extends the worktree guard to Bash file-write
 // commands on main/master branch.
+// htmlgraph CLI commands are always exempt — they are the approved write path.
 func checkYoloBashWorktreeGuard(event *CloudEvent, branch string, yolo bool) string {
 	if !yolo {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	if bashHtmlGraphCLI.MatchString(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -320,8 +330,13 @@ func checkYoloResearchGuard(toolName string, yolo, hasResearch bool) string {
 }
 
 // checkYoloBashResearchGuard extends the research guard to Bash file-write commands.
+// htmlgraph CLI commands are always exempt — they are the approved write path.
 func checkYoloBashResearchGuard(event *CloudEvent, yolo, hasResearch bool) string {
 	if !yolo {
+		return ""
+	}
+	cmd, _ := event.ToolInput["command"].(string)
+	if bashHtmlGraphCLI.MatchString(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -368,9 +383,12 @@ func checkYoloDiffReviewGuard(event *CloudEvent, yolo, diffRan bool) string {
 		"Run: git diff --stat"
 }
 
-// checkYoloCodeHealthGuard blocks writes that would create oversized source
-// files (>yoloCodeHealthMaxLines) in YOLO mode. Covers Go, Python, JavaScript,
-// and TypeScript files.
+// checkYoloCodeHealthGuard warns about oversized source files (>yoloCodeHealthMaxLines)
+// in YOLO mode. When a file is already oversized, the guard allows edits to
+// proceed — blocking would prevent the refactoring needed to reduce file size.
+// The warning message is returned for logging in pretooluse; PostToolUse
+// performs the actual enforcement via CheckFileQuality.
+// Covers Go, Python, JavaScript, and TypeScript files.
 func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
 	if !yolo {
 		return ""
@@ -388,6 +406,7 @@ func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
 		return ""
 	}
 	// Check existing file size — if it's already >yoloCodeHealthMaxLines, warn
+	// but allow (blocking would prevent the refactoring needed to fix it).
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "" // new file, allow
@@ -395,8 +414,8 @@ func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
 	lines := strings.Count(string(data), "\n")
 	if lines > yoloCodeHealthMaxLines {
 		return fmt.Sprintf(
-			"YOLO code health: %s has %d lines (limit %d). "+
-				"Refactor into smaller modules.", filepath.Base(path), lines, yoloCodeHealthMaxLines)
+			"Code health: %s has %d lines (limit %d). Consider refactoring into smaller modules.",
+			filepath.Base(path), lines, yoloCodeHealthMaxLines)
 	}
 	return ""
 }
