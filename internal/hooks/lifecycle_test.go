@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"database/sql"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -278,6 +279,80 @@ func TestEventRecordingFlow(t *testing.T) {
 	}
 	if outputSummary == "" {
 		t.Error("expected non-empty output_summary after PostToolUse")
+	}
+}
+
+// TestSessionEndPopulatesFeaturesWorkedOn verifies that SessionEnd writes
+// the features_worked_on JSON array from agent_events distinct feature_ids.
+func TestSessionEndPopulatesFeaturesWorkedOn(t *testing.T) {
+	database, projectDir := setupLifecycleDB(t)
+	sessionID := "features-worked-on-session"
+
+	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
+	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
+	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")
+	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
+	t.Setenv("CLAUDE_ENV_FILE", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+
+	if err := db.InsertSession(database, &models.Session{
+		SessionID:     sessionID,
+		AgentAssigned: "claude-code",
+		Status:        "active",
+		CreatedAt:     time.Now().UTC(),
+		ProjectDir:    projectDir,
+	}); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+
+	// Insert features referenced by events.
+	for _, fid := range []string{"feat-fwo-aaa", "feat-fwo-bbb"} {
+		database.Exec(`INSERT OR IGNORE INTO features (id, type, title, status, priority, created_at, updated_at)
+			VALUES (?, 'feature', 'test', 'todo', 'medium', datetime('now'), datetime('now'))`, fid)
+	}
+
+	// Insert events with different feature_ids.
+	now := time.Now().UTC()
+	for i, fid := range []string{"feat-fwo-aaa", "feat-fwo-aaa", "feat-fwo-bbb"} {
+		e := &models.AgentEvent{
+			EventID:   "evt-fwo-" + string(rune('a'+i)),
+			AgentID:   "claude-code",
+			EventType: models.EventToolCall,
+			Timestamp: now.Add(time.Duration(i) * time.Second),
+			ToolName:  "Read",
+			FeatureID: fid,
+			SessionID: sessionID,
+			Status:    "completed",
+			Source:    "hook",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		if err := db.InsertEvent(database, e); err != nil {
+			t.Fatalf("InsertEvent: %v", err)
+		}
+	}
+
+	// End the session.
+	endEvent := &CloudEvent{SessionID: sessionID, CWD: projectDir}
+	if _, err := SessionEnd(endEvent, database, projectDir); err != nil {
+		t.Fatalf("SessionEnd: %v", err)
+	}
+
+	// Verify features_worked_on is populated.
+	var featJSON sql.NullString
+	database.QueryRow(`SELECT features_worked_on FROM sessions WHERE session_id = ?`,
+		sessionID).Scan(&featJSON)
+	if !featJSON.Valid || featJSON.String == "" {
+		t.Fatal("expected features_worked_on to be populated, got NULL/empty")
+	}
+
+	var feats []string
+	if err := json.Unmarshal([]byte(featJSON.String), &feats); err != nil {
+		t.Fatalf("unmarshal features_worked_on: %v", err)
+	}
+	if len(feats) != 2 {
+		t.Errorf("expected 2 features, got %d: %v", len(feats), feats)
 	}
 }
 

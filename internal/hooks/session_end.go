@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -41,6 +42,14 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 			WHERE session_id = ?`,
 			event.TranscriptPath, event.Reason, sessionID,
 		)
+	}
+
+	// Populate features_worked_on from distinct feature_ids in agent_events.
+	if feats, fErr := db.DistinctFeatureIDs(database, sessionID); fErr == nil && len(feats) > 0 {
+		if featsJSON, jErr := json.Marshal(feats); jErr == nil {
+			database.Exec(`UPDATE sessions SET features_worked_on = ? WHERE session_id = ?`,
+				string(featsJSON), sessionID)
+		}
 	}
 
 	// Mark lineage trace complete so tree queries show accurate status.
