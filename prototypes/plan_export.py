@@ -171,12 +171,13 @@ def _(mo, plan, render_questions, saved_feedback):
     # --- Cell 6: Section C — Open Questions (static, no radio buttons) ---
     _questions = plan.get("questions", [])
     if _questions:
-        render_questions(
+        _q_output = render_questions(
             _questions, saved_feedback, mo,
             question_inputs=None,  # None = static mode: reads from saved_feedback
         )
+        mo.output.replace(_q_output)
     else:
-        mo.md("## C. Open Questions\n\n_No questions defined._")
+        mo.output.replace(mo.md("## C. Open Questions\n\n_No questions defined._"))
     return
 
 
@@ -288,15 +289,21 @@ def _(mo, plan, saved_feedback, stat_card):
         )
     )
 
-    # Static decisions table via markdown.
-    _decision_rows = "\n".join(
-        f"| {q['text']} | {saved_feedback.get('questions:answer:' + q['id']) or q.get('answer') or '_pending_'} |"
+    # Static decisions table via HTML (not mo.md markdown — marimo renders markdown tables as dataframe UI).
+    _decision_rows_html = "".join(
+        f"<tr><td style='padding:8px 12px;border-bottom:1px solid #e5e7eb'>{q['text']}</td>"
+        f"<td style='padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:600'>"
+        f"{saved_feedback.get('questions:answer:' + q['id']) or q.get('answer') or '<em>pending</em>'}</td></tr>"
         for q in _questions
     )
-    _decisions_md = (
-        f"| Question | Decision |\n|---|---|\n{_decision_rows}"
-        if _questions else "_No questions._"
-    )
+    _decisions_table = mo.Html(
+        f"<div style='margin:8px 0'><strong>Decisions Made</strong>"
+        f"<table style='width:100%;border-collapse:collapse;margin-top:8px'>"
+        f"<thead><tr style='border-bottom:2px solid #d1d5db'>"
+        f"<th style='text-align:left;padding:8px 12px'>Question</th>"
+        f"<th style='text-align:left;padding:8px 12px'>Decision</th></tr></thead>"
+        f"<tbody>{_decision_rows_html}</tbody></table></div>"
+    ) if _questions else mo.md("_No questions._")
 
     mo.vstack([
         mo.md("## E. Feedback Summary"),
@@ -312,7 +319,7 @@ def _(mo, plan, saved_feedback, stat_card):
             ),
         ], justify="space-between", gap=0.75),
         _progress_bar,
-        mo.md(_decisions_md),
+        _decisions_table,
         _status_callout,
     ])
     return
