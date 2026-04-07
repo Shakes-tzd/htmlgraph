@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/graph"
 	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/spf13/cobra"
@@ -75,6 +77,16 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		fmt.Println("\nIn progress:")
 		for _, n := range inProgress {
 			fmt.Printf("  %-20s  %s\n", n.ID, truncate(n.Title, 60))
+		}
+	}
+
+	// Attribution rate from git_commits table.
+	if database, dbErr := dbpkg.Open(filepath.Join(dir, "htmlgraph.db")); dbErr == nil {
+		defer database.Close()
+		total, attributed := dbpkg.CommitAttributionRate(database)
+		if total > 0 {
+			pct := float64(attributed) / float64(total) * 100
+			fmt.Printf("\nAttribution: %d/%d commits (%.1f%%)\n", attributed, total, pct)
 		}
 	}
 

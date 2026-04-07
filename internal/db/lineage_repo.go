@@ -219,6 +219,13 @@ func GetCommitsByFeature(database *sql.DB, featureID string) ([]models.GitCommit
 	return commits, rows.Err()
 }
 
+// CommitAttributionRate returns (total commits, commits with non-empty feature_id).
+func CommitAttributionRate(database *sql.DB) (total, attributed int) {
+	database.QueryRow(`SELECT COUNT(*) FROM git_commits`).Scan(&total)
+	database.QueryRow(`SELECT COUNT(*) FROM git_commits WHERE feature_id IS NOT NULL AND feature_id != ''`).Scan(&attributed)
+	return
+}
+
 // GetCommitsBySession returns all git commits linked to a session,
 // ordered by timestamp DESC.
 func GetCommitsBySession(database *sql.DB, sessionID string) ([]models.GitCommit, error) {
