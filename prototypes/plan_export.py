@@ -86,7 +86,7 @@ def _(Path, plan_id, sqlite3):
 
 @app.cell
 def _(DependencyGraphWidget, mo, plan, plan_id, plan_path, render_plan_header, stat_card):
-    # --- Cell 3: Plan header + dependency graph ---
+    # --- Plan header + dependency graph (always visible, outside accordion) ---
     _meta = {**plan["meta"], "_slices_count": len(plan.get("slices", []))}
     _header = render_plan_header(_meta, mo, stat_card)
 
@@ -101,18 +101,18 @@ def _(DependencyGraphWidget, mo, plan, plan_id, plan_path, render_plan_header, s
         s["id"] for s in _slices if s.get("approved")
     ]))
 
-    mo.vstack([
+    header_output = mo.vstack([
         _header,
         mo.md("### Dependency Graph"),
         _graph,
         mo.accordion({f"**ID:** `{plan_id}` | **SOURCE:** `{plan_path}`": mo.md(f"`{plan_path}`")}),
     ])
-    return
+    return header_output,
 
 
 @app.cell
 def _(mo, plan, saved_feedback):
-    # --- Cell 4: Section A — Design Discussion (static) ---
+    # --- Section A — Design Discussion (static) ---
     _design = plan.get("design", {})
     _design_ok = saved_feedback.get("design:approve", "false").lower() == "true"
     _comment = saved_feedback.get("design:comment", _design.get("comment", ""))
@@ -139,18 +139,17 @@ def _(mo, plan, saved_feedback):
     if _comment:
         _comment_section = [mo.callout(mo.md(f"**Reviewer comment:** {_comment}"), kind="info")]
 
-    mo.vstack(
-        [mo.md("## A. Design Discussion")]
-        + _sections
+    design_output = mo.vstack(
+        _sections
         + [_approval_badge]
         + _comment_section
     )
-    return
+    return design_output,
 
 
 @app.cell
 def _(effort_badge, mo, plan, render_slice_cards, risk_badge, saved_feedback):
-    # --- Cell 5: Section B — Vertical Slices (static, no checkboxes) ---
+    # --- Section B — Vertical Slices (static, no checkboxes) ---
     _slices = plan.get("slices", [])
     _cards = render_slice_cards(
         _slices, saved_feedback,
@@ -159,38 +158,37 @@ def _(effort_badge, mo, plan, render_slice_cards, risk_badge, saved_feedback):
         mo=mo,
         slice_approvals=None,  # None = static mode: reads from saved_feedback
     )
-    mo.vstack([
-        mo.md("## B. Vertical Slices\n\nSlice approvals (archived)"),
+    slices_output = mo.vstack([
+        mo.md("Slice approvals (archived)"),
         mo.accordion(_cards, multiple=True),
     ])
-    return
+    return slices_output,
 
 
 @app.cell
 def _(mo, plan, render_questions, saved_feedback):
-    # --- Cell 6: Section C — Open Questions (static, no radio buttons) ---
+    # --- Section C — Open Questions (static, no radio buttons) ---
     _questions = plan.get("questions", [])
     if _questions:
-        _q_output = render_questions(
+        questions_output = render_questions(
             _questions, saved_feedback, mo,
             question_inputs=None,  # None = static mode: reads from saved_feedback
         )
-        mo.output.replace(_q_output)
     else:
-        mo.output.replace(mo.md("## C. Open Questions\n\n_No questions defined._"))
-    return
+        questions_output = mo.md("_No questions defined._")
+    return questions_output,
 
 
 @app.cell
 def _(plan, render_critique):
-    # --- Cell 7: Section D — AI Critique (already handles None gracefully) ---
-    render_critique(plan.get("critique"))
-    return
+    # --- Section D — AI Critique (already handles None gracefully) ---
+    critique_output = render_critique(plan.get("critique"))
+    return critique_output,
 
 
 @app.cell
 def _(mo, plan, saved_feedback):
-    # --- Cell 8: Amendments (static, no dropdowns) ---
+    # --- Amendments (static, no dropdowns) ---
     import json as _json
 
     # Load amendments from saved_feedback directly (section='amendment').
@@ -208,7 +206,7 @@ def _(mo, plan, saved_feedback):
             _amendments.append({"id": _aid, "action": _action, "value": _aval})
 
     if not _amendments:
-        mo.md("")
+        amendments_output = mo.md("_No amendments recorded._")
     else:
         _pending = sum(1 for a in _amendments if a["action"] == "proposed")
         _accepted = sum(1 for a in _amendments if a["action"] == "accepted")
@@ -230,16 +228,16 @@ def _(mo, plan, saved_feedback):
                 f"— {_a['value'].get('content', '')[:60]}"
             )
             _rows.append(mo.callout(mo.md(f"**{_display}** — {_label}"), kind=_kind))
-        mo.vstack([
-            mo.md(f"## Amendments\n\n{_status}"),
+        amendments_output = mo.vstack([
+            mo.md(_status),
             *_rows,
         ])
-    return
+    return amendments_output,
 
 
 @app.cell
 def _(mo, plan, saved_feedback, stat_card):
-    # --- Cell 9: Section E — Feedback Summary (static, no finalize button) ---
+    # --- Section E — Feedback Summary (static, no finalize button) ---
     _slices = plan.get("slices", [])
     _questions = plan.get("questions", [])
 
@@ -305,8 +303,7 @@ def _(mo, plan, saved_feedback, stat_card):
         f"<tbody>{_decision_rows_html}</tbody></table></div>"
     ) if _questions else mo.md("_No questions._")
 
-    mo.vstack([
-        mo.md("## E. Feedback Summary"),
+    feedback_output = mo.vstack([
         mo.hstack([
             stat_card("Slices", f"{_approved_slices}/{len(_slices)}", "#f0f4ff", "#1e3a5f", "#93c5fd"),
             stat_card("Design", "Approved" if _design_ok else "Pending", _d_bg, _d_fg, _d_bd),
@@ -322,13 +319,12 @@ def _(mo, plan, saved_feedback, stat_card):
         _decisions_table,
         _status_callout,
     ])
-    return
+    return feedback_output,
 
 
 @app.cell
 def _(mo, plan_id, render_chat_history_bubbles, saved_feedback, sqlite3):
-    # --- Cell 10: Chat History (sidebar, static bubbles) ---
-    # Load chat messages from plan_feedback (section='chat', action='messages').
+    # --- Section F — Plan Discussion (static bubbles) ---
     _history = []
     _chat_raw = saved_feedback.get("chat:messages")
     if _chat_raw:
@@ -373,12 +369,44 @@ def _(mo, plan_id, render_chat_history_bubbles, saved_feedback, sqlite3):
 
     if _history:
         _bubbles = render_chat_history_bubbles(_history, mo)
-        mo.output.replace(mo.vstack([
-            mo.md(f"## F. Plan Discussion\n\n*{len(_history)} messages*"),
+        chat_output = mo.vstack([
+            mo.md(f"*{len(_history)} messages*"),
             *_bubbles,
-        ]))
+        ])
     else:
-        mo.output.replace(mo.md("## F. Plan Discussion\n\n_No chat history recorded._"))
+        chat_output = mo.md("_No chat history recorded._")
+    return chat_output,
+
+
+@app.cell
+def _(
+    amendments_output,
+    chat_output,
+    critique_output,
+    design_output,
+    feedback_output,
+    header_output,
+    mo,
+    questions_output,
+    slices_output,
+):
+    # --- Final assembly: header always visible, sections in accordion ---
+    mo.vstack([
+        header_output,
+        mo.accordion(
+            {
+                "A. Design Discussion": design_output,
+                "B. Vertical Slices": slices_output,
+                "C. Open Questions": questions_output,
+                "D. AI Critique Results": critique_output,
+                "E. Amendments": amendments_output,
+                "F. Feedback Summary": feedback_output,
+                "G. Plan Discussion": chat_output,
+            },
+            multiple=True,
+            lazy=True,
+        ),
+    ])
     return
 
 
