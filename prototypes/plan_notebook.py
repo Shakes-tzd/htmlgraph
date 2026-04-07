@@ -129,13 +129,22 @@ def _(mo, plan_yaml_text):
 
 
 @app.cell
-def _(STATUS_COLORS, editor, mo, plan, plan_id, plan_yaml_input, stat_card):
-    # --- Header ---
+def _(DependencyGraphWidget, STATUS_COLORS, editor, mo, plan, plan_id, plan_path, stat_card):
+    # --- Header + Dependency Graph (always visible, outside accordion) ---
     _meta = plan["meta"]
     _slices = plan.get("slices", [])
     _status = _meta["status"].capitalize()
     _sb, _sf, _sc = STATUS_COLORS.get(_meta["status"], STATUS_COLORS["todo"])
-    mo.vstack([
+
+    _nodes = [
+        {"id": s["id"], "num": s["num"], "name": s["title"],
+         "status": "approved" if s.get("approved") else "todo",
+         "deps": ",".join(str(d) for d in s.get("deps", []))}
+        for s in _slices
+    ]
+    graph_widget = mo.ui.anywidget(DependencyGraphWidget(nodes=_nodes, approved_ids=[]))
+
+    header_output = mo.vstack([
         mo.md(f"# Plan: {_meta['title']}"),
         mo.md(f"### {_meta.get('description', '')}"),
         mo.hstack([
@@ -145,28 +154,15 @@ def _(STATUS_COLORS, editor, mo, plan, plan_id, plan_yaml_input, stat_card):
             stat_card("Version", f"v{_meta.get('version', 1)}", "#f5f3ff", "#4c1d95", "#a78bfa"),
         ], justify="space-between", gap=0.75),
         mo.accordion({f"**ID:** `{plan_id}` | **SOURCE:** `{plan_path}`": editor}),
+        mo.md("### Dependency Graph"),
+        graph_widget,
     ])
-    return
-
-
-@app.cell
-def _(DependencyGraphWidget, mo, plan):
-    # --- Dependency Graph ---
-    _slices = plan.get("slices", [])
-    _nodes = [
-        {"id": s["id"], "num": s["num"], "name": s["title"],
-         "status": "approved" if s.get("approved") else "todo",
-         "deps": ",".join(str(d) for d in s.get("deps", []))}
-        for s in _slices
-    ]
-    graph_widget = mo.ui.anywidget(DependencyGraphWidget(nodes=_nodes, approved_ids=[]))
-    mo.vstack([mo.md("### Dependency Graph"), graph_widget])
-    return (graph_widget,)
+    return graph_widget, header_output
 
 
 @app.cell
 def _(mo, plan, saved_feedback):
-    # --- A. Design Discussion (structured subsections from YAML) ---
+    # --- A. Design Discussion ---
     _design = plan.get("design", {})
     _saved_design = saved_feedback.get("design:approve", "false").lower() == "true"
     _saved_comment = saved_feedback.get("design:comment", _design.get("comment", ""))
@@ -187,16 +183,16 @@ def _(mo, plan, saved_feedback):
         _sections.append(mo.md(_design["content"]))
     if not _sections:
         _sections.append(mo.md("_No design content yet._"))
-    mo.vstack(
-        [mo.md("## A. Design Discussion")]
-        + _sections
+    design_output = mo.vstack(
+        _sections
         + [design_approved, mo.accordion({"Add Comments": design_comment})]
     )
-    return design_approved, design_comment
+    return design_approved, design_comment, design_output
 
 
 @app.cell
 def _(design_approved, design_comment, persist_feedback, plan_id):
+    # Persist design approval + comment side effects.
     persist_feedback(plan_id, "design", "approve", design_approved.value)
     if design_comment.value:
         persist_feedback(plan_id, "design", "comment", design_comment.value)
@@ -216,15 +212,16 @@ def _(effort_badge, mo, plan, render_slice_cards, risk_badge, saved_feedback):
     })
     _cards = render_slice_cards(_slices, saved_feedback, effort_badge, risk_badge, mo,
                                 slice_approvals=slice_approvals)
-    mo.vstack([
-        mo.md("## B. Vertical Slices\n\nApprove slices individually."),
+    slices_output = mo.vstack([
+        mo.md("Approve slices individually."),
         mo.accordion(_cards, multiple=True),
     ])
-    return (slice_approvals,)
+    return slice_approvals, slices_output
 
 
 @app.cell
 def _(graph_widget, persist_feedback, plan, plan_id, slice_approvals):
+    # Persist slice approvals + update dependency graph highlighting.
     _slices = plan.get("slices", [])
     _id_to_num = {s["id"]: s["num"] for s in _slices}
     _approved_ids = []
@@ -270,12 +267,13 @@ def _(mo, plan, render_questions, saved_feedback):
         q["id"]: mo.ui.radio(options=_build_options(q), value=_restore_answer(q))
         for i, q in enumerate(_questions)
     })
-    render_questions(_questions, saved_feedback, mo, question_inputs=question_inputs)
-    return (question_inputs,)
+    questions_output = render_questions(_questions, saved_feedback, mo, question_inputs=question_inputs)
+    return question_inputs, questions_output
 
 
 @app.cell
 def _(persist_feedback, plan_id, question_inputs):
+    # Persist question answers as side effects.
     for _qid, _val in question_inputs.value.items():
         if _val is not None:
             persist_feedback(plan_id, "questions", "answer", _val, question_id=_qid)
@@ -285,13 +283,13 @@ def _(persist_feedback, plan_id, question_inputs):
 @app.cell
 def _(plan, render_critique):
     # --- D. AI Critique ---
-    render_critique(plan.get("critique"))
-    return
+    critique_output = render_critique(plan.get("critique"))
+    return critique_output,
 
 
 @app.cell
 def _(design_approved, mo, plan, question_inputs, render_feedback_summary, slice_approvals):
-    # --- E. Feedback Summary + Finalize ---
+    # --- E. Amendments + Feedback Summary (interactive) ---
     _slices = plan.get("slices", [])
     _questions = plan.get("questions", [])
     _approved_slices = sum(1 for v in slice_approvals.value.values() if v)
@@ -301,13 +299,13 @@ def _(design_approved, mo, plan, question_inputs, render_feedback_summary, slice
         plan, design_approved.value, _approved_slices, len(_slices),
         _answered_qs, len(_questions), _answers, _questions,
     )
-    mo.output.replace(_summary)
-    return (finalize_btn,)
+    feedback_output = _summary
+    return feedback_output, finalize_btn
 
 
 @app.cell
 def _(finalize_btn, finalize_plan, mo, plan, plan_path, question_inputs, slice_approvals, yaml):
-    # --- Finalize → update YAML status + export summary ---
+    # Finalize plan when button is pressed (side effect only).
     mo.stop(not finalize_btn.value)
     _result = finalize_plan(plan, plan_path, slice_approvals.value, question_inputs.value, yaml)
     mo.callout(mo.md(_result), kind="success")
@@ -315,17 +313,18 @@ def _(finalize_btn, finalize_plan, mo, plan, plan_path, question_inputs, slice_a
 
 
 @app.cell
-def _(get_amendments, mo, plan_id, update_amendment_status):
-    # --- E2. Amendments from Chat ---
+def _(get_amendments, mo, plan_id):
+    # --- F. Amendments from Chat ---
     _amendments = get_amendments(plan_id)
     if not _amendments:
-        mo.output.replace(mo.md(""))
+        amendment_decisions = mo.ui.dictionary({})
+        amendments_output = mo.md("_No amendments yet._")
     else:
         _pending = [a for a in _amendments if a["action"] == "proposed"]
         _accepted = [a for a in _amendments if a["action"] == "accepted"]
         _rejected = [a for a in _amendments if a["action"] == "rejected"]
 
-        _status = (
+        _status_line = (
             f"**{len(_pending)}** pending | "
             f"**{len(_accepted)}** accepted | "
             f"**{len(_rejected)}** rejected"
@@ -343,31 +342,28 @@ def _(get_amendments, mo, plan_id, update_amendment_status):
             for a in _amendments
         })
 
-        mo.vstack([
-            mo.md(f"## Amendments\n\n{_status}"),
+        amendments_output = mo.vstack([
+            mo.md(_status_line),
             amendment_decisions,
         ])
-    return
+    return amendment_decisions, amendments_output
 
 
 @app.cell
-def _(get_amendments, plan_id, update_amendment_status):
-    # --- Persist amendment decisions ---
+def _(amendment_decisions, get_amendments, plan_id, update_amendment_status):
+    # Persist amendment decisions as side effects.
     _amendments = get_amendments(plan_id)
     _by_id = {a["id"]: a for a in _amendments}
-    _mod = __import__("sys").modules.get(__name__)
-    _decisions = getattr(_mod, "amendment_decisions", None) if _mod else None
-    if _decisions is not None:
-        for _aid, _new_action in _decisions.value.items():
-            _current = _by_id.get(_aid, {}).get("action")
-            if _current and _new_action != _current:
-                update_amendment_status(plan_id, _aid, _new_action)
+    for _aid, _new_action in amendment_decisions.value.items():
+        _current = _by_id.get(_aid, {}).get("action")
+        if _current and _new_action != _current:
+            update_amendment_status(plan_id, _aid, _new_action)
     return
 
 
 @app.cell
 def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment, plan_id, plan_yaml_text, render_chat_history_bubbles):
-    # --- F. Plan Discussion (interactive sidebar chat) ---
+    # --- Chat sidebar (stays as mo.sidebar, not in accordion) ---
     _db = str(htmlgraph_dir / "htmlgraph.db") if htmlgraph_dir else None
     _project_dir = str(htmlgraph_dir.parent) if htmlgraph_dir else None
     _backend = ClaudeChatBackend(plan_context=plan_yaml_text, db_path=_db, plan_id=plan_id, project_dir=_project_dir)
@@ -401,22 +397,21 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment,
                     for m in messages]
             _all.append({"role": "assistant", "content": _full})
             _backend.save_messages(_all)
-            _amendments = []
+            _amends = []
             try:
                 for _a in parse_amendments(_full):
                     _aid = f"amend-{hash((_a['slice_num'], _a['field'], _a['content'])) & 0xFFFFFF:06x}"
                     persist_amendment(plan_id, _a, _aid)
-                    _amendments.append(_a)
+                    _amends.append(_a)
             except Exception:
                 pass
 
-            if _amendments:
+            if _amends:
                 _confirm = "\n\n---\n"
-                for _a in _amendments:
+                for _a in _amends:
                     _confirm += f"✅ **Amendment logged:** slice-{_a['slice_num']} {_a['operation']} {_a['field']}\n"
                 _confirm += "\n*Run `htmlgraph plan rewrite-yaml` to apply accepted amendments.*"
                 yield _confirm
-                _full += _confirm
 
         if not _available and _has_fallback:
             _items.append(mo.callout(mo.md(
@@ -427,6 +422,35 @@ def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment,
         ))
 
     mo.sidebar(_items, width="480px")
+
+
+@app.cell
+def _(
+    amendments_output,
+    critique_output,
+    design_output,
+    feedback_output,
+    header_output,
+    mo,
+    questions_output,
+    slices_output,
+):
+    # --- Final assembly: header always visible, sections A–F in accordion ---
+    mo.vstack([
+        header_output,
+        mo.accordion(
+            {
+                "## A. Design Discussion": design_output,
+                "## B. Vertical Slices": slices_output,
+                "## C. Open Questions": questions_output,
+                "## D. AI Critique Results": critique_output,
+                "## F. Amendments": amendments_output,
+                "## G. Feedback Summary": feedback_output,
+            },
+            multiple=True,
+        ),
+    ])
+    return
 
 
 if __name__ == "__main__":
