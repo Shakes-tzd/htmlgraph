@@ -26,6 +26,11 @@ Usage in hooks.json:
   "command": "htmlgraph hook session-start"
   "command": "htmlgraph hook pretooluse"
   etc.`,
+		// Propagate the compiled version to the hooks package so session-start
+		// can detect CLI/plugin version mismatches.
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			hooks.CLIVersion = version
+		},
 	}
 
 	// Shared fallback results used across commands.

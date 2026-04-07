@@ -8,6 +8,7 @@ import (
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/graph"
 	"github.com/shakestzd/htmlgraph/internal/models"
+	versionpkg "github.com/shakestzd/htmlgraph/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -91,5 +92,10 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	}
 
 	fmt.Printf("\nTotal: %d work items\n", len(nodes))
+
+	if latest, newer, _ := versionpkg.CheckForUpdate(version); newer {
+		fmt.Printf("\nUpdate available: v%s (current: v%s)\n", latest, version)
+	}
+
 	return nil
 }

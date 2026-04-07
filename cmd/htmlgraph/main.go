@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/shakestzd/htmlgraph/internal/paths"
+	versionpkg "github.com/shakestzd/htmlgraph/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -91,6 +92,9 @@ func versionCmd() *cobra.Command {
 		Short: "Print version information",
 		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Printf("htmlgraph %s (go)\n", version)
+			if latest, newer, _ := versionpkg.CheckForUpdate(version); newer {
+				fmt.Printf("Update available: v%s → run `htmlgraph build` or check https://github.com/shakestzd/htmlgraph/releases\n", latest)
+			}
 		},
 	}
 }

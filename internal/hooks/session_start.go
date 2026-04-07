@@ -144,6 +144,13 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 			event.TranscriptPath, sessionID)
 	}
 
+	// Warn the user when the CLI and plugin versions have drifted.
+	warning := versionMismatchWarning()
+	if warning != "" {
+		debugLog(projectDir, "[session-start] version mismatch detected: %s", warning)
+		return &HookResult{AdditionalContext: warning}, nil
+	}
+
 	return &HookResult{}, nil
 }
 
