@@ -316,6 +316,53 @@ func LatestEventByTool(db *sql.DB, sessionID, toolName string) (string, error) {
 	return eventID, err
 }
 
+// CountEventsByTool returns a map of tool_name → count for all non-empty
+// tool_name events in the given session, ordered by count DESC.
+func CountEventsByTool(db *sql.DB, sessionID string) (map[string]int, error) {
+	rows, err := db.Query(`
+		SELECT tool_name, COUNT(*) FROM agent_events
+		WHERE session_id = ? AND tool_name != ''
+		GROUP BY tool_name ORDER BY COUNT(*) DESC`, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("count events by tool for session %s: %w", sessionID, err)
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var tool string
+		var count int
+		if err := rows.Scan(&tool, &count); err != nil {
+			return nil, err
+		}
+		counts[tool] = count
+	}
+	return counts, rows.Err()
+}
+
+// DistinctFeatureIDs returns unique non-empty feature_ids recorded in
+// agent_events for the given session.
+func DistinctFeatureIDs(db *sql.DB, sessionID string) ([]string, error) {
+	rows, err := db.Query(`
+		SELECT DISTINCT feature_id FROM agent_events
+		WHERE session_id = ? AND feature_id != '' AND feature_id IS NOT NULL`,
+		sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("distinct feature ids for session %s: %w", sessionID, err)
+	}
+	defer rows.Close()
+
+	var feats []string
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err != nil {
+			return nil, err
+		}
+		feats = append(feats, f)
+	}
+	return feats, rows.Err()
+}
+
 // CountRecentDuplicates returns the count of events matching tool_name and
 // input_summary within the last windowSeconds. Used for dedup checks.
 func CountRecentDuplicates(db *sql.DB, sessionID, toolName, inputSummary string, windowSeconds int) (int, error) {

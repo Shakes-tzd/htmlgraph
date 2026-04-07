@@ -21,6 +21,7 @@ func sessionCmd() *cobra.Command {
 	cmd.AddCommand(sessionListCmd())
 	cmd.AddCommand(sessionStartCmd())
 	cmd.AddCommand(sessionEndCmd())
+	cmd.AddCommand(sessionShowCmd())
 	return cmd
 }
 
@@ -196,6 +197,111 @@ func openDB(htmlgraphDir string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 	return db, nil
+}
+
+// sessionShowCmd returns a cobra.Command that displays full session details.
+func sessionShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <session-id>",
+		Short: "Show session details",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runSessionShow(args[0])
+		},
+	}
+}
+
+func runSessionShow(sessionID string) error {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+	db, err := openDB(dir)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	s, err := dbpkg.GetSession(db, sessionID)
+	if err != nil {
+		return fmt.Errorf("session not found: %w", err)
+	}
+
+	sep := strings.Repeat("─", 60)
+	shortID := truncate(s.SessionID, 14)
+	fmt.Println(sep)
+	fmt.Printf("  Session %s\n", shortID)
+	fmt.Println(sep)
+	fmt.Printf("  ID        %s\n", s.SessionID)
+	fmt.Printf("  Status    %s\n", s.Status)
+	fmt.Printf("  Agent     %s\n", s.AgentAssigned)
+	if s.Model != "" {
+		fmt.Printf("  Model     %s\n", s.Model)
+	}
+	fmt.Printf("  Started   %s\n", s.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Duration  %s\n", sessionDuration(s))
+	if s.StartCommit != "" {
+		fmt.Printf("  Start     %s\n", truncate(s.StartCommit, 10))
+	}
+	if s.EndCommit != "" {
+		fmt.Printf("  End       %s\n", truncate(s.EndCommit, 10))
+	}
+	if s.ActiveFeatureID != "" {
+		fmt.Printf("  Feature   %s\n", s.ActiveFeatureID)
+	}
+	if s.IsSubagent {
+		fmt.Printf("  Subagent  yes (parent: %s)\n", truncate(s.ParentSessionID, 14))
+	}
+
+	// Commits made during this session.
+	commits, _ := dbpkg.GetCommitsBySession(db, sessionID)
+	if len(commits) > 0 {
+		fmt.Println("\nCommits:")
+		for _, c := range commits {
+			hash := truncate(c.CommitHash, 10)
+			fmt.Printf("  %s  %s\n", hash, truncate(c.Message, 60))
+		}
+	}
+
+	// Features worked on (distinct from agent_events).
+	feats, _ := dbpkg.DistinctFeatureIDs(db, sessionID)
+	if len(feats) > 0 {
+		fmt.Println("\nFeatures Worked On:")
+		for _, f := range feats {
+			fmt.Printf("  %s\n", f)
+		}
+	}
+
+	// Event summary by tool.
+	counts, _ := dbpkg.CountEventsByTool(db, sessionID)
+	if len(counts) > 0 {
+		total := 0
+		for _, c := range counts {
+			total += c
+		}
+		fmt.Printf("\nEvents by Tool (%d total):\n", total)
+		// Sort by count descending for display.
+		type toolCount struct {
+			name  string
+			count int
+		}
+		var sorted []toolCount
+		for name, count := range counts {
+			sorted = append(sorted, toolCount{name, count})
+		}
+		for i := 0; i < len(sorted); i++ {
+			for j := i + 1; j < len(sorted); j++ {
+				if sorted[j].count > sorted[i].count {
+					sorted[i], sorted[j] = sorted[j], sorted[i]
+				}
+			}
+		}
+		for _, tc := range sorted {
+			fmt.Printf("  %-12s %d\n", tc.name, tc.count)
+		}
+	}
+
+	return nil
 }
 
 // generateSessionID produces a collision-resistant session ID using crypto/rand.
