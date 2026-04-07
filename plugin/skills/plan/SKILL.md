@@ -45,12 +45,13 @@ find .htmlgraph/plans/ -name "plan-*.yaml" -mmin -5 2>/dev/null
 ```
 
 If a recent YAML exists:
-1. Read it — it will have slices with `what` populated but `why`, `done_when`, `tests`, `files` empty
-2. **Do NOT create a new plan** — use this as the base
-3. Skip to Step 2 (research) to gather context, then enrich the existing YAML in Step 2's output
-4. Use `htmlgraph plan rewrite-yaml <plan-id>` to update the enriched version
+1. Read the skeleton YAML — it will have slices with `what` partially populated but `why`, `done_when`, `tests`, `files` mostly empty. The slices may not map to proper delivery slices.
+2. **Do NOT create a new plan** — use this plan ID as the base
+3. Also locate the original `.md` plan file (same directory, most recent `.md` file)
+4. Proceed to Step 1 (research) as normal — the research output will inform the enrichment
+5. In Step 2, **launch enrichment agents instead of writing YAML from scratch** (see Step 2 below)
 
-If no recent YAML exists, proceed to Step 2 as normal.
+If no recent YAML exists, proceed to Step 1 (research) and Step 2 as normal.
 
 ---
 
@@ -80,13 +81,63 @@ Research must answer:
 
 ## Step 2: Generate Plan YAML
 
-Create the plan YAML file. The orchestrator agent constructs the full YAML structure and writes it directly. The file goes in `.htmlgraph/plans/plan-<hex8>.yaml`.
+### Path A: Enriching a skeleton from plan mode (Step 1b found a YAML)
+
+The hook-generated skeleton has structural issues: headings may not map to delivery slices, mandatory fields are empty, and the design section is sparse. **This requires agent reasoning, not just a CLI command.**
+
+Launch parallel enrichment agents — each reads the skeleton YAML + original `.md` + research output, and produces one section of the complete CRISPI YAML:
+
+```
+Agent(description="Enrich design section", subagent_type="htmlgraph:sonnet-coder",
+      prompt="Read the skeleton YAML at .htmlgraph/plans/<plan-id>.yaml and the original
+      plan at .htmlgraph/plans/<name>.md. Also use these research findings: [paste findings].
+      
+      Populate the design section:
+      - design.problem: evidence-based description from the markdown's context/background
+      - design.goals: measurable outcomes extracted from the plan's objectives
+      - design.constraints: real limitations from research findings
+      
+      Write ONLY the design section as YAML to /tmp/design-section.yaml")
+
+Agent(description="Restructure slices", subagent_type="htmlgraph:sonnet-coder",
+      prompt="Read the skeleton YAML at .htmlgraph/plans/<plan-id>.yaml and the original
+      plan at .htmlgraph/plans/<name>.md. Also use these research findings: [paste findings].
+      
+      The skeleton slices may be document sections (Context, Testing, Files Changed),
+      not delivery slices. Restructure them into proper vertical slices:
+      - Each slice = one end-to-end deliverable, not a horizontal layer
+      - Populate ALL mandatory fields: what, why, files, done_when, tests, effort, risk
+      - Set real dependency order in deps
+      - Use feat-<8hex> IDs
+      - Collapse structural sections into slice metadata (testing → done_when, files → files)
+      
+      Write ONLY the slices section as YAML to /tmp/slices-section.yaml")
+
+Agent(description="Generate design questions", subagent_type="htmlgraph:haiku-coder",
+      prompt="Read the skeleton YAML at .htmlgraph/plans/<plan-id>.yaml and the original
+      plan at .htmlgraph/plans/<name>.md. Also use these research findings: [paste findings].
+      
+      Identify 2-5 open design questions where the plan has implicit choices.
+      Each question needs: text, description (context + tradeoffs), recommended option,
+      and 2+ options with descriptive labels.
+      
+      Write ONLY the questions section as YAML to /tmp/questions-section.yaml")
+```
+
+After all agents return, the orchestrator assembles the complete YAML from the three sections, preserving the existing `meta` from the skeleton. Write the assembled plan via:
+```bash
+htmlgraph plan rewrite-yaml <plan-id> --file /tmp/assembled-plan.yaml
+```
+
+### Path B: Creating a new plan from scratch (no skeleton)
 
 Generate the plan ID:
 ```bash
 htmlgraph plan create "<title>" --description "<description>"
 ```
 Note the returned plan ID. Then create the YAML file at `.htmlgraph/plans/<plan-id>.yaml`.
+
+The orchestrator constructs the full YAML structure and writes it directly, or launches the same parallel agents as Path A but without a skeleton to start from (agents use research findings only).
 
 ### YAML Schema
 
