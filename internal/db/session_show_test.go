@@ -215,3 +215,60 @@ func TestGetCommitsBySession(t *testing.T) {
 		t.Errorf("expected empty slice for unknown session, got %d commits", len(results2))
 	}
 }
+
+func TestTraceCommit(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	// Insert a feature with a track.
+	database.Exec(`INSERT INTO tracks (id, title, status, created_at, updated_at) VALUES ('trk-trace', 'Trace Track', 'todo', datetime('now'), datetime('now'))`)
+	database.Exec(`INSERT INTO features (id, type, title, status, priority, track_id, created_at, updated_at) VALUES ('feat-trace', 'feature', 'Trace Feature', 'done', 'medium', 'trk-trace', datetime('now'), datetime('now'))`)
+
+	// Insert a commit linked to that feature.
+	commit := models.GitCommit{
+		CommitHash: "abc1234567890",
+		SessionID:  "sess-test",
+		FeatureID:  "feat-trace",
+		Message:    "feat: traced commit",
+		Timestamp:  time.Now().UTC(),
+	}
+	if err := db.InsertGitCommit(database, &commit); err != nil {
+		t.Fatalf("InsertGitCommit: %v", err)
+	}
+
+	// Full SHA match.
+	results, err := db.TraceCommit(database, "abc1234567890")
+	if err != nil {
+		t.Fatalf("TraceCommit full: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].FeatureID != "feat-trace" {
+		t.Errorf("feature_id: got %q, want feat-trace", results[0].FeatureID)
+	}
+	if results[0].TrackID != "trk-trace" {
+		t.Errorf("track_id: got %q, want trk-trace", results[0].TrackID)
+	}
+	if results[0].SessionID != "sess-test" {
+		t.Errorf("session_id: got %q, want sess-test", results[0].SessionID)
+	}
+
+	// Prefix match.
+	results2, err := db.TraceCommit(database, "abc1234")
+	if err != nil {
+		t.Fatalf("TraceCommit prefix: %v", err)
+	}
+	if len(results2) != 1 {
+		t.Errorf("prefix match: expected 1 result, got %d", len(results2))
+	}
+
+	// No match.
+	results3, err := db.TraceCommit(database, "zzz0000")
+	if err != nil {
+		t.Fatalf("TraceCommit no match: %v", err)
+	}
+	if len(results3) != 0 {
+		t.Errorf("expected 0 results for unknown SHA, got %d", len(results3))
+	}
+}

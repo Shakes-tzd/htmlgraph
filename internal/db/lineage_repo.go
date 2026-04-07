@@ -219,6 +219,42 @@ func GetCommitsByFeature(database *sql.DB, featureID string) ([]models.GitCommit
 	return commits, rows.Err()
 }
 
+// TraceResult holds the result of tracing a commit back through the attribution chain.
+type TraceResult struct {
+	CommitHash string
+	Message    string
+	SessionID  string
+	FeatureID  string
+	TrackID    string
+}
+
+// TraceCommit looks up a commit SHA (prefix match) and returns the attribution
+// chain: commit → session → feature → track.
+func TraceCommit(database *sql.DB, sha string) ([]TraceResult, error) {
+	rows, err := database.Query(`
+		SELECT gc.commit_hash, COALESCE(gc.message, ''),
+		       gc.session_id, COALESCE(gc.feature_id, ''),
+		       COALESCE(f.track_id, '')
+		FROM git_commits gc
+		LEFT JOIN features f ON f.id = gc.feature_id
+		WHERE gc.commit_hash LIKE ? || '%'
+		ORDER BY gc.timestamp DESC`, sha)
+	if err != nil {
+		return nil, fmt.Errorf("trace commit %s: %w", sha, err)
+	}
+	defer rows.Close()
+
+	var results []TraceResult
+	for rows.Next() {
+		var r TraceResult
+		if err := rows.Scan(&r.CommitHash, &r.Message, &r.SessionID, &r.FeatureID, &r.TrackID); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}
+
 // CommitAttributionRate returns (total commits, commits with non-empty feature_id).
 func CommitAttributionRate(database *sql.DB) (total, attributed int) {
 	database.QueryRow(`SELECT COUNT(*) FROM git_commits`).Scan(&total)

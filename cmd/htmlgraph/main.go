@@ -77,6 +77,7 @@ func main() {
 	rootCmd.AddCommand(agentInitCmd())
 	rootCmd.AddCommand(pluginCmd())
 	rootCmd.AddCommand(purgeSpikesCmd())
+	rootCmd.AddCommand(traceCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
