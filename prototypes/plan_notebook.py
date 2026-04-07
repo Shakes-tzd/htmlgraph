@@ -390,7 +390,8 @@ def _(get_amendments, plan_id, update_amendment_status):
 @app.cell
 def _(ClaudeChatBackend, htmlgraph_dir, mo, parse_amendments, persist_amendment, plan_id, plan_yaml_text):
     # --- F. Plan Discussion (sidebar chat or static transcript) ---
-    _is_export = mo.app_meta().mode == "script"
+    import os as _os
+    _is_export = _os.environ.get("PLAN_EXPORT_MODE") == "1"
 
     def _render_history_bubbles(history):
         """Render chat messages as styled bubbles."""
