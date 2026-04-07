@@ -60,6 +60,7 @@ Usage in hooks.json:
 		hookSubcmd("task-created", "Handle TaskCreated event", continueResult, hooks.TaskCreated),
 		hookSubcmd("instructions-loaded", "Handle InstructionsLoaded event", continueResult, hooks.InstructionsLoaded),
 		hookSubcmd("permission-request", "Handle PermissionRequest event", continueResult, hooks.PermissionRequest),
+		hookSubcmdWithProject("exit-plan-mode", "Handle ExitPlanMode event — convert markdown plan to CRISPI YAML", continueResult, handleExitPlanMode),
 
 		// track-event accepts an optional tool-name argument.
 		hookTrackEventCmd(continueResult),

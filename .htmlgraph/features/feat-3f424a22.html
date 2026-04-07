@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Integrate Claude Code plan mode — ExitPlanMode hook converts markdown to CRISPI YAML</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-3f424a22"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-04-07T00:27:54.029057"
+             data-updated="2026-04-07T00:42:29.798508" data-agent-assigned="claude-code" data-track-id="trk-f8fd5c66">
+
+        <header>
+            <h1>Integrate Claude Code plan mode — ExitPlanMode hook converts markdown to CRISPI YAML</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-f8fd5c66.html" data-relationship="part_of" data-since="2026-04-07T00:27:54.033238">trk-f8fd5c66</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="5665bdc0-905a-4027-abdc-074637dca139.html" data-relationship="implemented_in" data-since="2026-04-07T00:30:01.240827">session 5665bdc0-905a-4027-abdc-074637dca139</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Three integration points: (1) Set plansDirectory to .htmlgraph/plans/ so plan mode writes land in managed directory. (2) PostToolUse hook on ExitPlanMode reads markdown plan, parses into CRISPI YAML structure (design/slices/questions), writes via plan rewrite-yaml. (3) Relax work-item guard when permission_mode=plan since agent is exploring not implementing. Plan mode becomes Step 0.5 — lightweight exploration feeding the structured CRISPI pipeline.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/services/claiming.py
+# hypothesis_version: 6.151.9
+
+['FeatureClaim', 'FeatureRelease', 'SessionManager', 'action', 'active', 'bugs', 'claim', 'collection', 'features', 'release']

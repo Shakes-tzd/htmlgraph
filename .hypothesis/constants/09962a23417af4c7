@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/query_composer.py
+# hypothesis_version: 6.151.9
+
+['blocked_by', 'both', 'conditions', 'depends_on', 'direction', 'filter', 'incoming', 'max_depth', 'node_id', 'outgoing', 'reachable_from', 'relationship', 'traverse', 'traverse_recursive']

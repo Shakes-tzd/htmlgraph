@@ -52,6 +52,15 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return result, nil
 	}
 
+	// Plan mode bypass: when permission_mode is "plan", the agent is exploring
+	// (Read/Grep/Glob) and writing only to the plan file. Skip work-item and
+	// YOLO guards entirely — record the event for observability and allow.
+	if event.PermissionMode == "plan" {
+		debugLog(ctx.ProjectDir, "[htmlgraph] plan mode active — skipping write guards for %s",
+			event.ToolName)
+		return recordEventAndAllow(event, ctx, database)
+	}
+
 	// Guard: block Write/Edit/MultiEdit from subagents when THIS AGENT has no
 	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
 	// the claims table (now supplied by the batch context query); the
@@ -147,9 +156,16 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
+	// Record the event and allow the tool to proceed.
+	return recordEventAndAllow(event, ctx, database)
+}
+
+// recordEventAndAllow inserts a tool_call agent_event row for observability
+// and returns an allow result. Used by the plan mode bypass and the normal
+// flow to avoid duplicating the event recording logic.
+func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.DB) (*HookResult, error) {
 	inputSummary := summariseInput(event.ToolName, event.ToolInput)
 
-	// Serialize the full tool_input map to JSON for storage.
 	var toolInputStr string
 	if event.ToolInput != nil {
 		if b, err := json.Marshal(event.ToolInput); err == nil {
@@ -176,26 +192,15 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		UpdatedAt:     time.Now().UTC(),
 	}
 
-	// Ignore insert errors (FK violations are expected before session-start runs).
 	_ = db.InsertEvent(database, ev)
 
-	// Heartbeat active claims to renew leases.
 	if ctx.FeatureID != "" {
 		_ = db.HeartbeatClaimByWorkItem(database, ctx.FeatureID, ctx.SessionID, 30*time.Minute)
 	}
-	// Piggyback stale claim cleanup on existing hook calls.
 	_, _ = db.ReapExpiredClaims(database)
 
-	// Export event ID so posttooluse can link the result.
 	os.Setenv("HTMLGRAPH_CURRENT_EVENT_ID", ev.EventID)
 
-	// feature_files are rebuilt during reindex from git_commits — see reindexFeatureFiles().
-	// Writing on every tool use was removed to keep the hot path lean; git history
-	// captures all files touched by a feature more completely than hook interception.
-
-	// Return empty object to allow. We use {} instead of {"decision":"allow"}
-	// because Claude Code v2.1.x shows a spurious "hook error" label for
-	// PreToolUse hooks that return {"decision":"allow"}.
 	return &HookResult{}, nil
 }
 

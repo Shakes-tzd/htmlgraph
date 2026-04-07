@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/api/routes/analytics.py
+# hypothesis_version: 6.151.9
+
+[100, '/api/query-metrics', 'analytics', 'cache_hits', 'cache_status', 'cached_queries', 'count', 'hits', 'query_metrics', 'timestamp', 'ttl_seconds']
