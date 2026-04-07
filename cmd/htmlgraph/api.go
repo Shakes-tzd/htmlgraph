@@ -421,3 +421,57 @@ func relatedFeaturesHandler(database *sql.DB) http.HandlerFunc {
 		respondJSON(w, related)
 	}
 }
+
+// semanticSearchHandler performs BM25-ranked full-text search across features.
+// Requires ?q=QUERY. Optional: ?limit=N (default 20).
+func semanticSearchHandler(database *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query().Get("q")
+		if query == "" {
+			http.Error(w, "q query parameter required", http.StatusBadRequest)
+			return
+		}
+		limit := 20
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 100 {
+				limit = n
+			}
+		}
+		results, err := dbpkg.SemanticSearch(database, query, limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if results == nil {
+			results = []dbpkg.SemanticResult{}
+		}
+		respondJSON(w, results)
+	}
+}
+
+// semanticRelatedHandler finds features semantically related to a given feature.
+// Requires ?id=FEATURE_ID. Optional: ?limit=N (default 10).
+func semanticRelatedHandler(database *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		featureID := r.URL.Query().Get("id")
+		if featureID == "" {
+			http.Error(w, "id query parameter required", http.StatusBadRequest)
+			return
+		}
+		limit := 10
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 100 {
+				limit = n
+			}
+		}
+		results, err := dbpkg.SemanticRelated(database, featureID, limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if results == nil {
+			results = []dbpkg.SemanticResult{}
+		}
+		respondJSON(w, results)
+	}
+}

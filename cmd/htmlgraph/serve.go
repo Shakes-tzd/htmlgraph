@@ -62,6 +62,8 @@ func runServer(port int) error {
 	mux.Handle("/api/sessions/", corsMiddleware(sessionIngestHandler(database)))
 	mux.Handle("/api/features/detail", corsMiddleware(featureDetailHandler(htmlgraphDir)))
 	mux.Handle("/api/features/related", corsMiddleware(relatedFeaturesHandler(database)))
+	mux.Handle("/api/semantic/search", corsMiddleware(semanticSearchHandler(database)))
+	mux.Handle("/api/semantic/related", corsMiddleware(semanticRelatedHandler(database)))
 
 	// CRISPI plan routes — list route must precede the per-plan catch-all.
 	mux.Handle("/api/plans", corsMiddleware(plansListHandler(htmlgraphDir, database)))

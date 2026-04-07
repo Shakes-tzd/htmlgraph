@@ -98,6 +98,14 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 		fmt.Printf("  feature_files: %d file associations rebuilt\n", fileCount)
 	}
 
+	// Rebuild FTS5 semantic index for full-text search and relationship discovery.
+	semanticCount, semanticErr := dbpkg.RebuildSemanticIndex(database)
+	if semanticErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: semantic index rebuild: %v\n", semanticErr)
+	} else if semanticCount > 0 {
+		fmt.Printf("  semantic index: %d features indexed\n", semanticCount)
+	}
+
 	if currentCommit != "" && errCount == 0 {
 		_ = dbpkg.SetMetadata(database, metaKeyLastIndexedCommit, currentCommit)
 	}

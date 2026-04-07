@@ -79,6 +79,7 @@ func main() {
 	rootCmd.AddCommand(pluginCmd())
 	rootCmd.AddCommand(purgeSpikesCmd())
 	rootCmd.AddCommand(traceCmd())
+	rootCmd.AddCommand(semanticCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
