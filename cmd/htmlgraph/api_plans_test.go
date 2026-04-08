@@ -493,3 +493,70 @@ func TestExtractPlanID_Chat(t *testing.T) {
 		t.Errorf("got %q, want plan-chat-test", got)
 	}
 }
+
+// ---- planYAMLHandler --------------------------------------------------------
+
+func writeTempPlanYAML(t *testing.T, planID, content string) string {
+	t.Helper()
+	dir := t.TempDir()
+	plansDir := filepath.Join(dir, "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		t.Fatalf("mkdir plans: %v", err)
+	}
+	path := filepath.Join(plansDir, planID+".yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write plan yaml: %v", err)
+	}
+	return dir
+}
+
+func TestPlanYAMLEndpoint_Found(t *testing.T) {
+	planID := "plan-yaml-test"
+	yamlContent := "meta:\n  id: " + planID + "\ntitle: Test Plan\n"
+	htmlgraphDir := writeTempPlanYAML(t, planID, yamlContent)
+
+	handler := planYAMLHandler(htmlgraphDir)
+	req := httptest.NewRequest(http.MethodGet, "/api/plans/"+planID+"/yaml", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status: got %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+	ct := w.Header().Get("Content-Type")
+	if ct != "text/plain; charset=utf-8" {
+		t.Errorf("Content-Type: got %q, want text/plain; charset=utf-8", ct)
+	}
+	if w.Body.String() != yamlContent {
+		t.Errorf("body: got %q, want %q", w.Body.String(), yamlContent)
+	}
+}
+
+func TestPlanYAMLEndpoint_NotFound(t *testing.T) {
+	htmlgraphDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "plans"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := planYAMLHandler(htmlgraphDir)
+	req := httptest.NewRequest(http.MethodGet, "/api/plans/nonexistent/yaml", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404; body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestPlanYAMLEndpoint_MethodNotAllowed(t *testing.T) {
+	htmlgraphDir := t.TempDir()
+
+	handler := planYAMLHandler(htmlgraphDir)
+	req := httptest.NewRequest(http.MethodPost, "/api/plans/some-plan/yaml", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status: got %d, want 405", w.Code)
+	}
+}

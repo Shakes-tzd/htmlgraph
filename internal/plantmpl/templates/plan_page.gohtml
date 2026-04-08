@@ -137,6 +137,12 @@ textarea::placeholder{color:var(--text-muted)}
 .amendment-select{background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:.25rem .5rem;font-size:.8rem}
 .amendments-summary{font-size:.85rem;color:var(--text-dim);margin-top:.75rem}
 @media print{body{background:#fff;color:#111;max-width:100%}.section-card,.dep-graph,.progress-zone,.slice-card{border-color:#ccc;background:#fafafa}details[open] summary~*{display:block}.btn-finalize{display:none}.chat-panel{display:none}.amendments-panel{display:none}}
+.yaml-viewer{margin:1rem 0}
+.yaml-viewer summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.9rem;padding:.5rem 0}
+.yaml-viewer pre{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;max-height:500px;overflow-y:auto;font-size:.8rem;line-height:1.4}
+.yaml-viewer code{font-family:var(--mono);color:var(--text)}
+.chat-history{margin-bottom:0}
+.chat-history summary{cursor:pointer;color:var(--text-dim);font-size:.85rem;padding:.5rem .75rem}
 {{range .Assets.CSS}}{{.}}
 {{end}}
 </style>
@@ -154,7 +160,7 @@ textarea::placeholder{color:var(--text-muted)}
   <a href="#chat-panel" class="nav-link" data-spy="chat-panel">Chat</a>
 </nav>
 <div class="plan-content">
-<article id="{{.PlanID}}" data-feature-id="{{.FeatureID}}" data-status="{{.Status}}">
+<article id="{{.PlanID}}" data-plan-id="{{.PlanID}}" data-feature-id="{{.FeatureID}}" data-status="{{.Status}}">
 
 <!-- Plan Header -->
 <header class="plan-header">
@@ -210,6 +216,11 @@ textarea::placeholder{color:var(--text-muted)}
   </div>
 </details>{{end}}
 
+<details class="yaml-viewer" id="yaml-viewer">
+    <summary>View Plan YAML</summary>
+    <pre><code class="language-yaml" id="yaml-content">Loading&#x2026;</code></pre>
+</details>
+
 <!-- C: Vertical Slices -->
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>C. Vertical Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
@@ -262,6 +273,10 @@ textarea::placeholder{color:var(--text-muted)}
 <!-- ZONE 4: Chat Panel -->
 <section id="chat-panel" class="chat-panel" data-zone="chat">
   <h2>Plan Discussion</h2>
+  <details class="chat-history" id="chat-history" style="display:none">
+    <summary id="chat-history-summary">Chat History</summary>
+    <div class="chat-messages" id="chat-history-messages"></div>
+  </details>
   <div id="chat-messages" class="chat-messages">
     <p class="chat-notice" id="chat-empty">Ask questions about the plan design, slices, risks, or tradeoffs.</p>
   </div>
@@ -513,7 +528,8 @@ textarea::placeholder{color:var(--text-muted)}
         var n=sec.split('-')[1];
         var nodeRect=d3.select('#dep-graph-svg .node[id="'+n+'"] rect');
         if(!nodeRect.empty()){
-          nodeRect.style('stroke',this.checked?'#16a34a':'#6b7280');
+          var color=this.checked?'#16a34a':'#6b7280';
+          nodeRect.style('stroke',color).style('fill',color).style('fill-opacity','0.15');
         }
       }
     });
@@ -565,7 +581,8 @@ textarea::placeholder{color:var(--text-muted)}
       var status=nodeData?nodeData.status:'pending';
       var color=STATUS_COLORS[status]||STATUS_COLORS.pending;
       d3.select(this).select('rect')
-        .style('fill','#252528')
+        .style('fill',color)
+        .style('fill-opacity','0.15')
         .style('stroke',color)
         .style('stroke-width','2px');
       d3.select(this).select('text').style('fill','#E0DED8');
@@ -623,14 +640,23 @@ textarea::placeholder{color:var(--text-muted)}
     if(enabled) chatInput.focus();
   }
 
-  // Load chat history from feedback API.
+  // Load chat history from feedback API into the collapsible accordion.
+  var historyPanel=document.getElementById('chat-history');
+  var historyMsgs=document.getElementById('chat-history-messages');
+  var historySummary=document.getElementById('chat-history-summary');
   if(planId){
     fetch('/api/plans/'+planId+'/feedback')
       .then(function(r){return r.ok?r.json():null;})
       .then(function(data){
         if(!data||!data.chat_messages||!data.chat_messages.length) return;
+        if(historyPanel) historyPanel.style.display='';
+        if(historySummary) historySummary.textContent='Chat History ('+data.chat_messages.length+' messages)';
         data.chat_messages.forEach(function(m){
-          addBubble(m.role,m.content);
+          var div=document.createElement('div');
+          div.className='chat-bubble';
+          div.setAttribute('data-role',m.role);
+          div.textContent=m.content;
+          if(historyMsgs) historyMsgs.appendChild(div);
         });
       })
       .catch(function(){});
@@ -733,6 +759,25 @@ textarea::placeholder{color:var(--text-muted)}
 })();
 {{range .Assets.JS}}{{.}}
 {{end}}
+
+// YAML viewer — lazy-loads plan YAML on first open
+(function(){
+  var viewer=document.getElementById('yaml-viewer');
+  var codeEl=document.getElementById('yaml-content');
+  if(!viewer||!codeEl)return;
+  var loaded=false;
+  viewer.addEventListener('toggle',function(){
+    if(!viewer.open||loaded)return;
+    loaded=true;
+    var planEl=document.querySelector('[data-plan-id]');
+    if(!planEl)return;
+    var id=planEl.getAttribute('data-plan-id');
+    fetch('/api/plans/'+id+'/yaml')
+      .then(function(r){if(!r.ok)throw new Error('err');return r.text();})
+      .then(function(t){codeEl.textContent=t;if(window.hljs)hljs.highlightElement(codeEl);})
+      .catch(function(){codeEl.textContent='YAML not available';});
+  });
+})();
 
 // Amendments panel
 (function(){

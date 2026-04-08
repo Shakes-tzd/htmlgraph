@@ -539,6 +539,7 @@ func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 	deleteH := planDeleteHandler(database, htmlgraphDir)
 	chatH := planChatHandler(database, htmlgraphDir)
 	amendmentsH := planAmendmentsHandler(database)
+	yamlH := planYAMLHandler(htmlgraphDir)
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
@@ -554,9 +555,34 @@ func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 			deleteH(w, r)
 		case strings.HasSuffix(path, "/amendments"):
 			amendmentsH(w, r)
+		case strings.HasSuffix(path, "/yaml"):
+			yamlH(w, r)
 		default:
 			http.Error(w, "not found", http.StatusNotFound)
 		}
+	}
+}
+
+// planYAMLHandler serves the raw YAML source for a plan.
+// GET /api/plans/{id}/yaml
+func planYAMLHandler(htmlgraphDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		planID, err := extractPlanID(r.URL.Path, "/yaml")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		data, err := os.ReadFile(filepath.Join(htmlgraphDir, "plans", planID+".yaml"))
+		if err != nil {
+			http.Error(w, "plan YAML not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(data)
 	}
 }
 
