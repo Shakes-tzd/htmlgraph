@@ -396,7 +396,7 @@ func runPlanRender(planID string) error {
 func renderPlanToFile(htmlgraphDir, planID string) error {
 	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
 	if _, err := os.Stat(yamlPath); err != nil {
-		return fmt.Errorf("YAML source not found: %s", yamlPath)
+		return fmt.Errorf("YAML source not found: %s\nRun 'htmlgraph plan generate <track-id>' to create a plan", yamlPath)
 	}
 
 	page := plantmpl.BuildFromTopic(planID, "", "", time.Now().UTC().Format("2006-01-02"))
@@ -469,7 +469,7 @@ func addSliceToPlan(htmlgraphDir, planID, sliceTitle string, sf sliceFlags) erro
 	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
 	data, err := os.ReadFile(planPath)
 	if err != nil {
-		return fmt.Errorf("plan %s not found: %w", planID, err)
+		return fmt.Errorf("plan %s not found: %w\nRun 'htmlgraph plan list' to see valid plan IDs", planID, err)
 	}
 
 	// Count existing slices to determine the next slice number.
@@ -713,7 +713,7 @@ func findPlanFile(htmlgraphDir, planID string) string {
 func updatePlanStatus(htmlgraphDir, planID, newStatus string) error {
 	planPath := findPlanFile(htmlgraphDir, planID)
 	if planPath == "" {
-		return fmt.Errorf("plan file not found: %s", planID)
+		return fmt.Errorf("plan file not found: %s\nRun 'htmlgraph plan list' to see valid plan IDs", planID)
 	}
 	data, err := os.ReadFile(planPath)
 	if err != nil {

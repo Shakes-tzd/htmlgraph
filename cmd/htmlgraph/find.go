@@ -167,7 +167,8 @@ func runFind(collection string, opts findOpts) error {
 func runFindByID(dir, id string) error {
 	path := resolveNodePath(dir, id)
 	if path == "" {
-		return fmt.Errorf("find: no item found with ID %q", id)
+		kind := kindFromPrefix(id)
+		return fmt.Errorf("find: no item found with ID %q\nRun 'htmlgraph %s list' to see valid IDs, or 'htmlgraph find all --title <keyword>' to search by title", id, kind)
 	}
 	node, err := htmlparse.ParseFile(path)
 	if err != nil {

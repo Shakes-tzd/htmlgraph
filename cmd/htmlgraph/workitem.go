@@ -178,7 +178,7 @@ func runWiSetStatus(typeName, id, status string) error {
 		node, err = col.Complete(id)
 	}
 	if err != nil {
-		return fmt.Errorf("set %s %s: %w", typeName, status, err)
+		return fmt.Errorf("set %s %s: %w\nRun 'htmlgraph %s list' to see valid IDs", typeName, status, err, typeName)
 	}
 
 	// When starting a work item, update active_feature_id, create a claim
