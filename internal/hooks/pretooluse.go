@@ -80,6 +80,8 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	// Subagent work item guard: ensure subagents have claimed a work item.
+	// Only enforced in YOLO mode — normal interactive subagents should not be
+	// blocked by this guard (bug-ba6d1e1c).
 	// Skipped during grace period (subagent just spawned, needs time to claim).
 	hasAgentClaim := false
 	if ctx.IsSubagent {
@@ -87,7 +89,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	} else {
 		hasAgentClaim = ctx.FeatureID != ""
 	}
-	if !subagentGrace {
+	if ctx.IsYoloMode && !subagentGrace {
 		if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
