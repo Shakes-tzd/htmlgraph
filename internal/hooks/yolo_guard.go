@@ -9,50 +9,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/db"
 )
 
-// yoloModeCache stores per-directory launch-mode results for the lifetime of
-// the process. Each hook invocation is a separate process, so this is
-// effectively "read once per invocation" with no staleness risk in production.
-//
-// Deprecated: isYoloMode and yoloModeCache are superseded by isYoloFromDB.
-// Retained for backward compatibility with tests.
-var yoloModeCache sync.Map // map[string]bool
-
-// resetYoloModeCache clears the per-process cache. Only used in tests that
-// mutate the .launch-mode file between isYoloMode calls.
-//
-// Deprecated: used only by legacy TestIsYoloMode tests.
-func resetYoloModeCache() {
-	yoloModeCache.Range(func(k, _ any) bool {
-		yoloModeCache.Delete(k)
-		return true
-	})
-}
-
 // mergeInProgressFn is injected for testing. In production, it checks the real
 // git state. In tests, it can be overridden to return false to avoid git state
 // bleeding into test isolation.
 var mergeInProgressFn = isMergeInProgress
-
-// isYoloMode determines if the current session is in YOLO mode by reading
-// the .launch-mode file.
-//
-// Deprecated: Use isYoloFromDB for new code. This function is retained for
-// backward compatibility with existing tests.
-func isYoloMode(htmlgraphDir string) bool {
-	if v, ok := yoloModeCache.Load(htmlgraphDir); ok {
-		return v.(bool)
-	}
-	data, err := os.ReadFile(filepath.Join(htmlgraphDir, ".launch-mode"))
-	result := err == nil && strings.Contains(string(data), `"yolo`)
-	yoloModeCache.Store(htmlgraphDir, result)
-	return result
-}
 
 // isYoloFromEvent checks the CloudEvent permission_mode field first (live
 // state from Claude Code), falling back to a SQLite DB lookup.

@@ -361,22 +361,11 @@ func TestSessionEndPopulatesFeaturesWorkedOn(t *testing.T) {
 func TestYoloModeGuards(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	sessionID := "yolo-guard-session-001"
-	hgDir := filepath.Join(projectDir, ".htmlgraph")
 
 	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
 	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
 	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")
 	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
-
-	// Write YOLO launch mode file.
-	resetYoloModeCache()
-	if err := os.WriteFile(
-		filepath.Join(hgDir, ".launch-mode"),
-		[]byte(`{"mode":"yolo-dev","pid":9999}`),
-		0o644,
-	); err != nil {
-		t.Fatalf("write .launch-mode: %v", err)
-	}
 
 	// Insert session without any active feature.
 	if err := db.InsertSession(database, &models.Session{
@@ -389,14 +378,16 @@ func TestYoloModeGuards(t *testing.T) {
 		t.Fatalf("InsertSession: %v", err)
 	}
 
-	// Reset caches so YOLO mode and feature ID are read fresh.
+	// Reset caches so feature ID is read fresh.
 	featureIDCache = featureIDCacheEntry{}
 
 	// Write tool without a work item should be blocked.
+	// Set PermissionMode to bypassPermissions to activate YOLO guards.
 	writeEvent := &CloudEvent{
-		SessionID: sessionID,
-		CWD:       projectDir,
-		ToolName:  "Write",
+		SessionID:      sessionID,
+		CWD:            projectDir,
+		PermissionMode: "bypassPermissions",
+		ToolName:       "Write",
 		ToolInput: map[string]any{
 			"file_path": filepath.Join(projectDir, "foo.go"),
 			"content":   "package main",
@@ -431,9 +422,8 @@ func TestYoloModeGuards(t *testing.T) {
 		t.Fatalf("set active_feature_id: %v", err)
 	}
 
-	// Reset caches to pick up the new feature and re-read YOLO mode.
+	// Reset caches to pick up the new feature.
 	featureIDCache = featureIDCacheEntry{}
-	resetYoloModeCache()
 
 	// Write tool with an active work item should be allowed (worktree guard
 	// will not trigger because CWD is a temp dir, not main/master branch).

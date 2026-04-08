@@ -79,35 +79,6 @@ func TestIsYoloFromDB(t *testing.T) {
 	}
 }
 
-func TestIsYoloMode(t *testing.T) {
-	// Create temp .htmlgraph dir with launch-mode file
-	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".htmlgraph")
-	os.MkdirAll(hgDir, 0o755)
-
-	// No launch-mode file → not yolo
-	resetYoloModeCache()
-	if isYoloMode(hgDir) {
-		t.Error("expected non-yolo when no launch-mode file")
-	}
-
-	// Write yolo launch mode
-	resetYoloModeCache()
-	os.WriteFile(filepath.Join(hgDir, ".launch-mode"),
-		[]byte(`{"mode":"yolo-dev","pid":1234}`), 0o644)
-	if !isYoloMode(hgDir) {
-		t.Error("expected yolo mode with yolo-dev launch-mode")
-	}
-
-	// Write non-yolo launch mode
-	resetYoloModeCache()
-	os.WriteFile(filepath.Join(hgDir, ".launch-mode"),
-		[]byte(`{"mode":"standard","pid":1234}`), 0o644)
-	if isYoloMode(hgDir) {
-		t.Error("expected non-yolo with standard launch-mode")
-	}
-}
-
 func TestIsYoloFromEvent(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
