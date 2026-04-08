@@ -189,14 +189,14 @@ func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
 	if plan.Design.Problem != "" || len(plan.Design.Goals) > 0 {
 		var b strings.Builder
 		if plan.Design.Problem != "" {
-			b.WriteString("<h4>Problem</h4>\n<p>")
+			b.WriteString("<h4>Problem</h4>\n<div data-markdown>")
 			b.WriteString(html.EscapeString(plan.Design.Problem))
-			b.WriteString("</p>\n")
+			b.WriteString("</div>\n")
 		}
 		if len(plan.Design.Goals) > 0 {
 			b.WriteString("<h4>Goals</h4>\n<ol>\n")
 			for _, g := range plan.Design.Goals {
-				b.WriteString("<li>")
+				b.WriteString("<li data-markdown>")
 				b.WriteString(html.EscapeString(g))
 				b.WriteString("</li>\n")
 			}
@@ -205,7 +205,7 @@ func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
 		if len(plan.Design.Constraints) > 0 {
 			b.WriteString("<h4>Constraints</h4>\n<ul>\n")
 			for _, c := range plan.Design.Constraints {
-				b.WriteString("<li>")
+				b.WriteString("<li data-markdown>")
 				b.WriteString(html.EscapeString(c))
 				b.WriteString("</li>\n")
 			}
