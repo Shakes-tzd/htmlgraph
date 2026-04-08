@@ -92,6 +92,13 @@ func checkYoloWorkItemGuard(toolName, featureID string, yolo bool, sessionID str
 	if sessionID != "" && db != nil && sessionHasLinkedFeature(db, sessionID) {
 		return ""
 	}
+	// Secondary fallback: when CLAUDE_ENV_FILE is unset (common in YOLO mode),
+	// HTMLGRAPH_SESSION_ID is never exported, so `bug start` writes
+	// active_feature_id to a different session row than the one the hook sees.
+	// Allow the edit when any work item is in-progress to prevent false blocks.
+	if hasAnyActiveWorkItem(db) {
+		return ""
+	}
 	return "YOLO mode requires an active work item before writing code. " +
 		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
 }
@@ -140,6 +147,13 @@ func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, yolo bool, 
 	if sessionID != "" && database != nil && sessionHasLinkedFeature(database, sessionID) {
 		return ""
 	}
+	// Secondary fallback: when CLAUDE_ENV_FILE is unset (common in YOLO mode),
+	// HTMLGRAPH_SESSION_ID is never exported, so `bug start` writes
+	// active_feature_id to a different session row than the one the hook sees.
+	// Allow the edit when any work item is in-progress to prevent false blocks.
+	if hasAnyActiveWorkItem(database) {
+		return ""
+	}
 	return "YOLO mode requires an active work item before writing code via Bash. " +
 		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
 }
@@ -156,6 +170,29 @@ func sessionHasLinkedFeature(db *sql.DB, sessionID string) bool {
 		sessionID,
 	).Scan(&featureID)
 	return featureID.Valid && featureID.String != ""
+}
+
+// hasAnyActiveWorkItem returns true when at least one work item (feature, bug,
+// or spike) is in-progress in the project. All work item types are stored in
+// the features table, distinguished by the type column.
+//
+// This is used as a YOLO-mode fallback when CLAUDE_ENV_FILE is unset (typical
+// in YOLO mode), causing HTMLGRAPH_SESSION_ID to not be exported. In that case
+// `bug start` falls back to the .active-session file and writes
+// active_feature_id to a different session row than the one the PreToolUse
+// hook resolves from the CloudEvent payload. The fallback allows the edit when
+// any work item is in-progress, preventing false blocks after `bug start`.
+func hasAnyActiveWorkItem(database *sql.DB) bool {
+	if database == nil {
+		return false
+	}
+	var count int
+	database.QueryRow(`
+		SELECT COUNT(*) FROM features
+		WHERE status = 'in-progress'
+		  AND type IN ('feature', 'bug', 'spike')
+		LIMIT 1`).Scan(&count)
+	return count > 0
 }
 
 // featureStartPattern matches htmlgraph feature/bug start commands.

@@ -114,6 +114,81 @@ func TestCheckYoloWorkItemGuard(t *testing.T) {
 	}
 }
 
+// TestHasAnyActiveWorkItem verifies the DB-backed fallback used when session ID
+// propagation is broken in YOLO mode (CLAUDE_ENV_FILE unset).
+func TestHasAnyActiveWorkItem(t *testing.T) {
+	tdb := setupTestDB(t)
+	defer tdb.DB.Close()
+
+	// No work items → false
+	if hasAnyActiveWorkItem(tdb.DB) {
+		t.Error("expected false with no work items")
+	}
+
+	// Add a todo feature — still false
+	tdb.addFeature("feat-todo", "feature", "Todo feature", "todo")
+	if hasAnyActiveWorkItem(tdb.DB) {
+		t.Error("expected false with only todo feature")
+	}
+
+	// Add an in-progress bug → true
+	tdb.addFeature("bug-active", "bug", "Active bug", "in-progress")
+	if !hasAnyActiveWorkItem(tdb.DB) {
+		t.Error("expected true with in-progress bug")
+	}
+
+	// nil DB → false (safe guard)
+	if hasAnyActiveWorkItem(nil) {
+		t.Error("expected false for nil db")
+	}
+}
+
+// TestCheckYoloWorkItemGuard_AnyActiveWorkItemFallback verifies that the guard
+// allows edits when no session-linked feature exists but an in-progress work
+// item is present — the YOLO-mode session ID mismatch fallback.
+func TestCheckYoloWorkItemGuard_AnyActiveWorkItemFallback(t *testing.T) {
+	tdb := setupTestDB(t)
+	defer tdb.DB.Close()
+
+	// No active work items → blocked
+	result := checkYoloWorkItemGuard("Write", "", true, "some-session", tdb.DB)
+	if result == "" {
+		t.Error("expected block when no active work item and session unlinked")
+	}
+
+	// Add an in-progress spike → allowed via fallback
+	tdb.addFeature("spike-active", "spike", "Active spike", "in-progress")
+	result = checkYoloWorkItemGuard("Write", "", true, "some-session", tdb.DB)
+	if result != "" {
+		t.Errorf("expected allow via hasAnyActiveWorkItem fallback, got: %s", result)
+	}
+}
+
+// TestCheckYoloBashWorkItemGuard_AnyActiveWorkItemFallback verifies the same
+// fallback for Bash file-write commands.
+func TestCheckYoloBashWorkItemGuard_AnyActiveWorkItemFallback(t *testing.T) {
+	tdb := setupTestDB(t)
+	defer tdb.DB.Close()
+
+	event := &CloudEvent{
+		ToolName:  "Bash",
+		ToolInput: map[string]any{"command": "sed -i 's/foo/bar/' file.go"},
+	}
+
+	// No active work items → blocked
+	result := checkYoloBashWorkItemGuard(event, "", true, "some-session", tdb.DB)
+	if result == "" {
+		t.Error("expected block when no active work item and session unlinked")
+	}
+
+	// Add an in-progress feature → allowed via fallback
+	tdb.addFeature("feat-active", "feature", "Active feature", "in-progress")
+	result = checkYoloBashWorkItemGuard(event, "", true, "some-session", tdb.DB)
+	if result != "" {
+		t.Errorf("expected allow via hasAnyActiveWorkItem fallback, got: %s", result)
+	}
+}
+
 func TestCheckYoloCommitGuard(t *testing.T) {
 	tests := []struct {
 		name      string
