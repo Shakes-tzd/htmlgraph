@@ -2,11 +2,11 @@
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 15px;
 }
 .tbl th {
   text-align: left;
-  font-size: 10px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -24,7 +24,7 @@
   color: var(--text-secondary);
 }
 .tbl tr:hover td { background: var(--bg-hover); }
-.tbl .mono { font-family: var(--font-mono); color: var(--text-muted); font-size: 11px; }
+.tbl .mono { font-family: var(--font-mono); color: var(--text-muted); font-size: 14px; }
 .tbl .ellipsis {
   max-width: 340px;
   overflow: hidden;
@@ -67,7 +67,7 @@
 .evt-detail.open { display: table-row; }
 .evt-detail td {
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
@@ -149,7 +149,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
+  font-size: 1rem;
   border-left: 3px solid transparent;
   cursor: default;
   min-height: 2rem;
@@ -194,7 +194,7 @@
 /* Tool chips */
 .tool-chip {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
   white-space: nowrap;
@@ -214,7 +214,7 @@
 
 /* Agent badges */
 .agent-badge {
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   padding: 0.1rem 0.35rem;
   border-radius: 3px;
   white-space: nowrap;
@@ -262,14 +262,14 @@
 /* Turn stats */
 .turn-stats {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   margin-left: auto;
   white-space: nowrap;
 }
 .event-time {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
   min-width: 5rem;
   flex-shrink: 0;
