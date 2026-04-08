@@ -14,7 +14,8 @@ func TestCritique_ComplexityGateLow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := addSliceToPlan(dir, planID, "Single slice", sliceFlags{}); err != nil {
+	if err := runPlanAddSliceYAML(dir, planID, "Single slice",
+		"Do one thing", "", "", "", "", "S", "Low", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +40,8 @@ func TestCritique_ComplexityGateMedium(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"S1", "S2", "S3", "S4"} {
-		if err := addSliceToPlan(dir, planID, s, sliceFlags{}); err != nil {
+		if err := runPlanAddSliceYAML(dir, planID, s,
+			"Do "+s, "", "", "", "", "S", "Low", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -78,23 +80,25 @@ func TestCritique_TitleExtraction(t *testing.T) {
 }
 
 func TestClassifyComplexity(t *testing.T) {
-	cases := []struct {
-		count     int
-		wantLevel string
-		wantCrit  bool
+	tests := []struct {
+		count      int
+		complexity string
+		warranted  bool
 	}{
 		{0, "low", false},
+		{1, "low", false},
 		{2, "low", false},
 		{3, "medium", true},
 		{5, "medium", true},
 		{6, "high", true},
 		{10, "high", true},
 	}
-	for _, tc := range cases {
-		level, crit := classifyComplexity(tc.count)
-		if level != tc.wantLevel || crit != tc.wantCrit {
+
+	for _, tc := range tests {
+		c, w := classifyComplexity(tc.count)
+		if c != tc.complexity || w != tc.warranted {
 			t.Errorf("classifyComplexity(%d) = (%q, %v), want (%q, %v)",
-				tc.count, level, crit, tc.wantLevel, tc.wantCrit)
+				tc.count, c, w, tc.complexity, tc.warranted)
 		}
 	}
 }

@@ -43,9 +43,18 @@ func DiscoverSessions(projectFilter string) ([]SessionFile, error) {
 			continue
 		}
 		projectName := decodeProjectName(entry.Name())
-		if projectFilter != "" && !strings.Contains(
-			strings.ToLower(projectName), strings.ToLower(projectFilter)) {
-			continue
+		if projectFilter != "" {
+			// Match against decoded path (full filesystem path) so callers
+			// can pass CWD directly.  Also match the filter as a prefix of
+			// the decoded path (worktree subdirectories) and vice versa.
+			decodedPath := decodeProjectPath(entry.Name())
+			pathMatch := strings.EqualFold(decodedPath, projectFilter) ||
+				strings.HasPrefix(strings.ToLower(projectFilter), strings.ToLower(decodedPath)+"/") ||
+				strings.HasPrefix(strings.ToLower(decodedPath), strings.ToLower(projectFilter)+"/")
+			nameMatch := strings.Contains(strings.ToLower(projectName), strings.ToLower(projectFilter))
+			if !pathMatch && !nameMatch {
+				continue
+			}
 		}
 
 		// Resolve the actual filesystem path so we can query the git remote.

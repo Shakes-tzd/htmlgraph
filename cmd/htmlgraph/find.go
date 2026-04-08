@@ -12,7 +12,7 @@ import (
 )
 
 // workItemIDPattern matches canonical work item IDs like feat-abc12345, bug-abc12345, etc.
-var workItemIDPattern = regexp.MustCompile(`^(feat|bug|spk|trk|pln|spc)-[0-9a-f]{8}$`)
+var workItemIDPattern = regexp.MustCompile(`^(feat|bug|spk|trk|plan|pln|spec|spc)-[0-9a-f]{8}$`)
 
 // knownCollections is the set of valid collection names for find.
 var knownCollections = map[string]bool{
@@ -20,6 +20,8 @@ var knownCollections = map[string]bool{
 	"bugs":     true,
 	"spikes":   true,
 	"tracks":   true,
+	"plans":    true,
+	"specs":    true,
 	"all":      true,
 }
 
@@ -39,7 +41,7 @@ func findCmd() *cobra.Command {
 		Short: "Query work items with filters",
 		Long: `Search across collections using composable filters.
 
-Collections: features, bugs, spikes, tracks, all
+Collections: features, bugs, spikes, tracks, plans, specs, all
 
 Examples:
   htmlgraph find features --status blocked

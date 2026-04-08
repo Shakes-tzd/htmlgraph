@@ -10,7 +10,7 @@ import (
 )
 
 // TestPlanFirstLifecycle exercises the complete plan-first pipeline:
-// create → add-slice → critique → finalize → verify work items.
+// create → add-slice-yaml → render → critique → finalize → verify work items.
 func TestPlanFirstLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	for _, sub := range []string{"plans", "features", "tracks"} {
@@ -23,21 +23,33 @@ func TestPlanFirstLifecycle(t *testing.T) {
 		t.Fatalf("createPlanFromTopic: %v", err)
 	}
 
-	// Verify plan uses the CRISPI interactive template.
-	planPath := filepath.Join(dir, "plans", planID+".html")
-	data, _ := os.ReadFile(planPath)
-	if !strings.Contains(string(data), "btn-finalize") {
-		t.Error("plan should use CRISPI template with btn-finalize")
+	// Verify YAML scaffold was created.
+	yamlPath := filepath.Join(dir, "plans", planID+".yaml")
+	if _, err := os.Stat(yamlPath); err != nil {
+		t.Fatalf("YAML scaffold not found: %v", err)
 	}
 
-	// Step 2: Add slices.
+	// Step 2: Add slices via YAML workflow.
 	for _, title := range []string{"Error handling layer", "Token validation", "Migration script"} {
-		if err := addSliceToPlan(dir, planID, title, sliceFlags{}); err != nil {
-			t.Fatalf("addSliceToPlan(%s): %v", title, err)
+		if err := runPlanAddSliceYAML(dir, planID, title,
+			"Implement "+title, "", "", "", "", "S", "Low", ""); err != nil {
+			t.Fatalf("addSliceYAML(%s): %v", title, err)
 		}
 	}
 
-	// Step 3: Critique.
+	// Step 2b: Render HTML from YAML.
+	if err := renderPlanToFile(dir, planID); err != nil {
+		t.Fatalf("renderPlanToFile: %v", err)
+	}
+
+	// Verify rendered HTML has CRISPI elements.
+	planPath := filepath.Join(dir, "plans", planID+".html")
+	data, _ := os.ReadFile(planPath)
+	if !strings.Contains(string(data), "btn-finalize") {
+		t.Error("rendered plan should use CRISPI template with btn-finalize")
+	}
+
+	// Step 3: Critique (reads from YAML).
 	critique, err := extractCritiqueData(dir, planID)
 	if err != nil {
 		t.Fatalf("extractCritiqueData: %v", err)
@@ -61,7 +73,7 @@ func TestPlanFirstLifecycle(t *testing.T) {
 		t.Errorf("plan should be valid, got errors: %v", validation.Errors)
 	}
 
-	// Step 5: Finalize — creates track + features.
+	// Step 5: Finalize — creates track + features (reads slices from YAML).
 	p, err := workitem.Open(dir, "test-agent")
 	if err != nil {
 		t.Fatalf("workitem.Open: %v", err)

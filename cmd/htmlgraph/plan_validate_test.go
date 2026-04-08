@@ -16,7 +16,8 @@ func TestValidatePlan_ValidPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := addSliceToPlan(dir, planID, "Slice One", sliceFlags{}); err != nil {
+	if err := runPlanAddSliceYAML(dir, planID, "Slice One",
+		"Implement slice one", "", "", "", "", "S", "Low", ""); err != nil {
 		t.Fatal(err)
 	}
 

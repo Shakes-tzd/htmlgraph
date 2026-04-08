@@ -47,9 +47,9 @@ func LoadDir(dir string) ([]*models.Node, error) {
 	return nodes, nil
 }
 
-// LoadAll reads features, bugs, spikes, and tracks from a .htmlgraph root.
+// LoadAll reads features, bugs, spikes, tracks, plans, and specs from a .htmlgraph root.
 func LoadAll(htmlgraphDir string) ([]*models.Node, error) {
-	subdirs := []string{"features", "bugs", "spikes", "tracks"}
+	subdirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 	var all []*models.Node
 
 	for _, sub := range subdirs {

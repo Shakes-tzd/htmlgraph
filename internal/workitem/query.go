@@ -198,6 +198,10 @@ func (p *Project) collectionDir(name string) string {
 		return p.SpikesDir()
 	case "tracks":
 		return p.TracksDir()
+	case "plans":
+		return p.PlansDir()
+	case "specs":
+		return p.SpecsDir()
 	default:
 		return ""
 	}

@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
 	"github.com/spf13/cobra"
 )
@@ -94,7 +96,11 @@ func executePlanFinalize(p *workitem.Project, htmlgraphDir, planID string) (*fin
 	}
 
 	// Use plan steps as slices — all steps are treated as approved.
-	slices := parsePlanStepsAsSlices(planNode)
+	// Prefer YAML slices (source of truth) over HTML steps.
+	slices := parsePlanSlicesFromYAML(htmlgraphDir, planID)
+	if len(slices) == 0 {
+		slices = parsePlanStepsAsSlices(planNode)
+	}
 
 	// Create track from the plan title.
 	trackNode, err := p.Tracks.Create(planNode.Title,
@@ -166,6 +172,26 @@ type planSlice struct {
 	name    string
 	title   string
 	depNums []int
+}
+
+// parsePlanSlicesFromYAML reads slices from the YAML plan file.
+// Returns nil if the YAML doesn't exist or has no slices.
+func parsePlanSlicesFromYAML(htmlgraphDir, planID string) []planSlice {
+	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	plan, err := planyaml.Load(yamlPath)
+	if err != nil || len(plan.Slices) == 0 {
+		return nil
+	}
+	var slices []planSlice
+	for _, s := range plan.Slices {
+		slices = append(slices, planSlice{
+			num:     s.Num,
+			name:    s.ID,
+			title:   s.Title,
+			depNums: s.Deps,
+		})
+	}
+	return slices
 }
 
 // wireTrackEdges creates bidirectional part_of/contains edges between a

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	htmltemplate "html/template"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,21 +72,17 @@ func createPlanFromTopic(htmlgraphDir, title, description string) (string, error
 		return "", fmt.Errorf("create plan: %w", err)
 	}
 
-	// Overwrite the generic node HTML with the CRISPI interactive template.
-	if err := scaffoldCRISPIPlan(htmlgraphDir, node.ID, title, description); err != nil {
-		return "", fmt.Errorf("scaffold CRISPI: %w", err)
-	}
-
-	// Also create the paired YAML scaffold for structured planning.
+	// Create the YAML scaffold (source of truth for plan content).
 	yamlPath := filepath.Join(htmlgraphDir, "plans", node.ID+".yaml")
 	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
 		emptyPlan := planyaml.NewPlan(node.ID, title, description)
 		if err := planyaml.Save(yamlPath, emptyPlan); err != nil {
-			// Log but don't fail — HTML is the primary artifact.
 			fmt.Fprintf(os.Stderr, "warning: could not create YAML scaffold: %v\n", err)
 		}
 	}
 
+	// HTML stays minimal (workitem registration only).
+	// Use `plan render <id>` to generate full HTML from YAML.
 	return node.ID, nil
 }
 
@@ -168,6 +165,9 @@ func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
 	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(yamlPath)
 	if err != nil {
+		if _, statErr := os.Stat(yamlPath); os.IsNotExist(statErr) {
+			log.Printf("enrichPageFromYAML: no YAML found for %s (expected %s)", planID, yamlPath)
+		}
 		return
 	}
 
@@ -189,14 +189,14 @@ func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
 	if plan.Design.Problem != "" || len(plan.Design.Goals) > 0 {
 		var b strings.Builder
 		if plan.Design.Problem != "" {
-			b.WriteString("<h4>Problem</h4>\n<p>")
+			b.WriteString("<h4>Problem</h4>\n<div data-markdown>")
 			b.WriteString(html.EscapeString(plan.Design.Problem))
-			b.WriteString("</p>\n")
+			b.WriteString("</div>\n")
 		}
 		if len(plan.Design.Goals) > 0 {
 			b.WriteString("<h4>Goals</h4>\n<ol>\n")
 			for _, g := range plan.Design.Goals {
-				b.WriteString("<li>")
+				b.WriteString("<li data-markdown>")
 				b.WriteString(html.EscapeString(g))
 				b.WriteString("</li>\n")
 			}
@@ -205,7 +205,7 @@ func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
 		if len(plan.Design.Constraints) > 0 {
 			b.WriteString("<h4>Constraints</h4>\n<ul>\n")
 			for _, c := range plan.Design.Constraints {
-				b.WriteString("<li>")
+				b.WriteString("<li data-markdown>")
 				b.WriteString(html.EscapeString(c))
 				b.WriteString("</li>\n")
 			}
@@ -361,6 +361,64 @@ func renderCriticSectionHTML(c planyaml.CriticSection) htmltemplate.HTML {
 		b.WriteString("</ul>\n")
 	}
 	return htmltemplate.HTML(b.String()) //nolint:gosec
+}
+
+// ---- plan render ------------------------------------------------------------
+
+// planRenderCmd regenerates plan HTML from YAML using the dashboard template.
+func planRenderCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "render <plan-id>",
+		Short: "Regenerate plan HTML from YAML source",
+		Long: `Render plan HTML from YAML using the same template that powers the
+dashboard plan detail view. The YAML file is the source of truth; the
+HTML file is the rendered artifact.
+
+Example:
+  htmlgraph plan render plan-abc12345`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runPlanRender(args[0])
+		},
+	}
+}
+
+func runPlanRender(planID string) error {
+	htmlgraphDir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+	return renderPlanToFile(htmlgraphDir, planID)
+}
+
+// renderPlanToFile regenerates plan HTML from the YAML source using the
+// dashboard template. Called by the CLI command and tests.
+func renderPlanToFile(htmlgraphDir, planID string) error {
+	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	if _, err := os.Stat(yamlPath); err != nil {
+		return fmt.Errorf("YAML source not found: %s", yamlPath)
+	}
+
+	page := plantmpl.BuildFromTopic(planID, "", "", time.Now().UTC().Format("2006-01-02"))
+	enrichPageFromYAML(htmlgraphDir, planID, page)
+
+	if page.Title == "" {
+		page.Title = planID
+	}
+
+	outPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return fmt.Errorf("create HTML file: %w", err)
+	}
+	defer f.Close()
+
+	if err := page.Render(f); err != nil {
+		return fmt.Errorf("render plan: %w", err)
+	}
+
+	fmt.Printf("Rendered %s → %s (%d slices)\n", planID, outPath, len(page.Slices))
+	return nil
 }
 
 // ---- plan add-slice ---------------------------------------------------------

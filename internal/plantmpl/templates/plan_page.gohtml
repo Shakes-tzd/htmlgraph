@@ -777,6 +777,55 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 })();
 
 // Chat panel
+// Global markdown renderer — shared by chat bubbles and data-markdown elements
+function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function renderMd(text){
+  var s=escHtml(text);
+  s=s.replace(/```(\w*)\n([\s\S]*?)```/g,function(_,lang,code){
+    return '<pre><code'+(lang?' class="language-'+lang+'"':'')+'>'+code.trim()+'</code></pre>';
+  });
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+  s=s.replace(/^### (.+)$/gm,'<h4>$1</h4>');
+  s=s.replace(/^## (.+)$/gm,'<h3>$1</h3>');
+  s=s.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm,function(_,hdr,sep,body){
+    var ths=hdr.split('|').filter(Boolean).map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
+    var rows=body.trim().split('\n').map(function(row){
+      var tds=row.split('|').filter(Boolean).map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
+      return '<tr>'+tds+'</tr>';
+    }).join('');
+    return '<table class="q-table"><thead><tr>'+ths+'</tr></thead><tbody>'+rows+'</tbody></table>';
+  });
+  s=s.replace(/^[*-] (.+)$/gm,'<li>$1</li>');
+  s=s.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+  s=s.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+  s=s.replace(/\n\n/g,'</p><p>');
+  s=s.replace(/\n/g,'<br>');
+  return '<p>'+s+'</p>';
+}
+// Render inline markdown for elements with data-markdown attribute.
+// For block elements (div/p) replaces innerHTML; for inline (li/span)
+// renders without wrapping <p> tags.
+(function(){
+  document.querySelectorAll('[data-markdown]').forEach(function(el){
+    var raw=el.textContent;
+    if(!raw.trim()) return;
+    var tag=el.tagName.toLowerCase();
+    if(tag==='li'||tag==='span'||tag==='td'){
+      // Inline context — just apply bold/italic/code, no block transforms
+      var s=escHtml(raw);
+      s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+      s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+      s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+      el.innerHTML=s;
+    } else {
+      el.innerHTML=renderMd(raw);
+    }
+    el.removeAttribute('data-markdown');
+  });
+})();
+
 (function(){
   'use strict';
   var chatMessages=document.getElementById('chat-messages');
@@ -784,45 +833,6 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
   var chatSend=document.getElementById('chat-send');
   var chatEmpty=document.getElementById('chat-empty');
   if(!chatMessages||!chatInput||!chatSend) return;
-
-  function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-
-  // Lightweight markdown → HTML for chat bubbles
-  function renderMd(text){
-    var s=escHtml(text);
-    // Code blocks (``` ... ```)
-    s=s.replace(/```(\w*)\n([\s\S]*?)```/g,function(_,lang,code){
-      return '<pre><code'+(lang?' class="language-'+lang+'"':'')+'>'+code.trim()+'</code></pre>';
-    });
-    // Inline code
-    s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
-    // Bold
-    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
-    // Italic
-    s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>');
-    // Headers
-    s=s.replace(/^### (.+)$/gm,'<h4>$1</h4>');
-    s=s.replace(/^## (.+)$/gm,'<h3>$1</h3>');
-    // Tables: header row, separator, data rows
-    s=s.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm,function(_,hdr,sep,body){
-      var ths=hdr.split('|').filter(Boolean).map(function(c){return '<th>'+c.trim()+'</th>';}).join('');
-      var rows=body.trim().split('\n').map(function(row){
-        var tds=row.split('|').filter(Boolean).map(function(c){return '<td>'+c.trim()+'</td>';}).join('');
-        return '<tr>'+tds+'</tr>';
-      }).join('');
-      return '<table class="q-table"><thead><tr>'+ths+'</tr></thead><tbody>'+rows+'</tbody></table>';
-    });
-    // Unordered lists
-    s=s.replace(/^[*-] (.+)$/gm,'<li>$1</li>');
-    s=s.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
-    // Numbered lists
-    s=s.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
-    // Paragraphs (double newline)
-    s=s.replace(/\n\n/g,'</p><p>');
-    // Single newlines within paragraphs
-    s=s.replace(/\n/g,'<br>');
-    return '<p>'+s+'</p>';
-  }
 
   function addBubble(role,content){
     if(!content||!content.trim()) return null; // skip empty messages

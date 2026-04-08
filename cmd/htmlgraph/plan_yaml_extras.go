@@ -523,9 +523,10 @@ func runRewriteYAML(planID, filePath string) error {
 		return fmt.Errorf("%d validation error(s)", len(errs))
 	}
 
-	// Ensure meta.id matches.
+	// Enforce meta.id matches the canonical plan ID (derived from HTML filename).
 	if newPlan.Meta.ID != planID {
-		return fmt.Errorf("meta.id %q in new content does not match plan ID %q", newPlan.Meta.ID, planID)
+		fmt.Fprintf(os.Stderr, "warning: meta.id %q overwritten to match plan ID %q\n", newPlan.Meta.ID, planID)
+		newPlan.Meta.ID = planID
 	}
 
 	// Apply accepted amendments from plan_feedback before saving.

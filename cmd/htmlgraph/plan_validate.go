@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
 	"github.com/spf13/cobra"
 )
@@ -91,9 +92,19 @@ func validatePlan(htmlgraphDir, planID string) (planValidation, error) {
 		addError("plan is missing a title")
 	}
 
-	// Count slices (steps).
-	result.Stats.Slices = len(node.Steps)
-	result.Stats.GraphNodes = len(node.Steps) // nodes = steps in node template
+	// Count slices — prefer YAML (source of truth), fall back to HTML steps.
+	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	yamlSliceCount := 0
+	if plan, loadErr := planyaml.Load(yamlPath); loadErr == nil {
+		yamlSliceCount = len(plan.Slices)
+	}
+	if yamlSliceCount > 0 {
+		result.Stats.Slices = yamlSliceCount
+		result.Stats.GraphNodes = yamlSliceCount
+	} else {
+		result.Stats.Slices = len(node.Steps)
+		result.Stats.GraphNodes = len(node.Steps)
+	}
 
 	// Warn if no description.
 	if node.Content == "" {
@@ -101,7 +112,7 @@ func validatePlan(htmlgraphDir, planID string) (planValidation, error) {
 	}
 
 	// Warn if no slices.
-	if len(node.Steps) == 0 {
+	if result.Stats.Slices == 0 {
 		addWarning("plan has no slices (steps)")
 	}
 
