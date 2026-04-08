@@ -619,13 +619,23 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       })
       .then(function(r){
         if(r.ok){
-          var art=document.querySelector('article[id]');if(art)art.dataset.status='finalized';
-          btn.textContent='Plan Finalized';
-          btn.style.background='var(--approved)';
-          btn.style.color='#fff';
-          finalizeMsg.textContent='Plan finalized successfully.';
-          finalizeMsg.style.color='var(--approved)';
-          finalizeMsg.style.display='block';
+          r.json().then(function(data){
+            var art=document.querySelector('article[id]');if(art)art.dataset.status='finalized';
+            btn.textContent='Plan Finalized';
+            btn.style.background='var(--approved)';
+            btn.style.color='#fff';
+            if(data&&data.next_steps){
+              var pre=document.createElement('pre');
+              pre.style.cssText='margin-top:12px;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);font-size:.78rem;text-align:left;white-space:pre-wrap;word-break:break-all;color:var(--text)';
+              pre.textContent=data.next_steps;
+              finalizeMsg.innerHTML='';
+              finalizeMsg.appendChild(pre);
+            } else {
+              finalizeMsg.textContent='Plan finalized successfully.';
+            }
+            finalizeMsg.style.color='var(--approved)';
+            finalizeMsg.style.display='block';
+          });
         } else {
           return r.json().then(function(data){
             btn.textContent='Finalize Plan';

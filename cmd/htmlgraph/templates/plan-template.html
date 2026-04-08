@@ -226,6 +226,10 @@ textarea::placeholder{color:var(--text-muted)}
   <div class="finalize-area">
     <button class="btn-finalize" id="finalizeBtn" disabled>Finalize Plan</button>
     <p style="font-size:.75rem;color:var(--text-muted);margin-top:6px">All sections must be approved before finalizing.</p>
+    <div id="finalizeNextSteps" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius);text-align:left">
+      <p style="font-size:.75rem;font-weight:600;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Next Steps</p>
+      <pre id="finalizeNextStepsText" style="margin:0;font-size:.8rem;background:none;border:none;padding:0;color:var(--text-dim);white-space:pre-wrap"></pre>
+    </div>
   </div>
 </section>
 
@@ -415,9 +419,17 @@ textarea::placeholder{color:var(--text-muted)}
     })
     .then(function(r){
       if(r.ok){
-        article.dataset.status='finalized';
-        btn.textContent='Plan Finalized';
-        btn.style.background='var(--approved)';
+        return r.json().then(function(data){
+          article.dataset.status='finalized';
+          btn.textContent='Plan Finalized';
+          btn.style.background='var(--approved)';
+          if(data.next_steps){
+            var nextStepsEl=document.getElementById('finalizeNextSteps');
+            var nextStepsText=document.getElementById('finalizeNextStepsText');
+            nextStepsText.textContent=data.next_steps;
+            nextStepsEl.style.display='block';
+          }
+        });
       } else {
         return r.json().then(function(data){
           btn.textContent='Finalize Plan';

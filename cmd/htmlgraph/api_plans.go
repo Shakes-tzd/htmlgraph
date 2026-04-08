@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -123,10 +124,23 @@ func parsePlanListItem(planPath, planID string, database *sql.DB) (planListItem,
 				}
 			}
 		}
-		// Also check if finalized in SQLite
-		isApproved, _ := dbpkg.IsPlanFullyApproved(database, planID)
-		if isApproved && status != "finalized" {
-			status = "finalized"
+		// Also check if finalized in SQLite — either fully approved or explicit flag.
+		if status != "finalized" {
+			isApproved, _ := dbpkg.IsPlanFullyApproved(database, planID)
+			if isApproved {
+				status = "finalized"
+			}
+		}
+		// Final fallback: check explicit finalize flag stored during API finalize call.
+		if status != "finalized" {
+			var flagVal string
+			_ = database.QueryRow(
+				"SELECT value FROM plan_feedback WHERE plan_id = ? AND section = 'meta' AND action = 'finalize'",
+				planID,
+			).Scan(&flagVal)
+			if flagVal == "true" {
+				status = "finalized"
+			}
 		}
 	}
 
@@ -312,10 +326,18 @@ func planFinalizeHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc
 			return
 		}
 
+		// Store explicit finalization flag so list queries detect finalized state
+		// even when the HTML write fails (HTML is canonical but SQLite is fallback).
+		if err := dbpkg.StorePlanFeedback(database, planID, "meta", "finalize", "true", ""); err != nil {
+			log.Printf("warning: store finalize flag for %s: %v", planID, err)
+		}
+
 		// Write finalized HTML snapshot with all feedback baked in.
 		planPath, err := resolvePlanPath(htmlgraphDir, planID)
 		if err == nil {
-			_ = finalizePlanHTML(planPath, database, planID)
+			if err := finalizePlanHTML(planPath, database, planID); err != nil {
+				log.Printf("warning: finalizePlanHTML failed for %s: %v", planID, err)
+			}
 		}
 
 		feedback, err := dbpkg.GetPlanFeedback(database, planID)
@@ -324,10 +346,16 @@ func planFinalizeHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc
 			return
 		}
 
+		nextSteps := fmt.Sprintf(
+			"Plan finalized. To create a track and dispatch work:\n  htmlgraph plan finalize %s\n\nOr create features manually:\n  htmlgraph feature create \"<title>\" --track <trk-id>",
+			planID,
+		)
+
 		respondJSON(w, map[string]any{
-			"plan_id":  planID,
-			"status":   "finalized",
-			"feedback": feedback,
+			"plan_id":    planID,
+			"status":     "finalized",
+			"feedback":   feedback,
+			"next_steps": nextSteps,
 		})
 	}
 }
