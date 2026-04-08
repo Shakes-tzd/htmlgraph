@@ -3,10 +3,12 @@ package hooks
 import (
 	"fmt"
 	"html"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/models"
@@ -104,13 +106,29 @@ func createSessionHTML(projectDir string, s *models.Session) {
 }
 
 // appendEventToSessionHTML appends a <li> element to the session's HTML
-// activity log. It reads the file, finds the </ol> marker, inserts the new
-// element before it, and writes the file back. Errors are silently logged.
+// activity log. It opens the file with an exclusive flock, reads, modifies,
+// and rewrites — preventing lost updates from concurrent hook invocations.
+// Errors are silently logged (non-critical path).
 func appendEventToSessionHTML(projectDir, sessionID string, ev sessionEvent) {
 	htmlPath := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID+".html")
-	data, err := os.ReadFile(htmlPath)
+
+	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
 	if err != nil {
 		// File doesn't exist — silently ignore (non-critical).
+		return
+	}
+	defer f.Close()
+
+	// Exclusive lock — blocks until no other process holds the lock.
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		debugLog(projectDir, "[session-html] flock %s: %v", htmlPath, err)
+		return
+	}
+	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		debugLog(projectDir, "[session-html] read %s: %v", htmlPath, err)
 		return
 	}
 
@@ -149,8 +167,17 @@ func appendEventToSessionHTML(projectDir, sessionID string, ev sessionEvent) {
 	// Insert the <li> just before </ol>.
 	newContent := content[:idx] + li.String() + "            " + content[idx:]
 
-	if err := os.WriteFile(htmlPath, []byte(newContent), 0o644); err != nil {
-		debugLog(projectDir, "[session-html] append event to %s: %v", htmlPath, err)
+	// Truncate and rewrite in place (we already hold the lock).
+	if err := f.Truncate(0); err != nil {
+		debugLog(projectDir, "[session-html] truncate %s: %v", htmlPath, err)
+		return
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		debugLog(projectDir, "[session-html] seek %s: %v", htmlPath, err)
+		return
+	}
+	if _, err := f.Write([]byte(newContent)); err != nil {
+		debugLog(projectDir, "[session-html] write %s: %v", htmlPath, err)
 	}
 }
 

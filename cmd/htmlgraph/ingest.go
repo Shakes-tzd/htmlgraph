@@ -176,6 +176,7 @@ func ingestFileWithAgent(database *sql.DB, sf ingest.SessionFile, agentID string
 
 	if force {
 		_ = dbpkg.DeleteSessionMessages(database, sf.SessionID)
+		_ = dbpkg.DeleteSessionIngestEvents(database, sf.SessionID)
 	}
 
 	ensureSession(database, sf.SessionID, result)
@@ -289,6 +290,15 @@ func storeParseResult(database *sql.DB, sessionID, agentID string, result *inges
 		if t, ok := msgTimestamps[tc.MessageOrdinal]; ok {
 			ts = t
 		}
+
+		// Skip if a hook-written event already exists for this (session, tool, ts).
+		// Hooks produce canonical IDs; ingest-derived duplicates would create a
+		// second row with a different event_id for the same logical event.
+		tsStr := ts.UTC().Format(time.RFC3339)
+		if exists, _ := dbpkg.HasHookEventAt(database, sessionID, tc.ToolName, tsStr); exists {
+			continue
+		}
+
 		ev := &models.AgentEvent{
 			EventID:      evtID,
 			AgentID:      resolvedAgent,
@@ -300,7 +310,7 @@ func storeParseResult(database *sql.DB, sessionID, agentID string, result *inges
 			SessionID:    sessionID,
 			FeatureID:    featureID,
 			Status:       "completed",
-			Source:        "ingest",
+			Source:       "ingest",
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}

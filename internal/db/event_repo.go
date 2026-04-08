@@ -363,6 +363,40 @@ func DistinctFeatureIDs(db *sql.DB, sessionID string) ([]string, error) {
 	return feats, rows.Err()
 }
 
+// HasHookEventAt reports whether a hook-written event (source != 'ingest')
+// already exists for the given session, tool_name, and timestamp (compared at
+// second precision). Used by the ingest path to avoid creating duplicate events
+// when hooks already recorded the same logical event with a different ID.
+func HasHookEventAt(db *sql.DB, sessionID, toolName, timestamp string) (bool, error) {
+	var count int
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM agent_events
+		 WHERE session_id = ?
+		   AND tool_name = ?
+		   AND strftime('%Y-%m-%dT%H:%M:%S', timestamp) = strftime('%Y-%m-%dT%H:%M:%S', ?)
+		   AND source != 'ingest'`,
+		sessionID, toolName, timestamp,
+	).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("has hook event: %w", err)
+	}
+	return count > 0, nil
+}
+
+// DeleteSessionIngestEvents removes agent_events with source='ingest' for a
+// session. Hook-written events (source != 'ingest') are preserved so that a
+// force re-ingest does not destroy live hook data.
+func DeleteSessionIngestEvents(db *sql.DB, sessionID string) error {
+	_, err := db.Exec(
+		`DELETE FROM agent_events WHERE session_id = ? AND source = 'ingest'`,
+		sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete ingest events for %s: %w", sessionID, err)
+	}
+	return nil
+}
+
 // CountRecentDuplicates returns the count of events matching tool_name and
 // input_summary within the last windowSeconds. Used for dedup checks.
 func CountRecentDuplicates(db *sql.DB, sessionID, toolName, inputSummary string, windowSeconds int) (int, error) {
