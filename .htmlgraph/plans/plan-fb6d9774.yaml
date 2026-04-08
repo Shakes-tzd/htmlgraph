@@ -1,0 +1,187 @@
+meta:
+    id: plan-fb6d9774
+    track_id: trk-d8fa810e
+    title: CLI Reference Auto-Generator
+    description: |
+        Build a Go tool that walks the Cobra command tree and produces structured, categorized MkDocs-compatible markdown for the CLI reference page. Replaces the manually-maintained docs/reference/cli.md with auto-generated output that stays in sync with the actual code.
+    created_at: "2026-04-08"
+    status: draft
+    created_by: claude-opus
+    version: 1
+design:
+    problem: |
+        The CLI reference at docs/reference/cli.md is manually maintained — separate from the actual Cobra command definitions in cmd/htmlgraph/. When commands are added, renamed, or get new flags, the docs drift out of sync. There's also a hard-coded compactCLIRef constant in help.go that duplicates the same information. With 44 top-level commands and ~120 subcommands, manual maintenance is unsustainable.
+    goals:
+        - '**Single source of truth** — CLI docs generated directly from Cobra command tree, never hand-edited'
+        - '**Structured output** — grouped sections with tables (matching current cli.md format), not flat file-per-command dumps'
+        - '**Build integration** — docs regenerate via go:generate or a CLI subcommand, runnable in CI'
+        - '**compactCLIRef sync** — the help.go constant also regenerates from the same source'
+    constraints:
+        - Root command (rootCmd) is a local variable in main() — not exported. Doc generator must reconstruct or access the command tree.
+        - Cobra has no GroupID or Annotations on any commands — categorization must be defined externally or inferred.
+        - cobra/doc.GenMarkdownTree() produces one file per command with flat structure — not suitable for the grouped table format we want.
+        - Commands use no .Example field — examples are embedded in .Long strings as free text.
+        - The generator must work without modifying the existing command registration pattern (all in main()).
+        - Output must be valid MkDocs Material markdown with tables, admonitions, and proper headings.
+    approved: false
+    comment: ""
+slices:
+    - id: feat-01
+      num: 1
+      title: Extract rootCmd into an exported factory function
+      what: |
+        Refactor cmd/htmlgraph/main.go to move the rootCmd construction and all AddCommand() calls into an exported function NewRootCmd() in a new file cmd/htmlgraph/root.go. main() calls NewRootCmd() then Execute(). This allows other Go programs (the doc generator) to import and walk the tree.
+      why: |
+        The doc generator needs to access the full command tree. Currently rootCmd is a local variable in main() and cannot be imported. This is the minimum change to make the tree accessible without changing any command behavior.
+      files:
+        - cmd/htmlgraph/main.go
+        - cmd/htmlgraph/root.go
+      deps: []
+      done_when:
+        - NewRootCmd() exists and returns *cobra.Command with all subcommands registered
+        - main() calls NewRootCmd().Execute() and behavior is identical to before
+        - All existing tests pass without modification
+        - go build ./... succeeds
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestNewRootCmd_HasExpectedSubcommands — verify command count matches expected
+        Regression: All existing cmd/htmlgraph tests must pass unchanged
+      approved: false
+      comment: ""
+    - id: feat-02
+      num: 2
+      title: Define command category map
+      what: |
+        Create a categoryMap in a new file cmd/htmlgraph/doc_categories.go that maps each command name to a category and display order. Categories match the current cli.md structure: Work Items, Search & Status, Planning, Specifications & Quality, Sessions & Observability, Data Management, Development & Operations. Commands not in the map go into an "Other" category.
+      why: |
+        Cobra has no built-in grouping mechanism (no GroupID or Annotations are used). The doc generator needs to know which section each command belongs to. A static map is the simplest approach and is easy to update when adding new commands — if a developer forgets to add their command to the map, it appears in "Other" which is a visible signal to fix it.
+      files:
+        - cmd/htmlgraph/doc_categories.go
+      deps: []
+      done_when:
+        - categoryMap covers all 44 current top-level commands
+        - Each category has a display order (integer) for consistent section ordering
+        - A test verifies every registered command appears in the map (no orphans)
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestCategoryMap_CoversAllCommands — walk rootCmd.Commands() and assert every name is in map
+        Unit: TestCategoryMap_NoDuplicates — no command appears in two categories
+      approved: false
+      comment: ""
+    - id: feat-03
+      num: 3
+      title: Build the markdown generator
+      what: |
+        Create cmd/htmlgraph/gendocs.go with a function GenCLIReference(root *cobra.Command) string that walks the command tree, groups commands by category, and produces a single markdown string matching the current cli.md format: H1 title, H2 per category with intro text, tables with Command/Usage/Description columns, and special handling for work item commands (shared subcommand table with admonition for required flags). Output includes H2 "Work Item Types" table at the end.
+      why: |
+        cobra/doc.GenMarkdownTree() produces flat per-command files that don't match our grouped table format. A custom generator walks the same command tree but outputs the structured, categorized markdown we need for the docs site.
+      files:
+        - cmd/htmlgraph/gendocs.go
+        - cmd/htmlgraph/gendocs_test.go
+      deps:
+        - 1
+        - 2
+      done_when:
+        - GenCLIReference() produces valid markdown with all categories and commands
+        - Work item commands (feature/bug/spike/track) share a common subcommand table
+        - 'Each command row shows: command name, usage pattern (from Use field), description (from Short field)'
+        - Commands with subcommands show subcommand details
+        - Output renders correctly in MkDocs Material (tables, admonitions, headings)
+        - Flags with non-default values are documented per command
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestGenCLIReference_ContainsAllCategories — output has H2 for each category
+        Unit: TestGenCLIReference_ContainsAllCommands — every registered command appears in output
+        Unit: TestGenCLIReference_ValidMarkdown — no broken table formatting
+        Integration: Build output, run mkdocs build, verify no warnings
+      approved: false
+      comment: ""
+    - id: feat-04
+      num: 4
+      title: Wire gendocs subcommand and go:generate
+      what: |
+        Add a hidden htmlgraph gendocs subcommand that calls GenCLIReference() and writes the output to docs/reference/cli.md. Add a //go:generate directive to root.go that runs go run ./cmd/htmlgraph gendocs. Also generate the compactCLIRef string and write it to help.go, replacing the hard-coded constant.
+      why: |
+        Developers need a simple way to regenerate docs: go generate ./cmd/htmlgraph/... or htmlgraph gendocs. The hidden subcommand means it doesn't clutter the user-facing help but is available for the build pipeline. Generating compactCLIRef from the same source ensures help.go never drifts from the real commands.
+      files:
+        - cmd/htmlgraph/root.go
+        - cmd/htmlgraph/gendocs.go
+        - cmd/htmlgraph/help.go
+        - docs/reference/cli.md
+      deps:
+        - 3
+      done_when:
+        - htmlgraph gendocs writes docs/reference/cli.md from the command tree
+        - htmlgraph gendocs --compact writes the compact format to stdout (for help.go update)
+        - go generate ./cmd/htmlgraph/... regenerates both files
+        - The gendocs command is hidden (not shown in help)
+        - Generated cli.md matches or exceeds the quality of the current hand-maintained version
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestGendocsCommand_WritesFile — verify file is created with expected content
+        Unit: TestGendocsCommand_CompactFormat — verify compact output matches expected format
+        Integration: Run go generate, then go build, verify no errors
+      approved: false
+      comment: ""
+    - id: feat-05
+      num: 5
+      title: CI validation — docs drift detection
+      what: |
+        Add a step to .github/workflows/ci.yml that runs go generate ./cmd/htmlgraph/... and then checks git diff --exit-code docs/reference/cli.md. If the generated output differs from what's committed, the CI job fails with a message telling the developer to run go generate. This prevents docs from drifting.
+      why: |
+        The generator only works if people run it. CI enforcement catches PRs where someone added a command but forgot to regenerate docs. The diff check is fast (no mkdocs build needed) and gives a clear error message.
+      files:
+        - .github/workflows/ci.yml
+      deps:
+        - 4
+      done_when:
+        - CI runs go generate and checks for uncommitted changes to docs/reference/cli.md
+        - PR with a new command but stale docs fails CI with descriptive error
+        - PR with up-to-date docs passes
+      effort: S
+      risk: Low
+      tests: |
+        Manual: Add a dummy command, commit without regenerating, verify CI fails
+        Manual: Regenerate, commit, verify CI passes
+      approved: false
+      comment: ""
+questions:
+    - id: q-root-refactor-approach
+      text: How should the doc generator access the Cobra command tree?
+      description: |
+        Currently rootCmd is a local variable in main(). The generator needs to walk the full command tree. Three options: (a) export rootCmd via a factory function (small refactor, clean), (b) add a hidden gendocs subcommand to rootCmd itself (no refactor but generator runs inside the binary), (c) both. Option (c) is recommended — export the factory for testability AND add a hidden subcommand for convenience.
+      recommended: option-c
+      options:
+        - key: option-a
+          label: 'A: Export via NewRootCmd() factory only — small refactor to main.go, clean import path for any tool'
+        - key: option-b
+          label: 'B: Hidden gendocs subcommand only — no refactor needed, but generator must run via the binary itself'
+        - key: option-c
+          label: 'C: Both — export NewRootCmd() AND add a hidden gendocs subcommand for convenience'
+      answer: null
+    - id: q-output-format
+      text: Should the generator produce a single cli.md file or multiple files per category?
+      description: |
+        The current cli.md is a single page with all commands grouped by category. MkDocs Material supports both single-page and multi-page navigation. A single file keeps everything searchable in one place (Cmd+F works). Multiple files allow deeper nav structure but split the reference across pages. For a CLI with 44 top-level commands, a single page is still manageable and simpler to maintain.
+      recommended: option-single
+      options:
+        - key: option-single
+          label: Single file — one cli.md with all categories, matching current layout
+        - key: option-multi
+          label: Multiple files — one per category, with a nav index page
+      answer: null
+    - id: q-compact-ref-sync
+      text: Should the generator also produce the compactCLIRef constant in help.go?
+      description: |
+        help.go contains a hard-coded compactCLIRef string used for LLM context injection (YOLO mode, system prompts, CIGS). This duplicates the same command info as cli.md. The generator could produce both the full markdown and the compact format from the same source, eliminating the duplication. The trade-off is that help.go becomes a generated file, which means it needs the go:generate workflow too.
+      recommended: option-yes
+      options:
+        - key: option-yes
+          label: Yes — generate both cli.md and compactCLIRef from the same walk, single source of truth
+        - key: option-no
+          label: No — only generate cli.md, keep compactCLIRef manually maintained
+      answer: null
