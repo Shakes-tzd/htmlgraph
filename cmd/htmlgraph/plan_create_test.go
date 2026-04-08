@@ -25,38 +25,35 @@ func TestRunPlanCreateFromTopic(t *testing.T) {
 		t.Errorf("plan ID %q does not match hex8 format", planID)
 	}
 
-	// Verify file exists.
+	// Verify HTML file exists (minimal workitem registration).
 	planPath := filepath.Join(dir, "plans", planID+".html")
 	data, err := os.ReadFile(planPath)
 	if err != nil {
-		t.Fatalf("plan file not found: %v", err)
+		t.Fatalf("plan HTML file not found: %v", err)
 	}
 	html := string(data)
 
-	// Verify title is present.
+	// Verify title is present in the minimal HTML.
 	if !strings.Contains(html, "Auth Middleware Rewrite") {
 		t.Error("plan HTML missing title")
 	}
 
-	// Verify description is present.
-	if !strings.Contains(html, "Rewrite auth for compliance") {
-		t.Error("plan HTML missing description")
+	// Verify YAML scaffold was created.
+	yamlPath := filepath.Join(dir, "plans", planID+".yaml")
+	yamlData, err := os.ReadFile(yamlPath)
+	if err != nil {
+		t.Fatalf("YAML scaffold not found: %v", err)
 	}
+	yaml := string(yamlData)
 
-	// Verify it uses the CRISPI interactive template.
-	if !strings.Contains(html, "btn-finalize") {
-		t.Error("plan HTML should contain CRISPI btn-finalize")
+	if !strings.Contains(yaml, "Auth Middleware Rewrite") {
+		t.Error("YAML missing title")
 	}
-	if !strings.Contains(html, "dep-graph-svg") {
-		t.Error("plan HTML should contain dep-graph-svg")
+	if !strings.Contains(yaml, "Rewrite auth for compliance") {
+		t.Error("YAML missing description")
 	}
-	if !strings.Contains(html, "PLAN_SECTIONS_JSON") {
-		t.Error("plan HTML should contain PLAN_SECTIONS_JSON")
-	}
-
-	// Verify SECTIONS_JSON starts with just design (outline hidden when empty).
-	if !strings.Contains(html, `["design"]`) {
-		t.Error("CRISPI plan should start with [design] section")
+	if !strings.Contains(yaml, planID) {
+		t.Error("YAML meta.id should match plan ID")
 	}
 }
 
@@ -69,12 +66,18 @@ func TestRunPlanAddSlice(t *testing.T) {
 		t.Fatalf("createPlanFromTopic: %v", err)
 	}
 
-	// Add a slice.
-	if err := addSliceToPlan(dir, planID, "Implement error handling", sliceFlags{}); err != nil {
-		t.Fatalf("addSliceToPlan: %v", err)
+	// Add slices via YAML workflow.
+	if err := runPlanAddSliceYAML(dir, planID, "Implement error handling",
+		"Handle errors", "", "", "", "", "S", "Low", ""); err != nil {
+		t.Fatalf("addSliceYAML: %v", err)
 	}
 
-	// Verify slice exists in the CRISPI HTML.
+	// Render to HTML.
+	if err := renderPlanToFile(dir, planID); err != nil {
+		t.Fatalf("renderPlanToFile: %v", err)
+	}
+
+	// Verify slice exists in the rendered HTML.
 	planPath := filepath.Join(dir, "plans", planID+".html")
 	data, err := os.ReadFile(planPath)
 	if err != nil {
@@ -86,20 +89,21 @@ func TestRunPlanAddSlice(t *testing.T) {
 		t.Error("plan HTML missing slice title")
 	}
 
-	// Verify CRISPI-specific elements were injected.
+	// Verify CRISPI-specific elements were rendered.
 	if !strings.Contains(html, `data-node="1"`) {
 		t.Error("plan HTML missing graph node data-node=1")
 	}
 	if !strings.Contains(html, `data-slice="1"`) {
 		t.Error("plan HTML missing slice card data-slice=1")
 	}
-	if !strings.Contains(html, `"slice-1"`) {
-		t.Error("plan HTML SECTIONS_JSON missing slice-1")
-	}
 
-	// Add a second slice.
-	if err := addSliceToPlan(dir, planID, "Add tests", sliceFlags{}); err != nil {
-		t.Fatalf("addSliceToPlan second: %v", err)
+	// Add a second slice and re-render.
+	if err := runPlanAddSliceYAML(dir, planID, "Add tests",
+		"Write unit tests", "", "", "", "", "S", "Low", ""); err != nil {
+		t.Fatalf("addSliceYAML second: %v", err)
+	}
+	if err := renderPlanToFile(dir, planID); err != nil {
+		t.Fatalf("renderPlanToFile second: %v", err)
 	}
 
 	data, _ = os.ReadFile(planPath)
@@ -112,8 +116,5 @@ func TestRunPlanAddSlice(t *testing.T) {
 	}
 	if !strings.Contains(html, `data-slice="2"`) {
 		t.Error("plan HTML missing slice card data-slice=2")
-	}
-	if !strings.Contains(html, `"slice-2"`) {
-		t.Error("plan HTML SECTIONS_JSON missing slice-2")
 	}
 }

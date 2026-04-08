@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
 	"github.com/spf13/cobra"
 )
@@ -85,12 +86,26 @@ func extractCritiqueData(htmlgraphDir, planID string) (*critiqueOutput, error) {
 		Status:      string(node.Status),
 	}
 
-	// Extract slices from steps.
+	// Extract slices from HTML steps first, then fall back to YAML.
 	for i, step := range node.Steps {
 		out.Slices = append(out.Slices, critiqueSlice{
 			Number: i + 1,
 			Title:  step.Description,
 		})
+	}
+	if len(out.Slices) == 0 {
+		yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+		if plan, err := planyaml.Load(yamlPath); err == nil {
+			for _, s := range plan.Slices {
+				out.Slices = append(out.Slices, critiqueSlice{
+					Number: s.Num,
+					Title:  s.Title,
+				})
+			}
+			if out.Description == "" && plan.Meta.Description != "" {
+				out.Description = plan.Meta.Description
+			}
+		}
 	}
 
 	// Complexity gate.
