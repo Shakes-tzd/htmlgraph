@@ -750,3 +750,42 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+
+/* ── Plan detail panel ───────────────────────────────────── */
+.plan-detail { display: none; }
+.plan-detail.active { display: block; }
+.plan-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.plan-detail-body {
+  /* Map plan CSS tokens to dashboard tokens */
+  --bg: var(--bg-primary);
+  --bg-card: var(--bg-secondary);
+  --bg-input: var(--bg-tertiary);
+  --bg-hover: var(--bg-hover);
+  --text: var(--text-primary);
+  --text-dim: var(--text-secondary);
+  --text-muted: var(--text-muted);
+  --border: var(--border);
+  --accent: var(--accent);
+  --accent-dim: var(--accent-dim);
+  --radius: var(--radius);
+  --mono: var(--font-mono);
+  --sans: var(--font-sans);
+}
+.plan-detail-body .section-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+.plan-detail-body details summary {
+  cursor: pointer;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.plan-detail-body .sidebar { display: none; }

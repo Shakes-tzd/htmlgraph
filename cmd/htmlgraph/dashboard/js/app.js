@@ -92,6 +92,12 @@ function fetchPlans() {
     .then(function(data) {
       plans = data || [];
       renderPlans();
+      var pending = plans.filter(function(p) { return p.status !== 'finalized'; }).length;
+      var pill = document.getElementById('sp-plans');
+      if (pill && pending > 0) {
+        pill.style.display = '';
+        document.getElementById('sv-plans').textContent = pending;
+      }
     })
     .catch(function() {
       plans = [];
@@ -99,12 +105,13 @@ function fetchPlans() {
     });
 }
 
-function renderPlans() {
+function renderPlans(filteredPlans) {
+  var items = filteredPlans || plans;
   var body = document.getElementById('plans-body');
   var empty = document.getElementById('plans-empty');
   document.getElementById('plans-count').textContent = plans.length;
 
-  if (plans.length === 0) {
+  if (items.length === 0) {
     body.innerHTML = '';
     empty.style.display = 'block';
     return;
@@ -112,11 +119,11 @@ function renderPlans() {
   empty.style.display = 'none';
 
   body.innerHTML = '';
-  plans.forEach(function(p) {
+  items.forEach(function(p) {
     var tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
     tr.addEventListener('click', function() {
-      window.open('/plans/' + p.id + '.html', '_blank');
+      openPlanDetail(p.id, p.title);
     });
 
     // Title
@@ -846,7 +853,56 @@ document.addEventListener('DOMContentLoaded', function() {
   if (backBtn) {
     backBtn.addEventListener('click', closeWorkDetail);
   }
+
+  var planBackBtn = document.getElementById('plan-detail-back');
+  if (planBackBtn) {
+    planBackBtn.addEventListener('click', closePlanDetail);
+  }
+
+  var planFilter = document.getElementById('plan-status-filter');
+  if (planFilter) {
+    planFilter.addEventListener('change', function() {
+      var val = this.value;
+      renderPlans(val === 'all' ? plans : plans.filter(function(p) { return p.status === val; }));
+    });
+  }
 });
 
 Promise.all([fetchStats(), fetchEvents()]);
 setInterval(fetchStats, 30000);
+
+/* ── Plan detail panel ────────────────────────────────────── */
+function closePlanDetail() {
+  var detail = document.getElementById('plan-detail');
+  var listView = document.getElementById('plans-list-view');
+  var viewTitle = document.querySelector('#v-plans .view-title');
+  detail.classList.remove('active');
+  listView.style.display = '';
+  if (viewTitle) viewTitle.style.display = '';
+}
+
+function openPlanDetail(planId, title) {
+  var detail = document.getElementById('plan-detail');
+  var listView = document.getElementById('plans-list-view');
+  var body = document.getElementById('plan-detail-body');
+  var titleEl = document.getElementById('plan-detail-title');
+  var viewTitle = document.querySelector('#v-plans .view-title');
+
+  listView.style.display = 'none';
+  if (viewTitle) viewTitle.style.display = 'none';
+  detail.classList.add('active');
+  titleEl.textContent = title || planId;
+  body.innerHTML = '<div class="empty">Loading...</div>';
+
+  fetch('/api/plans/' + planId + '/render')
+    .then(function(r) {
+      if (!r.ok) throw new Error('Not found');
+      return r.text();
+    })
+    .then(function(html) {
+      body.innerHTML = html;
+    })
+    .catch(function() {
+      body.innerHTML = '<div class="empty">Could not load plan: ' + planId + '</div>';
+    });
+}

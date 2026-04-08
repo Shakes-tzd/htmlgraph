@@ -540,11 +540,17 @@ func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 	chatH := planChatHandler(database, htmlgraphDir)
 	amendmentsH := planAmendmentsHandler(database)
 	yamlH := planYAMLHandler(htmlgraphDir)
+	renderH := planRenderHandler(htmlgraphDir)
+	eventsH := planEventsHandler(database)
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		switch {
 		case strings.HasSuffix(path, "/chat"):
 			chatH(w, r)
+		case strings.HasSuffix(path, "/render"):
+			renderH(w, r)
+		case strings.HasSuffix(path, "/events"):
+			eventsH(w, r)
 		case strings.HasSuffix(path, "/status"):
 			statusH(w, r)
 		case strings.HasSuffix(path, "/feedback"):
@@ -559,6 +565,101 @@ func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 			yamlH(w, r)
 		default:
 			http.Error(w, "not found", http.StatusNotFound)
+		}
+	}
+}
+
+// planRenderHandler returns plan HTML content without the outer shell.
+// GET /api/plans/{id}/render
+func planRenderHandler(htmlgraphDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		planID, err := extractPlanID(r.URL.Path, "/render")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		htmlPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+		data, err := os.ReadFile(htmlPath)
+		if err != nil {
+			http.Error(w, "plan not found", http.StatusNotFound)
+			return
+		}
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(data)))
+		if err != nil {
+			http.Error(w, "parse error", http.StatusInternalServerError)
+			return
+		}
+		// Extract article content (the main plan body without shell/head)
+		article, err := doc.Find("article").Html()
+		if err != nil || article == "" {
+			article, _ = doc.Find("body").Html()
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, article)
+	}
+}
+
+// planEventsHandler streams plan feedback changes as SSE.
+// GET /api/plans/{id}/events
+func planEventsHandler(database *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			return
+		}
+		planID, err := extractPlanID(r.URL.Path, "/events")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		var lastRowID int64
+		database.QueryRow(
+			`SELECT COALESCE(MAX(id), 0) FROM plan_feedback WHERE plan_id = ?`,
+			planID,
+		).Scan(&lastRowID)
+
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-ticker.C:
+				database.Exec("PRAGMA wal_checkpoint(PASSIVE)")
+				rows, err := database.Query(`
+					SELECT id, section, action, value
+					FROM plan_feedback
+					WHERE plan_id = ? AND id > ?
+					ORDER BY id ASC LIMIT 20`, planID, lastRowID)
+				if err != nil {
+					continue
+				}
+				for rows.Next() {
+					var id int64
+					var section, action, value string
+					if err := rows.Scan(&id, &section, &action, &value); err != nil {
+						continue
+					}
+					payload, _ := json.Marshal(map[string]string{
+						"plan_id": planID, "section": section,
+						"action": action, "value": value,
+					})
+					fmt.Fprintf(w, "data: %s\n\n", payload)
+					lastRowID = id
+				}
+				rows.Close()
+				flusher.Flush()
+			}
 		}
 	}
 }
