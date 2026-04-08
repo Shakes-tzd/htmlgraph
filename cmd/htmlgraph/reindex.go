@@ -82,6 +82,14 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	// Rebuild agent_events from session HTML activity logs.
+	sessDir := filepath.Join(htmlgraphDir, "sessions")
+	sessTotal, sessUpserted, sessErrs := reindexSessions(database, sessDir)
+	if sessUpserted > 0 || sessErrs > 0 {
+		fmt.Printf("  sessions: %d events upserted, %d errors (of %d session files)\n",
+			sessUpserted, sessErrs, sessTotal)
+	}
+
 	// Parse git commit trailers (Refs:/Fixes:) to backfill feature attribution.
 	trailerCount, trailerErr := reindexCommitTrailers(database, projectDir)
 	if trailerErr != nil {
