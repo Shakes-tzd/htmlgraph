@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"html"
+	htmltemplate "html/template"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/shakestzd/htmlgraph/internal/plantmpl"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
 	"github.com/spf13/cobra"
@@ -127,6 +129,9 @@ func scaffoldCRISPIPlanFromNode(htmlgraphDir string, node *models.Node) error {
 		})
 	}
 
+	// Enrich with Questions and Critique from the YAML file if present.
+	enrichPageFromYAML(htmlgraphDir, node.ID, page)
+
 	outPath := filepath.Join(plansDir, node.ID+".html")
 	f, err := os.Create(outPath)
 	if err != nil {
@@ -143,6 +148,98 @@ func ensureGraph(g *plantmpl.DependencyGraph) *plantmpl.DependencyGraph {
 		return &plantmpl.DependencyGraph{}
 	}
 	return g
+}
+
+// enrichPageFromYAML loads the YAML plan file (if it exists) and populates
+// page.Questions and page.Critique from the YAML data. This bridges the
+// planyaml data model to the plantmpl rendering structs.
+// If the YAML file does not exist the function is a no-op.
+func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
+	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	plan, err := planyaml.Load(yamlPath)
+	if err != nil {
+		// No YAML file — silently skip.
+		return
+	}
+
+	// Map questions to DecisionCards.
+	if len(plan.Questions) > 0 {
+		var cards []plantmpl.DecisionCard
+		for _, q := range plan.Questions {
+			var opts []string
+			for _, o := range q.Options {
+				opts = append(opts, o.Label)
+			}
+			selected := ""
+			if q.Answer != nil {
+				selected = *q.Answer
+			}
+			cards = append(cards, plantmpl.DecisionCard{
+				ID:       q.ID,
+				Text:     q.Text,
+				Options:  opts,
+				Selected: selected,
+			})
+		}
+		page.Questions = &plantmpl.QuestionsSection{Cards: cards}
+	}
+
+	// Map critique section.
+	if plan.Critique != nil {
+		cz := &plantmpl.CritiqueZone{}
+
+		for _, a := range plan.Critique.Assumptions {
+			cz.Assumptions = append(cz.Assumptions, plantmpl.AssumptionResult{
+				Text:     a.Text,
+				Badge:    a.Status,
+				Evidence: a.Evidence,
+			})
+		}
+
+		for _, r := range plan.Critique.Risks {
+			cz.RiskTable = append(cz.RiskTable, plantmpl.RiskRow{
+				Risk:       r.Risk,
+				Severity:   r.Severity,
+				Mitigation: r.Mitigation,
+			})
+		}
+
+		if plan.Critique.Synthesis != "" {
+			cz.Synthesis = htmltemplate.HTML(html.EscapeString(plan.Critique.Synthesis)) //nolint:gosec
+		}
+
+		// Positional mapping: Critics[0] → GeminiCritique, Critics[1] → CopilotCritique.
+		if len(plan.Critique.Critics) > 0 {
+			cz.GeminiCritique = renderCriticSectionHTML(plan.Critique.Critics[0])
+		}
+		if len(plan.Critique.Critics) > 1 {
+			cz.CopilotCritique = renderCriticSectionHTML(plan.Critique.Critics[1])
+		}
+
+		page.Critique = cz
+	}
+}
+
+// renderCriticSectionHTML converts a planyaml.CriticSection into safe HTML
+// for embedding in the CritiqueZone template slots.
+func renderCriticSectionHTML(c planyaml.CriticSection) htmltemplate.HTML {
+	var b strings.Builder
+	for _, sub := range c.Sections {
+		b.WriteString("<h5>")
+		b.WriteString(html.EscapeString(sub.Heading))
+		b.WriteString("</h5>\n<ul>\n")
+		for _, item := range sub.Items {
+			b.WriteString(`  <li><span class="badge badge-`)
+			b.WriteString(html.EscapeString(item.Kind))
+			b.WriteString(`">`)
+			b.WriteString(html.EscapeString(item.Badge))
+			b.WriteString("</span> ")
+			b.WriteString(html.EscapeString(item.Text))
+			b.WriteString("</li>\n")
+		}
+		b.WriteString("</ul>\n")
+	}
+	return htmltemplate.HTML(b.String()) //nolint:gosec
 }
 
 // ---- plan add-slice ---------------------------------------------------------
