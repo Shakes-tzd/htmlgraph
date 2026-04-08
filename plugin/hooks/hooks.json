@@ -207,6 +207,17 @@
           }
         ]
       }
+    ],
+    "ConfigChange": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "htmlgraph hook config-change"
+          }
+        ]
+      }
     ]
   }
 }

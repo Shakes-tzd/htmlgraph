@@ -6,12 +6,77 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/shakestzd/htmlgraph/internal/db"
 )
 
 func init() {
 	// Override mergeInProgressFn in tests to always return false, preventing
 	// real git state from bleeding into test isolation.
 	mergeInProgressFn = func() bool { return false }
+}
+
+// TestIsYoloFromDB verifies the SQLite-backed fallback for YOLO detection.
+func TestIsYoloFromDB(t *testing.T) {
+	// Create a temp directory with a real on-disk DB.
+	tmpDir := t.TempDir()
+	hgDir := filepath.Join(tmpDir, ".htmlgraph")
+	os.MkdirAll(hgDir, 0o755)
+	dbPath := filepath.Join(hgDir, "htmlgraph.db")
+
+	// Open and initialise the DB via the project's Open helper.
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+
+	// Insert a test session with bypassPermissions in metadata.
+	_, err = database.Exec(
+		`INSERT INTO sessions (session_id, agent_assigned, status, created_at)
+		 VALUES (?, ?, ?, datetime('now'))`,
+		"yolo-sess", "claude-code", "active",
+	)
+	if err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+	_, err = database.Exec(
+		`UPDATE sessions SET metadata = json_set(COALESCE(metadata, '{}'), '$.permission_mode', ?) WHERE session_id = ?`,
+		"bypassPermissions", "yolo-sess",
+	)
+	if err != nil {
+		t.Fatalf("update metadata: %v", err)
+	}
+
+	// Insert a session with a non-YOLO permission mode.
+	_, err = database.Exec(
+		`INSERT INTO sessions (session_id, agent_assigned, status, created_at, metadata)
+		 VALUES (?, ?, ?, datetime('now'), json_object('permission_mode', 'default'))`,
+		"default-sess", "claude-code", "active",
+	)
+	if err != nil {
+		t.Fatalf("insert default session: %v", err)
+	}
+	database.Close()
+
+	// YOLO session → true.
+	if !isYoloFromDB(hgDir, "yolo-sess") {
+		t.Error("expected isYoloFromDB=true for bypassPermissions session")
+	}
+
+	// Non-YOLO session → false.
+	if isYoloFromDB(hgDir, "default-sess") {
+		t.Error("expected isYoloFromDB=false for default permission mode session")
+	}
+
+	// Unknown session → false.
+	if isYoloFromDB(hgDir, "missing-sess") {
+		t.Error("expected isYoloFromDB=false for missing session")
+	}
+
+	// Empty session ID → false.
+	if isYoloFromDB(hgDir, "") {
+		t.Error("expected isYoloFromDB=false for empty session ID")
+	}
 }
 
 func TestIsYoloMode(t *testing.T) {
@@ -48,34 +113,63 @@ func TestIsYoloFromEvent(t *testing.T) {
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
 	os.MkdirAll(hgDir, 0o755)
 
-	// bypassPermissions → yolo regardless of file
-	resetYoloModeCache()
-	event := &CloudEvent{PermissionMode: "bypassPermissions"}
+	// bypassPermissions → yolo regardless of DB state.
+	event := &CloudEvent{PermissionMode: "bypassPermissions", SessionID: "any-sess"}
 	if !isYoloFromEvent(event, hgDir) {
 		t.Error("expected yolo when permission_mode=bypassPermissions")
 	}
 
-	// "default" → not yolo even with yolo launch-mode file
-	resetYoloModeCache()
-	os.WriteFile(filepath.Join(hgDir, ".launch-mode"),
-		[]byte(`{"mode":"yolo-dev","pid":1234}`), 0o644)
-	event = &CloudEvent{PermissionMode: "default"}
+	// Non-empty, non-bypass mode → not yolo regardless of DB state.
+	event = &CloudEvent{PermissionMode: "default", SessionID: "any-sess"}
 	if isYoloFromEvent(event, hgDir) {
-		t.Error("expected non-yolo when permission_mode=default overrides stale file")
+		t.Error("expected non-yolo when permission_mode=default")
 	}
 
-	// Empty permission_mode → falls back to file
-	resetYoloModeCache()
-	event = &CloudEvent{PermissionMode: ""}
+	// Empty permission_mode + no DB → not yolo.
+	event = &CloudEvent{PermissionMode: "", SessionID: "no-db-sess"}
+	if isYoloFromEvent(event, hgDir) {
+		t.Error("expected non-yolo with no permission_mode and no DB")
+	}
+
+	// Empty permission_mode + DB with bypassPermissions → yolo.
+	dbPath := filepath.Join(hgDir, "htmlgraph.db")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	_, err = database.Exec(
+		`INSERT INTO sessions (session_id, agent_assigned, status, created_at, metadata)
+		 VALUES (?, ?, ?, datetime('now'), json_object('permission_mode', 'bypassPermissions'))`,
+		"yolo-event-sess", "claude-code", "active",
+	)
+	if err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+	database.Close()
+
+	event = &CloudEvent{PermissionMode: "", SessionID: "yolo-event-sess"}
 	if !isYoloFromEvent(event, hgDir) {
-		t.Error("expected yolo from file fallback when permission_mode is empty")
+		t.Error("expected yolo from DB fallback when permission_mode is empty and DB has bypassPermissions")
 	}
 
-	// Empty permission_mode + no file → not yolo
-	resetYoloModeCache()
-	os.Remove(filepath.Join(hgDir, ".launch-mode"))
+	// Empty permission_mode + DB with default mode → not yolo.
+	database, err = db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	_, err = database.Exec(
+		`INSERT INTO sessions (session_id, agent_assigned, status, created_at, metadata)
+		 VALUES (?, ?, ?, datetime('now'), json_object('permission_mode', 'default'))`,
+		"default-event-sess", "claude-code", "active",
+	)
+	if err != nil {
+		t.Fatalf("insert default session: %v", err)
+	}
+	database.Close()
+
+	event = &CloudEvent{PermissionMode: "", SessionID: "default-event-sess"}
 	if isYoloFromEvent(event, hgDir) {
-		t.Error("expected non-yolo with no permission_mode and no file")
+		t.Error("expected non-yolo from DB fallback for default permission mode")
 	}
 }
 

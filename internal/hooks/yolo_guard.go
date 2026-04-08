@@ -18,10 +18,15 @@ import (
 // yoloModeCache stores per-directory launch-mode results for the lifetime of
 // the process. Each hook invocation is a separate process, so this is
 // effectively "read once per invocation" with no staleness risk in production.
+//
+// Deprecated: isYoloMode and yoloModeCache are superseded by isYoloFromDB.
+// Retained for backward compatibility with tests.
 var yoloModeCache sync.Map // map[string]bool
 
 // resetYoloModeCache clears the per-process cache. Only used in tests that
 // mutate the .launch-mode file between isYoloMode calls.
+//
+// Deprecated: used only by legacy TestIsYoloMode tests.
 func resetYoloModeCache() {
 	yoloModeCache.Range(func(k, _ any) bool {
 		yoloModeCache.Delete(k)
@@ -34,14 +39,11 @@ func resetYoloModeCache() {
 // bleeding into test isolation.
 var mergeInProgressFn = isMergeInProgress
 
-// isYoloMode determines if the current session is in YOLO mode.
+// isYoloMode determines if the current session is in YOLO mode by reading
+// the .launch-mode file.
 //
-// Primary source: the CloudEvent permission_mode field, which reflects
-// the live state from Claude Code (syncs with Shift+Tab toggles).
-// "bypassPermissions" = YOLO mode.
-//
-// Fallback: .htmlgraph/.launch-mode file, for backward compatibility with
-// sessions launched via `htmlgraph claude --yolo` before this change.
+// Deprecated: Use isYoloFromDB for new code. This function is retained for
+// backward compatibility with existing tests.
 func isYoloMode(htmlgraphDir string) bool {
 	if v, ok := yoloModeCache.Load(htmlgraphDir); ok {
 		return v.(bool)
@@ -53,17 +55,43 @@ func isYoloMode(htmlgraphDir string) bool {
 }
 
 // isYoloFromEvent checks the CloudEvent permission_mode field first (live
-// state from Claude Code), falling back to the file-based check.
+// state from Claude Code), falling back to a SQLite DB lookup.
 func isYoloFromEvent(event *CloudEvent, htmlgraphDir string) bool {
 	if event.PermissionMode == "bypassPermissions" {
 		return true
 	}
-	// If Claude Code reports a non-bypass mode, trust it over the stale file.
+	// If Claude Code reports a non-bypass mode, trust it.
 	if event.PermissionMode != "" {
 		return false
 	}
-	// Fallback: older Claude Code versions may not send permission_mode.
-	return isYoloMode(htmlgraphDir)
+	// Fallback: check DB for session's last known permission_mode.
+	// This is populated by the ConfigChange hook handler.
+	return isYoloFromDB(htmlgraphDir, event.SessionID)
+}
+
+// isYoloFromDB looks up the session's permission_mode from the sessions.metadata
+// JSON column. This is populated by the ConfigChange hook when the user toggles
+// permission mode in Claude Code.
+func isYoloFromDB(htmlgraphDir, sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	dbPath := filepath.Join(htmlgraphDir, "htmlgraph.db")
+	// Use lightweight read-only open — no pragmas, no migrations.
+	database, err := sql.Open("sqlite", dbPath+"?mode=ro&_busy_timeout=5000")
+	if err != nil {
+		return false
+	}
+	defer database.Close()
+	var mode sql.NullString
+	err = database.QueryRow(
+		"SELECT json_extract(metadata, '$.permission_mode') FROM sessions WHERE session_id = ?",
+		sessionID,
+	).Scan(&mode)
+	if err != nil || !mode.Valid {
+		return false
+	}
+	return mode.String == "bypassPermissions"
 }
 
 // checkYoloWorkItemGuard blocks Write/Edit tools when no active work item

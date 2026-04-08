@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
@@ -27,17 +28,13 @@ Examples:
 		},
 	}
 }
+// commitSHARe matches valid commit SHA hashes (7-40 hex characters).
+var commitSHARe = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 
 // looksLikeFilePath returns true when the argument looks like a file path
 // rather than a commit SHA. File paths contain "/" or "." (except lone hex).
-func looksLikeFilePath(arg string) bool {
-	if strings.Contains(arg, "/") {
-		return true
-	}
-	if strings.Contains(arg, ".") {
-		return true
-	}
-	return false
+func looksLikeFilePath(s string) bool {
+	return !commitSHARe.MatchString(s)
 }
 
 func runTrace(arg string) error {

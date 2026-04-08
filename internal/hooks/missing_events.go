@@ -205,6 +205,28 @@ func PermissionRequest(event *CloudEvent, database *sql.DB) (*HookResult, error)
 	return recordSimpleEvent(models.EventCheckPoint, "PermissionRequest", summary, "recorded", event, database)
 }
 
+// ConfigChange handles the ConfigChange Claude Code hook event.
+// Upserts the session's permission_mode into the sessions.metadata JSON column
+// so that YOLO detection can use a DB lookup instead of the .launch-mode file.
+func ConfigChange(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	if event.PermissionMode == "" {
+		return &HookResult{Continue: true}, nil
+	}
+	sessionID := EnvSessionID(event.SessionID)
+	if sessionID == "" {
+		return &HookResult{Continue: true}, nil
+	}
+	_, err := database.Exec(
+		`UPDATE sessions SET metadata = json_set(COALESCE(metadata, '{}'), '$.permission_mode', ?) WHERE session_id = ?`,
+		event.PermissionMode, sessionID,
+	)
+	if err != nil {
+		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+		debugLog(projectDir, "[error] handler=config-change session=%s: update metadata: %v", sessionID[:minSessionLen(sessionID)], err)
+	}
+	return &HookResult{Continue: true}, nil
+}
+
 // WorktreeCreate handles the WorktreeCreate Claude Code hook event.
 // Records when a git worktree is created for isolated work.
 func WorktreeCreate(event *CloudEvent, database *sql.DB) (*HookResult, error) {
