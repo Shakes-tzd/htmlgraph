@@ -143,18 +143,19 @@ func NormaliseSessionID(raw string) string {
 }
 
 // EnvSessionID returns the current session ID using a three-step fallback:
-//  1. HTMLGRAPH_SESSION_ID env var (set by writeEnvVars via CLAUDE_ENV_FILE)
-//  2. CloudEvent session_id (always present, always correct for this invocation)
+//  1. CloudEvent session_id (always correct for hook invocations)
+//  2. HTMLGRAPH_SESSION_ID env var (for CLI commands without a CloudEvent)
 //  3. .htmlgraph/.active-session file (last resort for edge cases)
 func EnvSessionID(eventSessionID string) string {
-	if v := os.Getenv("HTMLGRAPH_SESSION_ID"); v != "" {
-		return v
-	}
-	// Prefer the CloudEvent session_id — it's always correct for this hook
-	// invocation. The .active-session file can become stale when
-	// CLAUDE_ENV_FILE is unavailable (e.g. YOLO mode, worktree subagents).
+	// CloudEvent session_id is always correct for this hook invocation.
+	// It takes priority over the env var, which can be overwritten by a
+	// concurrent subagent's writeEnvVars call.
 	if sid := agent.NormaliseSessionID(eventSessionID); sid != "" {
 		return sid
+	}
+	// Env var fallback — used by CLI commands that don't have a CloudEvent.
+	if v := os.Getenv("HTMLGRAPH_SESSION_ID"); v != "" {
+		return v
 	}
 	// Last resort: .active-session file.
 	cwd, _ := os.Getwd()
