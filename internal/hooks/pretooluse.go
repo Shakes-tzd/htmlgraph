@@ -65,20 +65,11 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
 	// the claims table (now supplied by the batch context query); the
 	// orchestrator falls back to session-scoped FeatureID.
-	hasAgentClaim := false
-	if ctx.IsSubagent {
-		hasAgentClaim = ctx.ClaimedItem != ""
-	} else {
-		hasAgentClaim = ctx.FeatureID != ""
-	}
-	if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim); warn != "" {
-		return &HookResult{Decision: "block", Reason: warn}, nil
-	}
-
-	// YOLO mode enforcement: session-scoped attribution check.
-	// Subagents get a short grace period on session start to claim a work item
-	// before the guard fires — the parent session's active feature serves as
-	// confirmation that the orchestrator has already registered intent.
+	// YOLO mode enforcement: subagents get a short grace period on session
+	// start to claim a work item before guards fire — the parent session's
+	// active feature serves as confirmation that the orchestrator has already
+	// registered intent. This MUST run before the subagent work item guard
+	// so that freshly spawned subagents aren't blocked before they can claim.
 	subagentGrace := checkYoloSubagentGrace(
 		ctx.IsYoloMode, ctx.IsSubagent,
 		ctx.SessionCreatedAt, ctx.ParentSessionID, database,
@@ -86,6 +77,20 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	if subagentGrace {
 		debugLog(ctx.ProjectDir, "[htmlgraph] subagent grace period active for session %s — allowing write before claim",
 			ctx.SessionID)
+	}
+
+	// Subagent work item guard: ensure subagents have claimed a work item.
+	// Skipped during grace period (subagent just spawned, needs time to claim).
+	hasAgentClaim := false
+	if ctx.IsSubagent {
+		hasAgentClaim = ctx.ClaimedItem != ""
+	} else {
+		hasAgentClaim = ctx.FeatureID != ""
+	}
+	if !subagentGrace {
+		if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
+		}
 	}
 
 	// Covers Write/Edit/MultiEdit tools directly.
@@ -325,8 +330,8 @@ func isBashFileWrite(event *CloudEvent) bool {
 
 // bashFileWritePattern matches Bash commands that write/modify files.
 // Intentionally conservative — matches known destructive patterns only.
-// The redirect branches use [^&\s] to avoid matching fd-to-fd redirects like
-// 2>&1 or >>&2 (which start with > but target a file descriptor, not a file).
+// The redirect branches use negative lookbehind for digits (to skip 2>/dev/null)
+// and [^&\s] to avoid matching fd-to-fd redirects like 2>&1.
 var bashFileWritePattern = regexp.MustCompile(
 	`(?:` +
 		`\bsed\s+-i` +
@@ -335,9 +340,9 @@ var bashFileWritePattern = regexp.MustCompile(
 		`|` +
 		`\bawk\s+-i` +
 		`|` +
-		`>[^&\s]\S*` +
+		`(?:^|[^0-9])>[^&\s]\S*` +
 		`|` +
-		`>>[^&\s]\S*` +
+		`(?:^|[^0-9])>>[^&\s]\S*` +
 		`|` +
 		`\brm\s` +
 		`|` +
