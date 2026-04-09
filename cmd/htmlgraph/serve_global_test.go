@@ -14,69 +14,24 @@ import (
 	"github.com/shakestzd/htmlgraph/internal/registry"
 )
 
-// globalTestProject creates a tmpdir project with a .htmlgraph dir and a
-// SQLite DB that has the minimum schema used by the dashboard handlers
-// (features, sessions, messages, agent_events). Populates a few rows.
-func globalTestProject(t *testing.T, features, bugs, spikes int) string {
+// globalTestProject creates a tmpdir project with a .htmlgraph dir. Unlike
+// the pre-doorway version, it does NOT populate a SQLite schema because
+// the doorway server no longer opens project DBs. A bare .htmlgraph/
+// directory is enough for registry.Upsert to accept the path.
+func globalTestProject(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
 	hgDir := filepath.Join(tmp, ".htmlgraph")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	dbPath := filepath.Join(hgDir, "htmlgraph.db")
-	db, err := sql.Open("sqlite", dbPath)
+	// Touch an empty DB file so registry.Upsert doesn't skip this entry
+	// in environments that might perform a light existence check.
+	f, err := os.Create(filepath.Join(hgDir, "htmlgraph.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	schema := []string{
-		`CREATE TABLE features (
-			id TEXT PRIMARY KEY,
-			type TEXT NOT NULL,
-			title TEXT NOT NULL DEFAULT '',
-			status TEXT NOT NULL DEFAULT 'todo',
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE sessions (
-			session_id TEXT PRIMARY KEY,
-			status TEXT DEFAULT 'completed',
-			is_subagent INTEGER DEFAULT 0,
-			metadata TEXT
-		)`,
-		`CREATE TABLE messages (
-			id INTEGER PRIMARY KEY,
-			session_id TEXT,
-			model TEXT,
-			input_tokens INTEGER DEFAULT 0,
-			output_tokens INTEGER DEFAULT 0,
-			cache_read_tokens INTEGER DEFAULT 0,
-			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE agent_events (
-			id INTEGER PRIMARY KEY,
-			session_id TEXT,
-			event_type TEXT,
-			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
-	}
-	for _, s := range schema {
-		if _, err := db.Exec(s); err != nil {
-			t.Fatalf("schema: %v", err)
-		}
-	}
-	insert := func(kind string, n int) {
-		for i := 0; i < n; i++ {
-			_, err := db.Exec("INSERT INTO features (id, type, title) VALUES (?, ?, ?)",
-				kind+string(rune('a'+i)), kind, kind+" title")
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	insert("feature", features)
-	insert("bug", bugs)
-	insert("spike", spikes)
-	db.Close()
+	f.Close()
 	return tmp
 }
 
@@ -109,32 +64,11 @@ func expectedID(dir string) string {
 	return hex.EncodeToString(h[:])[:8]
 }
 
-// TestModeEndpoint_Single verifies runServer's /api/mode returns
-// {"mode":"single"}. We don't start the full runServer (it needs a DB);
-// instead we hit a freshly-constructed handler directly.
-func TestModeEndpoint_Single(t *testing.T) {
-	// The single-mode route is registered inline in runServer, so we
-	// replicate the exact handler here and assert its response shape.
-	// This keeps the test independent of runServer's DB lifecycle.
-	h := corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, map[string]any{"mode": "single"})
-	}))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("GET", "/api/mode", nil))
-	var body map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatal(err)
-	}
-	if body["mode"] != "single" {
-		t.Errorf("mode: got %v, want single", body["mode"])
-	}
-}
-
-func TestModeEndpoint_Global(t *testing.T) {
-	p1 := globalTestProject(t, 2, 1, 0)
-	p2 := globalTestProject(t, 1, 0, 1)
-	setupGlobalRegistry(t, p1, p2)
-
+// TestDoorwayModeEndpoint verifies /api/mode returns {"mode":"global"} —
+// the doorway server is always in global mode now; single mode only
+// exists inside the child mux.
+func TestDoorwayModeEndpoint(t *testing.T) {
+	setupGlobalRegistry(t)
 	srv := httptest.NewServer(buildGlobalMux())
 	defer srv.Close()
 
@@ -150,18 +84,88 @@ func TestModeEndpoint_Global(t *testing.T) {
 	if body["mode"] != "global" {
 		t.Errorf("mode: got %v, want global", body["mode"])
 	}
-	projects, ok := body["projects"].([]any)
-	if !ok {
-		t.Fatalf("projects missing or wrong type: %+v", body)
-	}
-	if len(projects) != 2 {
-		t.Errorf("expected 2 projects, got %d", len(projects))
+	// Doorway /api/mode must not include projects — that's /api/projects.
+	if _, ok := body["projects"]; ok {
+		t.Errorf("/api/mode should not include projects field")
 	}
 }
 
-func TestProjectsEndpoint_StableIDs(t *testing.T) {
-	p1 := globalTestProject(t, 0, 0, 0)
+// TestDoorwayProjectsEndpoint verifies /api/projects returns registry
+// entries with stable IDs and no count fields.
+func TestDoorwayProjectsEndpoint(t *testing.T) {
+	p1 := globalTestProject(t)
+	p2 := globalTestProject(t)
+	setupGlobalRegistry(t, p1, p2)
+
+	srv := httptest.NewServer(buildGlobalMux())
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/projects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var list []projectSummary
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("expected 2 projects, got %d", len(list))
+	}
+
+	// Verify field set matches the doorway schema (no featureCount etc.)
+	var raw []map[string]any
+	resp2, err := http.Get(srv.URL + "/api/projects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp2.Body.Close()
+	if err := json.NewDecoder(resp2.Body).Decode(&raw); err != nil {
+		t.Fatal(err)
+	}
+	forbidden := []string{"featureCount", "bugCount", "spikeCount"}
+	for _, item := range raw {
+		for _, f := range forbidden {
+			if _, ok := item[f]; ok {
+				t.Errorf("/api/projects entry should not include %s", f)
+			}
+		}
+	}
+}
+
+// TestDoorwayStableIDs verifies the ID format matches the registry's
+// SHA256-prefix derivation so /p/<id>/ lookup is consistent.
+func TestDoorwayStableIDs(t *testing.T) {
+	p1 := globalTestProject(t)
 	setupGlobalRegistry(t, p1)
+
+	srv := httptest.NewServer(buildGlobalMux())
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/projects")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list []projectSummary
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	if len(list) != 1 {
+		t.Fatalf("expected 1, got %d", len(list))
+	}
+	if list[0].ID != expectedID(p1) {
+		t.Errorf("ID mismatch: got %s, want %s", list[0].ID, expectedID(p1))
+	}
+}
+
+// TestDoorwayRegistryRefresh verifies /api/projects re-reads the registry
+// on every request so newly-registered projects appear without a restart.
+func TestDoorwayRegistryRefresh(t *testing.T) {
+	p1 := globalTestProject(t)
+	regPath := setupGlobalRegistry(t, p1)
 
 	srv := httptest.NewServer(buildGlobalMux())
 	defer srv.Close()
@@ -179,103 +183,75 @@ func TestProjectsEndpoint_StableIDs(t *testing.T) {
 		return out
 	}
 
-	first := fetch()
-	second := fetch()
-	if len(first) != 1 || len(second) != 1 {
-		t.Fatalf("expected 1 entry each call, got %d, %d", len(first), len(second))
-	}
-	if first[0].ID != second[0].ID {
-		t.Errorf("ID not stable: first=%s second=%s", first[0].ID, second[0].ID)
-	}
-	if first[0].ID != expectedID(p1) {
-		t.Errorf("ID mismatch: got %s, want %s", first[0].ID, expectedID(p1))
-	}
-}
-
-func TestFeaturesEndpoint_ProjectQueryParam(t *testing.T) {
-	p1 := globalTestProject(t, 2, 0, 0)
-	p2 := globalTestProject(t, 0, 3, 0)
-	setupGlobalRegistry(t, p1, p2)
-
-	srv := httptest.NewServer(buildGlobalMux())
-	defer srv.Close()
-
-	// Missing ?project returns 400.
-	resp, _ := http.Get(srv.URL + "/api/features")
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("missing ?project: got %d, want 400", resp.StatusCode)
-	}
-	resp.Body.Close()
-
-	// Unknown project returns 404.
-	resp, _ = http.Get(srv.URL + "/api/features?project=deadbeef")
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("unknown project: got %d, want 404", resp.StatusCode)
-	}
-	resp.Body.Close()
-
-	// Valid project returns 200.
-	resp, _ = http.Get(srv.URL + "/api/features?project=" + expectedID(p1))
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("valid project: got %d, want 200", resp.StatusCode)
-	}
-	resp.Body.Close()
-}
-
-func TestGlobalServer_RegistryRefresh(t *testing.T) {
-	p1 := globalTestProject(t, 0, 0, 0)
-	regPath := setupGlobalRegistry(t, p1)
-
-	srv := httptest.NewServer(buildGlobalMux())
-	defer srv.Close()
-
-	// First fetch — one project.
-	resp, _ := http.Get(srv.URL + "/api/projects")
-	var first []projectSummary
-	json.NewDecoder(resp.Body).Decode(&first)
-	resp.Body.Close()
-	if len(first) != 1 {
-		t.Fatalf("first fetch: expected 1, got %d", len(first))
+	if got := fetch(); len(got) != 1 {
+		t.Fatalf("first fetch: expected 1, got %d", len(got))
 	}
 
-	// Register a second project without restarting the server.
-	p2 := globalTestProject(t, 0, 0, 0)
+	p2 := globalTestProject(t)
 	reg, _ := registry.Load(regPath)
 	reg.Upsert(p2, filepath.Base(p2), "")
 	if err := reg.Save(); err != nil {
 		t.Fatal(err)
 	}
 
-	// Second fetch — should now include both projects.
-	resp, _ = http.Get(srv.URL + "/api/projects")
-	var second []projectSummary
-	json.NewDecoder(resp.Body).Decode(&second)
-	resp.Body.Close()
-	if len(second) != 2 {
-		t.Errorf("after refresh: expected 2, got %d", len(second))
+	if got := fetch(); len(got) != 2 {
+		t.Errorf("after refresh: expected 2, got %d", len(got))
 	}
 }
 
-// TestGlobalServer_NoMigrations ensures hitting the global server routes
-// never mutates a project DB's schema.
-func TestGlobalServer_NoMigrations(t *testing.T) {
-	p1 := globalTestProject(t, 1, 1, 1)
+// TestDoorwayNeverOpensDBs is the architectural correctness check for
+// the cross-project isolation guarantee. It creates a project DB with a
+// known schema, hits every doorway route, and verifies the DB file was
+// never touched (mtime unchanged). This encodes the invariant that the
+// parent server holds zero SQLite handles.
+func TestDoorwayNeverOpensDBs(t *testing.T) {
+	p1 := globalTestProject(t)
 	setupGlobalRegistry(t, p1)
 
 	dbPath := filepath.Join(p1, ".htmlgraph", "htmlgraph.db")
-	before := readTableNames(t, dbPath)
+
+	// Initialize a minimal schema so we can detect any mutation.
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE features (id TEXT PRIMARY KEY)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	before, err := os.Stat(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	srv := httptest.NewServer(buildGlobalMux())
 	defer srv.Close()
 
-	http.Get(srv.URL + "/api/projects")
-	http.Get(srv.URL + "/api/mode")
-	http.Get(srv.URL + "/api/features?project=" + expectedID(p1))
-	http.Get(srv.URL + "/api/stats?project=" + expectedID(p1))
-	http.Get(srv.URL + "/api/projects/all/stats")
+	// Hit every doorway route. None of these should touch the DB.
+	urls := []string{
+		"/api/mode",
+		"/api/projects",
+		"/", // landing SPA
+	}
+	for _, u := range urls {
+		resp, err := http.Get(srv.URL + u)
+		if err != nil {
+			t.Errorf("GET %s: %v", u, err)
+			continue
+		}
+		resp.Body.Close()
+	}
 
-	after := readTableNames(t, dbPath)
-	if len(before) != len(after) {
-		t.Errorf("schema changed: before=%v after=%v", before, after)
+	after, err := os.Stat(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !before.ModTime().Equal(after.ModTime()) {
+		t.Errorf("project DB mtime changed — doorway opened a handle")
+	}
+	if before.Size() != after.Size() {
+		t.Errorf("project DB size changed — doorway mutated schema")
 	}
 }
