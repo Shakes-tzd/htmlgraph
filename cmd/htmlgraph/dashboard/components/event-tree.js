@@ -200,6 +200,16 @@ class HgEventTree extends HTMLElement {
     return { text: title, className: 'badge-feature' };
   }
 
+  agentBadgeColor(agentType) {
+    var type = (agentType || '').toLowerCase();
+    if (type.indexOf('researcher') !== -1) return '#06b6d4'; // cyan
+    if (type.indexOf('haiku') !== -1) return '#22c55e';      // green
+    if (type.indexOf('sonnet') !== -1) return '#3b82f6';     // blue
+    if (type.indexOf('opus') !== -1) return '#a855f7';       // purple
+    if (type.indexOf('test-runner') !== -1) return '#eab308'; // yellow
+    return '#d29922'; // default gold
+  }
+
   featureBadge(featureId, featureTitle) {
     if (!featureId) return '';
     var title = featureTitle || this.featureTitles[featureId] || '';
@@ -297,9 +307,11 @@ class HgEventTree extends HTMLElement {
     var isError = evt.event_type === 'error' || evt.status === 'failed';
     var borderClass = isTask ? 'border-task' : isError ? 'border-error' : '';
 
-    var subagentBadge = (isTask && evt.subagent_type)
-      ? '<span class="badge badge-subagent">' + esc(evt.subagent_type) + '</span>'
-      : '';
+    var subagentBadge = '';
+    if (isTask && evt.subagent_type) {
+      var color = this.agentBadgeColor(evt.subagent_type);
+      subagentBadge = '<span class="badge badge-subagent" style="background-color: ' + color + '">' + esc(evt.subagent_type) + '</span>';
+    }
     var statusBdg = '<span class="badge badge-status-' + (evt.status || 'unknown') + '">' + esc(evt.status || 'unknown') + '</span>';
 
     var padLeft = (depth + 1) * 1.25;

@@ -254,9 +254,16 @@
   padding: 0.1rem 0.35rem;
   border-radius: 3px;
   background: rgba(236,72,153,0.15);
-  color: #f778ba;
+  color: #ffffff;
   white-space: nowrap;
 }
+
+/* Agent badge color variants */
+.badge-agent-researcher { background: #06b6d4 !important; color: #ffffff; }
+.badge-agent-haiku { background: #22c55e !important; color: #ffffff; }
+.badge-agent-sonnet { background: #3b82f6 !important; color: #ffffff; }
+.badge-agent-opus { background: #a855f7 !important; color: #ffffff; }
+.badge-agent-test { background: #eab308 !important; color: #000000; }
 
 /* ── Header stats bar enhancements ──────────────────────────── */
 .stat-pill-warn .val { color: var(--warning); }

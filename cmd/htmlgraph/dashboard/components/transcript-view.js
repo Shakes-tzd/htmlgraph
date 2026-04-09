@@ -1,5 +1,16 @@
 /* ── Transcript detail view ─────────────────────────────────── */
 
+// agentBadgeColor maps agent type to CSS color hex value
+function agentBadgeColor(agentType) {
+  var type = (agentType || '').toLowerCase();
+  if (type.indexOf('researcher') !== -1) return '#06b6d4'; // cyan
+  if (type.indexOf('haiku') !== -1) return '#22c55e';      // green
+  if (type.indexOf('sonnet') !== -1) return '#3b82f6';     // blue
+  if (type.indexOf('opus') !== -1) return '#a855f7';       // purple
+  if (type.indexOf('test-runner') !== -1) return '#eab308'; // yellow
+  return '#d29922'; // default gold
+}
+
 // scrollHint: { toolUseId, toolName, timestamp } or undefined
 function openTranscript(sessionId, scrollHint) {
   document.getElementById('sessions-list-view').style.display = 'none';
@@ -303,6 +314,7 @@ function renderAgentBlock(tc) {
   var badge = document.createElement('span');
   badge.className = 'badge badge-subagent';
   badge.textContent = subType;
+  badge.style.backgroundColor = agentBadgeColor(subType);
 
   var descSpan = document.createElement('span');
   descSpan.className = 'subagent-desc';
