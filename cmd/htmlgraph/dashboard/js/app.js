@@ -1102,13 +1102,14 @@ document.addEventListener('DOMContentLoaded', function() {
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 })();
 
-/* ── Global mode detection + project switcher ─────────────── */
+/* ── Global mode: projects landing + drill-in hierarchy ──── */
 
 // detectMode calls /api/mode and, if the server is in global mode, stores
-// the project list on window.htmlgraphProjects and renders the switcher.
-// We use /api/mode (not /api/projects) for detection because the static
-// file server returns HTML 404 for unknown /api/* routes in single-project
-// mode, which would fool a JSON-parse check.
+// the project list on window.htmlgraphProjects and shows the projects
+// landing as the root view. We use /api/mode (not /api/projects) for
+// detection because the static file server returns HTML 404 for unknown
+// /api/* routes in single-project mode, which would fool a JSON-parse
+// check.
 function detectMode() {
   return fetch('/api/mode').then(function(r) {
     if (!r.ok) return;
@@ -1117,63 +1118,191 @@ function detectMode() {
     if (!data || data.mode !== 'global') return;
     window.htmlgraphMode = 'global';
     window.htmlgraphProjects = Array.isArray(data.projects) ? data.projects : [];
-    renderProjectSwitcher();
+    // In global mode, start on the projects landing. The per-project views
+    // (Activity, Sessions, etc.) only activate after a card is clicked.
+    showProjectsLanding();
   }).catch(function() {});
 }
 
-// renderProjectSwitcher injects a project selector above the side nav when
-// running in global mode. Selecting a project or "All Projects" re-scopes
-// all subsequent API calls via buildProjectUrl() and re-fetches data.
-function renderProjectSwitcher() {
+// showProjectsLanding enters the root view of global mode: hides the side
+// nav, hides all per-project views, and renders the project cards. This
+// is the top of the hierarchy — Projects are a level ABOVE the regular
+// dashboard views.
+function showProjectsLanding() {
   if (window.htmlgraphMode !== 'global') return;
+  window.htmlgraphProjectId = '';
+
+  // Hide the standard nav — it is scoped to a single project and doesn't
+  // make sense on the landing.
   var nav = document.querySelector('.nav');
-  if (!nav || document.getElementById('project-switcher')) return;
+  if (nav) nav.style.display = 'none';
 
-  var wrap = document.createElement('div');
-  wrap.id = 'project-switcher';
-  wrap.style.cssText = 'padding:10px 12px; border-bottom:1px solid var(--border, #2a2a2a); display:flex; flex-direction:column; gap:6px;';
+  // Deactivate every per-project view and activate the projects landing.
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  var landing = document.getElementById('v-projects');
+  if (landing) landing.classList.add('active');
 
-  var label = document.createElement('div');
-  label.textContent = 'Project';
-  label.style.cssText = 'font-size:11px; text-transform:uppercase; opacity:0.6; letter-spacing:0.05em;';
-  wrap.appendChild(label);
+  // Hide the project context header (it only appears when drilled in).
+  var ctx = document.getElementById('project-context');
+  if (ctx) ctx.style.display = 'none';
 
-  var select = document.createElement('select');
-  select.id = 'project-switcher-select';
-  select.style.cssText = 'width:100%; padding:6px 8px; background:var(--bg, #1a1a1a); color:var(--fg, #eee); border:1px solid var(--border, #2a2a2a); border-radius:4px; font-size:13px;';
+  renderProjectsLanding();
 
-  var allOpt = document.createElement('option');
-  allOpt.value = '';
-  allOpt.textContent = 'All Projects';
-  select.appendChild(allOpt);
-
-  window.htmlgraphProjects.forEach(function(p) {
-    var opt = document.createElement('option');
-    opt.value = p.id;
-    var items = (p.featureCount || 0) + 'f ' + (p.bugCount || 0) + 'b ' + (p.spikeCount || 0) + 's';
-    opt.textContent = p.name + '  (' + items + ')';
-    select.appendChild(opt);
-  });
-
-  select.addEventListener('change', function() {
-    window.htmlgraphProjectId = select.value;
-    // Reset cached data so next view switch re-fetches from the selected scope.
-    sessions = [];
-    features = [];
-    fetchStats();
-    if (currentView === 'sessions') fetchSessions();
-    if (currentView === 'work') fetchFeatures();
-  });
-
-  wrap.appendChild(select);
-  nav.parentNode.insertBefore(wrap, nav);
+  // Stats bar shows aggregate across all projects on the landing.
+  fetchStats();
 }
 
-// In global mode, detect first (so the switcher and scoped fetches are
-// ready), then kick off the normal startup. In single-project mode the
-// detectMode call is a no-op that returns before fetchStats runs.
-detectMode().then(function() {
+// renderProjectsLanding builds one card per registered project. Cards are
+// clickable and call enterProject(id) to drill into that project.
+function renderProjectsLanding() {
+  var grid = document.getElementById('project-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  var projects = window.htmlgraphProjects || [];
+  var empty = document.getElementById('projects-empty');
+  var count = document.getElementById('projects-count');
+  if (count) count.textContent = String(projects.length);
+  if (empty) empty.style.display = projects.length === 0 ? 'block' : 'none';
+
+  projects.forEach(function(p) {
+    var card = document.createElement('div');
+    card.className = 'project-card';
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('click', function() { enterProject(p.id); });
+    card.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterProject(p.id); }
+    });
+
+    var header = document.createElement('div');
+    header.className = 'project-card-header';
+    var name = document.createElement('div');
+    name.className = 'project-card-name';
+    name.textContent = p.name || '(unnamed)';
+    var dir = document.createElement('div');
+    dir.className = 'project-card-dir';
+    dir.textContent = p.dir || '';
+    dir.title = p.dir || '';
+    header.appendChild(name);
+    header.appendChild(dir);
+
+    var stats = document.createElement('div');
+    stats.className = 'project-card-stats';
+    stats.appendChild(buildStatTile(p.featureCount || 0, 'Features'));
+    stats.appendChild(buildStatTile(p.bugCount || 0, 'Bugs'));
+    stats.appendChild(buildStatTile(p.spikeCount || 0, 'Spikes'));
+
+    var meta = document.createElement('div');
+    meta.className = 'project-card-meta';
+    var last = document.createElement('span');
+    last.textContent = p.lastSeen ? relTime(p.lastSeen) : 'never seen';
+    meta.appendChild(last);
+    if (p.gitRemoteURL) {
+      var remote = document.createElement('span');
+      var short = p.gitRemoteURL.replace(/^https?:\/\/(github\.com|gitlab\.com|bitbucket\.org)\//, '').replace(/\.git$/, '');
+      remote.textContent = short;
+      remote.title = p.gitRemoteURL;
+      meta.appendChild(remote);
+    }
+
+    card.appendChild(header);
+    card.appendChild(stats);
+    card.appendChild(meta);
+    grid.appendChild(card);
+  });
+}
+
+function buildStatTile(num, label) {
+  var t = document.createElement('div');
+  t.className = 'project-card-stat';
+  var n = document.createElement('div');
+  n.className = 'project-card-stat-num';
+  n.textContent = String(num);
+  var l = document.createElement('div');
+  l.className = 'project-card-stat-label';
+  l.textContent = label;
+  t.appendChild(n);
+  t.appendChild(l);
+  return t;
+}
+
+// enterProject drills into a specific project: sets the scope, shows the
+// standard nav with a "← All Projects" back button at the top, and
+// activates the Activity view for that project.
+function enterProject(projectId) {
+  if (window.htmlgraphMode !== 'global') return;
+  window.htmlgraphProjectId = projectId;
+
+  // Reveal the side nav (hidden on the landing).
+  var nav = document.querySelector('.nav');
+  if (nav) nav.style.display = '';
+
+  // Inject or update the project context header at the top of the sidebar
+  // (back button + current project name).
+  ensureProjectContextHeader();
+  var ctx = document.getElementById('project-context');
+  if (ctx) ctx.style.display = '';
+  var nameEl = document.getElementById('project-context-name');
+  if (nameEl) {
+    var match = (window.htmlgraphProjects || []).find(function(p) { return p.id === projectId; });
+    nameEl.textContent = match ? match.name : projectId;
+  }
+
+  // Reset cached view data so the new scope re-fetches.
+  sessions = [];
+  features = [];
+  events = [];
+  seenEventIds = new Set();
+
+  // Deactivate the landing and activate the Activity view inside the
+  // selected project.
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  var activity = document.getElementById('v-activity');
+  if (activity) activity.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.view === 'activity');
+  });
+  currentView = 'activity';
+
+  // Fetch the newly scoped data.
   Promise.all([fetchStats(), fetchEvents()]);
+}
+
+// ensureProjectContextHeader injects (once) a "← All Projects" button as
+// the first child INSIDE .nav. It must be a child of .nav (not a sibling)
+// because .shell uses CSS grid with named areas — a sibling would land in
+// a leftover grid cell at the bottom of the page instead of above the
+// nav buttons.
+function ensureProjectContextHeader() {
+  if (document.getElementById('project-context')) return;
+  var nav = document.querySelector('.nav');
+  if (!nav) return;
+
+  var ctx = document.createElement('div');
+  ctx.id = 'project-context';
+  ctx.className = 'project-context';
+
+  var back = document.createElement('button');
+  back.className = 'project-back-btn';
+  back.innerHTML = '<span style="font-size:14px;">&larr;</span> All Projects';
+  back.addEventListener('click', function() { showProjectsLanding(); });
+
+  var name = document.createElement('div');
+  name.id = 'project-context-name';
+  name.className = 'project-context-name';
+
+  ctx.appendChild(back);
+  ctx.appendChild(name);
+  nav.insertBefore(ctx, nav.firstChild);
+}
+
+// In global mode, detect first (which triggers showProjectsLanding). In
+// single-project mode, detectMode is a no-op and startup proceeds with
+// the old behaviour.
+detectMode().then(function() {
+  if (window.htmlgraphMode === 'single') {
+    Promise.all([fetchStats(), fetchEvents()]);
+  }
 });
 setInterval(fetchStats, 30000);
 

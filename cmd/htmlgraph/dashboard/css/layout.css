@@ -141,3 +141,107 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* ── Projects landing (global mode root view) ─────────────── */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.project-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.project-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.project-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.project-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.project-card-dir {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-card-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+.project-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.project-card-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.project-card-stat-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+.project-card-meta {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Project context header (sidebar top when drilled in) ── */
+.project-context {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.project-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.project-back-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+.project-context-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding-left: 6px;
+}
