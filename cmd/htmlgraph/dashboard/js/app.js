@@ -68,7 +68,7 @@ function updateStatsBar() {
 }
 
 function fetchEvents() {
-  return fetch('/api/events/recent?limit=100').then(function(r) {
+  return fetch(buildProjectUrl('events/recent', 'limit=100')).then(function(r) {
     if (!r.ok) return;
     return r.json().then(function(data) {
       events = data;
@@ -98,7 +98,7 @@ function fetchFeatures() {
 }
 
 function fetchPlans() {
-  fetch('/api/plans')
+  fetch(buildProjectUrl('plans'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       plans = data || [];
@@ -201,7 +201,7 @@ function renderPlans(filteredPlans) {
             e2.stopPropagation();
             confirmBtn.textContent = 'Deleting...';
             confirmBtn.disabled = true;
-            fetch('/api/plans/' + planId + '/delete', { method: 'DELETE' })
+            fetch(buildProjectUrl('plans/' + planId + '/delete'), { method: 'DELETE' })
               .then(function(r) { return r.json(); })
               .then(function() { plans = []; fetchPlans(); });
           });
@@ -672,7 +672,7 @@ function openWorkDetail(id) {
   loading.textContent = 'Loading...';
   content.appendChild(loading);
 
-  fetch('/api/features/detail?id=' + encodeURIComponent(id))
+  fetch(buildProjectUrl('features/detail', 'id=' + encodeURIComponent(id)))
     .then(function(r) {
       if (!r.ok) throw new Error('Not found');
       return r.json();
@@ -839,7 +839,7 @@ function renderWorkDetail(container, node) {
   relatedContainer.className = 'work-detail-related';
   relatedSection.appendChild(relatedContainer);
 
-  fetch('/api/features/related?feature_id=' + encodeURIComponent(node.id))
+  fetch(buildProjectUrl('features/related', 'feature_id=' + encodeURIComponent(node.id)))
     .then(function(r) { return r.ok ? r.json() : []; })
     .then(function(related) {
       if (!related || related.length === 0) {
@@ -865,7 +865,7 @@ function renderWorkDetail(container, node) {
     .catch(function() { /* no related section on error */ });
 
   // Activity data — async, three collapsible panels: Commits / Files / Activity
-  fetch('/api/features/' + encodeURIComponent(node.id) + '/activity')
+  fetch(buildProjectUrl('features/' + encodeURIComponent(node.id) + '/activity'))
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
       if (!data) return;
@@ -1350,7 +1350,7 @@ function openPlanDetail(planId, title) {
   titleEl.textContent = title || planId;
   body.innerHTML = '<div class="empty">Loading...</div>';
 
-  fetch('/api/plans/' + planId + '/render')
+  fetch(buildProjectUrl('plans/' + planId + '/render'))
     .then(function(r) {
       if (!r.ok) throw new Error('Not found');
       return r.text();
@@ -1450,7 +1450,7 @@ function buildPlanSubnav(container) {
 var graphSimulation = null;
 
 function fetchGraph() {
-  fetch('/api/graph')
+  fetch(buildProjectUrl('graph'))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       document.getElementById('graph-count').textContent = data.nodes ? data.nodes.length : 0;

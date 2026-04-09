@@ -11,7 +11,7 @@ class HgEventTree extends HTMLElement {
 
   connectedCallback() {
     this.load();
-    this.evtSource = new EventSource('/api/events/stream');
+    this.evtSource = new EventSource(buildProjectUrl('events/stream'));
     this.evtSource.onmessage = (msg) => this.handleSSE(JSON.parse(msg.data));
     this.evtSource.onopen = () => {
       var dot = document.getElementById('conn-dot');
@@ -55,7 +55,7 @@ class HgEventTree extends HTMLElement {
   async load() {
     var limit = this.dataset.limit || 50;
     try {
-      var resp = await fetch('/api/events/tree?limit=' + limit);
+      var resp = await fetch(buildProjectUrl('events/tree', 'limit=' + limit));
       if (!resp.ok) return;
       this.turns = await resp.json();
     } catch(e) {
@@ -78,7 +78,7 @@ class HgEventTree extends HTMLElement {
     });
     if (ids.size === 0) return;
     try {
-      var resp = await fetch('/api/features');
+      var resp = await fetch(buildProjectUrl('features'));
       if (!resp.ok) return;
       var features = await resp.json();
       var self = this;

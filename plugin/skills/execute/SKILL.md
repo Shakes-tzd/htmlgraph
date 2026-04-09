@@ -68,6 +68,49 @@ If no tasks exist yet, create them from the plan (see `/htmlgraph:plan`).
 
 ---
 
+## Step 1.5: Populate Tasks from Plan
+
+When executing features that originated from a plan, you must first resolve the track title, then create tasks with readable subject fields.
+
+**Resolve track title before dispatching:**
+
+Before creating any tasks, resolve the track's human title by running:
+```
+Bash("htmlgraph track show <trk-id> --format json")
+```
+
+Extract the `.title` field. Use it (not the raw track ID) as the outer `Agent()` description when spawning the top-level coordinator:
+
+```
+Agent(description="Multi-Project MVP: execute plan", ...)  # ✓ GOOD
+```
+
+Never use the raw track ID:
+```
+Agent(description="trk-8cf41009", ...)  # ✗ BAD
+```
+
+**Create tasks with human-readable subjects:**
+
+For each approved slice in the plan, create one task using this template:
+
+```
+TaskCreate(
+    subject="<slice.title>",                    # e.g. "Registry package — internal/registry/"
+    description="<slice.what truncated to 200 chars>",
+    activeForm="Implementing <slice.title>",
+    metadata={
+        "feature_id": "<slice.id>",             # e.g. feat-7540a6cc
+        "num": <slice.num>,                     # e.g. 1
+        "agent": "htmlgraph:sonnet-coder"
+    }
+)
+```
+
+**Why this matters:** The execute log renders `task.subject` as the task badge label. If you pass a slice number (e.g., `1`, `2`, `3`) or raw feature ID, the dispatcher log becomes unreadable at a glance. Always use the slice title — it gives agents immediate context about what they're implementing.
+
+---
+
 ## Step 2: Dispatch All Unblocked Tasks
 
 Spawn ALL ready tasks in a single message. Each gets an isolated worktree:
@@ -302,7 +345,7 @@ while True:
     for task in ready:
         TaskUpdate(taskId=task.id, status="in_progress")
         Agent(
-            description=task.subject,
+            description=task.subject,  # Must be slice.title from TaskCreate, NOT slice.num or feature_id
             subagent_type=task.metadata.agent,
             isolation="worktree",
             prompt=build_prompt(task)

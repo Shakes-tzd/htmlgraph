@@ -177,6 +177,21 @@ Ask yourself these questions:
 
 **Rule of thumb:** When in doubt, ALWAYS DELEGATE. Cascading failures are expensive.
 
+### Data File Reads — Direct Read Tool Permitted
+
+The orchestrator MAY call the `Read` tool directly, without delegating to `htmlgraph:researcher` or `htmlgraph:reader`, when ALL of the following hold:
+
+1. The file is a **data or config file**: YAML, JSON, TOML, Markdown (non-source), `.htmlgraph/**/*.yaml`, `.htmlgraph/**/*.html`, log files, or plain text output
+2. It is a **single-file read** — not a glob-then-read pattern, not multiple files
+3. The task is **retrieval only** — you need the content to compose a subsequent delegation or user response, not to modify code
+
+**Anti-pattern this replaces:** Delegating a 30 KB YAML read to `htmlgraph:researcher` pays ~60 s of skill-injection overhead for work that takes <100 ms inline. Do not delegate single data-file reads.
+
+**Source code and writes still MUST delegate:**
+- `.go`, `.ts`, `.py`, and other source files → delegate to researcher or coder
+- Any `Edit` or `Write` operation → delegate to appropriate coder agent
+- Multi-file reads or glob patterns → use `htmlgraph:reader` (zero-skill agent)
+
 </details>
 
 <details>

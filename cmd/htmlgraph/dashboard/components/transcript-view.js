@@ -20,10 +20,10 @@ function openTranscript(sessionId, scrollHint) {
   document.getElementById('transcript-stats').textContent = '';
 
   // Trigger on-demand ingest so the transcript is up-to-date, then fetch.
-  fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/ingest', { method: 'POST' })
+  fetch(buildProjectUrl('sessions/' + encodeURIComponent(sessionId) + '/ingest'), { method: 'POST' })
     .catch(function() {}) // fire-and-forget; failures are non-fatal
     .then(function() {
-      return fetch('/api/transcript?session=' + encodeURIComponent(sessionId) + '&limit=500');
+      return fetch(buildProjectUrl('transcript', 'session=' + encodeURIComponent(sessionId) + '&limit=500'));
     })
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -357,7 +357,7 @@ function renderAgentBlock(tc) {
 // fetchSubagentEventsByAgentID loads events for a subagent using its agent_id.
 // This is the preferred path — agent_id is a stable identifier for the subagent.
 function fetchSubagentEventsByAgentID(agentID, container) {
-  fetch('/api/events/subagent?agent_id=' + encodeURIComponent(agentID))
+  fetch(buildProjectUrl('events/subagent', 'agent_id=' + encodeURIComponent(agentID)))
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -411,7 +411,7 @@ function renderSubagentEvents(events, container) {
 // fetchSubagentEvents loads events for a given parent_event_id and renders them.
 // Kept as legacy fallback when subagent_agent_id is not available.
 function fetchSubagentEvents(parentEventId, container) {
-  fetch('/api/events/subagent?parent_event_id=' + encodeURIComponent(parentEventId))
+  fetch(buildProjectUrl('events/subagent', 'parent_event_id=' + encodeURIComponent(parentEventId)))
     .then(function(r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
