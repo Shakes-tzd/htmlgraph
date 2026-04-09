@@ -634,8 +634,12 @@ function closeWorkDetail() {
   var viewTitle = document.querySelector('#v-work .view-title');
   detail.classList.remove('active');
   board.style.display = '';
-  if (features.length === 0) empty.style.display = '';
   if (viewTitle) viewTitle.style.display = '';
+  // If features haven't been loaded yet (e.g. user navigated directly
+  // from the graph view), fetch them now instead of showing an empty board.
+  if (features.length === 0) {
+    fetchFeatures();
+  }
 }
 
 function openWorkDetail(id) {
