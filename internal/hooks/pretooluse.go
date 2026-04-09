@@ -17,6 +17,11 @@ import (
 // PreToolUse handles the PreToolUse Claude Code hook event.
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	// Kill switch: HTMLGRAPH_GUARDS_OFF=1 disables ALL guards for emergency use.
+	if os.Getenv("HTMLGRAPH_GUARDS_OFF") == "1" {
+		return &HookResult{}, nil
+	}
+
 	ctx := resolveToolUseContext(event, database)
 	if ctx == nil {
 		return &HookResult{}, nil
@@ -95,7 +100,8 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
-	// Covers Write/Edit/MultiEdit tools directly.
+	// Always-on guards: work item and research required regardless of YOLO mode.
+	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
 	if !subagentGrace {
 		if warn := checkYoloWorkItemGuard(event.ToolName, ctx.FeatureID, ctx.IsYoloMode, ctx.SessionID, database); warn != "" {
 			return &HookResult{
@@ -109,6 +115,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 				Decision: "block",
 				Reason:   warn,
 			}, nil
+		}
+		// Research-first: require at least one Read/Grep/Glob before writing.
+		hasResearch := hasRecentResearch(database, ctx.SessionID)
+		if warn := checkYoloResearchGuard(event.ToolName, ctx.IsYoloMode, hasResearch); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
+		}
+		if warn := checkYoloBashResearchGuard(event, ctx.IsYoloMode, hasResearch); warn != "" {
+			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 	}
 
@@ -127,14 +141,6 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 		// Extend worktree guard to Bash file-write commands.
 		if warn := checkYoloBashWorktreeGuard(event, branch, ctx.IsYoloMode); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		hasResearch := hasRecentResearch(database, ctx.SessionID)
-		if warn := checkYoloResearchGuard(event.ToolName, ctx.IsYoloMode, hasResearch); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		// Extend research guard to Bash file-write commands.
-		if warn := checkYoloBashResearchGuard(event, ctx.IsYoloMode, hasResearch); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		// Warn (not block) about code health — files already oversized should be

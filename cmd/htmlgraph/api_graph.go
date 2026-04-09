@@ -7,11 +7,12 @@ import (
 
 // graphNode represents a work item node in the graph response.
 type graphNode struct {
-	ID     string `json:"id"`
-	Type   string `json:"type"`
-	Title  string `json:"title"`
-	Status string `json:"status"`
-	Edges  int    `json:"edges"`
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Title    string `json:"title"`
+	Status   string `json:"status"`
+	Edges    int    `json:"edges"`
+	Activity int    `json:"activity"` // agent_events count for this node
 }
 
 // graphEdge represents a directed edge between two nodes.
@@ -90,6 +91,12 @@ func graphAPIHandler(database *sql.DB) http.HandlerFunc {
 		// Annotate nodes with their edge counts.
 		for i := range nodes {
 			nodes[i].Edges = edgeCounts[nodes[i].ID]
+		}
+
+		// Load activity counts per node from agent_events.
+		activityCounts := loadActivityCounts(database)
+		for i := range nodes {
+			nodes[i].Activity = activityCounts[nodes[i].ID]
 		}
 
 		// Filter orphans unless ?all=true.
@@ -181,6 +188,34 @@ func loadGraphNodes(database *sql.DB) ([]graphNode, []string, error) {
 		trackIDs = append(trackIDs, "") // tracks don't have a parent track
 	}
 
+	// Sessions that worked on features — only include sessions with
+	// meaningful activity (>5 events) to avoid noise.
+	srows, serr := database.Query(`
+		SELECT s.session_id,
+		       COALESCE(s.agent_assigned, 'session'),
+		       COALESCE(s.status, 'completed')
+		FROM sessions s
+		WHERE EXISTS (
+		    SELECT 1 FROM agent_events e
+		    WHERE e.session_id = s.session_id AND e.feature_id != ''
+		    GROUP BY e.session_id HAVING COUNT(*) > 5
+		)
+		LIMIT 200`)
+	if serr == nil {
+		defer srows.Close()
+		for srows.Next() {
+			var n graphNode
+			var agent string
+			if err := srows.Scan(&n.ID, &agent, &n.Status); err != nil {
+				continue
+			}
+			n.Type = "session"
+			n.Title = agent + " · " + n.ID[:8]
+			nodes = append(nodes, n)
+			trackIDs = append(trackIDs, "")
+		}
+	}
+
 	return nodes, trackIDs, nil
 }
 
@@ -209,6 +244,28 @@ func loadSessionFeatureEdges(database *sql.DB) []graphEdge {
 		})
 	}
 	return edges
+}
+
+// loadActivityCounts returns agent_event counts per feature_id.
+// Used for node sizing — more activity = bigger node.
+func loadActivityCounts(database *sql.DB) map[string]int {
+	counts := make(map[string]int)
+	rows, err := database.Query(`
+		SELECT feature_id, COUNT(*) FROM agent_events
+		WHERE feature_id != ''
+		GROUP BY feature_id`)
+	if err != nil {
+		return counts
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err == nil {
+			counts[id] = n
+		}
+	}
+	return counts
 }
 
 // loadTrackCooccurrenceEdges derives track-to-track relationships from

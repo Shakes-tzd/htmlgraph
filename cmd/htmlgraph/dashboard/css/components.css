@@ -833,6 +833,91 @@
   border-radius: var(--radius);
 }
 
+/* ── Feature activity timeline ───────────────────────────── */
+.activity-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.activity-stat {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.activity-stat strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.activity-file-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 4px; }
+.activity-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.activity-file-item:hover { border-color: var(--accent); background: var(--bg-hover); }
+.activity-file-path {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.activity-file-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.activity-timeline { display: flex; flex-direction: column; gap: 2px; }
+.activity-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.activity-event:hover { background: var(--bg-hover); }
+.activity-event-time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  flex-shrink: 0;
+  min-width: 68px;
+}
+.activity-event-tool {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.activity-event-tool-Edit     { background: rgba(34,197,94,0.15);  color: #4ade80; }
+.activity-event-tool-Read      { background: rgba(96,165,250,0.15);  color: #60a5fa; }
+.activity-event-tool-Write     { background: rgba(251,191,36,0.15);  color: #fbbf24; }
+.activity-event-tool-Bash      { background: rgba(168,85,247,0.15);  color: #c084fc; }
+.activity-event-tool-Glob      { background: rgba(20,184,166,0.15);  color: #2dd4bf; }
+.activity-event-tool-Grep      { background: rgba(20,184,166,0.15);  color: #2dd4bf; }
+.activity-event-tool-default   { background: rgba(139,148,158,0.15); color: #8b949e; }
+.activity-event-summary {
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* ── Plan detail panel ───────────────────────────────────── */
 .plan-detail { display: none; }
 .plan-detail.active { display: block; }

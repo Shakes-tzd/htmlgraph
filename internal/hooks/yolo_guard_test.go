@@ -156,7 +156,8 @@ func TestCheckYoloWorkItemGuard(t *testing.T) {
 		{"edit without feature in yolo blocks", "Edit", "", true, true},
 		{"multiedit without feature in yolo blocks", "MultiEdit", "", true, true},
 		{"write with feature in yolo allows", "Write", "feat-123", true, false},
-		{"write without feature outside yolo allows", "Write", "", false, false},
+		// Guard is always-on: write without feature blocks even outside yolo.
+		{"write without feature outside yolo blocks", "Write", "", false, true},
 		{"read without feature in yolo allows", "Read", "", true, false},
 		{"bash without feature in yolo allows", "Bash", "", true, false},
 	}
@@ -338,7 +339,9 @@ func TestCheckYoloResearchGuard(t *testing.T) {
 	}{
 		{"write without research in yolo blocks", "Write", true, false, true},
 		{"write with research in yolo allows", "Write", true, true, false},
-		{"write outside yolo allows", "Write", false, false, false},
+		// Guard is always-on: write without research blocks even outside yolo.
+		{"write outside yolo without research blocks", "Write", false, false, true},
+		{"write outside yolo with research allows", "Write", false, true, false},
 		{"read without research allows", "Read", true, false, false},
 		{"edit without research in yolo blocks", "Edit", true, false, true},
 	}

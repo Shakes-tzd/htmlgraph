@@ -60,7 +60,7 @@ func isYoloFromDB(htmlgraphDir, sessionID string) bool {
 }
 
 // checkYoloWorkItemGuard blocks Write/Edit tools when no active work item
-// exists in YOLO mode. Returns a non-empty reason to block, or "" to allow.
+// exists. Always enforced (was YOLO-only, now universal).
 //
 // featureID is the session's active_feature_id column (set at session-start
 // or inherited from a parent session via lineage).
@@ -68,10 +68,7 @@ func isYoloFromDB(htmlgraphDir, sessionID string) bool {
 // whether a feature was started mid-session and linked to THIS session — not
 // whether any feature is globally in-progress (which causes false passes when
 // unrelated features exist).
-func checkYoloWorkItemGuard(toolName, featureID string, yolo bool, sessionID string, db *sql.DB) string {
-	if !yolo {
-		return ""
-	}
+func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string, db *sql.DB) string {
 	switch toolName {
 	case "Write", "Edit", "MultiEdit":
 	default:
@@ -92,7 +89,7 @@ func checkYoloWorkItemGuard(toolName, featureID string, yolo bool, sessionID str
 	if hasAnyActiveWorkItem(db) {
 		return ""
 	}
-	return "YOLO mode requires an active work item before writing code. " +
+	return "An active work item is required before writing code. " +
 		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
 }
 
@@ -120,13 +117,9 @@ func checkYoloSubagentGrace(yolo, isSubagent bool, sessionCreatedAt time.Time, p
 }
 
 // checkYoloBashWorkItemGuard extends the work-item guard to Bash file-write
-// commands (sed -i, rm, redirects, etc.). Separated from the main guard to
-// avoid changing the existing function signature used by tests.
+// commands (sed -i, rm, redirects, etc.). Always enforced (was YOLO-only, now universal).
 // htmlgraph CLI commands are always exempt — they are the approved write path.
-func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, yolo bool, sessionID string, database *sql.DB) string {
-	if !yolo {
-		return ""
-	}
+func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, _ bool, sessionID string, database *sql.DB) string {
 	cmd, _ := event.ToolInput["command"].(string)
 	if bashHtmlGraphCLI.MatchString(cmd) {
 		return ""
@@ -147,7 +140,7 @@ func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, yolo bool, 
 	if hasAnyActiveWorkItem(database) {
 		return ""
 	}
-	return "YOLO mode requires an active work item before writing code via Bash. " +
+	return "An active work item is required before writing code via Bash. " +
 		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
 }
 
@@ -347,11 +340,8 @@ func checkYoloBashWorktreeGuard(event *CloudEvent, branch string, yolo bool) str
 }
 
 // checkYoloResearchGuard blocks Write/Edit when no Read/Grep/Glob has
-// occurred in the session (research-first principle).
-func checkYoloResearchGuard(toolName string, yolo, hasResearch bool) string {
-	if !yolo {
-		return ""
-	}
+// occurred in the session (research-first principle). Always enforced.
+func checkYoloResearchGuard(toolName string, _ bool, hasResearch bool) string {
 	switch toolName {
 	case "Write", "Edit", "MultiEdit":
 	default:
@@ -360,16 +350,13 @@ func checkYoloResearchGuard(toolName string, yolo, hasResearch bool) string {
 	if hasResearch {
 		return ""
 	}
-	return "YOLO mode requires research before writing code. " +
+	return "Research is required before writing code. " +
 		"Read existing code first: use Read, Grep, or Glob tools."
 }
 
 // checkYoloBashResearchGuard extends the research guard to Bash file-write commands.
-// htmlgraph CLI commands are always exempt — they are the approved write path.
-func checkYoloBashResearchGuard(event *CloudEvent, yolo, hasResearch bool) string {
-	if !yolo {
-		return ""
-	}
+// Always enforced. htmlgraph CLI commands are always exempt.
+func checkYoloBashResearchGuard(event *CloudEvent, _ bool, hasResearch bool) string {
 	cmd, _ := event.ToolInput["command"].(string)
 	if bashHtmlGraphCLI.MatchString(cmd) {
 		return ""
@@ -380,7 +367,7 @@ func checkYoloBashResearchGuard(event *CloudEvent, yolo, hasResearch bool) strin
 	if hasResearch {
 		return ""
 	}
-	return "YOLO mode requires research before writing code via Bash. " +
+	return "Research is required before writing code via Bash. " +
 		"Read existing code first: use Read, Grep, or Glob tools."
 }
 

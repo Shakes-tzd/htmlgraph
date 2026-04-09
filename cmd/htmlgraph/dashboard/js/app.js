@@ -848,6 +848,178 @@ function renderWorkDetail(container, node) {
       });
     })
     .catch(function() { /* no related section on error */ });
+
+  // Activity data — async, three collapsible panels: Commits / Files / Activity
+  fetch('/api/features/' + encodeURIComponent(node.id) + '/activity')
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (!data) return;
+
+      var hasCommits  = data.commits    && data.commits.length > 0;
+      var hasFiles    = data.file_edits && data.file_edits.length > 0;
+      var hasActivity = data.total_events > 0;
+      if (!hasCommits && !hasFiles && !hasActivity) return;
+
+      // helper: build a collapsible section panel
+      function makePanel(headerText, count) {
+        var section = document.createElement('div');
+        section.className = 'work-detail-section activity-panel';
+
+        var header = document.createElement('div');
+        header.className = 'work-detail-section-title activity-panel-header';
+        header.style.cssText = 'cursor:pointer;display:flex;align-items:center;justify-content:space-between;';
+
+        var labelSpan = document.createElement('span');
+        labelSpan.textContent = headerText + (count != null ? ' (' + count + ')' : '');
+        header.appendChild(labelSpan);
+
+        var chevron = document.createElement('span');
+        chevron.textContent = '\u25BE';
+        chevron.style.cssText = 'font-size:0.8em;margin-left:6px;transition:transform 0.15s;';
+        header.appendChild(chevron);
+
+        var body = document.createElement('div');
+        body.className = 'activity-panel-body';
+
+        var collapsed = false;
+        header.addEventListener('click', function() {
+          collapsed = !collapsed;
+          body.style.display = collapsed ? 'none' : '';
+          chevron.style.transform = collapsed ? 'rotate(-90deg)' : '';
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        return { section: section, body: body };
+      }
+
+      // Commits panel
+      if (hasCommits) {
+        var cp = makePanel('Commits', data.commits.length);
+        data.commits.forEach(function(c) {
+          var row = document.createElement('div');
+          row.className = 'activity-commit-row';
+          row.title = 'Click to copy SHA';
+          row.style.cssText = 'display:flex;align-items:flex-start;gap:8px;padding:4px 0;cursor:pointer;';
+
+          var shaEl = document.createElement('code');
+          shaEl.className = 'activity-commit-sha';
+          shaEl.textContent = (c.sha || '').slice(0, 7);
+          shaEl.style.cssText = 'font-size:0.75rem;background:var(--bg-tertiary);padding:1px 5px;border-radius:3px;white-space:nowrap;flex-shrink:0;';
+          row.appendChild(shaEl);
+
+          var subjectEl = document.createElement('span');
+          subjectEl.className = 'activity-commit-subject';
+          subjectEl.textContent = c.subject || '';
+          subjectEl.style.cssText = 'font-size:0.8rem;flex:1;word-break:break-word;';
+          row.appendChild(subjectEl);
+
+          var tsEl = document.createElement('span');
+          tsEl.className = 'activity-commit-time';
+          tsEl.textContent = relTime(c.timestamp);
+          tsEl.style.cssText = 'font-size:0.7rem;color:var(--text-muted);white-space:nowrap;flex-shrink:0;';
+          row.appendChild(tsEl);
+
+          row.addEventListener('click', function() {
+            navigator.clipboard && navigator.clipboard.writeText(c.sha || '').catch(function() {});
+          });
+
+          cp.body.appendChild(row);
+        });
+        container.appendChild(cp.section);
+      }
+
+      // Files panel
+      if (hasFiles) {
+        var fp = makePanel('Files', data.file_edits.length);
+        data.file_edits.forEach(function(fe) {
+          var row = document.createElement('div');
+          row.className = 'activity-file-item';
+          row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;';
+
+          var pathEl = document.createElement('span');
+          pathEl.className = 'activity-file-path';
+          var parts = (fe.file_path || '').split('/');
+          pathEl.textContent = parts.slice(-3).join('/') || fe.file_path;
+          pathEl.title = fe.file_path;
+          pathEl.style.cssText = 'font-size:0.8rem;flex:1;word-break:break-all;';
+          row.appendChild(pathEl);
+
+          var countBadge = document.createElement('span');
+          countBadge.className = 'activity-file-count';
+          countBadge.textContent = fe.edit_count + 'x';
+          countBadge.style.cssText = 'font-size:0.7rem;background:var(--bg-tertiary);padding:1px 6px;border-radius:10px;white-space:nowrap;';
+          row.appendChild(countBadge);
+
+          var lastEl = document.createElement('span');
+          lastEl.className = 'activity-file-last';
+          lastEl.textContent = relTime(fe.last_edit);
+          lastEl.style.cssText = 'font-size:0.7rem;color:var(--text-muted);white-space:nowrap;';
+          row.appendChild(lastEl);
+
+          row.addEventListener('click', function() {
+            console.log('[htmlgraph] file trace:', fe.file_path);
+          });
+
+          fp.body.appendChild(row);
+        });
+        container.appendChild(fp.section);
+      }
+
+      // Activity (timeline) panel
+      if (hasActivity) {
+        var ap = makePanel('Activity', data.total_events);
+
+        if (data.sessions && data.sessions.length > 0) {
+          var sessDiv = document.createElement('div');
+          sessDiv.className = 'activity-stat';
+          sessDiv.style.marginBottom = '6px';
+          sessDiv.innerHTML = 'across <strong>' + data.sessions.length + '</strong> session' + (data.sessions.length === 1 ? '' : 's');
+          ap.body.appendChild(sessDiv);
+        }
+
+        if (data.events && data.events.length > 0) {
+          var timeline = document.createElement('div');
+          timeline.className = 'activity-timeline';
+
+          data.events.forEach(function(ev) {
+            var evRow = document.createElement('div');
+            evRow.className = 'activity-event';
+            evRow.title = ev.input_summary || ev.tool_name || '';
+
+            var tsEl = document.createElement('span');
+            tsEl.className = 'activity-event-time';
+            var ts = ev.timestamp || '';
+            var timePart = ts.indexOf('T') >= 0 ? ts.split('T')[1] : ts;
+            tsEl.textContent = timePart ? timePart.slice(0, 8) : ts.slice(0, 10);
+            evRow.appendChild(tsEl);
+
+            var toolEl = document.createElement('span');
+            var toolName = ev.tool_name || ev.event_type || '?';
+            var toolKey = ['Edit','Read','Write','Bash','Glob','Grep'].indexOf(toolName) >= 0 ? toolName : 'default';
+            toolEl.className = 'activity-event-tool activity-event-tool-' + toolKey;
+            toolEl.textContent = toolName.slice(0, 12);
+            evRow.appendChild(toolEl);
+
+            var sumEl = document.createElement('span');
+            sumEl.className = 'activity-event-summary';
+            sumEl.textContent = (ev.input_summary || '').slice(0, 80);
+            evRow.appendChild(sumEl);
+
+            if (ev.session_id) {
+              evRow.addEventListener('click', function() {
+                openSessionDetail(ev.session_id);
+              });
+            }
+
+            timeline.appendChild(evRow);
+          });
+          ap.body.appendChild(timeline);
+        }
+        container.appendChild(ap.section);
+      }
+    })
+    .catch(function() { /* activity panels hidden on error */ });
 }
 
 /* ── Init ──────────────────────────────────────────────────── */
@@ -1113,35 +1285,77 @@ function renderGraph(data) {
     feature: '#3b82f6',
     bug:     '#ef4444',
     spike:   '#f59e0b',
-    plan:    '#8b5cf6'
+    plan:    '#8b5cf6',
+    session: '#06b6d4'
   };
 
+  // Node size combines edges (structural weight) and activity (usage weight).
+  // Log scale spreads small nodes more and compresses large ones so hubs
+  // don't all blob together at max size.
   function nodeRadius(d) {
-    return Math.max(4, Math.min(20, 4 + (d.edges || 0) * 1.5));
+    var edges = d.edges || 0;
+    var activity = d.activity || 0;
+    // Weighted combination — edges matter more than raw activity.
+    var weight = edges * 2 + Math.sqrt(activity);
+    // Log scale with minimum floor and max cap.
+    var r = 4 + Math.log(1 + weight) * 4;
+    return Math.max(4, Math.min(28, r));
   }
 
   // Make a shallow copy so D3 can mutate positions without polluting our cache.
   var nodes = data.nodes.map(function(n) { return Object.assign({}, n); });
   var edges = data.edges.map(function(e) { return Object.assign({}, e); });
 
+  // Balanced forces: clusters visible but not overlapping.
+  // Link strength varies by type: structural edges pull tighter than activity.
   graphSimulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(edges).id(function(d) { return d.id; }).distance(80))
-    .force('charge', d3.forceManyBody().strength(-200))
+    .force('link', d3.forceLink(edges).id(function(d) { return d.id; })
+      .distance(function(d) {
+        return d.type === 'worked_on' ? 70 : 45;
+      })
+      .strength(function(d) {
+        // Structural edges dominate the layout; activity edges are loose.
+        if (d.type === 'worked_on') return 0.2;
+        if (d.type === 'part_of') return 0.9;
+        return 0.6;
+      }))
+    .force('charge', d3.forceManyBody().strength(-80).distanceMax(400))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(function(d) { return nodeRadius(d) + 2; }));
+    .force('x', d3.forceX(width / 2).strength(0.015))
+    .force('y', d3.forceY(height / 2).strength(0.015))
+    .force('collision', d3.forceCollide().radius(function(d) { return nodeRadius(d) + 3; }));
 
-  // Edge lines.
+  // Edge color by relationship type for visual variety.
+  var edgeColor = {
+    part_of:     '#4b5563',
+    blocked_by:  '#dc2626',
+    caused_by:   '#f59e0b',
+    implements:  '#3b82f6',
+    contains:    '#22c55e',
+    co_session:  '#8b5cf6',
+    worked_on:   '#06b6d4'
+  };
+
+  // Edge lines — structural edges bolder, activity edges subtle.
   var link = g.append('g').selectAll('line')
     .data(edges).enter().append('line')
-    .attr('stroke', 'var(--border)')
-    .attr('stroke-opacity', 0.5)
-    .attr('stroke-width', 1);
+    .attr('stroke', function(d) { return edgeColor[d.type] || '#6b7280'; })
+    .attr('stroke-opacity', function(d) {
+      return d.type === 'worked_on' ? 0.25 : 0.6;
+    })
+    .attr('stroke-width', function(d) {
+      return d.type === 'worked_on' ? 0.7 : 1.2;
+    });
 
   // Node circles.
   var node = g.append('g').selectAll('circle')
     .data(nodes).enter().append('circle')
-    .attr('r', nodeRadius)
+    .attr('r', function(d) {
+      // Sessions are secondary — render smaller.
+      return d.type === 'session' ? Math.max(3, nodeRadius(d) * 0.6) : nodeRadius(d);
+    })
     .attr('fill', function(d) { return typeColor[d.type] || '#888'; })
+    .attr('fill-opacity', function(d) { return d.type === 'session' ? 0.6 : 1; })
     .attr('stroke', 'var(--bg-primary)')
     .attr('stroke-width', 1.5)
     .style('cursor', 'pointer')
@@ -1161,16 +1375,19 @@ function renderGraph(data) {
   var tooltip = d3.select('#graph-container').append('div')
     .attr('class', 'graph-tooltip')
     .style('position', 'absolute')
-    .style('background', 'var(--bg-card)')
+    .style('background', 'rgba(15, 23, 42, 0.9)')
+    .style('backdrop-filter', 'blur(4px)')
+    .style('-webkit-backdrop-filter', 'blur(4px)')
     .style('border', '1px solid var(--border)')
-    .style('padding', '6px 10px')
-    .style('border-radius', '4px')
+    .style('padding', '8px 12px')
+    .style('border-radius', '6px')
     .style('font-size', '12px')
     .style('pointer-events', 'none')
     .style('opacity', 0)
     .style('color', 'var(--text-primary)')
-    .style('max-width', '220px')
-    .style('z-index', 20);
+    .style('max-width', '240px')
+    .style('z-index', 20)
+    .style('box-shadow', '0 4px 12px rgba(0,0,0,0.4)');
 
   node.on('mouseover', function(e, d) {
     var rect = container.getBoundingClientRect();
@@ -1202,7 +1419,27 @@ function renderGraph(data) {
     node.attr('opacity', 1);
     link.attr('stroke-opacity', 0.5);
   }).on('click', function(e, d) {
-    // Navigate to the work view filtered to this item.
+    // Route navigation by node type.
+    if (d.type === 'session') {
+      // Sessions navigate to the session transcript view.
+      currentView = 'sessions';
+      document.querySelectorAll('.nav-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.view === 'sessions');
+      });
+      document.querySelectorAll('.view').forEach(function(v) {
+        v.classList.toggle('active', v.id === 'v-sessions');
+      });
+      if (typeof openSessionDetail === 'function') {
+        openSessionDetail(d.id);
+      } else if (typeof openTranscript === 'function') {
+        openTranscript(d.id);
+      } else {
+        // Fallback: just load the sessions view.
+        fetchSessions && fetchSessions();
+      }
+      return;
+    }
+    // Tracks/features/bugs/spikes open in the work detail panel.
     currentView = 'work';
     document.querySelectorAll('.nav-btn').forEach(function(b) {
       b.classList.toggle('active', b.dataset.view === 'work');
@@ -1210,24 +1447,142 @@ function renderGraph(data) {
     document.querySelectorAll('.view').forEach(function(v) {
       v.classList.toggle('active', v.id === 'v-work');
     });
-    if (features.length === 0) {
-      fetchFeatures();
-    } else {
-      // Open the detail panel for this item directly.
-      openWorkDetail(d.id);
-    }
+    openWorkDetail(d.id);
   });
 
-  // Labels for tracks and hub nodes.
-  var labels = g.append('g').selectAll('text')
-    .data(nodes.filter(function(d) { return d.type === 'track' || (d.edges || 0) > 5; }))
+  // Wrap text inside a circle using real SVG measurement via getComputedTextLength.
+  // Uses binary iteration: tries to fit text, shrinks font if needed, hides if too small.
+  function wrapTextInCircle(textEl, title, radius) {
+    textEl.text(null);
+    var words = title.split(/\s+/).filter(function(w) { return w.length > 0; });
+    if (words.length === 0) return;
+
+    // Start with a font size proportional to radius, then shrink if needed.
+    var minFont = 6;
+    var maxFont = Math.max(minFont, Math.min(12, radius * 0.32));
+    var fontSize = maxFont;
+
+    // Try shrinking font until the text fits, or give up and truncate.
+    for (var attempt = 0; attempt < 4; attempt++) {
+      textEl.text(null).attr('font-size', fontSize + 'px');
+      var lineHeight = fontSize * 1.15;
+      // Reserve inner area — circle chord at top/bottom is narrower.
+      var innerRadius = radius * 0.92;
+      var maxLines = Math.max(1, Math.floor((innerRadius * 2) / lineHeight));
+
+      // Greedy word wrap, measuring actual rendered width per line.
+      var lines = [];
+      var i = 0;
+      var fit = true;
+      while (i < words.length && lines.length < maxLines) {
+        // Compute the chord width at this line's y-offset.
+        var lineIdx = lines.length;
+        var yOffset = (lineIdx - (maxLines - 1) / 2) * lineHeight;
+        var chord = 2 * Math.sqrt(Math.max(0, innerRadius * innerRadius - yOffset * yOffset));
+        if (chord <= 0) break;
+
+        // Create a temp tspan to measure word fit.
+        var tspan = textEl.append('tspan').attr('x', 0).attr('dy', 0);
+        var line = words[i];
+        tspan.text(line);
+        // If even a single word doesn't fit, we need a smaller font.
+        if (tspan.node().getComputedTextLength() > chord) {
+          fit = false;
+          tspan.remove();
+          break;
+        }
+        i++;
+        // Add words while they fit.
+        while (i < words.length) {
+          tspan.text(line + ' ' + words[i]);
+          if (tspan.node().getComputedTextLength() > chord) {
+            tspan.text(line);
+            break;
+          }
+          line = line + ' ' + words[i];
+          i++;
+        }
+        lines.push(line);
+      }
+
+      if (!fit) {
+        // Single word too wide for any line — shrink font and retry.
+        fontSize = Math.max(minFont, fontSize - 1);
+        if (fontSize === minFont) {
+          // Last resort: truncate the long word with ellipsis.
+          textEl.text(null);
+          textEl.append('tspan').attr('x', 0).attr('dy', 0).text(words[0].substring(0, 4) + '\u2026');
+          return;
+        }
+        continue;
+      }
+
+      // Successfully laid out. Rebuild tspans with correct dy offsets.
+      textEl.text(null);
+      var startY = -((lines.length - 1) * lineHeight) / 2;
+      var anyTruncated = i < words.length;
+      if (anyTruncated && lines.length > 0) {
+        // Append ellipsis to last line if we couldn't fit all words.
+        var last = lines[lines.length - 1];
+        // Try to append an ellipsis that still fits.
+        var testSpan = textEl.append('tspan').attr('x', 0).attr('dy', 0);
+        var yOffset2 = ((lines.length - 1) - (maxLines - 1) / 2) * lineHeight;
+        var chord2 = 2 * Math.sqrt(Math.max(0, innerRadius * innerRadius - yOffset2 * yOffset2));
+        testSpan.text(last + '\u2026');
+        if (testSpan.node().getComputedTextLength() > chord2 && last.length > 1) {
+          lines[lines.length - 1] = last.substring(0, last.length - 1) + '\u2026';
+        } else {
+          lines[lines.length - 1] = last + '\u2026';
+        }
+        textEl.text(null);
+      }
+
+      for (var k = 0; k < lines.length; k++) {
+        textEl.append('tspan')
+          .attr('x', 0)
+          .attr('dy', k === 0 ? startY : lineHeight)
+          .text(lines[k]);
+      }
+      return;
+    }
+  }
+
+  // Labels inside track nodes using SVG text + tspan (no foreignObject).
+  var trackLabelNodes = nodes.filter(function(d) { return d.type === 'track'; });
+  var trackLabelGroup = g.append('g');
+  var trackLabels = trackLabelGroup.selectAll('text.track-label')
+    .data(trackLabelNodes)
     .enter().append('text')
-    .text(function(d) { return d.title.length > 30 ? d.title.substring(0, 28) + '\u2026' : d.title; })
-    .attr('font-size', '9px')
-    .attr('fill', 'var(--text-muted)')
+    .attr('class', 'track-label')
     .attr('text-anchor', 'middle')
-    .attr('pointer-events', 'none')
-    .attr('dy', function(d) { return nodeRadius(d) + 11; });
+    .attr('dominant-baseline', 'central')
+    .attr('fill', '#fff')
+    .attr('font-weight', 'bold')
+    .attr('pointer-events', 'none');
+
+  trackLabels.each(function(d) {
+    wrapTextInCircle(d3.select(this), d.title, nodeRadius(d));
+  });
+
+  // Hub node labels — fit inside the circle when node is large enough,
+  // using the same chord-width wrapping as track labels.
+  var hubNodes = nodes.filter(function(d) {
+    return d.type !== 'track' && (d.edges || 0) >= 3 && nodeRadius(d) >= 10;
+  });
+
+  var hubLabels = g.append('g').selectAll('text.hub-label')
+    .data(hubNodes)
+    .enter().append('text')
+    .attr('class', 'hub-label')
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'central')
+    .attr('fill', '#fff')
+    .attr('font-weight', '600')
+    .attr('pointer-events', 'none');
+
+  hubLabels.each(function(d) {
+    wrapTextInCircle(d3.select(this), d.title, nodeRadius(d));
+  });
 
   graphSimulation.on('tick', function() {
     link
@@ -1238,25 +1593,34 @@ function renderGraph(data) {
     node
       .attr('cx', function(d) { return d.x; })
       .attr('cy', function(d) { return d.y; });
-    labels
-      .attr('x', function(d) { return d.x; })
-      .attr('y', function(d) { return d.y; });
+    trackLabels
+      .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+    hubLabels
+      .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
   });
 }
 
-// openWorkDetail navigates to the work detail panel for a given item ID.
-function openWorkDetail(itemId) {
-  fetch('/api/features/detail?id=' + encodeURIComponent(itemId))
-    .then(function(r) { return r.json(); })
-    .then(function(item) {
-      var detail = document.getElementById('work-detail');
-      var board = document.getElementById('kanban-board');
-      if (!detail || !board) return;
-      board.style.display = 'none';
-      detail.style.display = '';
-      var content = document.getElementById('work-detail-content');
-      if (content) content.innerHTML = '<div class="feature-detail-id mono" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">' + itemId + '</div>' +
-        '<h3 style="margin:0 0 8px">' + (item.title || itemId) + '</h3>';
-    })
-    .catch(function() {});
+// openSessionDetail switches to the sessions view and highlights a specific session.
+function openSessionDetail(sessionId) {
+  currentView = 'sessions';
+  document.querySelectorAll('.nav-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.view === 'sessions');
+  });
+  document.querySelectorAll('.view').forEach(function(v) {
+    v.classList.toggle('active', v.id === 'v-sessions');
+  });
+  if (sessions.length === 0) {
+    fetchSessions().then(function() { highlightSession(sessionId); });
+  } else {
+    highlightSession(sessionId);
+  }
+}
+
+// highlightSession scrolls to and briefly highlights a session row by ID.
+function highlightSession(sessionId) {
+  var el = document.querySelector('[data-session-id="' + sessionId + '"]');
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.outline = '2px solid var(--accent)';
+  setTimeout(function() { el.style.outline = ''; }, 2000);
 }
