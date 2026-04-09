@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/htmlgraph/internal/agent"
 	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/htmlgraph/internal/registry"
 	versionpkg "github.com/shakestzd/htmlgraph/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,11 @@ var version = "dev"
 
 // projectDirFlag holds the value of the --project-dir persistent flag.
 var projectDirFlag string
+
+// getGitRemoteURLFn is a package-level indirection for paths.GetGitRemoteURL
+// so tests can stub it and count invocations. Production code calls the real
+// implementation.
+var getGitRemoteURLFn = paths.GetGitRemoteURL
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -35,34 +41,10 @@ func main() {
 		"explicit project root containing .htmlgraph/ (overrides CLAUDE_PROJECT_DIR and CWD walk-up)",
 	)
 
-	// Lazy session registration: every CLI command self-heals attribution
-	// chains by detecting the agent and ensuring a session row exists.
-	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
-		// Skip commands that must work without .htmlgraph/.
-		switch cmd.Name() {
-		case "version", "help", "init", "build", "install-hooks", "setup", "setup-cli":
-			return nil
-		}
-		// Skip hook subtree — hooks manage their own session lifecycle.
-		for p := cmd; p != nil; p = p.Parent() {
-			if p.Name() == "hook" {
-				return nil
-			}
-		}
-		// Degrade gracefully: commands must not fail because session
-		// registration is unavailable.
-		hgDir, err := findHtmlgraphDir()
-		if err != nil {
-			return nil
-		}
-		database, err := openDB(hgDir)
-		if err != nil {
-			return nil
-		}
-		defer database.Close()
-		_, _ = agent.EnsureSession(database, filepath.Dir(hgDir))
-		return nil
-	}
+	// Lazy session registration + passive project registration: every CLI
+	// command self-heals attribution chains and upserts the current project
+	// into the cross-project registry.
+	rootCmd.PersistentPreRunE = persistentPreRunE
 
 	rootCmd.AddCommand(versionCmd())
 	rootCmd.AddCommand(statusCmd())
@@ -108,6 +90,7 @@ func main() {
 	rootCmd.AddCommand(agentInitCmd())
 	rootCmd.AddCommand(pluginCmd())
 	rootCmd.AddCommand(purgeSpikesCmd())
+	rootCmd.AddCommand(projectsCmd())
 	rootCmd.AddCommand(traceCmd())
 	rootCmd.AddCommand(graphCmd())
 	rootCmd.AddCommand(queryCmd())
@@ -129,6 +112,54 @@ func versionCmd() *cobra.Command {
 			}
 		},
 	}
+}
+
+// persistentPreRunE is attached to rootCmd and runs before every command. It
+// performs two side-effects: (1) ensures a session row exists for the current
+// agent attribution chain, and (2) upserts the current project into the
+// cross-project registry at ~/.local/share/htmlgraph/projects.json. Both
+// operations degrade gracefully — registration failures never block a CLI
+// command from running.
+func persistentPreRunE(cmd *cobra.Command, _ []string) error {
+	// Skip commands that must work without .htmlgraph/.
+	switch cmd.Name() {
+	case "version", "help", "init", "build", "install-hooks", "setup", "setup-cli", "projects":
+		return nil
+	}
+	// Skip hook subtree — hooks manage their own session lifecycle.
+	for p := cmd; p != nil; p = p.Parent() {
+		if p.Name() == "hook" {
+			return nil
+		}
+	}
+	// Degrade gracefully: commands must not fail because session
+	// registration is unavailable.
+	hgDir, err := findHtmlgraphDir()
+	if err != nil {
+		return nil
+	}
+	projectDir := filepath.Dir(hgDir)
+	if database, dberr := openDB(hgDir); dberr == nil {
+		_, _ = agent.EnsureSession(database, projectDir)
+		database.Close()
+	}
+	// Registry upsert — silent, cached git remote lookup.
+	if reg, regErr := registry.Load(registry.DefaultPath()); regErr == nil {
+		var cachedRemote string
+		for _, e := range reg.List() {
+			if filepath.Clean(e.ProjectDir) == filepath.Clean(projectDir) {
+				cachedRemote = e.GitRemoteURL
+				break
+			}
+		}
+		remoteURL := cachedRemote
+		if remoteURL == "" {
+			remoteURL = getGitRemoteURLFn(projectDir)
+		}
+		reg.Upsert(projectDir, filepath.Base(projectDir), remoteURL)
+		_ = reg.Save()
+	}
+	return nil
 }
 
 // findHtmlgraphDir locates the .htmlgraph directory by delegating to the

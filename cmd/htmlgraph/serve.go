@@ -18,15 +18,20 @@ import (
 
 func serveCmd() *cobra.Command {
 	var port int
+	var global bool
 
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start HTTP dashboard server with SSE event stream",
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if global {
+				return runGlobalServer(port)
+			}
 			return runServer(port)
 		},
 	}
 	cmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to listen on")
+	cmd.Flags().BoolVar(&global, "global", false, "aggregate across all registered projects (read-only)")
 	return cmd
 }
 
@@ -47,6 +52,11 @@ func runServer(port int) error {
 	go autoIngestLoop(database)
 
 	mux := http.NewServeMux()
+
+	// /api/mode — lets the dashboard detect single vs global mode on load.
+	mux.Handle("/api/mode", corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		respondJSON(w, map[string]any{"mode": "single"})
+	})))
 
 	// API endpoints registered before file server so they take precedence.
 	mux.Handle("/api/events/recent", corsMiddleware(recentEventsHandler(database)))

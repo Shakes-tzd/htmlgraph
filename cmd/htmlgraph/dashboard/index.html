@@ -78,6 +78,21 @@
   <!-- Content -->
   <main class="content">
 
+    <!-- Projects landing — root view in global mode only -->
+    <section class="view" id="v-projects">
+      <div class="view-title" style="font-size:18px;">
+        Projects
+        <span class="count" id="projects-count">0</span>
+      </div>
+      <div class="project-grid" id="project-grid"></div>
+      <div class="empty" id="projects-empty" style="display:none">
+        <div>No projects registered yet.</div>
+        <div style="margin-top:8px; font-size:11px;">
+          Run <code>htmlgraph status</code> in any project to register it.
+        </div>
+      </div>
+    </section>
+
     <section class="view active" id="v-activity">
       <div class="view-title">Activity Feed <span class="count" id="activity-count">0</span></div>
       <div class="filter-bar" id="activity-filters">
