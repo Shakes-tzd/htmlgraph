@@ -179,9 +179,9 @@ class HgEventTree extends HTMLElement {
     });
   }
 
-  featureBadge(featureId) {
+  featureBadge(featureId, featureTitle) {
     if (!featureId) return '';
-    var title = this.featureTitles[featureId];
+    var title = featureTitle || this.featureTitles[featureId] || '';
     var label = title ? (title.length > 25 ? title.substring(0, 22) + '...' : title) : featureId;
     return '<span class="badge badge-feature" title="' + esc(featureId) + '">' + esc(label) + '</span>';
   }
@@ -243,7 +243,7 @@ class HgEventTree extends HTMLElement {
 
     var s = turn.stats || {};
     var statsHtml = '<span class="turn-stats">' + (s.tool_count || 0) + ' tools' + (s.error_count ? ', ' + s.error_count + ' errors' : '') + '</span>';
-    var featureBdg = this.featureBadge(uq.feature_id);
+    var featureBdg = this.featureBadge(uq.feature_id, uq.feature_title);
 
     var html = '<div class="turn-group">'
       + '<div class="event-row depth-0 user-query-row"'
@@ -296,7 +296,7 @@ class HgEventTree extends HTMLElement {
       + '<span class="tool-chip tool-' + esc(evt.tool_name) + '">' + esc(evt.tool_name) + toolChipRange(evt) + '</span>'
       + subagentBadge
       + '<span class="event-summary">' + esc(evt.input_summary || evt.output_summary || '') + '</span>'
-      + this.featureBadge(evt.feature_id)
+      + this.featureBadge(evt.feature_id, evt.feature_title)
       + statusBdg
       + '</div>';
 

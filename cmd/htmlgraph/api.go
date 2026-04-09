@@ -64,12 +64,13 @@ func recentEventsHandler(database *sql.DB) http.HandlerFunc {
 		}
 
 		rows, err := database.Query(`
-			SELECT event_id, agent_id, event_type, timestamp, tool_name,
-			       COALESCE(input_summary, ''), COALESCE(output_summary, ''),
-			       session_id, COALESCE(feature_id, ''),
-			       COALESCE(parent_event_id, ''), status
-			FROM agent_events
-			ORDER BY timestamp DESC
+			SELECT e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+			       COALESCE(e.input_summary, ''), COALESCE(e.output_summary, ''),
+			       e.session_id, COALESCE(e.feature_id, ''),
+			       COALESCE(e.parent_event_id, ''), e.status,
+			       COALESCE((SELECT f.title FROM features f WHERE f.id = e.feature_id LIMIT 1), '')
+			FROM agent_events e
+			ORDER BY e.timestamp DESC
 			LIMIT ?`, limit)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -80,9 +81,9 @@ func recentEventsHandler(database *sql.DB) http.HandlerFunc {
 		events := make([]map[string]any, 0, limit)
 		for rows.Next() {
 			var eventID, agentID, eventType, ts, toolName string
-			var inputSum, outputSum, sessionID, featureID, parentEvtID, status string
+			var inputSum, outputSum, sessionID, featureID, parentEvtID, status, featureTitle string
 			if err := rows.Scan(&eventID, &agentID, &eventType, &ts, &toolName,
-				&inputSum, &outputSum, &sessionID, &featureID, &parentEvtID, &status); err != nil {
+				&inputSum, &outputSum, &sessionID, &featureID, &parentEvtID, &status, &featureTitle); err != nil {
 				continue
 			}
 			events = append(events, map[string]any{
@@ -95,6 +96,7 @@ func recentEventsHandler(database *sql.DB) http.HandlerFunc {
 				"output_summary":  outputSum,
 				"session_id":      sessionID,
 				"feature_id":      featureID,
+				"feature_title":   featureTitle,
 				"parent_event_id": parentEvtID,
 				"status":          status,
 			})

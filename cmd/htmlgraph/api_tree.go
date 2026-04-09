@@ -21,12 +21,13 @@ type turn struct {
 	Stats     turnStats        `json:"stats"`
 }
 
-// eventColumns is the shared SELECT column list for agent_events.
-const eventColumns = `event_id, agent_id, event_type, timestamp, tool_name,
-	COALESCE(input_summary, ''), COALESCE(output_summary, ''),
-	session_id, COALESCE(feature_id, ''), status,
-	COALESCE(parent_event_id, ''), COALESCE(subagent_type, ''),
-	COALESCE(model, ''), COALESCE(step_id, '')`
+// eventColumns is the shared SELECT column list for agent_events (aliased as e).
+const eventColumns = `e.event_id, e.agent_id, e.event_type, e.timestamp, e.tool_name,
+	COALESCE(e.input_summary, ''), COALESCE(e.output_summary, ''),
+	e.session_id, COALESCE(e.feature_id, ''), e.status,
+	COALESCE(e.parent_event_id, ''), COALESCE(e.subagent_type, ''),
+	COALESCE(e.model, ''), COALESCE(e.step_id, ''),
+	COALESCE((SELECT f.title FROM features f WHERE f.id = e.feature_id LIMIT 1), '')`
 
 // treeHandler returns hierarchical event data grouped by UserQuery turns.
 // GET /api/events/tree?limit=50
@@ -49,9 +50,9 @@ func treeHandler(database *sql.DB) http.HandlerFunc {
 func buildEventTree(database *sql.DB, limit int) []turn {
 	rows, err := database.Query(`
 		SELECT `+eventColumns+`
-		FROM agent_events
-		WHERE tool_name = 'UserQuery'
-		ORDER BY timestamp DESC
+		FROM agent_events e
+		WHERE e.tool_name = 'UserQuery'
+		ORDER BY e.timestamp DESC
 		LIMIT ?`, limit)
 	if err != nil {
 		return []turn{}
@@ -93,9 +94,9 @@ func fetchChildren(database *sql.DB, parentID, sessionID string, depth int) []ma
 
 	rows, err := database.Query(`
 		SELECT `+eventColumns+`
-		FROM agent_events
-		WHERE parent_event_id = ?
-		ORDER BY timestamp DESC`, parentID)
+		FROM agent_events e
+		WHERE e.parent_event_id = ?
+		ORDER BY e.timestamp DESC`, parentID)
 	if err != nil {
 		return nil
 	}
@@ -144,31 +145,32 @@ func fetchChildren(database *sql.DB, parentID, sessionID string, depth int) []ma
 func scanEvent(rows *sql.Rows) map[string]any {
 	var eventID, agentID, eventType, ts, toolName string
 	var inputSum, outputSum, sessionID, featureID, status string
-	var parentEvtID, subagentType, model, stepID string
+	var parentEvtID, subagentType, model, stepID, featureTitle string
 
 	if err := rows.Scan(
 		&eventID, &agentID, &eventType, &ts, &toolName,
 		&inputSum, &outputSum, &sessionID, &featureID, &status,
-		&parentEvtID, &subagentType, &model, &stepID,
+		&parentEvtID, &subagentType, &model, &stepID, &featureTitle,
 	); err != nil {
 		return nil
 	}
 
 	return map[string]any{
-		"event_id":        eventID,
-		"agent_id":        agentID,
-		"event_type":      eventType,
-		"timestamp":       ts,
-		"tool_name":       toolName,
-		"input_summary":   inputSum,
-		"output_summary":  outputSum,
-		"session_id":      sessionID,
-		"feature_id":      featureID,
-		"status":          status,
+		"event_id":      eventID,
+		"agent_id":      agentID,
+		"event_type":    eventType,
+		"timestamp":     ts,
+		"tool_name":     toolName,
+		"input_summary": inputSum,
+		"output_summary": outputSum,
+		"session_id":    sessionID,
+		"feature_id":    featureID,
+		"feature_title": featureTitle,
+		"status":        status,
 		"parent_event_id": parentEvtID,
-		"subagent_type":   subagentType,
-		"tool_use_id":     stepID,
-		"model":           model,
+		"subagent_type": subagentType,
+		"tool_use_id":   stepID,
+		"model":         model,
 	}
 }
 
