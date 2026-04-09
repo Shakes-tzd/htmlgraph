@@ -6,7 +6,7 @@ meta:
     created_at: "2026-04-09"
     status: draft
     created_by: claude-opus
-    version: 3
+    version: 4
 design:
     problem: |-
         `cmd/htmlgraph/serve_global.go` holds a `projectCache` of read-only `*sql.DB` handles to every registered project and dispatches project-scoped routes (`/api/plans/*`, `/api/plans/<id>/chat`, `/api/plans/<id>/delete`, `/api/plans/<id>/render`, `/api/graph`, `/api/sessions`, `/api/features/*`, `/api/transcript`, `/api/events/tree`, `/api/events/subagent`) via `dispatchByProject(?project=<id>)`. The handlers then receive a read-only DB opened in the global server's working directory with the global server's env. Any write — plan chat streaming, plan finalize, plan delete, feature state transitions, hook-driven mutations — runs with the wrong CWD, wrong `HTMLGRAPH_PROJECT_DIR`, wrong `.htmlgraph/` attribution, and a SQLite handle that was explicitly opened `mode=ro`.
@@ -18,9 +18,10 @@ design:
         The existing implementation also forces every frontend fetch call site to remember to append `?project=`. Today `buildProjectUrl` in `dashboard/js/helpers.js` covers 18+ call sites; the plan template's hardcoded URLs bypass it entirely. Future components that forget the helper will silently break or, worse, cross-route.
     goals:
         - '**Process isolation** — each active project runs in its own `htmlgraph serve` child process with its own OS heap, env vars, CWD, SQLite connection pool, and hook context. A memory bug, held-wrong-pointer, or router confusion cannot leak state across projects because the kernel enforces the boundary.'
-        - '**Single user-facing origin** — the user still sees one dashboard on `http://localhost:8087/`. Drilling into a project navigates to `/p/<project-id>/` which the global server reverse-proxies to the matching child. Projects landing, global events stream, aggregate stats all share the same origin.'
+        - '**Global server holds zero SQLite handles** — the global process never opens any project''s SQLite database, not even read-only. All database access happens inside child processes bound to their own project directory. The landing page reads only from the registry JSON file; per-project data is served by the corresponding child via `/p/<id>/api/*` proxy. This is grep-enforceable: `grep -rn ''sql.Open\|sqlx.Open\|dbpkg.Open\|registry.OpenReadOnly'' cmd/htmlgraph/serve_global.go` must return zero matches.'
+        - '**Single user-facing origin** — the user still sees one dashboard on `http://localhost:8087/`. Drilling into a project navigates to `/p/<project-id>/` which the global server reverse-proxies to the matching child. All per-project views, plans, events, and graphs share the same origin under the `/p/<id>/` prefix.'
         - '**Correct-by-construction hook context** — children are spawned with `--project-dir <path>`, resolved by `internal/paths/resolve.go` as the highest-priority source. All `.htmlgraph/` writes, hook events, and subprocess invocations automatically attribute to the right project with zero per-handler coordination.'
-        - '**Zero frontend ceremony** — the plan template, feature detail pages, and any future embedded view use relative URLs (`/api/plans/<id>/chat`). Under `/p/<id>/` base path, the browser resolves them correctly and the reverse proxy strips the prefix. `buildProjectUrl` becomes a one-line helper. No `?project=` anywhere in user-facing code.'
+        - '**Zero frontend ceremony** — the plan template, feature detail pages, and any future embedded view receive their project context via a template-injected `window.htmlgraphPlanBase` variable (set by the child''s render path, not the global server). No `?project=` anywhere in user-facing code. `buildProjectUrl` becomes a one-line helper that branches on `window.location.pathname.startsWith(''/p/'')`.'
         - '**Architectural acceptance test** — an integration test creates two temp projects, writes feature X to projectA through `/p/A/api/workitem/create`, and asserts projectB''s SQLite file on disk does NOT contain feature X. Cross-project contamination becomes impossible at the boundary, not merely absent by inspection.'
     constraints:
         - Single binary, single entry point — `htmlgraph serve --global` spawns children of the same binary via `os.Executable()`. No new CLI tool, no separate release artifact.
@@ -38,6 +39,8 @@ design:
         - Only one `htmlgraph serve --global` process per host. Two global servers would race on ephemeral port allocation and leave orphaned children on crash. Documented limitation; optional future work to enforce via a lockfile at `~/.htmlgraph/global-server.lock`.
         - Process isolation is at the kernel boundary, not at the access-control layer. The global server has no auth today and this work does not add any. A user with HTTP access to the global server can reach `/p/<any-registered-project>/` — the architectural guarantee is 'no cross-project contamination', not 'project-level access control'.
         - On macOS there is no `prctl(PR_SET_PDEATHSIG)` equivalent. Child processes use a 5-second heartbeat goroutine that checks the parent PID and exits if the parent is gone. Linux uses pdeathsig directly. Orphan cleanup on parent SIGKILL is best-effort.
+        - 'Cross-project analytics are explicitly out of scope for this MVP. The landing page is a pure doorway: it lists registered projects from `~/.local/share/htmlgraph/projects.json` showing name, path, git remote, and last-seen timestamp. It does NOT show per-project work-item counts, live event streams, or aggregate statistics. These are deferred to a Phase 2 feature (tracked separately) that will design the cross-project analytics story intentionally rather than inheriting it from the MVP.'
+        - The global server holds ZERO SQLite connections — no `aggregateCache`, no `projectCache`, no lazy read-only reads. Every database access in `htmlgraph serve --global` happens inside a child process bound to a single project's directory. This invariant is verified by grep in the slice 4 done_when and by an automated test that inspects the global server's DB handle count via reflection or instrumentation.
     approved: false
     comment: ""
 slices:
@@ -158,8 +161,27 @@ slices:
       comment: ""
     - id: feat-d4f8b634
       num: 4
-      title: Remove dispatchByProject + repoint aggregate reads at lazy RO cache
-      what: 'In `cmd/htmlgraph/serve_global.go`, delete `dispatchByProject` entirely and remove every pure-dispatch route currently dispatched through it. **Precise counts per feasibility critic A3**: 15 dispatchByProject call sites across 13 distinct mux.Handle registrations; 3 of the registrations are COMBO handlers that also serve aggregate reads and need branch-level surgery rather than deletion. Pure-dispatch routes to delete entirely: `/api/sessions`, `/api/features`, `/api/features/detail`, `/api/features/related`, `/api/features/`, `/api/graph`, `/api/events/tree`, `/api/events/subagent`, `/api/plans`, `/api/plans/`, `/api/transcript`, `/api/sessions/`. **Combo handlers** (`/api/stats`, `/api/events/recent`, `/api/events/stream`) keep their aggregate branches (`aggregateStats`, `globalRecentEventsHandler`, `globalSSEHandler`) and delete ONLY the `dispatchByProject` fallback. Rename `projectCache` to `aggregateCache` with a doc comment: `// aggregateCache holds read-only SQLite connections used ONLY by aggregate-read handlers. Every handle here must be opened with mode=ro. Do not add any handler that writes.` **Audit SQLite WAL pragma** (A6): verify `aggregateCache`''s DB opens use `?journal_mode=WAL&mode=ro` or similar URI; verify the single-project server''s DB open in `cmd/htmlgraph/main.go` also sets `journal_mode=WAL`. If either is missing the pragma, add it as part of this slice. Read both `dbpkg.Open` and `registry.OpenReadOnly` to confirm the WAL flag. Without WAL on both sides, a read-only connection blocks writers via the rollback journal.'
+      title: Remove dispatchByProject + aggregate handlers + projectCache (true doorway)
+      what: |-
+        In `cmd/htmlgraph/serve_global.go`, delete every project-scoped and cross-project-aggregate route. This is the architectural cleanup slice: after it lands, the global server holds zero SQLite handles and serves only the projects landing SPA, the reverse proxy, and a tiny `/api/mode` endpoint.
+
+        **Delete entirely** (function + registrations):
+        - `dispatchByProject` function
+        - `projectCache` type, instance, and all its methods
+        - `loadProjectSummaries` (counts-from-DB logic) — replace with a simpler `listRegisteredProjects()` that iterates the registry and returns `{id, name, dir, gitRemoteURL, lastSeen}` for each — no DB opens, no counts
+        - `countByType` / any helper that runs COUNT queries against project DBs
+        - `aggregateStats` and the `/api/projects/all/stats` route
+        - `globalSSEHandler` and the `/api/events/stream` route (stream moves inside each child via proxy)
+        - `globalRecentEventsHandler` and the `/api/events/recent` route (same)
+        - All project-scoped routes previously dispatched via `dispatchByProject`: `/api/sessions`, `/api/features`, `/api/features/detail`, `/api/features/related`, `/api/features/`, `/api/graph`, `/api/events/tree`, `/api/events/subagent`, `/api/plans`, `/api/plans/`, `/api/transcript`, `/api/sessions/`, `/api/stats`, `/api/events/recent`, `/api/events/stream` — all handled by the child via `/p/<id>/api/*` proxy now
+
+        **Keep** (narrowed global API surface):
+        - `/api/mode` — returns `{"mode":"global"}`, no other fields
+        - `/api/projects` — returns the registry list WITHOUT counts; fields are exactly `{id, name, dir, gitRemoteURL, lastSeen}`. Add a doc comment on the handler: `// No DB access. Registry JSON only. Counts and per-project data come from the child via /p/<id>/api/*.`
+        - `/p/<project-id>/*` — the reverse proxy from slice 3
+        - `/` — the landing SPA (embedded dashboard files)
+
+        Since the global server no longer opens any SQLite connection, there is NO WAL audit needed on the global side (the original plan's concern evaporates when the handles evaporate). The child-side WAL pragma is still required for normal single-project operation but that's unchanged from today's single-project server — not a new constraint introduced by this slice.
       why: 'This is the slice where the security property becomes real. Removing `dispatchByProject` eliminates the router surface where a project-scoped write could land in the wrong project. Renaming and re-scoping `projectCache` to `aggregateCache` makes the invariant (''global-scope access is read-only'') grep-enforceable: every DB handle in the global server is in a variable whose name declares the constraint. Must land after slice 3 (which provides the replacement) and before slice 5 (which removes the `?project=` param from the frontend); if landed out of order, the frontend will 404 on every call between deployments.'
       files:
         - cmd/htmlgraph/serve_global.go
@@ -167,18 +189,18 @@ slices:
       deps:
         - 3
       done_when:
-        - '`dispatchByProject` function is deleted entirely — grep returns zero matches in cmd/ and internal/'
-        - Every pure-dispatch route is removed from the mux (12 deletions per feasibility count)
-        - Three combo handlers (`/api/stats`, `/api/events/recent`, `/api/events/stream`) retain ONLY their aggregate branches — the dispatch fallback is surgically removed
-        - '`projectCache` renamed to `aggregateCache` with the doc comment declaring read-only invariant'
-        - Every `*sql.DB` opened by `aggregateCache` uses URI with both `journal_mode=WAL` and `mode=ro`
-        - Single-project `dbpkg.Open` also uses `journal_mode=WAL` (or it already does — verify)
-        - Search for `?project=` in cmd/htmlgraph/ returns zero matches (all query-param dispatch removed)
-        - 'Smoke test: `htmlgraph serve --global`, `curl /api/projects` works, `curl /api/plans` returns 404 (not 400), `curl /p/<id>/api/plans` proxies to the child'
-        - 'Concurrency test: open a parent RO connection and a child RW connection simultaneously, have the child write a row, assert the parent sees it via a subsequent read (proves WAL concurrency)'
+        - '`dispatchByProject` function is deleted — `grep -rn dispatchByProject cmd/ internal/` returns zero matches'
+        - '`projectCache` type and instance are deleted — grep returns zero matches'
+        - '`loadProjectSummaries`, `countByType`, `aggregateStats`, `globalSSEHandler`, `globalRecentEventsHandler` are all deleted'
+        - '`/api/projects/all/stats`, `/api/events/stream`, `/api/events/recent`, `/api/stats` are NOT registered on the global mux'
+        - '`/api/projects` returns registry-only data without feature/bug/spike counts — response schema is `[{id, name, dir, gitRemoteURL, lastSeen}]`'
+        - '`grep -rn ''sql.Open\|dbpkg.Open\|registry.OpenReadOnly'' cmd/htmlgraph/serve_global.go` returns zero matches (global server opens zero SQLite connections)'
+        - '`grep -rn ''?project='' cmd/htmlgraph/` returns zero matches'
+        - 'Smoke test: `htmlgraph serve --global`, `curl /api/projects` returns the registry list with no counts, `curl /api/plans` returns 404, `curl /p/<id>/api/plans` proxies to the child'
+        - Unit test `TestGlobalServer_NoSQLiteHandles` — start a global server, inspect the process (via test hook or reflection) and assert no `*sql.DB` instances exist in global scope
         - '`go build ./... && go vet ./... && go test ./...` all pass'
       effort: M
-      risk: High
+      risk: Med
       tests: |
         Unit:
           - TestAggregateCache_OnlyReadOnly — reflect/scan every *sql.DB opened by aggregateCache, assert the connection string contains mode=ro
@@ -205,6 +227,8 @@ slices:
         4. **`dashboard/js/helpers.js:buildProjectUrl` rewrite** — detect project-scoped mode via `window.location.pathname.startsWith('/p/')`; if yes, return `/p/<id>/api/<endpoint>`; if no, return `/api/<endpoint>`. Delete the `?project=` append logic entirely. 18 call sites verified (feasibility critic A4). Leave `fetch('/api/mode')` at `app.js:1114` alone — it's intentionally global-scope.
         5. **`dashboard/js/app.js` navigation** — projects-landing card clicks set `window.location.href = '/p/' + project.id + '/'` for full page navigation. Delete `enterProject` and `showProjectsLanding` SPA functions. When loading under `/p/<id>/`, skip landing and run single-project startup.
         6. **Back button** — becomes `<a href="/">` in the project context header. No JS state management.
+
+        **Landing card simplification (from doorway decision)**: update the projects-landing card renderer in `app.js`'s `renderProjectsLanding()` to show ONLY registry fields — name, path (cleaned or truncated), git remote (cleaned to `owner/repo`), and last-seen relative time. Delete the stat tiles that displayed feature/bug/spike counts. The card body becomes a simple metadata block with a visible 'Open →' affordance. CSS for `.project-card .stat-tile` can be deleted as unused.
       why: 'Removing `?project=` from the frontend is the final closure of the old architecture. Using full page navigation instead of SPA state transitions is the key that unlocks zero-ceremony templates: the browser''s own URL resolution handles the project scope via the page origin/base URL, not JavaScript string manipulation. After this slice, no JavaScript file or Go template has to know whether it''s running in single-project or global mode — the URL path prefix makes the context self-evident. This also makes deep-linking work correctly (`/p/A/plans/plan-123` is a permalink) and makes browser back/forward buttons behave naturally.'
       files:
         - cmd/htmlgraph/dashboard/js/app.js
@@ -231,6 +255,9 @@ slices:
         - Plan amendments POST works end-to-end
         - '`fetch(''/api/mode'')` in app.js:1114 is unchanged (intentional global-scope call)'
         - '`go build ./... && go vet ./... && go test ./...` all pass'
+        - Landing cards show ONLY name, path, git remote, last seen — no feature/bug/spike counts
+        - '`renderProjectsLanding()` does not reference `featureCount`, `bugCount`, `spikeCount` fields'
+        - .stat-tile CSS rules are deleted from `layout.css` (unused)
       effort: L
       risk: High
       tests: |
@@ -291,19 +318,21 @@ questions:
           label: 'B: Handshake file at .htmlgraph/.serve-port — child writes, parent polls; decouples from pipe plumbing but adds polling and cleanup concerns'
         - key: fd-pipe
           label: 'C: Parent-allocated pipe via ExtraFiles fd 3 — cleanest IPC but requires Unix fd passing and more code in the child'
-      answer: null
+      answer: stdout-line
     - id: q-aggregate-reads
-      text: How does the global server serve aggregate reads after dispatchByProject is removed?
-      description: Post-slice-4, the global server no longer holds read-write DB handles and no longer dispatches per-project requests. But `/api/projects/all/stats`, `/api/events/stream`, and `/api/events/recent` are global aggregates — they need data from every project. **(a) Lazy RO cache** — keep a small `aggregateCache` of `?mode=ro` handles, opened on first aggregate request per project, reused across requests; concurrent with child writers because SQLite WAL supports multi-reader-single-writer; no contention because the global server is only ever a reader. **(b) Fan-in from children** — the global server forwards aggregate requests to each child and merges the responses; adds HTTP overhead but keeps all DB access in one process per project. **(c) Direct file reads** — parse JSONL event files from `.htmlgraph/events/` without SQLite at all; bypasses WAL entirely but duplicates parsing logic and won't see data that's only in SQLite. Option (a) is the smallest change and has correct concurrency semantics (SQLite WAL is designed for exactly this — the children own the writer, the global reads).
-      recommended: lazy-ro-cache
+      text: How does the global server handle cross-project reads and per-project card metadata?
+      description: 'Post-slice-4 the global server no longer dispatches per-project requests. Three kinds of reads were originally lumped together: (1) cross-project aggregates (`/api/projects/all/stats`, `/api/events/stream`, `/api/events/recent`), (2) per-project card metadata (feature/bug/spike counts shown on landing cards), and (3) per-project detail views (handled by child proxy under `/p/<id>/*` regardless of this question). The original options (a)-(c) debated how to keep kinds (1) and (2) working. **Option (d) drops kinds (1) and (2) entirely** — the landing page becomes a pure doorway showing only registry metadata (name, path, remote, last seen), and all cross-project analytics are explicitly deferred to a Phase 2 feature. Strongest architectural guarantee: the global server holds ZERO SQLite connections, grep-enforceable. Weakest information density on the landing, but that''s acceptable because cards still tell you what''s available; you click in to get detail.'
+      recommended: true-doorway
       options:
         - key: lazy-ro-cache
-          label: 'A: Lazy read-only cache in the global server (mode=ro URI), reading alongside the children via SQLite WAL concurrent reader semantics'
+          label: 'A: Lazy read-only cache — global server opens mode=ro connections to each project for aggregates and card counts'
         - key: fan-in-http
-          label: 'B: Fan-in over HTTP — global server calls each child''s per-project API and merges responses'
+          label: 'B: Fan-in over HTTP — global server calls each child''s API for aggregates'
         - key: direct-file-reads
-          label: 'C: Read event JSONL files directly from disk without touching SQLite'
-      answer: null
+          label: 'C: Read event JSONL files directly from disk without SQLite'
+        - key: true-doorway
+          label: 'D: True doorway — drop cross-project aggregates AND per-project card counts; global server holds zero SQLite handles; analytics deferred to Phase 2'
+      answer: true-doorway
     - id: q-idle-reap-timeout
       text: What is the default idle-reap timeout for child processes?
       description: Children are reaped when no request has hit them for N minutes to prevent process leaks during long dashboard sessions. Too short and users see respawn latency every time they tab back to the dashboard; too long and memory accumulates. Each idle Go process holds ~10-20 MB resident memory, negligible for a dozen projects but non-zero for hundreds. Respawn latency is ~300-500ms (process start + DB open + migration check). 15 min is aggressive and may annoy users who context-switch between projects on the same browser session; 60 min is lax and leaves processes around after lunch. 30 min matches typical 'active session' intuition — if you haven't touched a project in half an hour, its process can probably be reclaimed without annoyance. Should be a flag regardless (`--idle-timeout`) so ops can tune it; the question is just the default.
@@ -317,7 +346,7 @@ questions:
           label: 'C: 60 minutes — conservative, minimizes respawns but holds more memory'
         - key: disabled-default
           label: 'D: No reaping by default — children live until global server shutdown; operator opts in via flag'
-      answer: null
+      answer: thirty-minutes
     - id: q-legacy-removal
       text: Remove dispatchByProject / query-param routes immediately or keep as deprecated for one release?
       description: The current `?project=<id>` dispatch was merged to main earlier today (2026-04-09). It has no external callers — the dashboard is the only client, and slice 5 removes all references. There are two sensible answers. **Remove immediately** — fewer moving parts, one-way migration, no accidental path that leads back into the unsafe routing, smaller surface area for slice 4's cleanup test. **Keep deprecated for one release** — belt-and-suspenders safety for any dashboard-version-skew situations (e.g., a user's browser has the old JS cached and the server is already on the new backend); adds maintenance burden and a grep target for 'deprecated code to remove later'. Given that dashboard assets ship embedded in the binary (no skew possible by construction), deprecation buys nothing.
@@ -327,7 +356,7 @@ questions:
           label: 'A: Remove dispatchByProject and all query-param routes in slice 4 — clean one-way migration, enforced by grep in the slice 4 done_when'
         - key: deprecate-one-release
           label: 'B: Keep query-param dispatch as deprecated, log a warning, delete in a follow-up feature after the next release'
-      answer: null
+      answer: remove-immediately
     - id: q-child-binary
       text: How does the supervisor locate the htmlgraph binary to spawn children?
       description: The supervisor needs a path to `htmlgraph` to `exec.Command` with `serve --port 0 --project-dir <path>`. Two options. **`os.Executable()`** — returns the path of the currently-running binary (works on all Unixes, handles symlinks correctly with `filepath.EvalSymlinks`, guarantees the child is byte-identical to the parent, makes `go test` work out of the box because the test binary becomes the 'child'). **PATH lookup** — `exec.LookPath('htmlgraph')` resolves against `$PATH`, requires the user to have `htmlgraph` installed globally, fails if the user's shell PATH differs from the server's env, doesn't guarantee version parity (could spawn an old `htmlgraph` if the user updated the dev binary but not `~/.local/bin`). `os.Executable()` is strictly better for correctness and testability; the only reason to choose LookPath is if we ever wanted to support 'spawn a different version as child' which is a hypothetical we don't need and shouldn't design for (YAGNI).
@@ -337,7 +366,7 @@ questions:
           label: 'A: os.Executable() — guarantees version parity, works in tests, no PATH dependency'
         - key: path-lookup
           label: 'B: exec.LookPath(''htmlgraph'') — relies on $PATH, may spawn a different version than the parent'
-      answer: null
+      answer: os-executable
 critique:
     reviewed_at: "2026-04-09"
     reviewers:
@@ -518,18 +547,10 @@ critique:
           severity: Low
           mitigation: Document 'single global server per host' as a constraint. Optionally add a lockfile at ~/.htmlgraph/global-server.lock that the parent takes on startup.
     synthesis: |-
-        Plan is architecturally sound but has two critical code-level errors that must be fixed before implementation, plus several refinements from the feasibility pass:
+        Plan was critiqued at v2 and significantly revised. Two falsified assumptions (A5 absolute-path URLs, A8 persistent-flag arg order) would have caused runtime failures on first use; both fixed in slices 5 and 2 respectively. Three more minor corrections (A2 autoIngestOnce target, A3 combo-handler surgery, A7 dashboardFS signature) are mechanical.
 
-        1. CRITICAL (A5/A8): Slice 5's relative-URL claim is false — plan_page.gohtml has 10 absolute-path fetches that will 404 under /p/<id>/ routing. Must inject a template variable and prefix all 10 fetch sites. And slice 2's child spawn arg order is wrong — --project-dir is a persistent flag that must precede the 'serve' subcommand or cobra rejects it. Both errors would cause runtime failures on first use.
+        At v3, the human answered Q2 with a new option (d): **true doorway**. This simplifies slice 4 substantially — instead of renaming projectCache to aggregateCache and auditing WAL pragmas for concurrent RO reads, slice 4 now deletes the cache entirely along with all aggregate handlers. The landing page becomes a registry-metadata view (no counts, no cross-project synthesis), and all per-project data is served by the child via the reverse proxy. Strongest architectural guarantee: the global server holds zero SQLite connections, grep-enforceable.
 
-        2. HIGH (A2/A7): Slice 1 targets the wrong function (autoIngestOnce has the os.Getwd calls, not autoIngestLoop) and proposes an unnecessary dashboardFS parameter (already package-level via dashboardSub). Both are mechanical corrections.
+        Deferred to Phase 2 (separate track): per-project card counts, cross-project aggregates (stats, events stream, recent events), and any comparative analytics. This is an intentional MVP reduction to ship the architectural boundary correctly; the feature surface comes back in a subsequent design pass once the isolation model is stable and we know what patterns actually matter.
 
-        3. MEDIUM (A6): Slice 4 assumes SQLite WAL concurrency works without verifying the pragma is set on both sides. Audit and fix as part of the slice.
-
-        4. MEDIUM (A3): Slice 4 'delete 13 routes' is imprecise — 3 combo handlers need branch-level surgery.
-
-        5. MEDIUM: Slice 5 must also address /plans/<id>.html static file serving (currently at serve.go:80 FileServer), which the plan omits.
-
-        6. LOW gaps around child stdout logging, spawn UX, herd problem, version skew, and auth acknowledgment are filed as constraints or known limitations, not blockers.
-
-        Verdict: BUILDABLE WITH MINOR CHANGES. Proceed with revised slices 1, 2, 4, 5, 6.
+        Verdict: BUILDABLE AS WRITTEN at v3. All 4 questions answered. Proceed to dispatch.
