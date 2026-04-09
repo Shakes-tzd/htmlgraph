@@ -1,6 +1,6 @@
 ---
 name: htmlgraph:plan
-description: Plan development work with interactive marimo notebook review before any code is written. Generates a YAML plan, populates slices and questions, runs dual-agent critique, opens marimo for human review (approvals persist to SQLite), then reads finalized decisions to dispatch tasks. Use when asked to plan, create a development plan, or build a feature with design clarity first.
+description: Plan development work with interactive dashboard review before any code is written. Generates a YAML plan, populates slices and questions, runs dual-agent critique, opens dashboard for human review (approvals persist to SQLite), then reads finalized decisions to dispatch tasks. Use when asked to plan, create a development plan, or build a feature with design clarity first.
 ---
 
 # HtmlGraph Plan
@@ -13,12 +13,12 @@ Use this skill when asked to plan development work, create a parallel execution 
 
 ## What This Skill Does
 
-Generates a structured YAML plan, populates it with vertical slices, design questions with recommendations, and dual-agent critique. Opens a marimo notebook for interactive human review — approvals persist to SQLite on every click. After finalization, reads approved slices and design decisions to dispatch tasks via `/htmlgraph:execute`.
+Generates a structured YAML plan, populates it with vertical slices, design questions with recommendations, and dual-agent critique. Opens the dashboard for interactive human review — approvals persist to SQLite on every click. After finalization, reads approved slices and design decisions to dispatch tasks via `/htmlgraph:execute`.
 
 **Architecture:**
-- **YAML** = plan content (agent-written, read by notebook)
+- **YAML** = plan content (agent-written, read by dashboard)
 - **SQLite `plan_feedback`** = human approvals (persisted on every interaction)
-- **Marimo notebook** = interactive review UI (reads both, writes approvals to SQLite)
+- **Dashboard** = interactive review UI (reads both, writes approvals to SQLite)
 - **Static HTML** = archival export (on finalize)
 
 ---
@@ -392,20 +392,19 @@ After critique agents return, the orchestrator MUST update the plan to address f
 
 ## Step 5: Open for Human Review (PAUSE HERE)
 
-Launch the plan review notebook:
+Direct the human to review the plan in the dashboard:
 
 ```bash
-htmlgraph plan review <plan-id> --port 3001
+htmlgraph serve
 ```
-
-The `htmlgraph plan review` command handles temp dir extraction, environment variables, and sandbox mode — do not launch marimo directly.
 
 Tell the human:
 
 ```
-Plan ready for review: http://localhost:3001
+Plan ready for review in the dashboard:
 
-The notebook loads your plan from: .htmlgraph/plans/<plan-id>.yaml
+  htmlgraph serve
+  Open http://localhost:8080/#plans and click the plan.
 
 Please:
 1. Read the Design Discussion — Problem, Goals, Constraints
@@ -444,7 +443,7 @@ sqlite3 .htmlgraph/htmlgraph.db \
 
 ## Step 6: Read Finalized Decisions
 
-After the human clicks Finalize in marimo, the YAML status updates to `finalized`. Read the results:
+After the human clicks Finalize in the dashboard, the YAML status updates to `finalized`. Read the results:
 
 ```python
 import yaml, sqlite3

@@ -4,7 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +17,7 @@ import (
 
 // transcriptHandler returns messages and tool calls for a session.
 // Requires ?session=SESSION_ID. Supports ?limit=N (default 500).
-func transcriptHandler(database *sql.DB) http.HandlerFunc {
+func transcriptHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := r.URL.Query().Get("session")
 		if sessionID == "" {
@@ -83,13 +86,68 @@ func transcriptHandler(database *sql.DB) http.HandlerFunc {
 			result = append(result, entry)
 		}
 
-		respondJSON(w, map[string]any{
+		// Look up linked plan for this session (from plan chat).
+		planID, planTitle := lookupSessionPlan(database, htmlgraphDir, sessionID)
+
+		resp := map[string]any{
 			"session_id":    sessionID,
 			"message_count": len(messages),
 			"tool_count":    len(toolCalls),
 			"messages":      result,
-		})
+		}
+		if planID != "" {
+			resp["plan_id"] = planID
+			resp["plan_title"] = planTitle
+		}
+		respondJSON(w, resp)
 	}
+}
+
+// lookupSessionPlan queries plan_feedback for a session→plan link and returns
+// (planID, planTitle). Returns ("", "") when no link exists.
+func lookupSessionPlan(database *sql.DB, htmlgraphDir, sessionID string) (string, string) {
+	var planID string
+	database.QueryRow(
+		`SELECT plan_id FROM plan_feedback WHERE action = 'session_id' AND value = ? LIMIT 1`,
+		sessionID,
+	).Scan(&planID) //nolint:errcheck
+	if planID == "" {
+		return "", ""
+	}
+	// Resolve title from the plan HTML file.
+	planTitle := resolvePlanTitle(htmlgraphDir, planID)
+	return planID, planTitle
+}
+
+// resolvePlanTitle reads the plan HTML file and extracts the h1 title.
+// Returns planID as fallback when the file is missing or unparseable.
+func resolvePlanTitle(htmlgraphDir, planID string) string {
+	if htmlgraphDir == "" {
+		return planID
+	}
+	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	f, err := os.Open(planPath)
+	if err != nil {
+		return planID
+	}
+	defer f.Close()
+
+	// Minimal scan: look for first <h1>…</h1> without pulling in goquery.
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return planID
+	}
+	content := string(data)
+	start := strings.Index(content, "<h1>")
+	end := strings.Index(content, "</h1>")
+	if start < 0 || end <= start+4 {
+		return planID
+	}
+	title := strings.TrimSpace(content[start+4 : end])
+	if title == "" {
+		return planID
+	}
+	return title
 }
 
 // subagentEventsHandler returns agent_events for a subagent.

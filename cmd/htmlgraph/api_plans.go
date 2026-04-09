@@ -535,6 +535,16 @@ func planChatHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 		// Store assistant message.
 		if fullResponse.Len() > 0 {
 			_ = backend.SaveMessage("assistant", fullResponse.String())
+
+			// Detect and store AMEND directives from the assistant response.
+			amendments := planamend.ParseAmendments(fullResponse.String())
+			for _, a := range amendments {
+				section := fmt.Sprintf("slice-%d", a.SliceNum)
+				value, _ := json.Marshal(a)
+				if err := dbpkg.StorePlanFeedback(database, planID, section, "amendment", string(value), ""); err != nil {
+					log.Printf("warning: store amendment for plan %s slice %d: %v", planID, a.SliceNum, err)
+				}
+			}
 		}
 
 		// Send done event.

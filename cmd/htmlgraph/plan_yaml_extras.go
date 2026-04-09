@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/notebook"
 	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/spf13/cobra"
 )
@@ -285,109 +283,23 @@ func runValidateYAML(planID string) error {
 	return nil
 }
 
-// planReviewCmd launches a marimo notebook for interactive plan review.
+// planReviewCmd prints a deprecation notice directing users to the dashboard.
 func planReviewCmd() *cobra.Command {
-	var port int
-	var wait bool
-
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "review <plan-id>",
-		Short: "Open a YAML plan in the marimo review notebook",
-		Long: `Launch marimo to interactively review a YAML plan.
+		Short: "Open a plan for review (use the dashboard instead)",
+		Long: `Plan review is now available in the dashboard.
 
-The notebook reads plan content from the YAML file and persists
-human approvals to the SQLite plan_feedback table on every click.
-
-Example:
-  htmlgraph plan review plan-a1b2c3d4
-  htmlgraph plan review plan-a1b2c3d4 --port 3001
-  htmlgraph plan review plan-a1b2c3d4 --wait`,
+Start the dashboard and open the Plans section to review, approve slices,
+answer questions, and finalize a plan.`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runPlanReview(args[0], port, wait)
+		RunE: func(_ *cobra.Command, _ []string) error {
+			fmt.Fprintf(os.Stdout, "Plan review is now available in the dashboard:\n")
+			fmt.Fprintf(os.Stdout, "  htmlgraph serve\n")
+			fmt.Fprintf(os.Stdout, "  Open http://localhost:8080/#plans and click the plan.\n")
+			return nil
 		},
 	}
-	cmd.Flags().IntVar(&port, "port", 3001, "marimo server port")
-	cmd.Flags().BoolVar(&wait, "wait", false, "block until plan is finalized")
-	return cmd
-}
-
-func runPlanReview(planID string, port int, wait bool) error {
-	htmlgraphDir, err := findHtmlgraphDir()
-	if err != nil {
-		return err
-	}
-
-	// Verify plan YAML exists.
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
-	if _, err := os.Stat(planPath); err != nil {
-		return fmt.Errorf("plan YAML not found: %s", planPath)
-	}
-
-	// Require absolute path for the env var.
-	absYAMLPath, err := filepath.Abs(planPath)
-	if err != nil {
-		return fmt.Errorf("resolve plan path: %w", err)
-	}
-
-	// Check uv is on PATH.
-	if _, err := exec.LookPath("uv"); err != nil {
-		fmt.Fprintln(os.Stderr, "htmlgraph plan review requires uv. Install it:")
-		fmt.Fprintln(os.Stderr, "  curl -LsSf https://astral.sh/uv/install.sh | sh")
-		return fmt.Errorf("uv not found in PATH")
-	}
-
-	// Write embedded notebook files to a temp dir.
-	tmpDir, err := os.MkdirTemp("", "htmlgraph-notebook-*")
-	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
-	}
-	// Only clean up in wait mode — in background mode the temp dir must
-	// survive until marimo exits (the OS cleans up on reboot).
-	if wait {
-		defer os.RemoveAll(tmpDir)
-	}
-
-	if err := notebook.WriteToDir(tmpDir); err != nil {
-		return fmt.Errorf("extract notebook files: %w", err)
-	}
-
-	fmt.Printf("Plan:     %s\n", absYAMLPath)
-	fmt.Printf("URL:      http://localhost:%d\n", port)
-	fmt.Println()
-
-	// Launch via uvx marimo run --sandbox (app mode, plan pre-selected).
-	args := []string{
-		"marimo", "run", "--sandbox",
-		"--headless", "--no-token",
-		"--port", fmt.Sprintf("%d", port),
-		filepath.Join(tmpDir, "plan_notebook.py"),
-		"--", "--plan", absYAMLPath,
-	}
-
-	marimoCmd := exec.Command("uvx", args...)
-	marimoCmd.Dir = tmpDir
-	marimoCmd.Env = append(os.Environ(),
-		"PLAN_YAML_PATH="+absYAMLPath,
-		"HTMLGRAPH_DIR="+htmlgraphDir,
-	)
-	marimoCmd.Stdout = os.Stdout
-	marimoCmd.Stderr = os.Stderr
-
-	if !wait {
-		// Start in background, print URL, return.
-		if err := marimoCmd.Start(); err != nil {
-			return fmt.Errorf("start marimo: %w", err)
-		}
-		fmt.Printf("Marimo running (PID %d). Open http://localhost:%d to review.\n", marimoCmd.Process.Pid, port)
-		fmt.Println("Run 'htmlgraph plan review " + planID + " --wait' to block until finalized.")
-		return nil
-	}
-
-	// Foreground mode: run marimo and block.
-	fmt.Println("Marimo running. Waiting for plan finalization...")
-	fmt.Println("Open http://localhost:" + fmt.Sprintf("%d", port) + " to review.")
-	return marimoCmd.Run()
 }
 
 // planSetDesignYAMLCmd sets the structured design subsections on a YAML plan.

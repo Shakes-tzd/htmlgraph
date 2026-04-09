@@ -22,17 +22,12 @@ done
 
 cd "${GO_DIR}"
 
-# Copy notebook files for embedding (source of truth: prototypes/)
+# Copy remaining notebook files for embedding (plan prototypes removed in S4 cleanup)
 echo "  Copying notebook files for embedding..."
 mkdir -p internal/notebook/files
-cp prototypes/plan_notebook.py internal/notebook/files/
-cp prototypes/plan_ui.py internal/notebook/files/
-cp prototypes/plan_persistence.py internal/notebook/files/
-cp prototypes/critique_renderer.py internal/notebook/files/
-cp prototypes/dagre_widget.py internal/notebook/files/
-cp prototypes/chat_widget.py internal/notebook/files/
-cp prototypes/claude_chat.py internal/notebook/files/
-cp prototypes/amendment_parser.py internal/notebook/files/
+for f in prototypes/*.py; do
+    [ -f "$f" ] && cp "$f" internal/notebook/files/
+done
 
 VERSION_RAW=$(git describe --tags --always 2>/dev/null || echo "dev")
 # Strip leading 'v' for consistent version strings (goreleaser, plugin.json)
