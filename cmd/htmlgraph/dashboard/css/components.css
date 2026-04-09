@@ -113,6 +113,15 @@
 }
 [data-theme="light"] .badge-yolo { background: rgba(202,138,4,0.15); color: #a16207; }
 
+.badge-plan {
+  background: rgba(99,102,241,0.2); color: #818cf8;
+  font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  font-weight: 700; letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.badge-plan:hover { background: rgba(99,102,241,0.35); }
+[data-theme="light"] .badge-plan { background: rgba(79,70,229,0.12); color: #4338ca; }
+
 /* ── CSS bar charts ────────────────────────────────────────── */
 .bar-chart { display: flex; flex-direction: column; gap: 6px; max-width: 600px; }
 .bar-row {

@@ -262,6 +262,18 @@ function renderSessions() {
       yoloBadge.style.marginLeft = '6px';
       titleTd.appendChild(yoloBadge);
     }
+    if (s.plan_id) {
+      var planBadge = document.createElement('span');
+      planBadge.className = 'badge-plan';
+      planBadge.textContent = 'PLAN';
+      planBadge.style.marginLeft = '6px';
+      planBadge.title = s.plan_id;
+      planBadge.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navigateToPlan(s.plan_id, null);
+      });
+      titleTd.appendChild(planBadge);
+    }
     tr.appendChild(titleTd);
 
     // Model cell
@@ -906,6 +918,24 @@ Promise.all([fetchStats(), fetchEvents()]);
 setInterval(fetchStats, 30000);
 
 /* ── Plan detail panel ────────────────────────────────────── */
+
+// navigateToPlan switches to the plans view and opens the given plan.
+// Called from cross-view badge clicks (e.g. session list, transcript view).
+function navigateToPlan(planId, title) {
+  // Resolve title from already-loaded plans list when not provided.
+  if (!title && plans.length > 0) {
+    var found = plans.find(function(p) { return p.id === planId; });
+    title = found ? found.title : planId;
+  }
+
+  // Switch nav to plans view (the click handler calls fetchPlans if needed).
+  var planBtn = document.querySelector('.nav-btn[data-view="plans"]');
+  if (planBtn && currentView !== 'plans') planBtn.click();
+
+  // Open the plan detail immediately — openPlanDetail fetches its own content.
+  openPlanDetail(planId, title || planId);
+}
+
 function closePlanDetail() {
   var detail = document.getElementById('plan-detail');
   var listView = document.getElementById('plans-list-view');

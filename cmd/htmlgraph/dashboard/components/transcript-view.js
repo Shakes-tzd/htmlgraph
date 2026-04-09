@@ -87,6 +87,26 @@ function renderTranscriptStats(data) {
     stat.appendChild(val);
     frag.appendChild(stat);
   });
+
+  // Plan badge — shown when this session originated from a plan chat.
+  if (data.plan_id) {
+    var planStat = document.createElement('div');
+    planStat.className = 'transcript-stat';
+    var planLbl = document.createElement('span');
+    planLbl.className = 'label';
+    planLbl.textContent = 'Plan';
+    var planBadge = document.createElement('span');
+    planBadge.className = 'badge-plan';
+    planBadge.textContent = data.plan_title || data.plan_id;
+    planBadge.title = data.plan_id;
+    planBadge.addEventListener('click', function() {
+      navigateToPlan(data.plan_id, data.plan_title);
+    });
+    planStat.appendChild(planLbl);
+    planStat.appendChild(planBadge);
+    frag.appendChild(planStat);
+  }
+
   container.appendChild(frag);
 }
 
