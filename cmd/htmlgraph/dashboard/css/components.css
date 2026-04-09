@@ -279,6 +279,61 @@
   margin-left: auto;
 }
 
+/* Feature category badges */
+.badge-dashboard {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(59,130,246,0.2);
+  color: #3b82f6;
+  margin-left: auto;
+}
+
+.badge-fix {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(239,68,68,0.2);
+  color: #ef4444;
+  margin-left: auto;
+}
+
+.badge-plan {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(99,102,241,0.2);
+  color: #6366f1;
+  margin-left: auto;
+}
+
+.badge-cli {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(16,185,129,0.2);
+  color: #10b981;
+  margin-left: auto;
+}
+
+.badge-refactor {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(139,92,246,0.2);
+  color: #8b5cf6;
+  margin-left: auto;
+}
+
+.badge-test {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(245,158,11,0.2);
+  color: #f59e0b;
+  margin-left: auto;
+}
+
 /* Turn stats */
 .turn-stats {
   font-family: var(--font-mono);

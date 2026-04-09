@@ -179,11 +179,33 @@ class HgEventTree extends HTMLElement {
     });
   }
 
+  parseBadgeCategory(title) {
+    var prefixes = {
+      'Dashboard:': 'badge-dashboard',
+      'Fix:': 'badge-fix',
+      'Plan ': 'badge-plan',
+      'Plan:': 'badge-plan',
+      'CLI:': 'badge-cli',
+      'Refactor:': 'badge-refactor',
+      'Test:': 'badge-test'
+    };
+    for (var prefix in prefixes) {
+      if (title.startsWith(prefix)) {
+        return {
+          text: title.substring(prefix.length).trim(),
+          className: prefixes[prefix]
+        };
+      }
+    }
+    return { text: title, className: 'badge-feature' };
+  }
+
   featureBadge(featureId, featureTitle) {
     if (!featureId) return '';
     var title = featureTitle || this.featureTitles[featureId] || '';
-    var label = title ? (title.length > 25 ? title.substring(0, 22) + '...' : title) : featureId;
-    return '<span class="badge badge-feature" title="' + esc(featureId) + '">' + esc(label) + '</span>';
+    var parsed = this.parseBadgeCategory(title);
+    var label = parsed.text ? (parsed.text.length > 25 ? parsed.text.substring(0, 22) + '...' : parsed.text) : featureId;
+    return '<span class="badge ' + parsed.className + '" title="' + esc(featureId) + '">' + esc(label) + '</span>';
   }
 
   updateCount() {
