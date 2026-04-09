@@ -21,6 +21,7 @@ document.querySelector('.nav').addEventListener('click', function(e) {
   if (view === 'sessions' && sessions.length === 0) fetchSessions();
   if (view === 'work' && features.length === 0) fetchFeatures();
   if (view === 'plans' && plans.length === 0) fetchPlans();
+  if (view === 'graph') fetchGraph();
 });
 
 /* ── Data fetching ─────────────────────────────────────────── */
@@ -1054,4 +1055,206 @@ function buildPlanSubnav(container) {
   }
 
   subnav.classList.add('active');
+}
+
+/* ── Graph View ────────────────────────────────────────────── */
+
+var graphSimulation = null;
+
+function fetchGraph() {
+  fetch('/api/graph')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      document.getElementById('graph-count').textContent = data.nodes ? data.nodes.length : 0;
+      var empty = document.getElementById('graph-empty');
+      if (!data.nodes || data.nodes.length === 0) {
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+      renderGraph(data);
+    })
+    .catch(function() {
+      document.getElementById('graph-empty').style.display = '';
+    });
+}
+
+function renderGraph(data) {
+  var container = document.getElementById('graph-container');
+  // Remove any previous SVG but keep the legend and empty overlay.
+  var oldSvg = container.querySelector('svg');
+  if (oldSvg) oldSvg.remove();
+  var oldTip = container.querySelector('.graph-tooltip');
+  if (oldTip) oldTip.remove();
+
+  if (graphSimulation) {
+    graphSimulation.stop();
+    graphSimulation = null;
+  }
+
+  var width = container.clientWidth || 800;
+  var height = container.clientHeight || 600;
+
+  var svg = d3.select('#graph-container').append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .style('display', 'block');
+
+  // Zoom / pan layer.
+  var g = svg.append('g');
+  svg.call(d3.zoom()
+    .scaleExtent([0.1, 4])
+    .on('zoom', function(e) { g.attr('transform', e.transform); })
+  );
+
+  // Colour by node type.
+  var typeColor = {
+    track:   '#22c55e',
+    feature: '#3b82f6',
+    bug:     '#ef4444',
+    spike:   '#f59e0b',
+    plan:    '#8b5cf6'
+  };
+
+  function nodeRadius(d) {
+    return Math.max(4, Math.min(20, 4 + (d.edges || 0) * 1.5));
+  }
+
+  // Make a shallow copy so D3 can mutate positions without polluting our cache.
+  var nodes = data.nodes.map(function(n) { return Object.assign({}, n); });
+  var edges = data.edges.map(function(e) { return Object.assign({}, e); });
+
+  graphSimulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(edges).id(function(d) { return d.id; }).distance(80))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(function(d) { return nodeRadius(d) + 2; }));
+
+  // Edge lines.
+  var link = g.append('g').selectAll('line')
+    .data(edges).enter().append('line')
+    .attr('stroke', 'var(--border)')
+    .attr('stroke-opacity', 0.5)
+    .attr('stroke-width', 1);
+
+  // Node circles.
+  var node = g.append('g').selectAll('circle')
+    .data(nodes).enter().append('circle')
+    .attr('r', nodeRadius)
+    .attr('fill', function(d) { return typeColor[d.type] || '#888'; })
+    .attr('stroke', 'var(--bg-primary)')
+    .attr('stroke-width', 1.5)
+    .style('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', function(e, d) {
+        if (!e.active) graphSimulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      })
+      .on('drag', function(e, d) { d.fx = e.x; d.fy = e.y; })
+      .on('end', function(e, d) {
+        if (!e.active) graphSimulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      })
+    );
+
+  // Tooltip.
+  var tooltip = d3.select('#graph-container').append('div')
+    .attr('class', 'graph-tooltip')
+    .style('position', 'absolute')
+    .style('background', 'var(--bg-card)')
+    .style('border', '1px solid var(--border)')
+    .style('padding', '6px 10px')
+    .style('border-radius', '4px')
+    .style('font-size', '12px')
+    .style('pointer-events', 'none')
+    .style('opacity', 0)
+    .style('color', 'var(--text-primary)')
+    .style('max-width', '220px')
+    .style('z-index', 20);
+
+  node.on('mouseover', function(e, d) {
+    tooltip.style('opacity', 1)
+      .html('<strong>' + d.title + '</strong><br>' + d.type + ' &middot; ' + d.status + ' &middot; ' + (d.edges || 0) + ' edge' + (d.edges !== 1 ? 's' : ''))
+      .style('left', (e.pageX + 12) + 'px')
+      .style('top', (e.pageY - 10) + 'px');
+    // Highlight connected nodes.
+    var connected = new Set();
+    edges.forEach(function(edge) {
+      var src = typeof edge.source === 'object' ? edge.source.id : edge.source;
+      var tgt = typeof edge.target === 'object' ? edge.target.id : edge.target;
+      if (src === d.id) connected.add(tgt);
+      if (tgt === d.id) connected.add(src);
+    });
+    node.attr('opacity', function(n) {
+      return n.id === d.id || connected.has(n.id) ? 1 : 0.25;
+    });
+    link.attr('stroke-opacity', function(edge) {
+      var src = typeof edge.source === 'object' ? edge.source.id : edge.source;
+      var tgt = typeof edge.target === 'object' ? edge.target.id : edge.target;
+      return (src === d.id || tgt === d.id) ? 0.9 : 0.05;
+    });
+  }).on('mousemove', function(e) {
+    tooltip.style('left', (e.pageX + 12) + 'px').style('top', (e.pageY - 10) + 'px');
+  }).on('mouseout', function() {
+    tooltip.style('opacity', 0);
+    node.attr('opacity', 1);
+    link.attr('stroke-opacity', 0.5);
+  }).on('click', function(e, d) {
+    // Navigate to the work view filtered to this item.
+    currentView = 'work';
+    document.querySelectorAll('.nav-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.view === 'work');
+    });
+    document.querySelectorAll('.view').forEach(function(v) {
+      v.classList.toggle('active', v.id === 'v-work');
+    });
+    if (features.length === 0) {
+      fetchFeatures();
+    } else {
+      // Open the detail panel for this item directly.
+      openWorkDetail(d.id);
+    }
+  });
+
+  // Labels for tracks and hub nodes.
+  var labels = g.append('g').selectAll('text')
+    .data(nodes.filter(function(d) { return d.type === 'track' || (d.edges || 0) > 5; }))
+    .enter().append('text')
+    .text(function(d) { return d.title.length > 30 ? d.title.substring(0, 28) + '\u2026' : d.title; })
+    .attr('font-size', '9px')
+    .attr('fill', 'var(--text-muted)')
+    .attr('text-anchor', 'middle')
+    .attr('pointer-events', 'none')
+    .attr('dy', function(d) { return nodeRadius(d) + 11; });
+
+  graphSimulation.on('tick', function() {
+    link
+      .attr('x1', function(d) { return d.source.x; })
+      .attr('y1', function(d) { return d.source.y; })
+      .attr('x2', function(d) { return d.target.x; })
+      .attr('y2', function(d) { return d.target.y; });
+    node
+      .attr('cx', function(d) { return d.x; })
+      .attr('cy', function(d) { return d.y; });
+    labels
+      .attr('x', function(d) { return d.x; })
+      .attr('y', function(d) { return d.y; });
+  });
+}
+
+// openWorkDetail navigates to the work detail panel for a given item ID.
+function openWorkDetail(itemId) {
+  fetch('/api/features/detail?id=' + encodeURIComponent(itemId))
+    .then(function(r) { return r.json(); })
+    .then(function(item) {
+      var detail = document.getElementById('work-detail');
+      var board = document.getElementById('kanban-board');
+      if (!detail || !board) return;
+      board.style.display = 'none';
+      detail.style.display = '';
+      var content = document.getElementById('work-detail-content');
+      if (content) content.innerHTML = '<div class="feature-detail-id mono" style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">' + itemId + '</div>' +
+        '<h3 style="margin:0 0 8px">' + (item.title || itemId) + '</h3>';
+    })
+    .catch(function() {});
 }
