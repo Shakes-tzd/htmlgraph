@@ -21,7 +21,9 @@ package main
 
 import (
 	"net/http"
+	"path/filepath"
 
+	"github.com/shakestzd/htmlgraph/internal/paths"
 	"github.com/shakestzd/htmlgraph/internal/registry"
 )
 
@@ -64,9 +66,16 @@ func buildGlobalMux() *http.ServeMux {
 
 // listRegisteredProjects re-reads the registry on each call and returns
 // one summary per entry. No filesystem access beyond reading the registry
-// JSON. No DB opens. No counts. If the registry file is missing or
-// unreadable, returns an empty slice (not an error) so the dashboard
-// landing renders an empty state rather than 500.
+// JSON and a per-entry git-common-dir probe to filter out worktrees. No
+// DB opens. No counts. If the registry file is missing or unreadable,
+// returns an empty slice (not an error) so the dashboard landing renders
+// an empty state rather than 500.
+//
+// Worktree filter: an entry whose ProjectDir is inside a linked git
+// worktree (resolveViaGitCommonDir returns a different main-repo path)
+// is NOT a standalone project — it's a working copy of an already
+// registered project. We exclude it from the landing so the user sees
+// one card per real project, not one card per worktree branch.
 func listRegisteredProjects() []projectSummary {
 	reg, err := registry.Load(registry.DefaultPath())
 	if err != nil {
@@ -75,6 +84,9 @@ func listRegisteredProjects() []projectSummary {
 	entries := reg.List()
 	out := make([]projectSummary, 0, len(entries))
 	for _, e := range entries {
+		if isLinkedWorktree(e.ProjectDir) {
+			continue
+		}
 		out = append(out, projectSummary{
 			ID:           e.ID,
 			Name:         e.Name,
@@ -84,4 +96,21 @@ func listRegisteredProjects() []projectSummary {
 		})
 	}
 	return out
+}
+
+// isLinkedWorktree returns true when dir is inside a git linked worktree
+// (i.e. a `git worktree add`-created sibling checkout, not the main
+// working copy). Used by the doorway project listing to collapse
+// worktree branches under their parent project.
+//
+// Implementation: paths.ResolveViaGitCommonDir returns a non-empty
+// string ONLY when dir is in a linked worktree AND the main repo root
+// has a .htmlgraph/ directory. If the resolved path differs from the
+// entry's own ProjectDir, the entry is a worktree.
+func isLinkedWorktree(dir string) bool {
+	mainRoot := paths.ResolveViaGitCommonDir(dir)
+	if mainRoot == "" {
+		return false
+	}
+	return filepath.Clean(mainRoot) != filepath.Clean(dir)
 }

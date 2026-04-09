@@ -179,6 +179,69 @@ func TestPrune_RemovesStale(t *testing.T) {
 	}
 }
 
+// TestDropLinkedWorktrees verifies worktree entries are dropped but the
+// main repo entry is preserved. The resolver is a stub that maps any
+// path containing "/wt-" to the "main" root so we can drive the
+// logic without a real git repo.
+func TestDropLinkedWorktrees(t *testing.T) {
+	tmp := t.TempDir()
+	mainDir := filepath.Join(tmp, "main")
+	wt1 := filepath.Join(tmp, "main", "wt-feat-a")
+	wt2 := filepath.Join(tmp, "main", "wt-feat-b")
+	standalone := filepath.Join(tmp, "other-project")
+
+	path := filepath.Join(tmp, "projects.json")
+	r, err := registry.Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	r.Upsert(mainDir, "main", "")
+	r.Upsert(wt1, "feat-a", "")
+	r.Upsert(wt2, "feat-b", "")
+	r.Upsert(standalone, "other", "")
+
+	// Resolver: returns mainDir for worktrees, "" for main repo root and
+	// for standalone projects (mirrors paths.ResolveViaGitCommonDir).
+	resolver := func(dir string) string {
+		if dir == wt1 || dir == wt2 {
+			return mainDir
+		}
+		return ""
+	}
+
+	dropped := r.DropLinkedWorktrees(resolver)
+	if len(dropped) != 2 {
+		t.Fatalf("expected 2 dropped, got %d: %v", len(dropped), dropped)
+	}
+	remaining := r.List()
+	if len(remaining) != 2 {
+		t.Fatalf("expected 2 remaining, got %d", len(remaining))
+	}
+	names := map[string]bool{}
+	for _, e := range remaining {
+		names[e.Name] = true
+	}
+	if !names["main"] || !names["other"] {
+		t.Errorf("expected main+other remaining, got %v", names)
+	}
+}
+
+// TestDropLinkedWorktrees_NilResolver is a safety check — passing nil
+// must be a no-op, not a panic.
+func TestDropLinkedWorktrees_NilResolver(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "projects.json")
+	r, _ := registry.Load(path)
+	r.Upsert(filepath.Join(tmp, "a"), "a", "")
+	dropped := r.DropLinkedWorktrees(nil)
+	if dropped != nil {
+		t.Errorf("nil resolver should return nil, got %v", dropped)
+	}
+	if len(r.List()) != 1 {
+		t.Errorf("nil resolver should not mutate entries")
+	}
+}
+
 // TestDefaultPath verifies the path is under ~/.local/share/htmlgraph/projects.json.
 func TestDefaultPath(t *testing.T) {
 	got := registry.DefaultPath()
