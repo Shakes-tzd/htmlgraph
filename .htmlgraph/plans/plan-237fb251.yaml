@@ -1,0 +1,16 @@
+meta:
+    id: plan-237fb251
+    track_id: trk-cb36e595
+    title: Multi-Project Hardening — per-project process isolation
+    description: Re-architect htmlgraph serve --global from shared-process query-param dispatch to per-project child-process reverse-proxy isolation. Closes architectural flaw where project-scoped writes route through global server's read-only cache with wrong CWD/env/hook context.
+    created_at: "2026-04-09"
+    status: draft
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
