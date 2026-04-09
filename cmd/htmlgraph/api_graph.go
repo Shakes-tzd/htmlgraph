@@ -70,6 +70,9 @@ func graphAPIHandler(database *sql.DB) http.HandlerFunc {
 			})
 		}
 
+		// Derive session→feature edges from agent_events.
+		edges = append(edges, loadSessionFeatureEdges(database)...)
+
 		// Deduplicate edges (explicit DB edges may duplicate implicit ones).
 		edges = deduplicateEdges(edges)
 
@@ -126,10 +129,14 @@ func graphAPIHandler(database *sql.DB) http.HandlerFunc {
 	}
 }
 
-// loadGraphNodes fetches every feature/bug/spike/track row from features
-// and returns the nodes alongside a parallel slice of track IDs for implicit
-// edge derivation. The two slices share the same indices.
+// loadGraphNodes fetches all work items (features, bugs, spikes from the
+// features table) plus tracks from the tracks table. Returns nodes and a
+// parallel slice of track IDs for implicit edge derivation.
 func loadGraphNodes(database *sql.DB) ([]graphNode, []string, error) {
+	var nodes []graphNode
+	var trackIDs []string
+
+	// Features, bugs, spikes (all stored in features table).
 	rows, err := database.Query(`
 		SELECT id, COALESCE(type,'feature'), title, COALESCE(status,'todo'),
 		       COALESCE(track_id,'')
@@ -139,9 +146,6 @@ func loadGraphNodes(database *sql.DB) ([]graphNode, []string, error) {
 		return nil, nil, err
 	}
 	defer rows.Close()
-
-	var nodes []graphNode
-	var trackIDs []string
 	for rows.Next() {
 		var n graphNode
 		var tid string
@@ -151,7 +155,56 @@ func loadGraphNodes(database *sql.DB) ([]graphNode, []string, error) {
 		nodes = append(nodes, n)
 		trackIDs = append(trackIDs, tid)
 	}
-	return nodes, trackIDs, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	// Tracks (separate table).
+	trows, err := database.Query(`
+		SELECT id, 'track', title, COALESCE(status,'todo')
+		FROM tracks
+		ORDER BY created_at DESC`)
+	if err != nil {
+		return nodes, trackIDs, nil // non-fatal, tracks table may not exist
+	}
+	defer trows.Close()
+	for trows.Next() {
+		var n graphNode
+		if err := trows.Scan(&n.ID, &n.Type, &n.Title, &n.Status); err != nil {
+			continue
+		}
+		nodes = append(nodes, n)
+		trackIDs = append(trackIDs, "") // tracks don't have a parent track
+	}
+
+	return nodes, trackIDs, nil
+}
+
+// loadSessionFeatureEdges derives edges from agent_events — sessions that
+// worked on features create a "worked_on" relationship.
+func loadSessionFeatureEdges(database *sql.DB) []graphEdge {
+	rows, err := database.Query(`
+		SELECT DISTINCT session_id, feature_id
+		FROM agent_events
+		WHERE feature_id != '' AND session_id != ''
+		LIMIT 500`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var edges []graphEdge
+	for rows.Next() {
+		var sid, fid string
+		if err := rows.Scan(&sid, &fid); err != nil {
+			continue
+		}
+		edges = append(edges, graphEdge{
+			Source: fid,
+			Target: sid,
+			Type:   "worked_on",
+		})
+	}
+	return edges
 }
 
 // loadGraphEdges fetches all rows from graph_edges.

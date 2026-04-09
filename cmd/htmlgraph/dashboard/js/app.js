@@ -1173,10 +1173,11 @@ function renderGraph(data) {
     .style('z-index', 20);
 
   node.on('mouseover', function(e, d) {
+    var rect = container.getBoundingClientRect();
     tooltip.style('opacity', 1)
       .html('<strong>' + d.title + '</strong><br>' + d.type + ' &middot; ' + d.status + ' &middot; ' + (d.edges || 0) + ' edge' + (d.edges !== 1 ? 's' : ''))
-      .style('left', (e.pageX + 12) + 'px')
-      .style('top', (e.pageY - 10) + 'px');
+      .style('left', (e.clientX - rect.left + 12) + 'px')
+      .style('top', (e.clientY - rect.top - 10) + 'px');
     // Highlight connected nodes.
     var connected = new Set();
     edges.forEach(function(edge) {
@@ -1194,7 +1195,8 @@ function renderGraph(data) {
       return (src === d.id || tgt === d.id) ? 0.9 : 0.05;
     });
   }).on('mousemove', function(e) {
-    tooltip.style('left', (e.pageX + 12) + 'px').style('top', (e.pageY - 10) + 'px');
+    var rect = container.getBoundingClientRect();
+    tooltip.style('left', (e.clientX - rect.left + 12) + 'px').style('top', (e.clientY - rect.top - 10) + 'px');
   }).on('mouseout', function() {
     tooltip.style('opacity', 0);
     node.attr('opacity', 1);
