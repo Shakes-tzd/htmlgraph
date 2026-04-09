@@ -29,6 +29,9 @@ Subcommands:
 	cmd.AddCommand(graphCyclesCmd())
 	cmd.AddCommand(graphPathCmd())
 	cmd.AddCommand(graphReachCmd())
+	cmd.AddCommand(graphOrphansCmd())
+	cmd.AddCommand(graphHubsCmd())
+	cmd.AddCommand(graphBottlenecksCmd())
 	return cmd
 }
 
@@ -180,6 +183,144 @@ func runGraphReach(startID string, depth int) error {
 	for _, id := range ids {
 		label := graph.FormatNodeLabel(id, resolved)
 		fmt.Printf("  %s\n", label)
+	}
+	return nil
+}
+
+func graphOrphansCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "orphans",
+		Short: "Find nodes with zero edges",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runGraphOrphans()
+		},
+	}
+}
+
+func runGraphOrphans() error {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+	database, err := dbpkg.Open(filepath.Join(dir, "htmlgraph.db"))
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer database.Close()
+
+	ids, err := graph.FindOrphans(database)
+	if err != nil {
+		return err
+	}
+	if len(ids) == 0 {
+		fmt.Println("No orphan nodes found.")
+		return nil
+	}
+
+	resolved := graph.ResolveToMap(database, ids)
+
+	sep := strings.Repeat("─", 60)
+	fmt.Println(sep)
+	fmt.Printf("  Orphan Nodes (%d)\n", len(ids))
+	fmt.Println(sep)
+	for _, id := range ids {
+		label := graph.FormatNodeLabel(id, resolved)
+		fmt.Printf("  %s\n", label)
+	}
+	return nil
+}
+
+func graphHubsCmd() *cobra.Command {
+	var minEdges int
+	cmd := &cobra.Command{
+		Use:   "hubs [--min-edges N]",
+		Short: "Find highly connected nodes",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runGraphHubs(minEdges)
+		},
+	}
+	cmd.Flags().IntVar(&minEdges, "min-edges", 3, "minimum edge count")
+	return cmd
+}
+
+func runGraphHubs(minEdges int) error {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+	database, err := dbpkg.Open(filepath.Join(dir, "htmlgraph.db"))
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer database.Close()
+
+	hubs, err := graph.FindHubs(database, minEdges)
+	if err != nil {
+		return err
+	}
+	if len(hubs) == 0 {
+		fmt.Printf("No nodes with %d+ edges found.\n", minEdges)
+		return nil
+	}
+
+	sep := strings.Repeat("─", 60)
+	fmt.Println(sep)
+	fmt.Printf("  Hub Nodes (%d, min %d edges)\n", len(hubs), minEdges)
+	fmt.Println(sep)
+	for _, h := range hubs {
+		title := h.Title
+		if title == "" {
+			title = h.ID
+		}
+		fmt.Printf("  %-25s  %s\n", h.ID, title)
+	}
+	return nil
+}
+
+func graphBottlenecksCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "bottlenecks",
+		Short: "Find nodes that block the most others",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runGraphBottlenecks()
+		},
+	}
+}
+
+func runGraphBottlenecks() error {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+	database, err := dbpkg.Open(filepath.Join(dir, "htmlgraph.db"))
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer database.Close()
+
+	bns, err := graph.FindBottlenecks(database)
+	if err != nil {
+		return err
+	}
+	if len(bns) == 0 {
+		fmt.Println("No bottleneck nodes found.")
+		return nil
+	}
+
+	sep := strings.Repeat("─", 60)
+	fmt.Println(sep)
+	fmt.Printf("  Bottleneck Nodes (%d)\n", len(bns))
+	fmt.Println(sep)
+	for _, b := range bns {
+		title := b.Title
+		if title == "" {
+			title = b.ID
+		}
+		fmt.Printf("  %-25s  blocks %d items  [%s]  %s\n",
+			b.ID, b.BlockCount, b.Status, title)
 	}
 	return nil
 }
