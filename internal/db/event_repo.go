@@ -316,16 +316,20 @@ func FindOrphanedEvents(db *sql.DB, sessionID string, olderThan time.Duration) (
 
 // MarkEventAborted transitions an agent_event row to status='aborted' and
 // records a reason marker. Used by the orphan sweep to close out started
-// rows whose PostToolUse never fired.
-func MarkEventAborted(db *sql.DB, eventID, reason string) error {
+// rows whose PostToolUse never fired. Returns the number of rows updated —
+// 0 when the row has already been transitioned by a concurrent sweep.
+func MarkEventAborted(db *sql.DB, eventID, reason string) (int64, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
+	res, err := db.Exec(`
 		UPDATE agent_events
 		SET status = 'aborted', reason = ?, updated_at = ?
-		WHERE event_id = ?`,
+		WHERE event_id = ? AND status = 'started'`,
 		reason, now, eventID,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // FindStartedEvent returns the event_id of the most recent started event

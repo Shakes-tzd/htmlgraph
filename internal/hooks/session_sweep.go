@@ -71,28 +71,42 @@ func sweepOrphans(database *sql.DB, projectDir string, orphans []db.OrphanEvent)
 				o.EventID)
 		}
 
+		// Atomically transition the row from started→aborted. Only the
+		// winner of the SQL update proceeds to append, so concurrent sweep
+		// goroutines can't double-post the same synthetic entry. The dedup
+		// check via goquery is a second line of defense for the case where
+		// a crashed earlier sweep already wrote the <li> but never got to
+		// the SQLite update.
+		rows, err := db.MarkEventAborted(database, o.EventID, "swept")
+		if err != nil {
+			debugLog(projectDir, "[sweep] mark %s aborted: %v", o.EventID, err)
+			continue
+		}
+		if rows == 0 {
+			// Another concurrent sweep already handled this orphan.
+			continue
+		}
+
 		htmlPath := filepath.Join(projectDir, ".htmlgraph", "sessions", o.SessionID+".html")
 		alreadyPresent, dedupErr := sessionHTMLHasEvent(htmlPath, o.EventID)
 		if dedupErr != nil {
 			debugLog(projectDir, "[sweep] dedup read %s: %v", htmlPath, dedupErr)
 		}
-		if !alreadyPresent {
-			AppendEventToSessionHTML(projectDir, o.SessionID, SessionEvent{
-				Timestamp: o.CreatedAt,
-				ToolName:  o.ToolName,
-				Success:   false,
-				EventID:   o.EventID,
-				FeatureID: o.FeatureID,
-				Summary:   "[aborted] " + o.ToolName + " never completed",
-				Status:    "aborted",
-				Reason:    "no-post-hook",
-			})
-			appended++
+		if alreadyPresent {
+			continue
 		}
 
-		if err := db.MarkEventAborted(database, o.EventID, "swept"); err != nil {
-			debugLog(projectDir, "[sweep] mark %s aborted: %v", o.EventID, err)
-		}
+		AppendEventToSessionHTML(projectDir, o.SessionID, SessionEvent{
+			Timestamp: o.CreatedAt,
+			ToolName:  o.ToolName,
+			Success:   false,
+			EventID:   o.EventID,
+			FeatureID: o.FeatureID,
+			Summary:   "[aborted] " + o.ToolName + " never completed",
+			Status:    "aborted",
+			Reason:    "no-post-hook",
+		})
+		appended++
 	}
 	return appended
 }

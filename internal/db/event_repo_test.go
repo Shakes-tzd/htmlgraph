@@ -736,8 +736,21 @@ func TestMarkEventAborted(t *testing.T) {
 		t.Fatalf("insert: %v", err)
 	}
 
-	if err := db.MarkEventAborted(database, "evt-abort-1", "swept"); err != nil {
+	rows, err := db.MarkEventAborted(database, "evt-abort-1", "swept")
+	if err != nil {
 		t.Fatalf("MarkEventAborted: %v", err)
+	}
+	if rows != 1 {
+		t.Errorf("rows affected: got %d, want 1", rows)
+	}
+
+	// Second call must report 0 rows (row is already aborted).
+	rows, err = db.MarkEventAborted(database, "evt-abort-1", "swept")
+	if err != nil {
+		t.Fatalf("MarkEventAborted (second): %v", err)
+	}
+	if rows != 0 {
+		t.Errorf("second call rows affected: got %d, want 0", rows)
 	}
 
 	got, err := db.GetEvent(database, "evt-abort-1")
