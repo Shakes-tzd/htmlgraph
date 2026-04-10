@@ -1,0 +1,16 @@
+meta:
+    id: plan-43659c92
+    track_id: trk-97f85b3b
+    title: Close session HTML canonical gaps
+    description: 'Close the three remaining gaps in the existing session HTML canonical implementation (shipped in feat-029affaa on trk-97f85b3b): (1) ingest path writes SQLite but does not render session HTML files, which is the root cause surfaced by bug-a52d5bf9 during multi-project hardening smoke-testing; (2) no orphan sweep for tool calls where PreToolUse fires but PostToolUse never completes, leaving agent_events in status=started forever with no HTML counterpart; (3) existing sessions created via ingest before this plan lands have no HTML files (htmlgraph has 160 such orphans), blocking reindex round-trip. Explicitly excludes performance optimization (flock vs O_APPEND swap) and mid-session header refresh — those are filed separately for benchmark-driven evaluation.'
+    created_at: "2026-04-10"
+    status: draft
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
