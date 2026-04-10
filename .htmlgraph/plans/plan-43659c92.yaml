@@ -4,9 +4,9 @@ meta:
     title: Close session HTML canonical gaps
     description: 'Close the three remaining gaps in the existing session HTML canonical implementation. Sessions already use HTML as canonical storage per feat-029affaa (createSessionHTML at SessionStart, appendEventToSessionHTML at PostToolUse via flock + read-modify-rewrite, finalizeSessionHTML at SessionEnd, reindex round-trip via goquery). This plan does NOT introduce the pattern — it fills the three gaps the pattern left open: (1) ingest path writes SQLite but never creates session HTML files, (2) tool calls where PostToolUse never fires stay as orphaned SQLite rows forever with no HTML entry, (3) legacy sessions created before feat-029affaa shipped have no HTML files and can''t round-trip through reindex. Performance optimization (swapping flock for O_APPEND) and mid-session header refresh are deliberately out of scope — filed for separate benchmark-driven evaluation.'
     created_at: "2026-04-10"
-    status: draft
+    status: finalized
     created_by: claude-opus
-    version: 4
+    version: 5
 design:
     problem: |-
         The existing session HTML canonical implementation (feat-029affaa, shipped on trk-97f85b3b) has three gaps that became visible during multi-project hardening smoke-testing on 2026-04-10.
@@ -99,7 +99,7 @@ slices:
         Regression:
           - Existing ingest tests must pass unchanged
           - Live hook `createSessionHTML` + `appendEventToSessionHTML` tests must pass unchanged (no behavioral change to the live path)
-      approved: false
+      approved: true
       comment: ""
     - id: feat-d060054b
       num: 2
@@ -163,7 +163,7 @@ slices:
         Regression:
           - Existing PostToolUse tests still pass unchanged
           - Happy-path hooks still work normally when no orphans exist
-      approved: false
+      approved: true
       comment: ""
     - id: feat-15e6e1d8
       num: 3
@@ -217,7 +217,7 @@ slices:
           - Round-trip: after migration, delete SQLite, run reindex, assert all 5 sessions rebuilt with matching row counts
         Regression:
           - Sessions that already have HTML files are untouched — no overwrite
-      approved: false
+      approved: true
       comment: ""
     - id: feat-9307112b
       num: 4
@@ -259,7 +259,7 @@ slices:
       tests: |
         This slice IS the acceptance test — no further test requirements beyond the ones described in the `what` section.
         Default `go test ./...` run time must not increase (the new tests are under a build tag).
-      approved: false
+      approved: true
       comment: ""
 questions:
     - id: q-orphan-sweep-trigger
