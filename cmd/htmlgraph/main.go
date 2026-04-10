@@ -50,6 +50,7 @@ func main() {
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(statuslineCmd())
 	rootCmd.AddCommand(serveCmd())
+	rootCmd.AddCommand(serveChildCmd())
 	rootCmd.AddCommand(featureCmdWithExtras())
 	rootCmd.AddCommand(workitemCmd("spike", "spikes"))
 	rootCmd.AddCommand(workitemCmd("bug", "bugs"))
@@ -157,6 +158,12 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 			remoteURL = getGitRemoteURLFn(projectDir)
 		}
 		reg.Upsert(projectDir, filepath.Base(projectDir), remoteURL)
+		// Opportunistic worktree cleanup: registry entries created by
+		// older binaries (before findHtmlgraphDir started resolving
+		// linked worktrees to their main repo) persist as duplicate
+		// project cards in the doorway. Drop any entry whose path is
+		// inside a linked worktree of a registered main repo.
+		reg.DropLinkedWorktrees(paths.ResolveViaGitCommonDir)
 		_ = reg.Save()
 	}
 	return nil

@@ -157,6 +157,40 @@ func (r *Registry) Prune() []string {
 	return pruned
 }
 
+// DropLinkedWorktrees removes entries whose project directory is inside
+// a git linked worktree (as determined by the supplied resolver, which
+// mirrors paths.ResolveViaGitCommonDir — returns the main repo root when
+// dir is a linked worktree, empty string otherwise). Linked worktrees
+// are NOT standalone projects: they share their data with the main
+// repo, and the multi-project doorway should show one card per real
+// project, not one per worktree branch.
+//
+// The resolver is injected so internal/registry does not import
+// internal/paths (reverse dependency would break the package layout).
+// Callers should pass paths.ResolveViaGitCommonDir.
+//
+// Returns the ProjectDir values of removed entries.
+func (r *Registry) DropLinkedWorktrees(resolveMain func(dir string) string) []string {
+	if resolveMain == nil {
+		return nil
+	}
+	var dropped []string
+	kept := r.entries[:0]
+	for _, e := range r.entries {
+		mainRoot := resolveMain(e.ProjectDir)
+		// Keep if: not a linked worktree, OR the resolver returned the
+		// same path (edge case: main repo root where ResolveViaGitCommonDir
+		// returns "" — kept automatically).
+		if mainRoot == "" || filepath.Clean(mainRoot) == filepath.Clean(e.ProjectDir) {
+			kept = append(kept, e)
+			continue
+		}
+		dropped = append(dropped, e.ProjectDir)
+	}
+	r.entries = kept
+	return dropped
+}
+
 // DefaultPath returns the canonical registry file path:
 // ~/.local/share/htmlgraph/projects.json
 func DefaultPath() string {
@@ -188,6 +222,13 @@ func OpenReadOnly(dbPath string) (*sql.DB, error) {
 
 // computeID returns the first 8 hex characters of SHA256(dir).
 func computeID(dir string) string {
+	return ComputeID(dir)
+}
+
+// ComputeID returns the first 8 hex characters of SHA256(dir). It is the
+// stable project identifier used by the registry and by the parent server
+// to route per-project reverse-proxy traffic (/p/<id>/...).
+func ComputeID(dir string) string {
 	sum := sha256.Sum256([]byte(dir))
 	return hex.EncodeToString(sum[:])[:8]
 }
