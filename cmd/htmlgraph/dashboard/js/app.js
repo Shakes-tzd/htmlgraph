@@ -1117,7 +1117,9 @@ function isDoorwayLanding() {
 // loaded under /p/<id>/, it receives {"mode":"single"} (from the child)
 // and proceeds with the regular single-project startup.
 function detectMode() {
-  return fetch('/api/mode').then(function(r) {
+  // IMPORTANT: use buildProjectUrl so under /p/<id>/ this hits the child's
+  // /api/mode (which carries projectName), not the parent's global mode.
+  return fetch(buildProjectUrl('mode')).then(function(r) {
     if (!r.ok) return null;
     return r.json();
   }).then(function(data) {
@@ -1125,6 +1127,17 @@ function detectMode() {
     window.htmlgraphMode = data.mode;
     if (data.mode === 'global' && isDoorwayLanding()) {
       return loadAndRenderProjectsLanding();
+    }
+    // Inside a project (single mode served by a child under /p/<id>/)
+    // — label the header with the project name returned by /api/mode.
+    if (data.mode === 'single' && data.projectName) {
+      window.htmlgraphProjectName = data.projectName;
+      var pe = document.getElementById('brand-project');
+      if (pe) {
+        pe.textContent = '/ ' + data.projectName;
+        pe.style.display = '';
+      }
+      document.title = data.projectName + ' — HtmlGraph';
     }
   }).catch(function() {});
 }
@@ -1217,10 +1230,22 @@ function renderProjectsLanding(projects) {
 // the single-project startup (under /p/<id>/).
 detectMode().then(function() {
   if (isDoorwayLanding()) {
-    // Landing already rendered — no per-project fetches. The stats bar
-    // at the top of the page is left empty; slice 6 can wire an
-    // aggregate if desired.
+    // Landing: hide the stats bar (no aggregate data in the doorway).
+    var sb = document.getElementById('stats-bar');
+    if (sb) sb.style.display = 'none';
     return;
+  }
+  // Inside a project via /p/<id>/ — inject a back link at the top of
+  // the nav so the user can return to the projects doorway.
+  var nav = document.querySelector('.nav');
+  if (nav && !document.getElementById('doorway-back')) {
+    var back = document.createElement('a');
+    back.id = 'doorway-back';
+    back.href = '/';
+    back.className = 'nav-btn';
+    back.innerHTML = '<span style="font-size:13px;margin-right:4px;">&larr;</span> All Projects';
+    back.style.cssText = 'margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px;display:flex;align-items:center;text-decoration:none;color:var(--text-dim);font-size:.82rem;';
+    nav.insertBefore(back, nav.firstChild);
   }
   Promise.all([fetchStats(), fetchEvents()]);
 });

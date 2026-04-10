@@ -477,6 +477,11 @@ func UpdateClaimAgentID(database *sql.DB, workItemID, agentID string) error {
 // This handles the case where a feature is created via HTML but not yet indexed
 // into the database, or when tests create features without database indexing.
 // Best-effort: errors are logged but not returned, since HTML is canonical.
+//
+// The placeholder title is intentionally empty (not the feature ID) — callers
+// that need a display name fall back to the HTML file or render an "untitled"
+// label. Using the ID as a placeholder would corrupt the title column if the
+// canonical insert never runs in this DB (bug-7f4a1a9c).
 func ensureFeatureRow(db *sql.DB, featureID string) {
 	if featureID == "" {
 		return
@@ -491,8 +496,8 @@ func ensureFeatureRow(db *sql.DB, featureID string) {
 	now := time.Now().UTC()
 	_, _ = db.Exec(`
 		INSERT OR IGNORE INTO features (id, type, title, status, priority, created_at, updated_at)
-		VALUES (?, ?, ?, 'in-progress', 'medium', ?, ?)`,
-		featureID, itemType, featureID, now.Format(time.RFC3339), now.Format(time.RFC3339))
+		VALUES (?, ?, '', 'in-progress', 'medium', ?, ?)`,
+		featureID, itemType, now.Format(time.RFC3339), now.Format(time.RFC3339))
 }
 
 // ensureSessionRow creates a placeholder session row if it doesn't exist.

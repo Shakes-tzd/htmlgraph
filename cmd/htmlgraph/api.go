@@ -107,8 +107,12 @@ func recentEventsHandler(database *sql.DB) http.HandlerFunc {
 }
 
 // sessionsHandler returns the 20 most recent sessions.
-func sessionsHandler(database *sql.DB) http.HandlerFunc {
+func sessionsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Scope to the current project. Legacy rows with empty project_dir
+		// (ingested from Claude Code transcripts without attribution) are
+		// hidden from the per-project dashboard. Tracked separately as a
+		// data-attribution bug — the fix here is purely display-side.
 		rows, err := database.Query(`
 			SELECT s.session_id, s.agent_assigned, s.status, s.created_at,
 			       COALESCE(s.completed_at, ''), s.total_events,
@@ -129,7 +133,8 @@ func sessionsHandler(database *sql.DB) http.HandlerFunc {
 			                 WHERE pf.action = 'session_id' AND pf.value = s.session_id
 			                 LIMIT 1), '') AS plan_id
 			FROM sessions s
-			WHERE (s.total_events > 0
+			WHERE s.project_dir = ?
+			  AND (s.total_events > 0
 			   OR EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.session_id)
 			   OR s.status = 'active')
 			  AND s.is_subagent = FALSE
@@ -141,7 +146,7 @@ func sessionsHandler(database *sql.DB) http.HandlerFunc {
 			  AND (SELECT COUNT(*) FROM messages m3
 			       WHERE m3.session_id = s.session_id) >= 5
 			ORDER BY s.created_at DESC
-			LIMIT 20`)
+			LIMIT 20`, projectDir)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

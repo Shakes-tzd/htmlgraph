@@ -179,7 +179,7 @@ func ingestFileWithAgent(database *sql.DB, sf ingest.SessionFile, agentID string
 		_ = dbpkg.DeleteSessionIngestEvents(database, sf.SessionID)
 	}
 
-	ensureSession(database, sf.SessionID, result)
+	ensureSession(database, sf.SessionID, result, decodeProjectDirFromSessionFile(sf))
 	msgCount, toolCount := storeParseResult(database, sf.SessionID, agentID, result)
 	_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
 
@@ -339,10 +339,21 @@ func ingestEventID(sessionID, toolUseID, toolName string, index int) string {
 
 // ensureSession creates a session row if one doesn't already exist.
 // This handles sessions discovered from JSONL that predate hook installation.
-func ensureSession(database *sql.DB, sessionID string, result *ingest.ParseResult) {
+// projectDir is the filesystem path of the project that owns the transcript —
+// it MUST be set to prevent bug-a52d5bf9 where empty project_dir rows polluted
+// the sessions table and showed up across every project's dashboard.
+func ensureSession(database *sql.DB, sessionID string, result *ingest.ParseResult, projectDir string) {
 	var exists int
 	database.QueryRow(`SELECT COUNT(*) FROM sessions WHERE session_id = ?`, sessionID).Scan(&exists)
 	if exists > 0 {
+		// Row already present — backfill project_dir if it's empty so the
+		// display filter in sessionsHandler can scope correctly going forward.
+		if projectDir != "" {
+			database.Exec(
+				`UPDATE sessions SET project_dir = ? WHERE session_id = ? AND (project_dir IS NULL OR project_dir = '')`,
+				projectDir, sessionID,
+			)
+		}
 		return
 	}
 
@@ -353,10 +364,32 @@ func ensureSession(database *sql.DB, sessionID string, result *ingest.ParseResul
 	}
 
 	database.Exec(`
-		INSERT INTO sessions (session_id, agent_assigned, created_at, status, model)
-		VALUES (?, 'claude-code', COALESCE(NULLIF(?, ''), CURRENT_TIMESTAMP), 'completed', ?)`,
-		sessionID, ts, nullStrVal(result.Model),
+		INSERT INTO sessions (session_id, agent_assigned, created_at, status, model, project_dir)
+		VALUES (?, 'claude-code', COALESCE(NULLIF(?, ''), CURRENT_TIMESTAMP), 'completed', ?, ?)`,
+		sessionID, ts, nullStrVal(result.Model), projectDir,
 	)
+}
+
+// decodeProjectDirFromSessionFile recovers the filesystem project directory
+// from a SessionFile. Claude Code stores transcripts at
+// ~/.claude/projects/<encoded-path>/<session-id>.jsonl where the encoded path
+// replaces slashes with dashes. The Path field is the absolute path to the
+// jsonl file; the parent directory name is the encoded project path.
+func decodeProjectDirFromSessionFile(sf ingest.SessionFile) string {
+	parent := filepath.Base(filepath.Dir(sf.Path))
+	return decodeClaudeProjectPath(parent)
+}
+
+// decodeClaudeProjectPath reverses the dash-encoding Claude Code applies to
+// filesystem paths when creating ~/.claude/projects/<encoded> directories.
+// Each dash is replaced by a slash. If the encoding is ambiguous (e.g. a real
+// dash in the path), the result may not round-trip exactly — callers should
+// treat the result as a best-effort attribution hint.
+func decodeClaudeProjectPath(encoded string) string {
+	if encoded == "" {
+		return ""
+	}
+	return "/" + strings.ReplaceAll(strings.TrimPrefix(encoded, "-"), "-", "/")
 }
 
 func nullStrVal(s string) interface{} {

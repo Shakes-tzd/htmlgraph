@@ -131,8 +131,9 @@ func (fc *FeatureCollection) Create(title string, opts ...FeatureOption) (*model
 			StepsTotal:     len(steps),
 			StepsCompleted: 0,
 		}
-		// Best-effort; HTML is canonical.
-		_ = dbpkg.InsertFeature(fc.base.DB, dbFeat)
+		// Best-effort; HTML is canonical. UpsertFeature overwrites any
+		// placeholder row created earlier by ensureFeatureRow (bug-7f4a1a9c).
+		_ = dbpkg.UpsertFeature(fc.base.DB, dbFeat)
 	}
 
 	return node, nil

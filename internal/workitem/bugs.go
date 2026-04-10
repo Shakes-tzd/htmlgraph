@@ -139,7 +139,8 @@ func (bc *BugCollection) Create(title string, opts ...BugOption) (*models.Node, 
 			StepsTotal:     len(steps),
 			StepsCompleted: 0,
 		}
-		_ = dbpkg.InsertFeature(bc.base.DB, dbFeat)
+		// UpsertFeature overwrites any placeholder row from ensureFeatureRow (bug-7f4a1a9c).
+		_ = dbpkg.UpsertFeature(bc.base.DB, dbFeat)
 	}
 
 	return node, nil

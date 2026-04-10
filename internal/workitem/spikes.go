@@ -141,7 +141,8 @@ func (sc *SpikeCollection) Create(title string, opts ...SpikeOption) (*models.No
 			StepsTotal:     len(steps),
 			StepsCompleted: 0,
 		}
-		_ = dbpkg.InsertFeature(sc.base.DB, dbFeat)
+		// UpsertFeature overwrites any placeholder row from ensureFeatureRow (bug-7f4a1a9c).
+		_ = dbpkg.UpsertFeature(sc.base.DB, dbFeat)
 	}
 
 	return node, nil

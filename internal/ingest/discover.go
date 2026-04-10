@@ -44,14 +44,20 @@ func DiscoverSessions(projectFilter string) ([]SessionFile, error) {
 		}
 		projectName := decodeProjectName(entry.Name())
 		if projectFilter != "" {
-			// Match against decoded path (full filesystem path) so callers
-			// can pass CWD directly.  Also match the filter as a prefix of
-			// the decoded path (worktree subdirectories) and vice versa.
+			// Match against decoded path (full filesystem path) so callers can
+			// pass CWD directly.  Accept exact matches and subdirectories of
+			// the project (worktrees like .claude/worktrees/trk-xxx).  Do NOT
+			// accept ancestors of the project — that match direction caused
+			// every project's DB to ingest sessions from ~/.claude/projects/
+			// -Users-shakes/ (the home-directory entry), because every project
+			// lives under the home directory (bug-a52d5bf9).
 			decodedPath := decodeProjectPath(entry.Name())
 			pathMatch := strings.EqualFold(decodedPath, projectFilter) ||
-				strings.HasPrefix(strings.ToLower(projectFilter), strings.ToLower(decodedPath)+"/") ||
 				strings.HasPrefix(strings.ToLower(decodedPath), strings.ToLower(projectFilter)+"/")
-			nameMatch := strings.Contains(strings.ToLower(projectName), strings.ToLower(projectFilter))
+			// Name match is also tightened: only accept exact project-basename
+			// matches or clean contains; the old contains-substring check let
+			// stray projects through.
+			nameMatch := strings.EqualFold(projectName, filepath.Base(projectFilter))
 			if !pathMatch && !nameMatch {
 				continue
 			}

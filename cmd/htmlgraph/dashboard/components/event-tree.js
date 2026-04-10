@@ -218,8 +218,18 @@ class HgEventTree extends HTMLElement {
   featureBadge(featureId, featureTitle) {
     if (!featureId) return '';
     var title = featureTitle || this.featureTitles[featureId] || '';
+    // Treat degenerate "title == id" rows as missing — fall back to a
+    // short hash label instead of uppercasing the full ID. This happens
+    // when the feature was created without a title or the title field
+    // was never populated (tracked in a separate data-side bug).
+    if (title && title.toLowerCase() === featureId.toLowerCase()) {
+      title = '';
+    }
     var parsed = this.parseBadgeCategory(title);
-    var label = parsed.text ? (parsed.text.length > 25 ? parsed.text.substring(0, 22) + '...' : parsed.text) : featureId;
+    var shortId = featureId.replace(/^(feat|bug|spk|plan|trk)-/, '').substring(0, 6);
+    var label = parsed.text
+      ? (parsed.text.length > 25 ? parsed.text.substring(0, 22) + '...' : parsed.text)
+      : 'untitled ' + shortId;
     return '<span class="badge ' + parsed.className + '" title="' + esc(featureId) + '">' + esc(label) + '</span>';
   }
 

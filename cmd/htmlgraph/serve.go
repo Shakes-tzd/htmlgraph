@@ -57,8 +57,16 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 	mux := http.NewServeMux()
 
 	// /api/mode — lets the dashboard detect single vs global mode on load.
+	// The child includes the project name (derived from the project dir's
+	// basename) so the UI can label the header when drilled in via a proxy.
+	projectDir := filepath.Dir(htmlgraphDir)
+	projectName := filepath.Base(projectDir)
 	mux.Handle("/api/mode", corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		respondJSON(w, map[string]any{"mode": "single"})
+		respondJSON(w, map[string]any{
+			"mode":        "single",
+			"projectName": projectName,
+			"projectDir":  projectDir,
+		})
 	})))
 
 	// API endpoints registered before file server so they take precedence.
@@ -66,7 +74,7 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 	mux.Handle("/api/events/tree", corsMiddleware(treeHandler(database)))
 	mux.Handle("/api/events/stream", corsMiddleware(sseHandler(database)))
 	mux.Handle("/api/events/subagent", corsMiddleware(subagentEventsHandler(database)))
-	mux.Handle("/api/sessions", corsMiddleware(sessionsHandler(database)))
+	mux.Handle("/api/sessions", corsMiddleware(sessionsHandler(database, projectDir)))
 	mux.Handle("/api/features", corsMiddleware(featuresHandler(database, htmlgraphDir)))
 	mux.Handle("/api/stats", corsMiddleware(statsHandler(database, htmlgraphDir)))
 	mux.Handle("/api/initial-stats", corsMiddleware(initialStatsHandler(database)))
@@ -292,7 +300,7 @@ func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
 			_ = dbpkg.DeleteSessionMessages(database, sf.SessionID)
 		}
 
-		ensureSession(database, sf.SessionID, result)
+		ensureSession(database, sf.SessionID, result, decodeProjectDirFromSessionFile(sf))
 		msgCount, toolCount := storeParseResult(database, sf.SessionID, "", result)
 		_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
 		if msgCount > 0 {

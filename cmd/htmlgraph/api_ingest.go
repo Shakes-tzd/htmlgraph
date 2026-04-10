@@ -115,7 +115,7 @@ func ingestSession(database *sql.DB, sessionID string) (int, int, error) {
 			return 0, 0, nil
 		}
 
-		ensureSession(database, sessionID, result)
+		ensureSession(database, sessionID, result, decodeProjectDirFromSessionFile(sf))
 		msgCount, toolCount := storeParseResult(database, sessionID, "", result)
 		_ = dbpkg.UpdateTranscriptSync(database, sessionID, sf.Path)
 		return msgCount, toolCount, nil

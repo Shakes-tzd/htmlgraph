@@ -104,7 +104,8 @@ func (pc *PlanCollection) Create(title string, opts ...PlanOption) (*models.Node
 			CreatedAt:  now,
 			UpdatedAt:  now,
 		}
-		_ = dbpkg.InsertFeature(pc.base.DB, dbFeat)
+		// UpsertFeature overwrites any placeholder row from ensureFeatureRow (bug-7f4a1a9c).
+		_ = dbpkg.UpsertFeature(pc.base.DB, dbFeat)
 	}
 
 	return node, nil
