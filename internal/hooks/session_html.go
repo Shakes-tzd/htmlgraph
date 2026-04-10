@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/shakestzd/htmlgraph/internal/ingest"
 	"github.com/shakestzd/htmlgraph/internal/models"
 )
 
@@ -235,4 +237,84 @@ func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCou
 	if err := os.WriteFile(htmlPath, []byte(content), 0o644); err != nil {
 		debugLog(projectDir, "[session-html] finalize %s: %v", htmlPath, err)
 	}
+}
+
+// RenderIngestedSessionHTML writes a complete session HTML file for an
+// ingested Claude Code transcript. It reuses CreateSessionHTML to scaffold
+// the file and AppendEventToSessionHTML (via the flock path) for each
+// tool call, so the resulting file is byte-for-byte compatible with a
+// live-hook-written session and round-trips through reindexSessions.
+//
+// htmlgraphDir is the .htmlgraph directory of the project receiving the
+// ingest. sessionSourceDir is the decoded Claude-projects project directory
+// the session originated from and is recorded on the session model for
+// display scoping. The render is a no-op when the target HTML file already
+// exists unless force is true — live hook writes are authoritative and
+// ingest must not clobber them.
+func RenderIngestedSessionHTML(htmlgraphDir, sessionID, sessionSourceDir string, result *ingest.ParseResult, force bool) error {
+	parentDir := filepath.Dir(htmlgraphDir)
+	htmlPath := filepath.Join(htmlgraphDir, "sessions", sessionID+".html")
+	if !force {
+		if _, err := os.Stat(htmlPath); err == nil {
+			return nil
+		}
+	} else if _, err := os.Stat(htmlPath); err == nil {
+		if rmErr := os.Remove(htmlPath); rmErr != nil {
+			return fmt.Errorf("remove existing %s: %w", htmlPath, rmErr)
+		}
+	}
+
+	createdAt := time.Now().UTC()
+	if len(result.Messages) > 0 {
+		createdAt = result.Messages[0].Timestamp.UTC()
+	}
+
+	s := &models.Session{
+		SessionID:     sessionID,
+		AgentAssigned: "claude-code",
+		CreatedAt:     createdAt,
+		Status:        "active",
+		Model:         result.Model,
+		ProjectDir:    sessionSourceDir,
+	}
+	CreateSessionHTML(parentDir, s)
+
+	if _, err := os.Stat(htmlPath); err != nil {
+		return fmt.Errorf("CreateSessionHTML did not produce %s: %w", htmlPath, err)
+	}
+
+	msgTimestamps := make(map[int]time.Time, len(result.Messages))
+	for _, m := range result.Messages {
+		msgTimestamps[m.Ordinal] = m.Timestamp
+	}
+
+	endedAt := createdAt
+	for i, tc := range result.ToolCalls {
+		ts := createdAt
+		if t, ok := msgTimestamps[tc.MessageOrdinal]; ok {
+			ts = t.UTC()
+		}
+		if ts.After(endedAt) {
+			endedAt = ts
+		}
+
+		var inputMap map[string]any
+		if tc.InputJSON != "" {
+			_ = json.Unmarshal([]byte(tc.InputJSON), &inputMap)
+		}
+
+		AppendEventToSessionHTML(parentDir, sessionID, SessionEvent{
+			Timestamp: ts,
+			ToolName:  tc.ToolName,
+			Success:   true,
+			EventID:   ingest.EventID(sessionID, tc.ToolUseID, tc.ToolName, i),
+			FeatureID: tc.FeatureID,
+			Summary:   SummariseInput(tc.ToolName, inputMap),
+		})
+	}
+
+	FinalizeSessionHTML(parentDir, sessionID,
+		endedAt.Format(time.RFC3339), "completed", len(result.ToolCalls))
+
+	return nil
 }

@@ -4,15 +4,30 @@ package ingest
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/tidwall/gjson"
 )
+
+// EventID generates a deterministic event ID from a session, tool use ID,
+// tool name, and index. Uses SHA-256 hash formatted as "evt-" + 8 hex chars.
+// Shared between the cmd/htmlgraph ingest pipeline and the internal/hooks
+// session HTML renderer so both agree on event_id for the same logical call.
+func EventID(sessionID, toolUseID, toolName string, index int) string {
+	key := sessionID + "|" + toolUseID
+	if toolUseID == "" {
+		key = sessionID + "|" + toolName + "|" + strconv.Itoa(index)
+	}
+	h := sha256.Sum256([]byte(key))
+	return fmt.Sprintf("evt-%x", h[:4])
+}
 
 // ParseResult holds the structured output of parsing a JSONL session file.
 type ParseResult struct {

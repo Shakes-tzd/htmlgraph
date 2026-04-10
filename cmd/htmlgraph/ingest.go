@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,12 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/hooks"
 	"github.com/shakestzd/htmlgraph/internal/ingest"
 	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/shakestzd/htmlgraph/internal/paths"
@@ -179,9 +178,16 @@ func ingestFileWithAgent(database *sql.DB, sf ingest.SessionFile, agentID string
 		_ = dbpkg.DeleteSessionIngestEvents(database, sf.SessionID)
 	}
 
-	ensureSession(database, sf.SessionID, result, decodeProjectDirFromSessionFile(sf))
+	sessionSourceDir := decodeProjectDirFromSessionFile(sf)
+	ensureSession(database, sf.SessionID, result, sessionSourceDir)
 	msgCount, toolCount := storeParseResult(database, sf.SessionID, agentID, result)
 	_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
+
+	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
+		if rerr := hooks.RenderIngestedSessionHTML(htmlgraphDir, sf.SessionID, sessionSourceDir, result, force); rerr != nil {
+			fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", truncate(sf.SessionID, 12), rerr)
+		}
+	}
 
 	return msgCount, toolCount, nil
 }
@@ -285,7 +291,7 @@ func storeParseResult(database *sql.DB, sessionID, agentID string, result *inges
 		resolvedAgent = "claude-code"
 	}
 	for i, tc := range result.ToolCalls {
-		evtID := ingestEventID(sessionID, tc.ToolUseID, tc.ToolName, i)
+		evtID := ingest.EventID(sessionID, tc.ToolUseID, tc.ToolName, i)
 		ts := now
 		if t, ok := msgTimestamps[tc.MessageOrdinal]; ok {
 			ts = t
@@ -324,17 +330,6 @@ func storeParseResult(database *sql.DB, sessionID, agentID string, result *inges
 	}
 
 	return msgCount, toolCount
-}
-
-// ingestEventID generates a deterministic event ID from session, tool use ID,
-// tool name, and index. Uses SHA-256 hash formatted as "evt-" + 8 hex chars.
-func ingestEventID(sessionID, toolUseID, toolName string, index int) string {
-	key := sessionID + "|" + toolUseID
-	if toolUseID == "" {
-		key = sessionID + "|" + toolName + "|" + strconv.Itoa(index)
-	}
-	h := sha256.Sum256([]byte(key))
-	return fmt.Sprintf("evt-%x", h[:4])
 }
 
 // ensureSession creates a session row if one doesn't already exist.

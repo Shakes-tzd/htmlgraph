@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/hooks"
 	"github.com/shakestzd/htmlgraph/internal/ingest"
 	"github.com/spf13/cobra"
 )
@@ -300,9 +301,13 @@ func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
 			_ = dbpkg.DeleteSessionMessages(database, sf.SessionID)
 		}
 
-		ensureSession(database, sf.SessionID, result, decodeProjectDirFromSessionFile(sf))
+		sessionSourceDir := decodeProjectDirFromSessionFile(sf)
+		ensureSession(database, sf.SessionID, result, sessionSourceDir)
 		msgCount, toolCount := storeParseResult(database, sf.SessionID, "", result)
 		_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
+		if rerr := hooks.RenderIngestedSessionHTML(htmlgraphDir, sf.SessionID, sessionSourceDir, result, false); rerr != nil {
+			log.Printf("auto-ingest: render HTML for %s: %v\n", truncate(sf.SessionID, 14), rerr)
+		}
 		if msgCount > 0 {
 			log.Printf("auto-ingest: %s — %d msgs, %d tools\n",
 				truncate(sf.SessionID, 14), msgCount, toolCount)

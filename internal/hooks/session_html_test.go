@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/htmlgraph/internal/ingest"
 	"github.com/shakestzd/htmlgraph/internal/models"
 )
 
@@ -341,6 +342,157 @@ func TestCreateSessionHTMLCreatesDirectory(t *testing.T) {
 	htmlPath := filepath.Join(projectDir, ".htmlgraph", "sessions", "sess-mkdir-test-001.html")
 	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
 		t.Error("CreateSessionHTML should create the sessions directory automatically")
+	}
+}
+
+func TestRenderIngestedSessionHTML_Shape(t *testing.T) {
+	projectDir := t.TempDir()
+	htmlgraphDir := filepath.Join(projectDir, ".htmlgraph")
+	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph: %v", err)
+	}
+
+	msgTs := time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC)
+	result := &ingest.ParseResult{
+		SessionID: "sess-render-001",
+		Messages: []models.Message{
+			{Ordinal: 0, Role: "user", Timestamp: msgTs},
+			{Ordinal: 1, Role: "assistant", Timestamp: msgTs.Add(5 * time.Second)},
+		},
+		ToolCalls: []models.ToolCall{
+			{MessageOrdinal: 1, ToolName: "Read", ToolUseID: "tu-1", InputJSON: `{"file_path":"/tmp/a.go"}`},
+			{MessageOrdinal: 1, ToolName: "Edit", ToolUseID: "tu-2", InputJSON: `{"file_path":"/tmp/a.go"}`},
+			{MessageOrdinal: 1, ToolName: "Bash", ToolUseID: "tu-3", InputJSON: `{"command":"echo hi"}`},
+		},
+		Model: "claude-sonnet-4-5",
+	}
+
+	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-render-001", "/src/project", result, false); err != nil {
+		t.Fatalf("RenderIngestedSessionHTML: %v", err)
+	}
+
+	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-render-001.html")
+	data, err := os.ReadFile(htmlPath)
+	if err != nil {
+		t.Fatalf("read rendered HTML: %v", err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, `id="sess-render-001"`) {
+		t.Error("missing article id")
+	}
+	if !strings.Contains(content, `data-event-count="3"`) {
+		t.Errorf("data-event-count should be 3 after finalize, got:\n%s", content)
+	}
+	if !strings.Contains(content, `data-status="completed"`) {
+		t.Error("status should be completed after finalize")
+	}
+	for _, tool := range []string{"Read", "Edit", "Bash"} {
+		if !strings.Contains(content, `data-tool="`+tool+`"`) {
+			t.Errorf("missing data-tool=%q", tool)
+		}
+	}
+	// Event IDs must match ingest.EventID so reindex dedup works.
+	for i, tc := range result.ToolCalls {
+		want := ingest.EventID("sess-render-001", tc.ToolUseID, tc.ToolName, i)
+		if !strings.Contains(content, `data-event-id="`+want+`"`) {
+			t.Errorf("missing data-event-id=%q for tool %q", want, tc.ToolName)
+		}
+	}
+}
+
+func TestRenderIngestedSessionHTML_SkipExisting(t *testing.T) {
+	projectDir := t.TempDir()
+	htmlgraphDir := filepath.Join(projectDir, ".htmlgraph")
+	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+
+	// Pre-seed the target file with sentinel content representing a live-hook write.
+	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-exists-001.html")
+	sentinel := []byte("<!DOCTYPE html><html><body>LIVE-HOOK-CONTENT</body></html>\n")
+	if err := os.WriteFile(htmlPath, sentinel, 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	result := &ingest.ParseResult{
+		Messages:  []models.Message{{Ordinal: 0, Timestamp: time.Now().UTC()}},
+		ToolCalls: []models.ToolCall{{MessageOrdinal: 0, ToolName: "Read", ToolUseID: "tu-x"}},
+	}
+	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-exists-001", "/src/project", result, false); err != nil {
+		t.Fatalf("RenderIngestedSessionHTML: %v", err)
+	}
+
+	got, err := os.ReadFile(htmlPath)
+	if err != nil {
+		t.Fatalf("read after render: %v", err)
+	}
+	if string(got) != string(sentinel) {
+		t.Errorf("skip-if-exists failed: file was overwritten.\nwant: %q\n got: %q", sentinel, got)
+	}
+}
+
+func TestRenderIngestedSessionHTML_ForceOverwrite(t *testing.T) {
+	projectDir := t.TempDir()
+	htmlgraphDir := filepath.Join(projectDir, ".htmlgraph")
+	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+
+	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-force-001.html")
+	if err := os.WriteFile(htmlPath, []byte("STALE"), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	result := &ingest.ParseResult{
+		Messages:  []models.Message{{Ordinal: 0, Timestamp: time.Now().UTC()}},
+		ToolCalls: []models.ToolCall{{MessageOrdinal: 0, ToolName: "Read", ToolUseID: "tu-force"}},
+	}
+	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-force-001", "/src/project", result, true); err != nil {
+		t.Fatalf("RenderIngestedSessionHTML: %v", err)
+	}
+
+	got, err := os.ReadFile(htmlPath)
+	if err != nil {
+		t.Fatalf("read after render: %v", err)
+	}
+	if string(got) == "STALE" {
+		t.Error("force=true should have overwritten the stale file")
+	}
+	if !strings.Contains(string(got), `id="sess-force-001"`) {
+		t.Error("force-overwritten file should contain the rendered article")
+	}
+}
+
+func TestRenderIngestedSessionHTML_Idempotent(t *testing.T) {
+	projectDir := t.TempDir()
+	htmlgraphDir := filepath.Join(projectDir, ".htmlgraph")
+	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph: %v", err)
+	}
+
+	result := &ingest.ParseResult{
+		Messages:  []models.Message{{Ordinal: 0, Timestamp: time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC)}},
+		ToolCalls: []models.ToolCall{{MessageOrdinal: 0, ToolName: "Read", ToolUseID: "tu-idem"}},
+	}
+	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-idem-001", "/src", result, false); err != nil {
+		t.Fatalf("first render: %v", err)
+	}
+	first, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-idem-001.html"))
+	if err != nil {
+		t.Fatalf("read first: %v", err)
+	}
+
+	// Second run is a no-op because the file already exists.
+	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-idem-001", "/src", result, false); err != nil {
+		t.Fatalf("second render: %v", err)
+	}
+	second, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-idem-001.html"))
+	if err != nil {
+		t.Fatalf("read second: %v", err)
+	}
+	if string(first) != string(second) {
+		t.Error("second render must be a no-op when the target file exists")
 	}
 }
 

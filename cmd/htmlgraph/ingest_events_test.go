@@ -57,7 +57,7 @@ func TestStoreParseResult_CreatesAgentEvents(t *testing.T) {
 	}
 
 	// Verify agent_events were created.
-	evtID1 := ingestEventID(sessionID, "tu-abc123", "Read", 0)
+	evtID1 := ingest.EventID(sessionID, "tu-abc123", "Read", 0)
 	evt1, err := dbpkg.GetEvent(database, evtID1)
 	if err != nil {
 		t.Fatalf("GetEvent for Read: %v", err)
@@ -81,7 +81,7 @@ func TestStoreParseResult_CreatesAgentEvents(t *testing.T) {
 		t.Errorf("SessionID: got %q, want %q", evt1.SessionID, sessionID)
 	}
 
-	evtID2 := ingestEventID(sessionID, "tu-def456", "Edit", 1)
+	evtID2 := ingest.EventID(sessionID, "tu-def456", "Edit", 1)
 	evt2, err := dbpkg.GetEvent(database, evtID2)
 	if err != nil {
 		t.Fatalf("GetEvent for Edit: %v", err)
@@ -115,7 +115,7 @@ func TestStoreParseResult_EventTimestampFromMessage(t *testing.T) {
 
 	storeParseResult(database, sessionID, "", result)
 
-	evtID := ingestEventID(sessionID, "tu-ts-001", "Bash", 0)
+	evtID := ingest.EventID(sessionID, "tu-ts-001", "Bash", 0)
 	evt, err := dbpkg.GetEvent(database, evtID)
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
@@ -153,7 +153,7 @@ func TestStoreParseResult_IdempotentReingestion(t *testing.T) {
 	storeParseResult(database, sessionID, "", result)
 
 	// Should still have exactly one event with this ID.
-	evtID := ingestEventID(sessionID, "tu-idem-001", "Read", 0)
+	evtID := ingest.EventID(sessionID, "tu-idem-001", "Read", 0)
 	var count int
 	database.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE event_id = ?`, evtID).Scan(&count)
 	if count != 1 {
@@ -162,21 +162,21 @@ func TestStoreParseResult_IdempotentReingestion(t *testing.T) {
 }
 
 func TestIngestEventID_Deterministic(t *testing.T) {
-	id1 := ingestEventID("sess-001", "tu-abc", "Read", 0)
-	id2 := ingestEventID("sess-001", "tu-abc", "Read", 0)
+	id1 := ingest.EventID("sess-001", "tu-abc", "Read", 0)
+	id2 := ingest.EventID("sess-001", "tu-abc", "Read", 0)
 	if id1 != id2 {
 		t.Errorf("same inputs should produce same ID: %q != %q", id1, id2)
 	}
 
-	id3 := ingestEventID("sess-001", "tu-def", "Read", 0)
+	id3 := ingest.EventID("sess-001", "tu-def", "Read", 0)
 	if id1 == id3 {
 		t.Errorf("different toolUseID should produce different ID")
 	}
 }
 
 func TestIngestEventID_FallbackWithoutToolUseID(t *testing.T) {
-	id1 := ingestEventID("sess-001", "", "Read", 0)
-	id2 := ingestEventID("sess-001", "", "Read", 1)
+	id1 := ingest.EventID("sess-001", "", "Read", 0)
+	id2 := ingest.EventID("sess-001", "", "Read", 1)
 	if id1 == id2 {
 		t.Errorf("different indices without toolUseID should produce different IDs")
 	}
@@ -206,7 +206,7 @@ func TestStoreParseResult_InputSummaryTruncated(t *testing.T) {
 
 	storeParseResult(database, sessionID, "", result)
 
-	evtID := ingestEventID(sessionID, "tu-trunc-001", "Bash", 0)
+	evtID := ingest.EventID(sessionID, "tu-trunc-001", "Bash", 0)
 	evt, err := dbpkg.GetEvent(database, evtID)
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
