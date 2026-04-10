@@ -68,7 +68,13 @@ func (p *PlanPage) TotalSections() int {
 }
 
 // PlanMeta returns the human-readable metadata string shown in the
-// plan header (e.g. "3 slices - Created 2026-04-04").
+// plan header (e.g. "v3 · 4 slices · Created 2026-04-10").
+// Version is only shown when non-zero (the YAML meta.version field is an
+// int >= 1 once the plan has been through at least one rewrite; zero means
+// the plan is pre-versioned or the field was never populated).
 func (p *PlanPage) PlanMeta() string {
+	if p.Version > 0 {
+		return fmt.Sprintf("v%d \u00b7 %d slices \u00b7 Created %s", p.Version, p.SliceCount(), p.Date)
+	}
 	return fmt.Sprintf("%d slices \u00b7 Created %s", p.SliceCount(), p.Date)
 }

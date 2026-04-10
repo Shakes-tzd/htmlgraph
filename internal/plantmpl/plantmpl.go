@@ -108,7 +108,8 @@ type PlanPage struct {
 	FeatureID   string
 	Title       string
 	Description string
-	Date        string
+	Date        string // original YAML meta.created_at when available, else render time
+	Version     int    // monotonic version counter from plan.meta.version; 0 if unset
 	Status      string // "draft", "in-progress", "finalized", etc.
 
 	// Zone components

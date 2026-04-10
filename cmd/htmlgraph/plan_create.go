@@ -184,6 +184,17 @@ func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
 	if plan.Meta.TrackID != "" && page.FeatureID == "" {
 		page.FeatureID = plan.Meta.TrackID
 	}
+	// Always prefer the original creation date from the YAML over the render-time
+	// default set by BuildFromTopic/BuildFromWorkItem. The render-time default was
+	// misleading on re-render (header read "Created [today]" even for old plans).
+	if plan.Meta.CreatedAt != "" {
+		page.Date = plan.Meta.CreatedAt
+	}
+	// Surface the monotonic version counter from meta.version so the header can
+	// show the plan's current revision (v1, v2, v3, ...).
+	if plan.Meta.Version > 0 {
+		page.Version = plan.Meta.Version
+	}
 
 	// Map design section (problem + goals + constraints → HTML).
 	if plan.Design.Problem != "" || len(plan.Design.Goals) > 0 {
