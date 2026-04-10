@@ -166,6 +166,10 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	// Write canonical session HTML file (non-critical, errors silently logged).
 	CreateSessionHTML(projectDir, s)
 
+	// Sweep orphans from any previous sessions in this project — closes out
+	// tool calls that crashed mid-flight so session history stays consistent.
+	SweepOrphanedEventsForProject(database, projectDir)
+
 	LogTimed(projectDir, "session-start", map[string]string{
 		"session": shortID,
 	}, handlerStart, "handler complete")

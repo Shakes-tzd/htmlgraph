@@ -61,6 +61,11 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		Summary:   SummariseInput(event.ToolName, event.ToolInput),
 	})
 
+	// Lazy orphan sweep for this session — picks up any prior PreToolUse
+	// that never saw a PostToolUse (tool crash, Claude Code kill) and
+	// closes it out with a synthetic aborted entry. Non-critical.
+	SweepOrphanedEventsForSession(database, ctx.ProjectDir, ctx.SessionID)
+
 	// Record orchestrator direct-tool usage for analytics.
 	// Subagents are excluded — only direct orchestrator use is interesting here.
 	if !ctx.IsSubagent {

@@ -644,3 +644,116 @@ func TestCountRecentDuplicates(t *testing.T) {
 		t.Errorf("count for other session: got %d, want 0", count)
 	}
 }
+
+func TestFindOrphanedEvents(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	now := time.Now().UTC()
+	insert := func(id string, minutesAgo int, status string) {
+		t.Helper()
+		created := now.Add(-time.Duration(minutesAgo) * time.Minute)
+		ev := &models.AgentEvent{
+			EventID:   id,
+			AgentID:   "claude-code",
+			EventType: models.EventToolCall,
+			Timestamp: created,
+			ToolName:  "Bash",
+			SessionID: "sess-test",
+			Status:    status,
+			Source:    "hook",
+			CreatedAt: created,
+			UpdatedAt: created,
+		}
+		if err := db.UpsertEvent(database, ev); err != nil {
+			t.Fatalf("insert %s: %v", id, err)
+		}
+	}
+
+	insert("evt-recent-started", 1, "started")  // too new
+	insert("evt-old-started", 10, "started")    // orphan
+	insert("evt-old-completed", 10, "completed") // not started
+	insert("evt-ancient-started", 60*30, "started") // orphan, also past 24h
+
+	orphans, err := db.FindOrphanedEvents(database, "", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("FindOrphanedEvents: %v", err)
+	}
+	ids := map[string]bool{}
+	for _, o := range orphans {
+		ids[o.EventID] = true
+	}
+	if !ids["evt-old-started"] {
+		t.Error("expected evt-old-started in orphans")
+	}
+	if !ids["evt-ancient-started"] {
+		t.Error("expected evt-ancient-started in orphans")
+	}
+	if ids["evt-recent-started"] {
+		t.Error("evt-recent-started should not be an orphan (too new)")
+	}
+	if ids["evt-old-completed"] {
+		t.Error("completed events should not be orphans")
+	}
+
+	// Session-scoped sweep still finds the old started event.
+	scoped, err := db.FindOrphanedEvents(database, "sess-test", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("FindOrphanedEvents scoped: %v", err)
+	}
+	if len(scoped) < 2 {
+		t.Errorf("expected >=2 scoped orphans, got %d", len(scoped))
+	}
+
+	// Session filter excludes other sessions.
+	other, err := db.FindOrphanedEvents(database, "other-session", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("FindOrphanedEvents other: %v", err)
+	}
+	if len(other) != 0 {
+		t.Errorf("expected 0 orphans for other-session, got %d", len(other))
+	}
+}
+
+func TestMarkEventAborted(t *testing.T) {
+	database := setupTestDB(t)
+	defer database.Close()
+
+	now := time.Now().UTC()
+	ev := &models.AgentEvent{
+		EventID:   "evt-abort-1",
+		AgentID:   "claude-code",
+		EventType: models.EventToolCall,
+		Timestamp: now,
+		ToolName:  "Bash",
+		SessionID: "sess-test",
+		Status:    "started",
+		Source:    "hook",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.UpsertEvent(database, ev); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	if err := db.MarkEventAborted(database, "evt-abort-1", "swept"); err != nil {
+		t.Fatalf("MarkEventAborted: %v", err)
+	}
+
+	got, err := db.GetEvent(database, "evt-abort-1")
+	if err != nil {
+		t.Fatalf("GetEvent: %v", err)
+	}
+	if got.Status != "aborted" {
+		t.Errorf("status: got %q, want %q", got.Status, "aborted")
+	}
+
+	// Verify reason column populated directly (GetEvent may not surface it).
+	var reason sql.NullString
+	if err := database.QueryRow(`SELECT reason FROM agent_events WHERE event_id = ?`, "evt-abort-1").Scan(&reason); err != nil {
+		t.Fatalf("query reason: %v", err)
+	}
+	if reason.String != "swept" {
+		t.Errorf("reason: got %q, want %q", reason.String, "swept")
+	}
+}

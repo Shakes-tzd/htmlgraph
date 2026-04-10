@@ -110,6 +110,12 @@ func parseSessionHTML(database *sql.DB, path string) (int, error) {
 		if successStr == "false" {
 			status = "failed"
 		}
+		// An explicit data-status attribute on the <li> (e.g. "aborted" from
+		// the orphan sweep) takes precedence over the success→status mapping
+		// so round-trip reindex rebuilds aborted events as aborted.
+		if explicit := attrOrDefault(li, "data-status", ""); explicit != "" {
+			status = explicit
+		}
 
 		summary := strings.TrimSpace(li.Text())
 		if len([]rune(summary)) > maxInputSummaryLen {

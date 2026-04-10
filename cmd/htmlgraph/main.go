@@ -84,6 +84,7 @@ func main() {
 	rootCmd.AddCommand(planCmdWithExtras())
 	rootCmd.AddCommand(backfillCmd())
 	rootCmd.AddCommand(reindexCmd())
+	rootCmd.AddCommand(sweepCmd())
 	rootCmd.AddCommand(recommendCmd())
 	rootCmd.AddCommand(ciCmd())
 	rootCmd.AddCommand(helpCmd())

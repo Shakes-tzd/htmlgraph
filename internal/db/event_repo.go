@@ -256,6 +256,78 @@ func UpdateEventStatus(db *sql.DB, eventID, status string) error {
 	return err
 }
 
+// OrphanEvent describes a tool-call row that entered 'started' state via
+// PreToolUse but never received a PostToolUse completion. The orphan sweep
+// materialises these as synthetic aborted entries in the session HTML.
+type OrphanEvent struct {
+	EventID   string
+	SessionID string
+	ToolName  string
+	AgentID   string
+	FeatureID string
+	CreatedAt time.Time
+}
+
+// FindOrphanedEvents returns 'started' agent_events older than olderThan.
+// When sessionID is non-empty, scopes the query to that session. The index
+// idx_agent_events_session_ts_desc already covers this access pattern.
+func FindOrphanedEvents(db *sql.DB, sessionID string, olderThan time.Duration) ([]OrphanEvent, error) {
+	cutoff := time.Now().UTC().Add(-olderThan).Format(time.RFC3339)
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if sessionID != "" {
+		rows, err = db.Query(`
+			SELECT event_id, session_id, COALESCE(tool_name, ''), agent_id,
+			       COALESCE(feature_id, ''), created_at
+			FROM agent_events
+			WHERE session_id = ? AND status = 'started' AND created_at < ?
+			ORDER BY created_at ASC`, sessionID, cutoff)
+	} else {
+		rows, err = db.Query(`
+			SELECT event_id, session_id, COALESCE(tool_name, ''), agent_id,
+			       COALESCE(feature_id, ''), created_at
+			FROM agent_events
+			WHERE status = 'started' AND created_at < ?
+			ORDER BY created_at ASC`, cutoff)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find orphaned events: %w", err)
+	}
+	defer rows.Close()
+
+	var out []OrphanEvent
+	for rows.Next() {
+		var o OrphanEvent
+		var createdStr string
+		if err := rows.Scan(&o.EventID, &o.SessionID, &o.ToolName, &o.AgentID, &o.FeatureID, &createdStr); err != nil {
+			return nil, fmt.Errorf("scan orphaned event: %w", err)
+		}
+		if t, perr := time.Parse(time.RFC3339, createdStr); perr == nil {
+			o.CreatedAt = t.UTC()
+		} else if t, perr := time.Parse("2006-01-02 15:04:05", createdStr); perr == nil {
+			o.CreatedAt = t.UTC()
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
+// MarkEventAborted transitions an agent_event row to status='aborted' and
+// records a reason marker. Used by the orphan sweep to close out started
+// rows whose PostToolUse never fired.
+func MarkEventAborted(db *sql.DB, eventID, reason string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`
+		UPDATE agent_events
+		SET status = 'aborted', reason = ?, updated_at = ?
+		WHERE event_id = ?`,
+		reason, now, eventID,
+	)
+	return err
+}
+
 // FindStartedEvent returns the event_id of the most recent started event
 // matching tool_name in the session. Returns ("", sql.ErrNoRows) when not found.
 func FindStartedEvent(db *sql.DB, sessionID, toolName string) (string, error) {

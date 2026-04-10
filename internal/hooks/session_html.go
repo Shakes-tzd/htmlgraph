@@ -18,6 +18,9 @@ import (
 
 // SessionEvent holds the data needed to write a <li> element to a session's
 // HTML activity log. Kept minimal — only fields that appear in the HTML output.
+// Status and Reason are optional and emit data-status/data-reason attributes
+// when set; they are used by the orphan sweep to write synthetic aborted
+// entries while leaving the live PostToolUse append path unchanged.
 type SessionEvent struct {
 	Timestamp time.Time
 	ToolName  string
@@ -25,6 +28,8 @@ type SessionEvent struct {
 	EventID   string
 	FeatureID string
 	Summary   string
+	Status    string
+	Reason    string
 }
 
 // CreateSessionHTML writes the initial session HTML file to
@@ -162,6 +167,16 @@ func AppendEventToSessionHTML(projectDir, sessionID string, ev SessionEvent) {
 		li.WriteString(html.EscapeString(ev.FeatureID))
 		li.WriteString(`"`)
 	}
+	if ev.Status != "" {
+		li.WriteString(` data-status="`)
+		li.WriteString(html.EscapeString(ev.Status))
+		li.WriteString(`"`)
+	}
+	if ev.Reason != "" {
+		li.WriteString(` data-reason="`)
+		li.WriteString(html.EscapeString(ev.Reason))
+		li.WriteString(`"`)
+	}
 	li.WriteString(`>`)
 	li.WriteString(html.EscapeString(ev.Summary))
 	li.WriteString("</li>\n")
@@ -191,12 +206,27 @@ var badgeEventsRe = regexp.MustCompile(`<span class="badge">\d+ events?</span>`)
 
 // FinalizeSessionHTML updates the session HTML file with completion data:
 // sets data-status, adds data-ended-at, and updates data-event-count.
-// Errors are silently logged.
+// Errors are silently logged. Acquires the same exclusive flock as
+// AppendEventToSessionHTML so it does not race a concurrent sweep append
+// or a late PostToolUse write during SessionEnd.
 func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCount int) {
 	htmlPath := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID+".html")
-	data, err := os.ReadFile(htmlPath)
+	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
 	if err != nil {
 		// File doesn't exist — silently ignore.
+		return
+	}
+	defer f.Close()
+
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		debugLog(projectDir, "[session-html] finalize flock %s: %v", htmlPath, err)
+		return
+	}
+	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		debugLog(projectDir, "[session-html] finalize read %s: %v", htmlPath, err)
 		return
 	}
 
@@ -234,8 +264,16 @@ func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCou
 	content = badgeEventsRe.ReplaceAllString(content,
 		fmt.Sprintf(`<span class="badge">%d %s</span>`, eventCount, evtWord))
 
-	if err := os.WriteFile(htmlPath, []byte(content), 0o644); err != nil {
-		debugLog(projectDir, "[session-html] finalize %s: %v", htmlPath, err)
+	if err := f.Truncate(0); err != nil {
+		debugLog(projectDir, "[session-html] finalize truncate %s: %v", htmlPath, err)
+		return
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		debugLog(projectDir, "[session-html] finalize seek %s: %v", htmlPath, err)
+		return
+	}
+	if _, err := f.Write([]byte(content)); err != nil {
+		debugLog(projectDir, "[session-html] finalize write %s: %v", htmlPath, err)
 	}
 }
 
