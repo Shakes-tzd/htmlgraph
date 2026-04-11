@@ -11,6 +11,7 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list \
         bash-completion \
         build-essential \
         curl \
+        direnv \
         fd-find \
         jq \
         less \
@@ -22,6 +23,7 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list \
         tree \
         unzip \
         xz-utils \
+        zsh \
     && rm -rf /var/lib/apt/lists/* \
     && if [ -x /usr/bin/fdfind ] && [ ! -e /usr/local/bin/fd ]; then ln -s /usr/bin/fdfind /usr/local/bin/fd; fi \
     && mkdir -p /home/vscode/.local/bin /home/vscode/.local/share \
