@@ -1594,6 +1594,18 @@ function renderGraph(data) {
     return Math.max(4, Math.min(28, r));
   }
 
+  // visualRadius is the ACTUAL rendered radius of the circle, after any
+  // type-specific scaling. This is the value to use for hit testing,
+  // text wrapping, and label fit decisions so a single source of truth
+  // governs "how big is this node on screen." Previously the code used
+  // nodeRadius() directly for labels while the circle renderer scaled
+  // session nodes to 60% — the labels thought they had more room than
+  // the circle actually provided and spilled onto the background.
+  function visualRadius(d) {
+    if (d.type === 'session') return Math.max(3, nodeRadius(d) * 0.6);
+    return nodeRadius(d);
+  }
+
   // Make a shallow copy so D3 can mutate positions without polluting our cache.
   var nodes = data.nodes.map(function(n) { return Object.assign({}, n); });
   var edges = data.edges.map(function(e) { return Object.assign({}, e); });
@@ -1649,7 +1661,7 @@ function renderGraph(data) {
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('x', d3.forceX(width / 2).strength(0.015))
     .force('y', d3.forceY(height / 2).strength(0.015))
-    .force('collision', d3.forceCollide().radius(function(d) { return nodeRadius(d) + 3; }));
+    .force('collision', d3.forceCollide().radius(function(d) { return visualRadius(d) + 3; }));
 
   // Edge color by relationship type for visual variety.
   var edgeColor = {
@@ -1673,13 +1685,12 @@ function renderGraph(data) {
       return d.type === 'worked_on' ? 0.7 : 1.2;
     });
 
-  // Node circles.
+  // Node circles. Radius flows through visualRadius so the on-screen
+  // size matches the value used by label wrapping and the collision
+  // force below — one source of truth for "how big is this node."
   var node = g.append('g').selectAll('circle')
     .data(nodes).enter().append('circle')
-    .attr('r', function(d) {
-      // Sessions are secondary — render smaller.
-      return d.type === 'session' ? Math.max(3, nodeRadius(d) * 0.6) : nodeRadius(d);
-    })
+    .attr('r', visualRadius)
     .attr('fill', function(d) { return typeColor[d.type] || '#888'; })
     .attr('fill-opacity', function(d) { return d.type === 'session' ? 0.6 : GRAPH_LAYOUT.NODE_FILL_OPACITY; })
     .attr('stroke', 'var(--bg-primary)')
@@ -1916,13 +1927,17 @@ function renderGraph(data) {
     .attr('pointer-events', 'none');
 
   trackLabels.each(function(d) {
-    wrapTextInCircle(d3.select(this), d.title, nodeRadius(d));
+    wrapTextInCircle(d3.select(this), d.title, visualRadius(d));
   });
 
-  // Hub node labels — fit inside the circle when node is large enough,
-  // using the same chord-width wrapping as track labels.
+  // Hub node labels — fit inside the circle when node is large enough.
+  // Uses visualRadius (not nodeRadius) so the "is this big enough to
+  // label?" test matches the ACTUAL on-screen size, which for session
+  // nodes is 60% of nodeRadius. Without this, session labels thought
+  // they had 67% more space than the circle actually provided and
+  // spilled onto the background.
   var hubNodes = nodes.filter(function(d) {
-    return d.type !== 'track' && (d.edges || 0) >= 3 && nodeRadius(d) >= 10;
+    return d.type !== 'track' && (d.edges || 0) >= 3 && visualRadius(d) >= 10;
   });
 
   var hubLabels = g.append('g').selectAll('text.hub-label')
@@ -1936,7 +1951,7 @@ function renderGraph(data) {
     .attr('pointer-events', 'none');
 
   hubLabels.each(function(d) {
-    wrapTextInCircle(d3.select(this), d.title, nodeRadius(d));
+    wrapTextInCircle(d3.select(this), d.title, visualRadius(d));
   });
 
   graphSimulation.on('tick', function() {
