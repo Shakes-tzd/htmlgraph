@@ -2,15 +2,516 @@ meta:
     id: plan-1b621827
     track_id: trk-97f85b3b
     title: Logical session splitting via hook source field
-    description: 'Split monolithic Claude Code transcripts into logical user-scoped sessions using the hook CloudEvent.Source field (startup/resume/clear/compact) as ground-truth boundaries. Adds a logical_sessions table layered over the existing sessions table — the transcript session_id stays canonical, logical_sessions tracks sittings within it. Includes live hook attribution, JSONL backfill for historical data, HTML representation that round-trips through reindex, and a dashboard view that groups by logical session by default. Differentiator: no other tool has hook data, so no other tool can split transcripts by Claude Code''s own boundary signal.'
+    description: 'Split monolithic Claude Code transcripts into logical user-scoped sessions using the hook CloudEvent.Source field as the ground-truth boundary signal. Adds a logical_sessions table layered over the existing sessions table — the transcript session_id stays canonical, logical_sessions tracks sittings within it. Critical prerequisite: verify Claude Code actually populates the Source field in practice (code declares it but never reads it today). Backfill for historical data falls back to time-gap heuristics because JSONL files contain no resume markers. Differentiator for the LinkedIn launch: no other Claude Code observability tool has live hook data, so no other tool can split transcripts by Claude Code''s own boundary signal.'
     created_at: "2026-04-11"
     status: draft
+    created_by: claude-opus
     version: 2
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |-
+        Claude Code's session model treats a session as workspace-scoped and resumable indefinitely. Running `claude --resume` or picking 'continue most recent' at startup opens an existing session_id and appends new messages to the same JSONL file. The file the orchestrator analyzed in shakestzd (`3f70c3f9-b6aa-4360-b751-68166bb58744.jsonl`) spans 3 days, contains 175 user messages in 16 distinct work segments separated by time gaps ranging from 5 minutes to 12 hours, and crosses three different CWDs. Claude Code thinks of this as one session. The user thinks of it as 16 sittings.
+
+        Current htmlgraph ingest is faithful to Claude Code's data — one JSONL produces one session row in SQLite and one HTML file under `.htmlgraph/sessions/`. That's architecturally correct but produces a dashboard experience where 'show me my sessions' returns monolithic multi-day entries bundling unrelated work. AgentsView has the same limitation (verified via their docs: they store 'JSONL per session' with no splitting). Every tool in this space that parses Claude Code JSONLs directly inherits this UX problem.
+
+        htmlgraph is the only tool with live hook data. The hook `CloudEvent` struct at `internal/hooks/runner.go:51` already declares a `Source` field with comment `// startup, resume, clear, compact`. Research on 2026-04-11 confirmed this field is declared and JSON-decoded, but has ZERO usage anywhere in the codebase — no log line, no read, no downstream action. The plan's entire premise rests on Claude Code actually populating this field on SessionStart events, which has not been empirically verified. The first slice MUST verify this before any downstream work can land.
+
+        Backfill for historical transcripts is a separate problem. JSONL files contain NO resume markers — no `source` field, no `sessionStart: true`, no structural break. `parentUuid` chains continue across time gaps (Claude Code models resume as conversation continuity by design). The backfill must rely on time-gap heuristics and be clearly labeled as derived rather than ground-truth. Only the live hook path can provide ground-truth boundaries.
+    goals:
+        - '**Verify then build** — before shipping any schema or write-path changes, confirm via a one-line debug log and a real resume test that Claude Code actually populates `event.Source` as `startup` / `resume` / `clear` / `compact`. If the field is empty in practice, pivot to time-gap-only detection.'
+        - '**Ground-truth logical session boundaries from live hooks** — every SessionStart event with `source == ''startup'' || source == ''resume''` creates a new `logical_sessions` row. Every subsequent PreToolUse/PostToolUse event attributes its `agent_events` row to the current logical session via `logical_session_id` lookup through the `.active-session` file.'
+        - '**Heuristic backfill for historical transcripts** — a one-shot migration scans existing session HTML files, detects time gaps exceeding a configurable threshold (default: 30 minutes), and emits `logical_sessions` rows marked as `derived` in a new column so the UI can distinguish them from hook-attributed boundaries.'
+        - '**HTML-canonical round-trip preserved** — logical session boundaries are represented inside session HTML files as `<div data-logical-session="N" data-source="resume" data-started-at="...">` wrappers inside the `<ol>`, chosen specifically to avoid breaking the `strings.LastIndex(content, ''</ol>'')` append mechanism. Reindex parses these wrappers to reconstruct the logical_sessions table from HTML.'
+        - '**Dashboard splits by default** — the sessions list shows one row per logical_session_id, with a toggle to group by transcript for users who want the raw Claude Code view. A 3-day merged transcript with 16 sittings becomes 16 distinct dashboard rows, each with its own title derived from the first user query in that segment.'
+        - '**Differentiator for launch** — concrete, demo-able claim: ''AgentsView and every other tool that reads Claude Code JSONLs shows session 3f70c3f9 as one monolithic 3-day blob. htmlgraph splits it into 16 logical sessions using the hook source field, the same signal Claude Code uses internally. Only htmlgraph can do this because only htmlgraph is in the hook stream.'''
+    constraints:
+        - Claude Code's session_id remains the stable identifier for transcript files. Do not rewrite or rename JSONL files. Do not modify Claude Code data under any circumstances.
+        - The existing `sessions` table stays intact. `logical_sessions` is additive. Every existing query against `sessions` must continue to work unchanged.
+        - HTML is canonical (established in v0.54.0 via plan-43659c92). Logical session data must be representable in the session HTML file and reconstructable via reindex. No SQLite-only state.
+        - The hook layer is the ONLY component that captures `event.Source` in real time. The backfill path must do best-effort reconstruction from JSONL + timestamps and label its rows `derived` (vs `hook` for live-attributed rows). Do not claim parity between the two sources.
+        - '`clear` and `compact` source values are NOT logical session boundaries per Claude Code''s official docs. They represent within-session context resets (same session_id, context erased or condensed). Only `startup` and `resume` create new logical_sessions rows.'
+        - '`isCompactSummary` is a real JSONL field at parser.go:113 that Claude Code writes on auto-compaction. It is currently filtered out by the parser. It MAY be used as a secondary structural signal in future work but is out of scope for this plan.'
+        - The `.active-session` file and `ActiveSessionData` struct at `internal/hooks/session_start.go:18-29` is the existing plumbing pattern for per-project hook state. Extend it with a `LogicalSessionID` field rather than introducing a new DB query on every PreToolUse/PostToolUse event.
+        - The HTML append mechanism uses `strings.LastIndex(content, '</ol>')` to find the insertion point in `AppendEventToSessionHTML`. Any DOM restructuring that adds nested `</ol>` elements would silently corrupt the insertion. Use `<div>` wrappers, never `<section>` with nested `<ol>`.
+        - Existing reindex round-trip acceptance test from plan-43659c92 slice 4 must continue to pass. Any new HTML structure must be reindex-parseable.
+        - 'Performance budget: backfill pass over the full corpus of ~5,235 JSONL files completes in under 2 minutes (gjson parsing at ~75k lines/sec; DB inserts at ~10k rows/sec).'
+        - No changes to Claude Code itself. No protocol changes. No requirements on Claude Code version beyond what the current hook integration already needs.
+        - This plan is about SPLITTING, not MERGING. No UI to join two logical sessions into one. No cross-transcript grouping.
+        - 'Prerequisite dependency: `feat-195fcccc` on trk-97f85b3b is ''Wire Missing Hook Events'' and its step 4 is ''Add SessionStart matcher support (startup|resume|clear|compact)''. This plan depends on that step. Either finish `feat-195fcccc` step 4 first, or absorb that step into slice 1 of this plan. Decision deferred to a plan question.'
     approved: false
     comment: ""
-slices: []
-questions: []
+slices:
+    - id: feat-8e357e10
+      num: 1
+      title: 'SPIKE: Verify Claude Code populates event.Source in practice'
+      what: |-
+        Before committing to any schema or write-path changes, empirically verify that Claude Code actually sends a non-empty `source` value in the CloudEvent payload to SessionStart hooks. Currently the field is declared at `internal/hooks/runner.go:51` but has ZERO usage anywhere in the codebase — no log line, no read, no downstream action. We have no evidence it's populated.
+
+        **(a) Instrument the SessionStart hook.** In `internal/hooks/session_start.go:SessionStart`, add a single debug log line immediately after the CloudEvent is decoded: `debugLog(projectDir, "[session-start] source=%q transcript_path=%q", event.Source, event.TranscriptPath)`. This is a safe additive change, zero behavior modification.
+
+        **(b) Run quality gates.** `go build ./... && go vet ./... && go test ./...` must pass.
+
+        **(c) Rebuild the binary.** `htmlgraph build` to get the instrumented version installed.
+
+        **(d) Generate empirical evidence.** Run three manual scenarios and capture what event.Source actually contains in `.htmlgraph/debug.log`:
+          - Fresh `claude` invocation in a project with no prior session — expect `source=startup`
+          - `claude --resume <id>` on an existing session — expect `source=resume`
+          - Open a running session and run `/clear` — expect `source=clear`
+          - Let a session auto-compact (or run `/compact`) — expect `source=compact`
+
+        **(e) Commit the debug log line.** Leave it in the codebase as permanent instrumentation — the cost is negligible and future debugging benefits from always-on source capture.
+
+        **(f) Gate decision.** If `event.Source` is empty in any scenario, STOP and update this plan. The entire feature pivots to time-gap-only heuristics and we drop the 'only htmlgraph can do this via hooks' differentiator claim. If `event.Source` is populated as expected, proceed to slice 2.
+      why: The plan's central premise is that Claude Code populates `event.Source` and we use it as a ground-truth boundary signal. Research on 2026-04-11 showed zero evidence this field is populated in practice — it's declared in the struct but never read or logged. Without verification, slices 2 through 7 could be built on an empty value and ship a feature that does nothing. Ten minutes of instrumentation and four manual scenarios is cheap insurance that gates the entire plan.
+      files:
+        - internal/hooks/session_start.go
+        - .htmlgraph/debug.log
+      deps: []
+      done_when:
+        - A single debug log line is added to `SessionStart` after CloudEvent decode, recording `event.Source` and `event.TranscriptPath`
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+        - '`htmlgraph build` succeeds and the instrumented binary is installed'
+        - Four manual scenarios are run and `event.Source` values are captured in debug.log — fresh claude, `--resume`, `/clear`, `/compact`
+        - If all four scenarios produce non-empty `event.Source` matching the expected value, slice 1 passes and slice 2 is unblocked
+        - If any scenario produces empty or unexpected `event.Source`, slice 1 STOPS and this plan is revised before proceeding — the empty-value pivot is a full re-scope
+        - Findings are documented in the feature HTML as a comment so future reference is easy
+      effort: S
+      risk: Low
+      tests: |
+        Unit:
+          - none (pure instrumentation, no behavioral change)
+        Integration:
+          - Four manual scenarios captured in `.htmlgraph/debug.log` — not a Go test, a human-in-the-loop verification
+        Regression:
+          - `go test ./internal/hooks/...` must still pass unchanged — adding a debugLog line cannot break any existing test
+      approved: false
+      comment: ""
+    - id: feat-289ce5e0
+      num: 2
+      title: 'Schema: logical_sessions table + ActiveSessionData.LogicalSessionID field'
+      what: |-
+        Add the data model for logical sessions and the live write path triggered by SessionStart hooks. Pure additive change — no existing data types modified.
+
+        **(a) Schema migration.** In `internal/db/schema.go:Open()`, add:
+        ```sql
+        CREATE TABLE IF NOT EXISTS logical_sessions (
+            logical_id TEXT PRIMARY KEY,
+            transcript_session_id TEXT NOT NULL,
+            boundary_index INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            origin TEXT NOT NULL DEFAULT 'hook',  -- 'hook' | 'derived'
+            started_at DATETIME NOT NULL,
+            ended_at DATETIME,
+            event_count INTEGER DEFAULT 0,
+            message_count INTEGER DEFAULT 0,
+            first_user_query TEXT,
+            cwd TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(transcript_session_id, boundary_index)
+        );
+        CREATE INDEX IF NOT EXISTS idx_logical_sessions_transcript
+            ON logical_sessions(transcript_session_id);
+        ```
+        Also add an idempotent `ALTER TABLE agent_events ADD COLUMN logical_session_id TEXT` following the existing migration pattern.
+
+        **(b) Extend ActiveSessionData.** At `internal/hooks/session_start.go:18-29`, add a `LogicalSessionID string` field to the struct. Update `WriteActiveSession` and `ReadActiveSession` to persist/restore it. The file format is JSON per line or similar — extension is backward-compatible.
+
+        **(c) SessionStart write path.** In `SessionStart`, after the existing session row upsert, check `event.Source`. If it's `startup` or `resume`, insert a new `logical_sessions` row via a new helper `CreateLogicalSession(db, transcriptSessionID, source, cwd, startedAt)` which:
+          - Queries `SELECT MAX(boundary_index) FROM logical_sessions WHERE transcript_session_id = ?`
+          - Inserts a new row at `max + 1` (or 0 if first) with `origin = 'hook'`
+          - Generates `logical_id` as `<transcript_session_id>#<boundary_index>`
+          - Returns the new logical_id
+        Then update `ActiveSessionData.LogicalSessionID` to the new value and write the file.
+
+        If `event.Source` is `clear` or `compact`, do NOT create a new logical session. Leave the active session's `LogicalSessionID` unchanged. These are within-session resets.
+
+        **(d) Tests.** Unit tests in `internal/db/logical_sessions_test.go` for `CreateLogicalSession` covering boundary_index monotonic increment, unique constraint, the origin default. Integration test in `internal/hooks/session_start_test.go` firing SessionStart with each of the four source values and asserting the correct logical_sessions behavior.
+
+        This slice does NOT touch the HTML layer or the PreToolUse/PostToolUse propagation. Those are in slice 3 and slice 4.
+      why: The data model and the live write path are foundational. Everything downstream (propagation, HTML, backfill, reindex, dashboard) depends on the table existing and SessionStart correctly creating rows when source is `startup` or `resume`. This slice is the first place where the Source field actually affects behavior, so it's the first place where we actually depend on slice 1's verification being positive.
+      files:
+        - internal/db/schema.go
+        - internal/db/logical_sessions.go
+        - internal/db/logical_sessions_test.go
+        - internal/hooks/session_start.go
+        - internal/hooks/session_start_test.go
+      deps:
+        - 1
+      done_when:
+        - '`logical_sessions` table created via idempotent `CREATE TABLE IF NOT EXISTS` in `schema.go:Open()`'
+        - '`agent_events.logical_session_id` column added via idempotent `ALTER TABLE ADD COLUMN`'
+        - '`ActiveSessionData` struct gains a `LogicalSessionID string` field with backward-compatible JSON (un)marshal'
+        - '`CreateLogicalSession` helper in `internal/db/logical_sessions.go` handles boundary_index monotonic increment, origin default, and returns the new logical_id'
+        - '`SessionStart` creates a new logical_sessions row when `event.Source == ''startup'' || event.Source == ''resume''`'
+        - '`SessionStart` does NOT create a new logical_sessions row when `event.Source == ''clear'' || event.Source == ''compact''` (within-session resets)'
+        - '`ActiveSessionData` is updated with the new logical_id after each boundary-creating event'
+        - Unit tests cover boundary_index increment, unique constraint, origin default
+        - Integration test fires all four source values and asserts the correct number of logical_sessions rows
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+          - TestCreateLogicalSession_Monotonic — consecutive calls produce boundary_index 0, 1, 2
+          - TestCreateLogicalSession_UniqueConstraint — duplicate (transcript, boundary) fails
+          - TestCreateLogicalSession_OriginDefault — origin defaults to 'hook'
+          - TestActiveSessionData_LogicalSessionIDRoundTrip — write + read preserves field
+        Integration:
+          - TestSessionStart_StartupCreatesLogicalSession — source='startup' produces one row
+          - TestSessionStart_ResumeCreatesNewBoundary — second SessionStart with source='resume' produces boundary_index=1
+          - TestSessionStart_ClearNoBoundary — source='clear' leaves logical_sessions unchanged
+          - TestSessionStart_CompactNoBoundary — source='compact' leaves logical_sessions unchanged
+        Regression:
+          - existing session_start tests must pass unchanged
+          - `reindex_sessions` round-trip test from plan-43659c92 must still pass
+      approved: false
+      comment: ""
+    - id: feat-71fd8e63
+      num: 3
+      title: Propagate logical_session_id from ActiveSessionData to agent_events
+      what: |-
+        Wire the `logical_session_id` attribution into every PreToolUse and PostToolUse hook event so that `agent_events.logical_session_id` is populated for all events fired after slice 2 lands.
+
+        **(a) Read ActiveSessionData in hook handlers.** In `internal/hooks/pretooluse.go` and `internal/hooks/posttooluse.go`, read `ActiveSessionData` via `ReadActiveSession(projectDir)` at the start of each hook (or use an existing cached read if one exists) and pull the `LogicalSessionID` field.
+
+        **(b) Extend InsertAgentEvent.** Add `logical_session_id` to the INSERT statement in whichever repo function writes `agent_events` rows. Pass through from the hook handlers.
+
+        **(c) Populate the column.** Every new agent_events row written via hooks gets `logical_session_id = ActiveSessionData.LogicalSessionID`. If the field is empty (e.g., a session that pre-dates slice 1), write NULL — legacy rows are unattributed and will be handled by the backfill in slice 5.
+
+        **(d) Update the session HTML write path for the marker.** This slice does NOT yet add the `<div data-logical-session>` wrapper in HTML (that's slice 4) — it only updates SQLite. Slice 4 is where we bridge the gap between SQLite writes and HTML canonicalness.
+
+        **(e) Tests.** Update the existing PreToolUse/PostToolUse tests to assert that the `logical_session_id` field is correctly populated when `ActiveSessionData.LogicalSessionID` is set. Also test the NULL case for pre-slice-2 sessions.
+
+        This is a small, mechanical slice. The only subtlety is ensuring the read of ActiveSessionData is efficient — it's read on every hook fire and should stay under 1ms.
+      why: Without this slice, slice 2 creates logical_sessions rows but no agent_events are attributed to them. The logical_session_id column exists but is always NULL. This slice closes the loop between the SessionStart boundary creation and the per-event attribution.
+      files:
+        - internal/hooks/pretooluse.go
+        - internal/hooks/posttooluse.go
+        - internal/db/event_repo.go
+        - internal/hooks/pretooluse_test.go
+        - internal/hooks/posttooluse_test.go
+      deps:
+        - 2
+      done_when:
+        - PreToolUse reads `ActiveSessionData.LogicalSessionID` and passes it through to event insert
+        - PostToolUse reads `ActiveSessionData.LogicalSessionID` and passes it through to event insert
+        - '`InsertAgentEvent` (or equivalent) writes `logical_session_id` column'
+        - Every new agent_events row has `logical_session_id` set to the current logical session ID or NULL if unset
+        - Tests confirm that after a startup + resume sequence, events from before the resume have boundary_index 0 and events from after have boundary_index 1
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: S
+      risk: Low
+      tests: |
+        Unit:
+          - TestPreToolUse_PropagatesLogicalSessionID — mock ActiveSessionData with logical_id, assert inserted event has it
+          - TestPostToolUse_PropagatesLogicalSessionID — same pattern
+          - TestPreToolUse_NullWhenUnset — empty ActiveSessionData.LogicalSessionID -> NULL in DB
+        Integration:
+          - End-to-end: fire SessionStart startup -> PreToolUse -> PostToolUse, assert agent_events.logical_session_id matches the created logical_sessions row
+          - Sequence: startup -> PreToolUse -> resume -> PreToolUse -> assert the two events have different logical_session_ids
+        Regression:
+          - All existing pre/post tests pass unchanged
+      approved: false
+      comment: ""
+    - id: feat-a545b1bf
+      num: 4
+      title: 'HTML representation: <div data-logical-session> wrappers inside <ol>'
+      what: |-
+        Represent logical session boundaries inside the session HTML file so the HTML-canonical round-trip invariant holds for this new data type.
+
+        **Critical constraint from research:** the existing `AppendEventToSessionHTML` uses `strings.LastIndex(content, '</ol>')` to find the insertion point. We cannot add nested `<section>` with `<ol>` inside — that would introduce additional `</ol>` tags and break the insertion. Must use `<div>` wrappers that don't contain nested `<ol>`.
+
+        **(a) DOM shape.** Inside the existing `<ol reversed>`, each logical session is a `<div>` wrapper around its `<li>` children:
+        ```html
+        <ol reversed>
+          <div data-logical-session="abc123#0"
+               data-transcript-session="abc123"
+               data-boundary-index="0"
+               data-source="startup"
+               data-started-at="2026-04-08T19:36:54Z">
+            <li ...>...</li>
+            <li ...>...</li>
+          </div>
+          <div data-logical-session="abc123#1"
+               data-source="resume"
+               data-started-at="2026-04-08T21:02:52Z">
+            <li ...>...</li>
+          </div>
+        </ol>
+        ```
+        Note: `<div>` is not strictly valid HTML inside `<ol>` per the HTML5 spec (only `<li>` is permitted as direct children), but browsers tolerate it and goquery parses it fine. If strict validity matters for some downstream consumer, switch to `<li>`-wrapped groups with a nested `<ol>` (which would require rewriting the append logic to handle nested lists — worse tradeoff).
+
+        **(b) Update `CreateSessionHTML`.** Add an initial `<div data-logical-session="<id>#0" data-source="startup" ...>` wrapper immediately inside the `<ol>` when the session is created. All subsequent events append into this div until a new logical session boundary fires.
+
+        **(c) Update `AppendEventToSessionHTML`.** Change the insertion logic:
+          - If the current event's logical_session_id matches the last `<div data-logical-session>` in the file, insert the new `<li>` before the closing `</div>` of that div.
+          - If the current event's logical_session_id is different (a new boundary has been created by SessionStart), close the previous div and open a new div before inserting.
+          - Keep the flock-based read-modify-rewrite pattern — no change to the concurrency model.
+
+        **(d) Update `AppendOrphanedEvent`** (from plan-43659c92 slice 2) to respect the current logical session wrapper when writing synthetic aborted entries.
+
+        **(e) Update `FinalizeSessionHTML`** to close any open `<div>` wrapper at session end.
+
+        **(f) Tests.** HTML round-trip tests that verify the DOM structure parses correctly, the wrapper attributes are preserved, and multiple boundaries produce multiple divs.
+      why: The HTML-canonical invariant from v0.54.0 says every SQLite row must be recoverable from HTML. Without this slice, logical_sessions exists in SQLite but has no representation in HTML — reindex would produce empty logical_sessions on rebuild. This slice is the bridge that keeps the invariant intact.
+      files:
+        - internal/hooks/session_html.go
+        - internal/hooks/session_html_test.go
+      deps:
+        - 2
+        - 3
+      done_when:
+        - '`CreateSessionHTML` initializes the session with an initial `<div data-logical-session>` wrapper inside `<ol>`'
+        - '`AppendEventToSessionHTML` inserts new `<li>` elements inside the CURRENT logical session div, not at the top level of `<ol>`'
+        - '`AppendEventToSessionHTML` opens a NEW `<div>` wrapper when the current event''s logical_session_id differs from the last div''s attribute (crossing a boundary)'
+        - '`FinalizeSessionHTML` closes any open div when the session ends'
+        - The HTML structure remains goquery-parseable with the existing selectors
+        - A session with N logical sessions produces N `<div data-logical-session>` wrappers in the HTML
+        - The attributes on each div (data-source, data-started-at, data-transcript-session, data-boundary-index) match the SQLite row for the corresponding logical_sessions entry
+        - The existing flock-based concurrent-writer test from plan-43659c92 slice 6 still passes
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: L
+      risk: High
+      tests: |
+        Unit:
+          - TestCreateSessionHTML_InitialDivWrapper — new session HTML has one `<div data-logical-session='...#0'>` inside `<ol>`
+          - TestAppendEvent_SameLogicalSession — events with the same logical_session_id land inside the same div
+          - TestAppendEvent_NewBoundary — when logical_session_id changes, a new div is opened and the prior div is closed
+          - TestFinalizeSessionHTML_ClosesOpenDiv — finalize closes the last open div
+          - TestParseLogicalSessionDivs_Roundtrip — parse the HTML via goquery, extract the div attributes, assert they match what was written
+        Integration:
+          - End-to-end: run a fake session with SessionStart startup -> PreToolUse x3 -> SessionStart resume -> PreToolUse x2 -> SessionEnd. Parse the resulting HTML and assert 2 divs with 3 and 2 li children respectively
+          - Concurrent-writer test from plan-43659c92 slice 6 still passes with the new div-wrapped structure
+        Regression:
+          - reindex_sessions round-trip test from plan-43659c92 still passes
+          - existing session_html tests still pass
+      approved: false
+      comment: ""
+    - id: feat-2b2f920b
+      num: 5
+      title: 'Backfill: reconstruct logical sessions from JSONL via time-gap heuristic'
+      what: |-
+        One-shot migration that backfills logical_sessions rows for every historical transcript in the corpus. Because JSONL files contain NO resume markers (verified by research), the backfill is fundamentally heuristic — it uses time gaps between consecutive messages as the boundary signal.
+
+        **(a) New CLI subcommand.** `htmlgraph migrate logical-sessions [--project-dir <dir>] [--dry-run] [--gap-threshold <duration>]`. Default threshold: 30 minutes. Walks `.htmlgraph/sessions/*.html` for a project (or all registered projects).
+
+        **(b) Per-transcript backfill.** For each session HTML file:
+          - Parse via goquery to extract all `<li data-ts='...'>` entries in timestamp order
+          - Compute gaps between consecutive entries
+          - For each gap > threshold, mark a logical session boundary
+          - Emit `logical_sessions` rows with `origin='derived'`, `source='inferred'`, and a `first_user_query` extracted from the first `<li>` after the boundary
+          - Rewrite the session HTML file to wrap the `<li>` groups in `<div data-logical-session>` wrappers (following the shape from slice 4)
+          - Populate `agent_events.logical_session_id` for the corresponding events
+
+        **(c) Dry-run output.** `--dry-run` prints the plan without writing: for each transcript, how many logical sessions would be created, the time range of each, and the first user query in each.
+
+        **(d) Idempotency.** Running the migration twice is a no-op on the second run — the skip-if-exists check on (transcript_session_id, boundary_index) means already-migrated transcripts are left alone. Useful for users who want to safely re-run with a different `--gap-threshold` value.
+
+        **(e) Origin labeling.** All backfilled rows have `origin='derived'`. The dashboard shows these with a visual indicator (e.g., a `(inferred)` tag) so users know the split is heuristic rather than ground-truth. Live hook rows have `origin='hook'` and get the normal display.
+
+        **(f) Tests.** Run on shakestzd's `3f70c3f9-b6aa-4360-b751-68166bb58744.jsonl` fixture. The research found 16 time segments separated by gaps > 5 minutes. With a 30-minute threshold, expect some merging — maybe 8-12 logical sessions. Assert the count is within that range and each row has valid first_user_query.
+
+        Performance budget: backfill for the full 5,235-transcript corpus completes in under 2 minutes. Not a concern given the parsing speed.
+      why: Historical transcripts have no live hook data — there's no source field to use as ground truth. If we ship the live path (slices 2-4) without the backfill, every user opens the dashboard and sees no logical sessions for anything created before the feature landed. Backfill closes the gap, with the explicit acknowledgment that the boundaries are heuristic rather than hook-attributed.
+      files:
+        - cmd/htmlgraph/migrate_logical.go
+        - cmd/htmlgraph/migrate_logical_test.go
+        - cmd/htmlgraph/main.go
+      deps:
+        - 2
+        - 3
+        - 4
+      done_when:
+        - '`htmlgraph migrate logical-sessions` subcommand exists and is registered in main.go'
+        - Default gap threshold is 30 minutes; configurable via `--gap-threshold` flag
+        - Parses session HTML via goquery to extract `<li data-ts>` timestamps
+        - Emits one `logical_sessions` row per detected boundary, all with `origin='derived'`, `source='inferred'`
+        - Rewrites the session HTML file to wrap `<li>` groups in `<div data-logical-session>` wrappers
+        - Populates `agent_events.logical_session_id` for all events in each logical session
+        - '`--dry-run` prints the plan without writing any files or DB rows'
+        - 'Idempotent: running twice is a no-op on the second run'
+        - Running on shakestzd produces logical_sessions rows within the expected range (8-16 rows for 3f70c3f9 depending on threshold)
+        - Full-corpus run completes in under 2 minutes
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: L
+      risk: Med
+      tests: |
+        Unit:
+          - TestDetectBoundaries_TimeGaps — synthetic timestamps with known gaps produce expected boundary count
+          - TestDetectBoundaries_ConfigurableThreshold — smaller threshold produces more boundaries
+          - TestRewriteHTMLWithWrappers — input HTML without wrappers, assert output has wrappers and original li elements
+          - TestBackfillIdempotent — second run is a no-op
+        Integration:
+          - Fixture: a 3-day test transcript with known gaps. Run backfill. Assert the expected number of logical_sessions rows and HTML wrappers.
+          - shakestzd 3f70c3f9 real-world test (integration tag): dry-run should detect 8-16 boundaries depending on threshold
+        Regression:
+          - Existing reindex_sessions round-trip still passes after a backfill rewrites the HTML
+      approved: false
+      comment: ""
+    - id: feat-e0d9a049
+      num: 6
+      title: 'Reindex round-trip: rebuild logical_sessions from HTML'
+      what: |-
+        Extend `htmlgraph reindex` to reconstruct the `logical_sessions` table from the session HTML `<div data-logical-session>` wrappers. Without this, HTML stops being canonical for the new data type.
+
+        **(a) Update reindex_sessions.go.** The existing reindex path parses session HTML via goquery to rebuild the `sessions` table and `agent_events` rows. Add a new parse pass that walks `<div data-logical-session>` wrappers inside `<ol>` and emits `logical_sessions` rows with all fields reconstructed from the div attributes.
+
+        **(b) Populate agent_events.logical_session_id.** As the reindex walks each `<li>` inside a div wrapper, attribute the event to the current logical session by writing `logical_session_id` on the corresponding agent_events row.
+
+        **(c) Handle the transition period.** Sessions that predate slice 4 have no `<div>` wrappers in their HTML. Reindex must handle both shapes gracefully:
+          - HTML with wrappers: normal reindex path
+          - HTML without wrappers: no logical_sessions rows emitted; the backfill migration (slice 5) will add them separately
+        No error, no warning for the no-wrapper case — it's legacy data.
+
+        **(d) Full round-trip test.** The load-bearing acceptance test: 1) Create a test session with multiple SessionStart events (startup + resume), produce live HTML via the slices 2-4 write path. 2) Query logical_sessions table, assert N rows. 3) Nuke the logical_sessions table. 4) Run `htmlgraph reindex`. 5) Query logical_sessions again, assert the same N rows with identical attributes. This proves HTML is truly canonical for logical sessions.
+
+        **(e) Idempotency on reindex.** Running reindex twice on the same HTML file produces the same logical_sessions rows (via upsert on the UNIQUE constraint). No duplicates.
+      why: HTML-canonical means 'nuke SQLite, run reindex, get back the same state'. For sessions (from plan-43659c92) and work items (from earlier), this invariant holds. For logical sessions, without this slice, the invariant breaks — SQLite would have the logical_sessions rows but reindex wouldn't rebuild them. This slice is the load-bearing proof that HTML remains the source of truth even for the new data type.
+      files:
+        - cmd/htmlgraph/reindex_sessions.go
+        - cmd/htmlgraph/reindex_sessions_test.go
+      deps:
+        - 4
+        - 5
+      done_when:
+        - Reindex parses `<div data-logical-session>` wrappers and emits corresponding logical_sessions rows
+        - Reindex populates `agent_events.logical_session_id` for each `<li>` inside a wrapper
+        - Sessions with no wrappers (legacy HTML) reindex cleanly without error and without emitting logical_sessions rows
+        - 'Reindex is idempotent: running twice produces no duplicates'
+        - 'Full round-trip test passes: create logical_sessions via hook path -> nuke the table -> reindex -> verify identical state'
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+          - TestReindexParseLogicalDiv — given HTML with a div wrapper, extract the attributes correctly
+          - TestReindexLegacyHTMLNoError — HTML without wrappers reindexes cleanly
+          - TestReindexIdempotent — running twice produces the same state
+        Integration:
+          - Full round-trip: hook path creates N logical sessions, nuke table, reindex, assert N rows restored identically
+          - Existing reindex tests from plan-43659c92 slice 5 must still pass
+        Regression:
+          - The concurrent-writer acceptance test from plan-43659c92 slice 6 must still pass
+      approved: false
+      comment: ""
+    - id: feat-b5b4cdfa
+      num: 7
+      title: 'Dashboard: group sessions list by logical_session_id by default'
+      what: |-
+        Update the dashboard sessions list to show one row per logical_session by default, with a toggle to group by transcript_session_id for users who want the raw Claude Code view.
+
+        **(a) Update sessionsHandler query.** In `cmd/htmlgraph/api.go:sessionsHandler`, change the SELECT to JOIN `sessions` with `logical_sessions` and return one row per logical session. The row should include:
+          - logical_session_id
+          - transcript_session_id (for the toggle)
+          - source, origin, boundary_index
+          - first_user_query (display title)
+          - started_at, ended_at
+          - event_count, message_count
+          - tag if origin='derived' (for visual distinction)
+        Keep the existing session_id column in the response for backward compat.
+
+        **(b) Fallback for unsplit sessions.** For sessions that have no logical_sessions rows (pre-slice-2, un-backfilled), the sessionsHandler falls back to emitting one row per transcript session as before. Graceful degradation — the dashboard always has something to show.
+
+        **(c) Frontend display.** In `cmd/htmlgraph/dashboard/js/app.js`, update the sessions list renderer to show the new fields. Add a subtle `(inferred)` tag next to rows where origin='derived'. Add a 'group by transcript' toggle in the sessions view header that flips the query parameter.
+
+        **(d) Session detail view.** When the user clicks a logical session, the detail view shows just the events for THAT logical session, not the whole transcript. Update the existing session detail endpoint to filter by logical_session_id when present.
+
+        **(e) Tests.** Frontend tests are manual (vanilla JS, no test runner). Backend: unit tests for sessionsHandler's new JOIN and fallback paths.
+
+        **(f) Acceptance test.** For shakestzd's 3f70c3f9 (merged 3-day transcript), the dashboard should show 16 rows instead of 1 after the backfill migration runs. Verify via curl against /api/sessions and count the rows.
+      why: Without this slice, all the work in slices 1-6 is invisible to the user. The dashboard still shows one row per transcript session. This is where the feature actually becomes user-facing — and where the demo beat for the LinkedIn launch lives.
+      files:
+        - cmd/htmlgraph/api.go
+        - cmd/htmlgraph/api_test.go
+        - cmd/htmlgraph/dashboard/js/app.js
+        - cmd/htmlgraph/dashboard/index.html
+      deps:
+        - 3
+        - 5
+      done_when:
+        - sessionsHandler returns one row per logical_session when logical_sessions rows exist
+        - sessionsHandler falls back to one row per transcript when no logical_sessions rows exist
+        - Response includes logical_session_id, transcript_session_id, source, origin, boundary_index, first_user_query, started_at, ended_at, event_count, message_count
+        - Dashboard shows a subtle `(inferred)` tag for origin='derived' rows
+        - Dashboard has a 'group by transcript' toggle that flips between views
+        - Session detail view filters events by logical_session_id when the user clicks a logical row
+        - For shakestzd's 3f70c3f9, the dashboard shows the expected number of logical sessions (8-16 depending on backfill threshold)
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+          - TestSessionsHandler_GroupByLogical — seed logical_sessions rows, assert one row per boundary in response
+          - TestSessionsHandler_FallbackNoLogical — no logical_sessions rows, assert one row per transcript (backward compat)
+          - TestSessionsHandler_DerivedTag — rows with origin='derived' include the tag in response
+          - TestSessionDetail_FilterByLogical — click a logical row, assert only events from that logical session return
+        Integration:
+          - End-to-end on shakestzd's 3f70c3f9 after backfill: curl /api/sessions?project=shakestzd returns N rows where N matches the expected count
+          - Toggle: /api/sessions?group=transcript returns one row per transcript, /api/sessions returns one row per logical
+        Regression:
+          - Sessions for projects with no logical_sessions rows (e.g. fresh install) still render correctly via fallback
+          - Existing sessions tests pass unchanged
+      approved: false
+      comment: ""
+questions:
+    - id: q-verification-spike
+      text: Should slice 1 be a committed SPIKE that blocks everything, or a non-blocking verification we do in parallel with slice 2 coding?
+      description: The research confirmed `event.Source` is declared in the CloudEvent struct but has zero usage anywhere in htmlgraph's codebase — no log line, no read, no downstream action. We have no empirical evidence Claude Code actually populates this field in practice. Slice 1 is designed as a verification spike to confirm the field is non-empty before any schema or write-path work commits to using it. Option (a) treats it as a hard blocker — nothing ships until the field is verified. Option (b) treats it as parallel work that can be verified while slice 2 is being built, with the understanding that slice 2 might need to pivot if the verification fails. Option (a) is slower but safer; option (b) is faster but carries pivot risk. Given the launch timeline (this plan is the differentiator), safer is better — if we ship the wrong architecture and discover the field is empty at slice 3, we waste significant work.
+      recommended: hard-blocker
+      options:
+        - key: hard-blocker
+          label: 'A: Hard blocker — slice 1 must produce non-empty source evidence before slice 2 can start. Safest, slightly slower'
+        - key: parallel-verification
+          label: 'B: Parallel verification — slice 2 starts while slice 1 runs concurrently. Faster but risks rework if verification fails'
+        - key: trust-struct-field
+          label: 'C: Trust the struct field exists for a reason — skip slice 1 entirely and commit to slice 2 directly. Fastest, highest risk'
+      answer: null
+    - id: q-prerequisite-feat-195fcccc
+      text: 'Does this plan depend on feat-195fcccc (Wire Missing Hook Events, step 4: SessionStart matcher startup|resume|clear|compact)?'
+      description: The prior-work check found that `feat-195fcccc` on trk-97f85b3b is 'Wire Missing Hook Events' and its step 4 is 'Add SessionStart matcher support (startup|resume|clear|compact)' — the exact matcher support this plan depends on to react to the source field. Option (a) treats feat-195fcccc as a hard prerequisite — we wire it first, then start this plan. Option (b) absorbs feat-195fcccc step 4 into slice 1 of this plan and marks the old feature as superseded. Option (c) assumes the matcher already works (SessionStart fires on all four source values today, we just haven't branched on the value yet) and no additional wiring is needed. Which is true depends on what the research didn't fully clarify — does htmlgraph's SessionStart hook CURRENTLY fire on resume/clear/compact events, or only on startup? If the hook doesn't fire on resume at all, slice 2 creates no rows no matter what we do.
+      recommended: absorb-into-slice-1
+      options:
+        - key: hard-prerequisite
+          label: 'A: Hard prerequisite — finish feat-195fcccc step 4 before this plan starts, add blocked_by edge'
+        - key: absorb-into-slice-1
+          label: 'B: Absorb feat-195fcccc step 4 into slice 1 of this plan; mark the original feature as ''superseded by plan-1b621827'''
+        - key: assume-matcher-works
+          label: 'C: Assume the matcher already works today; verify as part of slice 1''s spike; if broken, file a bug'
+      answer: null
+    - id: q-backfill-threshold
+      text: What is the default time-gap threshold for the backfill heuristic?
+      description: 'The backfill migration detects logical session boundaries by finding gaps between consecutive message timestamps. Too short and we split during long thinks or compile steps. Too long and we miss quick resumes where the user closed Claude Code and opened it again within a few minutes. Research on shakestzd''s 3f70c3f9 found 38 gaps > 5 minutes and 16 segments > 30 minutes. 5 minutes is too aggressive (will split during long Bash runs or complex tool calls). 30 minutes is the user''s typical ''leave and come back'' cycle. 60 minutes is safer but undercounts real resumes. Worth noting: the threshold is a backfill heuristic only — live hook data uses the ground-truth source field and isn''t affected by this choice.'
+      recommended: thirty-minutes
+      options:
+        - key: fifteen-minutes
+          label: 'A: 15 minutes — aggressive, may split long thinks and compile steps as false boundaries'
+        - key: thirty-minutes
+          label: 'B: 30 minutes — balanced default, matches typical ''leave and come back'' cycle'
+        - key: sixty-minutes
+          label: 'C: 60 minutes — conservative, undercounts quick resumes but zero false positives'
+        - key: two-hours
+          label: 'D: 2 hours — very conservative, only splits on overnight or lunch-length breaks'
+      answer: null
+    - id: q-dashboard-default
+      text: Does the dashboard show logical sessions by default, or transcript sessions by default?
+      description: 'After slice 7, the sessions list has two view modes: one row per logical_session (matches the user''s mental model of ''a sitting'') and one row per transcript_session (matches Claude Code''s data model). Only one can be the default, and the toggle lets the user flip. Option (a) defaults to logical — prioritizes the user''s mental model and showcases the differentiator in the first screen. Option (b) defaults to transcript — matches the data model and minimizes surprise for users familiar with Claude Code''s session concept. For the LinkedIn launch, the logical-first default is the only way the differentiator is visible in a screenshot; the user has to click a toggle to see ''16 rows for 3f70c3f9'' which is the whole point.'
+      recommended: logical-default
+      options:
+        - key: logical-default
+          label: 'A: Logical sessions by default — matches user mental model, showcases differentiator on first load'
+        - key: transcript-default
+          label: 'B: Transcript sessions by default — matches Claude Code data model, less surprising for users familiar with Claude Code'
+        - key: per-project-preference
+          label: 'C: Per-project preference stored in .htmlgraph/config — user picks once per project'
+      answer: null
+    - id: q-active-work-item-key
+      text: Does active_work_items continue to key on (session_id, agent_id), or migrate to (logical_session_id, agent_id)?
+      description: The `active_work_items` table from feat-ab67561e keys on `(session_id, agent_id)` today. This means parallel sittings in the SAME transcript share one active work item slot per agent — the resume carries over whatever feature was active when the user left. Option (a) keeps the old key; a resumed session picks up the prior active work item, which matches user intuition for 'I'm continuing where I left off'. Option (b) switches to `(logical_session_id, agent_id)`; each sitting has its own independent slot, which matches the mental model of 'each sitting is a fresh start'. Option (a) is zero migration cost; option (b) is a breaking schema change requiring a migration of existing rows. Option (c) is a hybrid — keep `session_id` as the primary key but add `logical_session_id` as an informational column for future queries, without changing lookup semantics. This is the lowest-risk path.
+      recommended: hybrid-informational
+      options:
+        - key: keep-session-id
+          label: 'A: Keep (session_id, agent_id) as the key; resumed sittings share the active work item slot with the prior sitting'
+        - key: migrate-to-logical
+          label: 'B: Migrate to (logical_session_id, agent_id); each sitting has its own independent slot — matches mental model but breaking change'
+        - key: hybrid-informational
+          label: 'C: Keep (session_id, agent_id) as the key, add logical_session_id as an informational column for future queries — zero migration, forward-compatible'
+      answer: null
