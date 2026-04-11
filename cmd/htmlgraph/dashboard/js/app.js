@@ -1469,9 +1469,52 @@ function renderGraph(data) {
   var nodes = data.nodes.map(function(n) { return Object.assign({}, n); });
   var edges = data.edges.map(function(e) { return Object.assign({}, e); });
 
+  // Seed deterministic starting positions so nodes appear in roughly stable
+  // locations instead of random chaos. Without this, D3 assigns every node a
+  // random (x, y) and the simulation bounces everything into place — visible
+  // as a jarring "explosion and settle" on every load. With seeded positions,
+  // the simulation relaxes from a near-final layout, producing a small shiver.
+  //
+  // Layout strategy: use a simple FNV-1a hash of the node ID to bucket nodes
+  // across the viewport. Nodes of the same type cluster by bucketing them
+  // into type-specific vertical bands (tracks at top, features in the middle,
+  // sessions at the bottom) — this matches the force-layout's eventual shape
+  // so the relaxation pass has very little work to do.
+  function hashString(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    return h;
+  }
+  var typeBand = {
+    track:   0.20,
+    feature: 0.50,
+    bug:     0.55,
+    spike:   0.60,
+    plan:    0.30,
+    session: 0.80
+  };
+  nodes.forEach(function(n) {
+    var h = hashString(n.id);
+    var bandY = (typeBand[n.type] !== undefined ? typeBand[n.type] : 0.5) * height;
+    // Spread within the band using hash bits for x and a small y jitter.
+    n.x = ((h % 1000) / 1000) * width;
+    n.y = bandY + ((((h >>> 10) % 200) / 200) - 0.5) * (height * 0.15);
+  });
+
   // Balanced forces: clusters visible but not overlapping.
   // Link strength varies by type: structural edges pull tighter than activity.
+  //
+  // alpha(0.3) starts the simulation at lower heat than the default (1.0) —
+  // because nodes are already seeded near their final positions, we don't
+  // need the full cooldown. alphaDecay(0.05) makes the settle finish in
+  // about half the time. Combined, the initial layout appears within ~500ms
+  // instead of the ~2s bounce-and-settle the default produces.
   graphSimulation = d3.forceSimulation(nodes)
+    .alpha(0.3)
+    .alphaDecay(0.05)
     .force('link', d3.forceLink(edges).id(function(d) { return d.id; })
       .distance(function(d) {
         return d.type === 'worked_on' ? 70 : 45;
