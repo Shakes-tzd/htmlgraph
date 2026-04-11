@@ -19,6 +19,39 @@ echo "==> Running quality gates..."
 go build ./...
 go vet ./...
 
+echo "==> Fixing Claude Code plugin data directory permissions..."
+sudo chown -R vscode:vscode ~/.claude 2>/dev/null || true
+mkdir -p ~/.claude/plugins/data
+
+echo "==> Installing uv..."
+if ! command -v uv >/dev/null 2>&1; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+echo "==> Installing oh-my-zsh..."
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+  RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+fi
+
+echo "==> Installing powerlevel10k..."
+if [ ! -d "$HOME/powerlevel10k" ]; then
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/powerlevel10k"
+fi
+
+echo "==> Installing zsh plugins..."
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ] || \
+  git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ] || \
+  git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+
+echo "==> Copying dotfiles..."
+cp "$(dirname "$0")/dotfiles/.zshrc" "$HOME/.zshrc"
+cp "$(dirname "$0")/dotfiles/.p10k.zsh" "$HOME/.p10k.zsh"
+
+echo "==> Setting default shell to zsh..."
+sudo chsh -s /usr/bin/zsh vscode 2>/dev/null || chsh -s /usr/bin/zsh || true
+
 echo
 echo "==> Installed tool versions:"
 go version
