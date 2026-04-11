@@ -159,6 +159,71 @@ func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
 	}
 }
 
+// Regression for bug-71fc095f: Claude Code session 8d53982f had split-brain HTML
+// files in two projects because the user cd'd between projects during the session.
+// Each hook fire resolved projectDir from EventCWD walk-up and wrote the session
+// HTML to whichever project the user was sitting in at the moment.
+//
+// Fix: ResolveProjectDir now prefers CLAUDE_PROJECT_DIR (set at session launch)
+// over EventCWD walk-up, gated on HTMLGRAPH_SESSION_ID being present.
+func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
+	// Project A: where Claude Code was launched (CLAUDE_PROJECT_DIR).
+	projectA := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectA, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in A: %v", err)
+	}
+
+	// Project B: where the user cd'd during the session.
+	projectB := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectB, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in B: %v", err)
+	}
+
+	// Simulate the session environment: CLAUDE_PROJECT_DIR points at A,
+	// HTMLGRAPH_SESSION_ID confirms this is a live session (not a stale shell var).
+	const testSessionID = "regression-bug-71fc095f"
+	t.Setenv("CLAUDE_PROJECT_DIR", projectA)
+	t.Setenv("HTMLGRAPH_SESSION_ID", testSessionID)
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
+	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
+
+	// Open DB in project A (the correct project).
+	database, err := db.Open(filepath.Join(projectA, ".htmlgraph", "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	// projectDir is resolved via ResolveProjectDir using the hook's EventCWD=projectB.
+	// Before the fix: returns projectB (CWD walk-up wins). After: returns projectA.
+	resolvedDir := ResolveProjectDir(projectB, testSessionID)
+	if resolvedDir != projectA {
+		t.Errorf("ResolveProjectDir(cwd=projectB) = %q, want projectA %q\n"+
+			"(CLAUDE_PROJECT_DIR should win over EventCWD — bug-71fc095f regression)",
+			resolvedDir, projectA)
+	}
+
+	// Fire SessionStart with the correctly resolved project dir (project A).
+	event := &CloudEvent{SessionID: testSessionID, CWD: projectB}
+	_, err = SessionStart(event, database, resolvedDir)
+	if err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+
+	// Session HTML must land in project A, not project B.
+	sessionHTMLInA := filepath.Join(projectA, ".htmlgraph", "sessions", testSessionID+".html")
+	if _, err := os.Stat(sessionHTMLInA); err != nil {
+		t.Errorf("session HTML not found in project A (%s): %v", sessionHTMLInA, err)
+	}
+	sessionHTMLInB := filepath.Join(projectB, ".htmlgraph", "sessions", testSessionID+".html")
+	if _, err := os.Stat(sessionHTMLInB); err == nil {
+		t.Errorf("session HTML found in project B (%s) — split-brain bug-71fc095f not fixed", sessionHTMLInB)
+	}
+}
+
 func TestInsertAndGetSessionProjectDir(t *testing.T) {
 	dir := t.TempDir()
 	database, err := db.Open(filepath.Join(dir, "htmlgraph.db"))

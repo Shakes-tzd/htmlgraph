@@ -255,3 +255,143 @@ func runGit(dir string, args ...string) error {
 	cmd.Dir = dir
 	return cmd.Run()
 }
+
+// TestResolveProjectDir_PrefersClaudeProjectDirWhenSessionIDPresent verifies
+// that CLAUDE_PROJECT_DIR is preferred over EventCWD/CWD when HTMLGRAPH_SESSION_ID
+// is also set (confirming the env var was written by the current session's hooks).
+func TestResolveProjectDir_PrefersClaudeProjectDirWhenSessionIDPresent(t *testing.T) {
+	projectA := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectA, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in A: %v", err)
+	}
+	projectB := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectB, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in B: %v", err)
+	}
+
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", projectA)
+	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")
+
+	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
+		EventCWD:   projectB,
+		WalkLevels: 10,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != projectA {
+		t.Errorf("ResolveProjectDir = %q, want %q (CLAUDE_PROJECT_DIR with session ID should win)", got, projectA)
+	}
+}
+
+// TestResolveProjectDir_IgnoresStaleClaudeProjectDir verifies that CLAUDE_PROJECT_DIR
+// is ignored when HTMLGRAPH_SESSION_ID is NOT set (stale value from a parent shell).
+// Regression test for bug-71fc095f.
+func TestResolveProjectDir_IgnoresStaleClaudeProjectDir(t *testing.T) {
+	projectA := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectA, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in A: %v", err)
+	}
+	projectB := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectB, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in B: %v", err)
+	}
+
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", projectA) // stale — no session ID
+	t.Setenv("HTMLGRAPH_SESSION_ID", "")     // NOT set — stale shell scenario
+
+	// EventCWD is projectB; without guardrail, A would win — but it should not.
+	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
+		EventCWD:   projectB,
+		WalkLevels: 10,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should NOT return projectA (the stale CLAUDE_PROJECT_DIR).
+	if got == projectA {
+		t.Errorf("ResolveProjectDir = %q — stale CLAUDE_PROJECT_DIR was not ignored", got)
+	}
+}
+
+// TestResolveProjectDir_FlagBeatsClaudeProjectDir verifies that --project-dir flag
+// takes priority over CLAUDE_PROJECT_DIR even when HTMLGRAPH_SESSION_ID is set.
+func TestResolveProjectDir_FlagBeatsClaudeProjectDir(t *testing.T) {
+	flagDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(flagDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in flagDir: %v", err)
+	}
+	claudeDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(claudeDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in claudeDir: %v", err)
+	}
+
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", claudeDir)
+	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")
+
+	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
+		ExplicitDir: flagDir,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != flagDir {
+		t.Errorf("ResolveProjectDir = %q, want %q (--project-dir flag should win)", got, flagDir)
+	}
+}
+
+// TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir verifies that
+// HTMLGRAPH_PROJECT_DIR takes priority over CLAUDE_PROJECT_DIR.
+func TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir(t *testing.T) {
+	htmlgraphDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(htmlgraphDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in htmlgraphDir: %v", err)
+	}
+	claudeDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(claudeDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in claudeDir: %v", err)
+	}
+
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", htmlgraphDir)
+	t.Setenv("CLAUDE_PROJECT_DIR", claudeDir)
+	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")
+
+	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != htmlgraphDir {
+		t.Errorf("ResolveProjectDir = %q, want %q (HTMLGRAPH_PROJECT_DIR should beat CLAUDE_PROJECT_DIR)", got, htmlgraphDir)
+	}
+}
+
+// TestResolveProjectDir_FallsBackToCwdWhenNoHtmlgraphDirInClaudeProjectDir
+// verifies that when CLAUDE_PROJECT_DIR points at a dir with no .htmlgraph/,
+// the resolver falls through to EventCWD/CWD walk-up even when session ID is set.
+func TestResolveProjectDir_FallsBackToCwdWhenNoHtmlgraphDirInClaudeProjectDir(t *testing.T) {
+	noHtmlgraphDir := t.TempDir() // no .htmlgraph/ subdirectory
+	realProjectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(realProjectDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in realProjectDir: %v", err)
+	}
+
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", noHtmlgraphDir) // points at dir WITHOUT .htmlgraph
+	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")         // session ID is set
+
+	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
+		EventCWD:   realProjectDir,
+		WalkLevels: 10,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// CLAUDE_PROJECT_DIR has no .htmlgraph, so it should be skipped and
+	// EventCWD (realProjectDir) should be returned.
+	if got != realProjectDir {
+		t.Errorf("ResolveProjectDir = %q, want %q (should fall back to EventCWD)", got, realProjectDir)
+	}
+}
