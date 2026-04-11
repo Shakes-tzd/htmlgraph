@@ -83,6 +83,40 @@ func claudeCmd() *cobra.Command {
 	return cmd
 }
 
+// removeMarketplaceHtmlgraph fully removes the htmlgraph marketplace plugin so it
+// cannot shadow --plugin-dir agents/skills during dev mode. Belt-and-braces:
+// uninstall removes the install record, disable flips the enabled flag, and
+// RemoveAll wipes any cloned/cached files that linger even after uninstall.
+func removeMarketplaceHtmlgraph() {
+	fmt.Println("Removing marketplace htmlgraph plugin for dev mode...")
+	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
+		if out, err := exec.Command("claude", "plugin", "uninstall", scope).CombinedOutput(); err != nil {
+			msg := strings.ToLower(strings.TrimSpace(string(out)))
+			if !strings.Contains(msg, "not found") && !strings.Contains(msg, "not installed") {
+				fmt.Fprintf(os.Stdout, "warning: plugin uninstall %s: %v (%s)\n", scope, err, strings.TrimSpace(string(out)))
+			}
+		}
+		if out, err := exec.Command("claude", "plugin", "disable", scope).CombinedOutput(); err != nil {
+			msg := strings.ToLower(strings.TrimSpace(string(out)))
+			if !strings.Contains(msg, "not found") && !strings.Contains(msg, "not installed") {
+				fmt.Fprintf(os.Stdout, "warning: plugin disable %s: %v (%s)\n", scope, err, strings.TrimSpace(string(out)))
+			}
+		}
+	}
+	home, _ := os.UserHomeDir()
+	marketplaceDirs := []string{
+		filepath.Join(home, ".claude", "plugins", "marketplaces", "htmlgraph"),
+		filepath.Join(home, ".claude", "plugins", "cache", "htmlgraph"),
+		filepath.Join(home, ".claude", "plugins", "cache", "local-marketplace", "htmlgraph"),
+	}
+	for _, dir := range marketplaceDirs {
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Fprintf(os.Stdout, "warning: could not remove %s: %v\n", dir, err)
+		}
+	}
+	fmt.Println("Marketplace htmlgraph removed (uninstalled, disabled, cache wiped).")
+}
+
 func launchClaudeDev(extraArgs []string, auto bool) error {
 	// Dev mode resolves the plugin from local source, NOT the marketplace.
 	// resolveProjectPluginDir walks up from CWD to find plugin/.claude-plugin/plugin.json.
@@ -110,23 +144,7 @@ func launchClaudeDev(extraArgs []string, auto bool) error {
 	cleanupStaleDev(projectRoot)
 
 	// Nuke marketplace plugin so it can't shadow the --plugin-dir agents/skills.
-	// 1. Uninstall via CLI (removes from installed_plugins.json).
-	// 2. Remove marketplace clone (agents/skills linger even when "disabled").
-	// 3. Clear plugin cache.
-	fmt.Println("Removing marketplace htmlgraph plugin for dev mode...")
-	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
-		exec.Command("claude", "plugin", "uninstall", scope).Run() //nolint:errcheck
-	}
-	home, _ := os.UserHomeDir()
-	marketplaceDirs := []string{
-		filepath.Join(home, ".claude", "plugins", "marketplaces", "htmlgraph"),
-		filepath.Join(home, ".claude", "plugins", "cache", "htmlgraph"),
-	}
-	for _, dir := range marketplaceDirs {
-		if err := os.RemoveAll(dir); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not remove %s: %v\n", dir, err)
-		}
-	}
+	removeMarketplaceHtmlgraph()
 
 
 	if auto {

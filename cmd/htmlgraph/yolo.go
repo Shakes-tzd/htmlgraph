@@ -508,11 +508,8 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		}
 	}
 
-	// Disable marketplace plugin to prevent duplicate hooks/agents/skills.
-	fmt.Println("Disabling marketplace htmlgraph plugin...")
-	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
-		exec.Command("claude", "plugin", "disable", scope).Run() //nolint:errcheck
-	}
+	// Nuke marketplace plugin so it can't shadow the --plugin-dir agents/skills.
+	removeMarketplaceHtmlgraph()
 
 	sessionName := yoloSessionName()
 	yoloPrompt := buildYoloSystemPrompt(id, kind)
