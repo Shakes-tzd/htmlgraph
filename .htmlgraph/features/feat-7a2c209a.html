@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>PreToolUse Hook: Complete Event Tracing System</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-7a2c209a"
+             data-type="feature"
+             data-status="in_progress"
+             data-priority="high"
+             data-created="2026-01-07T22:42:03.883480"
+             data-updated="2026-01-08T03:42:04.634320+00:00" data-agent-assigned="claude-opus-4-5-20251101" data-track-id="trk-16e10cf8">
+
+        <header>
+            <h1>PreToolUse Hook: Complete Event Tracing System</h1>
+            <div class="metadata">
+                <span class="badge status-in_progress">In_Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-8ccb2e1f.html" data-relationship="implemented-in" data-since="2026-01-07T22:42:04.634308">sess-8ccb2e1f</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Design PreToolUse hook handler architecture</li>
+                <li data-completed="false">⏳ Implement tool_use_id correlation system</li>
+                <li data-completed="false">⏳ Add duration calculation to PostToolUse</li>
+                <li data-completed="false">⏳ Create database schema for trace storage</li>
+                <li data-completed="false">⏳ Implement trace storage (JSONL + SQLite)</li>
+                <li data-completed="false">⏳ Add trace querying/retrieval API</li>
+                <li data-completed="false">⏳ Write comprehensive tests (unit + integration)</li>
+                <li data-completed="false">⏳ Document WebSocket event tracing</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            ## Summary
+A comprehensive event tracing system using PreToolUse and PostToolUse hooks
+to capture tool execution timing, inputs, outputs, and correlate them via
+tool_use_id for debugging and observability.
+
+## Key Deliverables
+- PreToolUse hook handler (capture start, generate UUID)
+- PostToolUse enhancement (calculate duration, update status)
+- Thread-safe context store for correlation
+- SQLite tool_traces table with indexes
+- Trace query API (by session, tool, tree view)
+- Comprehensive tests (50+ tests)
+- Documentation (EVENT_TRACING.md)
+
+## Implementation Plan
+See spike: spk-4570557b
+
+## Estimated Effort
+32-43 hours (4-5 developer days)
+
+## Architecture
+- PreToolUse fires -> generates tool_use_id -> stores in context + DB
+- PostToolUse fires -> retrieves tool_use_id -> calculates duration -> updates DB
+- TraceCollection API provides query methods
+- OpenTelemetry-compliant schema for future export
+
+        </section>
+    </article>
+</body>
+</html>

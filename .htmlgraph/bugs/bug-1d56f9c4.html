@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>link add on plan destroys interactive HTML — generic writeNode overwrites custom template</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-1d56f9c4"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-04-04T03:24:21.766337"
+             data-updated="2026-04-04T14:00:53.790962" data-agent-assigned="claude-code" data-track-id="trk-f8fd5c66">
+
+        <header>
+            <h1>link add on plan destroys interactive HTML — generic writeNode overwrites custom template</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="373cec58-3cf8-4383-bea3-5b14f397a234.html" data-relationship="implemented_in" data-since="2026-04-04T13:47:39.34741">session 373cec58-3cf8-4383-bea3-5b14f397a234</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-2ad944a4.html" data-relationship="caused_by" data-since="2026-04-04T03:24:21.768806">feat-2ad944a4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-f8fd5c66.html" data-relationship="part_of" data-since="2026-04-04T03:24:21.769155">trk-f8fd5c66</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Running 'htmlgraph link add plan-xxx trk-xxx --rel implemented_in' calls writeNode() which uses the generic node template, overwriting the entire interactive plan HTML (dagre graph, section cards, approval UI, critique results) with a bare title/status/edges view. Any mutation (edge add, status change) on a plan node destroys its custom content. Root cause: writeNode() doesn't distinguish between plan HTML (custom template) and regular work item HTML (generic template). Fix: either skip writeNode for plan mutations and only update the specific HTML attribute, or detect plan type and preserve custom content.</p>
+        </section>
+    </article>
+</body>
+</html>

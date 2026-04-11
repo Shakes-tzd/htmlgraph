@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Write(packages/go/**)",
+      "Edit(packages/go/**)",
+      "Bash(cd packages/go*)",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(go vet:*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/shakes/.claude/omp-claude-wrapper.sh",
+    "padding": 0
+  },
+  "plansDirectory": ".htmlgraph/plans/",
+  "enabledPlugins": {},
+  "claudeMdExcludes": ["AGENTS.md"]
+}

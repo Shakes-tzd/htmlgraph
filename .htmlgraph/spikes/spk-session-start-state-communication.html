@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Session-Start State Communication Exploration</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-session-start-state"
+             data-type="spike"
+             data-status="completed"
+             data-priority="high"
+             data-created="2026-01-10T22:45:00.000000"
+             data-updated="2026-01-10T22:45:00.000000" 
+             data-spike-type="research" 
+             data-timebox-hours="6" 
+             data-agent-assigned="haiku">
+
+        <header>
+            <h1>Session-Start State Communication Exploration</h1>
+            <div class="metadata">
+                <span class="badge status-completed">Completed</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-spike-metadata>
+            <h3>Research Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Exploration & Research</dd>
+                <dt>Timebox</dt>
+                <dd>6 hours</dd>
+                <dt>Focus</dt>
+                <dd>Cross-session state communication for multi-window Claude Code</dd>
+            </dl>
+        </section>
+
+        <section data-findings>
+            <h3>Research Findings & Recommendations</h3>
+            <div class="findings-content">
+
+# Session-Start State Communication Exploration
+
+## Problem Statement
+
+When multiple Claude Code windows/sessions are open, new sessions have **no automatic knowledge** of:
+- What work was recently completed (last 24 hours)
+- Which git commits were made since last session
+- What features are currently in-progress
+- Any blockers or failures from previous sessions
+- Handoff notes from the previous session
+
+**User Experience Gap**: A developer closes Claude Code after completing a feature, opens it again in a new window, and has to manually tell the new session what was just done.
+
+**HtmlGraph's Purpose**: Communicate state to both agents and humans. Currently, we're not fully leveraging the database to communicate recent work at session-start.
+
+## Current Implementation Analysis
+
+### What Session-Start Currently Does
+
+**Location**: `packages/claude-plugin/.claude-plugin/hooks/scripts/session-start.py`
+
+**Current Capabilities**:
+```python
+def handle_session_start(context: HookContext, session: Any | None) -> dict[str, Any]:
+    """Initialize HtmlGraph tracking for the session."""
+    
+    # 1. Creates/retrieves session from SessionManager
+    # 2. Ensures session exists in database
+    # 3. Loads active features and spikes (in-progress items)
+    # 4. Builds feature context string showing 3 active features
+    # 5. Checks version status (HtmlGraph update available?)
+    # 6. Returns feature context for injection into prompt
+```
+
+**Feature Context Example**:
+```markdown
+## Active Features
+
+- **feat-abc123**: Implement user authentication
+- **feat-def456**: Add OAuth integration  
+- **feat-ghi789**: Update login UI
+
+Activity will be attributed to these features based on file patterns and keywords.
+```
+
+**Limitations**:
+1. ❌ No recent git commit information
+2. ❌ No completion status from previous sessions
+3. ❌ No blockers or failures communicated
+4. ❌ No handoff notes from previous session
+5. ❌ No "what changed since last session" summary
+6. ❌ No cost/token usage information from recent work
+7. ❌ No anti-patterns to avoid from recent failures
+
+### Existing Infrastructure We Can Leverage
+
+**1. ComputationalReflection Module**
+```python
+# Location: src/python/htmlgraph/reflection.py
+# Purpose: Pre-compute actionable context from session history
+
+class ComputationalReflection:
+    def get_actionable_context(
+        self,
+        current_feature_id: str | None = None,
+        current_track: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Returns:
+            {
+                "summary": "3 blockers, 1 recent failure, avoid Read-Read-Read",
+                "items": [
+                    {
+                        "category": "blocker",
+                        "priority": 5,
+                        "title": "Blocker: Database migration",
+                        "detail": "Blocks 5 items. Resolve first.",
+                        "source_id": "feat-abc123"
+                    },
+                    ...
+                ]
+            }
+        """
+```
+
+**Capabilities**:
+- ✅ Identifies blockers blocking other work
+- ✅ Finds recent failures (last 48 hours)
+- ✅ Detects anti-patterns to avoid
+- ✅ Finds related spikes (investigations)
+- ✅ Generates strategic recommendations
+- ✅ Limits to 5 items (respects LLM working memory)
+- ✅ Caches results (5-minute TTL)
+
+**2. SessionManager**
+```python
+# Location: src/python/htmlgraph/session_manager.py
+
+# Can provide:
+- Session history and activity logs
+- Attribution scores (which features got work)
+- Error summaries: get_error_summary(session_id)
+- WIP limits and drift detection
+- Completed sessions with metrics
+```
+
+**3. Database Schema**
+```python
+# agent_events table contains:
+- event_type: "tool_call", "user_query", etc.
+- created_at: Timestamp of activity
+- output_summary: What was accomplished
+- context: Additional metadata
+
+# Sessions table contains:
+- session_id: Unique session identifier
+- agent_assigned: Which agent ran this session
+- status: "active", "completed", "error"
+- created_at, updated_at: Session timeline
+```
+
+**4. Git Integration**
+```bash
+# Already available in session_handler.py:
+- _get_head_commit() - Gets current HEAD
+- git log access via subprocess
+
+# Can extend to query:
+- Recent commits (last 24 hours)
+- Commits since last session
+- Changed files summary
+- Branch information
+```
+
+## Recommended Architecture
+
+### Layer 1: Session State Computation (New)
+
+Create a new module: `htmlgraph/hooks/session_start_context.py`
+
+```python
+class SessionStartContext:
+    """
+    Computes comprehensive state context for session-start injection.
+    Synthesizes data from multiple sources into actionable format.
+    """
+    
+    def compute_recent_work_summary(self, hours: int = 24) -> dict:
+        """
+        Get summary of recent work in last N hours.
+        
+        Returns:
+            {
+                "period": "last 24 hours",
+                "git_commits": [
+                    {
+                        "sha": "a0f5b55",
+                        "message": "fix: Activity Feed fixes",
+                        "author": "Claude",
+                        "timestamp": "2026-01-10T17:16:38"
+                    },
+                    ...  # Max 5 commits
+                ],
+                "completed_sessions": [
+                    {
+                        "session_id": "sess-abc123",
+                        "agent": "claude",
+                        "duration_minutes": 45,
+                        "activities_count": 12,
+                        "primary_features": ["feat-abc123"],
+                        "completion_status": "success"
+                    },
+                    ...  # Max 3 sessions
+                ],
+                "completed_features": [
+                    {
+                        "id": "feat-abc123",
+                        "title": "Implement user auth",
+                        "completion_time": "2026-01-10T16:00:00",
+                        "commits": 4
+                    }
+                ]
+            }
+        """
+    
+    def compute_current_blockers(self) -> dict:
+        """
+        Get items blocking progress.
+        Leverages ComputationalReflection.get_actionable_context()
+        """
+    
+    def compute_recommended_next_work(self) -> str:
+        """
+        Based on completed features and in-progress items,
+        suggest what to work on next.
+        """
+```
+
+### Layer 2: Hook Integration (Enhanced)
+
+Update `session-start.py`:
+
+```python
+def handle_session_start(context: HookContext, session: Any | None) -> dict[str, Any]:
+    """Enhanced session start with comprehensive state communication."""
+    
+    # Existing: Load active features
+    active_features = _load_features(context.graph_dir)
+    
+    # NEW: Compute recent work summary
+    session_ctx = SessionStartContext(context)
+    recent_work = session_ctx.compute_recent_work_summary(hours=24)
+    blockers = session_ctx.compute_current_blockers()
+    next_work = session_ctx.compute_recommended_next_work()
+    
+    # Build comprehensive context
+    context_str = f"""
+## Session Context (Last 24 Hours)
+
+### Recent Work Completed
+{_format_recent_commits(recent_work["git_commits"])}
+
+### Last Session Summary
+{_format_completed_sessions(recent_work["completed_sessions"])}
+
+### Current Blockers
+{_format_blockers(blockers)}
+
+### Active Features
+{_format_active_features(active_features)}
+
+### Recommended Next Work
+{next_work}
+
+---
+*Context auto-generated at session start. Based on git history, 
+database events, and HtmlGraph tracking.*
+"""
+    
+    return {
+        "continue": True,
+        "hookSpecificOutput": {
+            "sessionFeatureContext": context_str,
+            "versionInfo": check_version_status(),
+        }
+    }
+```
+
+### Layer 3: Formatting & Presentation
+
+Create helper functions for human-readable output:
+
+```python
+def _format_recent_commits(commits: list[dict], limit: int = 5) -> str:
+    """Format git commits for display."""
+    if not commits:
+        return "No commits in last 24 hours"
+    
+    lines = []
+    for commit in commits[:limit]:
+        lines.append(
+            f"- `{commit['sha'][:7]}`: {commit['message'][:60]}"
+        )
+    return "
+".join(lines)
+
+def _format_completed_sessions(sessions: list[dict]) -> str:
+    """Format completed session summaries."""
+    if not sessions:
+        return "No previous sessions found"
+    
+    lines = []
+    for session in sessions[:3]:
+        duration = session["duration_minutes"]
+        features = ", ".join(session["primary_features"][:2])
+        lines.append(
+            f"- **{duration}min** session working on {features} "
+            f"({session['activities_count']} activities)"
+        )
+    return "
+".join(lines)
+
+def _format_blockers(blockers: dict) -> str:
+    """Format current blockers with priority."""
+    items = blockers.get("items", [])
+    if not items:
+        return "No blockers identified"
+    
+    lines = []
+    for item in items[:3]:
+        priority = "🔴" if item["priority"] >= 4 else "🟡"
+        lines.append(
+            f"{priority} **{item['title']}**: {item['detail']}"
+        )
+    return "
+".join(lines)
+```
+
+## Implementation Strategy
+
+### Phase 1: Core Data Collection (2-3 hours)
+1. Create `SessionStartContext` class
+2. Implement `compute_recent_work_summary()` 
+3. Implement git commit query function
+4. Implement session history query function
+5. Test with sample data
+
+### Phase 2: Integration (2-3 hours)
+1. Update `session-start.py` hook
+2. Add formatting helpers
+3. Update test cases
+4. Verify output quality
+5. Test with real multi-window scenarios
+
+### Phase 3: Enhancement (Optional, future)
+1. Add cost/token tracking from recent sessions
+2. Add performance metrics (commits per hour, etc.)
+3. Add handoff notes display
+4. Add "files changed" summary for context
+
+## Data Sources to Query
+
+### 1. Git History
+**Query**: `git log --since="24 hours ago" --format=...`
+**Data**: Recent commits with timestamps and messages
+**Use**: Show what work was just completed
+
+### 2. Database: agent_events table
+**Query**: 
+```sql
+SELECT DISTINCT 
+    event_type, 
+    tool_name, 
+    output_summary,
+    created_at
+FROM agent_events
+WHERE created_at > datetime('now', '-24 hours')
+ORDER BY created_at DESC
+```
+**Data**: Recent tool calls, user queries, events
+**Use**: Reconstruct activity from last session(s)
+
+### 3. Database: sessions table
+**Query**:
+```sql
+SELECT 
+    session_id, 
+    agent_assigned, 
+    status,
+    created_at,
+    updated_at
+FROM sessions
+WHERE updated_at > datetime('now', '-24 hours')
+ORDER BY updated_at DESC
+```
+**Data**: Session history with timeline
+**Use**: Know which sessions ran recently and their status
+
+### 4. HtmlGraph: Features
+**Query**: `SDK.features.where(status="in-progress")` 
+**Data**: What's currently being worked on
+**Use**: Show active work items
+
+### 5. HtmlGraph: Features (Recently Completed)
+**Query**: `SDK.features.where(status="completed")` (filter by timestamp)
+**Data**: What was just finished
+**Use**: Celebrate wins, show context
+
+### 6. ComputationalReflection
+**Query**: `reflection.get_actionable_context()`
+**Data**: Synthesized blockers, failures, recommendations
+**Use**: Pass high-level insights to agent
+
+## Expected Output Format
+
+```markdown
+## Session Context (Last 24 Hours)
+
+### Recent Work Completed
+- `a0f5b55`: Activity Feed fixes + database-only parent-child linking
+- `4ee65ce`: Implement multi-AI orchestration spawner agents  
+- `c09b678`: Create version-sync verification script
+- `3fa7824`: Bump version to 0.25.0
+
+### Last Session Summary
+- **47min** session working on feat-fd87099f, feat-557bcc20 (15 activities)
+  - Status: Completed successfully
+  - Primary tool: Bash (git operations, tests)
+- **32min** session working on feat-2f17d60a (8 activities)
+  - Status: Completed successfully
+
+### Current Blockers
+🔴 **Blocker: Database migration**: Blocks 5 items. Resolve first.
+🟡 **Warning: High test failure rate**: 3 test failures in last session
+
+### Active Features
+- **feat-e9b266e4**: Unified Activity Feed Trace
+- **feat-0cf9dec1**: Dashboard Activity Feed Real-Time Streaming
+- **feat-0e415f80**: Activity Feed Event Persistence
+
+### Recommended Next Work
+Based on git history and in-progress features, consider:
+1. Continue with Activity Feed work (high momentum)
+2. Review and merge pending features
+3. Address identified blockers before starting new work
+
+---
+*Context auto-generated at session start. Based on git history, 
+database events, and HtmlGraph tracking. Computed in 142ms.*
+```
+
+## Benefits of This Approach
+
+### For Agents
+1. **Context Continuity**: Know what happened in previous sessions
+2. **Work Handoff**: Understand where work stopped and where to resume
+3. **Blocker Awareness**: Know what's blocking others, prioritize accordingly
+4. **Cost Tracking**: See token usage from similar tasks
+5. **Pattern Learning**: Avoid anti-patterns from recent failures
+
+### For Humans
+1. **Progress Visibility**: See what was accomplished at session start
+2. **Accountability**: Track work across sessions
+3. **Planning**: Understand what's ready to work on
+4. **Debugging**: Connect session activities to git commits
+5. **Retrospectives**: Data for post-project analysis
+
+### For HtmlGraph
+1. **Validation**: Proves database is useful for multi-window scenarios
+2. **Use Case**: Demonstrates "communicate to agents" capability
+3. **Research**: Real data on what context agents find helpful
+4. **Iteration**: Can A/B test different context formats
+
+## Challenges & Solutions
+
+### Challenge 1: Performance
+**Problem**: Computing context might be slow on large databases
+**Solution**: 
+- Use indexed queries (created_at, session_id)
+- Cache results (5-minute TTL)
+- Lazy-load expensive computations
+
+### Challenge 2: Relevance
+**Problem**: Showing too much context defeats purpose
+**Solution**:
+- Limit to max 10 items per section
+- Respect LLM working memory (7±2 items)
+- Prioritize by relevance score
+
+### Challenge 3: Stale Data
+**Problem**: Session runs for hours, context becomes stale
+**Solution**:
+- Mark context with "computed at" timestamp
+- Allow manual refresh via environment variable
+- Re-compute at 30-minute boundaries
+
+### Challenge 4: Multi-Project
+**Problem**: Different projects have different state
+**Solution**:
+- Query only from current project's database
+- Filter by current git branch
+- Use project-specific spikes/features
+
+## Testing Strategy
+
+### Unit Tests
+```python
+def test_compute_recent_work_summary():
+    """Test git commit parsing and formatting"""
+    
+def test_compute_blockers_integration():
+    """Test integration with ComputationalReflection"""
+    
+def test_formatting_helpers():
+    """Test markdown formatting functions"""
+```
+
+### Integration Tests
+```python
+def test_session_start_with_real_database():
+    """Test full session-start hook with sample data"""
+    
+def test_multi_window_context_isolation():
+    """Test that context is agent-specific"""
+    
+def test_context_injection_into_prompt():
+    """Test that output format works with Claude"""
+```
+
+### User Tests
+```bash
+# Manual test: Open two Claude windows
+# Window 1: Work on a feature, complete it
+# Window 2: Open new session, check context shows the work
+# Expected: New session knows about work from Window 1
+```
+
+## Metrics for Success
+
+1. **Completeness**: Context includes all 5 data sources
+2. **Accuracy**: Git commits match actual work performed
+3. **Latency**: Computation takes < 500ms
+4. **Relevance**: Agent finds context helpful in 80%+ of sessions
+5. **Clarity**: Output is readable without formatting issues
+
+## Next Steps
+
+### Immediate (This Sprint)
+1. Create `session_start_context.py` module
+2. Implement `compute_recent_work_summary()`
+3. Write unit tests
+4. Update `session-start.py` hook
+
+### Follow-Up (Next Sprint)
+1. Add ComputationalReflection integration
+2. Implement `compute_recommended_next_work()`
+3. Add cost/token metrics
+4. User research: collect feedback on context usefulness
+
+### Long-Term (Future)
+1. A/B test different context formats
+2. Add ML-based priority scoring
+3. Create "context preference" system (agent-specific)
+4. Build dashboard showing context injection effectiveness
+
+## Conclusion
+
+Session-start state communication is a natural fit for HtmlGraph's purpose: helping agents and humans understand what's happened and what to do next. By leveraging existing infrastructure (git, database, ComputationalReflection) and adding a thin synthesis layer, we can provide comprehensive, actionable context that:
+
+- Reduces context-switching overhead for multi-window workflows
+- Helps agents make better decisions based on recent work
+- Provides continuity for long-running projects
+- Validates HtmlGraph's value as a state communication system
+
+The implementation is straightforward (new module, 200-300 lines of code), leverages existing proven patterns, and has clear user benefits.
+            </div>
+        </section>
+    </article>
+</body>
+</html>

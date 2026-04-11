@@ -1,0 +1,12 @@
+{
+  "enabled_hooks": [
+    "pre-commit",
+    "post-commit",
+    "post-merge",
+    "pre-push",
+    "post-checkout"
+  ],
+  "use_symlinks": true,
+  "backup_existing": true,
+  "chain_existing": true
+}

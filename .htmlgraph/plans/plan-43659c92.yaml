@@ -1,0 +1,482 @@
+meta:
+    id: plan-43659c92
+    track_id: trk-97f85b3b
+    title: Close session HTML canonical gaps
+    description: 'Close the three remaining gaps in the existing session HTML canonical implementation. Sessions already use HTML as canonical storage per feat-029affaa (createSessionHTML at SessionStart, appendEventToSessionHTML at PostToolUse via flock + read-modify-rewrite, finalizeSessionHTML at SessionEnd, reindex round-trip via goquery). This plan does NOT introduce the pattern — it fills the three gaps the pattern left open: (1) ingest path writes SQLite but never creates session HTML files, (2) tool calls where PostToolUse never fires stay as orphaned SQLite rows forever with no HTML entry, (3) legacy sessions created before feat-029affaa shipped have no HTML files and can''t round-trip through reindex. Performance optimization (swapping flock for O_APPEND) and mid-session header refresh are deliberately out of scope — filed for separate benchmark-driven evaluation.'
+    created_at: "2026-04-10"
+    status: finalized
+    created_by: claude-opus
+    version: 5
+design:
+    problem: |-
+        The existing session HTML canonical implementation (feat-029affaa, shipped on trk-97f85b3b) has three gaps that became visible during multi-project hardening smoke-testing on 2026-04-10.
+
+        **Gap 1 — Ingest path skips HTML.** `cmd/htmlgraph/ingest.go:storeParseResult` writes ingested Claude Code transcripts to the `messages`, `tool_calls`, and `agent_events` tables, but never calls `createSessionHTML`. When `DiscoverSessions` scans `~/.claude/projects/<slug>/*.jsonl` and processes historical transcripts, the resulting session rows exist only in SQLite. This is the root cause surfaced by bug-a52d5bf9: planbook had 15 session rows in its database but only 3 HTML files, and the 12 orphaned rows came from ingested transcripts that bypassed the canonical HTML path. The display-side fix added a `WHERE project_dir = ?` clause to `sessionsHandler` and the ingest-side fix corrected an inverted prefix filter, but neither addressed the architectural gap: ingested sessions are still SQLite-only, which means `htmlgraph reindex` (which reads HTML files to rebuild SQLite) cannot recover them if the DB is lost.
+
+        **Gap 2 — No orphan sweep for crashed tool calls.** `internal/hooks/pretooluse.go` writes an `agent_events` row with `status='started'`; `PostToolUse` later looks it up via `FindStartedEvent` to get the event_id and calls `appendEventToSessionHTML` to write the `<li>` entry. If PostToolUse never fires — tool crash, Claude Code kill, system shutdown mid-tool-call — the row stays in `status='started'` forever and the HTML file never gets the `<li>`. The session history has permanent silent holes. No sweep, no recovery, no synthetic aborted entry.
+
+        **Gap 3 — Legacy SQLite-only sessions.** htmlgraph has 485 session rows in its SQLite index but only 325 HTML files in `.htmlgraph/sessions/`. The 160-row gap is sessions that were created before feat-029affaa shipped (via hook paths that only wrote SQLite) or via the ingest path (Gap 1). These sessions cannot be reindexed via `reindexSessions` because there is no HTML to parse. They show up correctly in the dashboard (SQLite-backed views) but break the invariant that HTML is canonical and SQLite is derivable. A one-time backfill would render HTML files from their SQLite data so the invariant holds going forward.
+
+        All three gaps share a root cause: **the session HTML canonical pattern was shipped incrementally and the ingest + recovery + migration corners were never closed.** This plan closes them without introducing new architecture.
+    goals:
+        - '**Ingest parity with live hooks** — `htmlgraph ingest` and the auto-ingest loop in `autoIngestOnce` render a complete session HTML file for every ingested transcript, using the same `createSessionHTML` + event-append path as live SessionStart/PostToolUse hooks. Ingested sessions become round-trippable via `htmlgraph reindex`.'
+        - '**Crash recovery for orphaned tool calls** — tool calls where `agent_events.status=''started''` has been set but no PostToolUse ever completed get a synthetic `<li data-status="aborted" data-reason="no-post-hook">` entry written to the session HTML file after a configurable timeout. The SQLite row transitions to `status=''aborted''`. Sessions that end mid-tool-call recover gracefully — no missing events, no permanent holes.'
+        - '**Legacy session backfill** — one-time migration that finds every session row with no corresponding HTML file, renders it via the same template path from Goal 1, and writes the resulting HTML to `.htmlgraph/sessions/<id>.html`. After the migration, every session row has a canonical HTML counterpart and the reindex round-trip works for every session.'
+        - '**No regressions in the happy path** — existing SessionStart/PostToolUse/SessionEnd hook behavior is unchanged. The flock + read-modify-rewrite pattern for live appends stays. Existing session HTML files continue to parse correctly via the reindex path.'
+        - '**Acceptance via reindex round-trip** — an integration test that (a) creates a session via the ingest path, (b) nukes the SQLite DB, (c) runs `htmlgraph reindex`, and (d) asserts the rebuilt session row matches what ingest originally wrote. This proves the HTML is genuinely canonical for ingested sessions, not just a mirror.'
+    constraints:
+        - '**Do NOT change the existing live-hook write path.** `createSessionHTML`, `appendEventToSessionHTML`, and `finalizeSessionHTML` in `internal/hooks/session_html.go` stay as-is. The flock-based read-modify-rewrite pattern is not being replaced. This plan extends, never rewrites, the existing canonical implementation.'
+        - '**Performance optimization is OUT OF SCOPE.** The O(N) full-file rewrite per tool call under the flock pattern is a known tradeoff but not the problem being solved here. Swapping to `O_APPEND` with structurally-open documents is a separate piece of work that should be gated on benchmarks showing a measurable impact on real sessions. File it independently if you want it.'
+        - '**Mid-session header refresh is OUT OF SCOPE.** The stale `data-event-count` and status badge during a running session are cosmetic for an infrequently-read artifact (HTML files are not what the dashboard queries — SQLite is). `finalizeSessionHTML` at SessionEnd updates the header correctly; mid-session is never visibly wrong in any consumer that matters today. Ignore unless a specific consumer demands it.'
+        - '**Reuse `createSessionHTML` and `appendEventToSessionHTML` verbatim for ingest rendering.** The template, escaping discipline (`html.EscapeString`), attribute schema (`data-ts`, `data-tool`, `data-success`, `data-event-id`, optional `data-feature`), and `<ol reversed>` convention must match exactly so reindex_sessions.go''s goquery parser keeps working without modification.'
+        - '**Orphan sweep runs lazily, not via a daemon.** No long-running background process. The sweep is triggered by (a) the next hook event for the session or (b) SessionStart of a new session in the same project or (c) on demand via a CLI subcommand. This matches the existing per-event subprocess model where `env vars don''t persist between hook processes` and there is nowhere for a daemon to live.'
+        - '**Orphan sweep must be idempotent.** Running it multiple times on the same orphaned event must produce exactly one synthetic `<li>` entry, not duplicates. Use the event_id as the dedup key.'
+        - '**Backfill migration is one-shot.** Not called on every invocation; only runs when `htmlgraph migrate sessions` (or similar explicit subcommand) is invoked. Reports count of rendered files and any errors.'
+        - '**goquery round-trip must continue to work.** `cmd/htmlgraph/reindex_sessions.go` parses session HTML files via goquery and extracts session metadata + event list. Any HTML rendered by the ingest path or the backfill migration must parse identically to a live-hook-written file.'
+        - '**No new dependencies.** All work uses existing packages: `internal/hooks/session_html.go` for rendering, `cmd/htmlgraph/ingest.go` for ingest plumbing, `internal/ingest` for transcript parsing, `goquery` (already a dep via reindex_sessions.go) for parsing existing files if needed.'
+        - '**Cross-package reuse requires exports.** `createSessionHTML`, `appendEventToSessionHTML`, `finalizeSessionHTML`, the `sessionEvent` struct, and `summariseInput` are all currently unexported in `internal/hooks/` (session_html.go:31, session_html.go:112, session_html.go:193, session_html.go:19, pretooluse.go:368). `cmd/htmlgraph/` cannot call them directly without first exporting them — this is a hard compile-time barrier that slice 1 must address before any reuse is possible. The exports are a one-time renaming refactor (4 symbols + any test file updates), not a rewrite.'
+        - '**Live and ingest HTML files are structurally identical.** Both `createSessionHTML` (live) and the new `renderIngestedSessionHTML` (ingest) produce complete self-contained HTML files with opening AND closing tags. The difference is NOT the structure but the write mechanism: live appends events one at a time via `appendEventToSessionHTML`''s flock + read-modify-rewrite (scanning for the last `</ol>` marker and inserting before it), while ingest writes all events at once. Both file shapes are parsed identically by `reindexSessions` via goquery.'
+        - '**agent_events schema migration required.** Slice 2''s sweep needs a `reason TEXT` column on `agent_events` to distinguish swept-aborted events from completed ones. The column does NOT exist today (verified against `internal/db/schema.go:96-130`). It must be added via an idempotent `ALTER TABLE agent_events ADD COLUMN reason TEXT` in `schema.go:Open()`, matching the existing migration pattern at `schema.go:41`. This is one line but is non-optional.'
+    approved: false
+    comment: ""
+slices:
+    - id: feat-af06c41a
+      num: 1
+      title: Ingest path renders session HTML alongside SQLite writes
+      what: |-
+        Extend the ingest path so that every ingested transcript produces a complete session HTML file in `.htmlgraph/sessions/<session-id>.html` alongside the existing SQLite writes. This slice has a mandatory **export pre-step** because the reusable symbols live in a different package.
+
+        **(0) Export pre-step — COMPLETED before plan finalization (see commit log).** In `internal/hooks/session_html.go` and `internal/hooks/pretooluse.go`, rename the following symbols to be exported so `cmd/htmlgraph/` can call them:
+          - `createSessionHTML` → `CreateSessionHTML`
+          - `appendEventToSessionHTML` → `AppendEventToSessionHTML`
+          - `finalizeSessionHTML` → `FinalizeSessionHTML`
+          - `sessionEvent` struct → `SessionEvent`
+          - `summariseInput` → `SummariseInput`
+        Update all existing callers in `session_start.go`, `posttooluse.go`, `session_end.go`, and any `_test.go` files that reference the old names. Landed in a pre-finalization commit (pure rename, zero behavioral change, quality gates green across all 19 packages). The existing flock path for live appends is untouched.
+
+        **(1) New function `RenderIngestedSessionHTML` in `internal/hooks/session_html.go`.** Signature: `RenderIngestedSessionHTML(htmlgraphDir, sessionID, projectDir string, result *ingest.ParseResult) error`. Because it lives in `internal/hooks`, it can reuse the existing template constants and helpers without cross-package gymnastics. It constructs a `models.Session` from `result` and calls `CreateSessionHTML` to write the initial scaffolded file (header, empty `<ol reversed>`, closing tags). Then for each tool call in `result.ToolCalls`, it constructs a `SessionEvent` and calls `AppendEventToSessionHTML` to insert the `<li>` via the existing flock path. This reuses the entire live-hook write stack verbatim — no template duplication, no divergence risk.
+
+        **(2) Ingest call site update in `cmd/htmlgraph/ingest.go:ingestFileWithAgent`.** After `ensureSession` succeeds, add a call to `hooks.RenderIngestedSessionHTML(htmlgraphDir, sf.SessionID, decodeProjectDirFromSessionFile(sf), result)`. If the call returns an error, log it via `debugLog` and continue — HTML render failure does NOT abort the ingest (the SQLite row still gets written, consistent with the existing HTML-is-best-effort stance in live hooks). `cmd/htmlgraph/` already imports `internal/hooks` for session-start logic, so no new import is required.
+
+        **(3) Skip-if-exists guard.** `CreateSessionHTML` already skips when the target file exists (verify this via inspection — if not, add the guard). Live hook writes are authoritative because the hook saw the session in real time; ingest should never overwrite a live-hook-written file. The `--force` flag on `htmlgraph ingest` is the only path that bypasses the skip.
+
+        **(4) No framing correction needed for 'structurally-open' — that was an error in v1 of this plan.** Both live and ingest HTML files are self-contained with closing tags. The append mechanism (flock + `</ol>` marker insertion) is what handles incremental writes for live sessions; ingest just calls it in a loop for all events at once. The file shape is identical in both cases and parses identically via goquery in `reindexSessions`.
+      why: 'bug-a52d5bf9 surfaced the root cause: the ingest path has been writing SQLite rows without HTML files since feat-029affaa shipped. Every ingested session is a violation of the HTML-canonical invariant. This slice restores the invariant for all new ingests. Combined with slice 3''s backfill it also fixes the existing 160-row gap in htmlgraph and 12-row gap in planbook.'
+      files:
+        - internal/hooks/session_html.go
+        - internal/hooks/pretooluse.go
+        - internal/hooks/session_start.go
+        - internal/hooks/posttooluse.go
+        - internal/hooks/session_end.go
+        - internal/hooks/session_html_test.go
+        - cmd/htmlgraph/ingest.go
+        - cmd/htmlgraph/ingest_test.go
+      deps: []
+      done_when:
+        - 'Export pre-step LANDED pre-finalization: CreateSessionHTML, AppendEventToSessionHTML, FinalizeSessionHTML, SessionEvent, SummariseInput all exported and all callers updated'
+        - 'The export pre-step is complete: `CreateSessionHTML`, `AppendEventToSessionHTML`, `FinalizeSessionHTML`, `SessionEvent`, and `SummariseInput` are exported and all existing callers updated'
+        - '`RenderIngestedSessionHTML` function exists in `internal/hooks/session_html.go` with the signature `(htmlgraphDir, sessionID, projectDir string, result *ingest.ParseResult) error`'
+        - '`ingestFileWithAgent` calls `RenderIngestedSessionHTML` after `ensureSession` and logs any error via `debugLog` without aborting the SQLite write'
+        - Running `htmlgraph ingest` on a fresh project now produces both a SQLite row AND an HTML file per session
+        - Ingested session HTML files use the identical attribute schema (`data-ts`, `data-tool`, `data-success`, `data-event-id`, optional `data-feature`) and DOM shape (`<article data-type="session">` + `<section data-activity-log>` + `<ol reversed>`) as live-hook-written files — verified by parsing both via goquery
+        - If the session HTML file already exists, ingest skips writing unless `--force` is passed
+        - '`reindexSessions` successfully round-trips an ingested session: parse HTML → rebuild SQLite row → match original ingest output event count and metadata'
+        - Existing live-hook session tests (`internal/hooks/session_html_test.go`) still pass unchanged — the rename is the only change to that file
+        - 'New test: ingest a synthetic JSONL fixture, verify HTML file is created, parse it via goquery, assert structure matches live hook output'
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+          - TestRenderIngestedSessionHTML_Shape — given a ParseResult with 3 tool calls, assert the rendered HTML has 3 `<li>` elements, all with the expected attributes
+          - TestRenderIngestedSessionHTML_Idempotent — running twice produces the same output
+          - TestRenderIngestedSessionHTML_SkipExisting — if the target file exists, skip write
+          - TestRenderIngestedSessionHTML_ForceOverwrite — force=true overwrites existing
+          - TestSummariseInput_Shared — verify summariseInput is reachable from ingest path
+        Integration:
+          - Ingest a fixture JSONL with 5 tool calls into a tmpdir project; assert the HTML file exists; parse it via goquery; assert the article attributes and `<li>` count match the ParseResult
+          - Round-trip: ingest a JSONL, delete the DB, run reindex, query the rebuilt session row, assert it matches what ingest originally wrote
+        Regression:
+          - Existing ingest tests must pass unchanged
+          - Live hook `createSessionHTML` + `appendEventToSessionHTML` tests must pass unchanged (no behavioral change to the live path)
+      approved: true
+      comment: ""
+    - id: feat-d060054b
+      num: 2
+      title: Orphan sweep for crashed tool calls
+      what: |-
+        Add a sweep function that detects `agent_events` rows with `status='started'` where no PostToolUse ever fired, emits a synthetic aborted `<li>` entry to the session HTML file, and transitions the SQLite row to `status='aborted'` with a `reason='swept'` marker. The sweep is lazy — triggered by existing hook events, not by a daemon.
+
+        **(0) Schema migration — COMPLETED before plan finalization (see commit log).** Add `db.Exec("ALTER TABLE agent_events ADD COLUMN reason TEXT")` to the idempotent migration block in `internal/db/schema.go:Open()`, following the existing pattern at line 41 (`ALTER TABLE sessions ADD COLUMN title TEXT`). Landed in a pre-finalization commit as a one-line addition to the existing idempotent migration block — the sweep logic writes to this column and will error at runtime if the column is missing. The migration is idempotent (SQLite's `ALTER TABLE ADD COLUMN` fails harmlessly if the column already exists, and the existing migration pattern wraps the Exec in a swallowed error).
+
+        **(1) Detection query.** New function `FindOrphanedEvents(db *sql.DB, olderThan time.Duration) ([]OrphanEvent, error)` in `internal/db/event_repo.go` (alongside `FindStartedEvent` at line 261). Returns rows where `status='started'` AND `created_at < now - olderThan`. Default threshold: 5 minutes, stored as a constant `internal/hooks/orphanThreshold = 5 * time.Minute`. The query uses the existing `idx_agent_events_session_ts_desc` index — no new index required.
+
+        **(2) Synthetic append.** New function `AppendOrphanedEvent(htmlgraphDir, sessionID string, orphan OrphanEvent) error` in `internal/hooks/session_html.go`. Constructs a `SessionEvent` with tool name from the orphan, timestamp from its `created_at`, `data-status="aborted"`, and `data-reason="no-post-hook"`, then calls `AppendEventToSessionHTML` via the existing flock path. No new write mechanism — just a specialized event wrapper. On success, updates the agent_events row to `status='aborted', reason='swept'`.
+
+        **(3) Idempotency via goquery dedup check.** Before appending, the sweep reads the session HTML file and checks whether an `<li data-event-id="<id>">` already exists. If yes, skip the append and just update the SQLite status to keep the row consistent. Reading the file via goquery is acceptable — the sweep is a rare path and goquery is already a dependency via `reindex_sessions.go`.
+
+        **(4) Lazy trigger — all three paths (from Q1, recommended default).** Invoke `SweepOrphanedEventsForSession(sessionID)` from: (a) the end of every PostToolUse after the normal append, scoped to the current session; (b) the end of SessionStart, scoped to all sessions in the current project; (c) a new CLI subcommand `htmlgraph sweep orphaned-events [--session <id>] [--project-dir <dir>]` for explicit user-triggered sweeps. Default scope for the CLI: all sessions in the current project. Reports count of swept events.
+
+        **(5) Hard cutoff at 24 hours.** Orphans older than 24h are still processed (synthetic entry + SQLite update) but logged with a warning so users know about the gap. Prevents silently sweeping ancient orphans as if they were recent crashes.
+
+        **(6) SessionEnd race guard.** `FinalizeSessionHTML` (previously `finalizeSessionHTML`) does NOT use flock — it's a simple read-modify-write of header attributes. If a sweep runs during SessionEnd, the sweep's flocked append could race with the finalize's non-flocked header update. Mitigation: wrap `FinalizeSessionHTML` in the same flock acquisition as `AppendEventToSessionHTML` (open the file with `O_RDWR`, `syscall.Flock LOCK_EX`, read, modify, write, release). This is a one-line addition to an existing function and it preserves the existing semantics.
+
+        This closes Gap 2.
+      why: 'Sessions that crash mid-tool-call leave silent holes in both SQLite and HTML. Without a sweep, those holes are permanent — the session history becomes gradually less accurate over time. This slice guarantees eventual consistency: every `status=''started''` row either gets a PostToolUse completion or a synthetic aborted entry within a bounded time window.'
+      files:
+        - internal/db/schema.go
+        - internal/db/event_repo.go
+        - internal/db/event_repo_test.go
+        - internal/hooks/session_html.go
+        - internal/hooks/session_html_test.go
+        - internal/hooks/posttooluse.go
+        - internal/hooks/session_start.go
+        - cmd/htmlgraph/sweep.go
+        - cmd/htmlgraph/sweep_test.go
+        - cmd/htmlgraph/main.go
+      deps:
+        - 1
+      done_when:
+        - 'Schema migration LANDED pre-finalization: ALTER TABLE agent_events ADD COLUMN reason TEXT added to schema.go:Open()'
+        - 'Schema migration: `ALTER TABLE agent_events ADD COLUMN reason TEXT` added to `schema.go:Open()` and runs idempotently on existing databases'
+        - '`FindOrphanedEvents(db, olderThan)` returns rows with `status=''started''` older than the threshold'
+        - '`AppendOrphanedEvent` writes a synthetic `<li data-status="aborted" data-reason="no-post-hook">` to the session HTML file via the existing flock path'
+        - After append, the agent_events row transitions to `status='aborted', reason='swept'`
+        - Sweep is idempotent — running it twice on the same orphan produces exactly one `<li>` entry (verified by parsing the file via goquery between runs)
+        - 'Lazy triggers: `PostToolUse`, `SessionStart`, and a new `htmlgraph sweep orphaned-events` CLI subcommand'
+        - Hard cutoff at 24 hours — older orphans are still swept but logged with a warning
+        - Threshold is a constant `orphanThreshold = 5 * time.Minute` in `internal/hooks/` — not a user flag
+        - '`FinalizeSessionHTML` now acquires the same flock as `AppendEventToSessionHTML` to prevent sweep races during SessionEnd'
+        - Concurrent-writer integration test (in slice 4) verifies the sweep, the live PostToolUse append, and the finalize path can all run concurrently without corruption
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+          - TestFindOrphanedEvents_OlderThan — insert 3 rows with different timestamps, assert the query returns only those older than the threshold
+          - TestAppendOrphanedEvent_SyntheticLi — assert the rendered `<li>` has `data-status="aborted"` and the original event_id
+          - TestSweepIdempotent — running the sweep twice produces one `<li>` entry
+          - TestSweepHardCutoff_Logs — an orphan older than 24h still swept but logged
+        Integration:
+          - Simulate a PreToolUse that writes `status='started'`, wait past the threshold, run sweep, assert the session HTML file now has the synthetic entry and the SQLite row is `status='aborted'`
+          - Run sweep twice in sequence, assert no duplicate entries
+        Regression:
+          - Existing PostToolUse tests still pass unchanged
+          - Happy-path hooks still work normally when no orphans exist
+      approved: true
+      comment: ""
+    - id: feat-15e6e1d8
+      num: 3
+      title: One-time backfill migration for legacy SQLite-only sessions
+      what: |-
+        Add a migration subcommand that finds every session row with no corresponding HTML file and renders one using slice 1's `renderIngestedSessionHTML` helper. The migration runs once and is not invoked automatically on every CLI call.
+
+        **(a) New CLI subcommand.** `htmlgraph migrate sessions [--project-dir <dir>] [--dry-run]`. Scans `.htmlgraph/sessions/*.html` to build the set of session IDs that already have HTML, then queries the `sessions` table for rows NOT in that set. For each orphan, loads its messages and tool_calls from SQLite and constructs a `ParseResult`-like struct that can be passed to `renderIngestedSessionHTML`.
+
+        **(b) Data sources.** The rendered HTML is built from what SQLite has. If the original JSONL transcript is still available via `~/.claude/projects/`, prefer parsing it fresh via the ingest path (higher fidelity). Otherwise, fall back to rendering from the SQLite rows (lower fidelity — missing some event context that was never stored). Report which sessions used which source in the output.
+
+        **(c) Dry-run mode.** `--dry-run` prints the list of orphan sessions and their data source without writing any files. Lets the user inspect before committing.
+
+        **(d) Progress output.** For each orphan, print `session-id: source=<ingest|sqlite> events=N -> .htmlgraph/sessions/<id>.html`. Summary at the end: `Migrated N sessions (M from JSONL, K from SQLite fallback, L errors)`.
+
+        **(e) Error handling.** If a single session fails to render (e.g., malformed SQLite row, missing messages), log the error and continue with the next. Do not abort the whole migration. Final report shows errors at the end.
+
+        **(f) Idempotency.** Running the migration twice is a no-op on the second run — the skip-if-exists check from slice 1 means already-migrated sessions are left alone. Useful for users who want to safely re-run.
+
+        This closes Gap 3.
+      why: htmlgraph has 485 SQLite session rows but only 325 HTML files — 160 orphans that cannot round-trip through reindex. planbook has the same pattern at smaller scale. Every htmlgraph project on the user's machine accumulates these orphans over time. A one-shot backfill restores the HTML-canonical invariant for the existing corpus so reindex becomes a reliable recovery path.
+      files:
+        - cmd/htmlgraph/migrate.go
+        - cmd/htmlgraph/migrate_test.go
+        - cmd/htmlgraph/main.go
+      deps:
+        - 1
+      done_when:
+        - '`htmlgraph migrate sessions` subcommand exists and is registered in main.go'
+        - Finds sessions with no HTML file by comparing SQLite session_ids against the files in `.htmlgraph/sessions/`
+        - For each orphan, attempts to render from fresh JSONL transcript first, falls back to SQLite rows if transcript missing
+        - '`--dry-run` prints the plan without writing files'
+        - Progress output shows per-session source and target path
+        - Summary report shows total migrated, by-source counts, and error count
+        - 'Idempotent: running twice produces no additional writes on the second run'
+        - Errors on individual sessions don't abort the migration — reported at the end
+        - After running the migration on htmlgraph, the sessions directory file count matches the SQLite row count (within the sweep-orphaned difference from slice 2)
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+        - Uses the exported `RenderIngestedSessionHTML` from slice 1 — no new template or render code, no duplication of the live-hook write path
+      effort: M
+      risk: Low
+      tests: |
+        Unit:
+          - TestMigrate_FindsOrphans — seed a tmpdir project with SQLite rows but no HTML files; assert the migration reports the correct orphan count
+          - TestMigrate_DryRun — runs in dry-run mode, prints plan, writes zero files
+          - TestMigrate_Idempotent — run twice, assert second run is a no-op
+          - TestMigrate_Fallback — orphan with no JSONL transcript falls back to SQLite-only rendering
+          - TestMigrate_ErrorContinues — one orphan with a malformed row; migration reports the error and continues with the others
+        Integration:
+          - Create a tmpdir with 5 orphan sessions (SQLite only), run `htmlgraph migrate sessions`, assert 5 HTML files created and goquery-parseable
+          - Round-trip: after migration, delete SQLite, run reindex, assert all 5 sessions rebuilt with matching row counts
+        Regression:
+          - Sessions that already have HTML files are untouched — no overwrite
+      approved: true
+      comment: ""
+    - id: feat-9307112b
+      num: 4
+      title: Reindex round-trip acceptance test
+      what: |-
+        End-to-end integration test that proves HTML is truly canonical for all session types after slices 1-3 land. The test verifies:
+
+        **(a) Ingest produces reindex-compatible HTML.** Ingest a fixture JSONL transcript via `htmlgraph ingest`, verify SQLite row exists, verify HTML file exists, nuke the SQLite DB, run `htmlgraph reindex`, verify the session row is rebuilt with identical agent_events count and metadata.
+
+        **(b) Live hook HTML round-trips.** Simulate a SessionStart → PreToolUse → PostToolUse → SessionEnd sequence via the hook CLI commands, verify the resulting HTML file, nuke SQLite, reindex, verify the rebuilt row matches.
+
+        **(c) Orphaned events are recovered.** Simulate a PreToolUse without a matching PostToolUse (direct insert into agent_events with `status='started'`), advance time past the threshold, run `htmlgraph sweep orphaned-events`, verify the HTML file has a new synthetic `<li data-status="aborted">` entry, nuke SQLite, reindex, verify the rebuilt row shows `status='aborted'`.
+
+        **(d) Migration handles orphans.** Create a tmpdir project with SQLite rows and NO HTML files (simulating legacy state), run `htmlgraph migrate sessions`, verify HTML files are created, nuke SQLite, reindex, verify all sessions rebuild.
+
+        **(e) Concurrent writers.** Spawn N goroutines simulating concurrent hook subprocesses calling `appendEventToSessionHTML` on the same session file. Assert the resulting file is (1) well-formed and parseable by goquery AND (2) contains ALL N events — not just 'no crash' or a subset. This is the load-bearing acceptance criterion for R1 (concurrent flock writers landing all events). Spawn 20+ goroutines across three writer types — ingest render, live PostToolUse append, and sweep append — all targeting the same session HTML file. Verify every single event's `data-event-id` is present in the final file. This verifies the existing flock path still works after any refactoring in slices 1-3.
+
+        All tests under `//go:build integration` build tag so they don't slow the default `go test ./...` run. CI runs them in a separate job.
+      why: 'Without this test, slices 1-3 could ship while subtly breaking the round-trip invariant. The entire point of the HTML-canonical story is `reindex` can rebuild SQLite from HTML. This test is the acceptance criterion that proves it holds for every session type: ingested, live-hook, aborted, backfilled.'
+      files:
+        - cmd/htmlgraph/session_roundtrip_test.go
+        - internal/hooks/session_html_roundtrip_test.go
+      deps:
+        - 1
+        - 2
+        - 3
+      done_when:
+        - '`go test -tags=integration ./cmd/htmlgraph/... -run TestSessionRoundTrip` passes'
+        - Test covers ingest, live hook, orphan sweep, and migration paths
+        - Test verifies HTML is parseable by goquery AND that reindexed SQLite matches pre-reindex state
+        - Concurrent-writer subtest spawns N goroutines and verifies the output file is well-formed
+        - Default `go test ./...` (without `-tags=integration`) does not run these tests and completes in the same time as before
+        - CI adds a separate job that runs `go test -tags=integration ./...` and blocks the merge if any round-trip test fails
+        - '`go build ./... && go vet ./... && go test ./...` all pass'
+        - Concurrent-writer test verifies ALL N events land in the final file (parsed via goquery, matched by data-event-id) — not just that the writes completed without error
+        - Round-trip test proves ingest + reindex produces identical event counts and metadata — verified via goquery parsing of the rendered HTML and SQL comparison of the rebuilt rows
+      effort: M
+      risk: Low
+      tests: |
+        This slice IS the acceptance test — no further test requirements beyond the ones described in the `what` section.
+        Default `go test ./...` run time must not increase (the new tests are under a build tag).
+      approved: true
+      comment: ""
+questions:
+    - id: q-orphan-sweep-trigger
+      text: When does the orphan sweep run?
+      description: The sweep detects `agent_events` rows where PreToolUse fired but PostToolUse never completed, emits a synthetic `<li>` to the session HTML file, and transitions the SQLite row to `aborted`. It needs a trigger. **(a) On every PostToolUse** is cheap (already have a live process, already in the write path) but only catches orphans in sessions that are still actively producing tool calls — a session that crashed and never resumed is never swept. **(b) On every SessionStart** catches cross-session orphans scoped to the project, but only when a NEW session starts in the same project, which may be days away. **(c) Explicit CLI command only** (`htmlgraph sweep orphaned-events`) puts the user in control but means orphans accumulate until someone runs the command. **(d) Combine all three** — PostToolUse + SessionStart + CLI command. Covers the common cases (crashed tool resumed, new session in same project) without adding a daemon, with the explicit command as an escape hatch. Slightly more code but catches every realistic scenario.
+      recommended: combine-all-three
+      options:
+        - key: posttooluse-only
+          label: 'A: On every PostToolUse only — cheapest, fewest code paths, misses crashed sessions'
+        - key: session-start-only
+          label: 'B: On every SessionStart only — project-scoped, bounded, only runs on new sessions'
+        - key: cli-only
+          label: 'C: Explicit `htmlgraph sweep` command only — user-controlled, orphans accumulate until run'
+        - key: combine-all-three
+          label: 'D: Combine all three (PostToolUse + SessionStart + CLI) — covers every realistic case, slightly more code'
+      answer: null
+    - id: q-orphan-threshold
+      text: What is the default orphan threshold — how old must a `status='started'` row be before it's considered orphaned?
+      description: 'The threshold balances two concerns: too short and the sweep marks in-flight tool calls as aborted prematurely (false positives); too long and the session HTML has silent holes for minutes or hours after a crash. Typical Claude Code tool calls complete in under a second (Bash, Read, Edit). Long-running tools (complex Bash, large file reads, WebFetch) rarely exceed 30 seconds. A tool call older than 5 minutes is almost certainly hung or crashed. 5 minutes is the recommended default. 1 minute is aggressive and risks false positives on slow tools. 30 minutes is lax but guaranteed zero false positives. The threshold is a constant in `internal/hooks/` (not a user flag) so it can be tuned later without a CLI migration.'
+      recommended: five-minutes
+      options:
+        - key: one-minute
+          label: 'A: 1 minute — aggressive, risks false positives on slow tools like WebFetch'
+        - key: five-minutes
+          label: 'B: 5 minutes — balanced default, almost never produces false positives in practice'
+        - key: thirty-minutes
+          label: 'C: 30 minutes — conservative, zero false positives but long holes after crashes'
+      answer: null
+    - id: q-backfill-data-source
+      text: When backfilling HTML for legacy SQLite-only sessions, which data source is authoritative when both are available?
+      description: Some orphaned sessions will have both a corresponding JSONL transcript in `~/.claude/projects/<slug>/` AND rows in the existing SQLite tables. These may not agree perfectly — the SQLite rows are a derived view that may be missing events, have stale metadata, or have been modified by other tooling. The JSONL is the true primary source from Claude Code itself. **(a) Prefer JSONL** re-parses the transcript from scratch and writes a fresh HTML file — highest fidelity. Slow for very long transcripts. **(b) Prefer SQLite** uses the existing rows as the source — faster, but locks in any SQLite corruption. **(c) Hybrid** uses JSONL when available and falls back to SQLite only when the transcript is missing. Best of both but more code paths. Given this is a one-shot migration, fidelity matters more than speed.
+      recommended: hybrid-prefer-jsonl
+      options:
+        - key: hybrid-prefer-jsonl
+          label: 'A: Hybrid — re-parse JSONL when present, fall back to SQLite only when transcript is missing'
+        - key: sqlite-only
+          label: 'B: Always use SQLite — fast, simple, but locks in any existing corruption'
+        - key: jsonl-only-skip-missing
+          label: 'C: JSONL only — if the transcript is missing, skip the session and report it; don''t render from SQLite'
+      answer: null
+    - id: q-migration-invocation
+      text: Is the backfill migration an explicit user-invoked command, or does it auto-run once on first upgrade?
+      description: '**(a) Explicit command only** (`htmlgraph migrate sessions`) puts the user in control — they see the count before committing, can dry-run, can run in their own time. But most users will never run it and the gap will persist. **(b) Auto-run on first invocation post-upgrade**, gated by a migration marker at `~/.local/share/htmlgraph/.migrations/session-html-backfill`, means every user gets the fix without explicit action. Downsides: surprise latency on the first post-upgrade CLI call, harder to audit what happened, users might see unexpected HTML files appear. **(c) Prompt on first invocation** — detect that a migration is needed, print a message, ask the user to run the command explicitly. Middle ground: discoverable but still consent-based. Probably the best choice for a tool that prides itself on being non-surprising.'
+      recommended: prompt-on-first-invocation
+      options:
+        - key: explicit-only
+          label: 'A: Explicit `htmlgraph migrate sessions` only — user must run it, gap persists by default'
+        - key: auto-run
+          label: 'B: Auto-run on first post-upgrade invocation — every user gets the fix, but surprise latency'
+        - key: prompt-on-first-invocation
+          label: 'C: Detect and prompt on first post-upgrade invocation, user runs the command explicitly'
+      answer: null
+    - id: q-ingest-live-conflict
+      text: When an ingested session and a live-hook session have the same session_id, which one wins?
+      description: A session_id is a UUID per Claude Code session. In normal operation, a live hook writes the session HTML as the session runs. Later, the ingest path may process the JSONL transcript for that same session (e.g., via auto-ingest or an explicit `htmlgraph ingest`). If both paths run, they could try to write the same HTML file. **(a) Live hook wins, ingest skips** means the authoritative source is the hook that saw things in real time — ingest is never allowed to overwrite. Simple rule, easy to reason about. **(b) Ingest wins via force=true** means ingest's re-parse of the transcript is treated as authoritative, overwriting any hook-written file. Higher fidelity if you trust the transcript but loses any hook-only context (auto-ingest times, env markers). **(c) Merge** tries to union the two, taking the live hook's metadata and the ingest's event list — most accurate but most complex. Given that this plan explicitly extends the canonical pattern without rewriting it, (a) is the lowest-risk choice and matches the principle 'live hooks are authoritative for sessions they observed'.
+      recommended: live-wins
+      options:
+        - key: live-wins
+          label: 'A: Live hook wins, ingest skips when HTML file exists — simple, preserves live context'
+        - key: ingest-wins
+          label: 'B: Ingest wins via force=true — higher fidelity from transcript re-parse, loses hook-only data'
+        - key: merge
+          label: 'C: Merge live metadata with ingest event list — most accurate, most complex'
+      answer: null
+critique:
+    reviewed_at: "2026-04-10"
+    reviewers:
+        - Haiku (design review)
+        - Sonnet (feasibility)
+    assumptions:
+        - id: A1
+          status: verified
+          text: Sessions already use HTML as canonical storage via feat-029affaa on trk-97f85b3b
+          evidence: internal/hooks/session_html.go:31-238 — createSessionHTML / appendEventToSessionHTML / finalizeSessionHTML all present and wired to hooks
+        - id: A2
+          status: verified
+          text: The ingest path (cmd/htmlgraph/ingest.go:182-187) calls ensureSession + storeParseResult but never calls createSessionHTML
+          evidence: ingest.go:ingestFileWithAgent — no render call; root cause of bug-a52d5bf9
+        - id: A3
+          status: verified
+          text: The reindex round-trip uses goquery to parse HTML files and upsert AgentEvent rows
+          evidence: reindex_sessions.go:21-142 — expects <li> with data-ts, data-tool, data-success, data-event-id, optional data-feature
+        - id: A4
+          status: verified
+          text: PostToolUse calls appendEventToSessionHTML after FindStartedEvent; if PostToolUse never fires the status='started' row stays forever
+          evidence: posttooluse.go:55 (call) and line 43 (FindStartedEvent)
+        - id: A5
+          status: falsified
+          text: Live sessions use structurally-open HTML (no closing tags) during their lifetime, while ingested sessions use closed HTML
+          evidence: session_html.go:94-100 — createSessionHTML writes CLOSED HTML with all closing tags from the start. appendEventToSessionHTML:137-140 scans for </ol> marker to insert before it. Live and ingest files are structurally identical. Plan framing corrected.
+        - id: A6
+          status: falsified
+          text: createSessionHTML and summariseInput can be reused by cmd/htmlgraph/ingest.go without refactoring
+          evidence: Both functions are unexported (session_html.go:31, pretooluse.go:368). cmd/htmlgraph/ cannot call unexported symbols across the internal/hooks/ package boundary. Slice 1 now includes an explicit export pre-step.
+        - id: A7
+          status: falsified
+          text: agent_events table has a reason column that slice 2 can use for sweep markers
+          evidence: schema.go:96-130 — agent_events CREATE TABLE has no reason column. No ALTER TABLE for it exists in the migration block. Slice 2 now includes an explicit schema migration adding the column.
+        - id: A8
+          status: verified
+          text: SQLite has enough data to reconstruct session HTML for the backfill fallback case
+          evidence: messages (role, content, timestamp), tool_calls (tool_name, input_json), agent_events (status, source) collectively provide all fields needed for <li> attributes, at lower fidelity than fresh JSONL re-parse
+        - id: A9
+          status: verified
+          text: Adding new cobra subcommands (sweep, migrate) is a simple addition with no plumbing required
+          evidence: 'Pattern from main.go: define fooCmd() *cobra.Command + rootCmd.AddCommand(fooCmd()). Nested subcommands via AddCommand on the parent. No plumbing.'
+        - id: A10
+          status: verified
+          text: Test helpers exist for session HTML write tests (tmpdir, in-memory DB)
+          evidence: reindex_sessions_test.go:16,75 — writeSessionHTML and setupSessionTestDB helpers are reusable patterns for slice 1 and slice 4 tests
+    critics:
+        - title: DESIGN CRITIC
+          sections:
+            - heading: Slice Assessment
+              items:
+                - badge: S1
+                  kind: success
+                  text: Ingest renders HTML — sound approach, reuses createSessionHTML + appendEventToSessionHTML. Needs error-handling decision documented (HTML render failure is non-fatal, SQLite write proceeds).
+                - badge: S2
+                  kind: warn
+                  text: Orphan sweep feasible but adds complexity. Schema migration for reason column must be enforced (not 'add if missing'). Three concurrent writers (ingest + live PostToolUse + sweep) now all use AppendEventToSessionHTML — concurrent-writer test matrix in S4 is load-bearing.
+                - badge: S3
+                  kind: success
+                  text: Legacy session backfill is solid. Explicit subcommand + dry-run + hybrid JSONL-first fallback + per-session error handling are all right choices.
+                - badge: S4
+                  kind: success
+                  text: Round-trip test is the critical acceptance criterion and the plan recognizes it. Explicitly make the concurrent-writer test verify ALL N events land, not just 'no crash'.
+            - heading: Gaps & Missing Considerations
+              items:
+                - badge: Gap
+                  kind: warn
+                  text: Schema migration for the reason column needs explicit enforcement, not 'add if not present'. Addressed by making it a mandatory pre-step (0) in slice 2.
+                - badge: Gap
+                  kind: warn
+                  text: summariseInput helper export path — slice 1 now includes the full 4-symbol export pre-step explicitly.
+                - badge: Gap
+                  kind: warn
+                  text: SessionEnd's finalizeSessionHTML doesn't acquire flock; if a sweep runs during finalize, the two can race. Addressed by wrapping FinalizeSessionHTML in the same flock acquisition as AppendEventToSessionHTML.
+            - heading: Alternative Approaches
+              items:
+                - badge: Alt
+                  kind: info
+                  text: Delete SQLite-only orphan rows instead of rendering HTML for them. Rejected — would lose data and violate the HTML-is-canonical invariant.
+                - badge: Alt
+                  kind: info
+                  text: Replace flock with O_APPEND for the append path. Out of scope for this plan — it's a performance optimization that should be gated on benchmarks and filed separately.
+                - badge: Alt
+                  kind: info
+                  text: Background daemon for orphan sweep. Rejected — breaks the per-event subprocess model. Lazy trigger from PostToolUse + SessionStart + explicit CLI is the right balance.
+        - title: FEASIBILITY CRITIC
+          sections:
+            - heading: What Exists to Leverage
+              items:
+                - badge: Prior
+                  kind: success
+                  text: reindex_sessions_test.go helpers (setupSessionTestDB, writeSessionHTML) are directly reusable for slice 1 and slice 4 tests
+                - badge: Prior
+                  kind: success
+                  text: Existing idempotent ALTER TABLE pattern in schema.go:Open() (line 41) is the template for slice 2's reason-column migration
+                - badge: Prior
+                  kind: success
+                  text: FindStartedEvent (event_repo.go:261) demonstrates the exact query shape FindOrphanedEvents needs — no new index required, idx_agent_events_session_ts_desc already covers it
+                - badge: Prior
+                  kind: success
+                  text: goquery already a dependency via reindex_sessions.go — no new imports needed for the dedup check in slice 2
+            - heading: What the Plan Gets Wrong
+              items:
+                - badge: Bug
+                  kind: danger
+                  text: 'A6 FALSIFIED: createSessionHTML et al. are unexported. Slice 1 cannot reuse them without first exporting 4 symbols (CreateSessionHTML, AppendEventToSessionHTML, SessionEvent, SummariseInput). Plan corrected with explicit export pre-step.'
+                - badge: Bug
+                  kind: danger
+                  text: 'A7 FALSIFIED: reason TEXT column does not exist on agent_events. Slice 2 needs an explicit ALTER TABLE migration in schema.go:Open(). Plan corrected with mandatory pre-step (0) in slice 2.'
+                - badge: Bug
+                  kind: warn
+                  text: 'A5 FALSIFIED: ''live sessions are structurally open, ingest sessions are closed'' framing is wrong. Both live and ingest write complete HTML with closing tags. The real difference is the append mechanism (flock + </ol> marker insertion for live, batch write for ingest). Plan constraint and slice 1 description corrected.'
+            - heading: Prior Art & Examples
+              items:
+                - badge: Ref
+                  kind: info
+                  text: internal/db/schema.go:41 — idempotent ALTER TABLE pattern for slice 2's reason column migration
+                - badge: Ref
+                  kind: info
+                  text: reindex_sessions_test.go:16 writeSessionHTML + :75 setupSessionTestDB — reusable test helpers
+                - badge: Ref
+                  kind: info
+                  text: internal/hooks/session_html.go:94-100 createSessionHTML — the template structure slice 1 will reuse via exported wrappers
+    risks:
+        - risk: Concurrent flock writers (ingest render + live PostToolUse append + sweep append) may not all land events in the final file. The existing flock path is proven for single-writer sequences but the three-writer scenario introduces new contention. Could manifest as lost events or torn writes.
+          severity: High
+          mitigation: Slice 4's integration test MUST verify all N events land in the file (parsed via goquery, matched by data-event-id), not just that the writes completed without error. Spawn 20+ concurrent goroutines across all three writer types targeting the same session file.
+        - risk: Schema migration for agent_events.reason column doesn't run on upgraded databases, causing sweep logic to fail at runtime when setting reason='swept'
+          severity: Medium
+          mitigation: Add the ALTER TABLE in the idempotent migration block at schema.go:Open() which runs on every database open. Test against a pre-migration schema snapshot to verify the migration succeeds.
+        - risk: Ingest silently ignores HTML render errors via debugLog, re-creating Gap 1 for individual failed sessions
+          severity: Low
+          mitigation: Document the decision in the constraint — HTML render failure is non-fatal because SQLite still writes and the session can be recovered via the backfill migration. Add a debug-log line indicating render completion so users can verify the path ran.
+        - risk: 5-minute orphan threshold is a constant (not a flag) and may be wrong for unusual environments (slow tools, long-running WebFetch)
+          severity: Low
+          mitigation: Start with 5 minutes as a constant in internal/hooks/. If tuning becomes necessary based on user reports, the constant can be changed in a follow-up release without a CLI migration.
+        - risk: JSONL-first backfill could render incorrect HTML if the transcript file is corrupted or partially written
+          severity: Low
+          mitigation: Fallback to SQLite if JSONL parse fails. Report parse failures in the migration output so users can investigate. This is a one-shot migration and failures are recoverable by re-running.
+        - risk: FinalizeSessionHTML races with an in-flight sweep's append because finalize currently does not use flock
+          severity: Medium
+          mitigation: Slice 2 wraps FinalizeSessionHTML in the same flock acquisition as AppendEventToSessionHTML. One-line change to an existing function.
+    synthesis: |-
+        Plan is BUILDABLE WITH MINOR CHANGES. Two assumptions were falsified by the feasibility critic and required concrete corrections:
+
+        1. (A6) `createSessionHTML`, `appendEventToSessionHTML`, `sessionEvent`, and `summariseInput` are unexported — cross-package reuse from `cmd/htmlgraph/` needs an explicit export pre-step. Slice 1 now includes this as step (0) with the full symbol list.
+
+        2. (A7) The `reason` column on `agent_events` does not exist — slice 2 needs an explicit `ALTER TABLE` migration in `schema.go:Open()`. Slice 2 now includes this as step (0).
+
+        One framing error (A5) was corrected: the original plan said live sessions use structurally-open HTML while ingest sessions use closed HTML. Both actually use structurally-complete files with closing tags — the difference is the append mechanism (flock + `</ol>` marker insertion for live, batch write for ingest).
+
+        High-severity risk R1 (concurrent flock writers) is covered by slice 4's explicit concurrent-writer test that verifies ALL N events land in the final file, not just 'no crash'. Medium-severity risks R2 (migration enforcement) and R6 (SessionEnd race) are addressed by additions to slices 2 and the FinalizeSessionHTML flock wrap. Low risks are documented in constraints or accepted.
+
+        Verdict: BUILDABLE AS WRITTEN at v2. All 5 questions answered pending human review. Scope correctly excludes performance optimization and mid-session header refresh per the user's direction. Ready to open for human review.
+
+        **v3 UPDATE (2026-04-10):** Both load-bearing pre-steps have been resolved in code BEFORE finalization, not deferred to slice execution. Commit landed the 5-symbol export (internal/hooks) and the reason-column ALTER TABLE migration (internal/db/schema.go). All 19 Go packages build, vet, and test clean. Slice 1 step (0) and slice 2 step (0) are now confirmations of a completed state rather than TODO work. This de-risks the plan execution by proving the refactor holds before committing to any slice implementation.

@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Architecture: OpenTelemetry Integration for HtmlGraph</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background: #fafafa;
+        }
+        h1, h2, h3 { color: #1a1a1a; margin-top: 1.5em; border-left: 4px solid #0066cc; padding-left: 12px; }
+        h1 { font-size: 2.2em; margin-top: 0; border: none; }
+        .section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .code-block { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 4px; font-family: 'Monaco', monospace; font-size: 0.85em; overflow-x: auto; border-left: 3px solid #0066cc; }
+        .diagram { background: #f0f7ff; padding: 15px; margin: 15px 0; border-radius: 4px; border: 1px solid #0066cc; }
+        .note { background: #fff8e1; padding: 12px; margin: 10px 0; border-left: 4px solid #ffa500; border-radius: 4px; font-size: 0.95em; }
+        .warning { background: #f8d7da; padding: 12px; margin: 10px 0; border-left: 4px solid #dc3545; border-radius: 4px; font-size: 0.95em; }
+        .checklist { margin: 15px 0; }
+        .checklist li { margin: 8px 0; }
+        .checklist li:before { content: "☐ "; margin-right: 8px; color: #0066cc; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table td, table th { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        table th { background: #f0f7ff; font-weight: bold; }
+        .status-ready { background: #d4edda; padding: 2px 6px; border-radius: 3px; color: #155724; font-size: 0.9em; }
+        .status-todo { background: #fff3cd; padding: 2px 6px; border-radius: 3px; color: #856404; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Technical Architecture: OpenTelemetry Integration for HtmlGraph</h1>
+
+    <div class="section">
+        <h2>Architecture Overview</h2>
+
+        <div class="diagram">
+            <strong>System Architecture Diagram</strong>
+            <pre>
+Claude Code Hooks
+├── SessionStart Hook
+│   ├── Initialize OTEL context
+│   ├── Generate session_id
+│   └── Set HTMLGRAPH_OTEL_ENABLED=true
+│
+├── PreToolUse Hook
+│   ├── Generate otel_span_id (UUID)
+│   ├── Record: tool_name, start_time, input_size
+│   ├── Check: Is this a Task() delegation?
+│   │   └── YES → Mark as task_delegation_start
+│   └── Export to OTel Exporter
+│
+├── PostToolUse Hook
+│   ├── Read otel_span_id from environment
+│   ├── Record: end_time, output_size, status
+│   ├── Calculate: duration_ms, token_estimate
+│   ├── Check: If Task() → update htmlgraph agent_events
+│   └── Export to OTel Exporter
+│
+└── SessionEnd Hook
+    ├── Finalize metrics
+    ├── Generate session summary
+    └── Trigger archival/export
+
+OTel Exporters (Configurable)
+├── Phase 1: Console Exporter
+│   └── Print metrics to stdout
+│
+├── Phase 2: SQLite Exporter
+│   ├── otel_metrics table
+│   ├── Query interface (SDK)
+│   └── Persistence
+│
+├── Phase 3: HTTP Exporter (Optional)
+│   ├── OTLP protocol
+│   └── External services (Datadog, Jaeger)
+│
+└── Phase 4: File Exporter
+    └── JSON Lines (.htmlgraph/otel.jsonl)
+
+Correlation Engine
+├── Event Matcher
+│   ├── Match HtmlGraph agent_events to OTel metrics
+│   ├── Timestamp-based correlation
+│   └── Handle timing windows
+│
+├── Cost Calculator
+│   ├── Sum tokens per delegation
+│   ├── Calculate USD cost
+│   └── Compare to estimates (CIGS)
+│
+└── ROI Analyzer
+    ├── Compute savings
+    ├── Identify bottlenecks
+    └── Generate reports
+
+Dashboard Integration
+├── Event Traces View
+│   ├── Show correlated metrics
+│   ├── Display cost per delegation
+│   └── Highlight variances
+│
+└── ROI Tab (New)
+    ├── Summary statistics
+    ├── Cost breakdown
+    ├── Trend analysis
+    └── Recommendations
+            </pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>1. Phase 1: Console Exporter Implementation</h2>
+
+        <h3>New File: src/python/htmlgraph/otel/exporter.py</h3>
+
+        <div class="code-block">
+"""OpenTelemetry Metric Exporter - Phase 1 (Console)
+
+Exports metrics to stdout for development/debugging.
+Lightweight, no dependencies, easy to validate.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
+from enum import Enum
+
+
+class MetricType(str, Enum):
+    TASK_DELEGATION_START = "task_delegation_start"
+    TASK_DELEGATION_END = "task_delegation_end"
+    TOOL_EXECUTION = "tool_execution"
+    TOKEN_USAGE = "token_usage"
+    API_CALL = "api_call"
+
+
+@dataclass
+class OTelMetric:
+    """Single OpenTelemetry metric record."""
+    metric_type: MetricType
+    timestamp: datetime
+    session_id: str
+    span_id: str
+
+    # Tool/Task info
+    tool_name: Optional[str] = None
+    task_name: Optional[str] = None
+    subagent_type: Optional[str] = None
+
+    # Timing
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_ms: Optional[int] = None
+
+    # Tokens (estimated initially, actual from Phase 2)
+    tokens_input: Optional[int] = None
+    tokens_output: Optional[int] = None
+    tokens_total: Optional[int] = None
+
+    # Cost (Phase 2+)
+    cost_usd: Optional[float] = None
+
+    # Status
+    status: str = "recorded"
+    error: Optional[str] = None
+
+
+class ConsoleExporter:
+    """Export metrics to stdout."""
+
+    def __init__(self, verbose: bool = True):
+        self.verbose = verbose
+        self.metric_count = 0
+
+    def export(self, metric: OTelMetric) -> bool:
+        """Export a single metric to console."""
+        self.metric_count += 1
+
+        if self.verbose:
+            print(f"\n[OTEL #{self.metric_count}] {metric.metric_type.value}")
+            print(f"  session: {metric.session_id}")
+            print(f"  span_id: {metric.span_id}")
+            print(f"  timestamp: {metric.timestamp.isoformat()}")
+
+            if metric.tool_name:
+                print(f"  tool: {metric.tool_name}")
+            if metric.subagent_type:
+                print(f"  subagent: {metric.subagent_type}")
+
+            if metric.duration_ms is not None:
+                print(f"  duration: {metric.duration_ms}ms")
+
+            if metric.tokens_total is not None:
+                print(f"  tokens: {metric.tokens_total}")
+
+            if metric.cost_usd is not None:
+                print(f"  cost: ${metric.cost_usd:.4f}")
+
+            if metric.error:
+                print(f"  ERROR: {metric.error}")
+
+        return True
+
+
+class OTelMetricCollector:
+    """Collect metrics from hooks."""
+
+    def __init__(self, exporter: ConsoleExporter):
+        self.exporter = exporter
+        self.active_spans: dict[str, OTelMetric] = {}
+
+    def record_task_start(
+        self,
+        session_id: str,
+        span_id: str,
+        task_name: str,
+        subagent_type: str
+    ) -> None:
+        """Record Task() delegation start (PreToolUse)."""
+        metric = OTelMetric(
+            metric_type=MetricType.TASK_DELEGATION_START,
+            timestamp=datetime.now(),
+            session_id=session_id,
+            span_id=span_id,
+            task_name=task_name,
+            subagent_type=subagent_type,
+            start_time=datetime.now()
+        )
+        self.active_spans[span_id] = metric
+        self.exporter.export(metric)
+
+    def record_task_end(
+        self,
+        span_id: str,
+        tokens_input: int,
+        tokens_output: int,
+        cost_usd: Optional[float] = None,
+        status: str = "completed"
+    ) -> None:
+        """Record Task() delegation end (PostToolUse)."""
+        if span_id not in self.active_spans:
+            print(f"[WARN] Unknown span_id: {span_id}")
+            return
+
+        metric = self.active_spans[span_id]
+        metric.end_time = datetime.now()
+        metric.metric_type = MetricType.TASK_DELEGATION_END
+        metric.tokens_input = tokens_input
+        metric.tokens_output = tokens_output
+        metric.tokens_total = tokens_input + tokens_output
+        metric.cost_usd = cost_usd
+        metric.status = status
+
+        # Calculate duration
+        if metric.start_time and metric.end_time:
+            metric.duration_ms = int(
+                (metric.end_time - metric.start_time).total_seconds() * 1000
+            )
+
+        self.exporter.export(metric)
+        del self.active_spans[span_id]
+        </div>
+
+        <h3>Hook Integration: src/python/htmlgraph/hooks/otel_pretool.py</h3>
+
+        <div class="code-block">
+"""PreToolUse Hook - Integrate OpenTelemetry metric collection."""
+
+import os
+import json
+import uuid
+from datetime import datetime
+from htmlgraph.otel.exporter import OTelMetricCollector, ConsoleExporter
+
+# Initialize collector on module load
+OTEL_COLLECTOR = OTelMetricCollector(ConsoleExporter(verbose=True))
+
+
+def on_pre_tool_use(tool_name: str, tool_input: dict) -> dict:
+    """
+    Hook: Fires before any tool execution.
+
+    Captures:
+    - Tool name and input
+    - Start timestamp
+    - Generates span_id for correlation
+    - Detects Task() delegations
+    """
+
+    session_id = os.environ.get('HTMLGRAPH_SESSION_ID', 'unknown')
+    span_id = str(uuid.uuid4())
+
+    # Export span_id to environment for PostToolUse
+    os.environ['HTMLGRAPH_OTEL_SPAN_ID'] = span_id
+    os.environ['HTMLGRAPH_OTEL_START_TIME'] = datetime.now().isoformat()
+
+    # Detect if this is a Task() delegation
+    if tool_name == "Task":
+        task_input = tool_input.get('prompt', '')[:100]  # First 100 chars
+        subagent_type = tool_input.get('subagent_type', 'unknown')
+
+        OTEL_COLLECTOR.record_task_start(
+            session_id=session_id,
+            span_id=span_id,
+            task_name=f"Task({subagent_type})",
+            subagent_type=subagent_type
+        )
+
+    return {
+        'span_id': span_id,
+        'session_id': session_id
+    }
+        </div>
+
+        <h3>Hook Integration: src/python/htmlgraph/hooks/otel_posttool.py</h3>
+
+        <div class="code-block">
+"""PostToolUse Hook - Capture metrics after tool execution."""
+
+import os
+import json
+from datetime import datetime
+from htmlgraph.otel.exporter import OTelMetricCollector, ConsoleExporter
+
+OTEL_COLLECTOR = OTelMetricCollector(ConsoleExporter(verbose=True))
+
+
+def on_post_tool_use(
+    tool_name: str,
+    tool_result: dict,
+    execution_time_ms: int
+) -> dict:
+    """
+    Hook: Fires after tool execution completes.
+
+    Captures:
+    - End timestamp
+    - Execution duration
+    - Tool result/output
+    - Estimates tokens used (Phase 1)
+    - Detects errors
+    """
+
+    span_id = os.environ.get('HTMLGRAPH_OTEL_SPAN_ID', '')
+    if not span_id:
+        return {'status': 'skipped'}
+
+    # For Task() delegations, estimate tokens
+    if tool_name == "Task":
+        # Phase 1: Estimation (CIGS model)
+        tokens_input = estimate_input_tokens(tool_result)
+        tokens_output = estimate_output_tokens(tool_result)
+
+        # Phase 2: Will be replaced with actual from Claude API
+        cost_usd = estimate_cost(tokens_input, tokens_output)
+
+        OTEL_COLLECTOR.record_task_end(
+            span_id=span_id,
+            tokens_input=tokens_input,
+            tokens_output=tokens_output,
+            cost_usd=cost_usd,
+            status='completed'
+        )
+
+        # Update HtmlGraph agent_events with cost estimate
+        update_agent_event(span_id, cost_usd)
+
+    # Clean up environment
+    del os.environ['HTMLGRAPH_OTEL_SPAN_ID']
+    del os.environ['HTMLGRAPH_OTEL_START_TIME']
+
+    return {'status': 'recorded'}
+
+
+def estimate_input_tokens(tool_result: dict) -> int:
+    """Estimate input tokens from Task() result."""
+    # Phase 1: Simple heuristic
+    prompt = tool_result.get('prompt', '')
+    return len(prompt.split()) * 1.3  # Rough estimate
+
+
+def estimate_output_tokens(tool_result: dict) -> int:
+    """Estimate output tokens from Task() result."""
+    # Phase 1: Simple heuristic
+    output = str(tool_result.get('output', ''))
+    return len(output.split()) * 1.3
+
+
+def estimate_cost(tokens_in: int, tokens_out: int) -> float:
+    """Estimate USD cost from token counts."""
+    # Claude 3.5 Sonnet pricing (as of 2026)
+    input_rate = 0.000003  # $3 per million input tokens
+    output_rate = 0.000015  # $15 per million output tokens
+    return (tokens_in * input_rate) + (tokens_out * output_rate)
+        </div>
+
+        <h3>Checklist: Phase 1 Implementation</h3>
+
+        <div class="checklist">
+            <li>Create src/python/htmlgraph/otel/ directory structure</li>
+            <li>Implement OTelMetric dataclass and enum</li>
+            <li>Implement ConsoleExporter (stdout)</li>
+            <li>Implement OTelMetricCollector</li>
+            <li>Create PreToolUse hook integration</li>
+            <li>Create PostToolUse hook integration</li>
+            <li>Add OTEL module to __init__.py exports</li>
+            <li>Test on simple Task() delegation</li>
+            <li>Validate console output format</li>
+            <li>Document Phase 1 in spike</li>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Phase 2: SQLite Exporter & Correlation Engine</h2>
+
+        <h3>Database Schema Extension</h3>
+
+        <div class="code-block">
+-- New table: otel_metrics
+CREATE TABLE IF NOT EXISTS otel_metrics (
+    metric_id TEXT PRIMARY KEY,
+
+    -- Session/Span info
+    session_id TEXT NOT NULL,
+    span_id TEXT NOT NULL UNIQUE,
+    parent_span_id TEXT,
+
+    -- Event classification
+    metric_type TEXT NOT NULL,  -- 'task_delegation', 'tool_exec', etc.
+    tool_name TEXT,
+    task_name TEXT,
+    subagent_type TEXT,
+
+    -- Timing (millisecond precision)
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP,
+    duration_ms INTEGER,
+
+    -- Token counts (actual from Phase 2)
+    tokens_input INTEGER,
+    tokens_output INTEGER,
+    tokens_cache_read INTEGER,
+    tokens_cache_creation INTEGER,
+    tokens_total INTEGER,
+
+    -- Cost in USD (actual from Claude API)
+    cost_usd REAL,
+    cost_input REAL,
+    cost_output REAL,
+    cost_cache_read REAL,
+    cost_cache_creation REAL,
+
+    -- Status
+    status TEXT DEFAULT 'recorded',
+    error_message TEXT,
+
+    -- Correlation fields
+    htmlgraph_event_id TEXT,
+    correlation_confidence REAL DEFAULT 0.0,
+
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id),
+    FOREIGN KEY (htmlgraph_event_id) REFERENCES agent_events(event_id)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_otel_metrics_session
+    ON otel_metrics(session_id);
+
+CREATE INDEX IF NOT EXISTS idx_otel_metrics_span
+    ON otel_metrics(span_id);
+
+CREATE INDEX IF NOT EXISTS idx_otel_metrics_time
+    ON otel_metrics(start_time DESC);
+
+CREATE INDEX IF NOT EXISTS idx_otel_metrics_event_id
+    ON otel_metrics(htmlgraph_event_id);
+
+-- Table: event_correlations (tracks matching results)
+CREATE TABLE IF NOT EXISTS event_correlations (
+    correlation_id TEXT PRIMARY KEY,
+
+    -- The pair being correlated
+    htmlgraph_event_id TEXT NOT NULL,
+    otel_metric_id TEXT NOT NULL,
+
+    -- Matching quality
+    match_score REAL,  -- 0.0-1.0
+    match_method TEXT,  -- 'timestamp', 'span_id', 'heuristic'
+
+    -- Time window used
+    correlation_window_ms INTEGER,
+
+    -- Calculated metrics
+    cost_variance_percent REAL,  -- How far actual is from estimate
+    duration_variance_percent REAL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (htmlgraph_event_id) REFERENCES agent_events(event_id),
+    FOREIGN KEY (otel_metric_id) REFERENCES otel_metrics(metric_id)
+);
+        </div>
+
+        <h3>SQLite Exporter: src/python/htmlgraph/otel/sqlite_exporter.py</h3>
+
+        <div class="code-block">
+"""SQLite OpenTelemetry Exporter - Phase 2 (Persistent Storage)."""
+
+import sqlite3
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+from htmlgraph.otel.exporter import OTelMetric
+from htmlgraph.db.schema import HtmlGraphDB
+
+
+class SQLiteExporter:
+    """Export metrics to SQLite database."""
+
+    def __init__(self, db: Optional[HtmlGraphDB] = None):
+        self.db = db or HtmlGraphDB()
+        self.exported_count = 0
+
+    def export(self, metric: OTelMetric) -> bool:
+        """Export metric to SQLite."""
+        try:
+            cursor = self.db.connection.cursor()
+
+            # Generate metric_id
+            metric_id = f"otel-{metric.span_id[:12]}"
+
+            cursor.execute("""
+                INSERT INTO otel_metrics (
+                    metric_id,
+                    session_id,
+                    span_id,
+                    metric_type,
+                    tool_name,
+                    task_name,
+                    subagent_type,
+                    start_time,
+                    end_time,
+                    duration_ms,
+                    tokens_input,
+                    tokens_output,
+                    tokens_total,
+                    cost_usd,
+                    status,
+                    error_message
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                metric_id,
+                metric.session_id,
+                metric.span_id,
+                metric.metric_type.value,
+                metric.tool_name,
+                metric.task_name,
+                metric.subagent_type,
+                metric.start_time,
+                metric.end_time,
+                metric.duration_ms,
+                metric.tokens_input,
+                metric.tokens_output,
+                metric.tokens_total,
+                metric.cost_usd,
+                metric.status,
+                metric.error
+            ))
+
+            self.db.connection.commit()
+            self.exported_count += 1
+            return True
+
+        except Exception as e:
+            print(f"[ERROR] Failed to export metric: {e}")
+            return False
+
+    def get_metrics(self, session_id: str, limit: int = 100):
+        """Query metrics for a session."""
+        cursor = self.db.connection.cursor()
+        cursor.execute("""
+            SELECT * FROM otel_metrics
+            WHERE session_id = ?
+            ORDER BY start_time DESC
+            LIMIT ?
+        """, (session_id, limit))
+
+        return cursor.fetchall()
+        </div>
+
+        <h3>Correlation Engine: src/python/htmlgraph/otel/correlator.py</h3>
+
+        <div class="code-block">
+"""Correlation engine: Match HtmlGraph events with OTel metrics."""
+
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Optional, List, Tuple
+from dataclasses import dataclass
+
+
+@dataclass
+class CorrelatedEvent:
+    """Result of correlating HtmlGraph event with OTel metrics."""
+    event_id: str
+    htmlgraph_duration: float  # seconds
+    htmlgraph_cost_estimate: Optional[float]
+
+    otel_metric_id: Optional[str]
+    actual_duration: Optional[float]
+    actual_cost: Optional[float]
+    actual_tokens: Optional[int]
+
+    match_confidence: float  # 0.0-1.0
+    match_method: str  # 'timestamp', 'span_id', 'heuristic'
+
+    cost_variance_percent: Optional[float]  # (actual - estimate) / estimate * 100
+
+
+class EventCorrelator:
+    """Match HtmlGraph task_delegation events with OTel metrics."""
+
+    def __init__(self, db_connection):
+        self.db = db_connection
+
+    def correlate_session(
+        self,
+        session_id: str,
+        time_window_seconds: int = 10
+    ) -> List[CorrelatedEvent]:
+        """
+        Correlate all task_delegation events in a session with OTel metrics.
+
+        Algorithm:
+        1. Get all task_delegation events
+        2. For each event, find OTel metrics in time window
+        3. Sum up tokens and costs from OTel data
+        4. Calculate accuracy (estimate vs actual)
+        """
+
+        # Get all task_delegation events
+        cursor = self.db.cursor()
+        cursor.execute("""
+            SELECT event_id, timestamp, execution_duration_seconds,
+                   cost_tokens, subagent_type
+            FROM agent_events
+            WHERE session_id = ? AND event_type = 'task_delegation'
+            ORDER BY timestamp
+        """, (session_id,))
+
+        events = cursor.fetchall()
+        correlations = []
+
+        for event in events:
+            event_id, timestamp, duration, cost_estimate, subagent = event
+
+            # Find matching OTel metrics
+            otel_records = self._find_otel_records(
+                session_id=session_id,
+                event_timestamp=timestamp,
+                window_seconds=time_window_seconds + int(duration or 0)
+            )
+
+            if not otel_records:
+                # No OTel data - use estimate only
+                correlations.append(CorrelatedEvent(
+                    event_id=event_id,
+                    htmlgraph_duration=duration,
+                    htmlgraph_cost_estimate=cost_estimate,
+                    otel_metric_id=None,
+                    actual_duration=None,
+                    actual_cost=None,
+                    actual_tokens=None,
+                    match_confidence=0.0,
+                    match_method='none',
+                    cost_variance_percent=None
+                ))
+                continue
+
+            # Aggregate OTel data
+            total_tokens = sum(r[5] for r in otel_records if r[5])
+            total_cost = sum(r[6] for r in otel_records if r[6])
+            total_duration = sum(r[7] for r in otel_records if r[7]) / 1000  # Convert ms to s
+
+            # Calculate variance
+            if cost_estimate:
+                variance = ((total_cost - cost_estimate) / cost_estimate) * 100
+            else:
+                variance = None
+
+            correlations.append(CorrelatedEvent(
+                event_id=event_id,
+                htmlgraph_duration=duration,
+                htmlgraph_cost_estimate=cost_estimate,
+                otel_metric_id=otel_records[0][0],
+                actual_duration=total_duration,
+                actual_cost=total_cost,
+                actual_tokens=total_tokens,
+                match_confidence=0.95,  # Timestamp-based, high confidence
+                match_method='timestamp',
+                cost_variance_percent=variance
+            ))
+
+        # Store correlations in database
+        self._store_correlations(session_id, correlations)
+
+        return correlations
+
+    def _find_otel_records(
+        self,
+        session_id: str,
+        event_timestamp: str,
+        window_seconds: int
+    ) -> List[Tuple]:
+        """Find OTel metrics in time window around event."""
+        cursor = self.db.cursor()
+
+        # Convert to datetime for calculation
+        try:
+            event_time = datetime.fromisoformat(event_timestamp.replace('Z', '+00:00'))
+        except:
+            return []
+
+        start_time = event_time
+        end_time = event_time + timedelta(seconds=window_seconds)
+
+        cursor.execute("""
+            SELECT metric_id, span_id, task_name, metric_type,
+                   start_time, tokens_total, cost_usd, duration_ms
+            FROM otel_metrics
+            WHERE session_id = ?
+              AND start_time >= ?
+              AND start_time <= ?
+            ORDER BY start_time
+        """, (session_id, start_time.isoformat(), end_time.isoformat()))
+
+        return cursor.fetchall()
+
+    def _store_correlations(
+        self,
+        session_id: str,
+        correlations: List[CorrelatedEvent]
+    ) -> None:
+        """Store correlation results in database."""
+        cursor = self.db.cursor()
+
+        for corr in correlations:
+            if not corr.otel_metric_id:
+                continue
+
+            correlation_id = f"corr-{corr.event_id[:8]}-{corr.otel_metric_id[:8]}"
+
+            cursor.execute("""
+                INSERT INTO event_correlations (
+                    correlation_id,
+                    htmlgraph_event_id,
+                    otel_metric_id,
+                    match_score,
+                    match_method,
+                    cost_variance_percent
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                correlation_id,
+                corr.event_id,
+                corr.otel_metric_id,
+                corr.match_confidence,
+                corr.match_method,
+                corr.cost_variance_percent
+            ))
+
+        self.db.commit()
+        </div>
+
+        <h3>SDK Integration: Query API</h3>
+
+        <div class="code-block">
+# New methods on SDK class
+
+class SDK:
+
+    @property
+    def otel(self) -> "OTelQueryAPI":
+        """Access OpenTelemetry metrics."""
+        return OTelQueryAPI(self.db)
+
+
+class OTelQueryAPI:
+    """Query OTel metrics via SDK."""
+
+    def __init__(self, db):
+        self.db = db
+
+    def get_metrics(self, session_id: str, limit: int = 100):
+        """Get OTel metrics for session."""
+        cursor = self.db.connection.cursor()
+        cursor.execute("""
+            SELECT metric_id, metric_type, task_name, duration_ms,
+                   tokens_total, cost_usd, status
+            FROM otel_metrics
+            WHERE session_id = ?
+            ORDER BY start_time DESC
+            LIMIT ?
+        """, (session_id, limit))
+        return cursor.fetchall()
+
+    def get_correlations(self, session_id: str):
+        """Get event correlations with variance."""
+        cursor = self.db.connection.cursor()
+        cursor.execute("""
+            SELECT
+                ec.correlation_id,
+                ec.htmlgraph_event_id,
+                ec.otel_metric_id,
+                he.cost_tokens as estimated_cost,
+                om.cost_usd as actual_cost,
+                ec.cost_variance_percent
+            FROM event_correlations ec
+            JOIN agent_events he ON ec.htmlgraph_event_id = he.event_id
+            JOIN otel_metrics om ON ec.otel_metric_id = om.metric_id
+            WHERE he.session_id = ?
+            ORDER BY ec.created_at DESC
+        """, (session_id,))
+
+        return [dict(zip([
+            'correlation_id', 'event_id', 'metric_id',
+            'estimated_cost', 'actual_cost', 'variance_percent'
+        ], row)) for row in cursor.fetchall()]
+
+    def get_roi_report(self, session_id: str):
+        """Generate ROI report for session."""
+        correlations = self.get_correlations(session_id)
+
+        if not correlations:
+            return None
+
+        total_actual = sum(c['actual_cost'] or 0 for c in correlations)
+        total_estimated = sum(c['estimated_cost'] or 0 for c in correlations)
+
+        return {
+            'session_id': session_id,
+            'delegations': len(correlations),
+            'total_actual_cost': total_actual,
+            'total_estimated_cost': total_estimated,
+            'cost_accuracy': 1 - (abs(total_actual - total_estimated) / total_estimated),
+            'average_variance': sum(c['variance_percent'] for c in correlations) / len(correlations),
+            'details': correlations
+        }
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Hook Configuration in .claude/hooks</h2>
+
+        <h3>Update .claude/hooks/hooks.json</h3>
+
+        <div class="code-block">
+{
+  "version": "1.0",
+  "hooks": [
+    {
+      "name": "SessionStart",
+      "description": "Initialize HtmlGraph session and OTEL context",
+      "enabled": true,
+      "entry_point": ".claude/hooks/scripts/session-start.py",
+      "events": ["SessionStart"]
+    },
+    {
+      "name": "OTEL-PreToolUse",
+      "description": "Capture metrics before tool execution",
+      "enabled": true,
+      "entry_point": ".claude/hooks/scripts/otel-pretool.py",
+      "events": ["PreToolUse"],
+      "conditions": [
+        "tool_name == 'Task'"
+      ]
+    },
+    {
+      "name": "OTEL-PostToolUse",
+      "description": "Capture metrics after tool execution",
+      "enabled": true,
+      "entry_point": ".claude/hooks/scripts/otel-posttool.py",
+      "events": ["PostToolUse"],
+      "conditions": [
+        "tool_name == 'Task'"
+      ]
+    },
+    {
+      "name": "SessionEnd",
+      "description": "Finalize metrics and export",
+      "enabled": true,
+      "entry_point": ".claude/hooks/scripts/session-end.py",
+      "events": ["SessionEnd"]
+    }
+  ]
+}
+        </div>
+
+        <h3>New Hook Script: .claude/hooks/scripts/otel-pretool.py</h3>
+
+        <div class="code-block">
+#!/usr/bin/env python3
+"""Hook: PreToolUse - Capture metrics before Task() execution."""
+
+import os
+import json
+import uuid
+from datetime import datetime
+
+
+def main():
+    """Called before any tool execution."""
+
+    session_id = os.environ.get('HTMLGRAPH_SESSION_ID', 'unknown')
+    tool_name = os.environ.get('HOOK_TOOL_NAME', '')
+
+    # Only instrument Task() calls
+    if tool_name != 'Task':
+        return
+
+    # Generate span ID for correlation
+    span_id = str(uuid.uuid4())
+
+    # Export to environment for PostToolUse
+    os.environ['HTMLGRAPH_OTEL_SPAN_ID'] = span_id
+    os.environ['HTMLGRAPH_OTEL_START_TIME'] = datetime.now().isoformat()
+
+    # Log for debugging
+    import sys
+    print(f"[OTEL-PreToolUse] span_id={span_id} session_id={session_id}",
+          file=sys.stderr)
+
+
+if __name__ == '__main__':
+    main()
+        </div>
+
+        <h3>New Hook Script: .claude/hooks/scripts/otel-posttool.py</h3>
+
+        <div class="code-block">
+#!/usr/bin/env python3
+"""Hook: PostToolUse - Capture metrics after Task() execution."""
+
+import os
+import json
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+
+
+def main():
+    """Called after tool execution completes."""
+
+    span_id = os.environ.get('HTMLGRAPH_OTEL_SPAN_ID')
+    session_id = os.environ.get('HTMLGRAPH_SESSION_ID', 'unknown')
+    tool_name = os.environ.get('HOOK_TOOL_NAME', '')
+
+    # Only instrument Task() calls
+    if tool_name != 'Task' or not span_id:
+        return
+
+    start_time_str = os.environ.get('HTMLGRAPH_OTEL_START_TIME')
+
+    try:
+        start_time = datetime.fromisoformat(start_time_str)
+    except:
+        return
+
+    end_time = datetime.now()
+    duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
+    # Phase 1: Estimate tokens (will be replaced with actual in Phase 2)
+    tokens_input = 5000  # Placeholder
+    tokens_output = 2000  # Placeholder
+    cost_usd = (tokens_input * 0.000003) + (tokens_output * 0.000015)
+
+    # Store in .htmlgraph/htmlgraph.db
+    db_path = Path.home() / '.htmlgraph' / 'htmlgraph.db'
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+
+        # Insert OTel metric
+        metric_id = f"otel-{span_id[:12]}"
+        cursor.execute("""
+            INSERT INTO otel_metrics (
+                metric_id, session_id, span_id, metric_type,
+                start_time, end_time, duration_ms,
+                tokens_input, tokens_output, tokens_total, cost_usd
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            metric_id, session_id, span_id, 'task_delegation',
+            start_time, end_time, duration_ms,
+            tokens_input, tokens_output, tokens_input + tokens_output, cost_usd
+        ))
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        print(f"[OTEL-Error] Failed to store metric: {e}")
+
+
+if __name__ == '__main__':
+    main()
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. Testing Strategy</h2>
+
+        <h3>Unit Tests: tests/otel/test_exporter.py</h3>
+
+        <div class="code-block">
+"""Tests for OpenTelemetry exporters."""
+
+import pytest
+from datetime import datetime
+from htmlgraph.otel.exporter import (
+    OTelMetric,
+    MetricType,
+    ConsoleExporter,
+    OTelMetricCollector
+)
+
+
+class TestConsoleExporter:
+    """Test console exporter."""
+
+    def test_export_metric(self, capsys):
+        """Test exporting a metric to console."""
+        exporter = ConsoleExporter(verbose=True)
+
+        metric = OTelMetric(
+            metric_type=MetricType.TASK_DELEGATION_END,
+            timestamp=datetime.now(),
+            session_id='sess-123',
+            span_id='span-456',
+            task_name='Task(gemini-spawner)',
+            subagent_type='gemini-spawner',
+            tokens_total=7000,
+            cost_usd=0.084
+        )
+
+        result = exporter.export(metric)
+        assert result is True
+
+        captured = capsys.readouterr()
+        assert 'task_delegation_end' in captured.out
+        assert 'sess-123' in captured.out
+        assert '$0.0840' in captured.out
+
+    def test_collector_task_lifecycle(self):
+        """Test full task lifecycle."""
+        exporter = ConsoleExporter(verbose=False)
+        collector = OTelMetricCollector(exporter)
+
+        # Record start
+        collector.record_task_start(
+            session_id='sess-123',
+            span_id='span-456',
+            task_name='Analysis',
+            subagent_type='gemini-spawner'
+        )
+
+        # Record end
+        collector.record_task_end(
+            span_id='span-456',
+            tokens_input=5000,
+            tokens_output=2000,
+            cost_usd=0.084
+        )
+
+        assert exporter.metric_count == 2
+
+
+class TestSQLiteExporter:
+    """Test SQLite exporter."""
+
+    def test_export_and_query(self, tmp_db):
+        """Test exporting and querying metrics."""
+        from htmlgraph.otel.sqlite_exporter import SQLiteExporter
+
+        exporter = SQLiteExporter(db=tmp_db)
+
+        metric = OTelMetric(
+            metric_type=MetricType.TASK_DELEGATION_END,
+            timestamp=datetime.now(),
+            session_id='sess-123',
+            span_id='span-456',
+            tokens_total=7000,
+            cost_usd=0.084
+        )
+
+        result = exporter.export(metric)
+        assert result is True
+
+        # Query back
+        metrics = exporter.get_metrics(session_id='sess-123')
+        assert len(metrics) == 1
+        assert metrics[0][0].endswith('456')  # span_id
+        </div>
+
+        <h3>Integration Test: tests/test_otel_integration.py</h3>
+
+        <div class="code-block">
+"""Integration test: Task() delegation with OTEL metrics."""
+
+import pytest
+import os
+from htmlgraph import SDK, Task
+
+
+def test_task_delegation_captures_otel_metrics(capsys):
+    """Test that Task() delegation captures OTel metrics."""
+
+    # Initialize SDK
+    sdk = SDK(agent='claude-test')
+
+    # Make a test delegation
+    # (This would fail in unit test without actual Claude API,
+    #  but demonstrates the integration point)
+
+    # In real scenario:
+    # Task(
+    #     prompt="Analyze this codebase",
+    #     subagent_type="gemini-spawner"
+    # )
+
+    # After execution, metrics should be captured:
+    # - OTEL metric in otel_metrics table
+    # - Correlated to agent_events.task_delegation
+    # - Cost recorded in both systems
+
+    pass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5. Performance Considerations</h2>
+
+        <h3>Latency Impact</h3>
+
+        <table>
+            <tr>
+                <th>Operation</th>
+                <th>Latency</th>
+                <th>Blocking?</th>
+                <th>Notes</th>
+            </tr>
+            <tr>
+                <td><strong>PreToolUse Export</strong></td>
+                <td>&lt;5ms (console), &lt;10ms (SQLite)</td>
+                <td>Non-blocking</td>
+                <td>Metrics exported after hook returns</td>
+            </tr>
+            <tr>
+                <td><strong>PostToolUse Export</strong></td>
+                <td>&lt;10ms (console), &lt;20ms (SQLite)</td>
+                <td>Non-blocking</td>
+                <td>DB write in background thread (Phase 3)</td>
+            </tr>
+            <tr>
+                <td><strong>Correlation Query</strong></td>
+                <td>&lt;100ms (indexed)</td>
+                <td>N/A</td>
+                <td>Only runs on demand (reporting)</td>
+            </tr>
+            <tr>
+                <td><strong>Total Per-Delegation</strong></td>
+                <td>&lt;30ms</td>
+                <td>No</td>
+                <td>Negligible overhead</td>
+            </tr>
+        </table>
+
+        <h3>Storage Impact</h3>
+
+        <div class="note">
+            <strong>Per-Delegation Metrics:</strong>
+            <ul>
+                <li>otel_metrics row: ~500 bytes</li>
+                <li>event_correlations row: ~300 bytes</li>
+                <li>Total: ~800 bytes per delegation</li>
+                <li>Cost: 1000 delegations = 800 KB (negligible)</li>
+            </ul>
+        </div>
+
+        <h3>Query Optimization</h3>
+
+        <div class="note">
+            <strong>Indexes Created:</strong>
+            <ul>
+                <li>session_id: Fast session queries</li>
+                <li>span_id: Fast span lookups</li>
+                <li>start_time DESC: Time-based queries</li>
+                <li>htmlgraph_event_id: Correlation joins</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>6. Error Handling & Resilience</h2>
+
+        <h3>Failure Modes & Recovery</h3>
+
+        <table>
+            <tr>
+                <th>Scenario</th>
+                <th>Behavior</th>
+                <th>Recovery</th>
+            </tr>
+            <tr>
+                <td>Database unavailable (Phase 2)</td>
+                <td>Skip SQLite export, continue with console</td>
+                <td>Console exporter always available</td>
+            </tr>
+            <tr>
+                <td>OTEL exporter fails</td>
+                <td>Log error, continue execution (non-blocking)</td>
+                <td>Retry on next PostToolUse hook</td>
+            </tr>
+            <tr>
+                <td>Span ID not found in PostToolUse</td>
+                <td>Log warning, skip metric</td>
+                <td>Next delegation will work normally</td>
+            </tr>
+            <tr>
+                <td>Correlation fails</td>
+                <td>Mark as "unmatched" in report</td>
+                <td>Use estimate, show warning to user</td>
+            </tr>
+        </table>
+
+        <h3>Graceful Degradation</h3>
+
+        <div class="warning">
+            All OTEL operations are non-blocking:
+            <ul>
+                <li>If exporter fails, execution continues</li>
+                <li>If correlation fails, use estimates</li>
+                <li>If query fails, return cached results</li>
+                <li>Never let metrics collection break the workflow</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>7. Configuration & Deployment</h2>
+
+        <h3>Environment Variables</h3>
+
+        <div class="code-block">
+# .env (optional, for advanced configuration)
+
+# Enable/disable OTEL collection
+HTMLGRAPH_OTEL_ENABLED=true
+
+# Exporter selection (Phase 2+)
+HTMLGRAPH_OTEL_EXPORTER=sqlite  # or 'console', 'http'
+
+# SQLite database path
+HTMLGRAPH_DB_PATH=~/.htmlgraph/htmlgraph.db
+
+# Token cost rates (Phase 2+, when integrating actual API)
+HTMLGRAPH_TOKEN_RATE_INPUT=0.000003
+HTMLGRAPH_TOKEN_RATE_OUTPUT=0.000015
+
+# Correlation window (seconds)
+HTMLGRAPH_OTEL_WINDOW_SECONDS=10
+        </div>
+
+        <h3>Installation Steps</h3>
+
+        <div class="checklist">
+            <li>Phase 1: Add console exporter to htmlgraph package</li>
+            <li>Update hooks.json to enable OTEL hooks</li>
+            <li>Run: `claude plugin update htmlgraph`</li>
+            <li>Phase 2: Add SQLite schema migration</li>
+            <li>Run migration: `uv run htmlgraph migrate`</li>
+            <li>Enable SQLite exporter in environment</li>
+            <li>Phase 3: Optional HTTP exporter setup</li>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>8. Future Enhancements (Phase 3+)</h2>
+
+        <h3>Real Token Data Integration</h3>
+
+        <div class="note">
+            <strong>When Claude Code exposes actual token metrics:</strong>
+            <ul>
+                <li>Replace estimation with actual counts</li>
+                <li>Update hook to read from PostToolUse context</li>
+                <li>Recalculate costs with accuracy</li>
+                <li>Generate new ROI reports</li>
+            </ul>
+        </div>
+
+        <h3>HTTP OTel Exporter (Optional)</h3>
+
+        <div class="code-block">
+# Phase 3: Optional - Export to external services
+
+class OTLPExporter:
+    """Export metrics via OTLP HTTP protocol."""
+
+    def __init__(self, endpoint: str):
+        self.endpoint = endpoint  # e.g., https://datadog.com/otel
+
+    def export(self, metric: OTelMetric) -> bool:
+        """Send metric to external service."""
+        # Implementation using OTLP protocol
+        pass
+        </div>
+
+        <h3>Advanced Analytics</h3>
+
+        <ul>
+            <li>Trend analysis (costs over time)</li>
+            <li>Model selection optimization</li>
+            <li>Anomaly detection (unexpected spikes)</li>
+            <li>Predictive cost modeling</li>
+            <li>Budget forecasting</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Summary & Next Steps</h2>
+
+        <p>This architecture provides a systematic way to measure orchestration ROI by correlating HtmlGraph events with OpenTelemetry metrics.</p>
+
+        <h3>Key Design Principles</h3>
+
+        <ul>
+            <li><strong>Non-blocking:</strong> Never let metrics collection break execution</li>
+            <li><strong>Layered:</strong> Start simple (console), add sophistication gradually</li>
+            <li><strong>Queryable:</strong> Store in SQLite for analysis and dashboards</li>
+            <li><strong>Correlated:</strong> Match HtmlGraph events with actual metrics</li>
+            <li><strong>Generalizable:</strong> Design for all users, not just HtmlGraph dogfooding</li>
+        </ul>
+
+        <h3>Implementation Timeline</h3>
+
+        <ul>
+            <li><strong>Phase 1 (2 weeks):</strong> Console exporter + cost attribution dashboard</li>
+            <li><strong>Phase 2 (3 weeks):</strong> SQLite exporter + correlation engine</li>
+            <li><strong>Phase 3 (2 weeks):</strong> ROI reports + A/B testing framework</li>
+            <li><strong>Phase 4 (2 weeks):</strong> Optional cloud integration + optimization</li>
+        </ul>
+
+        <h3>Deliverables</h3>
+
+        <ul>
+            <li>OTel module in htmlgraph package</li>
+            <li>Hook scripts for metric collection</li>
+            <li>SQLite schema + migration</li>
+            <li>SDK query APIs</li>
+            <li>Dashboard widgets</li>
+            <li>Documentation + examples</li>
+            <li>Spikes documenting methodology</li>
+        </ul>
+    </div>
+
+    <div style="color: #666; font-size: 0.9em; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+        <p><strong>Technical Spike Created:</strong> 2026-01-08</p>
+        <p><strong>Status:</strong> Ready for Phase 1 development</p>
+        <p><strong>Architecture Review:</strong> Complete - all components specified</p>
+    </div>
+</body>
+</html>

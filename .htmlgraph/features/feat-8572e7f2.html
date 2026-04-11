@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>CLI Refactoring: Modular Architecture with Pydantic/Rich/FastAPI</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-8572e7f2"
+             data-type="feature"
+             data-status="done"
+             data-priority="critical"
+             data-created="2026-01-11T20:17:13.168083"
+             data-updated="2026-01-12T02:37:44.063206+00:00" data-agent-assigned="orchestrator" data-claimed-at="2026-01-11T20:17:57.636329" data-claimed-by-session="sess-1a2e1e1d" data-track-id="trk-46d512ab">
+
+        <header>
+            <h1>CLI Refactoring: Modular Architecture with Pydantic/Rich/FastAPI</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-critical">Critical Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-1a2e1e1d.html" data-relationship="implemented-in" data-since="2026-01-11T20:17:13.932232">sess-1a2e1e1d</a></li>
+                    <li><a href="sess-fc1a89fd.html" data-relationship="implemented-in" data-since="2026-01-11T21:37:44.063189">sess-fc1a89fd</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-01-11T21:37:43.515285">2026-01-11T21:37:43.515285</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'sess-fc1a89fd', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 1.0, 'issues': ['Low tool diversity'], 'recommendations': ['Consider using more specialized tools'], 'test_runs': [], 'test_summary': None, 'summary': '✓ Session completed cleanly'}">{'session_id': 'sess-fc1a89fd', 'anti_patterns': [], 'errors': [], 'error_count': 0, 'efficiency': 1.0, 'issues': ['Low tool diversity'], 'recommendations': ['Consider using more specialized tools'], 'test_runs': [], 'test_summary': None, 'summary': '✓ Session completed cleanly'}</dd>
+<dt>Insight Id</dt>
+                <dd data-key="insight_id" data-value="insi-147f62df">insi-147f62df</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Phase 1: Analyze current cli.py structure and extract command list</li>
+                <li data-completed="false">⏳ Phase 2: Design modular architecture (cli/commands/, cli/models/, etc.)</li>
+                <li data-completed="false">⏳ Phase 3: Create base command classes with Pydantic models</li>
+                <li data-completed="false">⏳ Phase 4: Extract and refactor core commands (serve, init, status)</li>
+                <li data-completed="false">⏳ Phase 5: Extract feature management commands</li>
+                <li data-completed="false">⏳ Phase 6: Extract session/analytics commands</li>
+                <li data-completed="false">⏳ Phase 7: Create Rich-based output formatters</li>
+                <li data-completed="false">⏳ Phase 8: Implement command router with FastAPI patterns</li>
+                <li data-completed="false">⏳ Phase 9: Testing and validation</li>
+                <li data-completed="false">⏳ Phase 10: Deprecate old cli.py, switch to modular version</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            CRITICAL: cli.py is 7121 lines - despicable technical debt.
+
+Goals:
+1. Break cli.py into proper modules with separation of concerns
+2. Leverage Pydantic for command models and validation
+3. Use Rich for all output (tables, progress, panels)
+4. Apply FastAPI patterns for command routing
+5. Create reusable command base classes
+6. Proper error handling and logging
+
+Current Issues:
+- 7121 lines in single file (cli.py)
+- Hardcoded logic mixed with invocation
+- Poor separation of concerns
+- Not using Pydantic models for commands
+- Not fully leveraging Rich capabilities
+- Duplicated code across commands
+
+Target Architecture:
+- cli/commands/ - Individual command modules
+- cli/models/ - Pydantic models for commands
+- cli/output/ - Rich-based output formatters
+- cli/base.py - Base command classes
+- cli/router.py - Command routing (FastAPI-inspired)
+- cli/main.py - Thin entry point
+
+Dependencies to Leverage:
+- Pydantic: Command models, validation, settings
+- Rich: Console output, tables, progress, panels
+- FastAPI: Routing patterns, dependency injection
+- Jinja2: Template-based help text
+- aiosqlite: Async operations where beneficial
+        </section>
+    </article>
+</body>
+</html>

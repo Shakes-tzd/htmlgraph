@@ -1,0 +1,47 @@
+#!/bin/sh
+# Pre-commit hook: Go quality gates
+#
+# Install: htmlgraph install-hooks
+#          (sets core.hooksPath = .githooks)
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+echo "Running pre-commit checks..."
+
+# Go source is at the repo root (go.mod, cmd/, internal/)
+if git diff --cached --name-only | grep -q '\.go$' || [ -f "$REPO_ROOT/go.mod" ]; then
+    if [ ! -f "$REPO_ROOT/go.mod" ]; then
+        echo "  Warning: no go.mod found at repo root, skipping Go checks."
+    else
+        echo "  -> go build..."
+        if ! (cd "$REPO_ROOT" && go build ./...) ; then
+            echo "FAIL: go build failed. Fix compilation errors before committing."
+            exit 1
+        fi
+
+        echo "  -> go vet..."
+        if ! (cd "$REPO_ROOT" && go vet ./...) ; then
+            echo "FAIL: go vet failed. Fix issues before committing."
+            exit 1
+        fi
+
+        echo "  -> go test..."
+        # Unset GIT_DIR/GIT_INDEX_FILE so tests that create real git repos
+        # (e.g. TestBranchForFilePath) are not polluted by the pre-commit env.
+        if ! (cd "$REPO_ROOT" && env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE go test ./...) ; then
+            echo "FAIL: go test failed. Fix failing tests before committing."
+            exit 1
+        fi
+    fi
+fi
+
+# Reject stray htmlgraph binary at repo root (use `htmlgraph build` instead)
+if git diff --cached --name-only | grep -q '^htmlgraph$'; then
+    echo "FAIL: A binary named 'htmlgraph' is staged at the repo root."
+    echo "      Run 'htmlgraph build' instead — it outputs to plugin/hooks/bin/htmlgraph."
+    echo "      Unstage it with: git reset HEAD htmlgraph"
+    exit 1
+fi
+
+echo "All pre-commit checks passed!"

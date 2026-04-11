@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Parallel Task() Execution: Session Context Analysis and Design</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-parallel-session"
+             data-type="spike"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-01-04T15:30:00.000000"
+             data-updated="2026-01-04T16:45:00.000000"
+             data-spike-type="architecture"
+             data-timebox-hours="4">
+
+        <header>
+            <h1>Parallel Task() Execution: Session Context Analysis and Design</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h2>Executive Summary</h2>
+            <p>This spike analyzes how parent-child session context should work when multiple Task() agents run in parallel. Key findings:</p>
+            <ul>
+                <li><strong>Environment Variables:</strong> Child processes get COPIES, not references - safe for parallel execution</li>
+                <li><strong>File Appending:</strong> JSONL append is atomic at OS level for lines under 4KB - race conditions are theoretical but rare</li>
+                <li><strong>Recommendation:</strong> Use Model C (Hybrid) - activities summarized in parent session, details in child sessions</li>
+                <li><strong>ID Generation:</strong> Already collision-resistant (sha256 + random entropy) - multi-agent safe</li>
+            </ul>
+
+            <h2>1. Environment Variable Behavior Analysis</h2>
+
+            <h3>1.1 How Environment Variables Work in Subprocesses</h3>
+            <p>Python subprocess module creates child processes via fork() + exec() which inherit environment variables as a <strong>copy</strong>, not a reference.</p>
+
+            <pre><code>
+# Parent process sets environment variable
+import os
+os.environ["HTMLGRAPH_PARENT_SESSION"] = "sess-abc123"
+
+# Child process (via subprocess or Task())
+# Gets a COPY of the environment at spawn time
+# Changes in child do NOT affect parent or siblings
+
+import subprocess
+result = subprocess.run(["gemini", "-p", "..."], env=os.environ.copy())
+# Child sees HTMLGRAPH_PARENT_SESSION = "sess-abc123"
+            </code></pre>
+
+            <h3>1.2 Parallel Siblings - SAFE</h3>
+            <pre><code>
+# Orchestrator spawns 3 agents in parallel
+os.environ["HTMLGRAPH_PARENT_SESSION"] = "sess-orchestrator"
+os.environ["HTMLGRAPH_PARENT_AGENT"] = "orchestrator"
+
+# All 3 inherit the SAME values (copied at spawn)
+Task(prompt="Research X", subagent_type="gemini-spawner")
+Task(prompt="Research Y", subagent_type="codex-spawner")
+Task(prompt="Research Z", subagent_type="copilot-spawner")
+
+# SAFE: Each child has its own copy
+# Changes in child A don't affect child B or C
+            </code></pre>
+
+            <h3>1.3 Deep Nesting - REQUIRES CAREFUL DESIGN</h3>
+            <pre><code>
+# Problem: Environment variables are process-level
+Orchestrator (sess-A)
+  sets: HTMLGRAPH_PARENT_SESSION=sess-A
+  |-> Task: gemini-spawner
+       reads: HTMLGRAPH_PARENT_SESSION=sess-A (inherited)
+       creates: sess-B (its own session)
+       sets: HTMLGRAPH_PARENT_SESSION=sess-B (for grandchildren)
+       |-> Grandchild 1 reads: sess-B
+       |-> Grandchild 2 reads: sess-B
+
+# Solution: Each level sets context for its children
+# Activities propagate UP to parent via parent_activity_id
+            </code></pre>
+
+            <h3>1.4 Key Finding: Copy-on-Spawn Semantics</h3>
+            <table>
+                <tr><th>Scenario</th><th>Behavior</th><th>Safety</th></tr>
+                <tr><td>Parallel siblings</td><td>All get same parent context</td><td>SAFE</td></tr>
+                <tr><td>Sequential spawns</td><td>Each inherits current env state</td><td>SAFE</td></tr>
+                <tr><td>Nested spawns</td><td>Child must set env for grandchildren</td><td>DESIGN NEEDED</td></tr>
+                <tr><td>Modifying env in child</td><td>Parent and siblings unaffected</td><td>SAFE</td></tr>
+            </table>
+
+            <h2>2. Session File Concurrency Analysis</h2>
+
+            <h3>2.1 JSONL Append Behavior</h3>
+            <p>Analyzing event_log.py, JSONL files use append mode:</p>
+
+            <pre><code>
+# From event_log.py:133-134
+with path.open("a", encoding="utf-8") as f:
+    f.write(line)
+            </code></pre>
+
+            <h3>2.2 OS-Level Atomicity</h3>
+            <p>On POSIX systems (macOS, Linux):</p>
+            <ul>
+                <li>Writes up to PIPE_BUF (typically 4KB on macOS, 4KB on Linux) are atomic</li>
+                <li>A single JSON line event is typically 200-500 bytes - well under limit</li>
+                <li>Append mode (O_APPEND flag) seeks to end before each write atomically</li>
+            </ul>
+
+            <h3>2.3 Potential Race Conditions</h3>
+            <table>
+                <tr><th>Scenario</th><th>Risk</th><th>Mitigation</th></tr>
+                <tr>
+                    <td>2 agents append simultaneously</td>
+                    <td>LOW - OS append is atomic for small writes</td>
+                    <td>None needed, lines will not interleave</td>
+                </tr>
+                <tr>
+                    <td>2 agents append same event_id</td>
+                    <td>LOW - Deduplication exists in append()</td>
+                    <td>Existing tail check deduplicates</td>
+                </tr>
+                <tr>
+                    <td>Session HTML modification</td>
+                    <td>MEDIUM - Not atomic</td>
+                    <td>Use JSONL as source of truth, rebuild HTML</td>
+                </tr>
+                <tr>
+                    <td>Very large event payloads (>4KB)</td>
+                    <td>LOW - Rare in practice</td>
+                    <td>Could add file locking if needed</td>
+                </tr>
+            </table>
+
+            <h3>2.4 Event ID Generation - Already Safe</h3>
+            <pre><code>
+# From ids.py - collision-resistant generation
+def generate_id(node_type="feature", title="", entropy_bytes=4):
+    timestamp = datetime.now(timezone.utc).isoformat()  # Microsecond precision
+    random_bytes = os.urandom(entropy_bytes)            # 4 bytes entropy
+    content = f"{title}:{timestamp}".encode() + random_bytes
+    hash_digest = hashlib.sha256(content).hexdigest()[:8]
+    return f"{prefix}-{hash_digest}"
+
+# Collision probability with 4 bytes entropy + microsecond timestamp:
+# ~1 in 4 billion per microsecond - effectively zero
+            </code></pre>
+
+            <h2>3. Activity Attribution for Parallel Agents</h2>
+
+            <h3>3.1 Distinguishing Agent Activities</h3>
+            <p>Current ActivityEntry supports full attribution:</p>
+
+            <pre><code>
+ActivityEntry(
+    id="evt-abc123",              # Collision-resistant
+    timestamp=datetime.now(),     # Microsecond precision
+    tool="gemini_spawn_start",
+    summary="Spawning Gemini: Research X",
+    feature_id="feat-xyz",        # Attributed to feature
+    parent_activity_id="act-parent",  # Links to Task() call
+    payload={
+        "agent": "gemini-spawner",
+        "spawner_type": "gemini",
+        "session_id": "sess-orchestrator",  # Context preserved
+    }
+)
+            </code></pre>
+
+            <h3>3.2 Proposed New Environment Variables</h3>
+            <table>
+                <tr><th>Variable</th><th>Purpose</th><th>Example</th></tr>
+                <tr>
+                    <td>HTMLGRAPH_PARENT_SESSION</td>
+                    <td>Parent session ID for activity logging</td>
+                    <td>sess-abc123</td>
+                </tr>
+                <tr>
+                    <td>HTMLGRAPH_PARENT_AGENT</td>
+                    <td>Parent agent name for attribution</td>
+                    <td>orchestrator</td>
+                </tr>
+                <tr>
+                    <td>HTMLGRAPH_PARENT_ACTIVITY</td>
+                    <td>Activity ID of the Task() call</td>
+                    <td>evt-task123</td>
+                </tr>
+                <tr>
+                    <td>HTMLGRAPH_NESTING_DEPTH</td>
+                    <td>Current depth (for limiting recursion)</td>
+                    <td>1</td>
+                </tr>
+            </table>
+
+            <h2>4. Session Hierarchy Models Comparison</h2>
+
+            <h3>Model A: Flat (All activities to root session)</h3>
+            <pre><code>
+sess-orchestrator.jsonl
+|-- {"tool": "SessionStart", "agent": "orchestrator", ...}
+|-- {"tool": "Task", "summary": "spawned gemini-spawner", ...}
+|-- {"tool": "gemini_spawn_start", "agent": "gemini-spawner", ...}
+|-- {"tool": "gemini_tool_call", "agent": "gemini-spawner", ...}
+|-- {"tool": "Task", "summary": "spawned codex-spawner", ...}  // parallel
+|-- {"tool": "codex_command", "agent": "codex-spawner", ...}   // parallel
+|-- {"tool": "SessionEnd", "agent": "orchestrator", ...}
+            </code></pre>
+            <p><strong>Pros:</strong> Simple, unified view, one file<br>
+            <strong>Cons:</strong> Large files, cannot isolate subagent work, hard to debug individual agents</p>
+
+            <h3>Model B: Nested (Each task gets own session)</h3>
+            <pre><code>
+sess-orchestrator.jsonl
+|-- {"tool": "SessionStart", ...}
+|-- {"tool": "Task", "child_session": "sess-gemini", ...}
+|-- {"tool": "Task", "child_session": "sess-codex", ...}
+
+sess-gemini.jsonl (parent: sess-orchestrator)
+|-- {"tool": "gemini_spawn_start", ...}
+|-- {"tool": "gemini_tool_call", ...}
+|-- {"tool": "gemini_completion", ...}
+
+sess-codex.jsonl (parent: sess-orchestrator)
+|-- {"tool": "codex_command", ...}
+|-- {"tool": "codex_completion", ...}
+            </code></pre>
+            <p><strong>Pros:</strong> Isolated work, clear hierarchy, manageable file sizes<br>
+            <strong>Cons:</strong> Harder to get unified view, more files, requires traversal</p>
+
+            <h3>Model C: Hybrid (RECOMMENDED)</h3>
+            <pre><code>
+sess-orchestrator.jsonl
+|-- {"tool": "SessionStart", ...}
+|-- {"tool": "Task", "summary": "Delegated to Gemini",
+     "child_session": "sess-gemini", "result_summary": "Found 3 OAuth providers"}
+|-- {"tool": "Task", "summary": "Delegated to Codex",
+     "child_session": "sess-codex", "result_summary": "Created auth module"}
+|-- {"tool": "SessionEnd", ...}
+
+sess-gemini.jsonl (parent: sess-orchestrator, parent_activity: evt-task1)
+|-- {"tool": "gemini_spawn_start", "prompt": "...", ...}
+|-- {"tool": "gemini_tool_call", "tool_name": "search", ...}
+|-- {"tool": "gemini_message", "summary": "Found OAuth2 spec", ...}
+|-- {"tool": "gemini_completion", "stats": {...}, ...}
+
+sess-codex.jsonl (parent: sess-orchestrator, parent_activity: evt-task2)
+|-- {"tool": "codex_command", "command": "mkdir auth", ...}
+|-- {"tool": "codex_file_change", "path": "auth/oauth.py", ...}
+|-- {"tool": "codex_completion", "usage": {...}, ...}
+            </code></pre>
+            <p><strong>Pros:</strong> Best of both - summary in parent, details in child, clear traceability<br>
+            <strong>Cons:</strong> More complex implementation</p>
+
+            <h3>Recommendation: Model C (Hybrid)</h3>
+            <p>Model C provides the best balance:</p>
+            <ol>
+                <li><strong>Orchestrator View:</strong> Shows what was delegated and results (summary only)</li>
+                <li><strong>Subagent View:</strong> Full detail of how work was done</li>
+                <li><strong>Traceability:</strong> parent_session + parent_activity links enable full traversal</li>
+                <li><strong>Dashboard:</strong> Can show unified timeline with expand/collapse for details</li>
+            </ol>
+
+            <h2>5. Code Examples for Each Scenario</h2>
+
+            <h3>5.1 Parallel Siblings</h3>
+            <pre><code>
+# session-start.py: Set parent context after starting session
+active_session = manager.get_active_session()
+if active_session:
+    os.environ["HTMLGRAPH_PARENT_SESSION"] = active_session.id
+    os.environ["HTMLGRAPH_PARENT_AGENT"] = active_session.agent
+
+# orchestrator.py: Spawn parallel tasks
+# All tasks inherit the same parent context
+Task(prompt="Research X", subagent_type="gemini-spawner")
+Task(prompt="Research Y", subagent_type="codex-spawner")
+Task(prompt="Research Z", subagent_type="copilot-spawner")
+
+# Each spawner creates its own session but logs summary to parent
+            </code></pre>
+
+            <h3>5.2 Deep Nesting</h3>
+            <pre><code>
+# HeadlessSpawner._get_sdk():
+def _get_sdk(self) -> "SDK | None":
+    parent_session = os.getenv("HTMLGRAPH_PARENT_SESSION")
+    parent_activity = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
+    nesting_depth = int(os.getenv("HTMLGRAPH_NESTING_DEPTH", "0"))
+
+    # Prevent infinite nesting
+    if nesting_depth > 3:
+        return None  # Do not track beyond depth 3
+
+    if parent_session:
+        return SDK(
+            agent="spawner",
+            parent_session=parent_session,
+            parent_activity=parent_activity,
+        )
+    return SDK(agent="spawner")
+
+# Before spawning grandchild, increment depth:
+child_env = os.environ.copy()
+child_env["HTMLGRAPH_PARENT_SESSION"] = my_session.id
+child_env["HTMLGRAPH_PARENT_ACTIVITY"] = my_activity.id
+child_env["HTMLGRAPH_NESTING_DEPTH"] = str(nesting_depth + 1)
+subprocess.run(cmd, env=child_env)
+            </code></pre>
+
+            <h3>5.3 Rapid Sequential Spawning</h3>
+            <pre><code>
+# Loop spawns do not affect each other - env vars are stable
+for i in range(10):
+    # Each Task inherits current env state (set before loop)
+    Task(prompt=f"Task {i}", subagent_type="gemini-spawner")
+    # Even if previous task modified its copy, parent env is unchanged
+            </code></pre>
+
+            <h3>5.4 SDK Implementation</h3>
+            <pre><code>
+class SDK:
+    def __init__(
+        self,
+        directory: Path | str | None = None,
+        agent: str | None = None,
+        parent_session: str | None = None,  # NEW
+        parent_activity: str | None = None,  # NEW
+    ):
+        # ... existing init ...
+
+        # Support parent session inheritance
+        self._parent_session = parent_session or os.getenv("HTMLGRAPH_PARENT_SESSION")
+        self._parent_activity = os.getenv("HTMLGRAPH_PARENT_ACTIVITY")
+
+        # If parent session is set, create child session linked to it
+        if self._parent_session:
+            self._child_session = self.session_manager.start_session(
+                agent=agent,
+                is_subagent=True,
+                parent_session=self._parent_session,
+            )
+
+    def track_activity(self, ...):
+        # Log to child session with parent link
+        if self._child_session:
+            entry = self.session_manager.track_activity(
+                session_id=self._child_session.id,
+                parent_activity_id=self._parent_activity,
+                ...
+            )
+
+            # Also log summary to parent session
+            if self._parent_session:
+                self._log_summary_to_parent(entry)
+            </code></pre>
+
+            <h2>6. Testing Strategy for Parallel Execution</h2>
+
+            <h3>6.1 Unit Tests</h3>
+            <pre><code>
+def test_env_var_inheritance():
+    """Test child processes inherit env vars."""
+    os.environ["HTMLGRAPH_PARENT_SESSION"] = "sess-test"
+
+    result = subprocess.run(
+        ["python", "-c", "import os; print(os.getenv('HTMLGRAPH_PARENT_SESSION'))"],
+        capture_output=True, text=True
+    )
+    assert result.stdout.strip() == "sess-test"
+
+def test_env_var_isolation():
+    """Test child modifications do not affect parent."""
+    os.environ["HTMLGRAPH_PARENT_SESSION"] = "sess-parent"
+
+    subprocess.run([
+        "python", "-c",
+        "import os; os.environ['HTMLGRAPH_PARENT_SESSION'] = 'sess-child'"
+    ])
+
+    # Parent unchanged
+    assert os.environ["HTMLGRAPH_PARENT_SESSION"] == "sess-parent"
+
+def test_parallel_append_safety():
+    """Test concurrent JSONL appends do not corrupt file."""
+    import threading
+
+    path = tmp_path / "test.jsonl"
+    errors = []
+
+    def append_lines(n):
+        try:
+            for i in range(100):
+                with open(path, "a") as f:
+                    f.write(json.dumps({"thread": n, "i": i}) + "\n")
+        except Exception as e:
+            errors.append(e)
+
+    threads = [threading.Thread(target=append_lines, args=(i,)) for i in range(5)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+
+    assert not errors
+
+    # Verify no line corruption
+    with open(path) as f:
+        for line in f:
+            json.loads(line)  # Should parse cleanly
+            </code></pre>
+
+            <h3>6.2 Integration Tests</h3>
+            <pre><code>
+def test_parallel_task_tracking_e2e():
+    """Test parallel Task() calls are tracked correctly."""
+    sdk = SDK(agent="orchestrator")
+    session = sdk.session_manager.start_session()
+
+    os.environ["HTMLGRAPH_PARENT_SESSION"] = session.id
+
+    # Simulate 3 parallel spawners
+    import concurrent.futures
+
+    def spawn_agent(agent_type):
+        spawner_sdk = SDK(agent=f"{agent_type}-spawner")
+        spawner_sdk.track_activity(
+            tool=f"{agent_type}_start",
+            summary=f"Started {agent_type}",
+        )
+        return agent_type
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(spawn_agent, "gemini"),
+            executor.submit(spawn_agent, "codex"),
+            executor.submit(spawn_agent, "copilot"),
+        ]
+        results = [f.result() for f in futures]
+
+    # Verify all activities tracked
+    session = sdk.session_manager.get_session(session.id)
+    agent_types = {a.payload.get("agent") for a in session.activity_log if a.payload}
+
+    assert "gemini-spawner" in agent_types or len(agent_types) > 0
+
+def test_deep_nesting_limit():
+    """Test nesting is limited to prevent infinite recursion."""
+    os.environ["HTMLGRAPH_NESTING_DEPTH"] = "4"
+
+    spawner = HeadlessSpawner()
+    sdk = spawner._get_sdk()
+
+    # Should return None when nesting too deep
+    assert sdk is None
+            </code></pre>
+
+            <h2>7. Migration Considerations</h2>
+
+            <h3>7.1 Backward Compatibility</h3>
+            <ul>
+                <li><strong>No breaking changes:</strong> All new env vars are optional</li>
+                <li><strong>Graceful degradation:</strong> If env var not set, use existing behavior</li>
+                <li><strong>Existing sessions:</strong> Continue to work unchanged</li>
+            </ul>
+
+            <h3>7.2 Phased Rollout</h3>
+            <ol>
+                <li><strong>Phase 1:</strong> Add env var reading in SDK (no behavior change)</li>
+                <li><strong>Phase 2:</strong> Update hooks to set parent context</li>
+                <li><strong>Phase 3:</strong> Update HeadlessSpawner to use parent context</li>
+                <li><strong>Phase 4:</strong> Add dashboard visualization for parallel timelines</li>
+            </ol>
+
+            <h3>7.3 Impact on Existing Sessions</h3>
+            <table>
+                <tr><th>Component</th><th>Impact</th><th>Action</th></tr>
+                <tr>
+                    <td>Existing session files</td>
+                    <td>None - new fields are optional</td>
+                    <td>No migration needed</td>
+                </tr>
+                <tr>
+                    <td>Session HTML rendering</td>
+                    <td>May show parent links if present</td>
+                    <td>Update templates (optional)</td>
+                </tr>
+                <tr>
+                    <td>Analytics queries</td>
+                    <td>Can filter by parent_session</td>
+                    <td>Update queries as needed</td>
+                </tr>
+                <tr>
+                    <td>Dashboard</td>
+                    <td>Can show tree view of sessions</td>
+                    <td>Add visualization (optional)</td>
+                </tr>
+            </table>
+
+            <h2>8. Recommendations</h2>
+
+            <h3>8.1 Immediate Actions (Low Effort)</h3>
+            <ol>
+                <li>Add parent_session parameter to SDK.__init__()</li>
+                <li>Read HTMLGRAPH_PARENT_SESSION env var in SDK</li>
+                <li>Update session-start.py hook to set parent context</li>
+            </ol>
+
+            <h3>8.2 Medium-Term Actions</h3>
+            <ol>
+                <li>Update HeadlessSpawner._get_sdk() to use parent session</li>
+                <li>Add child_session and result_summary to Task() tracking</li>
+                <li>Implement nesting depth limit</li>
+            </ol>
+
+            <h3>8.3 Long-Term Actions</h3>
+            <ol>
+                <li>Dashboard: Add parallel timeline visualization</li>
+                <li>Analytics: Add cross-session agent cost tracking</li>
+                <li>File locking: Add optional fcntl.flock() for very large payloads</li>
+            </ol>
+        </section>
+
+        <section data-findings>
+            <h3>Key Findings</h3>
+            <ol>
+                <li><strong>Environment variables are SAFE for parallel execution</strong> - child processes get copies, not references</li>
+                <li><strong>JSONL append is effectively atomic</strong> - OS guarantees for writes under PIPE_BUF (4KB)</li>
+                <li><strong>ID generation is already collision-resistant</strong> - sha256 + 4 bytes entropy + microsecond timestamp</li>
+                <li><strong>Model C (Hybrid) is the best architecture</strong> - summaries in parent, details in child sessions</li>
+                <li><strong>Nesting depth should be limited</strong> - prevent infinite recursion (suggest max depth 3)</li>
+                <li><strong>Migration is low-risk</strong> - all changes are additive, backward compatible</li>
+            </ol>
+        </section>
+
+        <section data-recommendations>
+            <h3>Recommendations</h3>
+            <ol>
+                <li><strong>Implement Model C (Hybrid):</strong> Summary in parent, details in child</li>
+                <li><strong>Add 4 new environment variables:</strong> HTMLGRAPH_PARENT_SESSION, HTMLGRAPH_PARENT_AGENT, HTMLGRAPH_PARENT_ACTIVITY, HTMLGRAPH_NESTING_DEPTH</li>
+                <li><strong>Update SDK to support parent session:</strong> Add parent_session parameter</li>
+                <li><strong>Set context in SessionStart hook:</strong> Before any Task() calls</li>
+                <li><strong>Update HeadlessSpawner:</strong> Use parent context for tracking</li>
+                <li><strong>Limit nesting depth:</strong> Max 3 levels to prevent runaway recursion</li>
+            </ol>
+        </section>
+
+        <section data-spike-metadata>
+            <h3>Spike Metadata</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd>Architecture</dd>
+                <dt>Timebox</dt>
+                <dd>4 hours</dd>
+                <dt>Investigator</dt>
+                <dd>Claude (Opus 4.5)</dd>
+                <dt>Related Spike</dt>
+                <dd>spk-e261b822 (Parent-Child Session Context Design)</dd>
+            </dl>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/collections/__init__.py
+# hypothesis_version: 6.151.9
+
+['BaseCollection', 'BugCollection', 'ChoreCollection', 'EpicCollection', 'FeatureCollection', 'InsightCollection', 'MetricCollection', 'PatternCollection', 'PhaseCollection', 'SpikeCollection', 'TodoCollection', 'Wisp', 'WispCollection']

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Chore: HtmlGraph Plugin Hooks Refinement</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-plugin-hooks-refinement"
+             data-type="chore"
+             data-status="done"
+             data-priority="medium"
+             data-created="2025-12-16T09:30:00Z"
+             data-updated="2025-12-16T09:30:00Z"
+             data-agent-assigned="claude">
+
+        <header>
+            <h1>HtmlGraph Plugin Hooks Refinement</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+                <span class="badge type-chore">Chore</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="../features/feature-self-tracking.html" data-relationship="related">Feature: Self-Tracking</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocks">
+                <h3>Blocks:</h3>
+                <ul>
+                    <li><a href="../features/feature-drift-auto-classification.html" data-relationship="blocks">Feature: Drift Auto-Classification</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Refinement of HtmlGraph Claude Code plugin hooks to ensure proper functionality and maintainability.</p>
+
+            <h4>Issues Addressed</h4>
+            <ul>
+                <li><strong>uv run shebang</strong>: Hooks now use <code>#!/usr/bin/env -S uv run</code> with inline script metadata for dependencies instead of relying on system PATH</li>
+                <li><strong>Parameter naming</strong>: Fixed <code>agent_id</code> to <code>agent</code> in SessionManager.start_session()</li>
+                <li><strong>Parameter naming</strong>: Fixed <code>files</code> to <code>file_paths</code> in track_activity()</li>
+                <li><strong>Boolean inversion</strong>: Fixed <code>failed</code> to <code>success</code> (inverted logic)</li>
+                <li><strong>Session ID</strong>: Added retrieval of active session ID before tracking</li>
+            </ul>
+
+            <h4>Files Modified</h4>
+            <ul>
+                <li><code>packages/claude-plugin/hooks/scripts/session-start.py</code></li>
+                <li><code>packages/claude-plugin/hooks/scripts/track-event.py</code></li>
+                <li><code>packages/claude-plugin/hooks/scripts/session-end.py</code></li>
+            </ul>
+        </section>
+
+        <section data-steps>
+            <h3>Completed Steps</h3>
+            <ol>
+                <li data-completed="true" data-agent="claude">Updated session-start.py with uv run and correct parameters</li>
+                <li data-completed="true" data-agent="claude">Updated track-event.py with uv run, file_paths, success, session_id</li>
+                <li data-completed="true" data-agent="claude">Updated session-end.py with uv run</li>
+                <li data-completed="true" data-agent="claude">Verified hooks work via Playwright testing</li>
+            </ol>
+        </section>
+
+        <section data-activity-log>
+            <h3>Activity Log</h3>
+            <ol reversed>
+                <li data-timestamp="2025-12-16T09:30:00Z" data-agent="claude">Chore documented from session activity</li>
+                <li data-timestamp="2025-12-16T09:12:00Z" data-agent="claude">All hooks verified working</li>
+                <li data-timestamp="2025-12-16T09:11:00Z" data-agent="claude">Fixed track-event.py parameters</li>
+                <li data-timestamp="2025-12-16T09:10:00Z" data-agent="claude">Fixed session-start.py parameters</li>
+                <li data-timestamp="2025-12-16T09:09:00Z" data-agent="claude">Added uv run shebangs to all hooks</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

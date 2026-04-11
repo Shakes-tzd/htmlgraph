@@ -1,0 +1,473 @@
+════════════════════════════════════════════════════════════════════════════════
+ SYSTEM PROMPT PERSISTENCE - DETAILED DEPENDENCY DIAGRAM
+════════════════════════════════════════════════════════════════════════════════
+
+LEGEND:
+  ━━━→ Dependency (must complete before next)
+  ⤷   Parallel work (independent)
+  ⬜  Blocking task (on critical path)
+  ⬜◇ Non-blocking task (can slip without impacting timeline)
+  ⏱️  Duration estimate
+  🔴  Critical path
+  🟡  High priority
+  🟢  Medium priority
+
+════════════════════════════════════════════════════════════════════════════════
+ CRITICAL PATH (Longest Dependency Chain)
+════════════════════════════════════════════════════════════════════════════════
+
+┌─ 🔴 PHASE 1 CRITICAL PATH ─────────────────────────────────────────────────┐
+│                                                                              │
+│  Hook Config       Layer 1 Code      Layer 1 Tests    Integration Tests    │
+│  (30min)           (1 day)           (4 hours)        (1 day)              │
+│  ⬜                ⬜                ⬜                ⬜                    │
+│  │                 │                 │                 │                    │
+│  └─────────→ ☐ ────────→ ☐ ────────→ ☐ ────────→ ☐ ────────→ PHASE 1 DONE │
+│             (2.5h)    (1d)          (4h)         (1d)                      │
+│                                                                              │
+│  CRITICAL PATH TOTAL: 4.5 days of sequential work                          │
+│  Minimum Phase 1 timeline: 5 calendar days (with Day 5 validation)         │
+│                                                                              │
+│  This path CANNOT be parallelized. Each layer depends on previous.         │
+│  Layer 2 requires Layer 1 API defined.                                      │
+│  Layer 3 requires Layer 2 API defined.                                      │
+│  Integration tests require ALL layers complete.                             │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+════════════════════════════════════════════════════════════════════════════════
+ DETAILED TASK DEPENDENCY GRAPH
+════════════════════════════════════════════════════════════════════════════════
+
+                          PROJECT START (Day 1, 09:00)
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+            🔴 STREAM A         🟡 STREAM B      🟢 STREAM C
+        (Hook Implementation) (Testing)      (Docs & Features)
+            (Critical Path)  (Mid-Priority)   (Non-Critical)
+                    │               │               │
+        ┌───────────┴───────┐       │               │
+        │                   │       │               │
+    🔴 Task A1         🔴 Task A2   🟡 Task B1     🟢 Task C1
+  Hook Config       Layer 1 Code    Test Setup      Prompt File
+    (30min)           (1 day)        (4 hours)       (4 hours)
+      ⬜                ⬜             ⬜◇             ⬜◇
+      │                 │             │               │
+      └─────────→ ☐ ────────→ ☐       │               │
+              (2.5h)    (1d)          │               │
+                        │             │               │
+                    🔴 Task A3        │        🟢 Task C2
+                  Layer 1 Tests    🟡 Task B2   Doc Skeleton
+                  (4 hours)        Unit Tests    (5 hours)
+                      ⬜             (7 hours)      ⬜◇
+                      │              ⬜◇            │
+                      └─────→ ☐      │        ┌─────┴──────┐
+                          (4h)   ←───┘        │            │
+                              ⤷ Tests running  │            │
+                              as code emerges  │            │
+                      │                        │            │
+                      │                   🟡 Task B3   🟢 Task C3
+                      │               Integration Test  Model Guidance
+                      │                  Planning        (1 day)
+                      │                 (8 hours)        ⬜◇
+        🔴 Task A4    │                  ⬜◇             │
+    Layer 2 Code  ←───┘                  │               │
+      (1 day)       Tests complete       │               │
+        ⬜            & validated        │               │
+        │                               │        🟢 Task C4
+        └─────────→ ☐                   │       Delegate Script
+                (1d) [Layer 1]          │        (1 day)
+                                        │        ⬜◇
+                    Layer 1 API         │        │
+                    now defined         │        │
+                        │               │        │
+        🔴 Task A5     │               │        │
+    Layer 2 Tests  ←───┘               │        │
+      (4 hours)                     🟡 Task B4  │
+        ⬜           ┌────────────→ Integration │
+        │            │            Test Execution│
+        │            │              (8 hours)   │
+        │            │              ⬜◇        │
+        │            │              │          │
+        └─────→ ☐    │              │          │
+            (1d) ────┘              │          │
+          [Layer 2]                 │          │
+        Layer 2 API             Results from  │
+        validated                  Tests      │
+            │                      on Layers  │
+        🔴 Task A6               1,2,3        │
+    Layer 3 Code            ┌──────────┘      │
+      (1 day)               │                 │
+        ⬜           🟡 Task B5          🟢 Task C5
+        │            Coverage         Troubleshooting
+        │            & Metrics        Guide
+        │            (8 hours)        (2 hours)
+        │            ⬜◇             ⬜◇
+        │            │                │
+        └─────→ ☐   │                │
+            (1d)    │                │
+          [Layer 3] │                │
+        Layer 3 API │                │
+        validated   │                │
+            │       │                │
+        🔴 Task A7  │        🟢 Task C6
+    Layer 3 Tests   │        Customization
+      (4 hours)     │          Guide
+        ⬜          │          (2 hours)
+        │           │          ⬜◇
+        │           │          │
+        └─────→ ☐  │          │
+            (4h)   │          │
+                   │          │
+        All 3   🔴 Task A8    │
+        Layers  Integration  │
+        Done &  Testing      │
+        Tested   (1 day)     │
+            │     ⬜         │
+            │     │          │
+            └────→ ☐ ←──────┘
+                (1d)
+            All 3 layers
+            +tests
+            validated
+
+
+🟢 Task C7
+Final Docs
+(2 hours)
+⬜◇
+│
+└────→ ☐
+    (2h)
+
+    All docs
+    polished
+    &
+    examples
+    added
+
+            │
+            │
+        🔴 Task A9
+    Final Validation
+      (E2E Testing)
+        (1 day)
+          ⬜
+          │
+          └──────→ ☐
+              (1d)
+          All systems
+          validated
+          end-to-end
+          (compact/resume)
+
+                │
+        ┌───────┴───────┐
+        │               │
+      MERGE POINT      READY FOR
+      (EOD Day 5)      PHASE 2
+        All
+        streams
+        complete
+        integration
+
+════════════════════════════════════════════════════════════════════════════════
+ DEPENDENCY MATRIX (What Blocks What)
+════════════════════════════════════════════════════════════════════════════════
+
+Task              │ Depends On      │ Blocks          │ Can Start │ Duration
+──────────────────┼─────────────────┼─────────────────┼───────────┼──────────
+Hook Config (A1)  │ Nothing         │ Layer 1 Code    │ Day 1, 9  │ 30 min
+Layer 1 Code (A2) │ Hook Config     │ Layer 1 Tests   │ Day 1, 10 │ 1 day
+Layer 1 Tests(A3) │ Layer 1 Code    │ Layer 2 Code    │ Day 2, 9  │ 4 hours
+Layer 2 Code (A4) │ Layer 1 API     │ Layer 2 Tests   │ Day 2, 14 │ 1 day
+Layer 2 Tests(A5) │ Layer 2 Code    │ Layer 3 Code    │ Day 3, 9  │ 4 hours
+Layer 3 Code (A6) │ Layer 2 API     │ Layer 3 Tests   │ Day 3, 14 │ 1 day
+Layer 3 Tests(A7) │ Layer 3 Code    │ Integration     │ Day 4, 9  │ 4 hours
+Integration (A8)  │ All 3 Layers    │ Final Validation│ Day 4, 14 │ 1 day
+Final Valid (A9)  │ Integration     │ PHASE 1 COMPLETE│ Day 5, 9  │ 1 day
+──────────────────┼─────────────────┼─────────────────┼───────────┼──────────
+Test Setup (B1)   │ Nothing         │ Unit Tests      │ Day 1, 9  │ 4 hours
+Unit Tests (B2)   │ Test Setup      │ Coverage Report │ Day 1, 14 │ 7 hours
+Integration(B3)   │ Unit Tests      │ Coverage Report │ Day 2, 9  │ 8 hours
+Test Execute(B4)  │ Layer 1-3 Code  │ Coverage Report │ Day 4, 9  │ 8 hours
+Coverage (B5)     │ All Tests Done  │ Release Notes   │ Day 4, 17 │ 8 hours
+──────────────────┼─────────────────┼─────────────────┼───────────┼──────────
+Prompt File(C1)   │ Spec (existing) │ Nothing         │ Day 1, 9  │ 4 hours
+Doc Skeleton(C2)  │ Spec (existing) │ Doc Integration │ Day 1, 9  │ 5 hours
+Model Guidance(C3)│ Spec (existing) │ Doc Integration │ Day 1, 10 │ 1 day
+Delegate Scr(C4)  │ Layer 2 API     │ Doc Integration │ Day 2, 14 │ 1 day
+Troubleshooting(C5)│ Spec (existing)│ Final Docs      │ Day 2, 9  │ 2 hours
+Customization(C6) │ Doc Skeleton    │ Final Docs      │ Day 3, 9  │ 2 hours
+Final Docs (C7)   │ All Code Done   │ Release Notes   │ Day 4, 14 │ 2 hours
+
+════════════════════════════════════════════════════════════════════════════════
+ PARALLELIZATION EFFICIENCY
+════════════════════════════════════════════════════════════════════════════════
+
+STREAM A: Hook Implementation
+└─ Total Sequential Time: 4.5 days
+└─ Can Parallelize: 0% (fully linear dependencies)
+└─ Critical Path: YES
+└─ Can Fall Behind?: NO (must meet schedule)
+
+STREAM B: Testing Framework
+└─ Total Sequential Time: 2.5 days
+└─ Can Parallelize: 60% (test writing independent of code)
+└─ Critical Path: PARTIAL (affects Phase 1 validation)
+└─ Can Fall Behind?: YES (up to 1 day slack)
+
+STREAM C: Documentation & Features
+└─ Total Sequential Time: 2 days
+└─ Can Parallelize: 80% (docs independent of code)
+└─ Critical Path: NO (nice-to-have for Phase 1)
+└─ Can Fall Behind?: YES (up to 2 days slack)
+
+OVERALL PARALLELIZATION:
+  Sequential Total: 20 days (if done completely sequentially)
+  Parallel Total: 5 days (with 3 streams)
+  Efficiency Gain: 75% time reduction
+
+  This is possible because:
+  - Stream A is critical path (4.5 days)
+  - Streams B & C run fully in parallel (~2.5 days each)
+  - Only integration points require sync (end of each layer pair)
+
+════════════════════════════════════════════════════════════════════════════════
+ CRITICAL PATH MILESTONES (Red Boxes Must Hit These Times)
+════════════════════════════════════════════════════════════════════════════════
+
+MUST COMPLETE BY:
+  Day 1, EOD:  Hook Config + Layer 1 code started
+  Day 2, EOD:  Layer 1 complete & tested
+  Day 3, EOD:  Layers 2-3 code complete
+  Day 4, EOD:  All unit tests passing, integration tests running
+  Day 5, EOD:  Integration complete, E2E validation done → PHASE 1 DONE
+
+ANY SLIPPAGE ON THESE DATES DELAYS PHASE 1 COMPLETION.
+
+════════════════════════════════════════════════════════════════════════════════
+ INTEGRATION POINTS (Where Streams Must Sync)
+════════════════════════════════════════════════════════════════════════════════
+
+SYNC POINT 1 (End of Day 1):
+  Stream A: Hook config defined, Layer 1 code started
+  Stream B: Test setup complete, ready to write tests
+  Stream C: Prompt file created, doc skeleton ready
+  ACTION: Stream B can now write unit tests against emerging Layer 1 code
+
+SYNC POINT 2 (End of Day 2):
+  Stream A: Layer 1 done, Layer 2 started
+  Stream B: Unit tests mostly written, Layer 1 tests passing
+  Stream C: Doc skeleton filled out, model guidance drafted
+  ACTION: All streams aligned. Stream B validates Layer 2 as it emerges.
+
+SYNC POINT 3 (End of Day 3):
+  Stream A: Layer 2 done, Layer 3 started
+  Stream B: Layer 2 tests passing, Layer 3 tests ready
+  Stream C: Delegate script drafted, troubleshooting drafted
+  ACTION: Prepare for integration testing next day.
+
+SYNC POINT 4 (End of Day 4):
+  Stream A: All code complete, integration tests running/passing
+  Stream B: Coverage >90%, all unit tests passing
+  Stream C: Docs >90% complete, examples drafted
+  ACTION: Final merge and validation. Everything comes together.
+
+SYNC POINT 5 (End of Day 5):
+  All Streams: Complete and integrated
+  ACTION: Tag release, prepare for Phase 2.
+
+════════════════════════════════════════════════════════════════════════════════
+ RESOURCE ALLOCATION (If Solo Developer)
+════════════════════════════════════════════════════════════════════════════════
+
+CONTEXT SWITCHING STRATEGY:
+  Work in focused 3-hour blocks on one stream
+  Rotate between streams to maintain momentum
+  Sync points (EOD) to check integration
+
+DAILY SCHEDULE:
+  09:00-12:00  Stream A (3 hours on critical path)
+  12:00-13:00  Lunch + context reset
+  13:00-16:00  Stream B (3 hours on tests)
+  16:00-17:00  Stream C (1 hour on docs)
+  17:00-18:00  Integration check + daily standup
+
+ADVANTAGE OF THIS ORDER:
+  - Critical path (A) done fresh in morning
+  - Tests (B) validate afternoon's work next morning
+  - Docs (C) flexible, can slip if needed
+
+CONTEXT SWITCHING COST: ~5 minutes per switch (usually paid back)
+
+════════════════════════════════════════════════════════════════════════════════
+ SLACK TIME ANALYSIS (Where We Can Absorb Delays)
+════════════════════════════════════════════════════════════════════════════════
+
+STREAM A (Critical Path):
+  Available Slack: 0 hours
+  Status: NO SLACK - any delay impacts Phase 1
+  Risk Tolerance: NONE - must hit daily targets
+  Mitigation: Pre-write code snippets, prepare refactors in advance
+
+STREAM B (Testing):
+  Available Slack: 16 hours (2 days)
+  Status: Can fall up to 2 days and still deliver
+  Risk Tolerance: MEDIUM - some delays acceptable if Stream A on track
+  Mitigation: If slipping, parallelize test writing more (concurrent with code)
+
+STREAM C (Documentation):
+  Available Slack: 32 hours (4 days)
+  Status: Can fall significantly, still acceptable
+  Risk Tolerance: HIGH - most flexible stream
+  Mitigation: If slipping, defer to Phase 1.5 or async update
+
+TOTAL PROJECT SLACK: Can absorb ~3 days of delays and still hit 1-week Phase 1
+
+════════════════════════════════════════════════════════════════════════════════
+ WHAT-IF SCENARIOS
+════════════════════════════════════════════════════════════════════════════════
+
+SCENARIO 1: Layer 1 code takes 2 days instead of 1
+  Impact: Cascades downstream (Layer 2 delayed 1 day, etc.)
+  Result: Phase 1 takes 6 days instead of 5
+  Mitigation: Start Layer 1 immediately, work weekend Day 5 or shift EOD deadline 1 day
+  Probability: 20%
+
+SCENARIO 2: Integration tests fail, need 2 days debugging
+  Impact: Phase 1 pushed to Day 6-7
+  Mitigation: Reduce doc scope (defer to Phase 1.5), focus on code + basic tests
+  Probability: 30%
+
+SCENARIO 3: Model guidance doesn't work as expected
+  Impact: Minimal (it's in system prompt, not blocking code)
+  Mitigation: Fix in Phase 3 or iteratively post-launch
+  Probability: 40%
+  Result: ZERO impact on Phase 1 timeline
+
+SCENARIO 4: Delegate script blocked on Layer 2 API changes
+  Impact: Script delayed, but not blocking Phase 1
+  Mitigation: Complete script in Phase 3 (planned for that phase anyway)
+  Probability: 20%
+  Result: ZERO impact on Phase 1 timeline
+
+SCENARIO 5: Documentation gets too complex
+  Impact: Docs delayed, not blocking code/tests
+  Mitigation: Defer detailed guide to Phase 1.5, release basic guide
+  Probability: 30%
+  Result: Phase 1 still completes on time, docs follow week 2
+
+════════════════════════════════════════════════════════════════════════════════
+ RISK: MERGE CONFLICTS
+════════════════════════════════════════════════════════════════════════════════
+
+CONFLICT RISK: Session-start.py being modified in parallel
+
+SCENARIOS:
+1. Both streamA and B modifying same file
+   - Probability: 60% (same hook file)
+   - Impact: 1-2 hour resolution
+
+PREVENTION:
+  Layer Separation:
+    def layer1_inject_prompt():
+    def layer2_write_env():
+    def layer3_backup_state():
+
+  Git Strategy:
+    Each layer gets own commit after passing tests
+    Merge immediately after validation
+    Never sit on unpushed work
+
+  Code Review:
+    Layer-by-layer PR review
+    Merge before next layer starts
+    Minimizes conflict window
+
+  Rollback:
+    If conflict severe, revert both changes
+    Re-implement sequentially (still on schedule with Stream B parallel)
+
+ACTUAL RISK WITH MITIGATION: <5%
+
+════════════════════════════════════════════════════════════════════════════════
+ DEPENDENCY FLOW (Text Representation)
+════════════════════════════════════════════════════════════════════════════════
+
+Hook Config (Day 1, 30min)
+    ↓
+Layer 1 Code (Day 1-2, 1 day) ←──── Test Setup (Day 1, 4h) ←──── Prompt File
+    ↓                               ↓
+Layer 1 Tests (Day 2, 4h) ←────── Unit Tests (Day 1-2, 7h)
+    ↓
+Layer 2 Code (Day 2-3, 1 day)
+    ↓
+Layer 2 Tests (Day 3, 4h) ←────── More Unit Tests (Day 2-3)
+    ↓
+Layer 3 Code (Day 3-4, 1 day)
+    ↓
+Layer 3 Tests (Day 4, 4h) ←────── More Unit Tests (Day 3-4)
+    ↓
+Integration Tests (Day 4-5, 1 day) ←──── Integration Test Suite (Day 2-4, 8h)
+    ↓
+Final Validation (Day 5, 1 day) ←────── Docs (Day 1-4, 2 days, PARALLEL)
+    ↓                               ←────── Model Guidance (Day 1-2, 1 day, PARALLEL)
+    ↓                               ←────── Delegate Script (Day 2-3, 1 day, PARALLEL)
+    ↓                               ←────── Troubleshooting (Day 2-3, 2h, PARALLEL)
+PHASE 1 COMPLETE
+
+════════════════════════════════════════════════════════════════════════════════
+ TIME SAVINGS BREAKDOWN
+════════════════════════════════════════════════════════════════════════════════
+
+SEQUENTIAL APPROACH:
+  Hook Config:          0.5 days
+  Layer 1:              1 day
+  Layer 1 Tests:        0.5 days
+  Layer 2:              1 day
+  Layer 2 Tests:        0.5 days
+  Layer 3:              1 day
+  Layer 3 Tests:        0.5 days
+  Integration Tests:    1 day
+  Final Validation:     1 day
+  Subtotal (Code):      7 days
+
+  System Prompt:        0.5 days
+  Test Setup:           0.5 days
+  Unit Tests:           1 day
+  Documentation:        2 days
+  Model Guidance:       1 day
+  Delegate Script:      1 day
+  Troubleshooting:      0.5 days
+  Coverage Report:      1 day
+  Subtotal (Tests/Docs): 7.5 days
+
+  TOTAL SEQUENTIAL:     14.5 days
+
+PARALLEL APPROACH (With 3 Streams):
+  Critical Path (A):    5 days (can't be parallelized, linear)
+  Test/Docs (B+C):     2.5 days each (runs in parallel with A)
+
+  TOTAL PARALLEL:       5 days (A is critical)
+
+TIME SAVED: 14.5 - 5 = 9.5 days (65% reduction!)
+
+BUT: With 1 developer (us), context switching adds ~2 hours/day
+     Adjusted: 5 + (1 day overhead) = ~6 calendar days for solo
+
+WITH 3-PERSON TEAM: 5 calendar days with no overhead
+
+════════════════════════════════════════════════════════════════════════════════
+ FINAL NOTES
+════════════════════════════════════════════════════════════════════════════════
+
+✓ Critical path is Hook Implementation (Stream A)
+✓ Testing & Documentation fully parallelizable (Streams B & C)
+✓ Integration points minimized (5 sync points across 5 days)
+✓ Risk mitigation strategies defined for common failure modes
+✓ Slack time available to absorb 2-3 days of delays (Layer 2 complexity, etc.)
+✓ With proper execution, Phase 1 completable in 5-6 calendar days
+
+KEY SUCCESS FACTOR: Don't let Stream A slip. Everything else can adjust.

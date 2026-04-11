@@ -1,0 +1,44 @@
+# HtmlGraph Orchestrator Configuration
+# Controls delegation enforcement behavior
+
+# Detection Thresholds
+thresholds:
+  # Exploration pattern detection
+  # How many consecutive Grep/Read/Glob calls before warning
+  exploration_calls: 5  # Increased from 3 to reduce false positives
+
+  # Circuit breaker
+  # How many violations before blocking all non-core operations
+  circuit_breaker_violations: 5  # Increased from 3 to be less aggressive
+
+  # Time-based decay
+  # Violations older than this don't count toward circuit breaker
+  violation_decay_seconds: 120  # 2 minutes - violations expire
+
+  # Rapid sequence window
+  # Commands within this window count as one violation
+  rapid_sequence_window: 10  # 10 seconds - debounce rapid errors
+
+# Anti-pattern Detection
+anti_patterns:
+  # How many consecutive calls of same tool before warning
+  consecutive_bash: 5   # Increased from 4
+  consecutive_edit: 4   # Increased from 3
+  consecutive_grep: 4   # Increased from 3
+  consecutive_read: 5   # Increased from 4
+
+# Enforcement Modes
+# These define behavior when violations occur
+modes:
+  strict:
+    block_after_violations: true
+    require_work_items: true
+    warn_on_patterns: true
+  moderate:
+    warn_only: true
+    require_work_items: false
+    warn_on_patterns: true
+  guidance:
+    suggestions_only: true
+    require_work_items: false
+    warn_on_patterns: false

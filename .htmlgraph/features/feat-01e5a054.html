@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Batch work item creation from YAML spec — htmlgraph batch apply spec.yaml</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-01e5a054"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-03-28T18:32:05.244715"
+             data-updated="2026-03-28T19:39:07.050298" data-agent-assigned="claude-code" data-track-id="trk-fbe18084">
+
+        <header>
+            <h1>Batch work item creation from YAML spec — htmlgraph batch apply spec.yaml</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-01e5a054-0" data-agent="claude-code">✅ Define YAML schema: track (title, priority, steps[]), features[] (title, priority, steps[], blocked_by[], track ref), links[] (source, target, rel)</li>
+                <li data-completed="true" data-step-id="step-feat-01e5a054-1" data-agent="claude-code">✅ Add htmlgraph batch apply &lt;file.yaml&gt; command that parses the spec, creates all items in dependency order, and sets up all links in one invocation</li>
+                <li data-completed="true" data-step-id="step-feat-01e5a054-2" data-agent="claude-code">✅ Support --dry-run flag that prints what would be created without executing</li>
+                <li data-completed="true" data-step-id="step-feat-01e5a054-3" data-agent="claude-code">✅ Support stdin input (pipe from claude) so agents can generate YAML and pipe directly: echo &#39;yaml...&#39; | htmlgraph batch apply -</li>
+                <li data-completed="true" data-step-id="step-feat-01e5a054-4" data-agent="claude-code">✅ Add htmlgraph batch export &lt;track-id&gt; that exports an existing track &#43; features &#43; links as YAML (round-trip)</li>
+                <li data-completed="true" data-step-id="step-feat-01e5a054-5" data-agent="claude-code">✅ Write tests: parse YAML → create track &#43; 3 features &#43; 2 links → verify all exist with correct relationships</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

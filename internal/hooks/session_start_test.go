@@ -1,0 +1,253 @@
+package hooks
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/models"
+)
+
+func TestSessionStartStoresProjectDir(t *testing.T) {
+	// Set up a temporary project directory with a .htmlgraph subdir.
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph: %v", err)
+	}
+
+	// Open an in-memory SQLite database.
+	database, err := db.Open(filepath.Join(projectDir, ".htmlgraph", "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	sessionID := "test-session-project-dir-001"
+	// Set CWD to the temp projectDir so resolveWorktreeParentSession does not
+	// accidentally read the real .active-session from the developer's worktree.
+	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
+
+	// Unset env vars that would override session ID or mark this as a subagent.
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
+	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("CLAUDE_ENV_FILE", "") // prevent writing to a real env file
+
+	_, err = SessionStart(event, database, projectDir)
+	if err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+
+	// Retrieve the session from DB and verify project_dir is stored.
+	got, err := db.GetSession(database, sessionID)
+	if err != nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	if got.ProjectDir != projectDir {
+		t.Errorf("project_dir mismatch: got %q, want %q", got.ProjectDir, projectDir)
+	}
+}
+
+func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph: %v", err)
+	}
+
+	database, err := db.Open(filepath.Join(projectDir, ".htmlgraph", "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	sessionID := "test-session-active-file-001"
+	// Set CWD to the temp projectDir so resolveWorktreeParentSession does not
+	// accidentally read the real .active-session from the developer's worktree.
+	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
+
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
+	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("CLAUDE_ENV_FILE", "") // force fallback to .active-session
+
+	_, err = SessionStart(event, database, projectDir)
+	if err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+
+	// .active-session should have been written (CLAUDE_ENV_FILE unset path).
+	active := ReadActiveSession(projectDir)
+	if active == nil {
+		t.Fatal("ReadActiveSession returned nil — .active-session not written")
+	}
+	if active.ProjectDir != projectDir {
+		t.Errorf(".active-session project_dir mismatch: got %q, want %q", active.ProjectDir, projectDir)
+	}
+}
+
+// TestSessionStartWorktreeParentSessionIDPopulated verifies that when a
+// subagent session is started with a known parent session ID (as
+// resolveWorktreeParentSession would provide), the new session row gets
+// parent_session_id set and is_subagent = true.
+//
+// We test the upsertSession path directly rather than going through
+// resolveWorktreeParentSession (which requires a real git worktree) to keep
+// the test hermetic.  The FK constraint previously caused INSERT OR IGNORE to
+// silently drop the row when the parent session was absent from the test DB.
+func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
+	// Set up the project directory.
+	mainDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(mainDir, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph: %v", err)
+	}
+
+	database, err := db.Open(filepath.Join(mainDir, ".htmlgraph", "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	// Insert the parent (outer YOLO) session so FK constraint is satisfied.
+	parentSessionID := "parent-yolo-session-001"
+	if err := db.InsertSession(database, &models.Session{
+		SessionID:     parentSessionID,
+		AgentAssigned: "claude-code",
+		Status:        "active",
+		CreatedAt:     time.Now().UTC(),
+		ProjectDir:    mainDir,
+	}); err != nil {
+		t.Fatalf("InsertSession parent: %v", err)
+	}
+
+	// Write .active-session as the outer YOLO session would have done so that
+	// ReadActiveSession can return the parent session ID.
+	WriteActiveSession(parentSessionID, mainDir)
+
+	// Verify ReadActiveSession round-trips correctly.
+	as := ReadActiveSession(mainDir)
+	if as == nil || as.SessionID != parentSessionID {
+		t.Fatalf("ReadActiveSession: got %v, want session_id=%q", as, parentSessionID)
+	}
+
+	// Simulate what SessionStart does after resolveWorktreeParentSession
+	// returns (parentSessionID, true): upsert the subagent session with
+	// parent_session_id and is_subagent = true.
+	subSessionID := "sub-worktree-session-001"
+	if err := upsertSession(database, &models.Session{
+		SessionID:       subSessionID,
+		AgentAssigned:   "claude-code",
+		Status:          "active",
+		CreatedAt:       time.Now().UTC(),
+		ProjectDir:      mainDir,
+		ParentSessionID: parentSessionID,
+		IsSubagent:      true,
+	}); err != nil {
+		t.Fatalf("upsertSession subagent: %v", err)
+	}
+
+	got, err := db.GetSession(database, subSessionID)
+	if err != nil {
+		t.Fatalf("GetSession subagent: %v", err)
+	}
+	if got.ParentSessionID != parentSessionID {
+		t.Errorf("parent_session_id: got %q, want %q", got.ParentSessionID, parentSessionID)
+	}
+	if !got.IsSubagent {
+		t.Error("is_subagent: got false, want true")
+	}
+}
+
+// Regression for bug-71fc095f: Claude Code session 8d53982f had split-brain HTML
+// files in two projects because the user cd'd between projects during the session.
+// Each hook fire resolved projectDir from EventCWD walk-up and wrote the session
+// HTML to whichever project the user was sitting in at the moment.
+//
+// Fix: ResolveProjectDir now prefers CLAUDE_PROJECT_DIR (set at session launch)
+// over EventCWD walk-up, gated on HTMLGRAPH_SESSION_ID being present.
+func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
+	// Project A: where Claude Code was launched (CLAUDE_PROJECT_DIR).
+	projectA := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectA, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in A: %v", err)
+	}
+
+	// Project B: where the user cd'd during the session.
+	projectB := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectB, ".htmlgraph"), 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph in B: %v", err)
+	}
+
+	// Simulate the session environment: CLAUDE_PROJECT_DIR points at A,
+	// HTMLGRAPH_SESSION_ID confirms this is a live session (not a stale shell var).
+	const testSessionID = "regression-bug-71fc095f"
+	t.Setenv("CLAUDE_PROJECT_DIR", projectA)
+	t.Setenv("HTMLGRAPH_SESSION_ID", testSessionID)
+	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
+	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
+
+	// Open DB in project A (the correct project).
+	database, err := db.Open(filepath.Join(projectA, ".htmlgraph", "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	// projectDir is resolved via ResolveProjectDir using the hook's EventCWD=projectB.
+	// Before the fix: returns projectB (CWD walk-up wins). After: returns projectA.
+	resolvedDir := ResolveProjectDir(projectB, testSessionID)
+	if resolvedDir != projectA {
+		t.Errorf("ResolveProjectDir(cwd=projectB) = %q, want projectA %q\n"+
+			"(CLAUDE_PROJECT_DIR should win over EventCWD — bug-71fc095f regression)",
+			resolvedDir, projectA)
+	}
+
+	// Fire SessionStart with the correctly resolved project dir (project A).
+	event := &CloudEvent{SessionID: testSessionID, CWD: projectB}
+	_, err = SessionStart(event, database, resolvedDir)
+	if err != nil {
+		t.Fatalf("SessionStart: %v", err)
+	}
+
+	// Session HTML must land in project A, not project B.
+	sessionHTMLInA := filepath.Join(projectA, ".htmlgraph", "sessions", testSessionID+".html")
+	if _, err := os.Stat(sessionHTMLInA); err != nil {
+		t.Errorf("session HTML not found in project A (%s): %v", sessionHTMLInA, err)
+	}
+	sessionHTMLInB := filepath.Join(projectB, ".htmlgraph", "sessions", testSessionID+".html")
+	if _, err := os.Stat(sessionHTMLInB); err == nil {
+		t.Errorf("session HTML found in project B (%s) — split-brain bug-71fc095f not fixed", sessionHTMLInB)
+	}
+}
+
+func TestInsertAndGetSessionProjectDir(t *testing.T) {
+	dir := t.TempDir()
+	database, err := db.Open(filepath.Join(dir, "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+
+	s := &models.Session{
+		SessionID:     "sess-proj-dir-test",
+		AgentAssigned: "test-agent",
+		Status:        "active",
+		CreatedAt:     time.Now().UTC(),
+		ProjectDir:    "/home/user/myproject",
+	}
+	if err := db.InsertSession(database, s); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+
+	got, err := db.GetSession(database, s.SessionID)
+	if err != nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	if got.ProjectDir != s.ProjectDir {
+		t.Errorf("project_dir round-trip: got %q, want %q", got.ProjectDir, s.ProjectDir)
+	}
+}

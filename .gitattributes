@@ -1,0 +1,9 @@
+# HtmlGraph data files - exclude from language statistics
+.htmlgraph/** linguist-generated
+index.html linguist-generated
+
+# Dashboard template - it's part of the Python package but is HTML
+src/python/htmlgraph/dashboard.html linguist-generated
+
+# Ensure Python is detected as primary language
+*.py linguist-language=Python

@@ -1,0 +1,425 @@
+package hooks
+
+import (
+	"database/sql"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/paths"
+)
+
+// ActiveSessionData is the JSON structure written to .htmlgraph/.active-session
+// as a fallback propagation mechanism when CLAUDE_ENV_FILE is unset (worktree
+// subagents). All fields mirror what writeEnvVars() exports via CLAUDE_ENV_FILE.
+type ActiveSessionData struct {
+	SessionID     string  `json:"session_id"`
+	ParentSession string  `json:"parent_session,omitempty"`
+	ParentAgent   string  `json:"parent_agent,omitempty"`
+	NestingDepth  int     `json:"nesting_depth"`
+	ProjectDir    string  `json:"project_dir,omitempty"`
+	GitRemoteURL  string  `json:"git_remote_url,omitempty"`
+	Timestamp     float64 `json:"timestamp"`
+}
+
+// WriteActiveSession writes session context to .htmlgraph/.active-session so
+// worktree subagent hooks can read session ID even when CLAUDE_ENV_FILE is unset.
+func WriteActiveSession(sessionID, projectDir string) {
+	if projectDir == "" {
+		return
+	}
+	data := ActiveSessionData{
+		SessionID:    sessionID,
+		ParentSession: sessionID,
+		ParentAgent:  "claude-code",
+		NestingDepth: 0,
+		ProjectDir:   projectDir,
+		GitRemoteURL: paths.GetGitRemoteURL(projectDir),
+		Timestamp:    float64(time.Now().UnixNano()) / 1e9,
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	path := filepath.Join(projectDir, ".htmlgraph", ".active-session")
+	_ = os.WriteFile(path, b, 0o644)
+}
+
+// ReadActiveSession reads session context from .htmlgraph/.active-session.
+// Returns nil when the file doesn't exist or can't be parsed.
+func ReadActiveSession(projectDir string) *ActiveSessionData {
+	if projectDir == "" {
+		return nil
+	}
+	path := filepath.Join(projectDir, ".htmlgraph", ".active-session")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var data ActiveSessionData
+	if err := json.Unmarshal(b, &data); err != nil {
+		return nil
+	}
+	return &data
+}
+
+// launchModeFile is the JSON structure written to .htmlgraph/.launch-mode by
+// `htmlgraph claude`. It records how the current Claude session was started.
+type launchModeFile struct {
+	Mode      string `json:"mode"`
+	PID       int    `json:"pid"`
+	Timestamp string `json:"timestamp"`
+}
+
+// bareLaunchNudge returns a context nudge when Claude was started without
+// `htmlgraph claude` (i.e. .launch-mode is missing or older than 30 seconds).
+// Returns an empty string when the orchestrator system prompt is already active.
+func bareLaunchNudge(projectDir string) string {
+	if projectDir == "" {
+		return ""
+	}
+	path := filepath.Join(projectDir, ".htmlgraph", ".launch-mode")
+	info, err := os.Stat(path)
+	if err == nil {
+		// File exists — check if it was written within the last 30 seconds.
+		if time.Since(info.ModTime()) <= 30*time.Second {
+			return ""
+		}
+	}
+	return "HtmlGraph plugin is active in this project. For the best experience with orchestrated delegation, " +
+		"work tracking, and quality gates, use the /htmlgraph:orchestrator-directives-skill for guidance " +
+		"on how to delegate work, select models, and manage tasks. You can also start sessions with " +
+		"`htmlgraph claude` for automatic orchestrator mode."
+}
+
+// SessionStart handles the SessionStart Claude Code hook event.
+// It upserts a session row in SQLite and writes environment variables for
+// downstream hooks via CLAUDE_ENV_FILE.
+func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
+	handlerStart := time.Now()
+
+	sessionID := NormaliseSessionID(event.SessionID)
+	if sessionID == "" {
+		sessionID = os.Getenv("CLAUDE_SESSION_ID")
+	}
+	if sessionID == "" {
+		sessionID = uuid.New().String()
+	}
+
+	now := time.Now().UTC()
+	shortID := sessionID[:minSessionLen(sessionID)]
+
+	// Launch headCommit in a goroutine — I/O-bound, no data dependency with writeEnvVars.
+	commitCh := make(chan string, 1)
+	go func() {
+		commitCh <- headCommit(projectDir)
+	}()
+
+	// Propagate session ID to downstream hooks while git is running.
+	writeEnvVars(sessionID, projectDir)
+
+	// Wait for git result — upsertSession needs the commit hash.
+	startCommit := <-commitCh
+
+	s := &models.Session{
+		SessionID:       sessionID,
+		AgentAssigned:   resolveEventAgentID(event),
+		Status:          "active",
+		CreatedAt:       now,
+		StartCommit:     startCommit,
+		IsSubagent:      isSubagentEvent(event) || isSubagent(),
+		Model:           os.Getenv("CLAUDE_MODEL"),
+		ParentSessionID: os.Getenv("HTMLGRAPH_PARENT_SESSION"),
+		ParentEventID:   os.Getenv("HTMLGRAPH_PARENT_EVENT"),
+		GitRemoteURL:    paths.GetGitRemoteURL(projectDir),
+		ProjectDir:      projectDir,
+	}
+
+	// Prefer CloudEvent fields over env vars (more reliable).
+	if event.Model != "" {
+		s.Model = event.Model
+	}
+
+	// Resolve lineage inputs before opening the transaction (read-only queries).
+	var inp *lineageInputs
+	if s.IsSubagent && s.ParentSessionID != "" {
+		featureID := GetActiveFeatureID(database, s.SessionID)
+		inp = resolveParentLineage(event, database, s.ParentSessionID, featureID)
+	}
+
+	// Batch all writes into a single transaction: session upsert + lineage inserts.
+	txStart := time.Now()
+	if err := runSessionTransaction(database, s, inp); err != nil {
+		debugLog(projectDir, "[session-start] transaction failed (session=%s): %v", shortID, err)
+	}
+	LogTimed(projectDir, "session-start", map[string]string{
+		"phase":   "db-tx",
+		"session": shortID,
+	}, txStart, "transaction complete")
+
+	// Write canonical session HTML file (non-critical, errors silently logged).
+	CreateSessionHTML(projectDir, s)
+
+	// Sweep orphans from any previous sessions in this project — closes out
+	// tool calls that crashed mid-flight so session history stays consistent.
+	SweepOrphanedEventsForProject(database, projectDir)
+
+	LogTimed(projectDir, "session-start", map[string]string{
+		"session": shortID,
+	}, handlerStart, "handler complete")
+
+	// Store transcript path if provided by CloudEvent.
+	if event.TranscriptPath != "" {
+		_, _ = database.Exec(`UPDATE sessions SET transcript_path = ? WHERE session_id = ?`,
+			event.TranscriptPath, sessionID)
+	}
+
+	// Warn the user when the CLI and plugin versions have drifted.
+	warning := versionMismatchWarning()
+	if warning != "" {
+		debugLog(projectDir, "[session-start] version mismatch detected: %s", warning)
+		return &HookResult{AdditionalContext: warning}, nil
+	}
+
+	// Nudge the user toward the orchestrator skill when Claude was launched
+	// without `htmlgraph claude` (bare launch — no orchestrator system prompt).
+	if nudge := bareLaunchNudge(projectDir); nudge != "" {
+		return &HookResult{AdditionalContext: nudge}, nil
+	}
+
+	return &HookResult{}, nil
+}
+
+// lineageInputs holds pre-resolved data needed to insert lineage traces inside
+// the transaction. All fields are computed from read-only DB queries before
+// the transaction begins.
+type lineageInputs struct {
+	featureID     string
+	rootSessionID string
+	parentSessionID string
+	depth         int
+	path          []string
+	parentAgent   string
+	myAgent       string
+	needsRootSeed bool
+}
+
+// resolveParentLineage reads the parent's lineage record and builds the inputs
+// for the child trace. Pure reads — must be called before the transaction.
+func resolveParentLineage(event *CloudEvent, database *sql.DB, parentSessionID, featureID string) *lineageInputs {
+	parent, _ := db.GetLineageBySession(database, parentSessionID)
+	inp := &lineageInputs{
+		myAgent:         resolveEventAgentID(event),
+		featureID:       featureID,
+		parentSessionID: parentSessionID,
+	}
+
+	if parent != nil {
+		inp.rootSessionID = parent.RootSessionID
+		inp.depth = parent.Depth + 1
+		inp.path = make([]string, len(parent.Path)+1)
+		copy(inp.path, parent.Path)
+		inp.path[len(parent.Path)] = inp.myAgent
+	} else {
+		// No parent trace: treat parent as root and seed its entry.
+		inp.rootSessionID = parentSessionID
+		inp.depth = 1
+		inp.parentAgent = "claude-code"
+		inp.path = []string{inp.parentAgent, inp.myAgent}
+		inp.needsRootSeed = true
+	}
+	return inp
+}
+
+// runSessionTransaction batches the session upsert and optional lineage inserts
+// into a single SQLite transaction, reducing per-operation journal sync overhead.
+func runSessionTransaction(database *sql.DB, s *models.Session, inp *lineageInputs) error {
+	tx, err := database.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if err := upsertSessionTx(tx, s); err != nil {
+		return err
+	}
+
+	if inp != nil {
+		if err := insertLineageTracesTx(tx, inp, s.SessionID); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// upsertSessionTx inserts the session row within a transaction,
+// ignoring duplicate-key conflicts (session may already exist on resume).
+func upsertSessionTx(tx *sql.Tx, s *models.Session) error {
+	_, err := tx.Exec(`
+		INSERT OR IGNORE INTO sessions
+			(session_id, agent_assigned, parent_session_id, parent_event_id,
+			 created_at, status, start_commit, is_subagent, model, active_feature_id,
+			 git_remote_url, project_dir)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.SessionID,
+		s.AgentAssigned,
+		nullableStr(s.ParentSessionID),
+		nullableStr(s.ParentEventID),
+		s.CreatedAt.UTC().Format(time.RFC3339),
+		s.Status,
+		nullableStr(s.StartCommit),
+		s.IsSubagent,
+		nullableStr(s.Model),
+		nullableStr(s.ActiveFeatureID),
+		nullableStr(s.GitRemoteURL),
+		nullableStr(s.ProjectDir),
+	)
+	return err
+}
+
+// insertLineageTracesTx inserts lineage trace rows within an existing transaction.
+func insertLineageTracesTx(tx *sql.Tx, inp *lineageInputs, sessionID string) error {
+	now := time.Now().UTC()
+
+	if inp.needsRootSeed {
+		rootTrace := &models.LineageTrace{
+			TraceID:       inp.parentSessionID,
+			RootSessionID: inp.parentSessionID,
+			SessionID:     inp.parentSessionID,
+			AgentName:     inp.parentAgent,
+			Depth:         0,
+			Path:          []string{inp.parentAgent},
+			FeatureID:     inp.featureID,
+			StartedAt:     now,
+			Status:        "active",
+		}
+		if err := db.InsertLineageTraceExecer(tx, rootTrace); err != nil {
+			return err
+		}
+	}
+
+	trace := &models.LineageTrace{
+		TraceID:       sessionID,
+		RootSessionID: inp.rootSessionID,
+		SessionID:     sessionID,
+		AgentName:     inp.myAgent,
+		Depth:         inp.depth,
+		Path:          inp.path,
+		FeatureID:     inp.featureID,
+		StartedAt:     now,
+		Status:        "active",
+	}
+	return db.InsertLineageTraceExecer(tx, trace)
+}
+
+// upsertSession inserts the session row, ignoring duplicate-key conflicts.
+// Kept for test compatibility (session_start_test.go calls it directly).
+func upsertSession(database *sql.DB, s *models.Session) error {
+	tx, err := database.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	if err := upsertSessionTx(tx, s); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// writeEnvVars appends session context exports to CLAUDE_ENV_FILE and always
+// writes .htmlgraph/.active-session as a backup. The .active-session file
+// ensures downstream hooks can resolve the session ID even when CLAUDE_ENV_FILE
+// is unavailable (YOLO mode, worktree subagents, plugin-dir launches).
+func writeEnvVars(sessionID, projectDir string) {
+	// Always write .active-session as backup — prevents stale session IDs.
+	WriteActiveSession(sessionID, projectDir)
+
+	envFile := os.Getenv("CLAUDE_ENV_FILE")
+	if envFile == "" {
+		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — using .active-session only (session_id=%s)", sessionID)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(envFile), 0o755); err != nil {
+		debugLog(projectDir, "[htmlgraph] failed to create CLAUDE_ENV_FILE dir %s: %v", filepath.Dir(envFile), err)
+		return
+	}
+	f, err := os.OpenFile(envFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		debugLog(projectDir, "[htmlgraph] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
+		return
+	}
+	defer f.Close()
+
+	lines := []string{
+		"export HTMLGRAPH_SESSION_ID=" + sessionID,
+		"export HTMLGRAPH_PARENT_SESSION=" + sessionID,
+		"export HTMLGRAPH_PARENT_AGENT=claude-code",
+		"export HTMLGRAPH_NESTING_DEPTH=0",
+	}
+	if projectDir != "" {
+		lines = append(lines, "export CLAUDE_PROJECT_DIR="+projectDir)
+	}
+	f.WriteString(strings.Join(lines, "\n") + "\n")
+}
+
+// headCommit returns the short HEAD git hash, or empty string on failure.
+func headCommit(dir string) string {
+	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// isSubagent returns true when env vars indicate this is a spawned subagent.
+// Falls back to checking .active-session when env vars are absent (worktrees).
+func isSubagent() bool {
+	if os.Getenv("HTMLGRAPH_PARENT_SESSION") != "" {
+		return os.Getenv("HTMLGRAPH_NESTING_DEPTH") != "0"
+	}
+	// Env vars not set — check if .active-session was written by the parent.
+	// Worktree subagents get a fresh environment so HTMLGRAPH_PARENT_SESSION
+	// won't be propagated, but the .active-session file is project-scoped.
+	return false
+}
+
+// nullableStr converts an empty string to a typed nil for sql.NullString use.
+// We pass the raw string and rely on the db.nullStr helper via the db package;
+// here we return sql.NullString directly for convenience.
+func nullableStr(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
+// GetActiveFeatureID looks up the active_feature_id for a session.
+func GetActiveFeatureID(database *sql.DB, sessionID string) string {
+	var featID sql.NullString
+	row := database.QueryRow(
+		`SELECT active_feature_id FROM sessions WHERE session_id = ?`, sessionID,
+	)
+	_ = row.Scan(&featID)
+	return featID.String
+}
+
+// UpdateActiveFeature sets active_feature_id on the session row.
+func UpdateActiveFeature(database *sql.DB, sessionID, featureID string) error {
+	_, err := database.Exec(
+		`UPDATE sessions SET active_feature_id = ?, updated_at = ? WHERE session_id = ?`,
+		nullableStr(featureID), time.Now().UTC().Format(time.RFC3339), sessionID,
+	)
+	return err
+}
+
+// ensure db package is referenced (used via db.nullStr in other files).
+var _ = db.InsertSession

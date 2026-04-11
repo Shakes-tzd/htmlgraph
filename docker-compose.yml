@@ -1,0 +1,2 @@
+services:
+  # Dashboard service removed — phoenix-dashboard no longer used (Go binary-only)

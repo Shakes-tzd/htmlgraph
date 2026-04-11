@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Implement Drift Filtering for Infrastructure Files</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chore-implement-drift-filtering"
+             data-type="chore"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-16T20:30:00+00:00"
+             data-updated="2025-12-16T20:30:00+00:00" data-agent-assigned="claude">
+
+        <header>
+            <h1>Implement Drift Filtering for Infrastructure Files</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="related">
+                <h3>Related:</h3>
+                <ul>
+                    <li><a href="spike-classify-high-drift-activities.html" data-relationship="related">Drift Classification Spike</a></li>
+                    <li><a href="chore-drift-classification-consolidation.html" data-relationship="related">Consolidation Chore</a></li>
+                    <li><a href="feature-self-tracking.html" data-relationship="related">Self-Tracking Feature</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked-by">
+                <h3>Blocked-By:</h3>
+                <ul>
+                    <li><a href="spike-classify-high-drift-activities.html" data-relationship="blocked-by">Drift Classification Spike (investigative findings)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="unblocks">
+                <h3>Unblocks:</h3>
+                <ul>
+                    <li><a href="feature-self-tracking.html" data-relationship="unblocks">Self-Tracking Feature (removes false drift signals)</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Type</dt>
+                <dd data-key="type" data-value="None">None</dd>
+<dt>Trigger</dt>
+                <dd data-key="trigger" data-value="None">None</dd>
+<dt>Root-Cause</dt>
+                <dd data-key="root-cause" data-value="None">None</dd>
+<dt>Impact</dt>
+                <dd data-key="impact" data-value="None">None</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false">⏳ Update drift calculation to exclude .htmlgraph/** files</li>
+                <li data-completed="false">⏳ Implement filter in src/python/htmlgraph/watch.py or event_migration.py</li>
+                <li data-completed="false">⏳ Cleanse drift-queue.json of self-referential entries</li>
+                <li data-completed="false">⏳ Add unit tests for drift filtering logic in tests/python/</li>
+                <li data-completed="false">⏳ Document drift classification rules in project CLAUDE.md</li>
+                <li data-completed="false">⏳ Verify feature-self-tracking proceeds without drift warnings</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Implementation task to resolve false-positive drift signals from infrastructure file reads. The spike analysis identified that .htmlgraph/* metadata reads should not count as off-topic work.
+High-Drift Activities Analyzed (0.71 drift):
+Write: chore-setup-htmlgraph-tracker.html Read: chore-drift-classification-consolidation.html Read: spike-classify-high-drift-activities.html Read: feature-self-tracking.html Bash: Directory exploration (.htmlgraph structure)
+Classification Result: CHORE
+Reasoning: These activities are infrastructure/maintenance work (system self-tracking), not off-topic drift. The high drift score is a false positive.
+Solution Design:
+Filter List: Exclude paths matching: .htmlgraph/drift-queue.json .htmlgraph/events/* .htmlgraph/sessions/* .htmlgraph/chores/* .htmlgraph/spikes/* .htmlgraph/features/* .htmlgraph/bugs/* Implementation Location: src/python/htmlgraph/event_migration.py or dedicated drift_filter.py module Configuration: Add exclusion patterns to CLAUDE.md for documentation
+Acceptance Criteria:
+✓ Drift-queue.json no longer contains self-referential .htmlgraph/* entries ✓ Feature-self-tracking progression unaffected by infrastructure reads ✓ New unit tests validate filtering accuracy ✓ No regression in legitimate drift detection ✓ Rules documented in project CLAUDE.md
+        </section>
+    </article>
+</body>
+</html>

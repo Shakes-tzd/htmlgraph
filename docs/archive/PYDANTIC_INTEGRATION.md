@@ -1,0 +1,1 @@
+architecture/pydantic-integration.md

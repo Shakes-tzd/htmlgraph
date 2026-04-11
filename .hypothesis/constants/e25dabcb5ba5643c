@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/sdk/delegation_warnings.py
+# hypothesis_version: 6.151.9
+
+['...', '.htmlgraph', '1', 'Bash', 'Edit', 'Explore', 'Glob', 'Grep', 'NotebookEdit', 'Read', 'Write', 'command', 'file_path', 'general-purpose', 'pattern', 'track_tool_execution']

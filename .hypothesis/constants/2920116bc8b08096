@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/work_type_utils.py
+# hypothesis_version: 6.151.9
+
+['bug-', 'chore-', 'doc-', 'documentation', 'feat-', 'feature-', 'plan-', 'planning', 'spike-']

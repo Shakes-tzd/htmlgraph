@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Code-Operator Agent with Hook-Based Copilot Compliance</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-6b3c41a8"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-03-26T09:36:19.089252"
+             data-updated="2026-03-26T13:47:06.025530+00:00" data-agent-assigned="orchestrator" data-track-id="trk-674685d5">
+
+        <header>
+            <h1>Code-Operator Agent with Hook-Based Copilot Compliance</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="sess-1a2e1e1d.html" data-relationship="implemented-in" data-since="2026-03-26T09:36:24.404279">sess-1a2e1e1d</a></li>
+                    <li><a href="sess-6cafaa64.html" data-relationship="implemented-in" data-since="2026-03-26T09:41:47.136724">sess-6cafaa64</a></li>
+                    <li><a href="abfaeabd-c6e6-4109-a575-06e0b9548eb7.html" data-relationship="implemented-in" data-since="2026-03-26T09:47:06.025513">abfaeabd-c6e6-4109-a575-06e0b9548eb7</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-03-26T09:47:06.014223">2026-03-26T09:47:06.014223</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'abfaeabd-c6e6-4109-a575-06e0b9548eb7', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 56, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 11, 'description': 'Multiple edits without testing - run tests between changes'}, {'sequence': ['Read', 'Read', 'Read'], 'count': 4, 'description': 'Excessive reading - take notes or use grep to find specific content'}], 'errors': [], 'error_count': 0, 'efficiency': 0.6202783300198806, 'issues': ['High retry rate: 29%', 'Excessive context rebuilds: 45', 'High test run count: 6'], 'recommendations': ['Consider reading more context before acting', 'Cache file contents or take notes', 'Consider fixing tests in one batch to reduce test iterations'], 'test_runs': [{'command': 'Check pytest output', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Wait for pytest and check output', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Read pytest output file directly', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Run pytest directly with timeout', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Run full pytest suite with timeout, foreground', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Poll pytest output file after 30s', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}], 'test_summary': '✓ 6 test runs', 'summary': '⚠️ Issues: 71 anti-pattern occurrences, low efficiency (62%), ✓ 6 test runs'}">{'session_id': 'abfaeabd-c6e6-4109-a575-06e0b9548eb7', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 56, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 11, 'description': 'Multiple edits without testing - run tests between changes'}, {'sequence': ['Read', 'Read', 'Read'], 'count': 4, 'description': 'Excessive reading - take notes or use grep to find specific content'}], 'errors': [], 'error_count': 0, 'efficiency': 0.6202783300198806, 'issues': ['High retry rate: 29%', 'Excessive context rebuilds: 45', 'High test run count: 6'], 'recommendations': ['Consider reading more context before acting', 'Cache file contents or take notes', 'Consider fixing tests in one batch to reduce test iterations'], 'test_runs': [{'command': 'Check pytest output', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Wait for pytest and check output', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Read pytest output file directly', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Run pytest directly with timeout', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Run full pytest suite with timeout, foreground', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}, {'command': 'Poll pytest output file after 30s', 'success': True, 'passed': None, 'failed': None, 'skipped': None, 'errors': None}], 'test_summary': '✓ 6 test runs', 'summary': '⚠️ Issues: 71 anti-pattern occurrences, low efficiency (62%), ✓ 6 test runs'}</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-0">⏳ Create code-operator agent at packages/claude-plugin/agents/code-operator.md with try-copilot-first system prompt</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-1">⏳ Add copilot_attempted tracking to PreToolUse hook: record per-agent_id flag when Bash copilot call detected</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-2">⏳ Add git-write compliance check: deny git commit/push from subagents without prior copilot attempt</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-3">⏳ Add SubagentStop audit: query agent_events for copilot vs git-direct calls, report compliance</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-4">⏳ Add copilot compliance section to /htmlgraph:diagnose output</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-5">⏳ Update orchestrator directives: delegate git/code ops to code-operator agent</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-6">⏳ Deprecate /htmlgraph:copilot skill in favor of code-operator agent</li>
+                <li data-completed="false" data-step-id="step-feat-6b3c41a8-7">⏳ Integration tests: copilot attempted then git allowed, copilot skipped then git denied, compliance audit</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

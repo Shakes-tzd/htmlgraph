@@ -1,0 +1,746 @@
+package main
+
+import (
+	"fmt"
+	"html"
+	htmltemplate "html/template"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/planyaml"
+	"github.com/shakestzd/htmlgraph/internal/plantmpl"
+	"github.com/shakestzd/htmlgraph/internal/workitem"
+	"github.com/spf13/cobra"
+)
+
+// planCreateFromTopicCmd creates a plan node directly from a topic,
+// without requiring a pre-existing track or feature.
+func planCreateFromTopicCmd() *cobra.Command {
+	var description string
+	cmd := &cobra.Command{
+		Use:   "create <title>",
+		Short: "Create a plan from a topic",
+		Long: `Create a plan node from a title and optional description.
+
+Unlike 'plan generate' (which scaffolds from an existing work item), this
+creates a standalone plan for design-first workflows. Add slices with
+'plan add-slice', questions with 'plan add-question', then review and finalize.
+
+Example:
+  htmlgraph plan create "Auth Middleware Rewrite" --description "Rewrite for compliance"`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			htmlgraphDir, err := findHtmlgraphDir()
+			if err != nil {
+				return err
+			}
+			planID, err := createPlanFromTopic(htmlgraphDir, args[0], description)
+			if err != nil {
+				return err
+			}
+			planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+			fmt.Println(planPath)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&description, "description", "", "plan description")
+	return cmd
+}
+
+// createPlanFromTopic creates a plan node and scaffolds the CRISPI interactive
+// template. Returns the plan ID (e.g. plan-a1b2c3d4).
+func createPlanFromTopic(htmlgraphDir, title, description string) (string, error) {
+	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+	if err != nil {
+		return "", fmt.Errorf("open project: %w", err)
+	}
+	defer p.Close()
+
+	opts := []workitem.PlanOption{
+		workitem.PlanWithPriority("medium"),
+	}
+	if description != "" {
+		opts = append(opts, workitem.PlanWithContent(description))
+	}
+
+	node, err := p.Plans.Create(title, opts...)
+	if err != nil {
+		return "", fmt.Errorf("create plan: %w", err)
+	}
+
+	// Create the YAML scaffold (source of truth for plan content).
+	yamlPath := filepath.Join(htmlgraphDir, "plans", node.ID+".yaml")
+	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
+		emptyPlan := planyaml.NewPlan(node.ID, title, description)
+		if err := planyaml.Save(yamlPath, emptyPlan); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not create YAML scaffold: %v\n", err)
+		}
+	}
+
+	// HTML stays minimal (workitem registration only).
+	// Use `plan render <id>` to generate full HTML from YAML.
+	return node.ID, nil
+}
+
+// scaffoldCRISPIPlan renders the CRISPI interactive plan HTML using the
+// typed plantmpl package. This produces the full interactive HTML with
+// dagre graphs, approval checkboxes, progress bars, and the finalize button.
+func scaffoldCRISPIPlan(htmlgraphDir, planID, title, description string) error {
+	plansDir := filepath.Join(htmlgraphDir, "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		return fmt.Errorf("create plans dir: %w", err)
+	}
+
+	page := plantmpl.BuildFromTopic(planID, title, description, time.Now().UTC().Format("2006-01-02"))
+
+	outPath := filepath.Join(plansDir, planID+".html")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return fmt.Errorf("create plan file: %w", err)
+	}
+	defer f.Close()
+
+	return page.Render(f)
+}
+
+// scaffoldCRISPIPlanFromNode regenerates the CRISPI template from a full node,
+// including any existing slices (steps). Used by the re-scaffold path.
+func scaffoldCRISPIPlanFromNode(htmlgraphDir string, node *models.Node) error {
+	plansDir := filepath.Join(htmlgraphDir, "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		return fmt.Errorf("create plans dir: %w", err)
+	}
+
+	page := plantmpl.BuildFromWorkItem(
+		node.ID, node.TrackID, node.Title, node.Content,
+		time.Now().UTC().Format("2006-01-02"),
+	)
+
+	// Convert node steps into typed SliceCards and GraphNodes.
+	for i, step := range node.Steps {
+		num := i + 1
+		page.Slices = append(page.Slices, plantmpl.SliceCard{
+			Num:    num,
+			Title:  step.Description,
+			Status: "pending",
+		})
+		page.Graph = ensureGraph(page.Graph)
+		page.Graph.Nodes = append(page.Graph.Nodes, plantmpl.GraphNode{
+			Num:    num,
+			Name:   step.Description,
+			Status: "pending",
+		})
+	}
+
+	// Enrich with Questions and Critique from the YAML file if present.
+	enrichPageFromYAML(htmlgraphDir, node.ID, page)
+
+	outPath := filepath.Join(plansDir, node.ID+".html")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return fmt.Errorf("create plan file: %w", err)
+	}
+	defer f.Close()
+
+	return page.Render(f)
+}
+
+// ensureGraph lazily initializes the DependencyGraph if nil.
+func ensureGraph(g *plantmpl.DependencyGraph) *plantmpl.DependencyGraph {
+	if g == nil {
+		return &plantmpl.DependencyGraph{}
+	}
+	return g
+}
+
+// enrichPageFromYAML loads the YAML plan file (if it exists) and populates
+// page.Questions and page.Critique from the YAML data. This bridges the
+// planyaml data model to the plantmpl rendering structs.
+// If the YAML file does not exist the function is a no-op.
+func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
+	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	plan, err := planyaml.Load(yamlPath)
+	if err != nil {
+		if _, statErr := os.Stat(yamlPath); os.IsNotExist(statErr) {
+			log.Printf("enrichPageFromYAML: no YAML found for %s (expected %s)", planID, yamlPath)
+		}
+		return
+	}
+
+	// Map meta fields when the page was built with empty/default values.
+	if page.Title == "" && plan.Meta.Title != "" {
+		page.Title = plan.Meta.Title
+	}
+	if page.Description == "" && plan.Meta.Description != "" {
+		page.Description = plan.Meta.Description
+	}
+	if plan.Meta.Status != "" {
+		page.Status = plan.Meta.Status
+	}
+	if plan.Meta.TrackID != "" && page.FeatureID == "" {
+		page.FeatureID = plan.Meta.TrackID
+	}
+	// Always prefer the original creation date from the YAML over the render-time
+	// default set by BuildFromTopic/BuildFromWorkItem. The render-time default was
+	// misleading on re-render (header read "Created [today]" even for old plans).
+	if plan.Meta.CreatedAt != "" {
+		page.Date = plan.Meta.CreatedAt
+	}
+	// Surface the monotonic version counter from meta.version so the header can
+	// show the plan's current revision (v1, v2, v3, ...).
+	if plan.Meta.Version > 0 {
+		page.Version = plan.Meta.Version
+	}
+
+	// Map design section (problem + goals + constraints → HTML).
+	if plan.Design.Problem != "" || len(plan.Design.Goals) > 0 {
+		var b strings.Builder
+		if plan.Design.Problem != "" {
+			b.WriteString("<h4>Problem</h4>\n<div data-markdown>")
+			b.WriteString(html.EscapeString(plan.Design.Problem))
+			b.WriteString("</div>\n")
+		}
+		if len(plan.Design.Goals) > 0 {
+			b.WriteString("<h4>Goals</h4>\n<ol>\n")
+			for _, g := range plan.Design.Goals {
+				b.WriteString("<li data-markdown>")
+				b.WriteString(html.EscapeString(g))
+				b.WriteString("</li>\n")
+			}
+			b.WriteString("</ol>\n")
+		}
+		if len(plan.Design.Constraints) > 0 {
+			b.WriteString("<h4>Constraints</h4>\n<ul>\n")
+			for _, c := range plan.Design.Constraints {
+				b.WriteString("<li data-markdown>")
+				b.WriteString(html.EscapeString(c))
+				b.WriteString("</li>\n")
+			}
+			b.WriteString("</ul>\n")
+		}
+		page.Design = &plantmpl.DesignSection{
+			Content: htmltemplate.HTML(b.String()), //nolint:gosec
+		}
+	}
+
+	// Map slices from YAML (overrides any existing slices from node steps).
+	if len(plan.Slices) > 0 {
+		page.Slices = nil
+		page.Graph = &plantmpl.DependencyGraph{}
+		for _, s := range plan.Slices {
+			depsStr := ""
+			for i, d := range s.Deps {
+				if i > 0 {
+					depsStr += ","
+				}
+				depsStr += fmt.Sprintf("%d", d)
+			}
+			filesStr := strings.Join(s.Files, ", ")
+			page.Slices = append(page.Slices, plantmpl.SliceCard{
+				Num:      s.Num,
+				ID:       s.ID,
+				Title:    s.Title,
+				What:     s.What,
+				Why:      s.Why,
+				DoneWhen: s.DoneWhen,
+				Tests:    s.Tests,
+				Effort:   s.Effort,
+				Risk:     s.Risk,
+				Deps:     depsStr,
+				Files:    filesStr,
+				Status:   "pending",
+			})
+			page.Graph.Nodes = append(page.Graph.Nodes, plantmpl.GraphNode{
+				Num:    s.Num,
+				Name:   s.Title,
+				Deps:   depsStr,
+				Files:  len(s.Files),
+				Status: "pending",
+			})
+		}
+	}
+
+	// Map questions to DecisionCards.
+	// Only set Selected when a human has explicitly answered (q.Answer != nil).
+	// Recommended is highlighted but not pre-selected.
+	if len(plan.Questions) > 0 {
+		var cards []plantmpl.DecisionCard
+		for _, q := range plan.Questions {
+			var opts []string
+			for _, o := range q.Options {
+				opts = append(opts, o.Label)
+			}
+			// Map answer key to label for template comparison
+			selected := ""
+			if q.Answer != nil {
+				for _, o := range q.Options {
+					if o.Key == *q.Answer {
+						selected = o.Label
+						break
+					}
+				}
+			}
+			// Find the recommended option's label
+			recommended := ""
+			if q.Recommended != "" {
+				for _, o := range q.Options {
+					if o.Key == q.Recommended {
+						recommended = o.Label
+						break
+					}
+				}
+			}
+			cards = append(cards, plantmpl.DecisionCard{
+				ID:          q.ID,
+				Text:        q.Text,
+				Options:     opts,
+				Selected:    selected,
+				Recommended: recommended,
+			})
+		}
+		page.Questions = &plantmpl.QuestionsSection{Cards: cards}
+	}
+
+	// Map critique section.
+	if plan.Critique != nil {
+		cz := &plantmpl.CritiqueZone{}
+
+		for _, a := range plan.Critique.Assumptions {
+			cz.Assumptions = append(cz.Assumptions, plantmpl.AssumptionResult{
+				Text:     a.Text,
+				Badge:    a.Status,
+				Evidence: a.Evidence,
+			})
+		}
+
+		for _, r := range plan.Critique.Risks {
+			cz.RiskTable = append(cz.RiskTable, plantmpl.RiskRow{
+				Risk:       r.Risk,
+				Severity:   r.Severity,
+				Mitigation: r.Mitigation,
+			})
+		}
+
+		if plan.Critique.Synthesis != "" {
+			cz.Synthesis = htmltemplate.HTML(html.EscapeString(plan.Critique.Synthesis)) //nolint:gosec
+		}
+
+		// Positional mapping: Critics[0] → first critic, Critics[1] → second critic.
+		// Use reviewer names from YAML as titles, falling back to critic titles.
+		if len(plan.Critique.Critics) > 0 {
+			cz.GeminiCritique = renderCriticSectionHTML(plan.Critique.Critics[0])
+			if len(plan.Critique.Reviewers) > 0 {
+				cz.GeminiTitle = plan.Critique.Reviewers[0]
+			} else {
+				cz.GeminiTitle = plan.Critique.Critics[0].Title
+			}
+		}
+		if len(plan.Critique.Critics) > 1 {
+			cz.CopilotCritique = renderCriticSectionHTML(plan.Critique.Critics[1])
+			if len(plan.Critique.Reviewers) > 1 {
+				cz.CopilotTitle = plan.Critique.Reviewers[1]
+			} else {
+				cz.CopilotTitle = plan.Critique.Critics[1].Title
+			}
+		}
+
+		page.Critique = cz
+	}
+}
+
+// renderCriticSectionHTML converts a planyaml.CriticSection into safe HTML
+// for embedding in the CritiqueZone template slots.
+func renderCriticSectionHTML(c planyaml.CriticSection) htmltemplate.HTML {
+	var b strings.Builder
+	for _, sub := range c.Sections {
+		b.WriteString("<h5>")
+		b.WriteString(html.EscapeString(sub.Heading))
+		b.WriteString("</h5>\n<ul>\n")
+		for _, item := range sub.Items {
+			b.WriteString(`  <li><span class="badge badge-`)
+			b.WriteString(html.EscapeString(item.Kind))
+			b.WriteString(`">`)
+			b.WriteString(html.EscapeString(item.Badge))
+			b.WriteString("</span> ")
+			b.WriteString(html.EscapeString(item.Text))
+			b.WriteString("</li>\n")
+		}
+		b.WriteString("</ul>\n")
+	}
+	return htmltemplate.HTML(b.String()) //nolint:gosec
+}
+
+// ---- plan render ------------------------------------------------------------
+
+// planRenderCmd regenerates plan HTML from YAML using the dashboard template.
+func planRenderCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "render <plan-id>",
+		Short: "Regenerate plan HTML from YAML source",
+		Long: `Render plan HTML from YAML using the same template that powers the
+dashboard plan detail view. The YAML file is the source of truth; the
+HTML file is the rendered artifact.
+
+Example:
+  htmlgraph plan render plan-abc12345`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runPlanRender(args[0])
+		},
+	}
+}
+
+func runPlanRender(planID string) error {
+	htmlgraphDir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+	return renderPlanToFile(htmlgraphDir, planID)
+}
+
+// renderPlanToFile regenerates plan HTML from the YAML source using the
+// dashboard template. Called by the CLI command and tests.
+func renderPlanToFile(htmlgraphDir, planID string) error {
+	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	if _, err := os.Stat(yamlPath); err != nil {
+		return fmt.Errorf("YAML source not found: %s\nRun 'htmlgraph plan generate <track-id>' to create a plan", yamlPath)
+	}
+
+	page := plantmpl.BuildFromTopic(planID, "", "", time.Now().UTC().Format("2006-01-02"))
+	enrichPageFromYAML(htmlgraphDir, planID, page)
+
+	if page.Title == "" {
+		page.Title = planID
+	}
+
+	outPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return fmt.Errorf("create HTML file: %w", err)
+	}
+	defer f.Close()
+
+	if err := page.Render(f); err != nil {
+		return fmt.Errorf("render plan: %w", err)
+	}
+
+	fmt.Printf("Rendered %s → %s (%d slices)\n", planID, outPath, len(page.Slices))
+	return nil
+}
+
+// ---- plan add-slice ---------------------------------------------------------
+
+// sliceFlags holds optional metadata for a new slice card.
+type sliceFlags struct {
+	description string
+	effort      string
+	risk        string
+	deps        string
+	files       string
+}
+
+// planAddSliceCmd adds a new vertical slice (as a step) to an existing plan.
+func planAddSliceCmd() *cobra.Command {
+	var sf sliceFlags
+	cmd := &cobra.Command{
+		Use:   "add-slice <plan-id> <title>",
+		Short: "(deprecated) Add a vertical slice to a plan",
+		Long: `Add a new slice as a step to an existing plan.
+
+Example:
+  htmlgraph plan add-slice plan-a1b2c3d4 "Implement error handling" \
+    --description "Add structured error types with context hints" \
+    --effort S --risk Low --deps 1,2 --files "internal/errors.go"`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, args []string) error {
+			htmlgraphDir, err := findHtmlgraphDir()
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(os.Stderr, "⚠ Deprecated: use 'plan add-slice-yaml' for YAML plans")
+				return addSliceToPlan(htmlgraphDir, args[0], args[1], sf)
+		},
+	}
+	cmd.Flags().StringVar(&sf.description, "description", "", "what this slice does and why")
+	cmd.Flags().StringVar(&sf.effort, "effort", "", "effort estimate: S, M, or L")
+	cmd.Flags().StringVar(&sf.risk, "risk", "Low", "risk level: Low, Med, or High")
+	cmd.Flags().StringVar(&sf.deps, "deps", "", "dependency slice numbers (e.g. 1,2)")
+	cmd.Flags().StringVar(&sf.files, "files", "", "affected files (comma-separated)")
+	return cmd
+}
+
+// addSliceToPlan injects a new slice directly into the existing CRISPI HTML.
+// It counts existing data-slice elements to determine the next slice number,
+// then calls injectSliceIntoCRISPI for the actual HTML mutation.
+func addSliceToPlan(htmlgraphDir, planID, sliceTitle string, sf sliceFlags) error {
+	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	data, err := os.ReadFile(planPath)
+	if err != nil {
+		return fmt.Errorf("plan %s not found: %w\nRun 'htmlgraph plan list' to see valid plan IDs", planID, err)
+	}
+
+	// Count existing slices to determine the next slice number.
+	sliceNum := countOccurrences(string(data), `data-slice="`) + 1
+
+	if err := injectSliceIntoCRISPI(htmlgraphDir, planID, sliceNum, sliceTitle, sf); err != nil {
+		return fmt.Errorf("inject slice into CRISPI %s: %w", planID, err)
+	}
+
+	fmt.Printf("Added slice #%d: %s\n", sliceNum, sliceTitle)
+	return nil
+}
+
+// injectSliceIntoCRISPI adds a graph node, slice card, and updates the
+// SECTIONS_JSON and PLAN_TOTAL_SECTIONS in a CRISPI plan HTML file.
+func injectSliceIntoCRISPI(htmlgraphDir, planID string, sliceNum int, sliceTitle string, sf sliceFlags) error {
+	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	data, err := os.ReadFile(planPath)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+
+	// Only operate on CRISPI files (have btn-finalize or data-zone).
+	if !strings.Contains(content, "btn-finalize") && !strings.Contains(content, `data-zone=`) {
+		return nil
+	}
+
+	// 1. Add graph node inside #graph-data with deps.
+	graphNode := fmt.Sprintf(
+		`    <div data-node="%d" data-name="%s" data-status="pending" data-deps="%s"></div>`+"\n",
+		sliceNum, html.EscapeString(sliceTitle), html.EscapeString(sf.deps),
+	)
+	content = injectBeforeMarker(content, "<!--PLAN_GRAPH_NODES-->", graphNode)
+
+	// 2. Add slice card inside slices section.
+	sliceCard := buildSliceCardHTML(sliceNum, sliceTitle, sf)
+	content = injectBeforeMarker(content, "<!--PLAN_SLICE_CARDS-->", sliceCard)
+
+	// 3. Update PLAN_SECTIONS_JSON to include the new slice.
+	content = addSliceToSectionsJSON(content, sliceNum)
+
+	// 4. Update PLAN_TOTAL_SECTIONS count.
+	content = updateTotalSections(content)
+
+	return os.WriteFile(planPath, []byte(content), 0o644)
+}
+
+// buildSliceCardHTML produces a rich slice card matching the benchmark format:
+// header with number/title/badges, meta with files, description, test strategy
+// placeholder, dependency text, and approval row.
+func buildSliceCardHTML(num int, title string, sf sliceFlags) string {
+	var b strings.Builder
+
+	// Opening div with data attributes.
+	b.WriteString(fmt.Sprintf(
+		`    <div class="slice-card" data-slice="%d" data-status="pending">`+"\n", num))
+
+	// Header: #N, title, effort badge, risk badge, pending badge.
+	b.WriteString(`      <div class="slice-header">`)
+	b.WriteString(fmt.Sprintf(`<span class="slice-num">#%d</span>`, num))
+	b.WriteString(fmt.Sprintf(`<span class="slice-name">%s</span>`, html.EscapeString(title)))
+	if sf.effort != "" {
+		b.WriteString(fmt.Sprintf(` <span class="badge badge-pending">%s</span>`, html.EscapeString(strings.ToUpper(sf.effort))))
+	}
+	if sf.risk != "" {
+		riskClass := "pending"
+		switch strings.ToLower(sf.risk) {
+		case "high":
+			riskClass = "blocked"
+		case "med", "medium":
+			riskClass = "revision"
+		}
+		b.WriteString(fmt.Sprintf(` <span class="badge badge-%s">%s Risk</span>`, riskClass, html.EscapeString(sf.risk)))
+	}
+	b.WriteString(fmt.Sprintf(`<span class="badge badge-pending" data-badge-for="slice-%d">Pending</span>`, num))
+	b.WriteString("</div>\n")
+
+	// Meta: files list.
+	b.WriteString(`      <div class="slice-meta"><span>`)
+	if sf.files != "" {
+		b.WriteString("Files: ")
+		for i, f := range strings.Split(sf.files, ",") {
+			f = strings.TrimSpace(f)
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString("<code>" + html.EscapeString(f) + "</code>")
+		}
+	}
+	b.WriteString("</span></div>\n")
+
+	// Description.
+	if sf.description != "" {
+		b.WriteString(fmt.Sprintf(
+			`      <p style="font-size:.9rem;margin:8px 0">%s</p>`+"\n",
+			html.EscapeString(sf.description)))
+	}
+
+	// Test strategy placeholder.
+	b.WriteString("      <h4>Test Strategy</h4>\n")
+	b.WriteString("      <ul><li>Add test strategy here</li></ul>\n")
+
+	// Dependencies.
+	depStr := "none"
+	if sf.deps != "" {
+		depStr = "slices " + html.EscapeString(sf.deps)
+	}
+	b.WriteString(fmt.Sprintf(
+		`      <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: %s</p>`+"\n",
+		depStr))
+
+	// Approval row.
+	b.WriteString(fmt.Sprintf(
+		`      <div class="approval-row"><label><input type="checkbox" data-section="slice-%d" data-action="approve"> Approve slice</label><textarea data-section="slice-%d" data-comment-for="slice-%d" placeholder="Comments on slice %d..."></textarea></div>`+"\n",
+		num, num, num, num))
+
+	b.WriteString("    </div>\n")
+	return b.String()
+}
+
+// injectBeforeMarker inserts content immediately before a <!--MARKER--> comment.
+// If the marker is not found, the content is not inserted.
+func injectBeforeMarker(fileContent, marker, injection string) string {
+	if !strings.Contains(fileContent, marker) {
+		return fileContent
+	}
+	return strings.Replace(fileContent, marker, injection+"    "+marker, 1)
+}
+
+// addSliceToSectionsJSON appends "slice-N" to the PLAN_SECTIONS_JSON array.
+func addSliceToSectionsJSON(content string, sliceNum int) string {
+	const start = "/*PLAN_SECTIONS_JSON*/"
+	const end = "/*END_PLAN_SECTIONS_JSON*/"
+
+	si := strings.Index(content, start)
+	if si < 0 {
+		return content
+	}
+	rest := content[si+len(start):]
+	ei := strings.Index(rest, end)
+	if ei < 0 {
+		return content
+	}
+
+	currentJSON := strings.TrimSpace(rest[:ei])
+	newEntry := fmt.Sprintf(`"slice-%d"`, sliceNum)
+
+	// Insert before the closing bracket.
+	if idx := strings.LastIndex(currentJSON, "]"); idx >= 0 {
+		currentJSON = currentJSON[:idx] + "," + newEntry + "]"
+	}
+
+	return content[:si+len(start)] + currentJSON + content[si+len(start)+ei:]
+}
+
+// updateTotalSections recalculates and updates the PLAN_TOTAL_SECTIONS count
+// by counting entries in the PLAN_SECTIONS_JSON array.
+func updateTotalSections(content string) string {
+	const start = "/*PLAN_SECTIONS_JSON*/"
+	const end = "/*END_PLAN_SECTIONS_JSON*/"
+
+	si := strings.Index(content, start)
+	if si < 0 {
+		return content
+	}
+	rest := content[si+len(start):]
+	ei := strings.Index(rest, end)
+	if ei < 0 {
+		return content
+	}
+
+	jsonStr := strings.TrimSpace(rest[:ei])
+	// Count entries by counting quoted strings.
+	count := strings.Count(jsonStr, `"`) / 2
+
+	// Update the totalSections strong element.
+	const tsMarker = `id="totalSections">`
+	tsi := strings.Index(content, tsMarker)
+	if tsi < 0 {
+		return content
+	}
+	afterMarker := content[tsi+len(tsMarker):]
+	closeTag := strings.Index(afterMarker, "<")
+	if closeTag < 0 {
+		return content
+	}
+
+	absStart := tsi + len(tsMarker)
+	absEnd := absStart + closeTag
+	content = content[:absStart] + fmt.Sprintf("%d", count) + content[absEnd:]
+
+	// Also update the pendingCount strong element (same value initially).
+	const pcMarker = `id="pendingCount">`
+	pci := strings.Index(content, pcMarker)
+	if pci >= 0 {
+		afterPC := content[pci+len(pcMarker):]
+		closePC := strings.Index(afterPC, "<")
+		if closePC >= 0 {
+			pcStart := pci + len(pcMarker)
+			pcEnd := pcStart + closePC
+			content = content[:pcStart] + fmt.Sprintf("%d", count) + content[pcEnd:]
+		}
+	}
+
+	return content
+}
+
+// ---- helpers for finalize (slice parsing from node steps) --------------------
+
+// parsePlanStepsAsSlices converts plan node steps into planSlice structs
+// for the finalize workflow.
+func parsePlanStepsAsSlices(node *models.Node) []planSlice {
+	var slices []planSlice
+	for i, step := range node.Steps {
+		slices = append(slices, planSlice{
+			num:   i + 1,
+			name:  step.StepID,
+			title: step.Description,
+		})
+	}
+	return slices
+}
+
+// isPlanApproved checks if a plan has been marked as approved/finalized
+// by looking at its status.
+func isPlanApproved(node *models.Node) bool {
+	return node.Status == "finalized" || node.Status == "done"
+}
+
+// findPlanFile returns the path to a plan's HTML file, or empty string.
+func findPlanFile(htmlgraphDir, planID string) string {
+	p := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	return ""
+}
+
+// updatePlanStatus updates the data-status attribute in a plan's HTML file.
+func updatePlanStatus(htmlgraphDir, planID, newStatus string) error {
+	planPath := findPlanFile(htmlgraphDir, planID)
+	if planPath == "" {
+		return fmt.Errorf("plan file not found: %s\nRun 'htmlgraph plan list' to see valid plan IDs", planID)
+	}
+	data, err := os.ReadFile(planPath)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+
+	// Replace the status in data-status="..."
+	for _, old := range []string{"todo", "draft", "in-progress", "done", "finalized"} {
+		old := fmt.Sprintf(`data-status="%s"`, old)
+		new := fmt.Sprintf(`data-status="%s"`, newStatus)
+		if strings.Contains(content, old) {
+			content = strings.Replace(content, old, new, 1)
+			break
+		}
+	}
+
+	return os.WriteFile(planPath, []byte(content), 0o644)
+}

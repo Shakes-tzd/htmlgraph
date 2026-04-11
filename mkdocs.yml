@@ -1,0 +1,81 @@
+site_name: HtmlGraph
+site_description: Local-first observability and coordination platform for AI-assisted development
+site_url: https://shakestzd.github.io/htmlgraph/
+repo_url: https://github.com/shakestzd/htmlgraph
+repo_name: shakestzd/htmlgraph
+copyright: Copyright &copy; 2025 TZDLabs
+
+exclude_docs: |
+  archive/
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: lime
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: lime
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+  font: false
+
+plugins:
+  - search:
+      lang: en
+  - blog:
+      blog_dir: blog
+      post_date_format: long
+      post_url_format: "{slug}"
+      categories_allowed:
+        - Architecture
+        - Development
+        - Features
+        - Engineering
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/shakestzd/htmlgraph
+
+nav:
+  - Home: index.md
+  - Blog: blog/index.md
+  - CLI Reference: reference/cli.md

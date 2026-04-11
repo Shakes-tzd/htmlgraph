@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Add ruff checks to commit workflow</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="chr-12546771"
+             data-type="chore"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2025-12-29T11:49:17.688689"
+             data-updated="2025-12-29T11:49:17.688691">
+
+        <header>
+            <h1>Add ruff checks to commit workflow</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <section data-content>
+            <h3>Description</h3>
+            ## Issue
+
+CI failed because ruff lint and format checks were not run before committing.
+
+Errors found:
+- F401: Unused imports in todo.py (Path, cast)
+- F401: Unused import in sdk.py (SessionWarning)
+- 9 files needed reformatting
+
+## Fix Applied
+
+1. Ran `uv run ruff check src/python/htmlgraph/ --fix` to fix unused imports
+2. Ran `uv run ruff format src/python/htmlgraph/` to format code
+3. All 789 tests pass after fixes
+
+## Lesson Learned
+
+Should run ruff checks before every commit:
+```bash
+uv run ruff check src/python/htmlgraph/ --fix
+uv run ruff format src/python/htmlgraph/
+```
+
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# file: /Users/shakes/DevProjects/htmlgraph/src/python/htmlgraph/builders/epic.py
+# hypothesis_version: 6.151.9
+
+['EpicBuilder', 'agent_assigned', 'business_value', 'contains', 'epic', 'stakeholder', 'success_criteria', 'target_date']

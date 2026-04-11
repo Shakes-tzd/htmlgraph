@@ -1,0 +1,48 @@
+{
+  "name": "htmlgraph-dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22",
+      "nodeGypDependencies": true
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "mounts": [
+    "source=htmlgraph-claude-home,target=/home/vscode/.claude,type=volume",
+    "source=htmlgraph-codex-home,target=/home/vscode/.codex,type=volume",
+    "source=htmlgraph-gemini-home,target=/home/vscode/.gemini,type=volume",
+    "source=htmlgraph-local-bin,target=/home/vscode/.local,type=volume",
+    "source=htmlgraph-dev-state,target=${containerWorkspaceFolder}/.htmlgraph,type=volume"
+  ],
+  "containerEnv": {
+    "PATH": "/home/vscode/.local/bin:${containerEnv:PATH}"
+  },
+  "forwardPorts": [
+    8080
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "HtmlGraph dashboard",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "go.toolsManagement.autoUpdate": true,
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "golang.Go",
+        "ms-vscode.makefile-tools",
+        "eamodio.gitlens"
+      ]
+    }
+  }
+}

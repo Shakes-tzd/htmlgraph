@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Wire attribution pipeline: step_id stamping, auto-completion, edge creation in hooks</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-a2d91bfc"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-15T17:10:53.417938"
+             data-updated="2026-03-15T17:41:24.465960" data-agent-assigned="claude-code" data-track-id="trk-5639dde8">
+
+        <header>
+            <h1>Wire attribution pipeline: step_id stamping, auto-completion, edge creation in hooks</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented-in">
+                <h3>Implemented-In:</h3>
+                <ul>
+                    <li><a href="abfaeabd-c6e6-4109-a575-06e0b9548eb7.html" data-relationship="implemented-in" data-since="2026-03-15T17:10:56.433228">abfaeabd-c6e6-4109-a575-06e0b9548eb7</a></li>
+                    <li><a href="sess-b55e1899.html" data-relationship="implemented-in" data-since="2026-03-15T17:41:11.621691">sess-b55e1899</a></li>
+                </ul>
+            </section>
+        </nav>
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Completed At</dt>
+                <dd data-key="completed_at" data-value="2026-03-15T17:41:24.465973">2026-03-15T17:41:24.465973</dd>
+<dt>Completion Analysis</dt>
+                <dd data-key="completion_analysis" data-value="{'session_id': 'abfaeabd-c6e6-4109-a575-06e0b9548eb7', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 10, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 3, 'description': 'Multiple edits without testing - run tests between changes'}], 'errors': [], 'error_count': 0, 'efficiency': 0.7333333333333334, 'issues': ['High retry rate: 26%'], 'recommendations': ['Consider reading more context before acting'], 'test_runs': [], 'test_summary': None, 'summary': '⚠️ Issues: 13 anti-pattern occurrences'}">{'session_id': 'abfaeabd-c6e6-4109-a575-06e0b9548eb7', 'anti_patterns': [{'sequence': ['Bash', 'Bash', 'Bash'], 'count': 10, 'description': 'Command spam - plan commands before executing'}, {'sequence': ['Edit', 'Edit', 'Edit'], 'count': 3, 'description': 'Multiple edits without testing - run tests between changes'}], 'errors': [], 'error_count': 0, 'efficiency': 0.7333333333333334, 'issues': ['High retry rate: 26%'], 'recommendations': ['Consider reading more context before acting'], 'test_runs': [], 'test_summary': None, 'summary': '⚠️ Issues: 13 anti-pattern occurrences'}</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-a2d91bfc-0">✅ Call resolve_active_step() in track_event() and pass step_id to record_event_to_sqlite()</li>
+                <li data-completed="true" data-step-id="step-feat-a2d91bfc-1">✅ Auto-complete steps when tool events succeed (update HTML + SQLite)</li>
+                <li data-completed="true" data-step-id="step-feat-a2d91bfc-2">✅ Create spawned_from edges automatically in feature lifecycle hooks</li>
+                <li data-completed="true" data-step-id="step-feat-a2d91bfc-3">✅ Act on divergence_detected flag — inject guidance for feature switch</li>
+                <li data-completed="true" data-step-id="step-feat-a2d91bfc-4">✅ Link Task events to track/plan being executed</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

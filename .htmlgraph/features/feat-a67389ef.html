@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Auto part-of edge when --track flag is used on create</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-a67389ef"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-03-28T18:27:58.695045"
+             data-updated="2026-03-28T19:41:00.672804" data-agent-assigned="claude-code" data-track-id="trk-fbe18084">
+
+        <header>
+            <h1>Auto part-of edge when --track flag is used on create</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-8404594f.html" data-relationship="blocked_by" data-since="2026-03-28T18:28:10.206141">Dual-write edges to graph_edges SQLite table</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-a67389ef-0" data-agent="claude-code">✅ In workitem.go wiCreateCmd, when --track is provided, after creating the work item call AddEdge(newItemID, trackID, &#39;part_of&#39;)</li>
+                <li data-completed="true" data-step-id="step-feat-a67389ef-1" data-agent="claude-code">✅ Also create reverse edge on the track: AddEdge(trackID, newItemID, &#39;contains&#39;) — making the relationship bidirectional and queryable from either side</li>
+                <li data-completed="true" data-step-id="step-feat-a67389ef-2" data-agent="claude-code">✅ Refactor track show to use graph_edges query instead of full directory scan (loadLinkedFeatures) — SELECT target_id FROM graph_edges WHERE source_id = trackID AND rel = &#39;contains&#39;</li>
+                <li data-completed="true" data-step-id="step-feat-a67389ef-3" data-agent="claude-code">✅ Add contains to the canonical relationship enum in enums.go and part_of as well</li>
+                <li data-completed="true" data-step-id="step-feat-a67389ef-4" data-agent="claude-code">✅ Write test: feature create --track trk-xxx → part_of edge on feature HTML, contains edge on track HTML, both in graph_edges SQLite</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

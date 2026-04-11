@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Git as Continuity Spine: Agent-Agnostic Event Tracking</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="epic-git-continuity-spine"
+             data-type="epic"
+             data-status="done"
+             data-priority="high"
+             data-created="2025-12-17T06:19:30.492467"
+             data-updated="2025-12-17T08:28:52.246200">
+
+        <header>
+            <h1>Git as Continuity Spine: Agent-Agnostic Event Tracking</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <section data-properties>
+            <h3>Properties</h3>
+            <dl>
+                <dt>Estimated Duration</dt>
+                <dd data-key="estimated_duration" data-value="2-3 weeks">2-3 weeks</dd>
+<dt>Scope</dt>
+                <dd data-key="scope" data-value="architectural">architectural</dd>
+<dt>Impact</dt>
+                <dd data-key="impact" data-value="high">high</dd>
+            </dl>
+        </section>
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true">✅ Design Git hook architecture and event schema</li>
+                <li data-completed="true">✅ Implement post-commit hook for commit event logging</li>
+                <li data-completed="true">✅ Implement post-checkout/post-merge hooks for branch continuity</li>
+                <li data-completed="true">✅ Implement pre-push hook for team boundary tracking</li>
+                <li data-completed="true">✅ Create filesystem watcher (htmlgraph watch) for fine-grained activity</li>
+                <li data-completed="true">✅ Design and implement agent instruction conduit (AGENTS.md)</li>
+                <li data-completed="true">✅ Create minimal MCP server with 3 core tools</li>
+                <li data-completed="true">✅ Build cross-session analytics keyed by commit graph</li>
+                <li data-completed="true" data-agent="multi-agent-tester">✅ Document architecture and migration guide</li>
+                <li data-completed="true">✅ Test with multiple agent types (Claude/Codex/Gemini)</li>
+            </ol>
+        </section>
+        <section data-content>
+            <h3>Description</h3>
+            Make HtmlGraph agent-agnostic by using Git as the continuity spine, eliminating dependency on agent-specific hook infrastructure.
+
+## Vision
+
+Instead of relying on Claude Code plugin hooks, use Git's universal hooks to track continuity. This makes HtmlGraph work with ANY coding agent (Codex, Gemini, Cursor, etc.) without requiring custom integrations.
+
+## Core Architecture
+
+### 1. Git Hooks as Continuity Anchors
+Git provides universal hooks that work regardless of which agent/tool is writing code:
+
+**post-commit**: Log GitCommit event
+- Commit hash, branch, author, message
+- List of staged files
+- Links to active feature(s)
+- Timestamp and metadata
+
+**post-checkout / post-merge**: Log branch transitions
+- Track session continuity across branches
+- Detect context switches
+- Link work across branches
+
+**pre-push**: Log team boundary
+- Mark "going public" events
+- Track when local work becomes shared
+- Trigger team notifications
+
+### 2. Filesystem Watcher for Fine-Grained Activity
+**htmlgraph watch**: Continuous background process
+- Monitors file changes in real-time
+- Logs read/write/edit/delete events
+- Agent-agnostic (works with any tool)
+- Links file changes to active features
+- Provides high-resolution activity signal
+
+### 3. Simple Instruction Conduit
+**AGENTS.md or docs/tracking.md**: Universal agent guide
+- Simple markdown file every agent can read
+- Explains: "Use `htmlgraph track ...` for non-file events"
+- No MCP required for basic usage
+- Works with ANY agent that can read files
+- Avoids tool list bloat
+
+### 4. Optional Minimal MCP Server
+For agents that support MCP, expose just 3 tools:
+
+**log_event(summary, tool, files?, payload?)**
+- Universal event logging
+- Routes to HtmlGraph JSONL/API
+- Minimal schema, maximum flexibility
+
+**get_active_feature()**
+- Returns current active feature(s)
+- Simple context query
+
+**set_active_feature(feature_id)**
+- Switch attribution target
+- Update active feature
+
+**Key principle**: Keep MCP surface area TINY to avoid context bloat.
+
+## Why This Matters
+
+### Current Limitations
+- Requires Claude Code plugin hooks (agent-specific)
+- Doesn't work with Codex, Gemini, Cursor, etc.
+- Heavy reliance on MCP integration
+- Can't track work from non-Claude agents
+
+### After This Epic
+- ✅ Works with ANY coding agent
+- ✅ Git commits are universal continuity points
+- ✅ Filesystem watcher sees all file activity
+- ✅ Simple markdown guide for agent integration
+- ✅ Optional MCP for advanced integration
+- ✅ Cross-agent analytics possible
+
+## Technical Design
+
+### Event Schema
+```json
+{
+  "type": "GitCommit",
+  "timestamp": "2025-12-17T06:00:00Z",
+  "commit_hash": "abc123",
+  "branch": "main",
+  "author": "user@example.com",
+  "message": "feat: add new feature",
+  "files": ["src/file.py", "tests/test.py"],
+  "features": ["feature-xyz"],
+  "session_id": "session-123"
+}
+```
+
+### Filesystem Watcher Architecture
+- Use watchdog (Python) or chokidar (JS)
+- Debounce rapid changes (e.g., 500ms)
+- Ignore patterns: .git/, node_modules/, __pycache__/
+- Link to active features via pattern matching
+- Continuous JSONL logging
+
+### Git Hook Installation
+- Hooks stored in project: `.htmlgraph/hooks/`
+- Install script: `htmlgraph init --install-hooks`
+- Hooks are symlinked to `.git/hooks/`
+- Easy to version control and share
+- Team-wide consistency
+
+### Agent Instruction Conduit
+**AGENTS.md** template:
+```markdown
+# Agent Tracking Guide
+
+HtmlGraph tracks your work automatically via Git and file watching.
+
+## For Non-File Actions
+When you run commands, make decisions, or deploy:
+```bash
+htmlgraph track "Deployed to staging" --tool deploy --files config.yml
+```
+
+## Check Active Features
+```bash
+htmlgraph feature list --status in-progress
+```
+
+## Switch Attribution
+```bash
+htmlgraph feature primary
+```
+
+That's it! Git commits and file changes are tracked automatically.
+```
+
+### MCP Server Design
+**Minimal tool schema** (only 3 tools):
+- Keeps context usage under 500 tokens
+- Agent learns once, works forever
+- Routes everything to HtmlGraph core
+- No feature-specific tools
+
+## Implementation Phases
+
+### Phase 1: Git Hook Foundation (Week 1)
+- Design event schema
+- Implement post-commit hook
+- Test with real commits
+- Document hook behavior
+
+### Phase 2: Branch Continuity (Week 1)
+- Implement post-checkout hook
+- Implement post-merge hook
+- Implement pre-push hook
+- Test branch workflows
+
+### Phase 3: Filesystem Watcher (Week 2)
+- Design watcher architecture
+- Implement file monitoring
+- Add feature attribution logic
+- Test performance at scale
+
+### Phase 4: Agent Conduit (Week 2)
+- Create AGENTS.md template
+- Document agent integration
+- Test with multiple agents
+- Gather feedback
+
+### Phase 5: Minimal MCP (Week 3)
+- Design 3-tool MCP server
+- Implement tool handlers
+- Test with Claude/Codex
+- Measure context impact
+
+### Phase 6: Analytics (Week 3)
+- Build commit-graph queries
+- Cross-session analytics
+- Team collaboration views
+- Dashboard integration
+
+## Success Metrics
+
+### Agent Compatibility
+- [ ] Works with Claude Code (baseline)
+- [ ] Works with GitHub Codex
+- [ ] Works with Google Gemini
+- [ ] Works with Cursor
+- [ ] Works with any agent that can run shell commands
+
+### Performance
+- [ ] Git hooks add <100ms to commit time
+- [ ] Filesystem watcher uses <50MB RAM
+- [ ] Event logging has <10ms latency
+- [ ] MCP tools use <500 tokens context
+
+### Developer Experience
+- [ ] Zero-config for basic usage (just git hooks)
+- [ ] One-line install: `htmlgraph init --install-hooks`
+- [ ] Clear documentation for agents
+- [ ] Works offline
+- [ ] No breaking changes to existing features
+
+## Open Questions & Improvements
+
+### 1. Hook Conflicts
+**Problem**: Existing Git hooks in repo  
+**Solution**: Hook composability framework
+- Detect existing hooks
+- Chain execution (run ours after existing)
+- Provide merge utility for conflicting hooks
+
+### 2. Watcher Performance  
+**Problem**: Large repos (100K+ files)  
+**Solutions**:
+- Configurable ignore patterns (.htmlgraphignore)
+- Sample mode: log 1 in N changes
+- Smart filtering: only track relevant directories
+- Batch events: flush every 5 seconds vs real-time
+
+### 3. Event Storage Strategy
+**Current**: JSONL (simple, append-only)  
+**Improvements**:
+- SQLite index for queries (optional)
+- Partitioning by date (events/2025-12/events.jsonl)
+- Compression for old events
+- TTL/rotation policy
+
+### 4. Team Coordination
+**Problem**: Distributed teams, session merging  
+**Solutions**:
+- Git commit graph is source of truth
+- Sessions link via commits
+- Cross-branch analytics view
+- Team dashboard shows all contributors
+
+### 5. MCP Minimal vs None
+**Recommendation**: MCP is optional enhancement
+- AGENTS.md works for all agents (baseline)
+- MCP provides richer integration (optional)
+- No MCP = still fully functional
+- Document both paths clearly
+
+## Architectural Improvements
+
+### Better Event Attribution
+```python
+# Current: Active feature at commit time
+features = get_active_features()
+
+# Improved: Analyze commit content for attribution
+features = []
+# 1. Active features (explicit)
+features.extend(get_active_features())
+# 2. Mentioned in commit message
+features.extend(parse_feature_refs(commit_message))
+# 3. Modified files match feature patterns
+features.extend(match_files_to_features(changed_files))
+```
+
+### Smarter Filesystem Watching
+```python
+# Ignore patterns (like .gitignore)
+IGNORE = ['.git/', 'node_modules/', '__pycache__/', '*.pyc', '.htmlgraph/']
+
+# Debounce rapid changes
+debounce_window = 500ms  # Collect changes, flush in batch
+
+# Feature pattern matching
+if 'src/auth/' in file_path:
+    likely_features = ['feature-auth', 'feature-session']
+```
+
+### Cross-Agent Analytics
+```sql
+-- Query: Who worked on feature X?
+SELECT DISTINCT git_author, tool_name, event_count
+FROM events
+WHERE feature_id = 'feature-auth'
+GROUP BY git_author, tool_name
+
+-- Result:
+-- alice@company.com | Claude Code | 45 events
+-- bob@company.com   | Cursor      | 32 events
+-- charlie@company  | CLI         | 18 events
+```
+
+## Migration Path
+
+### Phase 1: Parallel Run (Week 1)
+- Install Git hooks alongside plugin hooks
+- Both systems log events
+- Compare outputs daily
+- Validate completeness
+
+### Phase 2: Git-Primary (Week 2)
+- Git hooks become primary source
+- Plugin hooks remain as fallback
+- Dashboard shows both sources
+- Monitor for gaps
+
+### Phase 3: Plugin-Optional (Week 3)
+- Git hooks proven reliable
+- Plugin hooks optional for rich context
+- Document tradeoffs
+- User choice preserved
+
+## Success Story Vision
+
+**Day 1**: Developer installs HtmlGraph
+```bash
+htmlgraph init --install-hooks
+```
+
+**Day 1-30**: Multiple agents work on project
+- Alice uses Claude Code (rich MCP integration)
+- Bob uses Cursor (filesystem watcher + git)
+- Charlie uses vim + git (git hooks only)
+
+**Day 30**: Dashboard shows unified view
+- All commits tracked
+- File changes from all agents
+- Clear attribution
+- Team analytics work
+- No configuration required
+
+**Key**: Works out of the box, improves with opt-in features.
+        </section>
+    </article>
+</body>
+</html>

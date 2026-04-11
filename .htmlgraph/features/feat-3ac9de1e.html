@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Work item validation rules — enforce required fields per type and link git commits to work items</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-3ac9de1e"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-03-28T18:42:43.993644"
+             data-updated="2026-03-28T19:51:37.000589" data-agent-assigned="claude-code" data-track-id="trk-fbe18084">
+
+        <header>
+            <h1>Work item validation rules — enforce required fields per type and link git commits to work items</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-8404594f.html" data-relationship="blocked_by" data-since="2026-03-28T18:43:12.753819">Dual-write edges to graph_edges SQLite table</a></li>
+                    <li><a href="feat-50811fed.html" data-relationship="blocked_by" data-since="2026-03-28T18:43:12.776386">Normalize relationship strings and validate in link add</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-0" data-agent="claude-code">✅ Define required fields per work item type: bug(title, description, affected_files[], caused_by feature), feature(title, description, steps[]), spec(title, description), plan(title, steps[]), track(title, steps[]), spike(title only — no requirements)</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-1" data-agent="claude-code">✅ Add --description flag to all create commands. For bugs: also add --files flag (comma-separated affected file paths). Validate required fields on create — warn if missing, don&#39;t block</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-2" data-agent="claude-code">✅ Add htmlgraph check incomplete command that scans all work items and reports those missing required fields (e.g., bugs without description, features without steps)</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-3" data-agent="claude-code">✅ Auto-link git commits to active work item: in PostToolUse hook, when a git commit is detected (already captured in git_commits table), create an implemented_in edge from active feature/bug to the commit hash</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-4" data-agent="claude-code">✅ Parse work item ID from commit messages (e.g., &#39;fix: title (bug-xxx)&#39; or &#39;feat: title (feat-xxx)&#39;) and auto-link even if no active work item is set — store as edge in HTML &#43; graph_edges</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-5" data-agent="claude-code">✅ Extend htmlgraph feature show / bug show to display linked commits: query graph_edges for implemented_in edges where target starts with commit hash pattern, show hash &#43; message &#43; date</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-6" data-agent="claude-code">✅ Store affected_files as structured data in bug HTML (data-affected-files attribute or &lt;ul data-files&gt; section). Display in bug show output.</li>
+                <li data-completed="true" data-step-id="step-feat-3ac9de1e-7" data-agent="claude-code">✅ Write tests: bug create without description → warning. feature create without steps → warning. git commit with (feat-xxx) in message → edge created. htmlgraph check incomplete → reports missing fields.</li>
+            </ol>
+        </section>
+    </article>
+</body>
+</html>

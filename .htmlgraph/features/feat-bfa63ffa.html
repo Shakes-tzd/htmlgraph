@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Documentation accuracy pass before launch</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-bfa63ffa"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-04-10T22:30:39.594537"
+             data-updated="2026-04-11T00:17:40.4487" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Documentation accuracy pass before launch</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-195fcccc.html" data-relationship="relates_to" data-since="2026-04-10T22:32:12.977051">Wire Missing Hook Events (PreCompact, InstructionsLoaded, etc)</a></li>
+                    <li><a href="feat-cc787a00.html" data-relationship="relates_to" data-since="2026-04-10T22:32:13.022111">FTS5 Full-Text Search Across All Sessions</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="6206b18b-775e-4c99-8f0c-c6c61c8c954d.html" data-relationship="implemented_in" data-since="2026-04-11T00:03:50.026077">session 6206b18b-775e-4c99-8f0c-c6c61c8c954d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-04-10T22:30:39.724252">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Update README, CLAUDE.md, AGENTS.md, and memory positioning file to match what htmlgraph actually does today. Remove aspirational 'multi-agent coordination' language where it should be 'multi-agent attribution and observation'. Add a short architecture section explaining HTML as canonical, SQLite as rebuildable read cache, and reindex as recovery path. Add a 'what this is NOT' section acknowledging power-user / Claude-Code-specific scope today. Zero code changes. ~1 hour. Closes a credibility gap before launch — the engineering is ahead of the pitch and shipping without fixing this would oversell.</p>
+        </section>
+    </article>
+</body>
+</html>

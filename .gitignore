@@ -1,0 +1,138 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+tests/benchmarks/baseline.json
+
+# Playwright
+.playwright-mcp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+*.log
+
+# Legacy static dashboard artifact (replaced by FastAPI dashboard)
+index.html
+
+# Go plugin compiled binary (built locally via packages/go-plugin/build.sh)
+packages/go-plugin/hooks/bin/
+
+# Dashboard screenshot artifacts
+dashboard-*.png
+
+# pytest-hypothesis database
+.hypothesis/
+
+# Codex output
+CODEX.md
+
+# HtmlGraph analytics index (rebuildable cache)
+.htmlgraph/index.sqlite
+.htmlgraph/index.sqlite-wal
+.htmlgraph/index.sqlite-shm
+
+# SQLite database — derived cache, rebuilt by `htmlgraph reindex`.
+# Never track in git: binary merges corrupt the file.
+.htmlgraph/htmlgraph.db
+.htmlgraph/htmlgraph.db-shm
+.htmlgraph/htmlgraph.db-wal
+
+# HtmlGraph session tracking artifacts (regenerable observability data)
+.htmlgraph/sessions/*.jsonl
+.htmlgraph/events/*.jsonl
+.htmlgraph/parent-activity.json
+.htmlgraph/logs/errors/
+
+# HtmlGraph runtime logs (contain sensitive paths/prompts)
+.htmlgraph/hook-debug.jsonl
+.htmlgraph/errors.jsonl
+.htmlgraph/.error-spikes.json
+.htmlgraph/logs/
+
+# HtmlGraph backup and test files
+.htmlgraph/index.sqlite.backup
+.htmlgraph/*.backup
+.htmlgraph/test_*.db
+.htmlgraph/database.db
+.htmlgraph/.htmlgraph/  # Prevent nested structure corruption
+
+# Keep these (source of truth):
+# - .htmlgraph/features/
+# - .htmlgraph/bugs/
+# - .htmlgraph/chores/
+# - .htmlgraph/spikes/
+# - .htmlgraph/agents.json
+
+.env
+
+# MkDocs build output
+site/
+
+# pdoc generated documentation
+docs/api-pdoc/
+docs/api/*.html
+docs/api/*.js
+
+.contextune/
+.claude/settings.local.json
+
+# Prevent root clutter from accumulating
+# Screenshots and temp images
+*.png
+# One-off scratch/test files
+*.txt
+!requirements*.txt
+# Coverage artifacts
+coverage.json
+# Session state
+.session-warning-state.json
+# Marimo sessions
+__marimo__/
+# UV cache
+.uv-cache/
+# Mypy cache
+.mypy_cache/
+
+# Build artifacts
+_build/
+archive/
+packages/go-plugin/hooks/bin/
+hooks/bin/
+plugin/hooks/bin/htmlgraph
+
+# Notebook files copied at build time from prototypes/ (do not commit)
+internal/notebook/files/
+dist/

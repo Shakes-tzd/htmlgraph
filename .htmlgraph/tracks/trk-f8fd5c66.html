@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Plan-First Architecture</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="trk-f8fd5c66"
+             data-type="track"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-04-04T00:25:05.379501"
+             data-updated="2026-04-09T02:37:45.365504" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Plan-First Architecture</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="contains">
+                <h3>Contains:</h3>
+                <ul>
+                    <li><a href="feat-2854380d.html" data-relationship="contains" data-since="2026-04-04T00:25:30.37096">Plan hex8 IDs — unify slug and hex8 ID generation</a></li>
+                    <li><a href="feat-9ee13f65.html" data-relationship="contains" data-since="2026-04-04T00:25:30.384464">Plan create from topic — no track required</a></li>
+                    <li><a href="feat-52fbc7e8.html" data-relationship="contains" data-since="2026-04-04T00:25:30.398169">Generative finalize — plan produces work item graph</a></li>
+                    <li><a href="feat-6dd56b28.html" data-relationship="contains" data-since="2026-04-04T00:25:30.411166">Plan generate dual-mode — detect track vs topic</a></li>
+                    <li><a href="feat-b597b7c6.html" data-relationship="contains" data-since="2026-04-04T00:25:30.424014">Plan critique command — multi-AI review</a></li>
+                    <li><a href="feat-25eb426b.html" data-relationship="contains" data-since="2026-04-04T00:25:30.437452">Plan skill rewrite — plan-first orchestration flow</a></li>
+                    <li><a href="feat-b2813be8.html" data-relationship="contains" data-since="2026-04-04T00:25:30.451399">Browser-based plan validation — Chrome QA step</a></li>
+                    <li><a href="feat-02241739.html" data-relationship="contains" data-since="2026-04-04T00:25:30.464577">Tests and quality gates — plan-first lifecycle</a></li>
+                    <li><a href="bug-1d56f9c4.html" data-relationship="contains" data-since="2026-04-04T03:24:21.769155">link add on plan destroys interactive HTML — generic writeNode overwrites custom template</a></li>
+                    <li><a href="bug-7692f63c.html" data-relationship="contains" data-since="2026-04-04T14:10:57.653018">plan create/generate produces basic node template instead of interactive CRISPI HTML</a></li>
+                    <li><a href="bug-4465c688.html" data-relationship="contains" data-since="2026-04-04T14:48:45.412448">add-slice does not populate data-deps — dependency graph has no edges</a></li>
+                    <li><a href="bug-050cda37.html" data-relationship="contains" data-since="2026-04-04T14:48:45.430657">Slice cards missing structured body — only title and approve checkbox</a></li>
+                    <li><a href="bug-05591dfa.html" data-relationship="contains" data-since="2026-04-04T14:48:45.445252">set-section fails — CRISPI template placeholders mismatch</a></li>
+                    <li><a href="bug-61d91c31.html" data-relationship="contains" data-since="2026-04-04T14:48:45.460598">Sidebar missing section scroll-spy anchor links</a></li>
+                    <li><a href="bug-84aa0c2d.html" data-relationship="contains" data-since="2026-04-04T16:15:22.206241">CRISPI template missing critique section (Zone 3)</a></li>
+                    <li><a href="bug-0a754d0a.html" data-relationship="contains" data-since="2026-04-04T16:15:22.223486">CRISPI template missing finalize preview (Zone 4)</a></li>
+                    <li><a href="bug-39941bcd.html" data-relationship="contains" data-since="2026-04-04T16:15:22.239676">Slice card structure mismatch — missing What/Why/Files/Done-when and badges</a></li>
+                    <li><a href="bug-f1770ec5.html" data-relationship="contains" data-since="2026-04-04T16:15:22.256207">Template missing responsive media query and CSS gaps</a></li>
+                    <li><a href="bug-e239d7e4.html" data-relationship="contains" data-since="2026-04-04T16:15:22.271856">Template missing bash syntax highlighting and dashboard sidebar links</a></li>
+                    <li><a href="bug-16228848.html" data-relationship="contains" data-since="2026-04-04T16:15:22.288923">JS missing finalized state guard — button always enables</a></li>
+                    <li><a href="spk-e9fc3a6a.html" data-relationship="contains" data-since="2026-04-04T19:15:46.684811">Research component-driven HTML generation architecture for plans</a></li>
+                    <li><a href="feat-c4673603.html" data-relationship="contains" data-since="2026-04-04T19:30:24.973929">Component-driven plan HTML — replace monolithic template with typed zone structs</a></li>
+                    <li><a href="feat-330af246.html" data-relationship="contains" data-since="2026-04-04T19:30:58.291641">plantmpl package — PlanPage struct, zone interfaces, AssetRegistry</a></li>
+                    <li><a href="feat-85b4959d.html" data-relationship="contains" data-since="2026-04-04T19:30:58.307191">SliceCard zone — typed struct with grid header, What/Why/Files/Done body</a></li>
+                    <li><a href="feat-709742f6.html" data-relationship="contains" data-since="2026-04-04T19:30:58.321856">DependencyGraph zone — typed nodes/edges with dagre-d3 rendering</a></li>
+                    <li><a href="feat-fa3a976e.html" data-relationship="contains" data-since="2026-04-04T19:30:58.336687">Design and Outline section zones — typed content with approval</a></li>
+                    <li><a href="feat-d736f337.html" data-relationship="contains" data-since="2026-04-04T19:30:58.351641">Questions zone — DecisionCard structs with radio buttons and recap table</a></li>
+                    <li><a href="feat-c77914ba.html" data-relationship="contains" data-since="2026-04-04T19:30:58.365847">Critique zone — assumption verification, dual-critic columns, synthesis</a></li>
+                    <li><a href="feat-3ea12c29.html" data-relationship="contains" data-since="2026-04-04T19:30:58.381923">Finalize preview zone — reactive table of generated features</a></li>
+                    <li><a href="feat-4c6ec9de.html" data-relationship="contains" data-since="2026-04-04T19:30:58.396697">Progress bar, JS behavior, CSS consolidation, finalized state guard</a></li>
+                    <li><a href="feat-91f88d6d.html" data-relationship="contains" data-since="2026-04-04T19:30:58.411727">Wire PlanPage.Render into plan create/generate — delete monolithic template</a></li>
+                    <li><a href="bug-d68aafde.html" data-relationship="contains" data-since="2026-04-06T03:55:31.866652">YAML plan CLI missing update-slice-yaml and clear-critique commands</a></li>
+                    <li><a href="bug-38ff1427.html" data-relationship="contains" data-since="2026-04-06T04:02:24.880199">Write guard blocks plan YAML edits — need carve-out for authored content</a></li>
+                    <li><a href="bug-d50669a4.html" data-relationship="contains" data-since="2026-04-06T04:15:17.99915">Add plan rewrite-yaml command for validated plan updates</a></li>
+                    <li><a href="feat-2b7a0750.html" data-relationship="contains" data-since="2026-04-06T04:25:01.408867">Add auto-commit to plan YAML write commands</a></li>
+                    <li><a href="bug-e65c0b88.html" data-relationship="contains" data-since="2026-04-06T05:23:43.282537">Code health guard blocks edits that would reduce oversized files</a></li>
+                    <li><a href="feat-2cba96ec.html" data-relationship="contains" data-since="2026-04-06T19:37:47.254947">Plan skill Step 4b — auto-address critique findings before review</a></li>
+                    <li><a href="feat-b750148c.html" data-relationship="contains" data-since="2026-04-06T20:49:35.919226">plan finalize-yaml adds planned_in edges from features to plan</a></li>
+                    <li><a href="feat-48c0d76f.html" data-relationship="contains" data-since="2026-04-06T20:49:35.941294">Execute dispatch template injects compact plan decisions context</a></li>
+                    <li><a href="feat-488bf76c.html" data-relationship="contains" data-since="2026-04-06T21:15:03.296836">Agent drift prevention — periodic plan context re-injection during execution</a></li>
+                    <li><a href="feat-bbf7096b.html" data-relationship="contains" data-since="2026-04-06T21:15:03.315695">Execution feedback loop — surprises and decisions recorded back to features</a></li>
+                    <li><a href="feat-70a8bf1d.html" data-relationship="contains" data-since="2026-04-06T21:20:38.662471">Plan versioning — versioned YAML files with meta.version and previous_version links</a></li>
+                    <li><a href="feat-1c0e16ba.html" data-relationship="contains" data-since="2026-04-06T21:20:38.681539">Plan retrospective — regenerate plan with execution discoveries after track completion</a></li>
+                    <li><a href="feat-204bf7dd.html" data-relationship="contains" data-since="2026-04-06T21:20:38.700445">Marimo HTML archive with embedded features via iframe</a></li>
+                    <li><a href="feat-37e88cc4.html" data-relationship="contains" data-since="2026-04-06T21:23:39.16999">Plan version counter in meta &#43; git history as the version system</a></li>
+                    <li><a href="feat-5ce56a71.html" data-relationship="contains" data-since="2026-04-06T21:26:33.268999">Plan version counter in meta &#43; rendered as stat card in notebook header</a></li>
+                    <li><a href="bug-b6d9c2be.html" data-relationship="contains" data-since="2026-04-06T22:39:17.493741">Worktree .htmlgraph/ pollutes git status — add to per-worktree exclude</a></li>
+                    <li><a href="feat-3f424a22.html" data-relationship="contains" data-since="2026-04-07T00:27:54.033238">Integrate Claude Code plan mode — ExitPlanMode hook converts markdown to CRISPI YAML</a></li>
+                    <li><a href="bug-e875a867.html" data-relationship="contains" data-since="2026-04-07T15:23:35.633919">Plan notebook chat backend not responding — message sent but no reply displayed</a></li>
+                    <li><a href="feat-14537ac2.html" data-relationship="contains" data-since="2026-04-07T16:37:14.11028">Close amendment loop — persist from chat, confirm to user, apply on rewrite-yaml</a></li>
+                    <li><a href="feat-69a6b124.html" data-relationship="contains" data-since="2026-04-07T18:34:17.077414">Plan skill: detect and enrich ExitPlanMode hook output instead of creating new YAML</a></li>
+                    <li><a href="feat-e6bf5dad.html" data-relationship="contains" data-since="2026-04-07T18:34:17.101951">ExitPlanMode hook: convert markdown headings to delivery slices, not document sections</a></li>
+                    <li><a href="feat-2efd7b65.html" data-relationship="contains" data-since="2026-04-07T18:34:17.125498">Plan skill: use htmlgraph plan review command, not hardcoded marimo path</a></li>
+                    <li><a href="feat-0a7b60d8.html" data-relationship="contains" data-since="2026-04-07T19:05:22.88026">Finalize pipeline: full orchestration from amendments through feature creation to HTML export</a></li>
+                    <li><a href="bug-c17bbba0.html" data-relationship="contains" data-since="2026-04-07T19:09:02.977192">Plan notebook throws 11 internal errors after export mode refactor</a></li>
+                    <li><a href="feat-20cdc605.html" data-relationship="contains" data-since="2026-04-07T19:16:56.806295">Separate export template — extract shared rendering, create plan_export.py</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Rearchitect the plan system so plans are the design space, tracks are derived on finalize. Plans created from topic/title, generative finalize creates track+features+edges, multi-AI critique integrated.</p>
+        </section>
+    </article>
+</body>
+</html>

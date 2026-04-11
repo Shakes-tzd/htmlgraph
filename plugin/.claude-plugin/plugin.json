@@ -1,0 +1,11 @@
+{
+  "name": "htmlgraph",
+  "version": "0.54.1",
+  "description": "HtmlGraph Go Plugin — local-first observability with Go binary hooks for near-zero cold start",
+  "author": {
+    "name": "shakestzd"
+  },
+  "homepage": "https://github.com/shakestzd/htmlgraph",
+  "repository": "https://github.com/shakestzd/htmlgraph",
+  "license": "MIT"
+}
