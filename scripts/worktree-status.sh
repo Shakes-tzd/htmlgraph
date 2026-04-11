@@ -25,7 +25,7 @@ echo "=== Parallel Worktree Status ==="
 echo ""
 
 if [ ! -d "$BASE_DIR" ]; then
-    echo "No worktrees found. Run: ./scripts/worktree-setup.sh"
+    echo "No worktrees found. Run: htmlgraph yolo --track <trk-id>"
     exit 0
 fi
 

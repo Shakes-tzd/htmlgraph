@@ -22,16 +22,28 @@ See `deploy-all.sh --help` for all options.
 
 ## Worktree Helpers
 
+Worktree creation is handled by the Go CLI:
+
 ```bash
-scripts/worktree-setup.sh <branch>     # Create worktree
-scripts/worktree-merge.sh <branch>     # Merge worktree to main
-scripts/worktree-cleanup.sh <branch>   # Remove worktree
-scripts/worktree-status.sh             # Show all worktrees
+htmlgraph yolo --track <trk-id>         # Create worktree + branch for a track
+```
+
+These thin shell helpers manage worktrees after they exist:
+
+```bash
+scripts/worktree-status.sh              # Show all worktrees
+scripts/worktree-cleanup.sh <name>      # Remove a worktree
+```
+
+## Devcontainer
+
+```bash
+scripts/devcontainer-verify.sh          # Full verification suite for the devcontainer
+                                         # (go build + go vet + go test + binary + dashboard smoke test)
 ```
 
 ## Other
 
 ```bash
-scripts/generate-docs.sh               # Generate documentation
-scripts/git-commit-push.sh             # Stage, commit, push
+scripts/git-commit-push.sh              # Stage, commit, push
 ```

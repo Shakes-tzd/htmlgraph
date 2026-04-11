@@ -4,34 +4,56 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "Installing AI agent CLIs..."
-npm install -g --no-fund --no-audit @anthropic-ai/claude-code @google/gemini-cli @openai/codex
+export PATH="${HOME}/.local/bin:${PATH}"
 
-echo "Syncing HtmlGraph dependencies..."
-uv sync --frozen --all-extras --all-groups
+echo "==> Installing AI agent CLIs..."
+npm install -g --no-fund --no-audit \
+    @anthropic-ai/claude-code \
+    @google/gemini-cli \
+    @openai/codex
+
+echo "==> Building htmlgraph from source..."
+./plugin/build.sh
+
+echo "==> Running quality gates..."
+go build ./...
+go vet ./...
 
 echo
-echo "Installed tool versions:"
-python3 --version
-uv --version
+echo "==> Installed tool versions:"
 go version
 node --version
 npm --version
 claude --version || true
 codex --version || true
 gemini --version || true
+htmlgraph --version || true
 
 cat <<'EOF'
 
 Devcontainer bootstrap complete.
 
-Next steps:
-- Run `claude`, `codex`, and `gemini` once each to complete interactive login if you are not passing API keys in from the host.
-- Optional browser setup for Playwright tests: `uv run playwright install --with-deps chromium`
-- Start HtmlGraph locally with: `uv run htmlgraph serve`
+This is a source-development environment — every change you make to
+cmd/, internal/, or plugin/ can be rebuilt with `htmlgraph build`.
 
-Persistent auth/config is stored in named Docker volumes mounted at:
-- ~/.claude
-- ~/.codex
-- ~/.gemini
+Next steps:
+- Authenticate the CLIs once (stored in persistent volumes):
+    claude           # OAuth browser login (or API key)
+    codex
+    gemini
+- Launch Claude Code in dev mode so it loads the plugin from source:
+    htmlgraph claude --dev
+- Start the dashboard:
+    htmlgraph serve
+    # http://localhost:8080
+- Run the full test suite on demand:
+    bash scripts/devcontainer-verify.sh
+
+Persistent volumes mounted:
+  /home/vscode/.claude         — Claude Code credentials
+  /home/vscode/.codex          — Codex credentials
+  /home/vscode/.gemini         — Gemini credentials
+  /home/vscode/.local          — htmlgraph binary + version metadata
+  <workspace>/.htmlgraph       — devcontainer-only work item state
+                                 (isolated from your host .htmlgraph/)
 EOF
