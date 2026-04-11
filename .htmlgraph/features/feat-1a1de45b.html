@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Reintroduce cross-project analytics (Phase 2 from plan-237fb251)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-1a1de45b"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-04-10T22:31:52.456971"
+             data-updated="2026-04-11T00:30:40.358737" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Reintroduce cross-project analytics (Phase 2 from plan-237fb251)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="6206b18b-775e-4c99-8f0c-c6c61c8c954d.html" data-relationship="implemented_in" data-since="2026-04-11T00:04:20.754912">session 6206b18b-775e-4c99-8f0c-c6c61c8c954d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-04-10T22:31:52.474651">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-1a1de45b-0">⏳ DEFERRED 2026-04-10: Parked post-launch. Opus agent derailed in worktree (87k tokens, no output) due to YOLO work-item hook blocking tool use in spawned subsessions. This feature is flagged as optional pre-launch polish per track description — ship launch without it, revisit once hook issue (bug filed separately) is fixed. Architecture decision already locked: child-side HTTP aggregation, doorway invariant preserved. See track trk-0677c709.</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The Multi-Project Hardening plan (plan-237fb251) deliberately deferred cross-project analytics to Phase 2 when it chose the 'true doorway' model with zero SQLite handles in the parent process. The landing page currently shows registry metadata only (name, path, last seen) — no per-project counts, no aggregate stats, no merged events feed. This feature reintroduces those views without violating the doorway invariant. Likely approach: child-side HTTP aggregation where each child exposes a /api/stats endpoint and the parent fans-out + merges, rather than opening parent-side SQLite connections. Est. 6-8 hours. Optional pre-launch polish; can ship post-launch if the demo + blog story doesn't need it.</p>
+        </section>
+    </article>
+</body>
+</html>

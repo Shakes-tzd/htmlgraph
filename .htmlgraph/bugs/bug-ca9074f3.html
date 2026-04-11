@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>YOLO work-item hook blocks spawned subagents despite feature start being called in their session</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ca9074f3"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-04-11T00:31:08.78667"
+             data-updated="2026-04-11T00:31:08.787647" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>YOLO work-item hook blocks spawned subagents despite feature start being called in their session</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-04-11T00:31:08.787576">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Observed 2026-04-10 during parallel dispatch of feat-bfa63ffa (sonnet) and feat-1a1de45b (opus) via Agent() with isolation=worktree. Both agents ran htmlgraph feature start  as their first command (attribution worked, status changed to in-progress), but subsequent tool calls were blocked by the YOLO hook with:
+
+  'No active work item. Run: htmlgraph feature start  ...'
+
+Both agents then went down rabbit holes investigating yolo_guard.go and permission_mode handling instead of doing their actual work. The sonnet agent burned 37k tokens, the opus agent burned 87k tokens — both producing zero useful output before being terminated.
+
+Root cause (hypothesis): the YOLO work-item guard uses per-session state that doesn't propagate from the parent to spawned subagent sessions. When an Agent() worktree subagent runs feature start, the CLI succeeds (updates HTML + DB), but the hook checking active work item at PreToolUse time looks in a different location (session file? env var? .active-session?) that was never set for the subagent's session ID.
+
+Evidence from the derailed agent transcripts:
+- 'launch_mode isn't used anywhere in the Go code. The YOLO check comes from event.PermissionMode or permission_mode in metadata'
+- 'but the error I got was No active work item...'
+- The agent found that feature start worked but the hook still blocked
+
+Reproduction: dispatch any subagent via Agent(isolation='worktree') into a YOLO-mode session and have it try to Edit a file after calling feature start. Expected: edit works. Actual: hook blocks with 'No active work item'.
+
+Impact: makes parallel agent dispatch unreliable in YOLO mode — the core workflow of /htmlgraph:execute is broken for anything non-trivial. Must be fixed before relying on parallel worktree execution.
+
+Fix direction: the work-item guard needs to resolve 'active work item' via HTMLGRAPH_PROJECT_DIR + .active-session (the canonical record), not via parent-session-scoped state. Or the spawned session needs to inherit the parent's active-session marker.</p>
+        </section>
+    </article>
+</body>
+</html>
