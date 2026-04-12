@@ -1,0 +1,445 @@
+meta:
+    id: plan-c248b73f
+    track_id: trk-0677c709
+    title: 'Multi-CLI integration: Gemini, Codex, Copilot'
+    description: |
+        Integrated foundation + per-runtime packaging plan that makes HtmlGraph a first-class participant in Gemini CLI, Codex CLI, and GitHub Copilot CLI sessions alongside existing Claude Code support. Synthesizes three prior plans (GEMINI_INTEGRATION_PLAN.md, docs/codex-cli-integration-plan.md, ~/.copilot/session-state/.../plan.md) into one execution that does shared foundation work ONCE instead of three times.
+    created_at: "2026-04-11"
+    status: draft
+    created_by: claude-opus-4-6
+    version: 1
+design:
+    problem: |
+        HtmlGraph today is Claude-shaped end to end. The Go CLI is host-neutral, but the plugin packaging (plugin/.claude-plugin/), hook event schema (internal/hooks/runner.go CloudEvent), session ingestion (internal/ingest/discover.go scanning only ~/.claude/projects/), agent detection (internal/agent/detect.go recognizing only claude-code + human), and plugin install command (cmd/htmlgraph/plugin.go hardcoding `claude plugin ...`) all assume Claude Code as the runtime. The repo already has AGENTS.md, CODEX.md, GEMINI.md, and a partial Gemini ingestion adapter (internal/ingest/gemini_discover.go) — but no codex or copilot ingest, no MCP server, no runtime enum, and no per-runtime packaging. Three separate integration plans exist (codex/copilot/gemini) and each independently proposes the same foundation work: host adapter, runtime tagging, MCP server, transcript ingestion. Doing them serially would re-litigate the same architectural decisions three times and produce inconsistent runtime adapters.
+    goals:
+        - '**Foundation done once** — host adapter pattern, runtime enum, generic event normalization, and MCP server land before any per-runtime packaging starts'
+        - '**Each runtime gains parity on the four pillars** — session/transcript ingestion, work-item attribution, structured tool access (MCP), and an installable plugin bundle'
+        - '**No Claude-shaped assumptions leak into new code** — every new file under `internal/host/` or `internal/ingest/` must be runtime-tagged at the call site, not by string comparison deep in business logic'
+        - '**Honest support matrix** — README documents what works per runtime and what''s deferred (e.g., Codex hooks are Bash-only); no implication of parity where none exists'
+        - '**Existing Gemini ingest is the reference implementation** — don''t rewrite `internal/ingest/gemini_discover.go`, generalize from it'
+    constraints:
+        - Cannot modify the htmlgraph CLI's public command surface in breaking ways — existing Claude users must keep working without reconfig
+        - Codex hooks are feature-flagged and Bash-only for PreToolUse/PostToolUse — non-Bash tool observability must come from transcript ingestion, not hooks (per https://developers.openai.com/codex/hooks)
+        - Copilot CLI binary today ships via the VS Code extension's globalStorage AND via @github/copilot npm package — packaging must work in both delivery modes
+        - 'Per AGENTS.md and CLAUDE.md: edit `plugin/` not `.claude/` (auto-synced). New runtime trees must follow the same single-source-of-truth discipline'
+        - MCP server, if added, should be built into the `htmlgraph` binary as a subcommand (e.g., `htmlgraph mcp serve`) to avoid a second binary in the install path — pending design Q2
+        - Each runtime's session-discovery directory must be discoverable without requiring the user to set extra env vars (Gemini scans ~/.gemini/tmp/, Codex scans ~/.codex/sessions/, Copilot scans ~/.copilot/session-state/)
+    approved: false
+    comment: ""
+slices:
+    - id: feat-host-adapter
+      num: 1
+      title: Host adapter foundation + runtime enum
+      what: |
+        Add internal/host/ package with subpackages claude, codex, copilot, gemini. Define a Runtime enum (claude|codex|copilot|gemini|human). Move runtime-shaped logic out of internal/hooks/runner.go into internal/host/claude/normalize.go. Add a host.Normalize(runtime, raw) (CloudEvent, error) entry point. Refactor selfBinary() in internal/hooks/task_tracking.go:17 to read HTMLGRAPH_PLUGIN_ROOT first, falling back to CLAUDE_PLUGIN_ROOT for compatibility, then os.Executable, then PATH lookup. Add a runtime column to the sessions table in SQLite (with migration) so future ingestion can tag sessions correctly. No behavior change for existing Claude users.
+      why: |
+        Goal "Foundation done once". Without this seam, every per-runtime slice will sprinkle if-runtime-codex branches across internal/hooks and internal/ingest. The codex plan calls this out explicitly as Risk 1 (Overfitting To Claude) and as Phase 1 (Establish The Codex Adapter Surface). Both copilot and gemini plans implicitly need it.
+      files:
+        - internal/host/runtime.go
+        - internal/host/claude/normalize.go
+        - internal/host/codex/normalize.go
+        - internal/host/copilot/normalize.go
+        - internal/host/gemini/normalize.go
+        - internal/hooks/runner.go
+        - internal/hooks/task_tracking.go
+        - internal/db/migrations/NNNN_sessions_runtime.sql
+      deps: []
+      done_when:
+        - internal/host/runtime.go exports Runtime type with constants ClaudeCode, Codex, Copilot, Gemini, Human and a String() method
+        - internal/hooks/runner.go no longer references claude directly; CloudEvent struct now has a Runtime host.Runtime field
+        - selfBinary() reads HTMLGRAPH_PLUGIN_ROOT first, CLAUDE_PLUGIN_ROOT fallback, with a unit test covering both env vars
+        - Sessions table has a runtime TEXT NOT NULL DEFAULT 'claude-code' column applied via migration; existing rows backfill to claude-code
+        - All existing tests pass without modification (no behavior change for Claude path)
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestRuntimeString covers all enum values; TestSelfBinaryEnvFallback covers both env vars and missing-var case
+        Unit: TestNormalizeClaudeRoundtrip ensures the refactored Claude normalize.go produces identical CloudEvents to the pre-refactor runner for a captured fixture
+        Migration: TestSessionsRuntimeMigrationBackfill applies the migration to a fixture DB and asserts existing rows get claude-code
+        Regression: existing internal/hooks/*_test.go must pass unchanged
+      approved: false
+      comment: ""
+    - id: feat-runtime-detect
+      num: 2
+      title: Extend agent detection for codex/gemini/copilot
+      what: |
+        Update internal/agent/detect.go:37 to recognize codex, gemini, and copilot in addition to claude-code. Detection priority: HTMLGRAPH_AGENT_ID env var (existing), then runtime-specific markers (CODEX_SESSION_ID, GEMINI_CLI_VERSION, COPILOT_AGENT_ID — verify exact env var names against each CLI's source/docs first), then CLAUDE_CODE=1, then human. Return values must match the Runtime enum from slice 1.
+      why: |
+        Goal "No Claude-shaped assumptions leak into new code". Without auto-detection, every hook handler would need the user to manually set HTMLGRAPH_AGENT_ID. Several downstream slices (codex hooks, copilot plugin) depend on the runtime being identified at session start without user configuration.
+      files:
+        - internal/agent/detect.go
+        - internal/agent/detect_test.go
+      deps:
+        - 1
+      done_when:
+        - Detect() returns host.Codex when CODEX_SESSION_ID is set
+        - Detect() returns host.Gemini when GEMINI_CLI_VERSION is set
+        - Detect() returns host.Copilot when COPILOT_AGENT_ID is set
+        - HTMLGRAPH_AGENT_ID env var still wins over auto-detection (override)
+        - Existing claude-code path unchanged
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestDetectAllRuntimes — table-driven test setting each env var in isolation and asserting the correct Runtime is returned
+        Unit: TestDetectOverridePrecedence — HTMLGRAPH_AGENT_ID overrides auto-detection
+        Regression: TestDetectClaudeCode and TestDetectHuman from existing detect_test.go must pass
+      approved: false
+      comment: ""
+    - id: feat-mcp-server
+      num: 3
+      title: HtmlGraph MCP server as htmlgraph mcp serve
+      what: |
+        Add internal/mcp/ package implementing a Model Context Protocol server that exposes a curated set of HtmlGraph operations as typed tools. Wire it as a new subcommand htmlgraph mcp serve in cmd/htmlgraph/. First tools (read-heavy, low-risk): htmlgraph_status, htmlgraph_snapshot, htmlgraph_find, htmlgraph_session_show, htmlgraph_feature_list. Then write tools: htmlgraph_feature_create, htmlgraph_feature_start, htmlgraph_feature_complete, htmlgraph_link_add. Tools must be thin wrappers over existing CLI logic — no business logic duplication.
+      why: |
+        Goal "Each runtime gains parity on structured tool access". Codex and Copilot plans both rank MCP as the highest-leverage step because hooks alone are too narrow. Without MCP, every runtime ends up shelling out to htmlgraph and parsing markdown — fragile and hard to test. With MCP, runtime plugins become thin wrappers that reference typed tools.
+      files:
+        - internal/mcp/server.go
+        - internal/mcp/tools_read.go
+        - internal/mcp/tools_write.go
+        - internal/mcp/server_test.go
+        - cmd/htmlgraph/mcp.go
+      deps:
+        - 1
+      done_when:
+        - htmlgraph mcp serve starts an MCP server on stdio (default) or --port for TCP
+        - All 9 listed tools are registered with full JSONSchema parameter definitions
+        - Read tools (status, snapshot, find, session_show, feature_list) return structured JSON, not markdown
+        - Write tools call into existing internal/work or internal/links functions — no SQL or HTML manipulation in mcp/
+        - 'Smoke test: an MCP client connects, calls htmlgraph_status, gets a valid response'
+      effort: L
+      risk: Med
+      tests: |
+        Unit: TestServerRegistersAllTools — assert tool count and names
+        Unit: TestToolStatusReturnsStructured — call htmlgraph_status, parse JSON, assert known fields
+        Integration: TestMCPRoundtrip — start server in goroutine, send list_tools and call_tool messages, assert responses
+        Regression: cmd/htmlgraph/ existing subcommands still work
+      approved: false
+      comment: ""
+    - id: feat-codex-ingest
+      num: 4
+      title: Codex transcript discovery and ingestion
+      what: |
+        Add internal/ingest/codex_discover.go and codex_parser.go mirroring the existing gemini_discover.go pattern. Discovery scans ~/.codex/sessions/ for rollout JSONL files. Parser reads Codex's session/rollout format and emits the same internal Session representation that the Claude path produces. Sessions tagged with runtime=codex via slice 1's column. Add a --runtime flag to htmlgraph ingest that defaults to all but can be scoped.
+      why: |
+        Goal "Each runtime gains parity on session/transcript ingestion". Codex plan Phase 3 ranks this as the second priority (after hooks). Without it, Codex sessions are invisible in the dashboard regardless of how well the rest of the integration works.
+      files:
+        - internal/ingest/codex_discover.go
+        - internal/ingest/codex_parser.go
+        - internal/ingest/codex_discover_test.go
+        - internal/ingest/codex_parser_test.go
+        - internal/ingest/testdata/codex/rollout-fixture.jsonl
+        - cmd/htmlgraph/ingest.go
+      deps:
+        - 1
+      done_when:
+        - DiscoverCodexSessions() returns sessions from ~/.codex/sessions/ with at least one fixture-backed test
+        - Parser handles Codex's actual JSONL shape (verified against a real captured session, not a mock)
+        - htmlgraph ingest --runtime codex ingests at least one real Codex session end-to-end with sessions.runtime=codex
+        - Dashboard /sessions view displays codex sessions without runtime-specific code paths in the frontend
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestDiscoverCodexSessions on a tempdir fixture
+        Unit: TestParseCodexRollout on a captured real-session fixture (committed under testdata/)
+        Integration: TestIngestCodexEndToEnd — discover, parse, write to SQLite, query back
+        Regression: existing claude and gemini ingest tests still pass
+      approved: false
+      comment: ""
+    - id: feat-copilot-ingest
+      num: 5
+      title: Copilot transcript discovery and ingestion
+      what: |
+        Add internal/ingest/copilot_discover.go and copilot_parser.go following the same pattern as slice 4. Discovery scans ~/.copilot/session-state/<session-id>/ directories. Parser handles Copilot's session-state format (likely JSON files including plan.md, messages, tool calls). Sessions tagged runtime=copilot.
+      why: |
+        Goal parity. Copilot plan Phase 5 calls out observability as a separate track because Copilot hooks may not exist or may be incomplete; transcript ingestion is the reliable fallback.
+      files:
+        - internal/ingest/copilot_discover.go
+        - internal/ingest/copilot_parser.go
+        - internal/ingest/copilot_discover_test.go
+        - internal/ingest/copilot_parser_test.go
+        - internal/ingest/testdata/copilot/session-state-fixture/
+        - cmd/htmlgraph/ingest.go
+      deps:
+        - 1
+      done_when:
+        - DiscoverCopilotSessions() returns sessions from ~/.copilot/session-state/
+        - Parser handles real Copilot session-state captured from a live session
+        - htmlgraph ingest --runtime copilot ingests one real session end-to-end
+        - Dashboard /sessions view displays copilot sessions
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestDiscoverCopilotSessions on tempdir fixture
+        Unit: TestParseCopilotSessionState on a real captured fixture
+        Integration: TestIngestCopilotEndToEnd
+        Regression: claude/codex/gemini ingest tests still pass
+      approved: false
+      comment: ""
+    - id: feat-codex-hooks
+      num: 6
+      title: Codex repo-local hooks wiring
+      what: |
+        Add .codex/hooks.json (and document a global ~/.codex/hooks.json pattern in CODEX.md) wiring the supported Codex events to htmlgraph hook subcommands: SessionStart (matchers startup|resume), UserPromptSubmit (no matcher), PreToolUse (matcher Bash only), PostToolUse (matcher Bash only), Stop (no matcher). Add [features] codex_hooks = true to .codex/config.toml (which already exists per research findings). Ensure each hook payload normalizes through internal/host/codex/normalize.go from slice 1.
+      why: |
+        Goal foundation parity. Provides the live event stream that ingestion cannot — prompts and Bash tool calls are observable in real time without waiting for transcript ingestion. The Codex plan ranks this as the #1 priority milestone.
+      files:
+        - .codex/hooks.json
+        - .codex/config.toml
+        - CODEX.md
+        - internal/host/codex/normalize_test.go
+      deps:
+        - 1
+        - 2
+      done_when:
+        - .codex/hooks.json validates against Codex's documented schema
+        - Each of the 5 events (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop) shells out to htmlgraph hook <event>
+        - 'matchers are correct: SessionStart startup|resume, PreToolUse Bash, PostToolUse Bash, no matcher for UserPromptSubmit/Stop'
+        - Running codex in this repo produces at least one row in the hook_events table tagged runtime=codex
+        - CODEX.md documents the global ~/.codex/hooks.json setup pattern
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestNormalizeCodexUserPromptSubmit on a captured Codex hook payload fixture
+        Unit: TestNormalizeCodexBashPreToolUse
+        Manual smoke: documented in CODEX.md — run codex in repo, run htmlgraph snapshot, verify Codex events appear
+      approved: false
+      comment: ""
+    - id: feat-codex-plugin
+      num: 7
+      title: Codex plugin bundle (plugins/htmlgraph-codex)
+      what: |
+        Create plugins/htmlgraph-codex/ with .codex-plugin/plugin.json, skills/ (port 4-5 highest-value SKILL.md files: agent-context, diagnose, plan, deploy, code-quality), .mcp.json referencing htmlgraph mcp serve, and agents/ (TOML files for researcher, reviewer, test-runner, executor — per Codex subagent spec). Skills must have Claude-only language stripped. Add a build script that packages the plugin tree for distribution.
+      why: |
+        Goal "Each runtime gains an installable plugin bundle". Repo-local .codex/ is for dogfooding; plugins/htmlgraph-codex/ is for users. Bundles MCP (slice 3) so Codex users get typed tools out of the box.
+      files:
+        - plugins/htmlgraph-codex/.codex-plugin/plugin.json
+        - plugins/htmlgraph-codex/skills/agent-context/SKILL.md
+        - plugins/htmlgraph-codex/skills/diagnose/SKILL.md
+        - plugins/htmlgraph-codex/skills/plan/SKILL.md
+        - plugins/htmlgraph-codex/skills/deploy/SKILL.md
+        - plugins/htmlgraph-codex/skills/code-quality/SKILL.md
+        - plugins/htmlgraph-codex/.mcp.json
+        - plugins/htmlgraph-codex/agents/researcher.toml
+        - plugins/htmlgraph-codex/agents/reviewer.toml
+        - plugins/htmlgraph-codex/agents/test-runner.toml
+        - plugins/htmlgraph-codex/agents/executor.toml
+        - plugins/htmlgraph-codex/README.md
+        - scripts/build-codex-plugin.sh
+      deps:
+        - 1
+        - 3
+        - 4
+        - 6
+      done_when:
+        - plugin.json validates against Codex's documented schema
+        - All 5 skills have Codex-oriented invocation examples and no Claude-only references
+        - .mcp.json points to htmlgraph mcp serve and is loaded when the plugin installs
+        - All 4 agent TOML files parse and Codex CLI can list them via its agent discovery
+        - scripts/build-codex-plugin.sh produces a tar/zip bundle that codex plugin install <bundle> accepts
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestCodexPluginManifestValid — JSON schema validation
+        Unit: TestCodexAgentTOMLValid — parse all agent files, assert required fields
+        Manual smoke: install the bundle in a clean Codex setup, run a skill, verify it executes htmlgraph commands
+      approved: false
+      comment: ""
+    - id: feat-gemini-extension
+      num: 8
+      title: Gemini extension package
+      what: |
+        Create packages/gemini-extension/ with gemini-extension.json manifest, skills/htmlgraph/SKILL.md containing core instructions and safety rules from htmlgraph agent-init, and commands/htmlgraph/ TOML slash commands (start, status, plan, spike, recommend, end). Update GEMINI.md to reflect the actual implementation. Generalizes from existing internal/ingest/gemini_discover.go (do NOT rewrite it, just verify it stays compatible). Decision on slash commands depends on Q4 — see questions section.
+      why: |
+        Goal "Each runtime gains an installable plugin bundle". Gemini's CLI surface is skill+TOML-command shaped; this matches its native patterns rather than fighting them. The existing gemini ingest already works — this slice closes the loop on the user-facing side.
+      files:
+        - packages/gemini-extension/gemini-extension.json
+        - packages/gemini-extension/skills/htmlgraph/SKILL.md
+        - packages/gemini-extension/commands/htmlgraph/start.toml
+        - packages/gemini-extension/commands/htmlgraph/status.toml
+        - packages/gemini-extension/commands/htmlgraph/plan.toml
+        - packages/gemini-extension/commands/htmlgraph/spike.toml
+        - packages/gemini-extension/commands/htmlgraph/recommend.toml
+        - packages/gemini-extension/commands/htmlgraph/end.toml
+        - GEMINI.md
+      deps:
+        - 1
+        - 2
+      done_when:
+        - gemini skills link ./packages/gemini-extension --scope workspace succeeds
+        - /htmlgraph:start invoked from gemini CLI runs htmlgraph snapshot and shows project overview
+        - Work items created via gemini commands appear in htmlgraph serve dashboard tagged runtime=gemini
+        - GEMINI.md no longer claims missing files exist
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestGeminiManifestValid — gemini-extension.json schema check
+        Unit: TestGeminiCommandsTOMLValid — parse all command files
+        Manual smoke: run /htmlgraph:start in Gemini CLI, verify output
+      approved: false
+      comment: ""
+    - id: feat-copilot-package
+      num: 9
+      title: Copilot repo-local + installable plugin
+      what: |
+        Two-part deliverable. (a) Repo-local: add .github/copilot-instructions.md pointing to AGENTS.md, build/test commands, and the no-direct-htmlgraph-edit rule; .github/skills/<workflow>/SKILL.md for start, status, plan, execute; .github/agents/<role>.agent.md for researcher, coder, test-runner. (b) Installable: packages/copilot-plugin/ with plugin.json, skills/, agents/, .mcp.json pointing to slice 3's MCP server, and optionally a hooks.json if Copilot's hook surface supports our events (validate during implementation).
+      why: |
+        Goal parity. Copilot plan Phase 2 says "ship repo-local first" because it's the lowest-friction path. Phase 3 adds the installable plugin for cross-repo reuse. Both layers share the same skill/agent content.
+      files:
+        - .github/copilot-instructions.md
+        - .github/skills/htmlgraph-start/SKILL.md
+        - .github/skills/htmlgraph-status/SKILL.md
+        - .github/skills/htmlgraph-plan/SKILL.md
+        - .github/skills/htmlgraph-execute/SKILL.md
+        - .github/agents/researcher.agent.md
+        - .github/agents/coder.agent.md
+        - .github/agents/test-runner.agent.md
+        - packages/copilot-plugin/plugin.json
+        - packages/copilot-plugin/skills/
+        - packages/copilot-plugin/agents/
+        - packages/copilot-plugin/.mcp.json
+        - packages/copilot-plugin/README.md
+      deps:
+        - 1
+        - 2
+        - 3
+        - 5
+      done_when:
+        - .github/copilot-instructions.md exists and Copilot CLI surfaces it on session start
+        - All 4 repo-local skills are discoverable via Copilot's skill listing
+        - All 3 repo-local agents are discoverable
+        - copilot plugin install ./packages/copilot-plugin succeeds in a fresh Copilot install
+        - MCP tools from slice 3 are callable from Copilot via the bundled .mcp.json
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestCopilotPluginManifestValid
+        Unit: TestCopilotInstructionsFileExists (CI guard)
+        Manual smoke: copilot CLI in-repo session uses HtmlGraph skills
+      approved: false
+      comment: ""
+    - id: feat-install-cmd
+      num: 10
+      title: Generalize plugin install command
+      what: |
+        Refactor cmd/htmlgraph/plugin.go:20 (currently hardcoded to claude plugin marketplace add and claude plugin install) to accept a --runtime claude|codex|copilot|gemini flag. Each runtime delegates to its native CLI (claude plugin, codex plugin, copilot plugin, gemini skills link) with the correct bundle path. Default runtime auto-detected from PATH (whichever CLI exists). Existing htmlgraph plugin install (no flag) continues to install the Claude plugin for backward compat.
+      why: |
+        Goal "Honest support matrix". Without a unified install command, docs end up with four separate install snippets and users have to know which one to use. With it, htmlgraph plugin install --runtime codex is the canonical doc-anchor for each runtime.
+      files:
+        - cmd/htmlgraph/plugin.go
+        - cmd/htmlgraph/plugin_test.go
+      deps:
+        - 7
+        - 8
+        - 9
+      done_when:
+        - htmlgraph plugin install (no flag) installs the Claude plugin (backward compat)
+        - htmlgraph plugin install --runtime codex installs plugins/htmlgraph-codex
+        - htmlgraph plugin install --runtime gemini runs gemini skills link packages/gemini-extension
+        - htmlgraph plugin install --runtime copilot installs packages/copilot-plugin
+        - Auto-detection picks the first CLI found on PATH if no flag given AND no Claude install present
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestPluginInstallRuntimeFlag — table-driven, mock exec.LookPath
+        Unit: TestPluginInstallBackwardCompat — no-flag still hits claude
+        Regression: existing plugin install tests pass
+      approved: false
+      comment: ""
+    - id: feat-docs-matrix
+      num: 11
+      title: Documentation, README, support matrix
+      what: |
+        Update README.md with a host support matrix (rows: claude, codex, gemini, copilot; columns: hooks, ingest, MCP, plugin install, agents, skills, slash commands) showing exactly what works per runtime. Add per-runtime install sections. Update CODEX.md, GEMINI.md, AGENTS.md to cross-reference each other and the support matrix. Add a limitations section documenting Codex Bash-only hooks, Copilot hook uncertainty, and any gaps. Stop calling the Claude plugin the universal recommended path.
+      why: |
+        Goal "Honest support matrix". Without explicit limitations docs, users will infer parity and file bugs against gaps that are intentional. Each input plan ranks docs as the final phase for exactly this reason.
+      files:
+        - README.md
+        - CODEX.md
+        - GEMINI.md
+        - AGENTS.md
+        - docs/runtime-support-matrix.md
+      deps:
+        - 4
+        - 5
+        - 10
+      done_when:
+        - README.md has a host support matrix table
+        - Each runtime has its own install snippet using htmlgraph plugin install --runtime <name>
+        - docs/runtime-support-matrix.md exists with per-feature rows and explicit deferred/partial/full status
+        - Limitations section calls out Codex Bash-only PreToolUse/PostToolUse
+        - No file claims a runtime works that doesn't
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestSupportMatrixDocExists (CI guard)
+        Manual review: docs read for accuracy against actually-merged slices
+      approved: false
+      comment: ""
+questions:
+    - id: q-runtime-package-layout
+      text: Where should each runtime's packaging tree live?
+      description: |
+        Each input plan picked a different convention. The Codex plan proposes plugins/htmlgraph-codex/. The Copilot plan proposes packages/copilot-plugin/ AND repo-local .github/. The Gemini plan proposes packages/gemini-extension/. We can pick one convention for all three (cleaner), or honor each runtime's idiom (more native-feeling per-runtime). Mixing conventions makes the repo harder to navigate but matches each ecosystem's docs.
+      recommended: hybrid-by-distribution
+      options:
+        - key: unified-plugins-dir
+          label: 'All under plugins/: plugins/htmlgraph-codex/, plugins/htmlgraph-gemini/, plugins/htmlgraph-copilot/ — symmetric, easy to script across, but conflicts with Gemini''s packages/ idiom and Copilot''s .github/ repo-local'
+        - key: unified-packages-dir
+          label: 'All under packages/: packages/codex-plugin/, packages/gemini-extension/, packages/copilot-plugin/ — matches the Gemini and Copilot plans, but conflicts with the Codex plan''s plugins/ suggestion'
+        - key: hybrid-by-distribution
+          label: 'Hybrid (RECOMMENDED): plugins/<runtime>/ for distributable bundles + .github/ and .codex/ for repo-local dogfooding. Three distribution dirs share the plugins/ prefix; repo-local files live where each runtime''s docs say they should'
+        - key: native-per-runtime
+          label: 'Each runtime uses its own native location: .codex/, .github/, .gemini/ — minimal but fragments distribution and makes shared CI scripts harder'
+      answer: null
+    - id: q-mcp-binary-shape
+      text: How should the MCP server be packaged and invoked?
+      description: |
+        Codex and Copilot both want the MCP server to be the structured tool layer. We can either build it into the existing htmlgraph binary as htmlgraph mcp serve (zero new install steps, but couples MCP to every CLI release), or ship a separate htmlgraph-mcp binary (cleaner separation, but two binaries to install). The constraint says one binary is preferred, but ask before locking in.
+      recommended: subcommand
+      options:
+        - key: subcommand
+          label: 'Subcommand of htmlgraph (RECOMMENDED): htmlgraph mcp serve — zero new install, single binary, MCP versioning tracks CLI versioning. Plugin .mcp.json files reference the existing binary'
+        - key: separate-binary
+          label: Separate htmlgraph-mcp binary — cleaner separation of concerns, can ship MCP-only updates independently, but doubles the install footprint and requires plugin install to fetch a second artifact
+        - key: library-only
+          label: Library only, no built-in server — provide an internal/mcp/ package and let downstream embedders run their own. Minimal but pushes work to every plugin
+      answer: null
+    - id: q-cloudevent-refactor
+      text: How should the CloudEvent struct be generalized for non-Claude runtimes?
+      description: |
+        internal/hooks/runner.go CloudEvent has Claude-shaped fields (PermissionMode, Source values like compact, AgentType). We can either (a) generalize the struct itself by adding a Runtime field and making Claude-specific fields optional, (b) keep CloudEvent as Claude's shape and add per-runtime structs that the host adapter converts into a generic envelope, or (c) keep CloudEvent as the lingua franca and let runtime adapters lossy-convert into it. Option (c) is cheapest but loses runtime-specific signal that the dashboard might want later.
+      recommended: generalize-with-optional
+      options:
+        - key: generalize-with-optional
+          label: 'Generalize CloudEvent in place (RECOMMENDED): add Runtime field, mark Claude-specific fields as optional/nullable. Single struct, downstream code reads Runtime to know which optionals are populated. Lowest churn'
+        - key: per-runtime-structs
+          label: 'Per-runtime structs + generic envelope: each runtime has its own typed struct, host.Normalize() converts to a thin generic envelope. Cleaner type safety but doubles the type surface area'
+        - key: lossy-conversion
+          label: 'Keep CloudEvent as-is, runtimes lossy-convert: simplest, no struct changes, but loses runtime-specific data the dashboard could surface later'
+      answer: null
+    - id: q-gemini-slash-commands
+      text: Should we port the 6 Claude slash commands to Gemini TOML, or skip them?
+      description: |
+        The Gemini input plan explicitly lists translating /htmlgraph:start, :status, :plan, :spike, :recommend, :end into TOML commands. The Codex and Copilot plans both say slash-command parity with Claude is the wrong target — skills are the better Codex/Copilot abstraction. Gemini is different: its CLI prominently features TOML slash commands as a first-class UX. So Gemini may genuinely want them, while Codex and Copilot do not.
+      recommended: gemini-yes-others-no
+      options:
+        - key: gemini-yes-others-no
+          label: Gemini gets all 6 slash commands; Codex and Copilot get skills only (RECOMMENDED). Honors each runtime's idiomatic UX. Slice 8 includes them; slices 7 and 9 don't
+        - key: skills-everywhere
+          label: 'Skills only across all runtimes — drop the Gemini slash commands per the Codex/Copilot guidance. Risk: Gemini users miss the most discoverable surface their CLI offers'
+        - key: slash-commands-everywhere
+          label: Port all 6 commands to all 3 runtimes — most consistent for users juggling multiple CLIs, but contradicts the Codex and Copilot plans' explicit guidance
+      answer: null
+    - id: q-test-fixture-strategy
+      text: Where do real captured runtime sessions for tests come from?
+      description: |
+        Slices 4 and 5 require fixtures of real Codex and Copilot session transcripts to test the parsers. We can either (a) commit captured sessions under testdata/ (real signal but may include private text), (b) generate synthetic minimal fixtures that match the documented schema (no privacy concerns but may diverge from reality), or (c) use a hybrid: synthetic for unit tests, gitignored real fixtures for manual smoke. The Codex plan emphasizes ingest one real Codex session end-to-end as Milestone 1's success criterion, which implies (a) or (c).
+      recommended: hybrid
+      options:
+        - key: hybrid
+          label: 'Hybrid (RECOMMENDED): synthetic minimal fixtures committed under testdata/ for unit tests + a documented procedure to capture real sessions locally for manual smoke. Best of both'
+        - key: real-only
+          label: Commit real captured sessions — strongest signal that the parser handles reality, but every contributor's text gets in version history. Requires careful redaction
+        - key: synthetic-only
+          label: Synthetic fixtures only — fastest to write, no privacy concerns, but the parser may pass tests and fail on real Codex sessions if the docs are incomplete
+      answer: null
