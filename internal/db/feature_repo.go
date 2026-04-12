@@ -73,9 +73,28 @@ func GetFeature(db *sql.DB, id string) (*Feature, error) {
 	return f, nil
 }
 
+// trackExists returns true if the given track ID is present in the tracks table.
+// An empty id always returns false to avoid a needless query.
+func trackExists(db *sql.DB, trackID string) bool {
+	if trackID == "" {
+		return false
+	}
+	var exists int
+	err := db.QueryRow(`SELECT 1 FROM tracks WHERE id = ? LIMIT 1`, trackID).Scan(&exists)
+	return err == nil
+}
+
 // UpsertFeature inserts or updates a feature row.
 // On conflict by id, all mutable fields are updated.
+// If the feature's TrackID does not correspond to an existing track, it is
+// coerced to empty (NULL in SQLite) so that dangling FK references don't
+// cause the upsert to fail.  The HTML store remains the source of truth.
 func UpsertFeature(database *sql.DB, f *Feature) error {
+	trackID := f.TrackID
+	if trackID != "" && !trackExists(database, trackID) {
+		trackID = ""
+	}
+
 	_, err := database.Exec(`
 		INSERT INTO features (id, type, title, description, status, priority,
 			assigned_to, track_id, created_at, updated_at,
@@ -92,7 +111,7 @@ func UpsertFeature(database *sql.DB, f *Feature) error {
 			steps_completed = excluded.steps_completed`,
 		f.ID, f.Type, f.Title, nullStr(f.Description),
 		f.Status, f.Priority,
-		nullStr(f.AssignedTo), nullStr(f.TrackID),
+		nullStr(f.AssignedTo), nullStr(trackID),
 		f.CreatedAt.UTC().Format(time.RFC3339),
 		f.UpdatedAt.UTC().Format(time.RFC3339),
 		f.StepsTotal, f.StepsCompleted,

@@ -25,11 +25,13 @@ are reparsed. Use --full to force a complete reparse of all files.`,
 		RunE: runReindex,
 	}
 	cmd.Flags().Bool("full", false, "Force full reindex of all HTML files (ignores git diff)")
+	cmd.Flags().BoolP("verbose", "v", false, "Print one line per error encountered during reindex")
 	return cmd
 }
 
 func runReindex(cmd *cobra.Command, _ []string) error {
 	fullFlag, _ := cmd.Flags().GetBool("full")
+	verboseFlag, _ := cmd.Flags().GetBool("verbose")
 
 	htmlgraphDir, err := findHtmlgraphDir()
 	if err != nil {
@@ -58,17 +60,17 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 	}
 
 	if useIncremental {
-		total, upserted, errCount = runIncrementalReindex(database, htmlgraphDir, projectDir, lastCommit, validIDs)
+		total, upserted, errCount = runIncrementalReindex(database, htmlgraphDir, projectDir, lastCommit, validIDs, verboseFlag)
 		fmt.Printf("Reindexed (incremental): %d upserted, %d errors (of %d changed HTML files)\n",
 			upserted, errCount, total)
 	} else {
-		trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, projectDir, validIDs)
+		trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, projectDir, validIDs, verboseFlag)
 		total += trackTotal
 		upserted += trackUpserted
 		errCount += trackErrs
 
 		for _, dir := range []string{"features", "bugs", "spikes"} {
-			t, u, e := reindexFeatureDir(database, htmlgraphDir, projectDir, dir, validIDs)
+			t, u, e := reindexFeatureDir(database, htmlgraphDir, projectDir, dir, validIDs, verboseFlag)
 			total += t
 			upserted += u
 			errCount += e
@@ -120,6 +122,7 @@ func runIncrementalReindex(
 	database *sql.DB,
 	htmlgraphDir, projectDir, lastCommit string,
 	validIDs map[string]bool,
+	verbose bool,
 ) (int, int, int) {
 	added, deleted := gitChangedFiles(projectDir, lastCommit, htmlgraphDir)
 
@@ -142,6 +145,9 @@ func runIncrementalReindex(
 		node, parseErr := htmlparse.ParseFile(path)
 		if parseErr != nil {
 			errCount++
+			if verbose {
+				fmt.Printf("reindex: error: %s: %v\n", path, parseErr)
+			}
 			continue
 		}
 
@@ -160,6 +166,9 @@ func runIncrementalReindex(
 			}
 			if err := dbpkg.UpsertTrack(database, track); err != nil {
 				errCount++
+				if verbose {
+					fmt.Printf("reindex: error: %s: %v\n", path, err)
+				}
 				continue
 			}
 		} else {
@@ -190,6 +199,9 @@ func runIncrementalReindex(
 			}
 			if err := dbpkg.UpsertFeature(database, feat); err != nil {
 				errCount++
+				if verbose {
+					fmt.Printf("reindex: error: %s: %v\n", path, err)
+				}
 				continue
 			}
 		}
@@ -282,7 +294,7 @@ func idFromHTMLPath(path string) string {
 	return strings.TrimSuffix(base, ".html")
 }
 
-func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs map[string]bool) (int, int, int) {
+func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs map[string]bool, verbose bool) (int, int, int) {
 	patterns := []string{
 		filepath.Join(htmlgraphDir, "tracks", "*.html"),
 		filepath.Join(htmlgraphDir, "tracks", "*", "index.html"),
@@ -303,6 +315,9 @@ func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs m
 			node, parseErr := htmlparse.ParseFile(f)
 			if parseErr != nil {
 				errCount++
+				if verbose {
+					fmt.Printf("reindex: error: %s: %v\n", f, parseErr)
+				}
 				continue
 			}
 
@@ -320,6 +335,9 @@ func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs m
 
 			if upsertErr := dbpkg.UpsertTrack(database, track); upsertErr != nil {
 				errCount++
+				if verbose {
+					fmt.Printf("reindex: error: %s: %v\n", f, upsertErr)
+				}
 				continue
 			}
 			validIDs[node.ID] = true
@@ -329,7 +347,7 @@ func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs m
 	return total, upserted, errCount
 }
 
-func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, validIDs map[string]bool) (int, int, int) {
+func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, validIDs map[string]bool, verbose bool) (int, int, int) {
 	pattern := filepath.Join(htmlgraphDir, dir, "*.html")
 	files, _ := filepath.Glob(pattern)
 
@@ -339,6 +357,9 @@ func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, v
 		node, parseErr := htmlparse.ParseFile(f)
 		if parseErr != nil {
 			errCount++
+			if verbose {
+				fmt.Printf("reindex: error: %s: %v\n", f, parseErr)
+			}
 			continue
 		}
 
@@ -374,6 +395,9 @@ func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, v
 
 		if upsertErr := dbpkg.UpsertFeature(database, feat); upsertErr != nil {
 			errCount++
+			if verbose {
+				fmt.Printf("reindex: error: %s: %v\n", f, upsertErr)
+			}
 			continue
 		}
 		validIDs[node.ID] = true

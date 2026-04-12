@@ -127,10 +127,10 @@ func runFullReindex(htmlgraphDir string, cmd *cobra.Command) error {
 	projectDir := filepath.Dir(htmlgraphDir)
 	validIDs := make(map[string]bool)
 
-	trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, projectDir, validIDs)
-	featTotal, featUpserted, featErrs := reindexFeatureDir(database, htmlgraphDir, projectDir, "features", validIDs)
-	bugTotal, bugUpserted, bugErrs := reindexFeatureDir(database, htmlgraphDir, projectDir, "bugs", validIDs)
-	spikeTotal, spikeUpserted, spikeErrs := reindexFeatureDir(database, htmlgraphDir, projectDir, "spikes", validIDs)
+	trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, projectDir, validIDs, false)
+	featTotal, featUpserted, featErrs := reindexFeatureDir(database, htmlgraphDir, projectDir, "features", validIDs, false)
+	bugTotal, bugUpserted, bugErrs := reindexFeatureDir(database, htmlgraphDir, projectDir, "bugs", validIDs, false)
+	spikeTotal, spikeUpserted, spikeErrs := reindexFeatureDir(database, htmlgraphDir, projectDir, "spikes", validIDs, false)
 
 	total := trackTotal + featTotal + bugTotal + spikeTotal
 	upserted := trackUpserted + featUpserted + bugUpserted + spikeUpserted
