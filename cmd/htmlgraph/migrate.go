@@ -19,6 +19,7 @@ func migrateCmd() *cobra.Command {
 		Short: "One-shot data migrations",
 	}
 	cmd.AddCommand(migrateSessionsCmd())
+	addAttributionFixCmd(cmd)
 	return cmd
 }
 

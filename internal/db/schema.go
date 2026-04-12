@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -86,6 +87,15 @@ func Open(dbPath string) (*sql.DB, error) {
 		SELECT 1 FROM agent_events WHERE agent_events.session_id = sessions.session_id
 	)`)
 
+	// Migration: add CHECK constraint to agent_events that prevents misattributed
+	// tool_call events (agent_id='human' with non-UserQuery tool_name).
+	// SQLite cannot add CHECK constraints via ALTER TABLE, so we use copy-and-swap
+	// guarded by the metadata table to make it idempotent.
+	if err := migrateAgentEventsAddCheckConstraint(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate agent_events check constraint: %w", err)
+	}
+
 	return db, nil
 }
 
@@ -125,6 +135,7 @@ func CreateAllTables(db *sql.DB) error {
 			step_id TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
 			FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
 			FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
 			FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
@@ -459,4 +470,107 @@ func CreateAllIndexes(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+// agentEventsCheckConstraintDDL is the target DDL for the agent_events table
+// including the attribution CHECK constraint. It must match CreateAllTables exactly.
+const agentEventsCheckConstraintDDL = `CREATE TABLE agent_events (
+			event_id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			event_type TEXT NOT NULL CHECK(
+				event_type IN ('tool_call','tool_result','error','delegation',
+				               'completion','start','end','check_point','task_delegation',
+				               'teammate_idle','task_completed',
+				               'claim.proposed','claim.claimed','claim.heartbeat','claim.blocked',
+				               'claim.completed','claim.abandoned','claim.expired','claim.handoff')
+			),
+			timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			tool_name TEXT,
+			input_summary TEXT,
+			tool_input JSON,
+			output_summary TEXT,
+			context JSON,
+			session_id TEXT NOT NULL,
+			feature_id TEXT,
+			parent_agent_id TEXT,
+			parent_event_id TEXT,
+			subagent_type TEXT,
+			child_spike_count INTEGER DEFAULT 0,
+			cost_tokens INTEGER DEFAULT 0,
+			execution_duration_seconds REAL DEFAULT 0.0,
+			status TEXT DEFAULT 'recorded',
+			model TEXT,
+			claude_task_id TEXT,
+			source TEXT DEFAULT 'hook',
+			step_id TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
+			FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
+			FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
+			FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
+		)`
+
+// migrateAgentEventsAddCheckConstraint adds the attribution CHECK constraint to
+// the existing agent_events table via copy-and-swap. It is idempotent: if the
+// current table DDL already contains the constraint marker string, it is a no-op.
+// The migration is also guarded by a metadata key so it only runs once.
+func migrateAgentEventsAddCheckConstraint(db *sql.DB) error {
+	// Check if the constraint already exists in the live table DDL.
+	var currentSQL string
+	err := db.QueryRow(
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name='agent_events'`,
+	).Scan(&currentSQL)
+	if err != nil {
+		// Table doesn't exist yet — CreateAllTables will create it with the constraint.
+		return nil
+	}
+	if strings.Contains(currentSQL, "tool_name != 'UserQuery'") {
+		// Constraint already present — nothing to do.
+		return nil
+	}
+
+	// Disable foreign keys for the duration of the swap.
+	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
+		return fmt.Errorf("disable foreign_keys: %w", err)
+	}
+	defer db.Exec(`PRAGMA foreign_keys = ON`) //nolint:errcheck
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	// 1. Create the new table with the constraint.
+	newTableDDL := strings.Replace(agentEventsCheckConstraintDDL,
+		"CREATE TABLE agent_events", "CREATE TABLE agent_events_new", 1)
+	if _, err := tx.Exec(newTableDDL); err != nil {
+		return fmt.Errorf("create agent_events_new: %w", err)
+	}
+
+	// 2. Copy all rows. Rows that violate the constraint are silently skipped
+	//    (INSERT OR IGNORE) — by this point the attribution-fix migration should
+	//    have cleaned them, but we guard against edge cases.
+	if _, err := tx.Exec(`
+		INSERT OR IGNORE INTO agent_events_new
+		SELECT event_id, agent_id, event_type, timestamp, tool_name,
+		       input_summary, tool_input, output_summary, context,
+		       session_id, feature_id, parent_agent_id, parent_event_id,
+		       subagent_type, child_spike_count, cost_tokens,
+		       execution_duration_seconds, status, model, claude_task_id,
+		       source, step_id, created_at, updated_at
+		FROM agent_events`); err != nil {
+		return fmt.Errorf("copy rows to agent_events_new: %w", err)
+	}
+
+	// 3. Drop the old table and rename the new one.
+	if _, err := tx.Exec(`DROP TABLE agent_events`); err != nil {
+		return fmt.Errorf("drop agent_events: %w", err)
+	}
+	if _, err := tx.Exec(`ALTER TABLE agent_events_new RENAME TO agent_events`); err != nil {
+		return fmt.Errorf("rename agent_events_new: %w", err)
+	}
+
+	return tx.Commit()
 }

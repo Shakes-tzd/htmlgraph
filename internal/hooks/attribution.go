@@ -154,6 +154,11 @@ func claimTraceparent() *agentTraceRecord {
 // session-scoped temp-file hint so the subagent's hook processes can still
 // resolve the project directory via paths.ReadSessionHint.
 func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir, sessionID string) {
+	// Always persist subagent identity to the per-subagent hint file so that
+	// PreToolUse/PostToolUse hook subprocesses can resolve agent_id and
+	// parent_event_id even when CLAUDE_ENV_FILE is unset.
+	writeSubagentIdentityHint(sessionID, agentID, parentEventID)
+
 	envFile := os.Getenv("CLAUDE_ENV_FILE")
 	if envFile == "" {
 		// CLAUDE_ENV_FILE is unset in worktree subagents. Parent linkage is
@@ -189,6 +194,14 @@ func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir, session
 // paths.ReadSessionHint when HTMLGRAPH_PROJECT_DIR is not in their env.
 func writeSessionProjectDirHint(sessionID, projectDir string) {
 	paths.WriteSessionHint(sessionID, projectDir)
+}
+
+// writeSubagentIdentityHint persists the subagent's agent_id and
+// parent_event_id to a per-subagent hint file. This is the fallback path
+// used when CLAUDE_ENV_FILE is unset, ensuring PreToolUse/PostToolUse hook
+// subprocesses can always resolve their attribution context.
+func writeSubagentIdentityHint(sessionID, agentID, parentEventID string) {
+	paths.WriteSubagentHint(sessionID, agentID, parentEventID)
 }
 
 // ApplyTraceparent reads a traceparent from the queue and exports env vars

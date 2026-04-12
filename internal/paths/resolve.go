@@ -3,12 +3,14 @@
 package paths
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // ProjectDirOptions configures the unified project-directory resolver.
@@ -262,4 +264,82 @@ func CleanupSessionHint(sessionID string) {
 // Called once at startup to clean up stale state from older versions.
 func CleanupGlobalHint() {
 	_ = os.Remove(filepath.Join(os.TempDir(), "htmlgraph-project-dir.hint"))
+}
+
+// SubagentContext holds the identity of a subagent written at SubagentStart
+// so that later PreToolUse/PostToolUse hook subprocesses (which cannot read
+// CLAUDE_ENV_FILE) can still resolve their agent_id and parent_event_id.
+type SubagentContext struct {
+	AgentID       string    `json:"agent_id"`
+	ParentEventID string    `json:"parent_event_id"`
+	StartedAt     time.Time `json:"started_at"`
+}
+
+// subagentHintDir returns the directory used for per-subagent hint files.
+func subagentHintDir(sessionID string) string {
+	return filepath.Join(os.TempDir(), "htmlgraph-subagents", sessionID)
+}
+
+// WriteSubagentHint persists the subagent context to a per-subagent file so
+// that PreToolUse/PostToolUse hook processes can resolve it via
+// ReadSubagentHint when CLAUDE_ENV_FILE is unset.
+func WriteSubagentHint(sessionID, agentID, parentEventID string) {
+	if sessionID == "" || agentID == "" {
+		return
+	}
+	dir := subagentHintDir(sessionID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return
+	}
+	ctx := SubagentContext{
+		AgentID:       agentID,
+		ParentEventID: parentEventID,
+		StartedAt:     time.Now().UTC(),
+	}
+	data, err := json.Marshal(ctx)
+	if err != nil {
+		return
+	}
+	path := filepath.Join(dir, agentID+".json")
+	_ = os.WriteFile(path, data, 0o644)
+}
+
+// ReadSubagentHint reads the most recently started subagent context for a
+// session. When multiple subagents are active concurrently, it returns the
+// one with the latest StartedAt timestamp.
+// Returns a zero SubagentContext when no hint files exist.
+func ReadSubagentHint(sessionID string) SubagentContext {
+	if sessionID == "" {
+		return SubagentContext{}
+	}
+	dir := subagentHintDir(sessionID)
+	entries, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil || len(entries) == 0 {
+		return SubagentContext{}
+	}
+	var best SubagentContext
+	for _, path := range entries {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var ctx SubagentContext
+		if err := json.Unmarshal(data, &ctx); err != nil {
+			continue
+		}
+		if best.AgentID == "" || ctx.StartedAt.After(best.StartedAt) {
+			best = ctx
+		}
+	}
+	return best
+}
+
+// CleanupSubagentHint removes the hint file for a specific subagent.
+// Called from SubagentStop so stale files do not linger between sessions.
+func CleanupSubagentHint(sessionID, agentID string) {
+	if sessionID == "" || agentID == "" {
+		return
+	}
+	path := filepath.Join(subagentHintDir(sessionID), agentID+".json")
+	_ = os.Remove(path)
 }

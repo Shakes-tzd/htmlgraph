@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/htmlgraph/internal/agent"
 	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/paths"
 )
 
 // featureIDCacheEntry holds the single cached result of GetActiveFeatureID for
@@ -135,10 +136,24 @@ func isSubagentEvent(event *CloudEvent) bool {
 }
 
 // resolveAgentID returns the effective agent ID: the CloudEvent agent_id when
-// present (subagent case), falling back to the detected agent identity.
+// present (subagent case), falling back to the per-subagent hint file
+// (written by SubagentStart when CLAUDE_ENV_FILE is unset), then to the
+// detected agent identity.
 func resolveAgentID(event *CloudEvent) string {
 	if event.AgentID != "" {
 		return event.AgentID
+	}
+	// Check HTMLGRAPH_AGENT_ID env var (written to CLAUDE_ENV_FILE by SubagentStart
+	// when CLAUDE_ENV_FILE is set).
+	if id := os.Getenv("HTMLGRAPH_AGENT_ID"); id != "" {
+		return id
+	}
+	// Fall back to the per-subagent hint file (written when CLAUDE_ENV_FILE is unset).
+	sessionID := EnvSessionID(event.SessionID)
+	if sessionID != "" {
+		if hint := paths.ReadSubagentHint(sessionID); hint.AgentID != "" {
+			return hint.AgentID
+		}
 	}
 	return agent.Detect().ID
 }
@@ -164,13 +179,21 @@ func resolveEventAgentType(event *CloudEvent) string {
 
 // resolveParentEventID finds the parent event using a multi-step fallback that
 // mirrors the Python event_tracker.py logic:
-//  1. Env var HTMLGRAPH_PARENT_EVENT (written by SubagentStart)
-//  2. For subagents: task_delegation row matching our agent_id (Method 0.5)
-//  3. Most recent UserQuery in this session (orchestrator default)
+//  1. Env var HTMLGRAPH_PARENT_EVENT (written by SubagentStart when CLAUDE_ENV_FILE set)
+//  2. Per-subagent hint file parent_event_id (written when CLAUDE_ENV_FILE unset)
+//  3. For subagents: task_delegation row matching our agent_id (Method 0.5)
+//  4. Most recent UserQuery in this session (orchestrator default)
 func resolveParentEventID(database *sql.DB, sessionID, agentID string, isSubagent bool) string {
 	parentEventID := os.Getenv("HTMLGRAPH_PARENT_EVENT")
 
-	if parentEventID == "" && isSubagent {
+	if parentEventID == "" && sessionID != "" {
+		// Check per-subagent hint file (fallback for CLAUDE_ENV_FILE-unset case).
+		if hint := paths.ReadSubagentHint(sessionID); hint.AgentID == agentID && hint.ParentEventID != "" {
+			parentEventID = hint.ParentEventID
+		}
+	}
+
+	if parentEventID == "" && (isSubagent || agentID != agent.Detect().ID) {
 		parentEventID, _ = db.FindDelegationByAgent(database, sessionID, agentID)
 	}
 

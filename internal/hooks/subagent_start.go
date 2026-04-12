@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/paths"
 )
 
 // SubagentStart handles the SubagentStart Claude Code hook event.
@@ -93,6 +94,11 @@ func SubagentStop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	if err := db.UpdateEventFields(database, eventID, "completed", outputSummary); err != nil {
 		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 		debugLog(projectDir, "[error] handler=subagent-stop session=%s: update event fields: %v", sessionID[:minSessionLen(sessionID)], err)
+	}
+
+	// Clean up per-subagent hint file written by SubagentStart.
+	if event.AgentID != "" {
+		paths.CleanupSubagentHint(sessionID, event.AgentID)
 	}
 
 	return &HookResult{Continue: true}, nil
