@@ -7,172 +7,192 @@ meta:
     created_at: "2026-04-11"
     status: draft
     created_by: claude-opus-4-6
-    version: 3
+    version: 4
 design:
     problem: |
-        Claude Code v2.1.32+ ships an experimental agent-teams feature (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1) where independent Claude instances self-claim work from a shared task list and message each other directly. The HtmlGraph plugin has already declared TeammateIdle, TaskCreated, and TaskCompleted hooks in plugin/hooks/hooks.json and wired Go handlers in internal/hooks/missing_events.go — but those handlers silently discard the teammate_name, team_name, idle_reason, task_subject, and task_description fields that Claude Code emits in the JSON payload, because the CloudEvent struct in internal/hooks/runner.go has no place to put them. As a result: multiple teammates working on one feature look identical in the HtmlGraph step log, the TaskCreated handler records using EventCheckPoint as a fallback (because internal/models/enums.go has no EventTaskCreated constant), and the 871-line orchestrator-directives skill never tells the lead agent that agent teams exist as a delegation option. The hooks observe but cannot enforce — exit-code-2 blocking is documented and supported by Claude Code, but no handler uses it.
+        Claude Code v2.1.32+ ships an experimental agent-teams feature (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1) where independent Claude instances self-claim work from a shared task list and message each other directly. The HtmlGraph plugin has already declared TeammateIdle, TaskCreated, and TaskCompleted hooks in plugin/hooks/hooks.json and wired Go handlers in internal/hooks/missing_events.go — but those handlers silently discard the teammate_name, team_name, idle_reason, task_subject, and task_description fields that Claude Code emits in the JSON payload, because the CloudEvent struct in internal/hooks/runner.go (lines 21-61) has no place to put them. As a result: multiple teammates working on one feature look identical in the HtmlGraph step log, the TaskCreated handler records using EventCheckPoint as a fallback (because internal/models/enums.go has no EventTaskCreated constant), and the 871-line orchestrator-directives skill never tells the lead agent that agent teams exist as a delegation option. The hooks observe but cannot enforce — exit-code-2 blocking is documented and supported by Claude Code, but no handler uses it. Notably, internal/hooks/yolo_guard.go already implements the exact blocking pattern we need (detect project, run gate, exit 2 on failure) but only fires for a different event.
     goals:
         - '**Capture teammate metadata** — every TeammateIdle / TaskCreated / TaskCompleted event records teammate_name and team_name in the HtmlGraph events DB'
         - '**Restore event taxonomy** — TaskCreated logs as EventTaskCreated, not EventCheckPoint, so analytics queries can distinguish task creation from arbitrary checkpoints'
-        - '**Surface attribution** — feature steps written by team task hooks identify which teammate owns each step, visible in `htmlgraph snapshot` and the dashboard'
+        - '**Surface attribution** — feature steps written by team task hooks identify which teammate owns each step, visible in `htmlgraph snapshot`'
         - '**Document the decision** — the orchestrator skill has a concrete `Agent Teams vs Subagents` section so the lead agent knows when (and when not) to spawn a team'
-        - '**Optional quality teeth** — TaskCompleted gains an opt-in quality gate that can refuse completion via exit code 2 when the active feature''s quality gates fail'
+        - '**Optional quality teeth** — TaskCompleted gains an opt-in quality gate that warns by default and can refuse completion via exit code 2 when explicitly enabled'
     constraints:
         - Agent teams is **experimental** and gated on CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 — the plugin must work for users who never enable it (no hard dependency)
         - 'The shared task list under ~/.claude/tasks/<team>/ is **not a stable API** — docs say `don''t edit by hand or pre-author it: your changes are overwritten`. Do not read or sync those files; rely on hook payloads only'
-        - Subagent `skills:` and `mcpServers:` frontmatter fields are **not applied** when a subagent runs as a teammate — any agent definition we ship must work without those
-        - Only **one team per session** and **no nested teams** — the plugin's existing `htmlgraph:execute` parallel skill keeps working unchanged; this plan does not try to convert it to a team
-        - '**No session resume** with in-process teammates — quality-gate blocking must not strand a teammate that the user can never recover; default-off is required'
+        - Subagent `skills:` and `mcpServers:` frontmatter fields are **not applied** when a subagent runs as a teammate — orchestrator skill must warn against relying on them in agent definitions used as teammates
+        - Only **one team per session** and **no nested teams** — `htmlgraph:execute` parallel skill keeps working unchanged; this plan does not try to convert it to a team
+        - '**No session resume** with in-process teammates — quality-gate blocking via exit code 2 strands a teammate the user cannot recover via /resume; default-off opt-in is required and stderr must include manual recovery instructions'
+        - '**Schema changes must be idempotent** — every new column on agent_events and any CHECK constraint update must follow the existing pattern in internal/db/schema.go (ALTER TABLE ADD COLUMN with IF NOT EXISTS guards)'
+        - '**No new file collisions** — internal/hooks/quality_gate.go already exists as a code-hygiene checker; new task-completion gate code must use a different filename'
+        - '**Reuse existing detectors** — internal/paths.DetectProjectType() and internal/paths.TestCommandFor() are the canonical project detection helpers; new code must call them, not reimplement'
     approved: false
     comment: ""
 slices:
     - id: feat-aatm0001
       num: 1
-      title: Capture teammate metadata in CloudEvent
+      title: Capture teammate metadata in CloudEvent + persist to events DB
       what: |
-        Extend the `CloudEvent` struct in internal/hooks/runner.go (lines 21-61) with five new optional fields: `TeammateName string`, `TeamName string`, `IdleReason string`, `TaskSubject string`, `TaskDescription string`. Tag them with the exact JSON keys from the docs (`teammate_name`, `team_name`, `idle_reason`, `task_subject`, `task_description`). Update internal/hooks/missing_events.go so TeammateIdle, TaskCreated, and TaskCompleted handlers read from the typed fields instead of poking into TaskData. Persist teammate_name and team_name to the events DB row for every team-related event.
+        Extend the `CloudEvent` struct in internal/hooks/runner.go (lines 21-61) with five new optional fields: `TeammateName string`, `TeamName string`, `IdleReason string`, `TaskSubject string`, `TaskDescription string`. Tag them with the exact JSON keys Claude Code emits (`teammate_name`, `team_name`, `idle_reason`, `task_subject`, `task_description`). Update internal/hooks/missing_events.go so TeammateIdle (line 85), TaskCreated (line 93), and TaskCompleted (line 147) handlers read from the typed fields. Today TaskCreated and TaskCompleted poke into TaskData["subject"]; switch them to event.TaskSubject, falling back to TaskData only when the typed field is empty (preserves non-team callers). Add idempotent ALTER TABLE statements to internal/db/schema.go (following the lines 41-66 pattern) adding `teammate_name TEXT` and `team_name TEXT` columns to agent_events. Update recordSimpleEvent (missing_events.go:19) to optionally accept these and bind them in the INSERT.
       why: |
-        Foundation for every other slice. Today the JSON payload is parsed into CloudEvent and the team-specific fields are silently dropped. Without them, attribution, blocking, and analytics are all impossible.
+        Foundation for every other slice. Today the JSON payload is parsed into CloudEvent and the team-specific fields are silently dropped. Without them, attribution, blocking, and analytics are all impossible. Following the internal/hooks/subagent_start.go pattern: typed fields on CloudEvent, handlers read them, persisted to DB.
       files:
         - internal/hooks/runner.go
         - internal/hooks/missing_events.go
+        - internal/db/schema.go
         - internal/hooks/runner_test.go
+        - internal/hooks/missing_events_test.go
       deps: []
       done_when:
         - CloudEvent struct has TeammateName, TeamName, IdleReason, TaskSubject, TaskDescription fields with correct JSON tags
-        - TeammateIdle handler records TeammateName and IdleReason in the event details (not just `Teammate agent went idle`)
-        - TaskCreated and TaskCompleted handlers read TaskSubject from the typed field, not TaskData["subject"]
-        - A unit test feeds a sample agent-teams JSON payload through CloudEvent unmarshaling and asserts every field is captured
+        - TeammateIdle handler records TeammateName and IdleReason in event details (not just `Teammate agent went idle`)
+        - TaskCreated and TaskCompleted handlers prefer typed TaskSubject; fall back to TaskData["subject"] when empty
+        - Idempotent ALTER TABLE adds teammate_name and team_name columns to agent_events
+        - Schema migration runs cleanly on a database that already has the columns (idempotent re-run is a no-op)
+        - Unit test feeds a sample agent-teams JSON payload through CloudEvent and asserts every new field is populated
+        - When teammate_name is absent from payload (legacy / non-team caller), all fields are empty strings and existing behavior is unchanged
       effort: S
       risk: Low
       tests: |
-        Unit: TestCloudEvent_AgentTeamsPayload — feed JSON payload from docs (with teammate_name, team_name, idle_reason, task_subject) through json.Unmarshal into CloudEvent, assert all five new fields populated.
-        Unit: TestTeammateIdle_RecordsTeammateName — fake event with teammate_name="implementer", assert recorded event details contain "implementer".
-        Regression: existing missing_events_test.go tests still pass — TaskData fallback path preserved for non-team callers.
+        Unit: TestCloudEvent_AgentTeamsPayload — JSON with teammate_name="implementer", team_name="my-team", idle_reason="waiting" → assert all five fields populated.
+        Unit: TestCloudEvent_LegacyPayload — JSON without team fields → assert fields are empty strings, no panics.
+        Unit: TestTeammateIdle_RecordsTeammateName — fake event with teammate_name="implementer" → assert recorded event details contain "implementer" and idle_reason.
+        Unit: TestSchema_TeammateColumnsIdempotent — run migration twice on the same DB → second run is a no-op, columns exist.
+        Regression: existing missing_events_test.go tests (the file exists per git status) still pass with TaskData fallback path preserved.
       approved: false
       comment: ""
     - id: feat-aatm0002
       num: 2
       title: Add EventTaskCreated model constant
       what: |
-        Add `EventTaskCreated` constant to internal/models/enums.go alongside the existing EventTeammateIdle (line 141) and EventTaskCompleted (line 142). Update the TaskCreated handler in internal/hooks/missing_events.go to use the new constant instead of falling back to EventCheckPoint. Add the new event to any switch statements / event filters that enumerate event types (find via grep for EventTaskCompleted).
+        Add `EventTaskCreated` constant to internal/models/enums.go alongside EventTeammateIdle (line 141) and EventTaskCompleted (line 142). Update ONLY the TaskCreated handler in internal/hooks/missing_events.go (line 115) to use the new constant instead of EventCheckPoint. Leave the other 7 EventCheckPoint usages alone — they are legitimate checkpoints (PreCompact, PostCompact, InstructionsLoaded, etc.). If internal/db/schema.go has a CHECK constraint enumerating valid event_type values, add `task_created` to the constraint via the idempotent migration pattern.
       why: |
-        Today TaskCreated events look identical to manual checkpoints in analytics queries. Filtering, dashboards, and velocity calculations conflate them. Tiny fix, high signal-to-noise.
+        Today TaskCreated events look identical to manual checkpoints in analytics queries. Filtering, dashboards, and velocity calculations conflate them. Tiny fix, high signal-to-noise ratio.
       files:
         - internal/models/enums.go
         - internal/hooks/missing_events.go
+        - internal/db/schema.go
       deps: []
       done_when:
-        - EventTaskCreated constant defined in enums.go with the same convention as EventTaskCompleted
-        - TaskCreated handler uses EventTaskCreated instead of EventCheckPoint
-        - grep finds zero callers using EventCheckPoint as a TaskCreated fallback
+        - EventTaskCreated constant defined in enums.go using the same convention as EventTaskCompleted
+        - Only the TaskCreated handler at missing_events.go:115 uses the new constant; the other 7 EventCheckPoint usages remain unchanged
+        - If a CHECK constraint exists, it accepts `task_created` after migration, AND the migration is idempotent
+        - No regression in queries that previously matched EventCheckPoint for non-task events
       effort: S
       risk: Low
       tests: |
-        Unit: TestTaskCreated_UsesCorrectEventType — call handler, query DB, assert event_type='task_created'.
-        Regression: any existing test that filters on EventCheckPoint still passes (no false positives from removed fallback).
+        Unit: TestTaskCreated_UsesCorrectEventType — call handler with sample event, query DB, assert event_type='task_created'.
+        Unit: TestEventCheckPoint_StillUsedByLegitimateCallers — assert grep for EventCheckPoint still finds 7 callers (regression guard against accidental cleanup).
+        Regression: any existing test filtering on EventCheckPoint for non-task events still passes.
       approved: false
       comment: ""
     - id: feat-aatm0003
       num: 3
-      title: Teammate attribution on feature steps
+      title: Teammate attribution on feature step text (step-text-only)
       what: |
-        Modify `addTaskStep` and `completeTaskStep` in internal/hooks/missing_events.go to accept and persist a teammate_name parameter. When the active feature receives a step from a team task hook, the step text/metadata identifies which teammate owns it (e.g. step note becomes `[implementer] <task subject>`). Plumb through to whatever step storage layer the feature HTML uses (find via reading missing_events.go). Surface in `htmlgraph snapshot` output and the dashboard feature view.
+        Modify `addTaskStep` and `completeTaskStep` in internal/hooks/task_tracking.go (NOT missing_events.go — that was the v1 plan's wrong file) to accept an optional `teammateName string` parameter. When non-empty, prefix the step description passed to the `htmlgraph feature add-step` shell-out with `[teammate-name] `. Update the two callers in internal/hooks/missing_events.go (TaskCreated handler at line 136-ish; TaskCompleted handler at the parallel call site) to pass `event.TeammateName` from slice 1's typed field. No schema change; no frontend work. Snapshot output already renders step descriptions verbatim (cmd/htmlgraph/snapshot.go), so attribution becomes visible automatically once the prefix is in the step text.
       why: |
-        Multiple teammates working on one feature is the central use case for agent teams in HtmlGraph. Without attribution, the step log is unusable — you can't tell who is doing what. This is the dogfooding payoff.
+        Multiple teammates working on one feature is the central use case for agent teams in HtmlGraph. Without attribution the step log is unusable — you can't tell who is doing what. Step-text-only avoids the schema migration, frontend rendering, and dashboard JS work that bigger options would require. This is the minimum viable attribution surface — see question q-attribution-surface for the broader options.
       files:
+        - internal/hooks/task_tracking.go
         - internal/hooks/missing_events.go
-        - internal/dashboard/feature_view.go
-        - cmd/htmlgraph/snapshot.go
+        - internal/hooks/task_tracking_test.go
       deps:
         - 1
       done_when:
         - addTaskStep and completeTaskStep accept teammateName string parameter
-        - Step text/metadata persisted with teammate prefix or dedicated field
-        - '`htmlgraph snapshot` shows teammate name next to recent task steps'
-        - Dashboard feature view renders teammate attribution
-        - When teammate_name is empty (non-team subagent), behavior is unchanged
-      effort: M
-      risk: Med
+        - Non-empty teammateName produces step text prefixed `[teammate-name] <subject>`
+        - Empty teammateName produces unchanged step text (legacy behavior)
+        - missing_events.go callers pass event.TeammateName (from slice 1)
+        - '`htmlgraph snapshot` shows the prefixed text on team-originated steps without any snapshot.go changes'
+        - Frontend dashboard work is explicitly OUT OF SCOPE and noted as a follow-up
+      effort: S
+      risk: Low
       tests: |
-        Unit: TestAddTaskStep_WithTeammate — call with teammateName="reviewer", assert step persisted with attribution.
-        Unit: TestAddTaskStep_NoTeammate — call with empty teammateName, assert legacy format preserved.
-        Integration: end-to-end TaskCreated event with teammate_name → snapshot output contains teammate name.
+        Unit: TestAddTaskStep_WithTeammate — call with teammateName="reviewer" → assert shell-out received `[reviewer] <subject>`.
+        Unit: TestAddTaskStep_NoTeammate — call with empty teammateName → assert legacy format preserved.
+        Integration: end-to-end TaskCreated event with teammate_name="implementer" populates a feat- step text with the prefix; snapshot output contains it.
       approved: false
       comment: ""
     - id: feat-aatm0004
       num: 4
       title: Opt-in quality gate on TaskCompleted
       what: |
-        Add a new internal/hooks/quality_gate.go that runs the project's detected quality gate (go build/vet/test for go.mod, npm test for package.json, etc.) when called. Modify TaskCompleted handler in internal/hooks/missing_events.go to invoke it ONLY when an opt-in flag is set in the project config (e.g. `.htmlgraph/config.json` key `block_task_completion_on_quality_failure: true`). On failure, the handler exits with code 2 and writes a stderr message naming the failed gate. Default off.
+        Create internal/hooks/task_completion_gate.go (NOT quality_gate.go — that file already exists as a code-hygiene checker, ~293 lines, would collide). The new file calls internal/paths.DetectProjectType() and internal/paths.TestCommandFor() — both already exist — to determine what to run. internal/hooks/yolo_guard.go uses the exact pattern at line 256 and is the canonical template. Returns `{passed bool, gateName string, output string}`. Add a 60-second timeout via context.WithTimeout — failing open (warn, do not block) on timeout to avoid stranding teammates indefinitely.
+        Modify TaskCompleted handler in internal/hooks/missing_events.go to invoke the gate ONLY when an opt-in flag is read from .htmlgraph/config.json (file may not exist; absence = flag off). Do NOT create a new internal/config package — read the JSON file inline with encoding/json (the file is small, the lookup is rare, a dedicated package is YAGNI). The flag key is `block_task_completion_on_quality_failure: bool` (default false).
+        When the flag is on AND gate fails: write to stderr a structured message naming the failed gate AND a recovery instruction (`To complete this task manually after fixing: htmlgraph feature complete <feature-id>`), then exit with code 2. When the flag is on AND gate passes: proceed with existing completeTaskStep flow. When the flag is off: warn-only — log the failure to the events DB but do not exit non-zero.
       why: |
-        The docs explicitly support exit-code-2 blocking on TaskCompleted. This converts HtmlGraph from a passive observer of team activity into an enforcer of quality gates — a teammate cannot mark a task done with broken builds. Default-off respects the no-session-resume caveat.
+        The docs explicitly support exit-code-2 blocking on TaskCompleted. This converts HtmlGraph from a passive observer of team activity into an enforcer of quality gates — a teammate cannot mark a task done with broken builds. Default-off plus a recovery instruction respects the no-session-resume caveat: a stranded teammate's work can still be salvaged via the manual CLI completion command. Reusing yolo_guard and paths means roughly 60 lines of new code, not a new package.
       files:
-        - internal/hooks/quality_gate.go
+        - internal/hooks/task_completion_gate.go
         - internal/hooks/missing_events.go
-        - internal/config/config.go
-        - internal/hooks/quality_gate_test.go
+        - internal/hooks/task_completion_gate_test.go
       deps:
         - 1
       done_when:
-        - quality_gate.go detects project type from manifest files (go.mod, package.json, pyproject.toml, Cargo.toml)
-        - 'Returns structured result: {passed bool, gate_name string, output string}'
-        - TaskCompleted handler reads opt-in flag from config; when off, behavior unchanged
-        - When on AND gate fails, handler exits with code 2 and stderr names the failed gate
-        - When on AND gate passes, handler proceeds with existing completeTaskStep flow
-        - Documented in plugin README + agent-teams section of orchestrator skill
+        - task_completion_gate.go exists (NOT quality_gate.go) and calls paths.DetectProjectType + paths.TestCommandFor
+        - Gate runs under context.WithTimeout(60s); on timeout returns warn-only result
+        - TaskCompleted reads .htmlgraph/config.json inline; missing file = flag off; no new internal/config package
+        - Flag off + gate failure = warn-only (event recorded, exit 0)
+        - Flag on + gate failure = exit code 2 with stderr naming the gate AND recovery command
+        - Flag on + gate pass = proceeds to completeTaskStep unchanged
+        - Documented in S5 orchestrator skill section AND S6 user-facing docs
       effort: M
       risk: Med
       tests: |
-        Unit: TestQualityGate_DetectsGoProject — fake go.mod, assert correct command list.
-        Unit: TestTaskCompleted_OptInOff_NeverBlocks — flag off, even with broken build, exits 0.
-        Unit: TestTaskCompleted_OptInOn_BlocksOnFailure — flag on, fake failing gate, asserts exit code 2 and stderr message.
-        Regression: TestTaskCompleted_NoFlag_LegacyBehavior — handler with no config still records the event.
+        Unit: TestTaskCompletionGate_DetectsGoProject — fake go.mod, assert calls TestCommandFor.
+        Unit: TestTaskCompletionGate_TimeoutFailsOpen — fake gate that hangs > 60s, assert returns warn result, no panic.
+        Unit: TestTaskCompleted_FlagOff_NeverBlocks — config absent, gate would fail, exits 0.
+        Unit: TestTaskCompleted_FlagOn_BlocksOnFailure — config flag true + failing gate, asserts exit code 2 and stderr contains gate name + recovery command.
+        Unit: TestTaskCompleted_FlagOn_PassesOnSuccess — config flag true + passing gate, asserts exit 0 and step recorded.
+        Regression: existing missing_events_test.go for TaskCompleted continues to pass when no config file exists.
       approved: false
       comment: ""
     - id: feat-aatm0005
       num: 5
-      title: Orchestrator skill — Agent Teams section
+      title: Orchestrator skill — Agent Teams vs Subagents section
       what: |
-        Add a new section to plugin/skills/orchestrator-directives-skill/SKILL.md titled `Agent Teams vs Subagents` covering: (1) decision criteria — use teams for parallel ownership / competing hypothesis debugging / multi-lens code review, use subagents for sequential delegation; (2) opt-in via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and minimum Claude Code version 2.1.32; (3) how to spawn — natural language `Create an agent team to ...` (no SDK API); (4) caveats: subagent `skills:` and `mcpServers:` frontmatter NOT applied to teammates, no session resume, one team per session, no nested teams; (5) three concrete example prompts mapped to HtmlGraph use cases (multi-lens PR review, competing-hypothesis debug, feature ownership splitting); (6) what HtmlGraph does in response — records events with teammate attribution, optionally enforces quality gates.
+        Append a new section to plugin/skills/orchestrator-directives-skill/SKILL.md (currently 871 lines, zero agent-teams mentions) titled `Agent Teams vs Subagents`. Cap the section at 150 lines. Cover: (1) decision criteria — use teams for parallel ownership, competing-hypothesis debugging, multi-lens code review; use subagents for sequential delegation; (2) opt-in via CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 and minimum Claude Code version 2.1.32 — quoted exactly; (3) how to spawn — natural language `Create an agent team to ...` (no SDK API exists); (4) caveats: subagent `skills:` and `mcpServers:` frontmatter NOT applied to teammates (warn against relying on them in agents used as teammates), no session resume, one team per session, no nested teams; (5) three concrete example prompts mapped to HtmlGraph use cases (multi-lens PR review, competing-hypothesis debug, feature ownership splitting); (6) what HtmlGraph captures in response — events with teammate attribution from slice 1, step prefixes from slice 3, optional quality gate from slice 4 (with opt-in instructions and the stranding warning).
       why: |
         The orchestrator skill is 871 lines and mentions agent teams zero times. Without this section the lead agent will never reach for teams when they would actually help, and the rest of the slices have no consumer.
       files:
         - plugin/skills/orchestrator-directives-skill/SKILL.md
       deps: []
       done_when:
-        - New section added under existing delegation guidance
-        - Decision criteria stated in a small table
-        - Env var + version requirement quoted exactly
+        - New section appended; section is under 150 lines
+        - Decision criteria stated as a small table
+        - Env var name and minimum version 2.1.32 quoted exactly
         - Three example prompts shown verbatim
-        - Caveats list includes the skills/mcpServers limitation and no-resume warning
-        - Section is under 150 lines (the skill is already large)
+        - Caveats list includes the skills/mcpServers limitation, no-resume warning, and one-team-per-session
+        - Quality-gate opt-in flag (slice 4) is documented with the stranding warning
+        - Skill loads without YAML frontmatter errors after edit
       effort: S
       risk: Low
       tests: |
         Unit: none (documentation).
-        Integration: manual smoke — invoke /htmlgraph:orchestrator-directives-skill and verify the new section renders.
-        Regression: skill loads without YAML frontmatter errors; existing sections untouched.
+        Integration: manual smoke — invoke /htmlgraph:orchestrator-directives-skill, verify the new section renders.
+        Regression: existing 871 lines untouched; only an append.
       approved: false
       comment: ""
     - id: feat-aatm0006
       num: 6
-      title: User-facing docs + opt-in instructions
+      title: User-facing docs — AGENTS.md + CLAUDE.md
       what: |
-        Update AGENTS.md and plugin/README.md (or equivalent install doc) with a short section on enabling agent teams alongside HtmlGraph: env var, version requirement, what HtmlGraph captures (teammate attribution, task lifecycle events), how to opt into the quality gate (config key from slice 4), and the experimental-feature warning. One paragraph each, links to upstream docs.
+        Update AGENTS.md and CLAUDE.md (NOT plugin/README.md — that file does not exist; the v1 plan was wrong). Add a short `Agent Teams` paragraph to AGENTS.md describing what HtmlGraph captures when teams are active (teammate attribution, task lifecycle events). Add a step-by-step `Enabling Agent Teams` mini-section to CLAUDE.md under the existing `Dev Mode` or `Dogfooding` section: env var, version requirement, the quality-gate config key from slice 4 with the stranding warning. Both link to https://code.claude.com/docs/en/agent-teams. If the team decides plugin/README.md should exist as a file, that is a follow-up — not in scope here.
       why: |
-        The hook handlers and skill guidance are invisible without user-facing docs. New HtmlGraph users should be able to discover the feature without reading source.
+        Hook handlers and skill guidance are invisible without user-facing docs. New HtmlGraph users should be able to discover the feature without reading source. AGENTS.md and CLAUDE.md are the actual project entry points (verified to exist).
       files:
         - AGENTS.md
-        - plugin/README.md
+        - CLAUDE.md
       deps:
         - 4
         - 5
       done_when:
-        - AGENTS.md mentions agent-teams support in one short paragraph with env var and version
-        - plugin/README.md (or chosen doc) has a step-by-step opt-in section
+        - AGENTS.md has a one-paragraph `Agent Teams` section
+        - CLAUDE.md has a step-by-step opt-in mini-section under an existing top-level section
         - Both link to https://code.claude.com/docs/en/agent-teams
-        - Both note the quality-gate config key is opt-in
+        - Both note the quality-gate config key is opt-in and warn about teammate stranding
+        - Neither file references plugin/README.md (which does not exist)
       effort: S
       risk: Low
       tests: |
@@ -197,13 +217,13 @@ questions:
     - id: q-quality-gate-mode
       text: How aggressive should the TaskCompleted quality gate be?
       description: |
-        Slice 4 adds an exit-code-2 blocking quality gate, but blocking has a sharp edge: in-process teammates cannot be resumed via /resume, so a blocked teammate that the user can't fix immediately is stranded. Always-block is safest for code quality but harshest for UX. Configurable-default-warn lets users opt into blocking once they trust the gate. Warn-only means the gate is purely advisory and the slice is much simpler. Skipping the slice entirely defers the work.
+        Slice 4 adds an opt-in exit-code-2 blocking quality gate. Blocking has a sharp edge: in-process teammates cannot be resumed via /resume, so a blocked teammate that the user can't fix immediately is stranded — though slice 4 mitigates this by writing a manual recovery command to stderr. Always-block is safest for code quality but harshest for UX. Configurable-default-warn (the current slice 4 design) lets users opt into blocking once they trust the gate. Warn-only means the gate is purely advisory and the slice is much simpler. Skipping the slice entirely defers the work.
       recommended: configurable-default-warn
       options:
         - key: always-block
           label: 'Always block: every team using HtmlGraph gets enforced gates; harshest UX, may strand teammates'
         - key: configurable-default-warn
-          label: 'Configurable, default warn: opt-in to blocking via config key; warns by default (recommended — trades immediate teeth for safety)'
+          label: 'Configurable, default warn: opt-in to blocking via .htmlgraph/config.json; warns by default, recovery command in stderr (recommended — current slice 4 design)'
         - key: warn-only
           label: 'Warn-only: gate runs and logs failures but never blocks; simpler implementation, no risk of stranding'
         - key: skip-slice
@@ -225,13 +245,185 @@ questions:
     - id: q-attribution-surface
       text: How should teammate attribution appear on feature steps in slice 3?
       description: |
-        Slice 3 needs to show which teammate owns each step. Step text is simplest — prefix the step note with `[teammate-name]` and we're done, no schema change. A new dedicated step field is cleaner structurally but requires migrating the feature step schema and updating snapshot/dashboard rendering. A new dashboard panel is richest but biggest scope.
+        Slice 3 needs to show which teammate owns each step. Step text is simplest — prefix the step note with `[teammate-name]` and we're done, no schema change, no frontend work. Critique confirmed that the original v1 plan's `internal/dashboard/feature_view.go` does not exist; the dashboard is a static JS frontend served from cmd/htmlgraph/dashboard/. A new dedicated step field would require schema migration AND JS changes to render. A new dashboard panel is the richest but biggest scope.
       recommended: step-text-only
       options:
         - key: step-text-only
-          label: 'Step text prefix: `[implementer] <subject>` — zero schema change, immediate visibility (recommended)'
+          label: 'Step text prefix: `[implementer] <subject>` — zero schema change, zero frontend work, immediate visibility (recommended — current slice 3 design)'
         - key: new-step-field
-          label: 'New TeammateName field on step: structurally clean, requires schema migration and renderer updates'
+          label: 'New TeammateName field on step: structurally clean, requires schema migration AND JS frontend renderer updates'
         - key: new-dashboard-panel
           label: 'Dedicated `Teammate Activity` dashboard panel: richest UX, largest scope, deferred to follow-up'
       answer: null
+critique:
+    reviewed_at: "2026-04-11"
+    reviewers:
+        - Haiku (design review)
+        - Sonnet (feasibility review)
+    assumptions:
+        - id: A1
+          status: plausible
+          text: CloudEvent struct can be extended with five new optional fields without breaking existing callers
+          evidence: runner.go:21-61 already has ~20 optional fields; json.Unmarshal ignores unknown fields and zero-values missing ones
+        - id: A2
+          status: verified
+          text: CloudEvent has zero team-specific fields today
+          evidence: runner.go:21-61 grep — no teammate_name, team_name, idle_reason
+        - id: A3
+          status: verified
+          text: TaskCreated handler reads via event.TaskData["subject"].(string) — the map-poke pattern to replace
+          evidence: missing_events.go:100, 155
+        - id: A4
+          status: verified
+          text: EventTeammateIdle (line 141) and EventTaskCompleted (line 142) exist in enums.go; EventTaskCreated does NOT
+          evidence: enums.go:131-143; missing_events.go:115 falls back to EventCheckPoint
+        - id: A5
+          status: falsified
+          text: Slice 3 should modify internal/hooks/missing_events.go for addTaskStep changes
+          evidence: addTaskStep and completeTaskStep actually live in internal/hooks/task_tracking.go:33,48 — v1 plan listed wrong file. Slice 3 file list now corrected.
+        - id: A6
+          status: falsified
+          text: internal/dashboard/feature_view.go exists and renders feature steps
+          evidence: Directory internal/dashboard/ does not exist. Dashboard is static JS at cmd/htmlgraph/dashboard/. Slice 3 file list now corrected to drop this and rely on snapshot.go's verbatim text rendering.
+        - id: A7
+          status: falsified
+          text: internal/hooks/quality_gate.go can be created fresh for slice 4
+          evidence: File ALREADY EXISTS as a 293-line code-hygiene checker for PostToolUse. Slice 4 now creates internal/hooks/task_completion_gate.go to avoid the collision.
+        - id: A8
+          status: falsified
+          text: internal/config/config.go is a package that slice 4 can extend
+          evidence: internal/config/ directory does not exist. Slice 4 now reads .htmlgraph/config.json inline with encoding/json — no new package.
+        - id: A9
+          status: falsified
+          text: plugin/README.md exists as the install doc target for slice 6
+          evidence: File does not exist; the only README in plugin/ is plugin/skills/.archived/README.md. Slice 6 now targets AGENTS.md and CLAUDE.md (verified to exist).
+        - id: A10
+          status: verified
+          text: internal/paths.DetectProjectType() and internal/paths.TestCommandFor() already exist as canonical project detectors
+          evidence: internal/paths/projecttype.go:45,73 — slice 4 now mandates reuse
+        - id: A11
+          status: verified
+          text: internal/hooks/yolo_guard.go is the direct template for exit-code-2 blocking quality gates
+          evidence: yolo_guard.go:256 calls paths.DetectProjectType + paths.TestCommandFor + uses exit code 2 — slice 4 now references it explicitly
+        - id: A12
+          status: questionable
+          text: Hook payload schema (teammate_name, team_name, idle_reason, task_subject) is stable enough to depend on
+          evidence: Documented in claude-code agent-teams docs but the docs themselves call the feature experimental. Mitigated by graceful fallback to TaskData when typed fields are empty.
+        - id: A13
+          status: plausible
+          text: agent_events table accepts ALTER TABLE ADD COLUMN idempotently
+          evidence: schema.go:41-66 establishes the idempotent pattern; slice 1 follows it. Live-database migration testing required in done_when.
+    critics:
+        - title: DESIGN CRITIC
+          sections:
+            - heading: Slice Assessment
+              items:
+                - badge: S1
+                  kind: success
+                  text: Right-scoped foundation; effort S defensible; clean dep graph
+                - badge: S2
+                  kind: warn
+                  text: Original plan glossed over CHECK constraint migration if one exists on agent_events; revised slice now includes idempotent constraint update
+                - badge: S3
+                  kind: danger
+                  text: Original plan listed wrong file (missing_events.go) and a non-existent file (internal/dashboard/feature_view.go); revised slice targets task_tracking.go and goes step-text-only to avoid frontend scope creep
+                - badge: S4
+                  kind: danger
+                  text: Name collision with existing quality_gate.go (293-line code hygiene checker); revised slice creates task_completion_gate.go and references yolo_guard.go as the template
+                - badge: S5
+                  kind: success
+                  text: Documentation-only, well-scoped; line cap added
+                - badge: S6
+                  kind: warn
+                  text: Original plan targeted non-existent plugin/README.md; revised slice uses AGENTS.md and CLAUDE.md
+            - heading: Gaps & Missing Considerations
+              items:
+                - badge: Gap
+                  kind: warn
+                  text: Hook payload schema unverified locally — mitigated by typed-field-with-TaskData-fallback in slice 1
+                - badge: Gap
+                  kind: warn
+                  text: 'Conditional rollout: hooks fire unconditionally even on Claude Code versions that don''t emit team events. Gracefully no-ops because empty fields are valid, but no telemetry to confirm.'
+                - badge: Gap
+                  kind: warn
+                  text: 'Subagent skills:/mcpServers: caveat must be explicit in S5 docs (now in done_when)'
+                - badge: Gap
+                  kind: info
+                  text: No `htmlgraph team status` observability command; deferred to follow-up
+            - heading: Alternative Approaches
+              items:
+                - badge: Alt
+                  kind: info
+                  text: Quality gate as a separate `htmlgraph quality check` CLI command instead of embedded in TaskCompleted — simpler, defers blocking decision to user
+                - badge: Alt
+                  kind: info
+                  text: Teammate metadata in a dedicated team_memberships table instead of agent_events columns — richer queries but bigger migration
+        - title: FEASIBILITY CRITIC
+          sections:
+            - heading: What Exists to Leverage
+              items:
+                - badge: Reuse
+                  kind: success
+                  text: internal/paths.DetectProjectType (projecttype.go:45) — slice 4 must call, not duplicate
+                - badge: Reuse
+                  kind: success
+                  text: internal/paths.TestCommandFor (projecttype.go:73) — canonical project test command resolver
+                - badge: Reuse
+                  kind: success
+                  text: internal/hooks/yolo_guard.go:256 — exact template for blocking quality gate, already in production
+                - badge: Reuse
+                  kind: success
+                  text: internal/hooks/subagent_start.go — pattern for adding typed CloudEvent fields and persisting them
+                - badge: Reuse
+                  kind: success
+                  text: schema.go:41-66 idempotent ALTER TABLE pattern for slice 1's new columns
+            - heading: What the Plan Got Wrong (now corrected)
+              items:
+                - badge: Fixed
+                  kind: success
+                  text: 'Slice 3: addTaskStep/completeTaskStep live in task_tracking.go, not missing_events.go'
+                - badge: Fixed
+                  kind: success
+                  text: 'Slice 3: internal/dashboard/feature_view.go does not exist — dropped, going step-text-only'
+                - badge: Fixed
+                  kind: success
+                  text: 'Slice 4: quality_gate.go already exists with different purpose — renamed to task_completion_gate.go'
+                - badge: Fixed
+                  kind: success
+                  text: 'Slice 4: internal/config package does not exist — inline JSON read instead'
+                - badge: Fixed
+                  kind: success
+                  text: 'Slice 6: plugin/README.md does not exist — retargeted to AGENTS.md and CLAUDE.md'
+            - heading: Prior Art
+              items:
+                - badge: Prior
+                  kind: info
+                  text: yolo_guard.go is the canonical blocking-quality-gate prior art — slice 4's whole pattern lifts from there
+                - badge: Prior
+                  kind: info
+                  text: subagent_start.go shows the typed-CloudEvent + handler-reads-typed-field pattern slice 1 follows
+                - badge: Prior
+                  kind: info
+                  text: task_tracking.go's shell-out-to-htmlgraph-feature-add-step pattern is the shipped step-write path slice 3 augments
+    risks:
+        - risk: Exit code 2 blocking strands in-process teammates that cannot be /resumed
+          severity: High
+          mitigation: Default off (opt-in only via .htmlgraph/config.json); when on, stderr includes manual recovery command `htmlgraph feature complete <id>`; documented in S5 + S6 with explicit warning
+        - risk: 'Hook timeout: build/test gates may exceed Claude Code''s hook timeout'
+          severity: High
+          mitigation: context.WithTimeout(60s) in task_completion_gate.go; on timeout, return warn-only result (fail open, do not strand)
+        - risk: agent_events schema migration on live databases may fail or be non-idempotent
+          severity: Medium
+          mitigation: Use schema.go:41-66 IF NOT EXISTS pattern; done_when requires running migration twice on same DB to be a no-op
+        - risk: Hook payload schema is experimental and may change upstream
+          severity: Medium
+          mitigation: Typed CloudEvent fields fall back to TaskData map when empty, preserving compatibility with both old and new payload shapes
+        - risk: Frontend dashboard does not surface teammate attribution in this plan
+          severity: Low
+          mitigation: Step-text-only via snapshot.go is sufficient for v1; dashboard panel deferred to follow-up; q-attribution-surface flags the alternatives
+    synthesis: |
+        The v1 plan was directionally right but had four falsified file paths (internal/dashboard/feature_view.go non-existent, quality_gate.go name collision, internal/config package non-existent, plugin/README.md non-existent) and missed the most important prior art (yolo_guard.go as the exact blocking-gate template). Revisions: (1) Slice 1 now includes idempotent schema migration for new columns; (2) Slice 3 retargeted to task_tracking.go, scoped to step-text-only, no frontend work; (3) Slice 4 renamed file to task_completion_gate.go, reuses paths.DetectProjectType + paths.TestCommandFor + yolo_guard pattern, drops the non-existent config package in favor of inline JSON read, adds 60-second timeout fail-open, adds stderr recovery instructions; (4) Slice 6 retargeted to AGENTS.md and CLAUDE.md; (5) Constraints expanded to forbid file collisions and mandate detector reuse; (6) S5 done_when now requires the skills/mcpServers caveat to be documented explicitly. Action items before review: 1. Confirm question q-attribution-surface answer aligns with revised
+           slice 3 (step-text-only).
+        2. Confirm question q-quality-gate-mode answer aligns with revised
+           slice 4 (configurable-default-warn).
+        3. Decide question q-env-flag-default and q-task-list-sync.
