@@ -9,6 +9,15 @@
             "command": "htmlgraph hook session-start"
           }
         ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "htmlgraph hook session-resume"
+          }
+        ]
       }
     ],
     "SessionEnd": [
