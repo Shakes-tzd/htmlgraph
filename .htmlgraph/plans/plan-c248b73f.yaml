@@ -24,6 +24,10 @@ design:
         - 'Per AGENTS.md and CLAUDE.md: edit `plugin/` not `.claude/` (auto-synced). New runtime trees must follow the same single-source-of-truth discipline'
         - MCP server, if added, should be built into the `htmlgraph` binary as a subcommand (e.g., `htmlgraph mcp serve`) to avoid a second binary in the install path — pending design Q2
         - Each runtime's session-discovery directory must be discoverable without requiring the user to set extra env vars (Gemini scans ~/.gemini/tmp/, Codex scans ~/.codex/sessions/, Copilot scans ~/.copilot/session-state/)
+        - Schema migrations use the existing inline ALTER TABLE pattern in internal/db/schema.go (lines 41-47), NOT a separate migrations/ directory — that directory does not exist in this repo (per feasibility critic)
+        - 'Cross-runtime session continuity is OUT OF SCOPE for v1: a single user''s work in Claude → Codex → Copilot is recorded as three separate sessions tagged by runtime. Session linking across runtimes is deferred'
+        - Runtime auto-detection env vars (CODEX_SESSION_ID, GEMINI_CLI_VERSION, COPILOT_AGENT_ID) are NOT verified — they were proposed as plausible but no official source confirms them. Verification is part of slice 2's done_when, not an assumption
+        - MCP has NO existing Go library in go.mod and HtmlGraph has zero MCP scaffolding — slice 3 must decide between adopting github.com/mark3labs/mcp-go (pending vetting) or building from scratch BEFORE implementation starts
     approved: false
     comment: ""
 slices:
@@ -42,13 +46,14 @@ slices:
         - internal/host/gemini/normalize.go
         - internal/hooks/runner.go
         - internal/hooks/task_tracking.go
-        - internal/db/migrations/NNNN_sessions_runtime.sql
+        - internal/db/schema.go
       deps: []
       done_when:
         - internal/host/runtime.go exports Runtime type with constants ClaudeCode, Codex, Copilot, Gemini, Human and a String() method
         - internal/hooks/runner.go no longer references claude directly; CloudEvent struct now has a Runtime host.Runtime field
         - selfBinary() reads HTMLGRAPH_PLUGIN_ROOT first, CLAUDE_PLUGIN_ROOT fallback, with a unit test covering both env vars
-        - Sessions table has a runtime TEXT NOT NULL DEFAULT 'claude-code' column applied via migration; existing rows backfill to claude-code
+        - 'Decision recorded: either add a new sessions.runtime column via inline ALTER TABLE in internal/db/schema.go (matching existing pattern at lines 41-47), OR normalize the existing sessions.agent_assigned column to the Runtime enum if it carries the same signal. The plan prefers the latter if agent_assigned semantics permit'
+        - Whichever column is chosen, existing rows backfill to claude-code and downstream queries can filter by runtime
         - All existing tests pass without modification (no behavior change for Claude path)
       effort: M
       risk: Med
@@ -72,13 +77,16 @@ slices:
       deps:
         - 1
       done_when:
-        - Detect() returns host.Codex when CODEX_SESSION_ID is set
-        - Detect() returns host.Gemini when GEMINI_CLI_VERSION is set
-        - Detect() returns host.Copilot when COPILOT_AGENT_ID is set
+        - 'PRECONDITION: env var names for Codex, Gemini, Copilot are verified by capturing a live session from each CLI and inspecting `printenv`. Verification results recorded in internal/agent/detect.go as a comment block citing the source. The names CODEX_SESSION_ID / GEMINI_CLI_VERSION / COPILOT_AGENT_ID in this slice are HYPOTHESES, not facts'
+        - 'If verification fails for any runtime, fall back to a heuristic: parent-process-name detection (Codex CLI process, Gemini CLI process, Copilot CLI process) with a documented limitation'
+        - Detect() returns host.Codex when the verified Codex marker is present
+        - Detect() returns host.Gemini when the verified Gemini marker is present
+        - Detect() returns host.Copilot when the verified Copilot marker is present
         - HTMLGRAPH_AGENT_ID env var still wins over auto-detection (override)
         - Existing claude-code path unchanged
+        - New `htmlgraph doctor` command (or extension to `htmlgraph status`) prints the detected runtime and the env-var/heuristic chain it walked, so users can debug misdetection
       effort: S
-      risk: Low
+      risk: Med
       tests: |
         Unit: TestDetectAllRuntimes — table-driven test setting each env var in isolation and asserting the correct Runtime is returned
         Unit: TestDetectOverridePrecedence — HTMLGRAPH_AGENT_ID overrides auto-detection
@@ -101,13 +109,16 @@ slices:
       deps:
         - 1
       done_when:
+        - 'PRECONDITION: library decision recorded — either (a) add github.com/mark3labs/mcp-go to go.mod after vetting (security review, license check, maintenance signal), or (b) build a minimal stdio JSON-RPC 2.0 server from scratch in internal/mcp/. Decision documented in a brief ADR or commit message'
+        - 'PRECONDITION: tool versioning strategy chosen — schema_version field in list_tools response, with rule that tool signatures are immutable within a major version'
         - htmlgraph mcp serve starts an MCP server on stdio (default) or --port for TCP
         - All 9 listed tools are registered with full JSONSchema parameter definitions
         - Read tools (status, snapshot, find, session_show, feature_list) return structured JSON, not markdown
         - Write tools call into existing internal/work or internal/links functions — no SQL or HTML manipulation in mcp/
         - 'Smoke test: an MCP client connects, calls htmlgraph_status, gets a valid response'
+        - 'NOTE: this slice assumes Q2 resolves to ''subcommand''. If Q2 chooses ''separate-binary'' or ''library-only'', this slice''s file list and the cmd/htmlgraph/mcp.go entry point must be revised before implementation'
       effort: L
-      risk: Med
+      risk: High
       tests: |
         Unit: TestServerRegistersAllTools — assert tool count and names
         Unit: TestToolStatusReturnsStructured — call htmlgraph_status, parse JSON, assert known fields
@@ -132,9 +143,11 @@ slices:
       deps:
         - 1
       done_when:
-        - DiscoverCodexSessions() returns sessions from ~/.codex/sessions/ with at least one fixture-backed test
-        - Parser handles Codex's actual JSONL shape (verified against a real captured session, not a mock)
-        - htmlgraph ingest --runtime codex ingests at least one real Codex session end-to-end with sessions.runtime=codex
+        - 'PRECONDITION: at least one real Codex session captured locally and committed under internal/ingest/testdata/codex/ (with user content redacted). Capture procedure documented in CONTRIBUTING.md'
+        - 'PRECONDITION: Codex''s actual session storage path verified — ~/.codex/sessions/ is a hypothesis'
+        - DiscoverCodexSessions() returns sessions from the verified Codex sessions directory with at least one fixture-backed test
+        - Parser handles Codex's actual JSONL shape with a schema_version sniff that emits a warning on unknown formats (graceful degradation per design critic R4)
+        - htmlgraph ingest --runtime codex ingests at least one real Codex session end-to-end with the runtime tag applied
         - Dashboard /sessions view displays codex sessions without runtime-specific code paths in the frontend
       effort: M
       risk: Med
@@ -162,8 +175,10 @@ slices:
       deps:
         - 1
       done_when:
+        - 'PRECONDITION: at least one real Copilot session captured locally and committed under internal/ingest/testdata/copilot/ (redacted). The fixture in /home/vscode/.copilot/session-state/869d1f67.../ from the user''s working session is the seed candidate'
+        - 'PRECONDITION: Copilot session-state format documented — files present, JSON shape, message ordering. The plan asserts ''likely JSON files including plan.md, messages, tool calls'' but this is unverified'
         - DiscoverCopilotSessions() returns sessions from ~/.copilot/session-state/
-        - Parser handles real Copilot session-state captured from a live session
+        - Parser handles real Copilot session-state with format-version sniff and warning on unknown formats
         - htmlgraph ingest --runtime copilot ingests one real session end-to-end
         - Dashboard /sessions view displays copilot sessions
       effort: M
@@ -217,7 +232,7 @@ slices:
         - plugins/htmlgraph-codex/skills/diagnose/SKILL.md
         - plugins/htmlgraph-codex/skills/plan/SKILL.md
         - plugins/htmlgraph-codex/skills/deploy/SKILL.md
-        - plugins/htmlgraph-codex/skills/code-quality/SKILL.md
+        - plugins/htmlgraph-codex/skills/code-quality-skill/SKILL.md
         - plugins/htmlgraph-codex/.mcp.json
         - plugins/htmlgraph-codex/agents/researcher.toml
         - plugins/htmlgraph-codex/agents/reviewer.toml
@@ -443,3 +458,159 @@ questions:
         - key: synthetic-only
           label: Synthetic fixtures only — fastest to write, no privacy concerns, but the parser may pass tests and fail on real Codex sessions if the docs are incomplete
       answer: null
+critique:
+    reviewed_at: "2026-04-11"
+    reviewers:
+        - Haiku (design critic)
+        - Sonnet (feasibility critic)
+    assumptions:
+        - id: A1
+          status: verified
+          text: Foundation work (slices 1-3) can be done once and shared across all runtimes
+          evidence: All three input plans independently propose host adapter, runtime tagging, MCP server
+        - id: A2
+          status: falsified
+          text: internal/db/migrations/ subdirectory exists for schema migrations
+          evidence: internal/db/schema.go uses inline ALTER TABLE at lines 41-47; no migrations/ dir exists. Slice 1 file list corrected
+        - id: A3
+          status: questionable
+          text: Env var names CODEX_SESSION_ID, GEMINI_CLI_VERSION, COPILOT_AGENT_ID are stable runtime markers
+          evidence: None of these appear in any official source the feasibility critic could find. Slice 2 now treats them as hypotheses requiring live verification
+        - id: A4
+          status: falsified
+          text: Go has an existing MCP library available in go.mod or as a vetted dependency
+          evidence: go.mod has zero MCP-related dependencies. Building from scratch or vetting github.com/mark3labs/mcp-go is now a slice 3 precondition
+        - id: A5
+          status: verified
+          text: internal/ingest/gemini_discover.go is a usable reference implementation
+          evidence: File exists, scans ~/.gemini/tmp/<slug>/chats/, structurally similar pattern is reusable for codex/copilot
+        - id: A6
+          status: verified
+          text: .codex/config.toml exists at /workspaces/htmlgraph/.codex/config.toml
+          evidence: Confirmed by feasibility critic; current contents are sandbox_mode=danger-full-access, approval_policy=on-request. Slice 6 must add [features] codex_hooks=true without disturbing existing keys
+        - id: A7
+          status: plausible
+          text: Existing skills (agent-context, diagnose, plan, deploy, code-quality-skill) are portable to Codex with light editing
+          evidence: All five directories confirmed to exist. Slice 7 file path corrected from code-quality to code-quality-skill
+        - id: A8
+          status: verified
+          text: htmlgraph agent-init command exists and outputs safety rules
+          evidence: cmd/htmlgraph/agent_init.go lines 13-35 confirmed
+        - id: A9
+          status: verified
+          text: cmd/htmlgraph/plugin.go:20 hardcodes claude CLI
+          evidence: exec.LookPath("claude"), exec.Command(claudePath, "plugin", ...) confirmed at lines 20-47
+        - id: A10
+          status: questionable
+          text: Sessions table needs a new runtime column
+          evidence: Table already has agent_assigned column at schema.go:165 which may carry the same signal. Slice 1 done_when now requires evaluating whether to add a new column or normalize the existing one
+    critics:
+        - title: DESIGN CRITIC
+          sections:
+            - heading: Slice Assessment
+              items:
+                - badge: S1
+                  kind: warn
+                  text: Host adapter migration touches hooks, sessions table, selfBinary AND requires all existing tests to keep passing — effort:M and risk:Med may be optimistic
+                - badge: S3
+                  kind: danger
+                  text: MCP server marked low-risk but is greenfield in unfamiliar territory (JSON-RPC framing, stdio handling, schema versioning). Risk should be High
+                - badge: S6→S7
+                  kind: warn
+                  text: Slice 6 (codex hooks) → slice 7 (codex plugin) coupling not explicit in deps but plugin can't be smoke-tested without working hooks
+            - heading: Gaps & Missing Considerations
+              items:
+                - badge: Gap
+                  kind: warn
+                  text: 'Cross-runtime session continuity: a user starting work in Claude, resuming in Codex, finishing in Copilot — three sessions or one work item? Now declared OUT OF SCOPE for v1 in design.constraints'
+                - badge: Gap
+                  kind: warn
+                  text: No telemetry/error reporting story for hook or MCP failures — silent failures degrade trust
+                - badge: Gap
+                  kind: info
+                  text: CLI binary version drift between htmlgraph and bundled plugin .mcp.json — no version locking story
+            - heading: Alternative Approaches
+              items:
+                - badge: Alt
+                  kind: info
+                  text: Define a HostRuntime interface (Normalize, Discover, Parse) and make each runtime a single impl — pytest hookspec pattern. Cleaner than free functions in subpackages
+                - badge: Alt
+                  kind: info
+                  text: 'Single universal plugin with runtime-flagged skills instead of three separate bundles. Rejected: violates ''each runtime gets its idiomatic surface'' goal'
+        - title: FEASIBILITY CRITIC
+          sections:
+            - heading: What Exists to Leverage
+              items:
+                - badge: Reuse
+                  kind: success
+                  text: internal/db/schema.go:41-47 inline ALTER TABLE pattern — slice 1 must follow this, NOT a new migrations/ directory
+                - badge: Reuse
+                  kind: success
+                  text: internal/agent/detect.go:46 already has HTMLGRAPH_AGENT_ID override scaffolding — slice 2 extends, doesn't rewrite
+                - badge: Reuse
+                  kind: success
+                  text: sessions.agent_assigned column at schema.go:165 may already carry runtime signal — evaluate normalization vs new column
+                - badge: Reuse
+                  kind: success
+                  text: internal/ingest/gemini_discover.go + gemini_parser.go are the structural template for slices 4 and 5
+            - heading: What the Plan Gets Wrong
+              items:
+                - badge: Fix
+                  kind: danger
+                  text: Slice 1 file list referenced internal/db/migrations/NNNN_sessions_runtime.sql — that directory does not exist. Corrected to internal/db/schema.go
+                - badge: Fix
+                  kind: danger
+                  text: Slice 7 file path code-quality/SKILL.md — actual directory is code-quality-skill/SKILL.md. Corrected
+                - badge: Fix
+                  kind: warn
+                  text: Slice 2 risk Low → Med because env var verification is unscheduled work that may fail
+                - badge: Fix
+                  kind: warn
+                  text: Slice 3 risk Med → High because zero MCP scaffolding exists in Go and library decision is itself risky
+            - heading: Prior Art & Examples
+              items:
+                - badge: Lib
+                  kind: info
+                  text: github.com/mark3labs/mcp-go is the most cited Go MCP library — vet for license, maintenance, security before adoption (slice 3 precondition)
+                - badge: Pattern
+                  kind: info
+                  text: LSP and gRPC version their message envelopes, not individual RPCs — apply same pattern to MCP tool registry (slice 3 schema_version precondition)
+    risks:
+        - risk: Env var hypotheses (CODEX_SESSION_ID etc) are unverified — runtime detection may silently return human
+          severity: High
+          mitigation: 'Slice 2 PRECONDITION: capture live sessions and inspect printenv before writing detect.go. Fall back to parent-process-name heuristic if env vars are missing. Add htmlgraph doctor command for debugging'
+        - risk: MCP Go library decision blocks slice 3 — no existing dependency, building from scratch is significant work
+          severity: High
+          mitigation: 'Slice 3 PRECONDITION: ADR-style decision recorded before implementation. Vet mark3labs/mcp-go OR scope from-scratch effort honestly (likely 500-800 LOC of framing/handlers)'
+        - risk: Schema migration pattern mismatch — plan referenced non-existent migrations/ dir
+          severity: Medium
+          mitigation: Fixed in slice 1 file list — uses inline ALTER TABLE in internal/db/schema.go per existing pattern
+        - risk: Real session fixtures not scheduled as their own task — slices 4 and 5 implicitly depend on capturing them
+          severity: Medium
+          mitigation: Both slices now have explicit PRECONDITION done_when items requiring fixture capture and CONTRIBUTING.md procedure
+        - risk: MCP versioning will rot if tool signatures change without negotiation
+          severity: Medium
+          mitigation: 'Slice 3 PRECONDITION: schema_version handshake; tool signatures immutable within major version'
+        - risk: Codex hook matchers are doc-fragile — silent miss if Codex adds new SessionStart variants
+          severity: Low
+          mitigation: Slice 6 test enumerates known matchers; fail loudly on drift. Link to Codex hook docs in code comments
+        - risk: .codex/config.toml [features] codex_hooks=true may interact with danger-full-access in unexpected ways
+          severity: Low
+          mitigation: Slice 6 manual smoke test with both flags set before commit
+        - risk: Copilot session-state format may include binary assets or VS Code-specific layouts — parser scope explosion
+          severity: Medium
+          mitigation: Slice 5 PRECONDITION captures real session and documents format BEFORE parser is written
+    synthesis: |
+        The plan is architecturally sound — single foundation, per-runtime packaging on top, honest support matrix. Critique surfaced four classes of issues, all addressed in the revised YAML:
+        1. UNVERIFIED ASSUMPTIONS — env var names, MCP library availability, session storage paths.
+           Each is now an explicit PRECONDITION done_when in the affected slice rather than a silent assumption.
+
+        2. CODEBASE PATTERN MISMATCH — migrations/ directory doesn't exist; slice 1 file list and column-vs-reuse
+           decision corrected. Skill name corrected.
+
+        3. UNDER-RATED RISKS — slice 2 Low→Med (env var verification can fail), slice 3 Med→High (greenfield MCP).
+        4. DEFERRED SCOPE MADE EXPLICIT — cross-runtime session continuity declared OUT OF SCOPE for v1 in
+           design.constraints rather than left ambiguous.
+
+        No slices were dropped or renumbered. No new slices added (fixture capture is folded into the affected slice's preconditions rather than spawning a separate slice). The Q2/slice 3 contradiction is resolved by adding a NOTE to slice 3 stating that file-list assumes the recommended option and must be revised if Q2 is overridden.
+        Three remaining gaps were deliberately NOT addressed in this revision because they are scope expansions rather than corrections: cross-runtime session linking (now explicitly deferred), telemetry/error reporting for hook/MCP failures (worth a follow-up plan), and CLI/plugin version drift (worth a follow-up). These should be tracked as separate features after v1 ships.
