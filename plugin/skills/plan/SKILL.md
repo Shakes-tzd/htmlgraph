@@ -35,6 +35,28 @@ Plans without attribution produce untracked work.
 
 ---
 
+## Step 0.5: Check for Already-Finalized Plan
+
+If the user's request mentions a specific plan ID (e.g. "dispatch plan-a1b2c3d4" or "run step 7 for plan-xxxx"), check its status first:
+
+```bash
+htmlgraph plan show <plan-id> | grep -i status
+```
+
+**If status is `finalized`:** skip Steps 1-6 entirely and go straight to Step 7. The approvals and question answers are already persisted in `plan_feedback`. Invoke:
+
+```bash
+htmlgraph plan finalize-yaml <plan-id>
+```
+
+This is idempotent — it reads approvals and answers from SQLite, creates any missing features, embeds design decisions, and prints the dispatch summary. Then hand off to `/htmlgraph:execute <plan-id>` or the `htmlgraph yolo` command from the output.
+
+**Do NOT re-run research, critique, or human review on a finalized plan.** If the plan needs revision, ask the user explicitly before reopening.
+
+If the plan status is `draft` or `review`, proceed to Step 1.
+
+---
+
 ## Step 1b: Check for Existing Plan from Plan Mode
 
 If the user just exited Claude Code's plan mode, the `ExitPlanMode` hook may have already created a skeleton YAML:
@@ -443,47 +465,102 @@ sqlite3 .htmlgraph/htmlgraph.db \
 
 ## Step 6: Read Finalized Decisions
 
-After the human clicks Finalize in the dashboard, the YAML status updates to `finalized`. Read the results:
+After the human clicks Finalize in the dashboard, read all feedback:
 
-```python
-import yaml, sqlite3
+```bash
+# Read all feedback — approvals, answers, amendments, chat
+htmlgraph plan feedback <plan-id>
+```
 
-# Read plan content
-plan = yaml.safe_load(open(f".htmlgraph/plans/{plan_id}.yaml").read())
-assert plan["meta"]["status"] == "finalized"
+This outputs JSON with the complete review context:
 
-# Read approvals from SQLite
-conn = sqlite3.connect(".htmlgraph/htmlgraph.db")
-approvals = {row[0]: row[1] for row in conn.execute(
-    "SELECT section, value FROM plan_feedback WHERE plan_id=? AND action='approve'",
-    (plan_id,)
-).fetchall()}
-
-# Read question answers from SQLite
-answers = {row[0]: row[1] for row in conn.execute(
-    "SELECT question_id, value FROM plan_feedback WHERE plan_id=? AND action='answer'",
-    (plan_id,)
-).fetchall()}
+```json
+{
+  "plan_id": "plan-abc123",
+  "approvals": {"slice-1": {"approved": true}, "slice-2": {"approved": false, "comment": "too risky"}},
+  "answers": {"q-caching": "lazy", "q-error-handling": "metric-counter"},
+  "amendments": [{"field": "what", "slice": 1, "op": "set", "value": "updated description"}],
+  "chat_messages": [{"role": "user", "content": "...", "timestamp": "..."}]
+}
 ```
 
 Parse the results:
-- If any slice has `value='False'`: summarize what was rejected. Ask the human — revise or proceed without?
+- If any slice has `approved: false`: summarize what was rejected. Ask the human — revise or proceed without?
 - If revising: update the YAML, loop to Step 5.
 - If proceeding: note excluded slices.
 
 ---
 
-## Step 7: Create Work Items and Dispatch
+## Step 7: Revise Plan, Create Features, and Dispatch
 
-For each approved slice, create a feature and wire dependencies:
+Finalization is an **agentic process**. You synthesize all review feedback into a revised plan, then create properly structured features.
+
+### 7a. Revise the Plan
+
+Read the plan YAML and the feedback from Step 6. Produce a **revised version** of the plan that incorporates:
+
+- **Amendments**: Apply accepted amendment changes to slice descriptions, titles, deps
+- **Chat discussion**: If the chat contains decisions, clarifications, or scope changes, reflect them in the affected slices
+- **Design decisions**: Bake answered questions into relevant slice descriptions under "Accepted Design Decisions"
+- **Rejected slices**: Remove or mark as excluded
+- **Critique insights**: If critique raised risks or assumptions that were discussed, note mitigations in affected slices
+
+Update the YAML file directly — `planyaml.Save()` auto-increments the version. Commit:
 
 ```bash
-# Create features for approved slices
-htmlgraph feature create "<slice title>" --track <track-id> --description "<what + why>"
-
-# Wire dependencies
-htmlgraph link add <feat-blocked> <feat-blocker> --rel blocked_by
+# The revised plan is saved as a new version (e.g., v3 → v4)
+# Git history preserves the full trail: draft → critique → revised → finalized
 ```
+
+### 7b. Create Features
+
+Create features from the **revised plan**. Choose the approach based on how much enrichment was needed:
+
+**Batch path** — when the revised plan already has rich descriptions (minimal chat/amendment context):
+
+```bash
+htmlgraph batch apply --file spec.yaml
+```
+
+Where `spec.yaml` contains:
+
+```yaml
+track:
+  title: "Track title"
+features:
+  - title: "Slice 1 title"
+    priority: medium
+  - title: "Slice 2 title"
+    priority: high
+    blocked_by: ["Slice 1 title"]
+```
+
+**Individual path** — when you need to write enriched descriptions per feature:
+
+```bash
+htmlgraph feature create "<slice title>" --track <track-id> --description "<enriched description>"
+```
+
+The enriched description should synthesize:
+- The slice's `what` and `why` from the revised plan
+- Relevant design decisions (answered questions)
+- Context from chat discussion that affects this specific slice
+- Any amendments that modified this slice
+
+### 7c. Wire Structure
+
+After features are created, wire them to the plan:
+
+```bash
+htmlgraph plan wire <plan-id> --track <track-id>
+```
+
+This handles all structural wiring:
+- `planned_in` edges (feature → plan)
+- `part_of` / `contains` edges (feature ↔ track)
+- `blocked_by` edges (from slice dependencies)
+- `implemented_in` edge (plan → track)
+- Sets plan status to `finalized`
 
 ### Announce Finalized Plan
 
@@ -502,8 +579,6 @@ Design decisions:
   Q2: Error handling: metric-counter (overrode recommendation: structured-log)
   Q3: SessionStart scope: git-only (recommended, accepted)
 ```
-
-**Embed each question answer into every affected slice's task description** under "Accepted Design Decisions". If the human chose "metric-counter" for error handling, the dispatch description must explicitly say that.
 
 Then hand off to `/htmlgraph:execute`.
 

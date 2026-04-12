@@ -2,7 +2,7 @@
 description: Set up Oh My Posh status line with HtmlGraph active work item display
 ---
 
-# /htmlgraph:setup-omp
+# /htmlgraph:setup-statusline
 
 Configure the Claude Code status line to use Oh My Posh with HtmlGraph work item display.
 

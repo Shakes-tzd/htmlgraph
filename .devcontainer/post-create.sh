@@ -3,7 +3,13 @@
 set -euo pipefail
 
 # Fix ownership of named-volume mount points (Docker creates these as root:root)
-sudo chown -R vscode:vscode /workspaces/htmlgraph/.htmlgraph /workspaces/htmlgraph/.claude 2>/dev/null || true
+sudo chown -R vscode:vscode \
+    /workspaces/htmlgraph/.htmlgraph \
+    /workspaces/htmlgraph/.claude \
+    /home/vscode/.codex \
+    /home/vscode/.gemini \
+    /home/vscode/.copilot \
+    2>/dev/null || true
 
 cd "$(dirname "$0")/.."
 
@@ -13,7 +19,8 @@ echo "==> Installing AI agent CLIs..."
 npm install -g --no-fund --no-audit \
     @anthropic-ai/claude-code \
     @google/gemini-cli \
-    @openai/codex
+    @openai/codex \
+    @github/copilot
 
 echo "==> Building htmlgraph from source..."
 ./plugin/build.sh
@@ -29,6 +36,11 @@ mkdir -p ~/.claude/plugins/data
 echo "==> Installing uv..."
 if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+echo "==> Installing Oh My Posh..."
+if ! command -v oh-my-posh >/dev/null 2>&1; then
+  curl -s https://ohmyposh.dev/install.sh | bash -s -- -d "$HOME/.local/bin"
 fi
 
 echo "==> Installing oh-my-zsh..."
@@ -63,7 +75,9 @@ npm --version
 claude --version || true
 codex --version || true
 gemini --version || true
+copilot --version || true
 htmlgraph --version || true
+oh-my-posh --version || true
 
 cat <<'EOF'
 
@@ -77,6 +91,7 @@ Next steps:
     claude           # OAuth browser login (or API key)
     codex
     gemini
+    copilot
 - Launch Claude Code in dev mode so it loads the plugin from source:
     htmlgraph claude --dev
 - Start the dashboard:
@@ -89,6 +104,7 @@ Persistent volumes mounted:
   /home/vscode/.claude         — Claude Code credentials
   /home/vscode/.codex          — Codex credentials
   /home/vscode/.gemini         — Gemini credentials
+  /home/vscode/.copilot        — GitHub Copilot CLI credentials
   /home/vscode/.local          — htmlgraph binary + version metadata
   <workspace>/.htmlgraph       — devcontainer-only work item state
                                  (isolated from your host .htmlgraph/)

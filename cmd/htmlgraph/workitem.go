@@ -420,6 +420,11 @@ func printNodeDetail(n *models.Node) {
 			fmt.Printf("  %s\n", line)
 		}
 	}
+
+	// Hint for finalized plans: surface the idempotent dispatch command.
+	if n.Type == "plan" && string(n.Status) == "finalized" {
+		fmt.Printf("\nNext: htmlgraph plan finalize-yaml %s   (idempotent — creates features, embeds decisions, prints dispatch summary)\n", n.ID)
+	}
 }
 
 // kindFromPrefix determines the work item kind from an ID prefix.

@@ -26,7 +26,7 @@ Codex can support a large part of HtmlGraph's Claude plugin, but not as a straig
 
 ## Best Improvements for HtmlGraph Interoperability
 
-1. Fix the stale Codex surface first. `CODEX.md` references `packages/codex-skill` and `docs/codex_headless.md`, but those paths do not exist in this checkout.
+1. Keep the Codex surface current. Repo-local settings now live in `.codex/config.toml`, and `CODEX.md` has been trimmed to match the files that actually exist in this checkout.
 2. Create a real Codex plugin, separate from the Claude plugin, under something like `plugins/htmlgraph-codex/` with `.codex-plugin/plugin.json`, `skills/`, and optionally `.mcp.json`.
 3. Split plugin logic into two layers:
    - host-neutral core: work-item lifecycle, attribution policy, quality gates, graph operations

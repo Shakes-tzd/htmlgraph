@@ -435,12 +435,11 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 		return fmt.Errorf("could not find plugin/ directory relative to project root. Run from the project directory containing .htmlgraph/ and plugin/")
 	}
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
-		return fmt.Errorf("plugin.json not found at %s. The binary may not be installed at the expected location (plugin/hooks/bin/htmlgraph)",
+		return fmt.Errorf("plugin.json not found at %s",
 			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	}
-	if _, err := os.Stat(filepath.Join(pluginDir, "hooks", "bin", "htmlgraph")); os.IsNotExist(err) {
-		return fmt.Errorf("Go hooks binary not found at %s\nBuild with: plugin/build.sh",
-			filepath.Join(pluginDir, "hooks", "bin", "htmlgraph"))
+	if _, err := exec.LookPath("htmlgraph"); err != nil {
+		return fmt.Errorf("htmlgraph binary not found on PATH\nBuild with: htmlgraph build (or plugin/build.sh)")
 	}
 
 	projectRoot := ""
@@ -489,21 +488,6 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, extraArgs []strin
 				}
 				_ = cleanup // only used on error; worktree persists for the session
 				workDir = worktreePath
-			}
-		}
-	}
-
-	// Ensure worktree has the latest plugin binary.
-	if workDir != projectRoot {
-		srcBin := filepath.Join(projectRoot, "plugin", "hooks", "bin", "htmlgraph")
-		dstBin := filepath.Join(workDir, "plugin", "hooks", "bin", "htmlgraph")
-		if srcInfo, err := os.Stat(srcBin); err == nil {
-			if dstInfo, err := os.Stat(dstBin); err != nil || dstInfo.ModTime().Before(srcInfo.ModTime()) {
-				// Copy only if source is newer or dest doesn't exist.
-				if data, err := os.ReadFile(srcBin); err == nil {
-					os.MkdirAll(filepath.Dir(dstBin), 0o755)       //nolint:errcheck
-					os.WriteFile(dstBin, data, 0o755)               //nolint:errcheck
-				}
 			}
 		}
 	}

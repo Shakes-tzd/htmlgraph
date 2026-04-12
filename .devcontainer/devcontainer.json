@@ -19,6 +19,7 @@
     "source=htmlgraph-claude-home,target=/home/vscode/.claude,type=volume",
     "source=htmlgraph-codex-home,target=/home/vscode/.codex,type=volume",
     "source=htmlgraph-gemini-home,target=/home/vscode/.gemini,type=volume",
+    "source=htmlgraph-copilot-home,target=/home/vscode/.copilot,type=volume",
     "source=htmlgraph-local-bin,target=/home/vscode/.local,type=volume"
   ],
   "forwardPorts": [

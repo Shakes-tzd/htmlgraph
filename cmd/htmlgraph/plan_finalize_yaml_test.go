@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/shakestzd/htmlgraph/internal/planyaml"
@@ -97,5 +98,88 @@ func TestRemoveStr(t *testing.T) {
 	result4 := removeStr([]string{"a", "b", "a"}, "a")
 	if len(result4) != 1 || result4[0] != "b" {
 		t.Errorf("removeStr duplicates: got %v, want [b]", result4)
+	}
+}
+
+func TestBuildFeatureContent_NoQuestions(t *testing.T) {
+	content := buildFeatureContent("base what", nil, nil)
+	if content != "base what" {
+		t.Errorf("no questions: got %q, want %q", content, "base what")
+	}
+}
+
+func TestBuildFeatureContent_WithAnswers(t *testing.T) {
+	questions := []planyaml.PlanQuestion{
+		{
+			ID:          "q1",
+			Text:        "Caching strategy",
+			Recommended: "lazy",
+			Options: []planyaml.QuestionOption{
+				{Key: "lazy", Label: "Lazy loading"},
+				{Key: "eager", Label: "Eager loading"},
+			},
+		},
+		{
+			ID:          "q2",
+			Text:        "Error handling",
+			Recommended: "structured-log",
+			Options: []planyaml.QuestionOption{
+				{Key: "structured-log", Label: "Structured log"},
+				{Key: "metric-counter", Label: "Metric counter"},
+			},
+		},
+	}
+	// Human answered q2 with metric-counter; q1 falls back to recommended.
+	answers := map[string]string{"q2": "metric-counter"}
+
+	content := buildFeatureContent("do the thing", questions, answers)
+
+	if !strings.Contains(content, "## Accepted Design Decisions") {
+		t.Error("expected Accepted Design Decisions section")
+	}
+	if !strings.Contains(content, "Lazy loading") {
+		t.Errorf("expected q1 fallback label 'Lazy loading' in %q", content)
+	}
+	if !strings.Contains(content, "Metric counter") {
+		t.Errorf("expected q2 answer label 'Metric counter' in %q", content)
+	}
+	if !strings.Contains(content, "do the thing") {
+		t.Error("expected base 'what' text to be preserved")
+	}
+}
+
+func TestBuildFeatureContent_FallbackToRecommended(t *testing.T) {
+	questions := []planyaml.PlanQuestion{
+		{
+			ID:          "q1",
+			Text:        "Storage backend",
+			Recommended: "sqlite",
+			Options: []planyaml.QuestionOption{
+				{Key: "sqlite", Label: "SQLite"},
+				{Key: "postgres", Label: "PostgreSQL"},
+			},
+		},
+	}
+	// No answers provided — should fall back to recommended.
+	content := buildFeatureContent("store data", questions, map[string]string{})
+
+	if !strings.Contains(content, "SQLite") {
+		t.Errorf("expected fallback label 'SQLite' in %q", content)
+	}
+	if !strings.Contains(content, "unanswered") {
+		t.Errorf("expected 'unanswered' marker for fallback in %q", content)
+	}
+}
+
+func TestBuildFeatureContent_SkipsQuestionsWithNoAnswer(t *testing.T) {
+	// Question with no recommended and no answer should be skipped.
+	questions := []planyaml.PlanQuestion{
+		{ID: "q1", Text: "Empty question", Options: []planyaml.QuestionOption{
+			{Key: "a", Label: "Option A"},
+		}},
+	}
+	content := buildFeatureContent("base", questions, map[string]string{})
+	if strings.Contains(content, "Accepted Design Decisions") {
+		t.Error("should not emit decisions section when no question has an answer or recommended")
 	}
 }

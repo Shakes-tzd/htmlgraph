@@ -126,12 +126,11 @@ func launchClaudeDev(extraArgs []string, auto bool) error {
 	}
 	// Verify expected plugin structure.
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
-		return fmt.Errorf("plugin.json not found at %s. The binary may not be installed at the expected location (plugin/hooks/bin/htmlgraph)",
+		return fmt.Errorf("plugin.json not found at %s",
 			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	}
-	if _, err := os.Stat(filepath.Join(pluginDir, "hooks", "bin", "htmlgraph")); os.IsNotExist(err) {
-		return fmt.Errorf("Go hooks binary not found at %s\nBuild with: plugin/build.sh",
-			filepath.Join(pluginDir, "hooks", "bin", "htmlgraph"))
+	if _, err := exec.LookPath("htmlgraph"); err != nil {
+		return fmt.Errorf("htmlgraph binary not found on PATH\nBuild with: htmlgraph build (or plugin/build.sh)")
 	}
 
 	// Resolve project root so paths are anchored correctly regardless of CWD.
