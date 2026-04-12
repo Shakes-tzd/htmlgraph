@@ -47,6 +47,7 @@ ingest all projects, or --session to target a specific session.`,
 	cmd.Flags().BoolVar(&force, "force", false, "re-ingest even if already synced")
 
 	cmd.AddCommand(ingestCommitsCmd())
+	cmd.AddCommand(ingestGeminiCmd())
 
 	return cmd
 }
