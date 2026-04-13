@@ -155,7 +155,11 @@ if [[ -n "$VERSION" && "$VERSION" != "$CURRENT_VERSION" ]]; then
     if $DRY_RUN; then
         ok "[dry-run] Would update $PLUGIN_JSON"
     else
-        sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
+        else
+            sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
+        fi
         ok "Updated plugin.json"
     fi
 fi
