@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `htmlgraph upgrade` / `htmlgraph update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac)
 
+### Documented
+- Standalone `install.sh` one-liner is now documented in README and docs/index.md. The installer itself already existed but was not advertised.
+
 ### Fixed
 - `bootstrap.sh` standalone install — now resolves version via `$HTMLGRAPH_VERSION` env var or GitHub API when no `plugin.json` is present (bug-b08a2ec9)
 

@@ -160,7 +160,10 @@ htmlgraph serve    # see everything at localhost:4000
 <h2 class="hg-section__title">Install</h2>
 
 ```bash
-# Claude Code plugin (recommended)
+# Install (universal)
+curl -fsSL https://raw.githubusercontent.com/shakestzd/htmlgraph/main/install.sh | sh
+
+# Or as a Claude Code plugin
 claude plugin install htmlgraph
 
 # Or build from source

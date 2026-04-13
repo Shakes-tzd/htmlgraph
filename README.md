@@ -23,7 +23,10 @@ HTML is the source of truth; SQLite is derived. If they drift, `htmlgraph reinde
 ## Install
 
 ```bash
-# Claude Code plugin (recommended)
+# Install (universal)
+curl -fsSL https://raw.githubusercontent.com/shakestzd/htmlgraph/main/install.sh | sh
+
+# Or as a Claude Code plugin
 claude plugin install htmlgraph
 
 # Or build from source
