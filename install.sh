@@ -228,7 +228,7 @@ is_already_installed() {
 
     [ -x "${_target_bin}" ] || return 1
 
-    _installed_ver="$("${_target_bin}" --version 2>/dev/null | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' | head -1 || true)"
+    _installed_ver="$("${_target_bin}" version 2>/dev/null | grep -o '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*' | head -1 || true)"
 
     [ "${_installed_ver}" = "${VERSION}" ]
 }
@@ -316,11 +316,11 @@ main() {
     download_and_install
 
     log_info "Verifying installation..."
-    if ! "${INSTALL_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
+    if ! "${INSTALL_DIR}/${BINARY_NAME}" version >/dev/null 2>&1; then
         die "Installed binary failed to run. Check ${INSTALL_DIR}/${BINARY_NAME}."
     fi
 
-    _installed_ver="$("${INSTALL_DIR}/${BINARY_NAME}" --version 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "(unknown)")"
+    _installed_ver="$("${INSTALL_DIR}/${BINARY_NAME}" version 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "(unknown)")"
     log_info "Successfully installed htmlgraph ${_installed_ver}"
 
     check_path
