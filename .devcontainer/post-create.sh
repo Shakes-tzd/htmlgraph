@@ -76,7 +76,7 @@ claude --version || true
 codex --version || true
 gemini --version || true
 copilot --version || true
-htmlgraph --version || true
+htmlgraph version || true
 oh-my-posh --version || true
 
 cat <<'EOF'

@@ -34,7 +34,7 @@ if ! command -v htmlgraph >/dev/null 2>&1; then
     echo "htmlgraph binary is not on PATH. Run ./plugin/build.sh first." >&2
     exit 1
 fi
-htmlgraph --version
+htmlgraph version
 htmlgraph help --compact | head -20 || true
 
 section "htmlgraph serve smoke test"
