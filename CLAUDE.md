@@ -88,30 +88,6 @@ Use `/htmlgraph:orchestrator-directives-skill` for delegation patterns and model
 
 ---
 
-## Enabling Agent Teams
-
-HtmlGraph integrates with Claude Code's experimental [agent teams](https://code.claude.com/docs/en/agent-teams) feature. When active, HtmlGraph captures teammate identity on events, attributes feature steps to individual teammates, and can optionally enforce quality gates on task completion.
-
-**Setup:**
-
-1. Set the environment variable: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
-2. Requires Claude Code **v2.1.32** or later
-3. The plugin works without this flag — hooks gracefully no-op when no team is active
-
-**Optional quality gate** — to block task completion on build/test failures, add to `.htmlgraph/config.json`:
-
-```json
-{
-  "block_task_completion_on_quality_failure": true
-}
-```
-
-> **Warning:** Enabling the quality gate can strand teammates. Blocked teammates cannot be `/resume`d. When a gate blocks, stderr includes a recovery command: `htmlgraph feature complete <feature-id>`.
-
-See `/htmlgraph:orchestrator-directives-skill` for decision criteria on when to use teams vs subagents.
-
----
-
 ## Dogfooding
 
 This project uses HtmlGraph to develop itself. `.htmlgraph/` contains real work items — not demos.
